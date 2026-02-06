@@ -1,0 +1,44 @@
+[Unit]
+Description=Tempora Distributed Task Scheduler
+Documentation=https://github.com/ewolters/tempora
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=eric
+Group=eric
+WorkingDirectory=/home/eric/kjerne/services/svend/web
+Environment=DJANGO_SETTINGS_MODULE=svend.settings
+Environment=TEMPORA_NODE_ID=tempora-1
+Environment=TEMPORA_HOST=0.0.0.0
+Environment=TEMPORA_PORT=7000
+Environment=TEMPORA_WORKERS=4
+
+# For single-node development
+ExecStart=/usr/bin/python3 manage.py tempora_server --single-node
+
+# For production cluster (uncomment and configure peers)
+# ExecStart=/usr/bin/python3 manage.py tempora_server \
+#     --node-id=tempora-1 \
+#     --port=7000 \
+#     --peers=tempora-2:10.0.0.2:7000,tempora-3:10.0.0.3:7000
+
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tempora
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/eric/kjerne
+
+[Install]
+WantedBy=multi-user.target

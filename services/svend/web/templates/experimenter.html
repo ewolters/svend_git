@@ -1,0 +1,2729 @@
+{% extends "base_app.html" %}
+{% block title %}DOE Workbench - SVEND{% endblock %}
+
+{% block content %}
+<div class="doe-page">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1>DOE Workbench</h1>
+            <p class="subtitle">Design of Experiments & Response Surface Analysis</p>
+        </div>
+        <div class="header-controls">
+            <select id="project-selector" onchange="onProjectChange(this.value)">
+                <option value="">No Project Linked</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="toggleChatModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-svg">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                DOE Assistant
+            </button>
+        </div>
+    </div>
+
+    <!-- Component Navigation -->
+    <div class="component-nav">
+        <button class="component-btn active" onclick="showComponent('design')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
+                <path d="M2 20h20M5 20V10l7-7 7 7v10M9 20v-6h6v6"/>
+            </svg>
+            <span class="component-label">Design</span>
+            <span class="component-desc">Create Experiments</span>
+        </button>
+        <button class="component-btn" onclick="showComponent('analysis')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            <span class="component-label">Analysis</span>
+            <span class="component-desc">ANOVA & Effects</span>
+        </button>
+        <button class="component-btn" onclick="showComponent('optimize')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="12" r="6"/>
+                <circle cx="12" cy="12" r="2"/>
+            </svg>
+            <span class="component-label">Optimize</span>
+            <span class="component-desc">Response Surface</span>
+        </button>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- DESIGN COMPONENT -->
+    <!-- ================================================================== -->
+    <div id="design-component" class="component-content active">
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showSubTab('design', 'create')">Create Design</button>
+            <button class="sub-tab" onclick="showSubTab('design', 'power')">Power Analysis</button>
+        </div>
+
+        <!-- Create Design -->
+        <div id="design-create" class="sub-content active">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Create Experimental Design</h3>
+
+                    <!-- Design Type Selection -->
+                    <div class="form-group">
+                        <label>Design Type</label>
+                        <div class="design-categories">
+                            <button class="cat-btn active" onclick="filterDesigns('all')">All</button>
+                            <button class="cat-btn" onclick="filterDesigns('factorial')">Factorial</button>
+                            <button class="cat-btn" onclick="filterDesigns('screening')">Screening</button>
+                            <button class="cat-btn" onclick="filterDesigns('rsm')">RSM</button>
+                            <button class="cat-btn" onclick="filterDesigns('robust')">Robust</button>
+                        </div>
+                        <div class="design-type-grid" id="design-type-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Factors -->
+                    <div class="form-group">
+                        <label>Factors</label>
+                        <div id="factors-container">
+                            <!-- Dynamic factor rows -->
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="addFactor()">+ Add Factor</button>
+                    </div>
+
+                    <!-- Options -->
+                    <div class="form-group">
+                        <label>Options</label>
+                        <div class="options-grid">
+                            <div class="form-group-inline">
+                                <label>Replicates</label>
+                                <input type="number" id="replicates" value="1" min="1" max="10">
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Center Points</label>
+                                <input type="number" id="center-points" value="0" min="0" max="10">
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Resolution (Fractional)</label>
+                                <select id="resolution">
+                                    <option value="3">III (Main effects only)</option>
+                                    <option value="4" selected>IV (Main + some 2FI)</option>
+                                    <option value="5">V (Main + 2FI)</option>
+                                </select>
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Random Seed</label>
+                                <input type="number" id="seed" placeholder="Optional">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="generateDesign()">Generate Design</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Design Output</h3>
+                    <div id="design-output-empty" class="empty-text">
+                        <p>Configure factors and generate design to see the experiment matrix.</p>
+                    </div>
+                    <div id="design-output" style="display: none;">
+                        <div class="output-header">
+                            <h4 id="design-name">Design Matrix</h4>
+                            <div class="output-actions">
+                                <button class="btn btn-sm" onclick="downloadDesign('csv')">CSV</button>
+                                <button class="btn btn-sm" onclick="downloadDesign('xlsx')">Excel</button>
+                            </div>
+                        </div>
+                        <div id="design-summary" class="summary-box"></div>
+                        <div id="design-matrix-container" class="table-container"></div>
+                        <div id="alias-structure" class="alias-box" style="display: none;"></div>
+                        <button class="btn btn-primary btn-sm" style="margin-top: 1rem;" onclick="showComponent('analysis'); showSubTab('analysis', 'results');">Enter Results</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Power Analysis -->
+        <div id="design-power" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Statistical Power Analysis</h3>
+
+                    <div class="form-group">
+                        <label>Test Type</label>
+                        <select id="test-type" onchange="updatePowerHelp()">
+                            <option value="ttest_ind">Independent t-test (2 groups)</option>
+                            <option value="ttest_paired">Paired t-test</option>
+                            <option value="anova">ANOVA (3+ groups)</option>
+                            <option value="correlation">Correlation</option>
+                            <option value="proportion">Two Proportions</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="groups-container">
+                        <label>Number of Groups</label>
+                        <input type="number" id="num-groups" value="2" min="2" max="10">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Effect Size</label>
+                        <div class="effect-size-control">
+                            <input type="range" id="effect-size" min="0.1" max="1.5" step="0.05" value="0.5"
+                                   oninput="updateEffectSize()">
+                            <div class="effect-display">
+                                <span class="effect-value" id="effect-value">0.50</span>
+                                <span class="effect-label" id="effect-label">Medium</span>
+                            </div>
+                        </div>
+                        <div class="effect-scale">
+                            <span>0.2 Small</span>
+                            <span>0.5 Medium</span>
+                            <span>0.8 Large</span>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Significance (alpha)</label>
+                            <select id="alpha">
+                                <option value="0.01">0.01</option>
+                                <option value="0.05" selected>0.05</option>
+                                <option value="0.10">0.10</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Power (1-beta)</label>
+                            <select id="power-level">
+                                <option value="0.70">70%</option>
+                                <option value="0.80" selected>80%</option>
+                                <option value="0.90">90%</option>
+                                <option value="0.95">95%</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="runPowerAnalysis()">Calculate Sample Size</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Power Results</h3>
+                    <div id="power-output-empty" class="empty-text">
+                        <p>Configure parameters and calculate to see required sample size.</p>
+                    </div>
+                    <div id="power-output" style="display: none;">
+                        <div class="power-result">
+                            <div class="big-number" id="sample-size-result">--</div>
+                            <div class="big-label">Total Sample Size</div>
+                            <div id="per-group-result"></div>
+                        </div>
+                        <div id="power-interpretation" class="interpretation-box"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- ANALYSIS COMPONENT -->
+    <!-- ================================================================== -->
+    <div id="analysis-component" class="component-content">
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showSubTab('analysis', 'results')">Enter Results</button>
+            <button class="sub-tab" onclick="showSubTab('analysis', 'anova')">ANOVA</button>
+            <button class="sub-tab" onclick="showSubTab('analysis', 'effects')">Effects Plots</button>
+            <button class="sub-tab" onclick="showSubTab('analysis', 'residuals')">Residuals</button>
+        </div>
+
+        <!-- Enter Results -->
+        <div id="analysis-results" class="sub-content active">
+            <div class="panel">
+                <div id="no-design-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <path d="M2 20h20M5 20V10l7-7 7 7v10M9 20v-6h6v6"/>
+                    </svg>
+                    <p>Generate a design first to enter results.</p>
+                    <button class="btn btn-primary" onclick="showComponent('design')">Create Design</button>
+                </div>
+                <div id="results-entry" style="display: none;">
+                    <h3>Enter Experimental Results</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Response Variable Name</label>
+                            <input type="text" id="response-name" value="Response" placeholder="e.g., Yield, Strength, Time">
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary btn-sm" onclick="importResults()">Import CSV</button>
+                        </div>
+                    </div>
+                    <div id="results-table-container" class="table-container"></div>
+                    <div style="margin-top: 1rem;">
+                        <button class="btn btn-primary" onclick="analyzeResults()">Analyze Results</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ANOVA -->
+        <div id="analysis-anova" class="sub-content">
+            <div class="panel">
+                <div id="no-analysis-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    <p>Enter and analyze results first.</p>
+                    <button class="btn btn-primary" onclick="showSubTab('analysis', 'results')">Enter Results</button>
+                </div>
+                <div id="anova-content" style="display: none;">
+                    <h3>Analysis of Variance</h3>
+
+                    <!-- Model Summary -->
+                    <div class="model-summary">
+                        <div class="stat-card">
+                            <div class="stat-value" id="r-squared">--</div>
+                            <div class="stat-label">R-squared</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="r-squared-adj">--</div>
+                            <div class="stat-label">R-squared (adj)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="model-s">--</div>
+                            <div class="stat-label">S</div>
+                        </div>
+                    </div>
+
+                    <!-- ANOVA Table -->
+                    <div class="section-title">ANOVA Table</div>
+                    <div id="anova-table-container" class="table-container"></div>
+
+                    <!-- Coefficients Table -->
+                    <div class="section-title">Coded Coefficients</div>
+                    <div id="coefficients-table-container" class="table-container"></div>
+
+                    <!-- Model Equation -->
+                    <div class="section-title">Model Equation</div>
+                    <div id="model-equation" class="equation-box"></div>
+
+                    <!-- Interpretation -->
+                    <div class="section-title">Interpretation</div>
+                    <div id="interpretation-box" class="interpretation-box"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Effects Plots -->
+        <div id="analysis-effects" class="sub-content">
+            <div class="panel">
+                <div id="no-effects-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    <p>Analyze results first to see effects plots.</p>
+                </div>
+                <div id="effects-content" style="display: none;">
+                    <h3>Effects Plots</h3>
+                    <div class="plot-tabs">
+                        <button class="plot-tab active" onclick="showPlot('main-effects')">Main Effects</button>
+                        <button class="plot-tab" onclick="showPlot('interactions')">Interactions</button>
+                        <button class="plot-tab" onclick="showPlot('pareto')">Pareto</button>
+                    </div>
+                    <div id="main-effects-plot" class="plot-container active"></div>
+                    <div id="interactions-plot" class="plot-container"></div>
+                    <div id="pareto-plot" class="plot-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Residuals -->
+        <div id="analysis-residuals" class="sub-content">
+            <div class="panel">
+                <div id="no-residuals-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <p>Analyze results first to see residual plots.</p>
+                </div>
+                <div id="residuals-content" style="display: none;">
+                    <h3>Residual Diagnostics</h3>
+                    <div class="residual-grid">
+                        <div class="residual-card">
+                            <h4>Normal Probability Plot</h4>
+                            <div id="normal-plot" class="plot-small"></div>
+                            <div id="normality-test" class="test-result"></div>
+                        </div>
+                        <div class="residual-card">
+                            <h4>Residuals vs Fitted</h4>
+                            <div id="fitted-plot" class="plot-small"></div>
+                        </div>
+                        <div class="residual-card">
+                            <h4>Residuals vs Order</h4>
+                            <div id="order-plot" class="plot-small"></div>
+                            <div id="dw-test" class="test-result"></div>
+                        </div>
+                        <div class="residual-card">
+                            <h4>Lack of Fit</h4>
+                            <div id="lof-result" class="test-result-large"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- OPTIMIZE COMPONENT -->
+    <!-- ================================================================== -->
+    <div id="optimize-component" class="component-content">
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showSubTab('optimize', 'contour')">Contour Plot</button>
+            <button class="sub-tab" onclick="showSubTab('optimize', 'optimizer')">Response Optimizer</button>
+        </div>
+
+        <!-- Contour Plot -->
+        <div id="optimize-contour" class="sub-content active">
+            <div class="panel">
+                <div id="no-contour-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M3 15l5-5 4 4 8-8"/>
+                    </svg>
+                    <p>Analyze results from a response surface design first.</p>
+                </div>
+                <div id="contour-content" style="display: none;">
+                    <h3>Contour / Surface Plot</h3>
+                    <div class="contour-config">
+                        <div class="form-group">
+                            <label>X-Axis Factor</label>
+                            <select id="contour-x-factor"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Y-Axis Factor</label>
+                            <select id="contour-y-factor"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="contour-quadratic" checked>
+                                Include Quadratic
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" onclick="generateContourPlot()">Generate</button>
+                    </div>
+                    <div id="contour-plot-container" class="plot-large"></div>
+                    <div id="contour-optimal" class="optimal-point"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Response Optimizer -->
+        <div id="optimize-optimizer" class="sub-content">
+            <div class="panel">
+                <div id="no-optimize-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <circle cx="12" cy="12" r="10"/>
+                        <circle cx="12" cy="12" r="6"/>
+                        <circle cx="12" cy="12" r="2"/>
+                    </svg>
+                    <p>Analyze results first to use the optimizer.</p>
+                </div>
+                <div id="optimize-content" style="display: none;">
+                    <h3>Response Optimizer</h3>
+                    <div class="section-title">Response Goals</div>
+                    <div id="response-goals-container"></div>
+
+                    <div style="margin-top: 1rem;">
+                        <button class="btn btn-primary" onclick="runOptimization()">Find Optimal Settings</button>
+                    </div>
+
+                    <div id="optimization-results" style="display: none;">
+                        <div class="section-title">Optimal Settings</div>
+                        <div id="optimal-settings-table"></div>
+                        <div class="desirability-display">
+                            <div class="big-number" id="composite-desirability">--</div>
+                            <div class="big-label">Composite Desirability</div>
+                        </div>
+                        <div id="optimization-interpretation" class="interpretation-box"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chat-modal" class="chat-modal" style="display: none;">
+        <div class="chat-modal-content">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chat-icon-svg">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>DOE Assistant</span>
+                </div>
+                <div class="chat-controls">
+                    <select id="llm-model-selector" class="model-select" onchange="onModelChange(this.value)">
+                        <option value="claude">Claude</option>
+                        <option value="fallback">Built-in Expert</option>
+                    </select>
+                    <button class="btn-close" onclick="toggleChatModal()">&times;</button>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-welcome">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="welcome-icon-svg">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    <h4>DOE Guidance Assistant</h4>
+                    <p>I can help you with:</p>
+                    <ul>
+                        <li>Choosing the right experimental design</li>
+                        <li>Defining factors and levels</li>
+                        <li>Interpreting ANOVA and effects</li>
+                        <li>Optimizing your response</li>
+                    </ul>
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="askQuickQuestion('What design should I use?')">Design selection</button>
+                        <button class="quick-btn" onclick="askQuickQuestion('How do I interpret my ANOVA results?')">ANOVA help</button>
+                        <button class="quick-btn" onclick="askQuickQuestion('What are the best practices for DOE?')">Best practices</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="context-indicator" id="context-indicator">
+                    <span class="context-badge" id="context-badge">No design</span>
+                </div>
+                <div class="input-row">
+                    <textarea id="chat-input" placeholder="Ask about DOE..." rows="1"
+                              onkeydown="handleChatKeydown(event)" oninput="autoResizeInput(this)"></textarea>
+                    <button class="send-btn" onclick="sendChatMessage()" id="send-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Processing...</p>
+    </div>
+</div>
+
+<style>
+/* Page Layout */
+.doe-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem 1.5rem;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.subtitle {
+    color: var(--text-dim);
+    margin: 0.25rem 0 0 0;
+    font-size: 0.9rem;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn-icon-svg {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.35rem;
+    vertical-align: -3px;
+}
+
+/* Component Navigation */
+.component-nav {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.component-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.component-btn:hover {
+    border-color: var(--accent-primary);
+}
+
+.component-btn.active {
+    border-color: var(--accent-primary);
+    background: rgba(74, 159, 110, 0.1);
+}
+
+.component-icon {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 0.5rem;
+    stroke: var(--text-secondary);
+}
+
+.component-btn.active .component-icon {
+    stroke: var(--accent-primary);
+}
+
+.component-label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.component-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.component-content {
+    display: none;
+}
+
+.component-content.active {
+    display: block;
+}
+
+/* Sub-tabs */
+.sub-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+}
+
+.sub-tab {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    font-family: inherit;
+}
+
+.sub-tab:hover {
+    color: var(--text-primary);
+}
+
+.sub-tab.active {
+    color: var(--accent-primary);
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.sub-content {
+    display: none;
+}
+
+.sub-content.active {
+    display: block;
+}
+
+/* Layout */
+.two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.panel h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.form-group-inline {
+    display: inline-block;
+    margin-right: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.form-group-inline label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 0.25rem;
+}
+
+.form-group-inline input,
+.form-group-inline select {
+    width: auto;
+    min-width: 100px;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.options-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.btn-sm {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+.btn-primary {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+}
+
+.btn-secondary {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover);
+}
+
+/* Design Categories */
+.design-categories {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.cat-btn {
+    padding: 0.35rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.cat-btn.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}
+
+.design-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+}
+
+.design-type-card {
+    padding: 0.6rem;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.design-type-card:hover {
+    border-color: var(--accent-primary);
+}
+
+.design-type-card.selected {
+    border-color: var(--accent-primary);
+    background: var(--accent-bg);
+}
+
+.design-type-card .name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 0.15rem;
+}
+
+.design-type-card .desc {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+}
+
+.design-type-card .runs {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 0.35rem;
+}
+
+/* Factors */
+.factor-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 80px auto;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    align-items: center;
+}
+
+.factor-row input {
+    padding: 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.factor-remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0.25rem;
+}
+
+.factor-remove:hover {
+    color: var(--danger);
+}
+
+/* Output */
+.output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.output-header h4 {
+    margin: 0;
+}
+
+.output-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.summary-box {
+    background: var(--bg-secondary);
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+
+.summary-box p {
+    margin: 0.2rem 0;
+}
+
+.alias-box {
+    background: var(--bg-secondary);
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    border-left: 3px solid var(--warning);
+}
+
+.alias-box h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--warning);
+}
+
+/* Tables */
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.data-table tr:hover {
+    background: var(--bg-hover);
+}
+
+.data-table .center {
+    text-align: center;
+}
+
+.data-table .right {
+    text-align: right;
+}
+
+.data-table .significant {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.data-table .not-significant {
+    color: var(--text-dim);
+}
+
+.data-table input {
+    width: 80px;
+    padding: 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    text-align: right;
+}
+
+/* Empty State */
+.empty-text {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-dim);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-dim);
+}
+
+.empty-state p {
+    margin-bottom: 1rem;
+}
+
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    stroke: var(--text-dim);
+}
+
+/* Power Analysis */
+.effect-size-control {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.effect-size-control input[type="range"] {
+    flex: 1;
+}
+
+.effect-display {
+    text-align: right;
+    min-width: 80px;
+}
+
+.effect-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--accent-primary);
+}
+
+.effect-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.effect-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 0.35rem;
+}
+
+.power-result {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.big-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--accent-primary);
+}
+
+.big-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* Model Summary Stats */
+.model-summary {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+    min-width: 100px;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--accent-primary);
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 1.5rem 0 0.75rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Equation Box */
+.equation-box {
+    background: var(--bg-secondary);
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    overflow-x: auto;
+}
+
+/* Interpretation Box */
+.interpretation-box {
+    background: var(--bg-secondary);
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.interpretation-box p {
+    margin: 0.4rem 0;
+}
+
+/* Plot Tabs */
+.plot-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.plot-tab {
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-family: inherit;
+}
+
+.plot-tab.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}
+
+/* Plot Containers */
+.plot-container {
+    display: none;
+    min-height: 350px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+
+.plot-container.active {
+    display: block;
+}
+
+.plot-small {
+    height: 180px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.plot-large {
+    height: 350px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+/* Residual Grid */
+.residual-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.residual-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.residual-card h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.85rem;
+}
+
+.test-result {
+    font-size: 0.8rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    margin-top: 0.5rem;
+}
+
+.test-result-large {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* Contour Config */
+.contour-config {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.contour-config .form-group {
+    min-width: 150px;
+    margin-bottom: 0;
+}
+
+.optimal-point {
+    text-align: center;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    margin-top: 1rem;
+}
+
+/* Desirability Display */
+.desirability-display {
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+/* Loading */
+.loading-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--bg-tertiary);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Chat Modal */
+.chat-modal {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 380px;
+    max-height: 600px;
+    z-index: 1000;
+}
+
+.chat-modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    max-height: 600px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    border-radius: 12px 12px 0 0;
+}
+
+.chat-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.chat-icon-svg {
+    width: 18px;
+    height: 18px;
+}
+
+.chat-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.model-select {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: 0;
+}
+
+.btn-close:hover {
+    color: var(--text-primary);
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 300px;
+    max-height: 400px;
+}
+
+.chat-welcome {
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-secondary);
+}
+
+.welcome-icon-svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 0.5rem;
+    stroke: var(--accent-primary);
+}
+
+.chat-welcome h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+}
+
+.chat-welcome p {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+}
+
+.chat-welcome ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.chat-welcome ul li {
+    padding: 0.2rem 0;
+}
+
+.quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.quick-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.quick-btn:hover {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}
+
+.chat-message {
+    max-width: 90%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.chat-message.user {
+    background: var(--accent-primary);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+.chat-message.assistant {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+}
+
+.chat-message.assistant h4,
+.chat-message.assistant h5 {
+    margin: 0.5rem 0 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.chat-message.assistant h4:first-child,
+.chat-message.assistant h5:first-child {
+    margin-top: 0;
+}
+
+.chat-message.assistant ul,
+.chat-message.assistant ol {
+    margin: 0.5rem 0;
+    padding-left: 1.2rem;
+}
+
+.chat-message.assistant li {
+    margin: 0.2rem 0;
+}
+
+.chat-message.assistant code {
+    background: var(--bg-tertiary);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+}
+
+.chat-message.assistant strong {
+    color: var(--accent-primary);
+}
+
+.chat-message.typing {
+    display: flex;
+    gap: 0.3rem;
+    padding: 0.75rem 1rem;
+}
+
+.chat-message.typing span {
+    width: 8px;
+    height: 8px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    animation: typing-bounce 1.4s infinite ease-in-out;
+}
+
+.chat-message.typing span:nth-child(1) { animation-delay: -0.32s; }
+.chat-message.typing span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing-bounce {
+    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+.chat-input-area {
+    padding: 0.75rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+    border-radius: 0 0 12px 12px;
+}
+
+.context-indicator {
+    margin-bottom: 0.5rem;
+}
+
+.context-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    color: var(--text-dim);
+}
+
+.context-badge.has-design {
+    background: rgba(74, 159, 110, 0.2);
+    color: #4a9f6e;
+}
+
+.context-badge.has-analysis {
+    background: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+}
+
+.input-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.input-row textarea {
+    flex: 1;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.4;
+    font-family: inherit;
+}
+
+.input-row textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.send-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.send-btn:hover {
+    background: var(--accent-hover);
+}
+
+.send-btn:disabled {
+    background: var(--bg-tertiary);
+    color: var(--text-dim);
+    cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .component-nav { grid-template-columns: 1fr; }
+    .two-column { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .residual-grid { grid-template-columns: 1fr; }
+    .factor-row { grid-template-columns: 1fr 1fr auto auto; }
+    .chat-modal { width: calc(100% - 40px); right: 20px; }
+}
+</style>
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script>
+// State
+let currentDesign = null;
+let currentAnalysis = null;
+let designTypes = [];
+let selectedDesignType = 'full_factorial';
+let projects = [];
+let chatHistory = [];
+let chatModalOpen = false;
+let selectedModel = 'claude';
+let currentComponent = 'design';
+let currentSubTab = 'create';
+
+// Initialize
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadDesignTypes();
+    await loadProjects();
+    await loadAvailableModels();
+    addFactor();
+    addFactor();
+
+    // Check URL params
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('project');
+    if (projectId) {
+        document.getElementById('project-selector').value = projectId;
+    }
+
+    updateContextBadge();
+});
+
+// Component Navigation
+function showComponent(id) {
+    document.querySelectorAll('.component-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.component-btn').forEach(b => b.classList.remove('active'));
+
+    document.getElementById(id + '-component').classList.add('active');
+    document.querySelector(`.component-btn[onclick="showComponent('${id}')"]`).classList.add('active');
+    currentComponent = id;
+}
+
+function showSubTab(component, tab) {
+    const container = document.getElementById(component + '-component');
+    container.querySelectorAll('.sub-content').forEach(c => c.classList.remove('active'));
+    container.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+
+    document.getElementById(component + '-' + tab).classList.add('active');
+    event.target.classList.add('active');
+    currentSubTab = tab;
+}
+
+// Load design types from API
+async function loadDesignTypes() {
+    try {
+        const response = await fetch('/api/experimenter/design/types/', { credentials: 'include' });
+        const data = await response.json();
+        designTypes = data.design_types || [];
+        renderDesignTypes();
+    } catch (err) {
+        console.error('Failed to load design types:', err);
+        // Fallback
+        designTypes = [
+            { id: 'full_factorial', name: 'Full Factorial', category: 'factorial', description: 'All combinations', runs: '2^k' },
+            { id: 'fractional_factorial', name: 'Fractional Factorial', category: 'factorial', description: 'Subset of combinations', runs: '2^(k-p)' },
+            { id: 'plackett_burman', name: 'Plackett-Burman', category: 'screening', description: 'Screening design', runs: 'N runs' },
+            { id: 'ccd', name: 'Central Composite', category: 'rsm', description: 'Response surface', runs: '2^k + 2k + cp' },
+            { id: 'box_behnken', name: 'Box-Behnken', category: 'rsm', description: 'RSM without corners', runs: 'Fewer runs' },
+        ];
+        renderDesignTypes();
+    }
+}
+
+async function loadProjects() {
+    try {
+        const response = await fetch('/api/core/projects/', { credentials: 'include' });
+        const data = await response.json();
+        projects = data.projects || [];
+
+        const select = document.getElementById('project-selector');
+        select.innerHTML = '<option value="">No Project Linked</option>' +
+            projects.map(p => `<option value="${p.id}">${p.title}</option>`).join('');
+    } catch (err) {
+        console.error('Failed to load projects:', err);
+    }
+}
+
+function onProjectChange(projectId) {
+    const url = new URL(window.location);
+    if (projectId) {
+        url.searchParams.set('project', projectId);
+    } else {
+        url.searchParams.delete('project');
+    }
+    window.history.replaceState({}, '', url);
+}
+
+// Render design type cards
+function renderDesignTypes(filter = 'all') {
+    const grid = document.getElementById('design-type-grid');
+    const filtered = filter === 'all' ? designTypes : designTypes.filter(d => d.category === filter);
+
+    grid.innerHTML = filtered.map(d => `
+        <div class="design-type-card ${d.id === selectedDesignType ? 'selected' : ''}"
+             onclick="selectDesignType('${d.id}')">
+            <div class="name">${d.name}</div>
+            <div class="desc">${d.description}</div>
+            <div class="runs">${d.runs}</div>
+        </div>
+    `).join('');
+}
+
+function filterDesigns(category) {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    renderDesignTypes(category);
+}
+
+function selectDesignType(typeId) {
+    selectedDesignType = typeId;
+    renderDesignTypes(document.querySelector('.cat-btn.active')?.textContent?.toLowerCase() || 'all');
+
+    const design = designTypes.find(d => d.id === typeId);
+    document.getElementById('center-points').parentElement.style.display =
+        design?.supports_center_points ? 'inline-block' : 'none';
+    document.getElementById('resolution').parentElement.style.display =
+        typeId === 'fractional_factorial' ? 'inline-block' : 'none';
+}
+
+// Factor management
+function addFactor() {
+    const container = document.getElementById('factors-container');
+    const index = container.children.length + 1;
+
+    const row = document.createElement('div');
+    row.className = 'factor-row';
+    row.innerHTML = `
+        <input type="text" placeholder="Factor ${index}" class="factor-name">
+        <input type="text" placeholder="Levels (e.g., 100, 150 or Low, High)" class="factor-levels">
+        <input type="text" placeholder="Units" class="factor-units">
+        <button class="factor-remove" onclick="this.parentElement.remove()">&times;</button>
+    `;
+    container.appendChild(row);
+}
+
+// Generate design
+async function generateDesign() {
+    const factors = [];
+    document.querySelectorAll('.factor-row').forEach(row => {
+        const name = row.querySelector('.factor-name').value.trim();
+        const levelsStr = row.querySelector('.factor-levels').value.trim();
+        const units = row.querySelector('.factor-units').value.trim();
+
+        if (name && levelsStr) {
+            const levels = levelsStr.split(',').map(l => {
+                const trimmed = l.trim();
+                const num = parseFloat(trimmed);
+                return isNaN(num) ? trimmed : num;
+            });
+
+            factors.push({
+                name,
+                levels,
+                units,
+                categorical: levels.some(l => typeof l === 'string'),
+            });
+        }
+    });
+
+    if (factors.length === 0) {
+        alert('Please add at least one factor with levels.');
+        return;
+    }
+
+    const data = {
+        factors,
+        design_type: selectedDesignType,
+        replicates: parseInt(document.getElementById('replicates').value),
+        center_points: parseInt(document.getElementById('center-points').value),
+        resolution: parseInt(document.getElementById('resolution').value),
+        seed: document.getElementById('seed').value || undefined,
+    };
+
+    try {
+        const response = await fetch('/api/experimenter/design/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            currentDesign = result.design;
+            displayDesign(result);
+            updateResultsPanel();
+            updateContextBadge();
+        } else {
+            alert(result.error || 'Failed to generate design');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function displayDesign(result) {
+    document.getElementById('design-output-empty').style.display = 'none';
+    document.getElementById('design-output').style.display = 'block';
+
+    const design = result.design;
+    document.getElementById('design-name').textContent = design.name;
+
+    // Summary
+    document.getElementById('design-summary').innerHTML = `
+        <p><strong>Type:</strong> ${design.design_type}</p>
+        <p><strong>Total Runs:</strong> ${design.properties.num_runs}</p>
+        ${design.properties.resolution ? `<p><strong>Resolution:</strong> ${['', 'I', 'II', 'III', 'IV', 'V'][design.properties.resolution] || design.properties.resolution}</p>` : ''}
+        ${design.properties.num_center_points ? `<p><strong>Center Points:</strong> ${design.properties.num_center_points}</p>` : ''}
+    `;
+
+    // Matrix table
+    let tableHtml = '<table class="data-table"><thead><tr><th>Run</th>';
+    design.factors.forEach(f => {
+        tableHtml += `<th>${f.name}${f.units ? ` (${f.units})` : ''}</th>`;
+    });
+    tableHtml += '</tr></thead><tbody>';
+
+    design.runs.sort((a, b) => a.run_order - b.run_order).forEach(run => {
+        const cpMark = run.center_point ? ' *' : '';
+        tableHtml += `<tr><td class="center">${run.run_order}${cpMark}</td>`;
+        design.factors.forEach(f => {
+            tableHtml += `<td class="center">${run.levels[f.name]}</td>`;
+        });
+        tableHtml += '</tr>';
+    });
+    tableHtml += '</tbody></table>';
+
+    if (design.properties.num_center_points > 0) {
+        tableHtml += '<p style="font-size: 0.75rem; color: var(--text-dim);">* Center point</p>';
+    }
+
+    document.getElementById('design-matrix-container').innerHTML = tableHtml;
+
+    // Alias structure
+    if (result.alias_structure) {
+        const aliasBox = document.getElementById('alias-structure');
+        aliasBox.style.display = 'block';
+        aliasBox.innerHTML = `
+            <h4>Alias Structure (Resolution ${['', 'I', 'II', 'III', 'IV', 'V'][result.alias_structure.resolution] || result.alias_structure.resolution})</h4>
+            <p>${result.alias_structure.interpretation}</p>
+        `;
+    } else {
+        document.getElementById('alias-structure').style.display = 'none';
+    }
+
+    // Notes
+    if (design.notes?.length > 0) {
+        document.getElementById('design-summary').innerHTML +=
+            '<div style="margin-top: 0.5rem; font-size: 0.8rem;">' +
+            design.notes.map(n => `<p style="margin: 0.2rem 0;">- ${n}</p>`).join('') +
+            '</div>';
+    }
+}
+
+function updateResultsPanel() {
+    if (!currentDesign) {
+        document.getElementById('no-design-message').style.display = 'block';
+        document.getElementById('results-entry').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('no-design-message').style.display = 'none';
+    document.getElementById('results-entry').style.display = 'block';
+
+    // Build results table
+    let tableHtml = '<table class="data-table"><thead><tr><th>Run</th>';
+    currentDesign.factors.forEach(f => {
+        tableHtml += `<th>${f.name}</th>`;
+    });
+    tableHtml += '<th>Response</th></tr></thead><tbody>';
+
+    currentDesign.runs.sort((a, b) => a.run_order - b.run_order).forEach(run => {
+        tableHtml += `<tr><td class="center">${run.run_order}</td>`;
+        currentDesign.factors.forEach(f => {
+            tableHtml += `<td class="center">${run.levels[f.name]}</td>`;
+        });
+        tableHtml += `<td class="center"><input type="number" step="any" class="response-input" data-run-id="${run.run_id}"></td>`;
+        tableHtml += '</tr>';
+    });
+    tableHtml += '</tbody></table>';
+
+    document.getElementById('results-table-container').innerHTML = tableHtml;
+}
+
+// Download design
+function downloadDesign(format) {
+    if (!currentDesign) return;
+
+    let content, filename, type;
+
+    if (format === 'csv') {
+        const headers = ['Run', ...currentDesign.factors.map(f => f.name), 'Response'];
+        const rows = currentDesign.runs.map(r =>
+            [r.run_order, ...currentDesign.factors.map(f => r.levels[f.name]), ''].join(',')
+        );
+        content = [headers.join(','), ...rows].join('\n');
+        filename = 'experiment_design.csv';
+        type = 'text/csv';
+    } else {
+        const headers = ['Run', ...currentDesign.factors.map(f => f.name), 'Response'];
+        const rows = currentDesign.runs.map(r =>
+            [r.run_order, ...currentDesign.factors.map(f => r.levels[f.name]), ''].join('\t')
+        );
+        content = [headers.join('\t'), ...rows].join('\n');
+        filename = 'experiment_design.xls';
+        type = 'application/vnd.ms-excel';
+    }
+
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Power Analysis
+function updateEffectSize() {
+    const value = parseFloat(document.getElementById('effect-size').value);
+    document.getElementById('effect-value').textContent = value.toFixed(2);
+
+    let label = 'Medium';
+    if (value < 0.3) label = 'Small';
+    else if (value >= 0.8) label = 'Large';
+    document.getElementById('effect-label').textContent = label;
+}
+
+function updatePowerHelp() {
+    const testType = document.getElementById('test-type').value;
+    document.getElementById('groups-container').style.display =
+        testType === 'anova' ? 'block' : 'none';
+}
+
+async function runPowerAnalysis() {
+    const data = {
+        effect_size: parseFloat(document.getElementById('effect-size').value),
+        test_type: document.getElementById('test-type').value,
+        alpha: parseFloat(document.getElementById('alpha').value),
+        power: parseFloat(document.getElementById('power-level').value),
+        groups: parseInt(document.getElementById('num-groups').value),
+    };
+
+    try {
+        const response = await fetch('/api/experimenter/power/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            document.getElementById('power-output-empty').style.display = 'none';
+            document.getElementById('power-output').style.display = 'block';
+
+            document.getElementById('sample-size-result').textContent = result.power_analysis.total_sample_size;
+            document.getElementById('per-group-result').textContent =
+                result.power_analysis.sample_size_per_group ?
+                `(${result.power_analysis.sample_size_per_group} per group)` : '';
+
+            document.getElementById('power-interpretation').innerHTML = `
+                <p>${result.interpretation.summary}</p>
+                <p><strong>Effect Size:</strong> ${result.power_analysis.effect_size} (${result.interpretation.effect_size_meaning})</p>
+            `;
+        } else {
+            alert(result.error || 'Power analysis failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// Analyze Results
+async function analyzeResults() {
+    if (!currentDesign) {
+        alert('Generate a design first');
+        return;
+    }
+
+    const results = [];
+    document.querySelectorAll('.response-input').forEach(input => {
+        const value = parseFloat(input.value);
+        if (!isNaN(value)) {
+            results.push({
+                run_id: parseInt(input.dataset.runId),
+                response: value,
+            });
+        }
+    });
+
+    if (results.length === 0) {
+        alert('Please enter at least one response value.');
+        return;
+    }
+
+    const data = {
+        design: currentDesign,
+        results,
+        response_name: document.getElementById('response-name').value,
+        alpha: 0.05,
+        include_interactions: true,
+        fit_quadratic: ['ccd', 'box_behnken', 'definitive_screening'].includes(currentDesign.design_type?.toLowerCase()),
+        problem_id: document.getElementById('project-selector').value || undefined,
+    };
+
+    try {
+        const response = await fetch('/api/experimenter/analyze/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            currentAnalysis = result;
+            displayAnalysis(result);
+            showSubTab('analysis', 'anova');
+            updateContextBadge();
+        } else {
+            alert(result.error || 'Analysis failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function displayAnalysis(result) {
+    // Show ANOVA content
+    document.getElementById('no-analysis-message').style.display = 'none';
+    document.getElementById('anova-content').style.display = 'block';
+
+    const analysis = result.analysis;
+
+    // Model summary
+    document.getElementById('r-squared').textContent = analysis.model_summary.r_squared + '%';
+    document.getElementById('r-squared-adj').textContent = analysis.model_summary.r_squared_adj + '%';
+    document.getElementById('model-s').textContent = analysis.model_summary.s;
+
+    // ANOVA table
+    const anova = analysis.anova_table;
+    let anovaHtml = `
+        <table class="data-table">
+            <thead>
+                <tr><th>Source</th><th class="right">DF</th><th class="right">SS</th><th class="right">MS</th><th class="right">F</th><th class="right">P</th></tr>
+            </thead>
+            <tbody>
+    `;
+    for (let i = 0; i < anova.source.length; i++) {
+        anovaHtml += `
+            <tr>
+                <td>${anova.source[i]}</td>
+                <td class="right">${anova.df[i]}</td>
+                <td class="right">${anova.ss[i]}</td>
+                <td class="right">${anova.ms[i] ?? '-'}</td>
+                <td class="right">${anova.f[i] ?? '-'}</td>
+                <td class="right ${anova.p[i] < 0.05 ? 'significant' : ''}">${anova.p[i] ?? '-'}</td>
+            </tr>
+        `;
+    }
+    anovaHtml += '</tbody></table>';
+    document.getElementById('anova-table-container').innerHTML = anovaHtml;
+
+    // Coefficients table
+    let coefHtml = `
+        <table class="data-table">
+            <thead>
+                <tr><th>Term</th><th class="right">Effect</th><th class="right">Coef</th><th class="right">SE</th><th class="right">T</th><th class="right">P</th></tr>
+            </thead>
+            <tbody>
+    `;
+    analysis.coefficients.forEach(c => {
+        const sigClass = c.significant ? 'significant' : 'not-significant';
+        coefHtml += `
+            <tr>
+                <td>${c.term}</td>
+                <td class="right">${c.effect ?? '-'}</td>
+                <td class="right">${c.coefficient}</td>
+                <td class="right">${c.se_coef}</td>
+                <td class="right">${c.t_value}</td>
+                <td class="right ${sigClass}">${c.p_value}</td>
+            </tr>
+        `;
+    });
+    coefHtml += '</tbody></table>';
+    document.getElementById('coefficients-table-container').innerHTML = coefHtml;
+
+    // Model equation
+    document.getElementById('model-equation').textContent = analysis.model_equation;
+
+    // Interpretation
+    document.getElementById('interpretation-box').innerHTML =
+        result.interpretation.map(i => `<p>${i}</p>`).join('');
+
+    // Update effects plots
+    displayEffectsPlots(result.plots);
+
+    // Update residuals
+    displayResiduals(result);
+
+    // Update contour panel
+    updateContourPanel();
+
+    // Update optimizer
+    updateOptimizerPanel();
+}
+
+function displayEffectsPlots(plots) {
+    document.getElementById('no-effects-message').style.display = 'none';
+    document.getElementById('effects-content').style.display = 'block';
+
+    // Main Effects Plot
+    if (plots.main_effects?.length > 0) {
+        const traces = plots.main_effects.map(me => ({
+            x: me.levels.map(String),
+            y: me.means,
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: me.factor,
+            line: { width: 2 },
+            marker: { size: 8 },
+        }));
+
+        Plotly.newPlot('main-effects-plot', traces, {
+            title: 'Main Effects Plot',
+            xaxis: { title: 'Factor Level' },
+            yaxis: { title: 'Mean Response' },
+            showlegend: true,
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+        }, { responsive: true });
+    }
+
+    // Interaction Plots
+    if (plots.interactions?.length > 0) {
+        const interactionTraces = [];
+        plots.interactions.forEach((ip, idx) => {
+            ip.data.forEach(series => {
+                interactionTraces.push({
+                    x: series.points.map(p => String(p.x)),
+                    y: series.points.map(p => p.y),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: `${ip.factors[0]}=${series.level}`,
+                });
+            });
+        });
+
+        Plotly.newPlot('interactions-plot', interactionTraces, {
+            title: 'Interaction Plot',
+            xaxis: { title: plots.interactions[0]?.factors[1] || 'Factor 2' },
+            yaxis: { title: 'Mean Response' },
+            showlegend: true,
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+        }, { responsive: true });
+    }
+
+    // Pareto Chart
+    if (plots.pareto?.length > 0) {
+        const sorted = plots.pareto.slice().sort((a, b) => b.standardized_effect - a.standardized_effect);
+        const colors = sorted.map(p => p.significant ? '#22c55e' : '#6b7280');
+
+        Plotly.newPlot('pareto-plot', [{
+            y: sorted.map(p => p.term),
+            x: sorted.map(p => p.standardized_effect),
+            type: 'bar',
+            orientation: 'h',
+            marker: { color: colors },
+        }], {
+            title: 'Pareto Chart of Standardized Effects',
+            xaxis: { title: '|Standardized Effect|' },
+            shapes: [{
+                type: 'line',
+                x0: plots.pareto_reference,
+                x1: plots.pareto_reference,
+                y0: -0.5,
+                y1: sorted.length - 0.5,
+                line: { color: 'red', dash: 'dash', width: 2 },
+            }],
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+            margin: { l: 150 },
+        }, { responsive: true });
+    }
+}
+
+function showPlot(plotId) {
+    document.querySelectorAll('.plot-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.plot-container').forEach(p => p.classList.remove('active'));
+
+    event.target.classList.add('active');
+    document.getElementById(`${plotId}-plot`).classList.add('active');
+
+    window.dispatchEvent(new Event('resize'));
+}
+
+function displayResiduals(result) {
+    document.getElementById('no-residuals-message').style.display = 'none';
+    document.getElementById('residuals-content').style.display = 'block';
+
+    const plots = result.plots;
+    const diagnostics = result.diagnostics;
+
+    // Normal probability plot
+    if (plots.normal_probability) {
+        Plotly.newPlot('normal-plot', [{
+            x: plots.normal_probability.theoretical,
+            y: plots.normal_probability.residuals,
+            type: 'scatter',
+            mode: 'markers',
+            marker: { size: 6, color: '#3b82f6' },
+        }], {
+            xaxis: { title: 'Theoretical Quantiles' },
+            yaxis: { title: 'Residuals' },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+            margin: { t: 20 },
+        }, { responsive: true });
+
+        const ad = plots.normal_probability.anderson_darling;
+        if (ad) {
+            const status = ad.normal ? 'Normal' : 'Not Normal';
+            document.getElementById('normality-test').innerHTML =
+                `Anderson-Darling: ${ad.statistic} (critical: ${ad.critical_5pct}) - ${status}`;
+        }
+    }
+
+    // Residuals vs Fitted
+    if (plots.residual_vs_fitted) {
+        Plotly.newPlot('fitted-plot', [{
+            x: plots.residual_vs_fitted.fitted,
+            y: plots.residual_vs_fitted.residuals,
+            type: 'scatter',
+            mode: 'markers',
+            marker: { size: 6, color: '#3b82f6' },
+        }], {
+            xaxis: { title: 'Fitted Values' },
+            yaxis: { title: 'Residuals' },
+            shapes: [{ type: 'line', x0: Math.min(...plots.residual_vs_fitted.fitted),
+                      x1: Math.max(...plots.residual_vs_fitted.fitted), y0: 0, y1: 0,
+                      line: { color: 'gray', dash: 'dash' } }],
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+            margin: { t: 20 },
+        }, { responsive: true });
+    }
+
+    // Residuals vs Order
+    if (plots.residual_vs_order) {
+        Plotly.newPlot('order-plot', [{
+            x: plots.residual_vs_order.order,
+            y: plots.residual_vs_order.residuals,
+            type: 'scatter',
+            mode: 'lines+markers',
+            marker: { size: 6, color: '#3b82f6' },
+        }], {
+            xaxis: { title: 'Run Order' },
+            yaxis: { title: 'Residuals' },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+            margin: { t: 20 },
+        }, { responsive: true });
+
+        const dw = diagnostics.durbin_watson;
+        const dwStatus = dw > 1.5 && dw < 2.5 ? 'No autocorrelation' : 'Possible autocorrelation';
+        document.getElementById('dw-test').innerHTML = `Durbin-Watson: ${dw} - ${dwStatus}`;
+    }
+
+    // Lack of Fit
+    const lof = diagnostics.lack_of_fit;
+    if (lof) {
+        const status = lof.significant ? 'Significant lack of fit' : 'No significant lack of fit';
+        document.getElementById('lof-result').innerHTML = `
+            <div style="font-size: 1.1rem; font-weight: bold; color: ${lof.significant ? 'var(--warning)' : 'var(--success)'};">
+                ${status}
+            </div>
+            <div style="margin-top: 0.5rem;">
+                F = ${lof.f_value}, p = ${lof.p_value}
+            </div>
+            <div style="margin-top: 0.25rem; font-size: 0.8rem; color: var(--text-dim);">
+                ${lof.interpretation}
+            </div>
+        `;
+    } else {
+        document.getElementById('lof-result').innerHTML =
+            '<div style="color: var(--text-dim);">Requires replicates to test</div>';
+    }
+}
+
+function updateContourPanel() {
+    if (!currentDesign || !currentAnalysis) {
+        document.getElementById('no-contour-message').style.display = 'block';
+        document.getElementById('contour-content').style.display = 'none';
+        return;
+    }
+
+    if (currentDesign.factors.length < 2) {
+        document.getElementById('no-contour-message').innerHTML =
+            '<p>Contour plots require at least 2 factors.</p>';
+        document.getElementById('no-contour-message').style.display = 'block';
+        document.getElementById('contour-content').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('no-contour-message').style.display = 'none';
+    document.getElementById('contour-content').style.display = 'block';
+
+    const xSelect = document.getElementById('contour-x-factor');
+    const ySelect = document.getElementById('contour-y-factor');
+
+    const options = currentDesign.factors.map((f, i) =>
+        `<option value="${f.name}" ${i === 0 ? 'selected' : ''}>${f.name}</option>`
+    ).join('');
+
+    xSelect.innerHTML = options;
+    ySelect.innerHTML = currentDesign.factors.map((f, i) =>
+        `<option value="${f.name}" ${i === 1 ? 'selected' : ''}>${f.name}</option>`
+    ).join('');
+}
+
+async function generateContourPlot() {
+    if (!currentDesign || !currentAnalysis) return;
+
+    const xFactor = document.getElementById('contour-x-factor').value;
+    const yFactor = document.getElementById('contour-y-factor').value;
+
+    if (xFactor === yFactor) {
+        alert('Please select different factors for X and Y axes.');
+        return;
+    }
+
+    const results = [];
+    document.querySelectorAll('.response-input').forEach(input => {
+        const value = parseFloat(input.value);
+        if (!isNaN(value)) {
+            results.push({
+                run_id: parseInt(input.dataset.runId),
+                response: value,
+            });
+        }
+    });
+
+    const data = {
+        design: currentDesign,
+        results,
+        x_factor: xFactor,
+        y_factor: yFactor,
+        hold_values: {},
+        include_quadratic: document.getElementById('contour-quadratic').checked,
+    };
+
+    try {
+        const response = await fetch('/api/experimenter/contour/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            const contour = result.contour;
+
+            Plotly.newPlot('contour-plot-container', [{
+                x: contour.x,
+                y: contour.y,
+                z: contour.z,
+                type: 'contour',
+                colorscale: 'Viridis',
+                contours: {
+                    coloring: 'heatmap',
+                    showlabels: true,
+                },
+            }], {
+                xaxis: { title: contour.x_label },
+                yaxis: { title: contour.y_label },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
+            }, { responsive: true });
+
+            document.getElementById('contour-optimal').innerHTML = `
+                <strong>Optimal Point:</strong> ${contour.x_label} = ${result.optimal_point.x},
+                ${contour.y_label} = ${result.optimal_point.y}
+                (Predicted: ${result.optimal_point.z})
+            `;
+        } else {
+            alert(result.error || 'Failed to generate contour plot');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function updateOptimizerPanel() {
+    if (!currentDesign || !currentAnalysis) {
+        document.getElementById('no-optimize-message').style.display = 'block';
+        document.getElementById('optimize-content').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('no-optimize-message').style.display = 'none';
+    document.getElementById('optimize-content').style.display = 'block';
+
+    const responseName = document.getElementById('response-name').value || 'Response';
+    const opt = currentAnalysis.optimization;
+
+    document.getElementById('response-goals-container').innerHTML = `
+        <div class="form-group">
+            <h4>${responseName}</h4>
+            <div class="options-grid">
+                <div class="form-group-inline">
+                    <label>Goal</label>
+                    <select id="opt-goal">
+                        <option value="maximize">Maximize</option>
+                        <option value="minimize">Minimize</option>
+                        <option value="target">Target</option>
+                    </select>
+                </div>
+                <div class="form-group-inline">
+                    <label>Lower Bound</label>
+                    <input type="number" id="opt-lower" value="${currentAnalysis.analysis.overall.min}">
+                </div>
+                <div class="form-group-inline">
+                    <label>Target</label>
+                    <input type="number" id="opt-target" value="${currentAnalysis.analysis.overall.mean}">
+                </div>
+                <div class="form-group-inline">
+                    <label>Upper Bound</label>
+                    <input type="number" id="opt-upper" value="${currentAnalysis.analysis.overall.max}">
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (opt) {
+        displayOptimizationResults({
+            optimization: {
+                optimal_settings: opt.maximize.settings,
+                predicted_responses: { [responseName]: opt.maximize.predicted },
+                composite_desirability: 1.0,
+            },
+            interpretation: [`To maximize ${responseName}: ${Object.entries(opt.maximize.settings).map(([k,v]) => `${k}=${v}`).join(', ')}`],
+        });
+    }
+}
+
+async function runOptimization() {
+    if (!currentDesign || !currentAnalysis) return;
+
+    const responseName = document.getElementById('response-name').value || 'Response';
+
+    const results = [];
+    document.querySelectorAll('.response-input').forEach(input => {
+        const value = parseFloat(input.value);
+        if (!isNaN(value)) {
+            results.push({
+                run_id: parseInt(input.dataset.runId),
+                response: value,
+            });
+        }
+    });
+
+    const data = {
+        design: currentDesign,
+        responses: [{
+            name: responseName,
+            results,
+            goal: document.getElementById('opt-goal').value,
+            lower: parseFloat(document.getElementById('opt-lower').value),
+            target: parseFloat(document.getElementById('opt-target').value),
+            upper: parseFloat(document.getElementById('opt-upper').value),
+            weight: 1,
+        }],
+        importance: [1],
+    };
+
+    try {
+        const response = await fetch('/api/experimenter/optimize/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            displayOptimizationResults(result);
+        } else {
+            alert(result.error || 'Optimization failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function displayOptimizationResults(result) {
+    document.getElementById('optimization-results').style.display = 'block';
+
+    const opt = result.optimization;
+
+    let settingsHtml = '<table class="data-table"><thead><tr><th>Factor</th><th>Optimal Setting</th></tr></thead><tbody>';
+    for (const [factor, value] of Object.entries(opt.optimal_settings)) {
+        settingsHtml += `<tr><td>${factor}</td><td class="right">${value}</td></tr>`;
+    }
+    settingsHtml += '</tbody></table>';
+
+    for (const [name, pred] of Object.entries(opt.predicted_responses)) {
+        settingsHtml += `<p style="margin-top: 0.5rem;"><strong>Predicted ${name}:</strong> ${pred}</p>`;
+    }
+
+    document.getElementById('optimal-settings-table').innerHTML = settingsHtml;
+    document.getElementById('composite-desirability').textContent = opt.composite_desirability.toFixed(3);
+    document.getElementById('optimization-interpretation').innerHTML =
+        result.interpretation.map(i => `<p>${i}</p>`).join('');
+}
+
+function importResults() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const text = await file.text();
+        const lines = text.trim().split('\n');
+
+        if (lines.length < 2) {
+            alert('CSV must have a header row and data');
+            return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const responseIdx = headers.findIndex(h => h === 'response' || h === 'y' || h === 'result');
+        const runIdx = headers.findIndex(h => h === 'run' || h === 'run_order' || h === 'order');
+
+        if (responseIdx === -1) {
+            alert('CSV must have a "Response" column');
+            return;
+        }
+
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',');
+            const response = parseFloat(values[responseIdx]);
+            const runOrder = runIdx >= 0 ? parseInt(values[runIdx]) : i;
+
+            if (!isNaN(response)) {
+                const run = currentDesign.runs.find(r => r.run_order === runOrder);
+                if (run) {
+                    const input = document.querySelector(`.response-input[data-run-id="${run.run_id}"]`);
+                    if (input) input.value = response;
+                }
+            }
+        }
+    };
+    input.click();
+}
+
+// =============================================================================
+// DOE Guidance Chat
+// =============================================================================
+
+async function loadAvailableModels() {
+    try {
+        const response = await fetch('/api/experimenter/models/', { credentials: 'include' });
+        const data = await response.json();
+
+        const selector = document.getElementById('llm-model-selector');
+        selector.innerHTML = data.models.map(m =>
+            `<option value="${m.id}" ${m.id === data.default ? 'selected' : ''}>${m.name}</option>`
+        ).join('');
+
+        selectedModel = data.default;
+    } catch (err) {
+        console.error('Failed to load models:', err);
+    }
+}
+
+function onModelChange(modelId) {
+    selectedModel = modelId;
+}
+
+function toggleChatModal() {
+    const modal = document.getElementById('chat-modal');
+    chatModalOpen = !chatModalOpen;
+    modal.style.display = chatModalOpen ? 'block' : 'none';
+    if (chatModalOpen) {
+        document.getElementById('chat-input').focus();
+    }
+}
+
+function updateContextBadge() {
+    const badge = document.getElementById('context-badge');
+
+    if (currentAnalysis) {
+        badge.textContent = `Analysis: ${currentAnalysis.analysis?.model_summary?.r_squared || '?'}% R-squared`;
+        badge.className = 'context-badge has-analysis';
+    } else if (currentDesign) {
+        badge.textContent = `Design: ${currentDesign.name || currentDesign.design_type} (${currentDesign.runs?.length || 0} runs)`;
+        badge.className = 'context-badge has-design';
+    } else {
+        badge.textContent = 'No design';
+        badge.className = 'context-badge';
+    }
+}
+
+function getSessionContext() {
+    const context = {
+        component: currentComponent,
+        subTab: currentSubTab,
+    };
+
+    if (currentDesign) {
+        context.design = {
+            name: currentDesign.name,
+            design_type: currentDesign.design_type,
+            factors: currentDesign.factors,
+            properties: currentDesign.properties,
+        };
+    }
+
+    if (currentAnalysis) {
+        context.analysis = {
+            model_summary: currentAnalysis.analysis?.model_summary,
+            significant_effects: currentAnalysis.analysis?.coefficients
+                ?.filter(c => c.significant)
+                ?.map(c => c.term) || [],
+        };
+    }
+
+    const factors = [];
+    document.querySelectorAll('.factor-row').forEach(row => {
+        const name = row.querySelector('.factor-name')?.value?.trim();
+        const levels = row.querySelector('.factor-levels')?.value?.trim();
+        if (name) {
+            factors.push({ name, levels });
+        }
+    });
+    if (factors.length > 0) {
+        context.factors = factors;
+    }
+
+    return context;
+}
+
+function handleChatKeydown(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendChatMessage();
+    }
+}
+
+function autoResizeInput(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+
+function askQuickQuestion(question) {
+    document.getElementById('chat-input').value = question;
+    sendChatMessage();
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    const welcome = document.querySelector('.chat-welcome');
+    if (welcome) welcome.remove();
+
+    addChatMessage('user', message);
+
+    chatHistory.push({ role: 'user', content: message });
+
+    const typingId = showTypingIndicator();
+
+    try {
+        const response = await fetch('/api/experimenter/chat/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                message,
+                context: getSessionContext(),
+                history: chatHistory.slice(-20),
+                model: selectedModel,
+            }),
+        });
+
+        removeTypingIndicator(typingId);
+
+        const data = await response.json();
+
+        if (data.success) {
+            addChatMessage('assistant', data.response);
+            chatHistory.push({ role: 'assistant', content: data.response });
+        } else {
+            addChatMessage('assistant', `Sorry, I encountered an error: ${data.error}`);
+        }
+    } catch (err) {
+        removeTypingIndicator(typingId);
+        addChatMessage('assistant', `Sorry, I couldn't process your request. Please try again.`);
+        console.error('Chat error:', err);
+    }
+}
+
+function addChatMessage(role, content) {
+    const container = document.getElementById('chat-messages');
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${role}`;
+
+    if (role === 'assistant') {
+        content = content.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        content = content.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
+        content = content.replace(/^[•-]\s+(.+)$/gm, '<li>$1</li>');
+        content = content.replace(/(<li>.*?<\/li>\n?)+/gs, '<ul>$&</ul>');
+        content = content.replace(/^#{1,2}\s+(.+)$/gm, '<h4>$1</h4>');
+        content = content.replace(/^#{3,}\s+(.+)$/gm, '<h5>$1</h5>');
+        content = content.replace(/\n\n/g, '</p><p>');
+        content = content.replace(/\n/g, '<br>');
+        if (!content.startsWith('<')) {
+            content = `<p>${content}</p>`;
+        }
+        msgDiv.innerHTML = content;
+    } else {
+        msgDiv.textContent = content;
+    }
+
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+function showTypingIndicator() {
+    const container = document.getElementById('chat-messages');
+    const id = 'typing-' + Date.now();
+
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message assistant typing';
+    typingDiv.id = id;
+    typingDiv.innerHTML = '<span></span><span></span><span></span>';
+
+    container.appendChild(typingDiv);
+    container.scrollTop = container.scrollHeight;
+
+    return id;
+}
+
+function removeTypingIndicator(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+</script>
+{% endblock %}

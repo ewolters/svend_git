@@ -1,0 +1,844 @@
+{% extends "base_app.html" %}
+{% block title %}SPC - Statistical Process Control{% endblock %}
+
+{% block content %}
+<div class="spc-page">
+    <div class="page-header">
+        <div>
+            <h1>Statistical Process Control</h1>
+            <p class="subtitle">Control charts, process capability, and quality metrics</p>
+        </div>
+        <div class="header-actions">
+            <select id="problem-selector" class="problem-select">
+                <option value="">Link to Hypothesis (optional)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('control-charts')">Control Charts</button>
+        <button class="tab-btn" onclick="showTab('capability')">Process Capability</button>
+        <button class="tab-btn" onclick="showTab('reference')">Reference</button>
+    </div>
+
+    <!-- Control Charts Tab -->
+    <div id="control-charts-tab" class="tab-content active">
+        <div class="two-column">
+            <div class="panel">
+                <h3>Data Input</h3>
+
+                <div class="form-group">
+                    <label>Chart Type</label>
+                    <select id="chart-type" onchange="updateChartHelp()">
+                        <option value="I-MR">I-MR (Individuals & Moving Range)</option>
+                        <option value="X-bar R">X-bar R (Subgroup Means & Range)</option>
+                        <option value="p">p-Chart (Proportion Defective)</option>
+                        <option value="c">c-Chart (Defect Count)</option>
+                    </select>
+                    <small id="chart-help" class="help-text">For continuous data with sample size of 1</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Data</label>
+                    <textarea id="chart-data" rows="8" placeholder="Enter data, one value per line, or comma-separated
+
+For I-MR: 10.2, 10.5, 10.3, ...
+For X-bar R: Enter subgroups, one per line:
+10.2, 10.5, 10.3
+10.1, 10.4, 10.6
+..."></textarea>
+                </div>
+
+                <div id="sample-sizes-group" class="form-group" style="display: none;">
+                    <label>Sample Sizes (for p-chart)</label>
+                    <textarea id="sample-sizes" rows="3" placeholder="Enter sample sizes, matching data rows"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>USL (Upper Spec Limit)</label>
+                        <input type="number" id="chart-usl" step="any" placeholder="Optional">
+                    </div>
+                    <div class="form-group">
+                        <label>LSL (Lower Spec Limit)</label>
+                        <input type="number" id="chart-lsl" step="any" placeholder="Optional">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="createChart()">Create Chart</button>
+            </div>
+
+            <div class="panel">
+                <h3>Chart Results</h3>
+                <div id="chart-results" class="results-area">
+                    <p class="empty-text">Enter data and click "Create Chart" to see results</p>
+                </div>
+
+                <div id="chart-container" style="display: none;">
+                    <canvas id="control-chart"></canvas>
+                </div>
+
+                <div id="secondary-chart-container" style="display: none; margin-top: 1rem;">
+                    <canvas id="secondary-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Capability Tab -->
+    <div id="capability-tab" class="tab-content">
+        <div class="two-column">
+            <div class="panel">
+                <h3>Capability Study</h3>
+
+                <div class="form-group">
+                    <label>Measurement Data</label>
+                    <textarea id="cap-data" rows="8" placeholder="Enter measurements, one per line or comma-separated"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>USL (Upper Spec Limit) *</label>
+                        <input type="number" id="cap-usl" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label>LSL (Lower Spec Limit) *</label>
+                        <input type="number" id="cap-lsl" step="any" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Target (Optional)</label>
+                        <input type="number" id="cap-target" step="any" placeholder="Default: midpoint">
+                    </div>
+                    <div class="form-group">
+                        <label>Subgroup Size</label>
+                        <input type="number" id="cap-subgroup" value="1" min="1">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="runCapabilityStudy()">Analyze Capability</button>
+            </div>
+
+            <div class="panel">
+                <h3>Capability Results</h3>
+                <div id="cap-results" class="results-area">
+                    <p class="empty-text">Enter data and specs to calculate process capability</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reference Tab -->
+    <div id="reference-tab" class="tab-content">
+        <div class="panel">
+            <h3>Control Chart Types</h3>
+            <div id="chart-types-ref" class="reference-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Capability Indices</h3>
+            <div id="capability-ref" class="reference-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Sigma Levels</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Sigma Level</th>
+                        <th>DPMO</th>
+                        <th>Yield</th>
+                    </tr>
+                </thead>
+                <tbody id="sigma-table">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.spc-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.subtitle {
+    color: var(--text-dim);
+    margin: 0.25rem 0 0 0;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.problem-select {
+    min-width: 200px;
+}
+
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+}
+
+.tab-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.tab-btn.active {
+    color: var(--accent-primary);
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.panel h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.help-text {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.results-area {
+    min-height: 200px;
+}
+
+.empty-text {
+    color: var(--text-dim);
+    text-align: center;
+    padding: 2rem;
+}
+
+/* Results styling */
+.result-summary {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    white-space: pre-line;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+}
+
+.result-status {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.result-status.in-control {
+    background: rgba(74, 159, 110, 0.2);
+    color: #4a9f6e;
+}
+
+.result-status.out-of-control {
+    background: rgba(159, 74, 74, 0.2);
+    color: #9f4a4a;
+}
+
+.out-of-control-list {
+    background: rgba(159, 74, 74, 0.1);
+    border: 1px solid rgba(159, 74, 74, 0.3);
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-top: 1rem;
+}
+
+.out-of-control-list h4 {
+    color: #9f4a4a;
+    margin: 0 0 0.5rem 0;
+}
+
+/* Capability metrics */
+.capability-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.cap-metric {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.cap-metric .value {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+}
+
+.cap-metric .label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.cap-metric.highlight {
+    border: 1px solid var(--accent-primary);
+}
+
+.interpretation {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    margin-top: 1rem;
+}
+
+.interpretation.good {
+    border-left: 3px solid #4a9f6e;
+}
+
+.interpretation.marginal {
+    border-left: 3px solid #e8c547;
+}
+
+.interpretation.poor {
+    border-left: 3px solid #9f4a4a;
+}
+
+/* Reference styling */
+.reference-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.ref-card {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+.ref-card h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--accent-primary);
+}
+
+.ref-card p {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.ref-card .use-when {
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th, .data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .two-column {
+        grid-template-columns: 1fr;
+    }
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    .capability-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .reference-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+let chartInstance = null;
+let secondaryChartInstance = null;
+let problems = [];
+
+// Tab switching
+function showTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+    document.getElementById(tabId + '-tab').classList.add('active');
+    event.target.classList.add('active');
+}
+
+// Update help text based on chart type
+function updateChartHelp() {
+    const type = document.getElementById('chart-type').value;
+    const help = document.getElementById('chart-help');
+    const sampleSizesGroup = document.getElementById('sample-sizes-group');
+
+    const helpTexts = {
+        'I-MR': 'For continuous data with sample size of 1',
+        'X-bar R': 'For continuous data with subgroups of 2-10 (enter one subgroup per line)',
+        'p': 'For proportion defective (requires sample sizes)',
+        'c': 'For counting defects per unit',
+    };
+
+    help.textContent = helpTexts[type] || '';
+    sampleSizesGroup.style.display = type === 'p' ? 'block' : 'none';
+}
+
+// Parse data from textarea
+function parseData(text) {
+    const lines = text.trim().split('\n');
+    const chartType = document.getElementById('chart-type').value;
+
+    if (chartType === 'X-bar R') {
+        // Parse as subgroups
+        return lines.map(line =>
+            line.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v))
+        ).filter(sg => sg.length > 0);
+    } else {
+        // Parse as flat array
+        const data = [];
+        for (const line of lines) {
+            for (const val of line.split(',')) {
+                const num = parseFloat(val.trim());
+                if (!isNaN(num)) data.push(num);
+            }
+        }
+        return data;
+    }
+}
+
+// Create control chart
+async function createChart() {
+    const chartType = document.getElementById('chart-type').value;
+    const dataText = document.getElementById('chart-data').value;
+    const usl = document.getElementById('chart-usl').value;
+    const lsl = document.getElementById('chart-lsl').value;
+    const problemId = document.getElementById('problem-selector').value;
+
+    if (!dataText.trim()) {
+        alert('Please enter data');
+        return;
+    }
+
+    const data = parseData(dataText);
+
+    const body = {
+        chart_type: chartType,
+        data: data,
+    };
+
+    if (usl) body.usl = parseFloat(usl);
+    if (lsl) body.lsl = parseFloat(lsl);
+    if (problemId) body.problem_id = problemId;
+
+    if (chartType === 'p') {
+        const sampleSizesText = document.getElementById('sample-sizes').value;
+        body.sample_sizes = sampleSizesText.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+    }
+
+    try {
+        const response = await fetch('/api/spc/chart/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            displayChartResults(result.chart);
+        } else {
+            alert(result.error || 'Failed to create chart');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// Display chart results
+function displayChartResults(chart) {
+    const container = document.getElementById('chart-results');
+
+    const statusClass = chart.in_control ? 'in-control' : 'out-of-control';
+    const statusText = chart.in_control ? 'IN CONTROL' : 'OUT OF CONTROL';
+
+    let html = `
+        <div class="result-status ${statusClass}">${statusText}</div>
+        <div class="result-summary">${chart.summary}</div>
+    `;
+
+    if (chart.out_of_control.length > 0) {
+        html += `
+            <div class="out-of-control-list">
+                <h4>Out of Control Points</h4>
+                <ul>
+                    ${chart.out_of_control.map(p => `<li>Point ${p.index + 1}: ${p.value.toFixed(4)} - ${p.reason}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    // Draw primary chart
+    drawControlChart('control-chart', chart);
+    document.getElementById('chart-container').style.display = 'block';
+
+    // Draw secondary chart if exists
+    if (chart.secondary_chart) {
+        drawControlChart('secondary-chart', chart.secondary_chart);
+        document.getElementById('secondary-chart-container').style.display = 'block';
+    } else {
+        document.getElementById('secondary-chart-container').style.display = 'none';
+    }
+}
+
+// Draw control chart using Chart.js
+function drawControlChart(canvasId, chart) {
+    const ctx = document.getElementById(canvasId);
+
+    // Destroy existing chart
+    if (canvasId === 'control-chart' && chartInstance) {
+        chartInstance.destroy();
+    }
+    if (canvasId === 'secondary-chart' && secondaryChartInstance) {
+        secondaryChartInstance.destroy();
+    }
+
+    const labels = chart.data_points.map((_, i) => i + 1);
+
+    const datasets = [
+        {
+            label: 'Data',
+            data: chart.data_points,
+            borderColor: SvendTheme.colors.primary,
+            backgroundColor: 'transparent',
+            tension: 0,
+            pointRadius: 4,
+            pointBackgroundColor: chart.data_points.map((v, i) =>
+                chart.out_of_control.some(p => p.index === i) ? SvendTheme.colors.error : SvendTheme.colors.primary
+            ),
+        },
+        {
+            label: 'UCL',
+            data: Array(chart.data_points.length).fill(chart.limits.ucl),
+            borderColor: SvendTheme.colors.error,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false,
+        },
+        {
+            label: 'Center',
+            data: Array(chart.data_points.length).fill(chart.limits.cl),
+            borderColor: SvendTheme.colors.textDim,
+            borderDash: [2, 2],
+            pointRadius: 0,
+            fill: false,
+        },
+        {
+            label: 'LCL',
+            data: Array(chart.data_points.length).fill(chart.limits.lcl),
+            borderColor: SvendTheme.colors.error,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false,
+        },
+    ];
+
+    const newChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: chart.chart_type + ' Chart',
+                    color: SvendTheme.colors.text,
+                },
+                legend: {
+                    labels: { color: SvendTheme.colors.text }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: SvendTheme.colors.textDim },
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    title: { display: true, text: 'Sample', color: SvendTheme.colors.textDim }
+                },
+                y: {
+                    ticks: { color: SvendTheme.colors.textDim },
+                    grid: { color: 'rgba(255,255,255,0.1)' }
+                }
+            }
+        }
+    });
+
+    if (canvasId === 'control-chart') {
+        chartInstance = newChart;
+    } else {
+        secondaryChartInstance = newChart;
+    }
+}
+
+// Run capability study
+async function runCapabilityStudy() {
+    const dataText = document.getElementById('cap-data').value;
+    const usl = document.getElementById('cap-usl').value;
+    const lsl = document.getElementById('cap-lsl').value;
+    const target = document.getElementById('cap-target').value;
+    const subgroupSize = document.getElementById('cap-subgroup').value;
+    const problemId = document.getElementById('problem-selector').value;
+
+    if (!dataText.trim()) {
+        alert('Please enter data');
+        return;
+    }
+    if (!usl || !lsl) {
+        alert('USL and LSL are required');
+        return;
+    }
+
+    const data = [];
+    for (const val of dataText.split(/[,\n]/)) {
+        const num = parseFloat(val.trim());
+        if (!isNaN(num)) data.push(num);
+    }
+
+    const body = {
+        data: data,
+        usl: parseFloat(usl),
+        lsl: parseFloat(lsl),
+        subgroup_size: parseInt(subgroupSize) || 1,
+    };
+
+    if (target) body.target = parseFloat(target);
+    if (problemId) body.problem_id = problemId;
+
+    try {
+        const response = await fetch('/api/spc/capability/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            displayCapabilityResults(result.capability);
+        } else {
+            alert(result.error || 'Failed to run capability study');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// Display capability results
+function displayCapabilityResults(cap) {
+    const container = document.getElementById('cap-results');
+
+    const cpkClass = cap.cpk >= 1.33 ? 'good' : (cap.cpk >= 1.0 ? 'marginal' : 'poor');
+
+    container.innerHTML = `
+        <div class="capability-grid">
+            <div class="cap-metric highlight">
+                <div class="value">${cap.cpk.toFixed(3)}</div>
+                <div class="label">Cpk</div>
+            </div>
+            <div class="cap-metric">
+                <div class="value">${cap.cp.toFixed(3)}</div>
+                <div class="label">Cp</div>
+            </div>
+            <div class="cap-metric">
+                <div class="value">${cap.ppk.toFixed(3)}</div>
+                <div class="label">Ppk</div>
+            </div>
+            <div class="cap-metric">
+                <div class="value">${cap.pp.toFixed(3)}</div>
+                <div class="label">Pp</div>
+            </div>
+        </div>
+
+        <div class="capability-grid">
+            <div class="cap-metric">
+                <div class="value">${cap.sigma_level.toFixed(2)}</div>
+                <div class="label">Sigma Level</div>
+            </div>
+            <div class="cap-metric">
+                <div class="value">${cap.dpmo.toFixed(0)}</div>
+                <div class="label">DPMO</div>
+            </div>
+            <div class="cap-metric">
+                <div class="value">${cap.yield_percent.toFixed(2)}%</div>
+                <div class="label">Yield</div>
+            </div>
+            <div class="cap-metric">
+                <div class="value">${cap.n_samples}</div>
+                <div class="label">Samples</div>
+            </div>
+        </div>
+
+        <div class="result-summary">
+Process Mean: ${cap.mean.toFixed(4)}
+Within Sigma: ${cap.sigma_within.toFixed(4)}
+Overall Sigma: ${cap.sigma_overall.toFixed(4)}
+USL: ${cap.usl} | LSL: ${cap.lsl} | Target: ${cap.target}
+        </div>
+
+        <div class="interpretation ${cpkClass}">
+            ${cap.interpretation}
+        </div>
+    `;
+}
+
+// Load reference data
+async function loadReferenceData() {
+    try {
+        const response = await fetch('/api/spc/chart/types/', {
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+
+            // Chart types
+            const chartTypesContainer = document.getElementById('chart-types-ref');
+            chartTypesContainer.innerHTML = data.chart_types.map(ct => `
+                <div class="ref-card">
+                    <h4>${ct.name}</h4>
+                    <p>${ct.description}</p>
+                    <p class="use-when">Use when: ${ct.use_when}</p>
+                </div>
+            `).join('');
+
+            // Capability indices
+            const capRefContainer = document.getElementById('capability-ref');
+            capRefContainer.innerHTML = data.capability_indices.map(ci => `
+                <div class="ref-card">
+                    <h4>${ci.name}</h4>
+                    <p>${ci.description}</p>
+                    <p class="use-when">${ci.interpretation}</p>
+                </div>
+            `).join('');
+
+            // Sigma levels
+            const sigmaTable = document.getElementById('sigma-table');
+            sigmaTable.innerHTML = data.sigma_levels.map(sl => `
+                <tr>
+                    <td>${sl.sigma}σ</td>
+                    <td>${sl.dpmo.toLocaleString()}</td>
+                    <td>${sl.yield}</td>
+                </tr>
+            `).join('');
+        }
+    } catch (err) {
+        console.error('Failed to load reference data:', err);
+    }
+}
+
+// Load problems for selector
+async function loadProblems() {
+    try {
+        const response = await fetch('/api/problems/', {
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            problems = data.problems || [];
+
+            const selector = document.getElementById('problem-selector');
+            problems.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.title;
+                selector.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load problems:', err);
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadReferenceData();
+    loadProblems();
+    updateChartHelp();
+});
+</script>
+{% endblock %}

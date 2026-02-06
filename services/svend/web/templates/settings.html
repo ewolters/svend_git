@@ -1,0 +1,490 @@
+{% extends "base_app.html" %}
+
+{% block title %}Settings - SVEND{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="settings-page">
+    <h1>Account Settings</h1>
+    <p class="subtitle">Manage your profile and preferences</p>
+
+    <div class="settings-grid">
+        <!-- Profile Section -->
+        <section class="card settings-section">
+            <h2>Profile</h2>
+            <form id="profile-form">
+                <div class="form-group">
+                    <label for="display_name">Display Name</label>
+                    <input type="text" id="display_name" name="display_name" placeholder="How you want to be called">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" disabled>
+                    <span class="help-text">Contact support to change email</span>
+                </div>
+                <div class="form-group">
+                    <label for="bio">Bio</label>
+                    <textarea id="bio" name="bio" rows="3" placeholder="Tell us about yourself"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Profile</button>
+            </form>
+        </section>
+
+        <!-- Password Section -->
+        <section class="card settings-section">
+            <h2>Change Password</h2>
+            <form id="password-form">
+                <div class="form-group">
+                    <label for="current_password">Current Password</label>
+                    <input type="password" id="current_password" name="current_password" required>
+                </div>
+                <div class="form-group">
+                    <label for="new_password">New Password</label>
+                    <input type="password" id="new_password" name="new_password" required minlength="8">
+                    <span class="help-text">Minimum 8 characters</span>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm New Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Password</button>
+            </form>
+        </section>
+
+        <!-- Subscription Section -->
+        <section class="card settings-section">
+            <h2>Subscription</h2>
+            <div class="subscription-info">
+                <div class="tier-badge" id="tier-badge">Loading...</div>
+                <div class="usage-stats">
+                    <p>Queries today: <span id="queries-today">-</span> / <span id="daily-limit">-</span></p>
+                    <p>Total queries: <span id="total-queries">-</span></p>
+                </div>
+            </div>
+            <div class="subscription-actions">
+                <a href="/billing/portal/" class="btn btn-secondary" id="manage-billing" style="display:none;">Manage Billing</a>
+                <a href="/billing/checkout/" class="btn btn-primary" id="upgrade-btn" style="display:none;">Upgrade to Pro</a>
+            </div>
+        </section>
+
+        <!-- Preferences Section -->
+        <section class="card settings-section">
+            <h2>Preferences</h2>
+            <form id="preferences-form">
+                <div class="form-group">
+                    <label for="theme">Theme</label>
+                    <select id="theme" name="current_theme" onchange="previewTheme(this.value)">
+                        <option value="">Default (Forest Night)</option>
+                        <option value="light">Light</option>
+                        <option value="midnight">Midnight</option>
+                    </select>
+                </div>
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="pref-show-reasoning" name="show_reasoning">
+                        Show reasoning traces by default
+                    </label>
+                </div>
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="pref-auto-scroll" name="auto_scroll" checked>
+                        Auto-scroll to new messages
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Preferences</button>
+            </form>
+        </section>
+
+        <!-- Feedback -->
+        <section class="card settings-section">
+            <h2>Feedback</h2>
+            <p class="feedback-text">We're in beta and would love to hear from you. Bug reports, feature requests, or just thoughts on how we can improve.</p>
+            <a href="mailto:hello@svend.ai" class="btn btn-secondary feedback-btn">
+                <span>Send Feedback</span>
+                <span class="email-hint">hello@svend.ai</span>
+            </a>
+        </section>
+
+        <!-- Danger Zone -->
+        <section class="card settings-section danger-zone">
+            <h2>Danger Zone</h2>
+            <p class="warning-text">These actions cannot be undone.</p>
+            <div class="danger-actions">
+                <button class="btn btn-danger" id="delete-conversations">Delete All Conversations</button>
+                <button class="btn btn-danger" id="delete-account" disabled>Delete Account</button>
+            </div>
+        </section>
+    </div>
+
+    <div id="toast" class="toast"></div>
+</div>
+
+<style>
+    .settings-page {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .subtitle {
+        color: var(--text-dim);
+        margin-bottom: 2rem;
+    }
+
+    .settings-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .settings-section h2 {
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin-bottom: 1.25rem;
+        color: var(--text-primary);
+    }
+
+    .help-text {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .checkbox-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        text-transform: none;
+        font-weight: 400;
+        color: var(--text-secondary);
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+        accent-color: var(--accent-primary);
+    }
+
+    .subscription-info {
+        margin-bottom: 1.5rem;
+    }
+
+    .tier-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .tier-badge.free { background: var(--bg-tertiary); color: var(--text-secondary); }
+    .tier-badge.beta { background: var(--accent-primary-dim); color: var(--accent-primary); }
+    .tier-badge.pro { background: rgba(232, 197, 71, 0.2); color: var(--accent-gold); }
+
+    .usage-stats p {
+        margin-bottom: 0.5rem;
+        color: var(--text-secondary);
+    }
+
+    .subscription-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .feedback-text {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+
+    .feedback-btn {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+        text-decoration: none;
+    }
+
+    .feedback-btn .email-hint {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        font-weight: 400;
+    }
+
+    .danger-zone {
+        border-color: rgba(159, 74, 74, 0.3);
+    }
+
+    .danger-zone h2 {
+        color: var(--error);
+    }
+
+    .warning-text {
+        color: var(--text-dim);
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .danger-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn-danger {
+        background: rgba(159, 74, 74, 0.15);
+        border: 1px solid rgba(159, 74, 74, 0.3);
+        color: var(--error);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background: rgba(159, 74, 74, 0.25);
+        border-color: rgba(159, 74, 74, 0.5);
+    }
+
+    .btn-danger:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .toast {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        padding: 1rem 1.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        opacity: 0;
+        transform: translateY(1rem);
+        transition: all 0.3s ease;
+        pointer-events: none;
+        z-index: 1000;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .toast.success {
+        background: rgba(74, 159, 110, 0.9);
+        color: white;
+    }
+
+    .toast.error {
+        background: rgba(159, 74, 74, 0.9);
+        color: white;
+    }
+</style>
+
+<script>
+    let currentUser = null;
+
+    // Get CSRF token from cookie
+    function getCSRFToken() {
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Show toast notification
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Preview theme immediately when changed
+    function previewTheme(theme) {
+        if (typeof applyTheme === 'function') {
+            applyTheme(theme);
+        } else {
+            // Fallback if applyTheme not available
+            if (theme && theme !== '') {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('svend_theme', theme);
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.removeItem('svend_theme');
+            }
+        }
+    }
+
+    // Load user data
+    async function loadUserData() {
+        try {
+            const response = await fetch('/api/auth/me/', { credentials: 'include' });
+            if (!response.ok) throw new Error('Failed to load user data');
+
+            currentUser = await response.json();
+
+            // Populate profile form
+            document.getElementById('display_name').value = currentUser.display_name || '';
+            document.getElementById('email').value = currentUser.email || '';
+            document.getElementById('bio').value = currentUser.bio || '';
+
+            // Subscription info
+            const tierBadge = document.getElementById('tier-badge');
+            tierBadge.textContent = currentUser.tier.toUpperCase();
+            tierBadge.className = `tier-badge ${currentUser.tier}`;
+
+            document.getElementById('queries-today').textContent = currentUser.queries_today;
+            document.getElementById('daily-limit').textContent = currentUser.daily_limit;
+            document.getElementById('total-queries').textContent = currentUser.total_queries || 0;
+
+            // Show appropriate subscription buttons
+            if (currentUser.subscription_active) {
+                document.getElementById('manage-billing').style.display = 'inline-flex';
+            } else if (currentUser.tier !== 'pro') {
+                document.getElementById('upgrade-btn').style.display = 'inline-flex';
+            }
+
+            // Preferences
+            const prefs = currentUser.preferences || {};
+            document.getElementById('theme').value = currentUser.current_theme || '';
+            document.getElementById('pref-show-reasoning').checked = prefs.show_reasoning || false;
+            document.getElementById('pref-auto-scroll').checked = prefs.auto_scroll !== false;
+
+        } catch (err) {
+            console.error('Failed to load user data:', err);
+            showToast('Failed to load settings', 'error');
+        }
+    }
+
+    // Profile form
+    document.getElementById('profile-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('/api/auth/profile/', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    display_name: document.getElementById('display_name').value,
+                    bio: document.getElementById('bio').value,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to update profile');
+            }
+
+            showToast('Profile updated');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // Password form
+    document.getElementById('password-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+
+        if (newPassword !== confirmPassword) {
+            showToast('Passwords do not match', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/auth/password/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    current_password: document.getElementById('current_password').value,
+                    new_password: newPassword,
+                }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to change password');
+
+            showToast('Password changed successfully');
+            document.getElementById('password-form').reset();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // Preferences form
+    document.getElementById('preferences-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            const preferences = {
+                show_reasoning: document.getElementById('pref-show-reasoning').checked,
+                auto_scroll: document.getElementById('pref-auto-scroll').checked,
+            };
+
+            const response = await fetch('/api/auth/profile/', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    current_theme: document.getElementById('theme').value,
+                    preferences: preferences,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to update preferences');
+            }
+
+            showToast('Preferences saved');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // Delete all conversations
+    document.getElementById('delete-conversations').addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to delete ALL your conversations? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/conversations/', { credentials: 'include' });
+            const conversations = await response.json();
+
+            for (const convo of conversations) {
+                await fetch(`/api/conversations/${convo.id}/`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': getCSRFToken() },
+                    credentials: 'include',
+                });
+            }
+
+            showToast(`Deleted ${conversations.length} conversations`);
+        } catch (err) {
+            showToast('Failed to delete conversations', 'error');
+        }
+    });
+
+    // Load data on page load
+    loadUserData();
+</script>
+{% endblock %}

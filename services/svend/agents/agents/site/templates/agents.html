@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}Agents{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <a href="/" style="color: var(--text-dim); text-decoration: none;">&larr; Back to Home</a>
+</div>
+
+<h1 style="margin-bottom: 0.5rem;">Agents</h1>
+<p style="color: var(--text-dim); margin-bottom: 2rem;">
+    Task-specific agents with documented outputs. The LLM executes. The tools provide value.
+</p>
+
+<!-- Agent Cards -->
+<div class="grid grid-2" style="margin-bottom: 2rem;">
+    <div class="card">
+        <span class="tag tag-green" style="margin-bottom: 0.75rem;">Code Generation</span>
+        <h3>Coder</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1rem;">
+            Generate code with syntax verification, execution testing, complexity analysis, and human review checklists.
+        </p>
+        <ul style="font-size: 0.85rem; margin-bottom: 1rem; padding-left: 1.25rem;">
+            <li>Syntax verification (AST parse)</li>
+            <li>Sandbox execution with demo output</li>
+            <li>Cyclomatic complexity analysis</li>
+            <li>Bayesian quality scoring</li>
+            <li>Human review checklist</li>
+        </ul>
+        <span class="tag tag-blue">Python</span>
+        <span class="tag tag-blue">JavaScript</span>
+        <span class="tag tag-blue">TypeScript</span>
+    </div>
+
+    <div class="card">
+        <span class="tag tag-purple" style="margin-bottom: 0.75rem;">Research</span>
+        <h3>Researcher</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1rem;">
+            Multi-source research with real APIs. Structured citations and credibility scoring.
+        </p>
+        <ul style="font-size: 0.85rem; margin-bottom: 1rem; padding-left: 1.25rem;">
+            <li>arXiv scientific papers</li>
+            <li>Semantic Scholar citations</li>
+            <li>Brave web search</li>
+            <li>Source diversity tracking</li>
+            <li>Credibility scoring by domain</li>
+        </ul>
+        <span class="tag tag-green">Scientific</span>
+        <span class="tag tag-green">Market</span>
+        <span class="tag tag-green">General</span>
+    </div>
+
+    <div class="card">
+        <span class="tag tag-orange" style="margin-bottom: 0.75rem;">Document Generation</span>
+        <h3>Writer</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1rem;">
+            Generate documents with custom templates and voice matching. Quality gates ensure standards.
+        </p>
+        <ul style="font-size: 0.85rem; margin-bottom: 1rem; padding-left: 1.25rem;">
+            <li>8 built-in templates</li>
+            <li>Voice extraction from samples</li>
+            <li>Reading level targeting</li>
+            <li>Section length constraints</li>
+            <li>Quality gate validation</li>
+        </ul>
+        <span class="tag tag-blue">Grant Proposal</span>
+        <span class="tag tag-blue">Technical Spec</span>
+        <span class="tag tag-blue">Blog Post</span>
+    </div>
+
+    <div class="card">
+        <span class="tag tag-blue" style="margin-bottom: 0.75rem;">Document Review</span>
+        <h3>Reviewer</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1rem;">
+            Review documents for quality, readability, and style consistency.
+        </p>
+        <ul style="font-size: 0.85rem; margin-bottom: 1rem; padding-left: 1.25rem;">
+            <li>Flesch-Kincaid readability</li>
+            <li>Gunning Fog index</li>
+            <li>Pattern detection</li>
+            <li>Style consistency checks</li>
+            <li>Improvement suggestions</li>
+        </ul>
+        <span class="tag tag-purple">Technical</span>
+        <span class="tag tag-purple">Business</span>
+        <span class="tag tag-purple">Academic</span>
+    </div>
+
+    <div class="card">
+        <span class="tag tag-green" style="margin-bottom: 0.75rem;">Experimental Design</span>
+        <h3>Experimenter</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1rem;">
+            Power analysis and design of experiments with visualizations.
+        </p>
+        <ul style="font-size: 0.85rem; margin-bottom: 1rem; padding-left: 1.25rem;">
+            <li>Power analysis (t-test, ANOVA, chi-square)</li>
+            <li>Full factorial designs</li>
+            <li>Fractional factorial (Resolution III-V)</li>
+            <li>Central Composite Design</li>
+            <li>Power curves and visualizations</li>
+        </ul>
+        <span class="tag tag-orange">Power</span>
+        <span class="tag tag-orange">Factorial</span>
+        <span class="tag tag-orange">Response Surface</span>
+    </div>
+
+    <div class="card">
+        <span class="tag tag-purple" style="margin-bottom: 0.75rem;">Guided Workflows</span>
+        <h3>Guide</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1rem;">
+            Interview-style workflows that guide you through complex tasks.
+        </p>
+        <ul style="font-size: 0.85rem; margin-bottom: 1rem; padding-left: 1.25rem;">
+            <li>Structured question flows</li>
+            <li>Business plan builder</li>
+            <li>Requirements gathering</li>
+            <li>Decision trees</li>
+            <li>Progress tracking</li>
+        </ul>
+        <span class="tag tag-blue">Business Plan</span>
+        <span class="tag tag-blue">Requirements</span>
+    </div>
+</div>
+
+<!-- Documentation Tools -->
+<h2 style="margin-top: 3rem;">Documentation Tools</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <h3>Chemistry</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim);">
+            LaTeX chemical equations, thermodynamics estimates, reaction mechanisms.
+        </p>
+        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 4px;">
+            \ce{2H2 + O2 -> 2H2O}
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>LaTeX</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim);">
+            Mathematical notation, matrices, integrals, and document formatting.
+        </p>
+        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 4px;">
+            \Delta G = \Delta H - T\Delta S
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Charts</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim);">
+            Styled visualizations with the SVEND theme. Line, bar, scatter, heatmap, box plots.
+        </p>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+            <span class="tag tag-green">Line</span>
+            <span class="tag tag-blue">Bar</span>
+            <span class="tag tag-purple">Scatter</span>
+            <span class="tag tag-orange">Heatmap</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Export</h3>
+        <p style="font-size: 0.9rem; color: var(--text-dim);">
+            Export to multiple formats from the same source.
+        </p>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;">
+            <span class="tag tag-green">Markdown</span>
+            <span class="tag tag-blue">LaTeX</span>
+            <span class="tag tag-purple">HTML</span>
+            <span class="tag tag-orange">PDF</span>
+            <span class="tag tag-blue">DOCX</span>
+        </div>
+    </div>
+</div>
+
+<!-- Workflow Engine -->
+<h2 style="margin-top: 3rem;">Workflow Engine</h2>
+<div class="card">
+    <p style="margin-bottom: 1.5rem;">
+        Chain agents together. Save as Python scripts. Re-run anytime.
+    </p>
+
+    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto;">
+        <pre style="margin: 0;">from workflow import Workflow, ResearchStep, CoderStep, WriterStep
+
+workflow = Workflow("My Analysis")
+workflow.add(ResearchStep("quantum computing basics"))
+workflow.add(CoderStep("simulate qubit", uses=["research"]))
+workflow.add(WriterStep("technical_spec", uses=["research", "code"]))
+
+result = workflow.run()
+print(result.to_markdown())
+
+# Save as reusable Python script
+workflow.save("my_workflow.py")</pre>
+    </div>
+
+    <h4 style="margin-top: 1.5rem;">Available Steps</h4>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; margin-top: 1rem;">
+        <div><code>ResearchStep</code> - Research with APIs</div>
+        <div><code>CoderStep</code> - Generate code</div>
+        <div><code>WriterStep</code> - Generate documents</div>
+        <div><code>ReviewStep</code> - Review quality</div>
+        <div><code>ExperimentStep</code> - Design experiments</div>
+        <div><code>ChemistryStep</code> - Format chemistry</div>
+        <div><code>ChartStep</code> - Generate charts</div>
+        <div><code>ExportStep</code> - Export to file</div>
+        <div><code>CustomStep</code> - Your own function</div>
+    </div>
+</div>
+
+<!-- API Status -->
+<h2 style="margin-top: 3rem;">Search APIs</h2>
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 1px solid rgba(74, 159, 110, 0.2);">
+                <th style="text-align: left; padding: 0.75rem 0;">API</th>
+                <th style="text-align: left; padding: 0.75rem 0;">Status</th>
+                <th style="text-align: left; padding: 0.75rem 0;">Cost</th>
+                <th style="text-align: left; padding: 0.75rem 0;">Rate Limit</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="border-bottom: 1px solid rgba(74, 159, 110, 0.1);">
+                <td style="padding: 0.75rem 0;">arXiv</td>
+                <td style="padding: 0.75rem 0;"><span class="tag tag-green">Working</span></td>
+                <td style="padding: 0.75rem 0;">Free</td>
+                <td style="padding: 0.75rem 0;">3s delay</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(74, 159, 110, 0.1);">
+                <td style="padding: 0.75rem 0;">Semantic Scholar</td>
+                <td style="padding: 0.75rem 0;"><span class="tag tag-green">Working</span></td>
+                <td style="padding: 0.75rem 0;">Free</td>
+                <td style="padding: 0.75rem 0;">1s delay</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(74, 159, 110, 0.1);">
+                <td style="padding: 0.75rem 0;">Brave Search</td>
+                <td style="padding: 0.75rem 0;"><span class="tag tag-green">Working</span></td>
+                <td style="padding: 0.75rem 0;">Free tier (2K/mo)</td>
+                <td style="padding: 0.75rem 0;">1.5s delay</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem 0;">DuckDuckGo</td>
+                <td style="padding: 0.75rem 0;"><span class="tag tag-orange">Limited</span></td>
+                <td style="padding: 0.75rem 0;">Free</td>
+                <td style="padding: 0.75rem 0;">Instant answers only</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<style>
+code {
+    background: rgba(74, 159, 110, 0.15);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+</style>
+{% endblock %}

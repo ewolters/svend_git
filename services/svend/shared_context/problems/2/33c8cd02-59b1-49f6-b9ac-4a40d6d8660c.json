@@ -1,0 +1,102 @@
+{
+  "problem_id": "33c8cd02-59b1-49f6-b9ac-4a40d6d8660c",
+  "user_id": 2,
+  "title": "Employee Turnover",
+  "status": "active",
+  "last_updated": "2026-01-28T21:48:14.823195",
+  "methodology": {
+    "type": "none",
+    "dmaic_phase": "",
+    "phase_history": [],
+    "guidance": null
+  },
+  "effect": {
+    "description": "Employees are quitting within 90-days of being hired and going to work at other local companies. ",
+    "magnitude": "39% turnover",
+    "first_observed": "Nov 2025",
+    "confidence": "medium"
+  },
+  "context": {
+    "domain": "other",
+    "stakeholders": [],
+    "constraints": [],
+    "prior_beliefs": [],
+    "can_experiment": true,
+    "available_data": "A handful of exit interviews. "
+  },
+  "hypotheses": [
+    {
+      "id": "de7a04ae",
+      "cause": "Large local employer raised wages to $25/hour",
+      "status": "investigating",
+      "testable": true,
+      "mechanism": "Employees leaving us to go to the competitor",
+      "created_at": "2026-01-28T21:46:36.464736",
+      "probability": 0.67,
+      "evidence_for": [],
+      "evidence_against": []
+    },
+    {
+      "id": "fb4a3a92",
+      "cause": "Difficult onboarding process",
+      "mechanism": "Employees are not feeling welcomed or supported during their first few months, leading to dissatisfaction and departure.",
+      "probability": 0.4,
+      "testable": true,
+      "evidence_for": [],
+      "evidence_against": [],
+      "status": "investigating",
+      "created_at": "2026-01-28T21:48:14.816434"
+    },
+    {
+      "id": "48efa5e9",
+      "cause": "Inadequate training and development opportunities",
+      "mechanism": "Employees feel unprepared for their roles and see limited potential for growth within the company, prompting them to seek better opportunities elsewhere.",
+      "probability": 0.3,
+      "testable": true,
+      "evidence_for": [],
+      "evidence_against": [],
+      "status": "investigating",
+      "created_at": "2026-01-28T21:48:14.819418"
+    },
+    {
+      "id": "91d25a8e",
+      "cause": "Negative workplace culture",
+      "mechanism": "The company has a toxic or stressful work environment that leads to high levels of burnout and job dissatisfaction among new hires.",
+      "probability": 0.25,
+      "testable": true,
+      "evidence_for": [],
+      "evidence_against": [],
+      "status": "investigating",
+      "created_at": "2026-01-28T21:48:14.820790"
+    },
+    {
+      "id": "fff1a6ce",
+      "cause": "Misalignment between job expectations and reality",
+      "mechanism": "New employees find that their actual job responsibilities differ significantly from what they were promised during the hiring process, leading to frustration and resignation.",
+      "probability": 0.2,
+      "testable": true,
+      "evidence_for": [],
+      "evidence_against": [],
+      "status": "investigating",
+      "created_at": "2026-01-28T21:48:14.821992"
+    }
+  ],
+  "evidence": [],
+  "dead_ends": [],
+  "understanding": {
+    "probable_causes": [],
+    "key_uncertainties": [],
+    "recommended_next_steps": []
+  },
+  "bias_warnings": [],
+  "interview": null,
+  "resolution": null,
+  "agent_context": {
+    "source": "problem_session",
+    "can_update": true,
+    "endpoints": {
+      "add_evidence": "/api/problems/33c8cd02-59b1-49f6-b9ac-4a40d6d8660c/evidence/",
+      "add_hypothesis": "/api/problems/33c8cd02-59b1-49f6-b9ac-4a40d6d8660c/hypotheses/"
+    }
+  }
+}

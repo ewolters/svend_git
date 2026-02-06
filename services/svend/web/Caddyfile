@@ -1,0 +1,27 @@
+# Caddy configuration for svend.ai
+# Automatic HTTPS via Let's Encrypt
+
+svend.ai, www.svend.ai {
+    # Reverse proxy to gunicorn
+    reverse_proxy localhost:8000
+
+    # Serve static files directly
+    handle_path /static/* {
+        root * /home/eric/Desktop/svend_transfer/svend/staticfiles
+        file_server
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    # Logs
+    log {
+        output file /var/log/caddy/svend.log
+        format json
+    }
+}

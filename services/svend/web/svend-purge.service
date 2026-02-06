@@ -1,0 +1,14 @@
+[Unit]
+Description=Purge old Svend data (30 days)
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=eric
+Group=eric
+WorkingDirectory=/home/eric/kjerne/services/svend/web
+Environment="PATH=/home/eric/.local/bin:/usr/local/bin:/usr/bin"
+ExecStart=/home/eric/kjerne/services/svend/web/run_purge.sh
+
+[Install]
+WantedBy=multi-user.target

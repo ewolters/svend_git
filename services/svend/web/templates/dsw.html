@@ -1,0 +1,2858 @@
+{% extends "base_app.html" %}
+{% block title %}Decision Science Workbench - SVEND{% endblock %}
+
+{% block content %}
+<div class="dsw-page">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1>Decision Science Workbench</h1>
+            <p class="subtitle">Data Science, Statistical Process Control, and Operational Excellence</p>
+        </div>
+        <div class="hypothesis-context">
+            <label>Hypothesis Context:</label>
+            <select id="problem-selector">
+                <option value="">None (standalone analysis)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Component Navigation -->
+    <div class="component-nav">
+        <button class="component-btn active" onclick="showComponent('datascience')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 12l2 2 4-4"/>
+            </svg>
+            <span class="component-label">Data Science</span>
+            <span class="component-desc">ML & Predictive Models</span>
+        </button>
+        <button class="component-btn" onclick="showComponent('spc')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span class="component-label">SPC</span>
+            <span class="component-desc">Control Charts & Capability</span>
+        </button>
+        <button class="component-btn" onclick="showComponent('opex')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
+                <path d="M2 20h20M5 20V10l7-7 7 7v10M9 20v-6h6v6"/>
+            </svg>
+            <span class="component-label">OpEx</span>
+            <span class="component-desc">DOE & Process Improvement</span>
+        </button>
+        <button class="component-btn" onclick="showComponent('stats')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
+                <path d="M3 3v18h18"/>
+                <path d="M7 16l4-8 4 4 5-8"/>
+            </svg>
+            <span class="component-label">Statistics</span>
+            <span class="component-desc">Hypothesis Testing & Analysis</span>
+        </button>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- DATA SCIENCE COMPONENT -->
+    <!-- ================================================================== -->
+    <div id="datascience-component" class="component-content active">
+        <div class="pipeline-viz">
+            <span class="tag tag-green">Intent</span>
+            <span class="arrow">→</span>
+            <span class="tag tag-blue">Schema</span>
+            <span class="arrow">→</span>
+            <span class="tag tag-orange">Forge</span>
+            <span class="arrow">→</span>
+            <span class="tag tag-blue">Scrub</span>
+            <span class="arrow">→</span>
+            <span class="tag tag-purple">Analyst</span>
+            <span class="arrow">→</span>
+            <span class="tag tag-green">Deploy</span>
+        </div>
+
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showSubTab('ds', 'intent')">From Intent</button>
+            <button class="sub-tab" onclick="showSubTab('ds', 'data')">From Data</button>
+        </div>
+
+        <!-- From Intent -->
+        <div id="ds-intent" class="sub-content active">
+            <div class="panel">
+                <h3>Start from Intent (Zero Data)</h3>
+                <p class="help-text">Describe what you want to predict. We'll generate schema, synthetic data, and train a model.</p>
+
+                <form id="intent-form">
+                    <div class="form-group">
+                        <label>What do you want to predict?</label>
+                        <textarea id="intent" rows="3" placeholder="e.g., Predict which customers will churn in the next 30 days based on usage patterns"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Domain</label>
+                            <select id="domain">
+                                <option value="">Auto-detect</option>
+                                <option value="churn">Customer Churn</option>
+                                <option value="fraud">Fraud Detection</option>
+                                <option value="lead_scoring">Lead Scoring</option>
+                                <option value="quality">Quality Prediction</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Sample Size</label>
+                            <select id="n_records">
+                                <option value="100">100 (quick test)</option>
+                                <option value="500" selected>500 (standard)</option>
+                                <option value="1000">1,000</option>
+                                <option value="5000">5,000</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="priority">
+                            <option value="balanced" selected>Balanced</option>
+                            <option value="accuracy">Maximum Accuracy</option>
+                            <option value="interpretability">Interpretability</option>
+                            <option value="speed">Training Speed</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Generate & Train</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- From Data -->
+        <div id="ds-data" class="sub-content">
+            <div class="panel">
+                <h3>Start from Existing Data</h3>
+                <p class="help-text">Upload your dataset. We'll clean it and train the best model.</p>
+
+                <form id="data-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Upload CSV</label>
+                        <input type="file" id="data-file" accept=".csv">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Target Column</label>
+                            <input type="text" id="target" placeholder="e.g., churned, fraud, converted">
+                        </div>
+                        <div class="form-group">
+                            <label>Priority</label>
+                            <select id="data-priority">
+                                <option value="balanced" selected>Balanced</option>
+                                <option value="accuracy">Maximum Accuracy</option>
+                                <option value="interpretability">Interpretability</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Intent (optional)</label>
+                        <textarea id="data-intent" rows="2" placeholder="Describe what you're trying to predict..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Clean & Train</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- DS Results -->
+        <div id="ds-results" class="panel results-panel" style="display: none;">
+            <h3>Results</h3>
+            <div id="ds-results-content"></div>
+            <div id="ds-downloads" style="display: none; margin-top: 1rem;">
+                <a id="download-report" class="btn btn-secondary btn-sm" href="#">Report</a>
+                <a id="download-code" class="btn btn-secondary btn-sm" href="#">Code</a>
+                <a id="download-data" class="btn btn-secondary btn-sm" href="#">Data</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- SPC COMPONENT -->
+    <!-- ================================================================== -->
+    <div id="spc-component" class="component-content">
+        <!-- File Upload Panel -->
+        <div id="spc-upload-panel" class="panel upload-panel">
+            <div class="upload-header">
+                <h3>Data Source</h3>
+                <div class="data-source-toggle">
+                    <button class="toggle-btn active" onclick="setDataSource('file')">Upload File</button>
+                    <button class="toggle-btn" onclick="setDataSource('manual')">Enter Manually</button>
+                </div>
+            </div>
+
+            <div id="file-upload-section">
+                <div class="upload-area" id="drop-zone">
+                    <input type="file" id="spc-file" accept=".xlsx,.xls,.csv" style="display: none;">
+                    <div class="upload-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="upload-icon">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <p>Drag & drop XLSX/CSV file or <button type="button" class="link-btn" onclick="document.getElementById('spc-file').click()">browse</button></p>
+                        <small>Supports .xlsx, .xls, .csv</small>
+                    </div>
+                    <div id="file-info" style="display: none;">
+                        <div class="file-badge">
+                            <span class="file-name"></span>
+                            <span class="file-rows"></span>
+                            <button type="button" class="btn-icon" onclick="clearUpload()">×</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Field Mapping (shown after upload) -->
+                <div id="field-mapping" style="display: none;">
+                    <div class="mapping-grid">
+                        <div class="form-group">
+                            <label>Value Column *</label>
+                            <select id="value-column">
+                                <option value="">Select column...</option>
+                            </select>
+                            <small class="help-text">The measurement/value to analyze</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Subgroup Column</label>
+                            <select id="subgroup-column">
+                                <option value="">None (individual data)</option>
+                            </select>
+                            <small class="help-text">Optional: groups data into subgroups</small>
+                        </div>
+                    </div>
+                    <div id="column-preview" class="column-preview"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showSubTab('spc', 'charts')">Control Charts</button>
+            <button class="sub-tab" onclick="showSubTab('spc', 'capability')">Process Capability</button>
+            <button class="sub-tab" onclick="showSubTab('spc', 'msa')">MSA (Gage R&R)</button>
+            <button class="sub-tab" onclick="showSubTab('spc', 'summary')">Data Summary</button>
+        </div>
+
+        <!-- Control Charts -->
+        <div id="spc-charts" class="sub-content active">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Control Chart</h3>
+
+                    <div class="form-group">
+                        <label>Chart Type</label>
+                        <select id="chart-type" onchange="updateChartHelp()">
+                            <option value="I-MR">I-MR (Individuals & Moving Range)</option>
+                            <option value="X-bar R">X-bar R (Subgroup Means & Range)</option>
+                            <option value="p">p-Chart (Proportion Defective)</option>
+                            <option value="c">c-Chart (Defect Count)</option>
+                        </select>
+                        <small id="chart-help" class="help-text">For continuous data with sample size of 1</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Data</label>
+                        <textarea id="chart-data" rows="6" placeholder="Enter values (comma or newline separated)
+
+For subgroups: one row per subgroup
+10.2, 10.5, 10.3
+10.1, 10.4, 10.6"></textarea>
+                    </div>
+
+                    <div id="sample-sizes-group" class="form-group" style="display: none;">
+                        <label>Sample Sizes (for p-chart)</label>
+                        <textarea id="sample-sizes" rows="2" placeholder="50, 50, 48, 52..."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>USL</label>
+                            <input type="number" id="chart-usl" step="any" placeholder="Optional">
+                        </div>
+                        <div class="form-group">
+                            <label>LSL</label>
+                            <input type="number" id="chart-lsl" step="any" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="createControlChart()">Create Chart</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="chart-results">
+                        <p class="empty-text">Enter data to create control chart</p>
+                    </div>
+                    <div id="chart-container" style="display: none; margin-top: 1rem;">
+                        <canvas id="control-chart"></canvas>
+                    </div>
+                    <div id="secondary-chart-container" style="display: none; margin-top: 1rem;">
+                        <canvas id="secondary-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Capability -->
+        <div id="spc-capability" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Capability Study</h3>
+
+                    <div class="form-group">
+                        <label>Measurement Data</label>
+                        <textarea id="cap-data" rows="6" placeholder="Enter measurements (comma or newline separated)"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>USL *</label>
+                            <input type="number" id="cap-usl" step="any" required>
+                        </div>
+                        <div class="form-group">
+                            <label>LSL *</label>
+                            <input type="number" id="cap-lsl" step="any" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Target</label>
+                            <input type="number" id="cap-target" step="any" placeholder="Midpoint">
+                        </div>
+                        <div class="form-group">
+                            <label>Subgroup Size</label>
+                            <input type="number" id="cap-subgroup" value="1" min="1">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="runCapabilityStudy()">Analyze</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Capability Results</h3>
+                    <div id="cap-results">
+                        <p class="empty-text">Enter data and specs to analyze capability</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MSA (Gage R&R) -->
+        <div id="spc-msa" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Gage R&R Study</h3>
+                    <p class="help-text">Evaluate measurement system variation: repeatability (equipment) and reproducibility (operators).</p>
+
+                    <div class="form-group">
+                        <label>Study Type</label>
+                        <select id="msa-study-type">
+                            <option value="crossed">Crossed (each operator measures each part)</option>
+                            <option value="nested">Nested (parts measured by specific operators)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Data Entry</label>
+                        <div class="data-source-toggle" style="margin-bottom: 0.5rem;">
+                            <button class="toggle-btn active" onclick="setMsaDataSource('manual')">Manual Entry</button>
+                            <button class="toggle-btn" onclick="setMsaDataSource('file')">From File</button>
+                        </div>
+                    </div>
+
+                    <div id="msa-manual-entry">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Number of Parts</label>
+                                <input type="number" id="msa-parts" value="10" min="5" max="25">
+                            </div>
+                            <div class="form-group">
+                                <label>Number of Operators</label>
+                                <input type="number" id="msa-operators" value="3" min="2" max="10">
+                            </div>
+                            <div class="form-group">
+                                <label>Trials per Part</label>
+                                <input type="number" id="msa-trials" value="2" min="2" max="5">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Measurement Data</label>
+                            <textarea id="msa-data" rows="8" placeholder="Enter measurements in format:
+Part, Operator, Trial, Measurement
+1, A, 1, 5.23
+1, A, 2, 5.25
+1, B, 1, 5.24
+...
+
+Or paste from spreadsheet (tab-separated)"></textarea>
+                            <small class="help-text">Include headers: Part, Operator, Trial, Measurement</small>
+                        </div>
+                    </div>
+
+                    <div id="msa-file-entry" style="display: none;">
+                        <div class="form-group">
+                            <label>Column Mapping</label>
+                            <div class="mapping-grid">
+                                <div class="form-group">
+                                    <label>Measurement Column *</label>
+                                    <select id="msa-measurement-col">
+                                        <option value="">Select column...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Part Column *</label>
+                                    <select id="msa-part-col">
+                                        <option value="">Select column...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Operator Column *</label>
+                                    <select id="msa-operator-col">
+                                        <option value="">Select column...</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Process Tolerance (optional)</label>
+                            <input type="number" id="msa-tolerance" step="any" placeholder="USL - LSL">
+                            <small class="help-text">For %Tolerance calculation</small>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="runGageRR()">Run Gage R&R Study</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Gage R&R Results</h3>
+                    <div id="msa-results">
+                        <p class="empty-text">Enter measurement data and run the study</p>
+                    </div>
+                    <div id="msa-charts" style="display: none; margin-top: 1rem;">
+                        <div class="chart-grid">
+                            <div id="msa-components-chart"></div>
+                            <div id="msa-by-part-chart"></div>
+                            <div id="msa-by-operator-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Summary -->
+        <div id="spc-summary" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Statistical Summary</h3>
+
+                    <div class="form-group">
+                        <label>Data</label>
+                        <textarea id="summary-data" rows="6" placeholder="Enter values (comma or newline separated)"></textarea>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="runSummary()">Calculate</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Summary Statistics</h3>
+                    <div id="summary-results">
+                        <p class="empty-text">Enter data to calculate statistics</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- OPEX COMPONENT -->
+    <!-- ================================================================== -->
+    <div id="opex-component" class="component-content">
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showSubTab('opex', 'doe')">Design of Experiments</button>
+            <button class="sub-tab" onclick="showSubTab('opex', 'power')">Power Analysis</button>
+        </div>
+
+        <!-- DOE -->
+        <div id="opex-doe" class="sub-content active">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Design of Experiments</h3>
+
+                    <div class="form-group">
+                        <label>Design Type</label>
+                        <select id="doe-type">
+                            <option value="full_factorial">Full Factorial</option>
+                            <option value="fractional_factorial">Fractional Factorial</option>
+                            <option value="ccd">Central Composite (CCD)</option>
+                            <option value="latin_square">Latin Square</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Factors</label>
+                        <div id="factor-list">
+                            <div class="factor-row">
+                                <input type="text" placeholder="Factor name" class="factor-name">
+                                <input type="text" placeholder="Levels (comma sep)" class="factor-levels">
+                                <button type="button" class="btn-icon" onclick="removeFactor(this)">×</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addFactor()">+ Add Factor</button>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="generateDOE()">Generate Design</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Experiment Design</h3>
+                    <div id="doe-results">
+                        <p class="empty-text">Configure factors and generate design</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Power Analysis -->
+        <div id="opex-power" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Power Analysis</h3>
+
+                    <div class="form-group">
+                        <label>Effect Size</label>
+                        <input type="number" id="power-effect" step="0.1" value="0.5" placeholder="Cohen's d">
+                        <small class="help-text">Small: 0.2, Medium: 0.5, Large: 0.8</small>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Alpha (α)</label>
+                            <input type="number" id="power-alpha" step="0.01" value="0.05">
+                        </div>
+                        <div class="form-group">
+                            <label>Power (1-β)</label>
+                            <input type="number" id="power-power" step="0.01" value="0.80">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Test Type</label>
+                        <select id="power-test">
+                            <option value="two_sample">Two-sample t-test</option>
+                            <option value="one_sample">One-sample t-test</option>
+                            <option value="paired">Paired t-test</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="calculatePower()">Calculate Sample Size</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="power-results">
+                        <p class="empty-text">Configure parameters to calculate sample size</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- STATISTICS COMPONENT -->
+    <!-- ================================================================== -->
+    <div id="stats-component" class="component-content">
+        <!-- Data Upload for Stats -->
+        <div id="stats-upload-panel" class="panel upload-panel">
+            <div class="upload-header">
+                <h3>Data Source</h3>
+            </div>
+            <div class="upload-area" id="stats-drop-zone">
+                <input type="file" id="stats-file" accept=".xlsx,.xls,.csv" style="display: none;">
+                <div class="upload-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="upload-icon">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <p>Drag & drop XLSX/CSV file or <button type="button" class="link-btn" onclick="document.getElementById('stats-file').click()">browse</button></p>
+                </div>
+                <div id="stats-file-info" style="display: none;">
+                    <div class="file-badge">
+                        <span class="stats-file-name"></span>
+                        <span class="stats-file-rows"></span>
+                        <button type="button" class="btn-icon" onclick="clearStatsUpload()">×</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showSubTab('stats', 'regression')">Regression</button>
+            <button class="sub-tab" onclick="showSubTab('stats', 'hypothesis')">Hypothesis Tests</button>
+            <button class="sub-tab" onclick="showSubTab('stats', 'intervals')">Intervals</button>
+            <button class="sub-tab" onclick="showSubTab('stats', 'transform')">Transformations</button>
+        </div>
+
+        <!-- Regression Analysis -->
+        <div id="stats-regression" class="sub-content active">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Regression Analysis</h3>
+                    <div class="form-group">
+                        <label>Analysis Type</label>
+                        <select id="stats-reg-type" onchange="updateStatsRegForm()">
+                            <option value="regression">Linear Regression</option>
+                            <option value="stepwise">Stepwise Regression</option>
+                            <option value="best_subsets">Best Subsets</option>
+                            <option value="robust_regression">Robust Regression</option>
+                            <option value="logistic">Logistic Regression</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Response Variable</label>
+                        <select id="stats-reg-response"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Predictors</label>
+                        <select id="stats-reg-predictors" multiple size="5"></select>
+                        <small class="help-text">Ctrl+click to select multiple</small>
+                    </div>
+                    <!-- Stepwise options -->
+                    <div id="stepwise-options" style="display:none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Method</label>
+                                <select id="stepwise-method">
+                                    <option value="both">Both (Forward + Backward)</option>
+                                    <option value="forward">Forward Selection</option>
+                                    <option value="backward">Backward Elimination</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>α to Enter</label>
+                                <input type="number" id="alpha-enter" value="0.05" step="0.01" min="0" max="1">
+                            </div>
+                            <div class="form-group">
+                                <label>α to Remove</label>
+                                <input type="number" id="alpha-remove" value="0.10" step="0.01" min="0" max="1">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Robust options -->
+                    <div id="robust-options" style="display:none;">
+                        <div class="form-group">
+                            <label>M-Estimator</label>
+                            <select id="robust-method">
+                                <option value="huber">Huber T</option>
+                                <option value="bisquare">Tukey's Bisquare</option>
+                                <option value="andrews">Andrew's Wave</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Best subsets options -->
+                    <div id="subsets-options" style="display:none;">
+                        <div class="form-group">
+                            <label>Max Predictors</label>
+                            <input type="number" id="max-predictors" value="8" min="1" max="15">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="runStatsRegression()">Run Analysis</button>
+                </div>
+                <div class="panel results-panel">
+                    <h3>Results</h3>
+                    <div id="stats-reg-results">
+                        <p class="empty-text">Select variables and run analysis</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hypothesis Tests -->
+        <div id="stats-hypothesis" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Hypothesis Tests</h3>
+                    <div class="form-group">
+                        <label>Test Type</label>
+                        <select id="stats-test-type" onchange="updateStatsTestForm()">
+                            <option value="ttest">One-Sample t-Test</option>
+                            <option value="ttest2">Two-Sample t-Test</option>
+                            <option value="paired_t">Paired t-Test</option>
+                            <option value="anova">One-Way ANOVA</option>
+                            <option value="anova2">Two-Way ANOVA</option>
+                            <option value="chi2">Chi-Square Test</option>
+                            <option value="mann_whitney">Mann-Whitney U</option>
+                            <option value="kruskal">Kruskal-Wallis H</option>
+                            <option value="f_test">F-Test for Variance</option>
+                            <option value="equivalence">Equivalence (TOST)</option>
+                            <option value="normality">Normality Test</option>
+                            <option value="runs_test">Runs Test</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="test-var1-group">
+                        <label id="test-var1-label">Variable</label>
+                        <select id="stats-test-var1"></select>
+                    </div>
+                    <div class="form-group" id="test-var2-group" style="display:none;">
+                        <label id="test-var2-label">Second Variable</label>
+                        <select id="stats-test-var2"></select>
+                    </div>
+                    <div class="form-group" id="test-mu-group">
+                        <label>Hypothesized Mean (μ₀)</label>
+                        <input type="number" id="stats-test-mu" value="0" step="any">
+                    </div>
+                    <div class="form-group" id="test-conf-group">
+                        <label>Confidence Level</label>
+                        <select id="stats-test-conf">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="runStatsTest()">Run Test</button>
+                </div>
+                <div class="panel results-panel">
+                    <h3>Results</h3>
+                    <div id="stats-test-results">
+                        <p class="empty-text">Select test and variables</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Intervals -->
+        <div id="stats-intervals" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Confidence & Tolerance Intervals</h3>
+                    <div class="form-group">
+                        <label>Interval Type</label>
+                        <select id="stats-interval-type" onchange="updateStatsIntervalForm()">
+                            <option value="bootstrap_ci">Bootstrap Confidence Interval</option>
+                            <option value="tolerance_interval">Tolerance Interval</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Variable</label>
+                        <select id="stats-interval-var"></select>
+                    </div>
+                    <!-- Bootstrap options -->
+                    <div id="bootstrap-options">
+                        <div class="form-group">
+                            <label>Statistic</label>
+                            <select id="bootstrap-statistic">
+                                <option value="mean">Mean</option>
+                                <option value="median">Median</option>
+                                <option value="std">Standard Deviation</option>
+                                <option value="trimmed_mean">Trimmed Mean (10%)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Bootstrap Samples</label>
+                            <select id="bootstrap-n">
+                                <option value="500">500</option>
+                                <option value="1000" selected>1,000</option>
+                                <option value="5000">5,000</option>
+                                <option value="10000">10,000</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Tolerance options -->
+                    <div id="tolerance-options" style="display:none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Population Coverage</label>
+                                <select id="tolerance-proportion">
+                                    <option value="0.90">90%</option>
+                                    <option value="0.95" selected>95%</option>
+                                    <option value="0.99">99%</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Confidence Level</label>
+                                <select id="tolerance-confidence">
+                                    <option value="0.90">90%</option>
+                                    <option value="0.95" selected>95%</option>
+                                    <option value="0.99">99%</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Confidence Level</label>
+                        <select id="stats-interval-conf">
+                            <option value="90">90%</option>
+                            <option value="95" selected>95%</option>
+                            <option value="99">99%</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="runStatsInterval()">Calculate Interval</button>
+                </div>
+                <div class="panel results-panel">
+                    <h3>Results</h3>
+                    <div id="stats-interval-results">
+                        <p class="empty-text">Select interval type and variable</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transformations -->
+        <div id="stats-transform" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Data Transformations</h3>
+                    <div class="form-group">
+                        <label>Transformation</label>
+                        <select id="stats-transform-type">
+                            <option value="box_cox">Box-Cox (Optimal Power)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Variable</label>
+                        <select id="stats-transform-var"></select>
+                    </div>
+                    <button class="btn btn-primary" onclick="runStatsTransform()">Find Transformation</button>
+                </div>
+                <div class="panel results-panel">
+                    <h3>Results</h3>
+                    <div id="stats-transform-results">
+                        <p class="empty-text">Select variable to transform</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Processing...</p>
+    </div>
+</div>
+
+<style>
+.dsw-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.subtitle {
+    color: var(--text-dim);
+    margin: 0.25rem 0 0 0;
+}
+
+.hypothesis-context {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hypothesis-context label {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.hypothesis-context select {
+    min-width: 200px;
+}
+
+/* Component Navigation */
+.component-nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .component-nav {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.component-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.component-btn:hover {
+    border-color: var(--accent-primary);
+}
+
+.component-btn.active {
+    border-color: var(--accent-primary);
+    background: rgba(74, 159, 110, 0.1);
+}
+
+.component-icon {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 0.5rem;
+    stroke: var(--text-secondary);
+}
+
+.component-btn.active .component-icon {
+    stroke: var(--accent-primary);
+}
+
+.component-label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.component-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.component-content {
+    display: none;
+}
+
+.component-content.active {
+    display: block;
+}
+
+/* Pipeline Visualization */
+.pipeline-viz {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.arrow {
+    color: var(--text-dim);
+}
+
+/* Sub-tabs */
+.sub-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+}
+
+.sub-tab {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    font-family: inherit;
+}
+
+.sub-tab:hover {
+    color: var(--text-primary);
+}
+
+.sub-tab.active {
+    color: var(--accent-primary);
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.sub-content {
+    display: none;
+}
+
+.sub-content.active {
+    display: block;
+}
+
+/* Layout */
+.two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.panel {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.panel h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+}
+
+.results-panel {
+    margin-top: 1.5rem;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.help-text {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.empty-text {
+    color: var(--text-dim);
+    text-align: center;
+    padding: 2rem;
+}
+
+/* Stats Results Formatting */
+.stats-summary {
+    font-family: var(--font-mono, 'Monaco', 'Menlo', monospace);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.stats-summary .color-accent { color: var(--accent-primary); }
+.stats-summary .color-title { color: var(--accent-primary); font-weight: bold; }
+.stats-summary .color-highlight { color: var(--accent-blue); }
+.stats-summary .color-text { color: var(--text-primary); }
+.stats-summary .color-dim { color: var(--text-dim); }
+.stats-summary .color-success { color: var(--success, #4a9f6e); }
+.stats-summary .color-warning { color: var(--accent-orange); }
+.stats-summary .color-danger { color: var(--error, #e85747); }
+
+.stats-plots {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.stats-plot {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+
+/* Tags */
+.tag-blue { background: rgba(58, 127, 143, 0.15); color: var(--accent-blue); }
+.tag-orange { background: rgba(232, 149, 71, 0.15); color: var(--accent-orange); }
+.tag-purple { background: rgba(90, 79, 127, 0.15); color: var(--accent-purple); }
+
+/* DOE Factors */
+.factor-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.factor-row input {
+    flex: 1;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-icon:hover {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+/* Metrics Grid */
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.metric-card {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+}
+
+.metric-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.metric-card.highlight {
+    border: 1px solid var(--accent-primary);
+}
+
+/* Results */
+.result-summary {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    white-space: pre-line;
+}
+
+.result-status {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.result-status.in-control { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+.result-status.out-of-control { background: rgba(159, 74, 74, 0.2); color: #9f4a4a; }
+
+.interpretation {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    margin-top: 1rem;
+}
+
+.interpretation.good { border-left: 3px solid #4a9f6e; }
+.interpretation.marginal { border-left: 3px solid #e8c547; }
+.interpretation.poor { border-left: 3px solid #9f4a4a; }
+
+/* MSA Styles */
+.msa-assessment {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.msa-assessment.good {
+    background: rgba(74, 159, 110, 0.15);
+    border: 1px solid #4a9f6e;
+}
+
+.msa-assessment.marginal {
+    background: rgba(232, 197, 71, 0.15);
+    border: 1px solid #e8c547;
+}
+
+.msa-assessment.poor {
+    background: rgba(159, 74, 74, 0.15);
+    border: 1px solid #9f4a4a;
+}
+
+.assessment-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.msa-assessment.good .assessment-value { color: #4a9f6e; }
+.msa-assessment.marginal .assessment-value { color: #e8c547; }
+.msa-assessment.poor .assessment-value { color: #9f4a4a; }
+
+.assessment-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.assessment-status {
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+.msa-assessment.good .assessment-status { color: #4a9f6e; }
+.msa-assessment.marginal .assessment-status { color: #e8c547; }
+.msa-assessment.poor .assessment-status { color: #9f4a4a; }
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.chart-grid > div {
+    min-height: 200px;
+}
+
+.section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 1.5rem 0 0.75rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Loading */
+.loading-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--bg-tertiary);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* DOE Results Table */
+.doe-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.doe-table th, .doe-table td {
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    text-align: left;
+}
+
+.doe-table th {
+    background: var(--bg-secondary);
+}
+
+/* Upload Panel */
+.upload-panel {
+    margin-bottom: 1.5rem;
+}
+
+.upload-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.upload-header h3 {
+    margin: 0;
+}
+
+.data-source-toggle {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 0.25rem;
+}
+
+.toggle-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 3px;
+    font-family: inherit;
+}
+
+.toggle-btn.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.upload-area.dragover {
+    border-color: var(--accent-primary);
+    background: rgba(74, 159, 110, 0.1);
+}
+
+.upload-placeholder {
+    color: var(--text-dim);
+}
+
+.upload-icon {
+    width: 32px;
+    height: 32px;
+    margin: 0 auto 0.5rem auto;
+    stroke: var(--text-dim);
+}
+
+.link-btn {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+    font-size: inherit;
+    padding: 0;
+}
+
+.file-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+}
+
+.file-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.file-rows {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+/* Field Mapping */
+.mapping-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.column-preview {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.preview-row {
+    display: flex;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.preview-row:last-child {
+    border-bottom: none;
+}
+
+.preview-header {
+    font-weight: 500;
+    color: var(--accent-primary);
+}
+
+/* Analyze from file button */
+.analyze-file-btn {
+    margin-top: 1rem;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .component-nav { grid-template-columns: 1fr; }
+    .two-column { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .metric-grid { grid-template-columns: repeat(2, 1fr); }
+    .mapping-grid { grid-template-columns: 1fr; }
+    .upload-header { flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+}
+</style>
+
+<script>
+let chartInstance = null;
+let secondaryChartInstance = null;
+let problems = [];
+let uploadedData = null;  // Stores parsed file data
+let cacheKey = null;      // Server cache key for uploaded data
+
+// ============================================================================
+// Component Navigation
+// ============================================================================
+
+function showComponent(id) {
+    document.querySelectorAll('.component-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.component-btn').forEach(b => b.classList.remove('active'));
+
+    document.getElementById(id + '-component').classList.add('active');
+    event.target.closest('.component-btn').classList.add('active');
+}
+
+function showSubTab(component, tab) {
+    const container = document.getElementById(component + '-component');
+    container.querySelectorAll('.sub-content').forEach(c => c.classList.remove('active'));
+    container.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+
+    document.getElementById(component + '-' + tab).classList.add('active');
+    event.target.classList.add('active');
+}
+
+// ============================================================================
+// Data Science Functions
+// ============================================================================
+
+document.getElementById('intent-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = {
+        intent: document.getElementById('intent').value,
+        domain: document.getElementById('domain').value || null,
+        n_records: parseInt(document.getElementById('n_records').value),
+        priority: document.getElementById('priority').value,
+    };
+
+    await runDSPipeline('/api/dsw/from-intent/', data, false);
+});
+
+document.getElementById('data-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData();
+    formData.append('file', document.getElementById('data-file').files[0]);
+    formData.append('target', document.getElementById('target').value);
+    formData.append('intent', document.getElementById('data-intent').value);
+    formData.append('priority', document.getElementById('data-priority').value);
+
+    await runDSPipeline('/api/dsw/from-data/', formData, true);
+});
+
+async function runDSPipeline(endpoint, data, isFormData) {
+    showLoading(true);
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: isFormData ? {} : {'Content-Type': 'application/json'},
+            body: isFormData ? data : JSON.stringify(data),
+            credentials: 'include',
+        });
+
+        const result = await response.json();
+        showLoading(false);
+
+        if (result.error) {
+            alert(result.error);
+            return;
+        }
+
+        displayDSResults(result);
+    } catch (err) {
+        showLoading(false);
+        alert('Error: ' + err.message);
+    }
+}
+
+function displayDSResults(result) {
+    const container = document.getElementById('ds-results-content');
+    let html = '';
+
+    if (result.schema) {
+        html += `<p><strong>Schema:</strong> ${result.schema.name} (${result.schema.domain})</p>`;
+    }
+
+    if (result.data_shape) {
+        html += `<p><strong>Data:</strong> ${result.data_shape[0]} rows, ${result.data_shape[1]} columns</p>`;
+    }
+
+    if (result.model_type) {
+        html += `<p><strong>Model:</strong> ${result.model_type}</p>`;
+    }
+
+    if (result.metrics) {
+        html += '<div class="metric-grid">';
+        for (const [name, value] of Object.entries(result.metrics)) {
+            const displayValue = typeof value === 'number' ? value.toFixed(3) : value;
+            html += `<div class="metric-card"><div class="metric-value">${displayValue}</div><div class="metric-label">${name}</div></div>`;
+        }
+        html += '</div>';
+    }
+
+    if (result.feature_importance && result.feature_importance.length > 0) {
+        html += '<h4>Top Features</h4><ol>';
+        result.feature_importance.slice(0, 5).forEach(f => {
+            const name = f.feature || f[0];
+            const imp = f.importance || f[1];
+            html += `<li>${name}: ${(imp * 100).toFixed(1)}%</li>`;
+        });
+        html += '</ol>';
+    }
+
+    container.innerHTML = html;
+    document.getElementById('ds-results').style.display = 'block';
+}
+
+// ============================================================================
+// SPC Functions
+// ============================================================================
+
+function updateChartHelp() {
+    const type = document.getElementById('chart-type').value;
+    const help = document.getElementById('chart-help');
+    const sampleSizesGroup = document.getElementById('sample-sizes-group');
+
+    const helpTexts = {
+        'I-MR': 'For continuous data with sample size of 1',
+        'X-bar R': 'For continuous data with subgroups of 2-10',
+        'p': 'For proportion defective (requires sample sizes)',
+        'c': 'For counting defects per unit',
+    };
+
+    help.textContent = helpTexts[type] || '';
+    sampleSizesGroup.style.display = type === 'p' ? 'block' : 'none';
+}
+
+function parseChartData(text) {
+    const chartType = document.getElementById('chart-type').value;
+    const lines = text.trim().split('\n');
+
+    if (chartType === 'X-bar R') {
+        return lines.map(line =>
+            line.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v))
+        ).filter(sg => sg.length > 0);
+    } else {
+        const data = [];
+        for (const line of lines) {
+            for (const val of line.split(',')) {
+                const num = parseFloat(val.trim());
+                if (!isNaN(num)) data.push(num);
+            }
+        }
+        return data;
+    }
+}
+
+async function createControlChart() {
+    const chartType = document.getElementById('chart-type').value;
+    const dataText = document.getElementById('chart-data').value;
+    const usl = document.getElementById('chart-usl').value;
+    const lsl = document.getElementById('chart-lsl').value;
+    const problemId = document.getElementById('problem-selector').value;
+
+    // Check if using uploaded file data
+    const uploadData = getDataFromUpload();
+    if (uploadData) {
+        // Use uploaded file
+        const body = {
+            ...uploadData,
+            analysis_type: 'control_chart',
+            chart_type: chartType,
+        };
+        if (usl) body.usl = parseFloat(usl);
+        if (lsl) body.lsl = parseFloat(lsl);
+        if (problemId) body.problem_id = problemId;
+
+        try {
+            showLoading(true);
+            const response = await fetch('/api/spc/analyze/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+            });
+
+            const result = await response.json();
+            showLoading(false);
+
+            if (response.ok && result.success) {
+                displayChartResults(result.chart);
+                if (result.evidence_added) {
+                    showNotification('Evidence added to problem');
+                }
+            } else {
+                alert(result.error || 'Analysis failed');
+            }
+        } catch (err) {
+            showLoading(false);
+            alert('Error: ' + err.message);
+        }
+        return;
+    }
+
+    // Manual data entry
+    if (!dataText.trim()) {
+        alert('Please enter data or upload a file');
+        return;
+    }
+
+    const data = parseChartData(dataText);
+    const body = { chart_type: chartType, data: data };
+
+    if (usl) body.usl = parseFloat(usl);
+    if (lsl) body.lsl = parseFloat(lsl);
+    if (problemId) body.problem_id = problemId;
+
+    if (chartType === 'p') {
+        const sizes = document.getElementById('sample-sizes').value;
+        body.sample_sizes = sizes.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+    }
+
+    try {
+        const response = await fetch('/api/spc/chart/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            displayChartResults(result.chart);
+        } else {
+            alert(result.error || 'Failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function showNotification(message) {
+    // Simple notification (could be enhanced)
+    const div = document.createElement('div');
+    div.className = 'notification';
+    div.textContent = message;
+    div.style.cssText = 'position:fixed;top:20px;right:20px;background:var(--accent-primary);color:white;padding:1rem;border-radius:4px;z-index:1001;';
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
+
+function displayChartResults(chart) {
+    const container = document.getElementById('chart-results');
+    const statusClass = chart.in_control ? 'in-control' : 'out-of-control';
+    const statusText = chart.in_control ? 'IN CONTROL' : 'OUT OF CONTROL';
+
+    container.innerHTML = `
+        <div class="result-status ${statusClass}">${statusText}</div>
+        <div class="result-summary">${chart.summary}</div>
+    `;
+
+    drawControlChart('control-chart', chart);
+    document.getElementById('chart-container').style.display = 'block';
+
+    if (chart.secondary_chart) {
+        drawControlChart('secondary-chart', chart.secondary_chart);
+        document.getElementById('secondary-chart-container').style.display = 'block';
+    } else {
+        document.getElementById('secondary-chart-container').style.display = 'none';
+    }
+}
+
+function drawControlChart(canvasId, chart) {
+    const ctx = document.getElementById(canvasId);
+
+    if (canvasId === 'control-chart' && chartInstance) chartInstance.destroy();
+    if (canvasId === 'secondary-chart' && secondaryChartInstance) secondaryChartInstance.destroy();
+
+    const labels = chart.data_points.map((_, i) => i + 1);
+    const datasets = [
+        {
+            label: 'Data',
+            data: chart.data_points,
+            borderColor: SvendTheme.colors.primary,
+            backgroundColor: 'transparent',
+            tension: 0,
+            pointRadius: 4,
+            pointBackgroundColor: chart.data_points.map((v, i) =>
+                chart.out_of_control.some(p => p.index === i) ? SvendTheme.colors.error : SvendTheme.colors.primary
+            ),
+        },
+        { label: 'UCL', data: Array(chart.data_points.length).fill(chart.limits.ucl), borderColor: SvendTheme.colors.error, borderDash: [5, 5], pointRadius: 0 },
+        { label: 'CL', data: Array(chart.data_points.length).fill(chart.limits.cl), borderColor: SvendTheme.colors.textDim, borderDash: [2, 2], pointRadius: 0 },
+        { label: 'LCL', data: Array(chart.data_points.length).fill(chart.limits.lcl), borderColor: SvendTheme.colors.error, borderDash: [5, 5], pointRadius: 0 },
+    ];
+
+    const newChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: chart.chart_type + ' Chart', color: SvendTheme.colors.text } },
+            scales: {
+                x: { ticks: { color: SvendTheme.colors.textDim }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                y: { ticks: { color: SvendTheme.colors.textDim }, grid: { color: 'rgba(255,255,255,0.1)' } }
+            }
+        }
+    });
+
+    if (canvasId === 'control-chart') chartInstance = newChart;
+    else secondaryChartInstance = newChart;
+}
+
+async function runCapabilityStudy() {
+    const dataText = document.getElementById('cap-data').value;
+    const usl = document.getElementById('cap-usl').value;
+    const lsl = document.getElementById('cap-lsl').value;
+    const target = document.getElementById('cap-target').value;
+    const subgroupSize = document.getElementById('cap-subgroup').value;
+    const problemId = document.getElementById('problem-selector').value;
+
+    if (!usl || !lsl) {
+        alert('USL and LSL are required');
+        return;
+    }
+
+    // Check if using uploaded file data
+    const uploadData = getDataFromUpload();
+    if (uploadData) {
+        const body = {
+            ...uploadData,
+            analysis_type: 'capability',
+            usl: parseFloat(usl),
+            lsl: parseFloat(lsl),
+        };
+        if (target) body.target = parseFloat(target);
+        if (problemId) body.problem_id = problemId;
+
+        try {
+            showLoading(true);
+            const response = await fetch('/api/spc/analyze/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+            });
+
+            const result = await response.json();
+            showLoading(false);
+
+            if (response.ok && result.success) {
+                displayCapabilityResults(result.capability);
+                if (result.evidence_added) {
+                    showNotification('Evidence added to problem');
+                }
+            } else {
+                alert(result.error || 'Analysis failed');
+            }
+        } catch (err) {
+            showLoading(false);
+            alert('Error: ' + err.message);
+        }
+        return;
+    }
+
+    // Manual data entry
+    if (!dataText.trim()) {
+        alert('Please enter data or upload a file');
+        return;
+    }
+
+    const data = dataText.split(/[,\n]/).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+    const body = { data, usl: parseFloat(usl), lsl: parseFloat(lsl), subgroup_size: parseInt(subgroupSize) || 1 };
+    if (target) body.target = parseFloat(target);
+    if (problemId) body.problem_id = problemId;
+
+    try {
+        const response = await fetch('/api/spc/capability/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            displayCapabilityResults(result.capability);
+        } else {
+            alert(result.error || 'Failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function displayCapabilityResults(cap) {
+    const cpkClass = cap.cpk >= 1.33 ? 'good' : (cap.cpk >= 1.0 ? 'marginal' : 'poor');
+
+    document.getElementById('cap-results').innerHTML = `
+        <div class="metric-grid">
+            <div class="metric-card highlight"><div class="metric-value">${cap.cpk.toFixed(3)}</div><div class="metric-label">Cpk</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.cp.toFixed(3)}</div><div class="metric-label">Cp</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.ppk.toFixed(3)}</div><div class="metric-label">Ppk</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.pp.toFixed(3)}</div><div class="metric-label">Pp</div></div>
+        </div>
+        <div class="metric-grid">
+            <div class="metric-card"><div class="metric-value">${cap.sigma_level.toFixed(2)}</div><div class="metric-label">Sigma</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.dpmo.toFixed(0)}</div><div class="metric-label">DPMO</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.yield_percent.toFixed(2)}%</div><div class="metric-label">Yield</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.n_samples}</div><div class="metric-label">n</div></div>
+        </div>
+        <div class="interpretation ${cpkClass}">${cap.interpretation}</div>
+    `;
+}
+
+async function runSummary() {
+    const dataText = document.getElementById('summary-data').value;
+
+    // Check if using uploaded file data
+    const uploadData = getDataFromUpload();
+    if (uploadData) {
+        const body = {
+            ...uploadData,
+            analysis_type: 'summary',
+        };
+
+        try {
+            showLoading(true);
+            const response = await fetch('/api/spc/analyze/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+            });
+
+            const result = await response.json();
+            showLoading(false);
+
+            if (response.ok && result.success) {
+                displaySummaryResults(result.summary);
+            } else {
+                alert(result.error || 'Analysis failed');
+            }
+        } catch (err) {
+            showLoading(false);
+            alert('Error: ' + err.message);
+        }
+        return;
+    }
+
+    // Manual data entry
+    if (!dataText.trim()) {
+        alert('Please enter data or upload a file');
+        return;
+    }
+
+    const data = dataText.split(/[,\n]/).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+
+    try {
+        const response = await fetch('/api/spc/summary/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ data }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            displaySummaryResults(result.summary);
+        } else {
+            alert(result.error);
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function displaySummaryResults(s) {
+    document.getElementById('summary-results').innerHTML = `
+        <div class="result-summary">
+n = ${s.n}
+Mean = ${s.mean.toFixed(4)}
+Median = ${s.median.toFixed(4)}
+Std Dev = ${s.std_dev.toFixed(4)}
+Min = ${s.min_val.toFixed(4)}
+Max = ${s.max_val.toFixed(4)}
+Range = ${s.range_val.toFixed(4)}
+Q1 = ${s.q1.toFixed(4)}
+Q3 = ${s.q3.toFixed(4)}
+IQR = ${s.iqr.toFixed(4)}
+Skewness = ${s.skewness.toFixed(4)}
+Kurtosis = ${s.kurtosis.toFixed(4)}
+        </div>
+    `;
+}
+
+// ============================================================================
+// MSA (Gage R&R) Functions
+// ============================================================================
+
+let msaDataSource = 'manual';
+
+function setMsaDataSource(source) {
+    msaDataSource = source;
+    document.querySelectorAll('#spc-msa .data-source-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    document.getElementById('msa-manual-entry').style.display = source === 'manual' ? 'block' : 'none';
+    document.getElementById('msa-file-entry').style.display = source === 'file' ? 'block' : 'none';
+
+    // If file source, populate column selectors from uploaded file
+    if (source === 'file' && uploadedFileColumns.length > 0) {
+        populateMsaColumns();
+    }
+}
+
+function populateMsaColumns() {
+    const cols = uploadedFileColumns;
+    const measurementSelect = document.getElementById('msa-measurement-col');
+    const partSelect = document.getElementById('msa-part-col');
+    const operatorSelect = document.getElementById('msa-operator-col');
+
+    const options = '<option value="">Select column...</option>' +
+        cols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    measurementSelect.innerHTML = options;
+    partSelect.innerHTML = options;
+    operatorSelect.innerHTML = options;
+}
+
+async function runGageRR() {
+    let data;
+
+    if (msaDataSource === 'manual') {
+        const dataText = document.getElementById('msa-data').value.trim();
+        if (!dataText) {
+            alert('Please enter measurement data');
+            return;
+        }
+        data = parseMsaData(dataText);
+    } else {
+        // From uploaded file
+        if (!cacheKey) {
+            alert('Please upload a file first');
+            return;
+        }
+        const measurementCol = document.getElementById('msa-measurement-col').value;
+        const partCol = document.getElementById('msa-part-col').value;
+        const operatorCol = document.getElementById('msa-operator-col').value;
+
+        if (!measurementCol || !partCol || !operatorCol) {
+            alert('Please select all required columns');
+            return;
+        }
+
+        data = {
+            cache_key: cacheKey,
+            measurement_column: measurementCol,
+            part_column: partCol,
+            operator_column: operatorCol,
+        };
+    }
+
+    const tolerance = parseFloat(document.getElementById('msa-tolerance').value) || null;
+    const studyType = document.getElementById('msa-study-type').value;
+
+    try {
+        showLoading(true);
+        const response = await fetch('/api/dsw/analysis/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                analysis_type: 'gage_rr',
+                study_type: studyType,
+                tolerance: tolerance,
+                ...data,
+            }),
+        });
+
+        const result = await response.json();
+        showLoading(false);
+
+        if (response.ok && result.success) {
+            displayGageRRResults(result.gage_rr);
+        } else {
+            alert(result.error || 'Gage R&R analysis failed');
+        }
+    } catch (err) {
+        showLoading(false);
+        alert('Error: ' + err.message);
+    }
+}
+
+function parseMsaData(text) {
+    const lines = text.trim().split('\n');
+    const measurements = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Skip header row if detected
+        if (i === 0 && (line.toLowerCase().includes('part') || line.toLowerCase().includes('operator'))) {
+            continue;
+        }
+
+        const parts = line.split(/[,\t]/).map(p => p.trim());
+        if (parts.length >= 4) {
+            measurements.push({
+                part: parts[0],
+                operator: parts[1],
+                trial: parseInt(parts[2]) || i,
+                measurement: parseFloat(parts[3]),
+            });
+        } else if (parts.length >= 1) {
+            // Simple format: just measurement values
+            const val = parseFloat(parts[0]);
+            if (!isNaN(val)) {
+                measurements.push({ measurement: val });
+            }
+        }
+    }
+
+    return { measurements };
+}
+
+function displayGageRRResults(grr) {
+    const resultsDiv = document.getElementById('msa-results');
+
+    // Determine assessment class
+    let assessmentClass = 'good';
+    if (grr.pct_gage_rr > 30) assessmentClass = 'poor';
+    else if (grr.pct_gage_rr > 10) assessmentClass = 'marginal';
+
+    resultsDiv.innerHTML = `
+        <div class="msa-assessment ${assessmentClass}">
+            <div class="assessment-value">${grr.pct_gage_rr.toFixed(1)}%</div>
+            <div class="assessment-label">Total Gage R&R</div>
+            <div class="assessment-status">${grr.assessment}</div>
+        </div>
+
+        <div class="section-title">Variance Components</div>
+        <table class="data-table">
+            <thead>
+                <tr><th>Source</th><th class="right">VarComp</th><th class="right">%Contribution</th><th class="right">%Study Var</th>${grr.pct_tolerance ? '<th class="right">%Tolerance</th>' : ''}</tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Total Gage R&R</td>
+                    <td class="right">${grr.gage_rr_var.toFixed(6)}</td>
+                    <td class="right">${grr.contribution_gage_rr.toFixed(2)}%</td>
+                    <td class="right">${grr.pct_gage_rr.toFixed(2)}%</td>
+                    ${grr.pct_tolerance ? `<td class="right">${grr.pct_tolerance_grr.toFixed(2)}%</td>` : ''}
+                </tr>
+                <tr>
+                    <td style="padding-left: 1.5rem;">Repeatability</td>
+                    <td class="right">${grr.repeatability_var.toFixed(6)}</td>
+                    <td class="right">${grr.contribution_repeatability.toFixed(2)}%</td>
+                    <td class="right">${grr.pct_repeatability.toFixed(2)}%</td>
+                    ${grr.pct_tolerance ? `<td class="right">${grr.pct_tolerance_repeat.toFixed(2)}%</td>` : ''}
+                </tr>
+                <tr>
+                    <td style="padding-left: 1.5rem;">Reproducibility</td>
+                    <td class="right">${grr.reproducibility_var.toFixed(6)}</td>
+                    <td class="right">${grr.contribution_reproducibility.toFixed(2)}%</td>
+                    <td class="right">${grr.pct_reproducibility.toFixed(2)}%</td>
+                    ${grr.pct_tolerance ? `<td class="right">${grr.pct_tolerance_reprod.toFixed(2)}%</td>` : ''}
+                </tr>
+                <tr>
+                    <td>Part-to-Part</td>
+                    <td class="right">${grr.part_var.toFixed(6)}</td>
+                    <td class="right">${grr.contribution_part.toFixed(2)}%</td>
+                    <td class="right">${grr.pct_part.toFixed(2)}%</td>
+                    ${grr.pct_tolerance ? '<td class="right">-</td>' : ''}
+                </tr>
+                <tr style="font-weight: bold;">
+                    <td>Total Variation</td>
+                    <td class="right">${grr.total_var.toFixed(6)}</td>
+                    <td class="right">100.00%</td>
+                    <td class="right">100.00%</td>
+                    ${grr.pct_tolerance ? '<td class="right">-</td>' : ''}
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="section-title">Study Information</div>
+        <div class="result-summary">
+Number of Parts: ${grr.n_parts}
+Number of Operators: ${grr.n_operators}
+Number of Replicates: ${grr.n_replicates}
+Number of Distinct Categories (NDC): ${grr.ndc}
+        </div>
+
+        <div class="interpretation ${assessmentClass}">
+            <strong>Interpretation:</strong> ${grr.interpretation}
+        </div>
+    `;
+
+    // Show charts section
+    document.getElementById('msa-charts').style.display = 'block';
+
+    // Render charts if data available
+    if (grr.by_part && grr.by_operator) {
+        renderMsaCharts(grr);
+    }
+}
+
+function renderMsaCharts(grr) {
+    // Components of Variation bar chart
+    if (typeof Chart !== 'undefined') {
+        const componentsCtx = document.getElementById('msa-components-chart');
+        if (componentsCtx) {
+            componentsCtx.innerHTML = '<canvas id="msa-comp-canvas"></canvas>';
+            new Chart(document.getElementById('msa-comp-canvas'), {
+                type: 'bar',
+                data: {
+                    labels: ['Gage R&R', 'Repeatability', 'Reproducibility', 'Part-to-Part'],
+                    datasets: [{
+                        label: '%Study Var',
+                        data: [grr.pct_gage_rr, grr.pct_repeatability, grr.pct_reproducibility, grr.pct_part],
+                        backgroundColor: ['#ef4444', '#f97316', '#eab308', '#22c55e'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { title: { display: true, text: 'Components of Variation' } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+    }
+}
+
+// ============================================================================
+// OpEx Functions
+// ============================================================================
+
+function addFactor() {
+    const list = document.getElementById('factor-list');
+    const row = document.createElement('div');
+    row.className = 'factor-row';
+    row.innerHTML = `
+        <input type="text" placeholder="Factor name" class="factor-name">
+        <input type="text" placeholder="Levels (comma sep)" class="factor-levels">
+        <button type="button" class="btn-icon" onclick="removeFactor(this)">×</button>
+    `;
+    list.appendChild(row);
+}
+
+function removeFactor(btn) {
+    const list = document.getElementById('factor-list');
+    if (list.children.length > 1) {
+        btn.parentElement.remove();
+    }
+}
+
+async function generateDOE() {
+    const designType = document.getElementById('doe-type').value;
+    const factorRows = document.querySelectorAll('#factor-list .factor-row');
+
+    const factors = [];
+    factorRows.forEach(row => {
+        const name = row.querySelector('.factor-name').value.trim();
+        const levelsText = row.querySelector('.factor-levels').value.trim();
+        if (name && levelsText) {
+            factors.push({
+                name: name,
+                levels: levelsText.split(',').map(l => l.trim()),
+            });
+        }
+    });
+
+    if (factors.length < 2) {
+        alert('Need at least 2 factors');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/experimenter/design/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ design_type: designType, factors }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            displayDOEResults(result, factors);
+        } else {
+            alert(result.error || 'Failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function displayDOEResults(result, factors) {
+    const container = document.getElementById('doe-results');
+
+    let html = `<p><strong>Design:</strong> ${result.design_type}, ${result.n_runs} runs</p>`;
+
+    if (result.design_matrix && result.design_matrix.length > 0) {
+        html += '<table class="doe-table"><thead><tr><th>Run</th>';
+        factors.forEach(f => { html += `<th>${f.name}</th>`; });
+        html += '</tr></thead><tbody>';
+
+        result.design_matrix.forEach((run, i) => {
+            html += `<tr><td>${i + 1}</td>`;
+            run.forEach(val => { html += `<td>${val}</td>`; });
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+    }
+
+    container.innerHTML = html;
+}
+
+async function calculatePower() {
+    const effectSize = parseFloat(document.getElementById('power-effect').value);
+    const alpha = parseFloat(document.getElementById('power-alpha').value);
+    const power = parseFloat(document.getElementById('power-power').value);
+    const testType = document.getElementById('power-test').value;
+
+    try {
+        const response = await fetch('/api/experimenter/power/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ effect_size: effectSize, alpha, power, test_type: testType }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            document.getElementById('power-results').innerHTML = `
+                <div class="metric-grid">
+                    <div class="metric-card highlight"><div class="metric-value">${result.sample_size}</div><div class="metric-label">Sample Size (per group)</div></div>
+                    <div class="metric-card"><div class="metric-value">${result.total_n || result.sample_size * 2}</div><div class="metric-label">Total N</div></div>
+                </div>
+                <div class="result-summary">
+Effect Size: ${effectSize}
+Alpha: ${alpha}
+Power: ${power}
+Test: ${testType}
+                </div>
+            `;
+        } else {
+            alert(result.error || 'Failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// ============================================================================
+// File Upload Functions
+// ============================================================================
+
+function setDataSource(source) {
+    document.querySelectorAll('.data-source-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const fileSection = document.getElementById('file-upload-section');
+    if (source === 'file') {
+        fileSection.style.display = 'block';
+    } else {
+        fileSection.style.display = 'none';
+    }
+}
+
+function initFileUpload() {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('spc-file');
+
+    if (!dropZone || !fileInput) return;
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            handleFileUpload(e.dataTransfer.files[0]);
+        }
+    });
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+}
+
+async function handleFileUpload(file) {
+    const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/vnd.ms-excel', 'text/csv'];
+    const validExtensions = ['.xlsx', '.xls', '.csv'];
+
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!validExtensions.includes(ext)) {
+        alert('Please upload an XLSX or CSV file');
+        return;
+    }
+
+    showLoading(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/spc/upload/', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+        });
+
+        const result = await response.json();
+        showLoading(false);
+
+        if (response.ok && result.success) {
+            uploadedData = result;
+            cacheKey = result.cache_key;
+            displayUploadedFile(result);
+        } else {
+            alert(result.error || 'Upload failed');
+        }
+    } catch (err) {
+        showLoading(false);
+        alert('Upload error: ' + err.message);
+    }
+}
+
+function displayUploadedFile(data) {
+    // Show file info
+    document.querySelector('.upload-placeholder').style.display = 'none';
+    document.getElementById('file-info').style.display = 'block';
+    document.querySelector('.file-name').textContent = data.filename;
+    document.querySelector('.file-rows').textContent = `${data.row_count} rows`;
+
+    // Populate column dropdowns
+    const valueSelect = document.getElementById('value-column');
+    const subgroupSelect = document.getElementById('subgroup-column');
+
+    // Clear existing options
+    valueSelect.innerHTML = '<option value="">Select column...</option>';
+    subgroupSelect.innerHTML = '<option value="">None (individual data)</option>';
+
+    // Add numeric columns to value selector
+    data.columns.forEach(col => {
+        if (col.dtype === 'numeric') {
+            const option = document.createElement('option');
+            option.value = col.name;
+            option.textContent = `${col.name} (${col.sample_values.slice(0, 2).join(', ')}...)`;
+            valueSelect.appendChild(option);
+        }
+    });
+
+    // Add all columns to subgroup selector
+    data.columns.forEach(col => {
+        const option = document.createElement('option');
+        option.value = col.name;
+        option.textContent = `${col.name} (${col.unique_count} unique)`;
+        subgroupSelect.appendChild(option);
+    });
+
+    // Show field mapping
+    document.getElementById('field-mapping').style.display = 'block';
+
+    // Add change handlers for preview
+    valueSelect.addEventListener('change', updateColumnPreview);
+    subgroupSelect.addEventListener('change', updateColumnPreview);
+}
+
+function updateColumnPreview() {
+    const valueCol = document.getElementById('value-column').value;
+    const preview = document.getElementById('column-preview');
+
+    if (!valueCol || !uploadedData || !uploadedData.preview) {
+        preview.innerHTML = '';
+        return;
+    }
+
+    const subgroupCol = document.getElementById('subgroup-column').value;
+    const valueData = uploadedData.preview[valueCol] || [];
+    const subgroupData = subgroupCol ? uploadedData.preview[subgroupCol] : null;
+
+    let html = '<div class="preview-row preview-header">';
+    html += `<span>${valueCol}</span>`;
+    if (subgroupData) html += `<span>${subgroupCol}</span>`;
+    html += '</div>';
+
+    for (let i = 0; i < Math.min(5, valueData.length); i++) {
+        html += '<div class="preview-row">';
+        html += `<span>${valueData[i]}</span>`;
+        if (subgroupData) html += `<span>${subgroupData[i]}</span>`;
+        html += '</div>';
+    }
+
+    if (valueData.length > 5) {
+        html += `<div class="preview-row"><span>... and ${uploadedData.row_count - 5} more rows</span></div>`;
+    }
+
+    preview.innerHTML = html;
+}
+
+function clearUpload() {
+    uploadedData = null;
+    cacheKey = null;
+
+    document.querySelector('.upload-placeholder').style.display = 'block';
+    document.getElementById('file-info').style.display = 'none';
+    document.getElementById('field-mapping').style.display = 'none';
+    document.getElementById('column-preview').innerHTML = '';
+    document.getElementById('spc-file').value = '';
+}
+
+function getDataFromUpload() {
+    if (!uploadedData || !cacheKey) return null;
+
+    const valueCol = document.getElementById('value-column').value;
+    if (!valueCol) {
+        alert('Please select a value column');
+        return null;
+    }
+
+    return {
+        cache_key: cacheKey,
+        value_column: valueCol,
+        subgroup_column: document.getElementById('subgroup-column').value || null,
+    };
+}
+
+// ============================================================================
+// Statistics Functions
+// ============================================================================
+
+let statsData = null;
+let statsCacheKey = null;
+
+// Initialize stats file upload
+function initStatsUpload() {
+    const dropZone = document.getElementById('stats-drop-zone');
+    const fileInput = document.getElementById('stats-file');
+
+    if (!dropZone || !fileInput) return;
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) handleStatsFile(file);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) handleStatsFile(e.target.files[0]);
+    });
+}
+
+async function handleStatsFile(file) {
+    showLoading(true);
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/dsw/upload-data/', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        const result = await response.json();
+        showLoading(false);
+
+        if (result.error) {
+            alert(result.error);
+            return;
+        }
+
+        statsData = result;
+        statsCacheKey = result.data_id;
+
+        // Update UI
+        document.querySelector('#stats-upload-panel .upload-placeholder').style.display = 'none';
+        document.getElementById('stats-file-info').style.display = 'block';
+        document.querySelector('.stats-file-name').textContent = file.name;
+        document.querySelector('.stats-file-rows').textContent = `${result.rows} rows`;
+
+        // Populate variable selectors
+        populateStatsSelectors(result.columns);
+    } catch (err) {
+        showLoading(false);
+        alert('Upload failed: ' + err.message);
+    }
+}
+
+function populateStatsSelectors(columns) {
+    const selectors = [
+        'stats-reg-response', 'stats-reg-predictors',
+        'stats-test-var1', 'stats-test-var2',
+        'stats-interval-var', 'stats-transform-var'
+    ];
+
+    selectors.forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) {
+            sel.innerHTML = id.includes('predictors') ? '' : '<option value="">Select...</option>';
+            columns.forEach(col => {
+                const opt = document.createElement('option');
+                opt.value = col;
+                opt.textContent = col;
+                sel.appendChild(opt);
+            });
+        }
+    });
+}
+
+function clearStatsUpload() {
+    statsData = null;
+    statsCacheKey = null;
+
+    document.querySelector('#stats-upload-panel .upload-placeholder').style.display = 'block';
+    document.getElementById('stats-file-info').style.display = 'none';
+    document.getElementById('stats-file').value = '';
+}
+
+function updateStatsRegForm() {
+    const type = document.getElementById('stats-reg-type').value;
+    document.getElementById('stepwise-options').style.display = type === 'stepwise' ? 'block' : 'none';
+    document.getElementById('robust-options').style.display = type === 'robust_regression' ? 'block' : 'none';
+    document.getElementById('subsets-options').style.display = type === 'best_subsets' ? 'block' : 'none';
+}
+
+function updateStatsTestForm() {
+    const type = document.getElementById('stats-test-type').value;
+    const var2Group = document.getElementById('test-var2-group');
+    const muGroup = document.getElementById('test-mu-group');
+
+    // Tests that need a second variable
+    const needsVar2 = ['ttest2', 'paired_t', 'chi2', 'mann_whitney', 'f_test', 'equivalence', 'anova', 'anova2', 'kruskal'];
+    var2Group.style.display = needsVar2.includes(type) ? 'block' : 'none';
+
+    // Tests that need mu
+    muGroup.style.display = type === 'ttest' ? 'block' : 'none';
+
+    // Update labels
+    const var1Label = document.getElementById('test-var1-label');
+    const var2Label = document.getElementById('test-var2-label');
+
+    if (type === 'chi2') {
+        var1Label.textContent = 'Row Variable';
+        var2Label.textContent = 'Column Variable';
+    } else if (type === 'paired_t') {
+        var1Label.textContent = 'Before/Sample 1';
+        var2Label.textContent = 'After/Sample 2';
+    } else if (['anova', 'kruskal', 'mann_whitney'].includes(type)) {
+        var1Label.textContent = 'Response';
+        var2Label.textContent = 'Factor/Group';
+    } else {
+        var1Label.textContent = 'Variable';
+        var2Label.textContent = 'Second Variable';
+    }
+}
+
+function updateStatsIntervalForm() {
+    const type = document.getElementById('stats-interval-type').value;
+    document.getElementById('bootstrap-options').style.display = type === 'bootstrap_ci' ? 'block' : 'none';
+    document.getElementById('tolerance-options').style.display = type === 'tolerance_interval' ? 'block' : 'none';
+}
+
+async function runStatsRegression() {
+    if (!statsCacheKey) {
+        alert('Please upload a data file first');
+        return;
+    }
+
+    const type = document.getElementById('stats-reg-type').value;
+    const response = document.getElementById('stats-reg-response').value;
+    const predictorsSel = document.getElementById('stats-reg-predictors');
+    const predictors = Array.from(predictorsSel.selectedOptions).map(o => o.value);
+
+    if (!response || predictors.length === 0) {
+        alert('Please select response and predictors');
+        return;
+    }
+
+    let config = {
+        response: response,
+        predictors: predictors
+    };
+
+    if (type === 'stepwise') {
+        config.method = document.getElementById('stepwise-method').value;
+        config.alpha_enter = parseFloat(document.getElementById('alpha-enter').value);
+        config.alpha_remove = parseFloat(document.getElementById('alpha-remove').value);
+    } else if (type === 'robust_regression') {
+        config.method = document.getElementById('robust-method').value;
+    } else if (type === 'best_subsets') {
+        config.max_predictors = parseInt(document.getElementById('max-predictors').value);
+    }
+
+    await runStatsAnalysis('stats', type, config, 'stats-reg-results');
+}
+
+async function runStatsTest() {
+    if (!statsCacheKey) {
+        alert('Please upload a data file first');
+        return;
+    }
+
+    const type = document.getElementById('stats-test-type').value;
+    const var1 = document.getElementById('stats-test-var1').value;
+    const var2 = document.getElementById('stats-test-var2').value;
+    const conf = parseInt(document.getElementById('stats-test-conf').value);
+
+    if (!var1) {
+        alert('Please select a variable');
+        return;
+    }
+
+    let config = { conf: conf };
+
+    // Map variables to correct config keys based on test type
+    if (type === 'ttest') {
+        config.var1 = var1;
+        config.mu = parseFloat(document.getElementById('stats-test-mu').value) || 0;
+    } else if (['ttest2', 'paired_t', 'f_test'].includes(type)) {
+        config.var1 = var1;
+        config.var2 = var2;
+    } else if (type === 'chi2') {
+        config.row_var = var1;
+        config.col_var = var2;
+    } else if (['anova', 'kruskal', 'mann_whitney'].includes(type)) {
+        config.response = var1;
+        config.var = var1;
+        config.group_var = var2;
+        config.factor = var2;
+        config.factors = [var2];
+    } else if (type === 'equivalence') {
+        config.var = var1;
+        config.group_var = var2;
+        config.margin = 0.5;  // Could make this configurable
+    } else if (['normality', 'runs_test'].includes(type)) {
+        config.var = var1;
+    } else {
+        config.var = var1;
+    }
+
+    await runStatsAnalysis('stats', type, config, 'stats-test-results');
+}
+
+async function runStatsInterval() {
+    if (!statsCacheKey) {
+        alert('Please upload a data file first');
+        return;
+    }
+
+    const type = document.getElementById('stats-interval-type').value;
+    const variable = document.getElementById('stats-interval-var').value;
+    const conf = parseInt(document.getElementById('stats-interval-conf').value);
+
+    if (!variable) {
+        alert('Please select a variable');
+        return;
+    }
+
+    let config = {
+        var: variable,
+        conf: conf
+    };
+
+    if (type === 'bootstrap_ci') {
+        config.statistic = document.getElementById('bootstrap-statistic').value;
+        config.n_bootstrap = parseInt(document.getElementById('bootstrap-n').value);
+    } else if (type === 'tolerance_interval') {
+        config.proportion = parseFloat(document.getElementById('tolerance-proportion').value);
+        config.confidence = parseFloat(document.getElementById('tolerance-confidence').value);
+    }
+
+    await runStatsAnalysis('stats', type, config, 'stats-interval-results');
+}
+
+async function runStatsTransform() {
+    if (!statsCacheKey) {
+        alert('Please upload a data file first');
+        return;
+    }
+
+    const type = document.getElementById('stats-transform-type').value;
+    const variable = document.getElementById('stats-transform-var').value;
+
+    if (!variable) {
+        alert('Please select a variable');
+        return;
+    }
+
+    const config = { var: variable };
+
+    await runStatsAnalysis('stats', type, config, 'stats-transform-results');
+}
+
+async function runStatsAnalysis(analysisType, analysisId, config, resultsId) {
+    showLoading(true);
+
+    try {
+        const response = await fetch('/api/dsw/analysis/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                type: analysisType,
+                analysis: analysisId,
+                config: config,
+                data_id: statsCacheKey
+            })
+        });
+
+        const result = await response.json();
+        showLoading(false);
+
+        if (result.error) {
+            alert(result.error);
+            return;
+        }
+
+        displayStatsResults(result, resultsId);
+    } catch (err) {
+        showLoading(false);
+        alert('Analysis failed: ' + err.message);
+    }
+}
+
+function displayStatsResults(result, containerId) {
+    const container = document.getElementById(containerId);
+    let html = '';
+
+    // Summary with color formatting
+    if (result.summary) {
+        let formatted = result.summary
+            .replace(/<<COLOR:accent>>(.*?)<<\/COLOR>>/g, '<span class="color-accent">$1</span>')
+            .replace(/<<COLOR:title>>(.*?)<<\/COLOR>>/g, '<span class="color-title">$1</span>')
+            .replace(/<<COLOR:highlight>>(.*?)<<\/COLOR>>/g, '<span class="color-highlight">$1</span>')
+            .replace(/<<COLOR:text>>(.*?)<<\/COLOR>>/g, '<span class="color-text">$1</span>')
+            .replace(/<<COLOR:dim>>(.*?)<<\/COLOR>>/g, '<span class="color-dim">$1</span>')
+            .replace(/<<COLOR:success>>(.*?)<<\/COLOR>>/g, '<span class="color-success">$1</span>')
+            .replace(/<<COLOR:good>>(.*?)<<\/COLOR>>/g, '<span class="color-success">$1</span>')
+            .replace(/<<COLOR:warning>>(.*?)<<\/COLOR>>/g, '<span class="color-warning">$1</span>')
+            .replace(/<<COLOR:danger>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>')
+            .replace(/<<COLOR:bad>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>');
+
+        html += `<pre class="stats-summary">${formatted}</pre>`;
+    }
+
+    // Plots
+    if (result.plots && result.plots.length > 0) {
+        html += '<div class="stats-plots">';
+        result.plots.forEach((plot, i) => {
+            const plotId = `stats-plot-${containerId}-${i}`;
+            html += `<div id="${plotId}" class="stats-plot"></div>`;
+        });
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+
+    // Render plots with Plotly
+    if (result.plots && result.plots.length > 0) {
+        result.plots.forEach((plot, i) => {
+            const plotId = `stats-plot-${containerId}-${i}`;
+            const layout = {
+                ...plot.layout,
+                template: 'plotly_dark',
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                margin: { t: 40, r: 20, b: 40, l: 60 },
+                title: { text: plot.title, font: { size: 14, color: '#b0b0b0' } }
+            };
+            Plotly.newPlot(plotId, plot.data, layout, { responsive: true, displayModeBar: false });
+        });
+    }
+}
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
+function showLoading(show) {
+    document.getElementById('loading').style.display = show ? 'flex' : 'none';
+}
+
+async function loadProblems() {
+    try {
+        const response = await fetch('/api/problems/', { credentials: 'include' });
+        if (response.ok) {
+            const data = await response.json();
+            problems = data.problems || [];
+
+            const selector = document.getElementById('problem-selector');
+            problems.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.title;
+                selector.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load problems:', err);
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadProblems();
+    updateChartHelp();
+    initFileUpload();
+    initStatsUpload();
+    updateStatsTestForm();
+    updateStatsIntervalForm();
+});
+</script>
+{% endblock %}

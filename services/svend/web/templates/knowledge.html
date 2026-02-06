@@ -1,0 +1,1165 @@
+{% extends "base_app.html" %}
+{% block title %}Knowledge Graph - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ============================================================================
+   KNOWLEDGE GRAPH - Full Width Visual Relationship Mapping
+   ============================================================================ */
+
+/* Override container constraints for full width */
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.kg-container {
+    display: flex;
+    height: calc(100vh - 60px);
+    background: #0a0f0a;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.kg-sidebar {
+    width: 260px;
+    background: #0f150f;
+    border-right: 1px solid rgba(74, 159, 110, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.kg-sidebar-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(74, 159, 110, 0.15);
+}
+
+.kg-sidebar-header h2 {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4a9f6e;
+    margin: 0 0 10px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kg-search input {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 4px;
+    color: #e8efe8;
+    font-size: 12px;
+}
+
+.kg-search input:focus {
+    outline: none;
+    border-color: #4a9f6e;
+}
+
+.kg-filters {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(74, 159, 110, 0.15);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.kg-filter {
+    padding: 3px 8px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    font-size: 10px;
+    color: #6a7a6a;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.kg-filter:hover {
+    border-color: rgba(74, 159, 110, 0.4);
+    color: #9aaa9a;
+}
+
+.kg-filter.active {
+    background: rgba(74, 159, 110, 0.15);
+    border-color: rgba(74, 159, 110, 0.4);
+    color: #4a9f6e;
+}
+
+.kg-filter .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.kg-node-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.kg-node-item {
+    padding: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 6px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.kg-node-item:hover {
+    background: rgba(74, 159, 110, 0.08);
+    border-color: rgba(74, 159, 110, 0.2);
+}
+
+.kg-node-item.selected {
+    background: rgba(74, 159, 110, 0.12);
+    border-color: rgba(74, 159, 110, 0.4);
+}
+
+.kg-node-item .header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.kg-node-item .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.kg-node-item .title {
+    font-size: 12px;
+    color: #e8efe8;
+    font-weight: 500;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kg-node-item .variables {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 6px;
+}
+
+.kg-node-item .variable {
+    font-size: 9px;
+    padding: 2px 5px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    color: #6a7a6a;
+    font-family: 'SF Mono', Monaco, monospace;
+}
+
+/* Graph Canvas */
+.kg-graph {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse at center, rgba(74, 159, 110, 0.04) 0%, transparent 60%);
+}
+
+.kg-graph-canvas {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+/* SVG Graph */
+#kg-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Grid pattern */
+.kg-grid {
+    fill: none;
+    stroke: rgba(74, 159, 110, 0.06);
+    stroke-width: 1;
+}
+
+/* Edges */
+.kg-edge {
+    fill: none;
+    stroke-width: 2;
+    cursor: pointer;
+    transition: stroke-width 0.15s;
+}
+
+.kg-edge:hover {
+    stroke-width: 3;
+}
+
+.kg-edge.supports {
+    stroke: rgba(74, 159, 110, 0.5);
+}
+
+.kg-edge.refutes {
+    stroke: rgba(200, 80, 80, 0.5);
+}
+
+.kg-edge.causes {
+    stroke: rgba(150, 150, 150, 0.4);
+}
+
+.kg-edge.highlighted {
+    stroke-width: 3;
+    filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* Evidence badges on edges */
+.kg-edge-evidence {
+    cursor: pointer;
+}
+
+.kg-edge-evidence rect {
+    rx: 4;
+    ry: 4;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3));
+}
+
+.kg-edge-evidence text {
+    font-size: 9px;
+    font-weight: 500;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.kg-edge-evidence.supports rect {
+    fill: #1a3a2a;
+    stroke: #4a9f6e;
+}
+.kg-edge-evidence.supports text {
+    fill: #4a9f6e;
+}
+
+.kg-edge-evidence.refutes rect {
+    fill: #3a1a1a;
+    stroke: #c45a5a;
+}
+.kg-edge-evidence.refutes text {
+    fill: #c45a5a;
+}
+
+.kg-edge-evidence.mixed rect {
+    fill: #2a2a1a;
+    stroke: #c4985a;
+}
+.kg-edge-evidence.mixed text {
+    fill: #c4985a;
+}
+
+/* Nodes */
+.kg-node {
+    cursor: pointer;
+    transition: transform 0.15s, filter 0.15s;
+}
+
+.kg-node:hover {
+    filter: brightness(1.2);
+}
+
+.kg-node.selected {
+    filter: brightness(1.3) drop-shadow(0 0 8px rgba(74, 159, 110, 0.5));
+}
+
+.kg-node.dimmed {
+    opacity: 0.3;
+}
+
+.kg-node-bg {
+    stroke-width: 2;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+}
+
+.kg-node-title {
+    font-size: 11px;
+    font-weight: 500;
+    fill: #e8efe8;
+    text-anchor: middle;
+}
+
+.kg-node-vars {
+    font-size: 8px;
+    fill: #6a7a6a;
+    text-anchor: middle;
+    font-family: 'SF Mono', Monaco, monospace;
+}
+
+/* Node type colors */
+.node-hypothesis .kg-node-bg { fill: #1a3a2a; stroke: #4a9f6e; }
+.node-cause .kg-node-bg { fill: #3a2a1a; stroke: #c4985a; }
+.node-finding .kg-node-bg { fill: #1a2a3a; stroke: #5a8ac4; }
+
+/* Detail Panel */
+.kg-detail {
+    width: 300px;
+    background: #0f150f;
+    border-left: 1px solid rgba(74, 159, 110, 0.15);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.kg-detail.active {
+    display: flex;
+}
+
+.kg-detail-header {
+    padding: 14px;
+    border-bottom: 1px solid rgba(74, 159, 110, 0.15);
+}
+
+.kg-detail-header h3 {
+    font-size: 14px;
+    font-weight: 500;
+    color: #e8efe8;
+    margin: 0 0 6px 0;
+}
+
+.kg-detail-type {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.kg-detail-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #6a7a6a;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.kg-detail-close:hover {
+    color: #e8efe8;
+}
+
+.kg-detail-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+}
+
+.kg-detail-section {
+    margin-bottom: 16px;
+}
+
+.kg-detail-section h4 {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #4a9f6e;
+    margin: 0 0 8px 0;
+}
+
+.kg-detail-section p {
+    font-size: 12px;
+    color: #9aaa9a;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.kg-var-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.kg-var-tag {
+    font-size: 10px;
+    padding: 4px 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    color: #9aaa9a;
+    font-family: 'SF Mono', Monaco, monospace;
+}
+
+.kg-var-tag .name {
+    color: #6a7a6a;
+    margin-right: 4px;
+}
+
+.kg-evidence-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.kg-evidence-item {
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    border-left: 3px solid;
+}
+
+.kg-evidence-item.supports {
+    border-color: #4a9f6e;
+}
+
+.kg-evidence-item.refutes {
+    border-color: #c45a5a;
+}
+
+.kg-evidence-item .target {
+    font-size: 11px;
+    color: #e8efe8;
+    margin-bottom: 2px;
+}
+
+.kg-evidence-item .source {
+    font-size: 10px;
+    color: #6a7a6a;
+}
+
+/* Controls */
+.kg-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    gap: 6px;
+    background: rgba(15, 21, 15, 0.9);
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(74, 159, 110, 0.2);
+}
+
+.kg-control-btn {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    color: #6a7a6a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.kg-control-btn:hover {
+    background: rgba(74, 159, 110, 0.15);
+    color: #4a9f6e;
+    border-color: rgba(74, 159, 110, 0.3);
+}
+
+.kg-control-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Beta Badge */
+.kg-beta {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 21, 15, 0.95);
+    border: 1px solid rgba(74, 159, 110, 0.3);
+    border-radius: 16px;
+    padding: 6px 14px;
+    font-size: 11px;
+    color: #9aaa9a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10;
+}
+
+.kg-beta .badge {
+    background: #4a9f6e;
+    color: #0a0f0a;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+/* Legend */
+.kg-legend {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: rgba(15, 21, 15, 0.95);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    z-index: 10;
+}
+
+.kg-legend-title {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #4a9f6e;
+    margin-bottom: 8px;
+}
+
+.kg-legend-section {
+    margin-bottom: 8px;
+}
+
+.kg-legend-section:last-child {
+    margin-bottom: 0;
+}
+
+.kg-legend-label {
+    font-size: 8px;
+    color: #6a7a6a;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.kg-legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.kg-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: #9aaa9a;
+}
+
+.kg-legend-item .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.kg-legend-item .line {
+    width: 16px;
+    height: 2px;
+    border-radius: 1px;
+}
+
+/* Add node button */
+.kg-add-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: rgba(74, 159, 110, 0.2);
+    border: 1px solid rgba(74, 159, 110, 0.4);
+    border-radius: 6px;
+    padding: 8px 14px;
+    color: #4a9f6e;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+    z-index: 10;
+}
+
+.kg-add-btn:hover {
+    background: rgba(74, 159, 110, 0.3);
+}
+
+.kg-add-btn svg {
+    width: 14px;
+    height: 14px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kg-container">
+    <!-- Sidebar -->
+    <div class="kg-sidebar">
+        <div class="kg-sidebar-header">
+            <h2>Knowledge Graph</h2>
+            <div class="kg-search">
+                <input type="text" placeholder="Search..." id="kg-search">
+            </div>
+        </div>
+
+        <div class="kg-filters">
+            <button class="kg-filter active" data-type="all">All</button>
+            <button class="kg-filter" data-type="hypothesis">
+                <span class="dot" style="background:#4a9f6e"></span>
+                Hypotheses
+            </button>
+            <button class="kg-filter" data-type="cause">
+                <span class="dot" style="background:#c4985a"></span>
+                Causes
+            </button>
+            <button class="kg-filter" data-type="finding">
+                <span class="dot" style="background:#5a8ac4"></span>
+                Findings
+            </button>
+        </div>
+
+        <div class="kg-node-list" id="node-list">
+            <div class="kg-node-item" data-id="h1" onclick="selectNode('h1')">
+                <div class="header">
+                    <span class="dot" style="background:#4a9f6e"></span>
+                    <span class="title">Q4 Churn Spike</span>
+                </div>
+                <div class="variables">
+                    <span class="variable">churn_rate</span>
+                    <span class="variable">mrr_delta</span>
+                    <span class="variable">nps_score</span>
+                </div>
+            </div>
+
+            <div class="kg-node-item" data-id="h2" onclick="selectNode('h2')">
+                <div class="header">
+                    <span class="dot" style="background:#4a9f6e"></span>
+                    <span class="title">Line 3 Yield Drop</span>
+                </div>
+                <div class="variables">
+                    <span class="variable">yield_pct</span>
+                    <span class="variable">defect_rate</span>
+                    <span class="variable">cycle_time</span>
+                </div>
+            </div>
+
+            <div class="kg-node-item" data-id="c1" onclick="selectNode('c1')">
+                <div class="header">
+                    <span class="dot" style="background:#c4985a"></span>
+                    <span class="title">Competitor Pricing</span>
+                </div>
+                <div class="variables">
+                    <span class="variable">price_delta</span>
+                    <span class="variable">competitor_price</span>
+                </div>
+            </div>
+
+            <div class="kg-node-item" data-id="c2" onclick="selectNode('c2')">
+                <div class="header">
+                    <span class="dot" style="background:#c4985a"></span>
+                    <span class="title">Temperature Variance</span>
+                </div>
+                <div class="variables">
+                    <span class="variable">temp_ambient</span>
+                    <span class="variable">temp_process</span>
+                </div>
+            </div>
+
+            <div class="kg-node-item" data-id="c3" onclick="selectNode('c3')">
+                <div class="header">
+                    <span class="dot" style="background:#c4985a"></span>
+                    <span class="title">Support Response Time</span>
+                </div>
+                <div class="variables">
+                    <span class="variable">ticket_ttfr</span>
+                    <span class="variable">resolution_hrs</span>
+                </div>
+            </div>
+
+            <div class="kg-node-item" data-id="f1" onclick="selectNode('f1')">
+                <div class="header">
+                    <span class="dot" style="background:#5a8ac4"></span>
+                    <span class="title">Price is Primary Driver</span>
+                </div>
+                <div class="variables">
+                    <span class="variable">r_squared=0.72</span>
+                    <span class="variable">p_value<0.001</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graph Canvas -->
+    <div class="kg-graph">
+        <div class="kg-beta">
+            <span class="badge">BETA</span>
+            Interactive knowledge graph - edges show evidence
+        </div>
+
+        <button class="kg-add-btn" onclick="showAddModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Node
+        </button>
+
+        <div class="kg-graph-canvas">
+            <svg id="kg-svg" viewBox="0 0 1000 700">
+                <defs>
+                    <!-- Arrow markers -->
+                    <marker id="arrow-supports" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                        <polygon points="0 0, 8 3, 0 6" fill="#4a9f6e"/>
+                    </marker>
+                    <marker id="arrow-refutes" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                        <polygon points="0 0, 8 3, 0 6" fill="#c45a5a"/>
+                    </marker>
+                    <marker id="arrow-causes" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                        <polygon points="0 0, 8 3, 0 6" fill="#888"/>
+                    </marker>
+                </defs>
+
+                <!-- Grid -->
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(74,159,110,0.06)" stroke-width="1"/>
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#grid)"/>
+
+                <!-- Edges with evidence badges -->
+                <g class="edges">
+                    <!-- H1 -> C1 (Competitor Pricing causes Churn) -->
+                    <path class="kg-edge causes" d="M 350 180 C 400 220, 400 280, 350 320" marker-end="url(#arrow-causes)" data-from="c1" data-to="h1"/>
+                    <g class="kg-edge-evidence supports" transform="translate(385, 250)" onclick="showEvidence('e1')">
+                        <rect x="-28" y="-10" width="56" height="20"/>
+                        <text>3 support</text>
+                    </g>
+
+                    <!-- H1 -> C3 (Support causes Churn) -->
+                    <path class="kg-edge causes" d="M 280 180 C 220 220, 180 280, 200 340" marker-end="url(#arrow-causes)" data-from="c3" data-to="h1"/>
+                    <g class="kg-edge-evidence mixed" transform="translate(210, 260)" onclick="showEvidence('e2')">
+                        <rect x="-22" y="-10" width="44" height="20"/>
+                        <text>1 / 1</text>
+                    </g>
+
+                    <!-- C1 -> F1 (Finding from Cause) -->
+                    <path class="kg-edge supports" d="M 380 380 C 450 400, 500 420, 550 400" marker-end="url(#arrow-supports)" data-from="c1" data-to="f1"/>
+                    <g class="kg-edge-evidence supports" transform="translate(470, 395)" onclick="showEvidence('e3')">
+                        <rect x="-28" y="-10" width="56" height="20"/>
+                        <text>5 support</text>
+                    </g>
+
+                    <!-- H2 -> C2 (Temp causes Yield) -->
+                    <path class="kg-edge causes" d="M 720 180 C 750 220, 760 280, 740 340" marker-end="url(#arrow-causes)" data-from="c2" data-to="h2"/>
+                    <g class="kg-edge-evidence supports" transform="translate(755, 260)" onclick="showEvidence('e4')">
+                        <rect x="-28" y="-10" width="56" height="20"/>
+                        <text>4 support</text>
+                    </g>
+
+                    <!-- Cross-link: C2 also affects H1 weakly -->
+                    <path class="kg-edge causes" d="M 700 380 C 550 420, 450 380, 380 360" marker-end="url(#arrow-causes)" stroke-dasharray="4 2" style="opacity:0.4" data-from="c2" data-to="c1"/>
+                </g>
+
+                <!-- Nodes -->
+                <g class="nodes">
+                    <!-- Hypothesis: Q4 Churn -->
+                    <g class="kg-node node-hypothesis" data-id="h1" transform="translate(300, 140)" onclick="selectNode('h1')">
+                        <rect class="kg-node-bg" x="-70" y="-35" width="140" height="70" rx="8"/>
+                        <text class="kg-node-title" y="-8">Q4 Churn Spike</text>
+                        <text class="kg-node-vars" y="12">churn_rate, mrr_delta</text>
+                        <text class="kg-node-vars" y="24">nps_score</text>
+                    </g>
+
+                    <!-- Hypothesis: Yield Drop -->
+                    <g class="kg-node node-hypothesis" data-id="h2" transform="translate(700, 140)" onclick="selectNode('h2')">
+                        <rect class="kg-node-bg" x="-70" y="-35" width="140" height="70" rx="8"/>
+                        <text class="kg-node-title" y="-8">Line 3 Yield Drop</text>
+                        <text class="kg-node-vars" y="12">yield_pct, defect_rate</text>
+                        <text class="kg-node-vars" y="24">cycle_time</text>
+                    </g>
+
+                    <!-- Cause: Competitor Pricing -->
+                    <g class="kg-node node-cause" data-id="c1" transform="translate(350, 360)" onclick="selectNode('c1')">
+                        <rect class="kg-node-bg" x="-65" y="-30" width="130" height="60" rx="6"/>
+                        <text class="kg-node-title" y="-5">Competitor Pricing</text>
+                        <text class="kg-node-vars" y="15">price_delta, competitor_price</text>
+                    </g>
+
+                    <!-- Cause: Temperature -->
+                    <g class="kg-node node-cause" data-id="c2" transform="translate(720, 380)" onclick="selectNode('c2')">
+                        <rect class="kg-node-bg" x="-60" y="-30" width="120" height="60" rx="6"/>
+                        <text class="kg-node-title" y="-5">Temperature</text>
+                        <text class="kg-node-vars" y="15">temp_ambient, temp_process</text>
+                    </g>
+
+                    <!-- Cause: Support -->
+                    <g class="kg-node node-cause" data-id="c3" transform="translate(180, 380)" onclick="selectNode('c3')">
+                        <rect class="kg-node-bg" x="-55" y="-30" width="110" height="60" rx="6"/>
+                        <text class="kg-node-title" y="-5">Support Time</text>
+                        <text class="kg-node-vars" y="15">ticket_ttfr, resolution_hrs</text>
+                    </g>
+
+                    <!-- Finding -->
+                    <g class="kg-node node-finding" data-id="f1" transform="translate(580, 400)" onclick="selectNode('f1')">
+                        <rect class="kg-node-bg" x="-70" y="-28" width="140" height="56" rx="6"/>
+                        <text class="kg-node-title" y="-5">Price = Primary Driver</text>
+                        <text class="kg-node-vars" y="12">r²=0.72, p<0.001</text>
+                    </g>
+                </g>
+            </svg>
+        </div>
+
+        <!-- Legend -->
+        <div class="kg-legend">
+            <div class="kg-legend-title">Legend</div>
+            <div class="kg-legend-section">
+                <div class="kg-legend-label">Nodes</div>
+                <div class="kg-legend-items">
+                    <div class="kg-legend-item">
+                        <span class="dot" style="background:#4a9f6e"></span>
+                        Hypothesis
+                    </div>
+                    <div class="kg-legend-item">
+                        <span class="dot" style="background:#c4985a"></span>
+                        Cause
+                    </div>
+                    <div class="kg-legend-item">
+                        <span class="dot" style="background:#5a8ac4"></span>
+                        Finding
+                    </div>
+                </div>
+            </div>
+            <div class="kg-legend-section">
+                <div class="kg-legend-label">Evidence</div>
+                <div class="kg-legend-items">
+                    <div class="kg-legend-item">
+                        <span class="line" style="background:#4a9f6e"></span>
+                        Supports
+                    </div>
+                    <div class="kg-legend-item">
+                        <span class="line" style="background:#c45a5a"></span>
+                        Refutes
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="kg-controls">
+            <button class="kg-control-btn" onclick="zoomIn()" title="Zoom In">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+            </button>
+            <button class="kg-control-btn" onclick="zoomOut()" title="Zoom Out">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+            </button>
+            <button class="kg-control-btn" onclick="resetView()" title="Reset">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="kg-detail" id="detail-panel">
+        <div class="kg-detail-header" style="position:relative;">
+            <div>
+                <h3 id="detail-title">Node Title</h3>
+                <span class="kg-detail-type" id="detail-type">Hypothesis</span>
+            </div>
+            <button class="kg-detail-close" onclick="closeDetail()">&times;</button>
+        </div>
+        <div class="kg-detail-content">
+            <div class="kg-detail-section">
+                <h4>Description</h4>
+                <p id="detail-description">Loading...</p>
+            </div>
+
+            <div class="kg-detail-section">
+                <h4>Variables</h4>
+                <div class="kg-var-list" id="detail-variables">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="kg-detail-section">
+                <h4>Evidence</h4>
+                <div class="kg-evidence-list" id="detail-evidence">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================================
+// KNOWLEDGE GRAPH - Interactive Visualization
+// ============================================================================
+
+let selectedNodeId = null;
+let zoom = 1;
+let panX = 0, panY = 0;
+
+// Mock data
+const nodeData = {
+    h1: {
+        title: 'Q4 Churn Spike',
+        type: 'Hypothesis',
+        typeColor: '#4a9f6e',
+        description: 'Customer churn increased 40% in Q4 vs Q3. Significantly exceeds seasonal expectations. ~$2.3M ARR impact identified.',
+        variables: [
+            { name: 'churn_rate', label: 'Monthly Churn Rate', value: '4.2%' },
+            { name: 'mrr_delta', label: 'MRR Change', value: '-$192k' },
+            { name: 'nps_score', label: 'NPS Score', value: '28 (was 42)' }
+        ],
+        evidence: [
+            { type: 'supports', target: 'Competitor Pricing', source: 'Exit interviews (n=47)' },
+            { type: 'supports', target: 'Competitor Pricing', source: 'Win/loss analysis' },
+            { type: 'supports', target: 'Competitor Pricing', source: 'Price sensitivity survey' },
+            { type: 'supports', target: 'Support Response', source: 'Ticket correlation analysis' },
+            { type: 'refutes', target: 'Support Response', source: 'NPS driver analysis' }
+        ]
+    },
+    h2: {
+        title: 'Line 3 Yield Drop',
+        type: 'Hypothesis',
+        typeColor: '#4a9f6e',
+        description: 'Production yield on Line 3 dropped from 94% to 87% over 6 weeks. Pattern correlates with ambient temperature changes.',
+        variables: [
+            { name: 'yield_pct', label: 'Yield Percentage', value: '87.2%' },
+            { name: 'defect_rate', label: 'Defect Rate', value: '12.8%' },
+            { name: 'cycle_time', label: 'Cycle Time', value: '4.2 min' }
+        ],
+        evidence: [
+            { type: 'supports', target: 'Temperature', source: 'SPC correlation (r=0.84)' },
+            { type: 'supports', target: 'Temperature', source: 'DOE results' },
+            { type: 'supports', target: 'Temperature', source: 'Shift comparison data' },
+            { type: 'supports', target: 'Temperature', source: 'Historical trend analysis' }
+        ]
+    },
+    c1: {
+        title: 'Competitor Pricing',
+        type: 'Potential Cause',
+        typeColor: '#c4985a',
+        description: 'Primary competitor reduced pricing by 30% in September. Multiple data sources confirm customer price sensitivity.',
+        variables: [
+            { name: 'price_delta', label: 'Our Price vs Competitor', value: '+42%' },
+            { name: 'competitor_price', label: 'Competitor Price', value: '$79/mo' }
+        ],
+        evidence: [
+            { type: 'supports', target: 'Q4 Churn Spike', source: 'Exit interviews mention price (67%)' },
+            { type: 'supports', target: 'Q4 Churn Spike', source: 'Competitor analysis report' },
+            { type: 'supports', target: 'Q4 Churn Spike', source: 'Price elasticity model' }
+        ]
+    },
+    c2: {
+        title: 'Temperature Variance',
+        type: 'Potential Cause',
+        typeColor: '#c4985a',
+        description: 'Ambient temperature in production area varies 8°C between morning and afternoon shifts due to HVAC limitations.',
+        variables: [
+            { name: 'temp_ambient', label: 'Ambient Temp Range', value: '18-26°C' },
+            { name: 'temp_process', label: 'Process Temp', value: '22±0.5°C target' }
+        ],
+        evidence: [
+            { type: 'supports', target: 'Line 3 Yield Drop', source: 'Temperature logger data' },
+            { type: 'supports', target: 'Line 3 Yield Drop', source: 'DOE: Temp main effect p<0.001' },
+            { type: 'supports', target: 'Line 3 Yield Drop', source: 'Shift yield comparison' },
+            { type: 'supports', target: 'Line 3 Yield Drop', source: 'Material spec review' }
+        ]
+    },
+    c3: {
+        title: 'Support Response Time',
+        type: 'Potential Cause',
+        typeColor: '#c4985a',
+        description: 'Average first response time increased from 2.1 to 4.8 hours due to headcount reduction.',
+        variables: [
+            { name: 'ticket_ttfr', label: 'Time to First Response', value: '4.8 hrs' },
+            { name: 'resolution_hrs', label: 'Avg Resolution Time', value: '18.2 hrs' }
+        ],
+        evidence: [
+            { type: 'supports', target: 'Q4 Churn Spike', source: 'Support ticket analysis' },
+            { type: 'refutes', target: 'Q4 Churn Spike', source: 'NPS driver regression (not significant)' }
+        ]
+    },
+    f1: {
+        title: 'Price is Primary Driver',
+        type: 'Finding',
+        typeColor: '#5a8ac4',
+        description: 'Statistical analysis confirms price differential is the strongest predictor of churn. Customers with >20% price gap are 3.2x more likely to churn.',
+        variables: [
+            { name: 'r_squared', label: 'Model R²', value: '0.72' },
+            { name: 'p_value', label: 'Significance', value: '<0.001' }
+        ],
+        evidence: [
+            { type: 'supports', target: 'Competitor Pricing', source: 'Regression analysis' },
+            { type: 'supports', target: 'Competitor Pricing', source: 'Cohort comparison' },
+            { type: 'supports', target: 'Competitor Pricing', source: 'Churn prediction model' }
+        ]
+    }
+};
+
+// Filters
+document.querySelectorAll('.kg-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.kg-filter').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterNodes(btn.dataset.type);
+    });
+});
+
+function filterNodes(type) {
+    document.querySelectorAll('.kg-node-item').forEach(item => {
+        const id = item.dataset.id;
+        const nodeType = nodeData[id]?.type.toLowerCase() || '';
+        const show = type === 'all' ||
+            (type === 'hypothesis' && nodeType.includes('hypothesis')) ||
+            (type === 'cause' && nodeType.includes('cause')) ||
+            (type === 'finding' && nodeType.includes('finding'));
+        item.style.display = show ? 'block' : 'none';
+    });
+}
+
+// Search
+document.getElementById('kg-search').addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    document.querySelectorAll('.kg-node-item').forEach(item => {
+        const title = item.querySelector('.title').textContent.toLowerCase();
+        const vars = item.querySelector('.variables')?.textContent.toLowerCase() || '';
+        item.style.display = (title.includes(query) || vars.includes(query)) ? 'block' : 'none';
+    });
+});
+
+// Node selection
+function selectNode(id) {
+    selectedNodeId = id;
+
+    // Update sidebar
+    document.querySelectorAll('.kg-node-item').forEach(item => {
+        item.classList.toggle('selected', item.dataset.id === id);
+    });
+
+    // Update graph nodes
+    document.querySelectorAll('.kg-node').forEach(node => {
+        const nodeId = node.dataset.id;
+        node.classList.toggle('selected', nodeId === id);
+        node.classList.remove('dimmed');
+    });
+
+    // Show detail
+    showDetail(id);
+}
+
+function showDetail(id) {
+    const data = nodeData[id];
+    if (!data) return;
+
+    const panel = document.getElementById('detail-panel');
+    panel.classList.add('active');
+
+    document.getElementById('detail-title').textContent = data.title;
+    document.getElementById('detail-type').textContent = data.type;
+    document.getElementById('detail-type').style.background = `${data.typeColor}33`;
+    document.getElementById('detail-type').style.color = data.typeColor;
+    document.getElementById('detail-description').textContent = data.description;
+
+    // Variables
+    const varsHtml = data.variables.map(v => `
+        <div class="kg-var-tag">
+            <span class="name">${v.name}:</span>
+            ${v.value}
+        </div>
+    `).join('');
+    document.getElementById('detail-variables').innerHTML = varsHtml;
+
+    // Evidence
+    const evidenceHtml = data.evidence.map(e => `
+        <div class="kg-evidence-item ${e.type}">
+            <div class="target">${e.type === 'supports' ? '✓' : '✗'} ${e.target}</div>
+            <div class="source">${e.source}</div>
+        </div>
+    `).join('');
+    document.getElementById('detail-evidence').innerHTML = evidenceHtml || '<p style="color:#6a7a6a;font-size:11px;">No direct evidence</p>';
+}
+
+function closeDetail() {
+    document.getElementById('detail-panel').classList.remove('active');
+    document.querySelectorAll('.kg-node-item').forEach(item => item.classList.remove('selected'));
+    document.querySelectorAll('.kg-node').forEach(node => {
+        node.classList.remove('selected', 'dimmed');
+    });
+    selectedNodeId = null;
+}
+
+function showEvidence(evidenceId) {
+    // In real implementation, this would show evidence details
+    alert('Evidence details would appear here.\n\nThis will show the specific data, analysis, or source that supports or refutes the relationship between nodes.');
+}
+
+function showAddModal() {
+    alert('Add Node modal would appear here.\n\nAllows adding:\n- New Hypothesis\n- New Potential Cause\n- New Finding\n\nWith variable mapping.');
+}
+
+// Zoom controls
+function zoomIn() {
+    zoom = Math.min(2, zoom + 0.2);
+    updateTransform();
+}
+
+function zoomOut() {
+    zoom = Math.max(0.5, zoom - 0.2);
+    updateTransform();
+}
+
+function resetView() {
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+    updateTransform();
+}
+
+function updateTransform() {
+    const svg = document.getElementById('kg-svg');
+    // Adjust viewBox for zoom effect
+    const baseWidth = 1000;
+    const baseHeight = 700;
+    const newWidth = baseWidth / zoom;
+    const newHeight = baseHeight / zoom;
+    const offsetX = (baseWidth - newWidth) / 2;
+    const offsetY = (baseHeight - newHeight) / 2;
+    svg.setAttribute('viewBox', `${offsetX} ${offsetY} ${newWidth} ${newHeight}`);
+}
+
+// Pan support
+let isPanning = false;
+let startX, startY;
+
+document.querySelector('.kg-graph-canvas').addEventListener('mousedown', (e) => {
+    if (e.target.closest('.kg-node') || e.target.closest('.kg-edge-evidence')) return;
+    isPanning = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    e.currentTarget.style.cursor = 'grabbing';
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isPanning) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    // In real impl, update pan offset
+});
+
+document.addEventListener('mouseup', () => {
+    isPanning = false;
+    document.querySelector('.kg-graph-canvas').style.cursor = 'default';
+});
+</script>
+{% endblock %}

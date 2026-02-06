@@ -1,0 +1,954 @@
+{% extends "base_app.html" %}
+{% block title %}Workflows - SVEND{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1>Workflows</h1>
+        <p style="margin: 0;">Chain agents together. Save as reusable pipelines.</p>
+    </div>
+    <button class="btn btn-primary" onclick="showCreateModal()">+ New Workflow</button>
+</div>
+
+<!-- Workflow List -->
+<div id="workflow-list">
+    <div class="loading active" id="loading-workflows">
+        <div class="spinner"></div>
+        <span>Loading workflows...</span>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div id="workflow-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">New Workflow</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+
+        <form id="workflow-form">
+            <input type="hidden" id="workflow-id">
+
+            <div class="form-group">
+                <label for="workflow-name">Workflow Name</label>
+                <input type="text" id="workflow-name" placeholder="My Analysis Pipeline" required>
+            </div>
+
+            <div class="form-group">
+                <label>Steps</label>
+                <div id="steps-container"></div>
+                <button type="button" class="btn btn-secondary" onclick="addStep()" style="margin-top: 0.5rem;">
+                    + Add Step
+                </button>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">Save Workflow</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Workflow Results View (replaces workflow list when running) -->
+<div id="results-view" style="display: none;">
+    <div class="results-header">
+        <button class="btn btn-secondary" onclick="backToWorkflows()">← Back to Workflows</button>
+        <h2 id="results-title">Workflow Results</h2>
+    </div>
+    <div id="results-container" class="results-workspace"></div>
+</div>
+
+<style>
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    color: var(--text-dim);
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--bg-tertiary);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-tertiary);
+    border: 1px solid rgba(74, 159, 110, 0.3);
+    border-radius: 8px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.workflow-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid rgba(74, 159, 110, 0.15);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.workflow-card:hover {
+    border-color: rgba(74, 159, 110, 0.3);
+}
+
+.workflow-info h3 {
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.workflow-info p {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.workflow-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.step-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.step-item select, .step-item input {
+    flex: 1;
+}
+
+.step-number {
+    width: 24px;
+    height: 24px;
+    background: var(--accent-primary-dim);
+    color: var(--accent-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.step-fields {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.step-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.step-row select, .step-row input {
+    flex: 1;
+}
+
+.remove-step {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.remove-step:hover {
+    color: var(--error);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-dim);
+}
+
+.empty-state h3 {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+/* Results View - Workbench Style */
+.results-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.results-header h2 {
+    margin: 0;
+}
+
+.results-workspace {
+    display: grid;
+    gap: 1rem;
+}
+
+.result-panel {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    overflow: hidden;
+}
+
+.result-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(74, 159, 110, 0.1);
+    cursor: pointer;
+}
+
+.result-panel-header:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.result-panel-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.result-panel-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.result-panel-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.result-panel-actions {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.result-panel-status {
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+}
+
+.result-panel-status.success {
+    color: var(--accent-primary);
+}
+
+.result-panel-status.error {
+    color: var(--error);
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s;
+    font-size: 1rem;
+}
+
+.btn-icon:hover {
+    background: rgba(74, 159, 110, 0.2);
+}
+
+.result-panel-content {
+    padding: 1.25rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.result-panel.collapsed .result-panel-content {
+    display: none;
+}
+
+.toggle-icon {
+    transition: transform 0.2s;
+}
+
+.result-panel.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.markdown-output {
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.markdown-output h1, .markdown-output h2, .markdown-output h3 {
+    color: var(--text-primary);
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-output h1 { font-size: 1.5rem; }
+.markdown-output h2 { font-size: 1.25rem; }
+.markdown-output h3 { font-size: 1.1rem; }
+
+.markdown-output p {
+    margin-bottom: 0.75rem;
+}
+
+.markdown-output ul, .markdown-output ol {
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+}
+
+.markdown-output li {
+    margin-bottom: 0.25rem;
+}
+
+.markdown-output code {
+    background: var(--bg-secondary);
+    padding: 0.15rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.markdown-output pre {
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+}
+
+.markdown-output pre code {
+    background: none;
+    padding: 0;
+}
+
+.markdown-output blockquote {
+    border-left: 3px solid var(--accent-primary);
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: var(--text-secondary);
+}
+
+.markdown-output a {
+    color: var(--accent-primary);
+}
+
+.code-output {
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.9rem;
+}
+
+.sources-list {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(74, 159, 110, 0.15);
+}
+
+.sources-list ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.25rem;
+}
+
+.sources-list li {
+    margin-bottom: 0.25rem;
+}
+
+.sources-list a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.sources-list a:hover {
+    text-decoration: underline;
+}
+
+.editor-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.json-output {
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+}
+
+.text-dim {
+    color: var(--text-dim);
+}
+</style>
+<!-- Marked.js for Markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- KaTeX math styling -->
+<style>
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5rem 0; }
+.katex { font-size: 1.1em; }
+
+/* SMILES structure styling */
+.smiles-container {
+    display: inline-block;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+/* Chart container */
+.chart-container {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+    margin: 1rem 0;
+    max-width: 600px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let workflows = [];
+let editingWorkflow = null;
+
+// Load workflows on page load
+document.addEventListener('DOMContentLoaded', loadWorkflows);
+
+async function loadWorkflows() {
+    try {
+        const response = await fetch('/api/workflows/', {credentials: 'include'});
+        const data = await response.json();
+        workflows = data.workflows || [];
+        renderWorkflows();
+    } catch (err) {
+        console.error('Failed to load workflows:', err);
+        document.getElementById('workflow-list').innerHTML = '<div class="alert alert-error">Failed to load workflows</div>';
+    }
+}
+
+function renderWorkflows() {
+    const container = document.getElementById('workflow-list');
+
+    if (workflows.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>No workflows yet</h3>
+                <p>Create your first workflow to chain agents together.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = workflows.map(wf => {
+        const steps = typeof wf.steps === 'string' ? JSON.parse(wf.steps) : wf.steps;
+        const lastRun = wf.last_run ? new Date(wf.last_run).toLocaleDateString() : 'Never';
+        return `
+            <div class="workflow-card">
+                <div class="workflow-info">
+                    <h3>${wf.name}</h3>
+                    <p>${steps.length} steps &middot; Last run: ${lastRun}</p>
+                </div>
+                <div class="workflow-actions">
+                    <button class="btn btn-primary" onclick="runWorkflow('${wf.id}')">Run</button>
+                    <button class="btn btn-secondary" onclick="editWorkflow('${wf.id}')">Edit</button>
+                    <button class="btn btn-secondary" onclick="deleteWorkflow('${wf.id}')">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function showCreateModal() {
+    editingWorkflow = null;
+    document.getElementById('modal-title').textContent = 'New Workflow';
+    document.getElementById('workflow-id').value = '';
+    document.getElementById('workflow-name').value = '';
+    document.getElementById('steps-container').innerHTML = '';
+    addStep();
+    document.getElementById('workflow-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('workflow-modal').style.display = 'none';
+}
+
+function backToWorkflows() {
+    document.getElementById('results-view').style.display = 'none';
+    document.getElementById('workflow-list').style.display = 'block';
+    // Restore the page header
+    const headerDiv = document.querySelector('div[style*="justify-content: space-between"]');
+    if (headerDiv) headerDiv.style.display = 'flex';
+}
+
+function addStep(type = 'researcher', config = {}) {
+    const container = document.getElementById('steps-container');
+    const stepNum = container.children.length + 1;
+
+    const stepHtml = `
+        <div class="step-item" data-step="${stepNum}">
+            <span class="step-number">${stepNum}</span>
+            <div class="step-fields">
+                <div class="step-row">
+                    <select class="step-type" onchange="updateStepFields(this)">
+                        <option value="decision_guide" ${type === 'decision_guide' ? 'selected' : ''}>Decision Guide</option>
+                        <option value="researcher" ${type === 'researcher' ? 'selected' : ''}>Researcher</option>
+                        <option value="scrub" ${type === 'scrub' ? 'selected' : ''}>Scrub (Clean Data)</option>
+                        <option value="analyst" ${type === 'analyst' ? 'selected' : ''}>Analyst (Train Model)</option>
+                        <option value="coder" ${type === 'coder' ? 'selected' : ''}>Coder</option>
+                        <option value="writer" ${type === 'writer' ? 'selected' : ''}>Writer</option>
+                        <option value="editor" ${type === 'editor' ? 'selected' : ''}>Editor</option>
+                        <option value="eda" ${type === 'eda' ? 'selected' : ''}>EDA</option>
+                    </select>
+                    <input type="text" class="step-name" placeholder="Step name" value="${config.name || ''}">
+                </div>
+                <div class="step-config">
+                    ${getStepConfigHtml(type, config)}
+                </div>
+            </div>
+            <button type="button" class="remove-step" onclick="removeStep(this)">&times;</button>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', stepHtml);
+}
+
+function getStepConfigHtml(type, config = {}) {
+    switch (type) {
+        case 'decision_guide':
+            return `<input type="text" class="step-situation" placeholder="Describe your situation or decision" value="${config.situation || ''}">`;
+        case 'researcher':
+            return `<input type="text" class="step-query" placeholder="Search query" value="${config.query || ''}">`;
+        case 'scrub':
+            return `<input type="text" class="step-columns" placeholder="Columns to clean (comma-separated, or leave blank for all)" value="${config.columns || ''}">`;
+        case 'analyst':
+            return `<input type="text" class="step-target" placeholder="Target column to predict" value="${config.target || ''}">`;
+        case 'coder':
+            return `<input type="text" class="step-prompt" placeholder="Code prompt" value="${config.prompt || ''}">`;
+        case 'writer':
+            return `
+                <select class="step-template">
+                    <option value="general" ${config.template === 'general' ? 'selected' : ''}>General</option>
+                    <option value="executive_summary" ${config.template === 'executive_summary' ? 'selected' : ''}>Executive Summary</option>
+                    <option value="technical_spec" ${config.template === 'technical_spec' ? 'selected' : ''}>Technical Spec</option>
+                    <option value="report" ${config.template === 'report' ? 'selected' : ''}>Report</option>
+                </select>
+            `;
+        case 'editor':
+            return `<input type="text" class="step-rubric" placeholder="Rubric type (auto)" value="${config.rubric || ''}">`;
+        case 'eda':
+            return `<input type="text" class="step-target" placeholder="Target column (optional)" value="${config.target || ''}">`;
+        default:
+            return '';
+    }
+}
+
+function updateStepFields(select) {
+    const stepItem = select.closest('.step-item');
+    const configDiv = stepItem.querySelector('.step-config');
+    configDiv.innerHTML = getStepConfigHtml(select.value);
+}
+
+function removeStep(btn) {
+    const container = document.getElementById('steps-container');
+    if (container.children.length > 1) {
+        btn.closest('.step-item').remove();
+        Array.from(container.children).forEach((step, i) => {
+            step.querySelector('.step-number').textContent = i + 1;
+        });
+    }
+}
+
+function getStepsFromForm() {
+    const steps = [];
+    document.querySelectorAll('.step-item').forEach(item => {
+        const type = item.querySelector('.step-type').value;
+        const name = item.querySelector('.step-name').value;
+
+        const step = { type, name };
+
+        switch (type) {
+            case 'researcher':
+                step.query = item.querySelector('.step-query')?.value || '';
+                break;
+            case 'coder':
+                step.prompt = item.querySelector('.step-prompt')?.value || '';
+                break;
+            case 'writer':
+                step.template = item.querySelector('.step-template')?.value || 'general';
+                break;
+            case 'editor':
+                step.rubric = item.querySelector('.step-rubric')?.value || '';
+                break;
+            case 'eda':
+                step.target = item.querySelector('.step-target')?.value || '';
+                break;
+        }
+
+        steps.push(step);
+    });
+    return steps;
+}
+
+document.getElementById('workflow-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const workflowId = document.getElementById('workflow-id').value;
+    const name = document.getElementById('workflow-name').value;
+    const steps = getStepsFromForm();
+
+    const url = workflowId ? `/api/workflows/${workflowId}/` : '/api/workflows/';
+    const method = workflowId ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, steps }),
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (data.success || data.id) {
+            closeModal();
+            loadWorkflows();
+        } else {
+            alert('Error saving workflow: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Failed to save workflow: ' + err.message);
+    }
+});
+
+function editWorkflow(id) {
+    const wf = workflows.find(w => w.id === id);
+    if (!wf) return;
+
+    editingWorkflow = wf;
+    document.getElementById('modal-title').textContent = 'Edit Workflow';
+    document.getElementById('workflow-id').value = wf.id;
+    document.getElementById('workflow-name').value = wf.name;
+
+    const container = document.getElementById('steps-container');
+    container.innerHTML = '';
+
+    const steps = typeof wf.steps === 'string' ? JSON.parse(wf.steps) : wf.steps;
+    steps.forEach(step => addStep(step.type, step));
+
+    document.getElementById('workflow-modal').style.display = 'flex';
+}
+
+async function deleteWorkflow(id) {
+    if (!confirm('Delete this workflow?')) return;
+
+    try {
+        await fetch(`/api/workflows/${id}/`, { method: 'DELETE', credentials: 'include' });
+        loadWorkflows();
+    } catch (err) {
+        alert('Failed to delete workflow: ' + err.message);
+    }
+}
+
+async function runWorkflow(id) {
+    // Hide workflow list, show results view
+    document.getElementById('workflow-list').style.display = 'none';
+    const headerDiv = document.querySelector('div[style*="justify-content: space-between"]');
+    if (headerDiv) headerDiv.style.display = 'none';
+
+    const resultsView = document.getElementById('results-view');
+    const resultsContainer = document.getElementById('results-container');
+    resultsView.style.display = 'block';
+
+    const wf = workflows.find(w => w.id === id);
+    document.getElementById('results-title').textContent = wf ? `Running: ${wf.name}` : 'Workflow Results';
+
+    resultsContainer.innerHTML = '<div class="loading active"><div class="spinner"></div><span>Running workflow...</span></div>';
+
+    try {
+        const response = await fetch(`/api/workflows/${id}/run/`, { method: 'POST', credentials: 'include' });
+        const data = await response.json();
+
+        document.getElementById('results-title').textContent = wf ? wf.name : 'Workflow Results';
+
+        if (data.error) {
+            resultsContainer.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+        } else {
+            resultsContainer.innerHTML = renderWorkflowPanels(data.result);
+            // Post-process for LaTeX, SMILES, and charts
+            setTimeout(postRenderContent, 100);
+        }
+    } catch (err) {
+        resultsContainer.innerHTML = `<div class="alert alert-error">Failed to run workflow: ${err.message}</div>`;
+    }
+}
+
+function renderWorkflowPanels(result) {
+    let html = `<div class="alert alert-success" style="margin-bottom: 1rem;">
+        Workflow completed successfully &middot; ${result.steps_executed} steps executed
+    </div>`;
+
+    result.results.forEach((stepResult, index) => {
+        const statusClass = stepResult.status === 'completed' ? 'success' : 'error';
+        const panelId = 'panel-' + index;
+        const contentId = 'content-' + index;
+
+        const typeIcons = {
+            researcher: '🔍',
+            coder: '💻',
+            writer: '📝',
+            editor: '✍️',
+            eda: '📊'
+        };
+        const icon = typeIcons[stepResult.type] || '⚡';
+
+        html += `
+            <div class="result-panel" id="${panelId}">
+                <div class="result-panel-header" onclick="togglePanel('${panelId}')">
+                    <div class="result-panel-info">
+                        <span>${icon}</span>
+                        <span class="result-panel-title">${stepResult.step || 'Step ' + (index + 1)}</span>
+                        <span class="result-panel-badge">${stepResult.type}</span>
+                    </div>
+                    <div class="result-panel-actions">
+                        <span class="result-panel-status ${statusClass}">${stepResult.status}</span>
+                        <button class="btn-icon" onclick="event.stopPropagation(); copyPanelContent('${contentId}')" title="Copy">📋</button>
+                        <button class="btn-icon" onclick="event.stopPropagation(); downloadPanelContent('${contentId}', '${stepResult.step || 'step-' + index}')" title="Download">💾</button>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                </div>
+                <div class="result-panel-content" id="${contentId}">
+                    ${renderStepContent(stepResult)}
+                </div>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+function togglePanel(panelId) {
+    const panel = document.getElementById(panelId);
+    panel.classList.toggle('collapsed');
+}
+
+function copyPanelContent(contentId) {
+    const element = document.getElementById(contentId);
+    if (!element) return;
+
+    const text = element.innerText || element.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        // Brief visual feedback
+        element.style.outline = '2px solid var(--accent-primary)';
+        setTimeout(() => { element.style.outline = 'none'; }, 500);
+    });
+}
+
+function downloadPanelContent(contentId, filename) {
+    const element = document.getElementById(contentId);
+    if (!element) return;
+
+    const text = element.innerText || element.textContent;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.replace(/[^a-z0-9]/gi, '_') + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function renderStepContent(stepResult) {
+    if (stepResult.error) {
+        return `<div class="alert alert-error">${stepResult.error}</div>`;
+    }
+
+    const result = stepResult.result;
+    if (!result) return '<p class="text-dim">No output</p>';
+
+    // Handle different step types
+    if (result.content) {
+        // Writer output - render as markdown with LaTeX support
+        return `<div class="markdown-output" data-render-math="true">${marked.parse(result.content)}</div>`;
+    }
+
+    if (result.summary) {
+        // Research output
+        let html = `<div class="markdown-output" data-render-math="true">${marked.parse(result.summary)}</div>`;
+        if (result.sources && result.sources.length > 0) {
+            html += '<div class="sources-list"><strong>Sources:</strong><ul>';
+            result.sources.forEach(src => {
+                const title = src.title || 'Source';
+                const url = src.url || '#';
+                html += `<li><a href="${url}" target="_blank">${title}</a></li>`;
+            });
+            html += '</ul></div>';
+        }
+        return html;
+    }
+
+    if (result.code) {
+        // Coder output
+        return `<pre class="code-output"><code>${escapeHtml(result.code)}</code></pre>`;
+    }
+
+    if (result.cleaned_document) {
+        // Editor output
+        let html = `<div class="editor-stats">
+            <span>Original: ${result.original_grade || 'N/A'}</span>
+            <span>Improved: ${result.improved_grade || 'N/A'}</span>
+            <span>Edits: ${result.edits_made || 0}</span>
+        </div>`;
+        html += `<div class="markdown-output" data-render-math="true">${marked.parse(result.cleaned_document)}</div>`;
+        return html;
+    }
+
+    // Handle visualizations (charts, SMILES)
+    if (result.visualization) {
+        let html = '';
+        if (result.visualization.type === 'smiles') {
+            html += `<div class="smiles-container" data-smiles="${escapeHtml(result.visualization.smiles)}" data-width="300" data-height="200"></div>`;
+        } else if (result.visualization.chart) {
+            html += `<div class="chart-container" data-chart='${JSON.stringify(result.visualization.chart)}'></div>`;
+        }
+        if (result.visualization.caption) {
+            html += `<p class="text-dim" style="font-size: 0.85rem; margin-top: 0.5rem;">${result.visualization.caption}</p>`;
+        }
+        return html;
+    }
+
+    if (result.status === 'skipped') {
+        return `<p class="text-dim">Skipped: ${result.reason || 'No reason provided'}</p>`;
+    }
+
+    // Fallback: show as formatted JSON
+    return `<pre class="json-output">${JSON.stringify(result, null, 2)}</pre>`;
+}
+
+// Post-render processing for LaTeX and visualizations
+function postRenderContent() {
+    // Render LaTeX in all marked elements
+    document.querySelectorAll('[data-render-math="true"]').forEach(el => {
+        if (window.renderMathInElement) {
+            window.renderMathInElement(el, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\[', right: '\\]', display: true},
+                    {left: '\\(', right: '\\)', display: false}
+                ],
+                throwOnError: false
+            });
+        }
+    });
+
+    // Render SMILES structures
+    if (window.SvendSmiles) {
+        window.SvendSmiles.renderAll();
+    }
+
+    // Render charts
+    if (window.SvendChart) {
+        document.querySelectorAll('[data-chart]').forEach(el => {
+            try {
+                const config = JSON.parse(el.dataset.chart);
+                const canvasId = 'chart-' + Math.random().toString(36).substr(2, 9);
+                const canvas = document.createElement('canvas');
+                canvas.id = canvasId;
+                el.innerHTML = '';
+                el.appendChild(canvas);
+
+                if (config.type === 'line') {
+                    SvendChart.line(canvasId, config.labels, config.datasets, config.options);
+                } else if (config.type === 'bar') {
+                    SvendChart.bar(canvasId, config.labels, config.datasets, config.options);
+                } else if (config.type === 'pie' || config.type === 'doughnut') {
+                    SvendChart.pie(canvasId, config.labels, config.data, { doughnut: config.type === 'doughnut' });
+                }
+            } catch (e) {
+                console.error('Chart render error:', e);
+            }
+        });
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

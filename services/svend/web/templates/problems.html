@@ -1,0 +1,1690 @@
+{% extends "base_app.html" %}
+{% block title %}Problems - SVEND{% endblock %}
+
+{% block content %}
+<div class="problems-page">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1>Problem Sessions</h1>
+            <p class="subtitle">Structure your thinking. Track hypotheses. Find probable causes.</p>
+        </div>
+        <button class="btn btn-primary" onclick="showCreateModal()">+ New Problem</button>
+    </div>
+
+    <!-- Session Type Toggle -->
+    <div class="session-toggle">
+        <button class="toggle-btn active" data-type="problem" onclick="setSessionType('problem')">
+            Problems
+            <span class="badge" id="problem-count">0</span>
+        </button>
+        <button class="toggle-btn" data-type="exploration" onclick="setSessionType('exploration')">
+            Explorations
+            <span class="badge" id="exploration-count">0</span>
+        </button>
+    </div>
+
+    <!-- Problem List -->
+    <div id="problems-list">
+        <div class="loading" id="loading-problems">
+            <div class="spinner"></div>
+            <span>Loading problems...</span>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state" style="display: none;">
+        <h3>No problems yet</h3>
+        <p>Start by describing an effect you're trying to understand.</p>
+        <button class="btn btn-primary" onclick="showCreateModal()">Create Your First Problem</button>
+    </div>
+</div>
+
+<!-- Create Problem Modal -->
+<div id="create-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="background-color: #121a12;">
+        <div class="modal-header">
+            <h2>New Problem Session</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+
+        <form id="problem-form" onsubmit="createProblem(event)">
+            <div class="form-group">
+                <label for="problem-title">What would you call this problem?</label>
+                <input type="text" id="problem-title" placeholder="e.g., Q4 Customer Churn Spike" required>
+            </div>
+
+            <div class="form-group">
+                <label for="effect-description">What are you observing? (The effect/symptom)</label>
+                <textarea id="effect-description" rows="3"
+                    placeholder="Describe what you're seeing. Be specific about the symptom or outcome you want to understand." required></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="effect-magnitude">How big is the effect?</label>
+                    <input type="text" id="effect-magnitude" placeholder="e.g., 40% increase, $50k loss">
+                </div>
+                <div class="form-group">
+                    <label for="effect-when">When did you first notice?</label>
+                    <input type="text" id="effect-when" placeholder="e.g., Last month, Q4 2024">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="domain">Domain area</label>
+                <select id="domain">
+                    <option value="">Select domain...</option>
+                    <option value="manufacturing">Manufacturing</option>
+                    <option value="software">Software/SaaS</option>
+                    <option value="healthcare">Healthcare</option>
+                    <option value="finance">Finance</option>
+                    <option value="retail">Retail/E-commerce</option>
+                    <option value="service">Service Operations</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="available-data">What data do you have access to?</label>
+                <textarea id="available-data" rows="2"
+                    placeholder="e.g., CRM export, sales data, customer surveys, server logs..."></textarea>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="can-experiment" checked>
+                    I can run controlled experiments (not just observe)
+                </label>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Problem</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Problem Detail View -->
+<div id="detail-view" class="detail-view" style="display: none;">
+    <div class="detail-header">
+        <button class="btn btn-secondary" onclick="backToList()">← Back to Problems</button>
+        <div class="detail-title">
+            <h2 id="detail-problem-title">Problem Title</h2>
+            <span class="status-badge" id="detail-status">active</span>
+        </div>
+        <button class="btn btn-accent" onclick="startInterview()">Interview Me</button>
+    </div>
+
+    <div class="detail-content">
+        <!-- Effect Panel -->
+        <div class="panel">
+            <h3>The Effect</h3>
+            <p id="detail-effect-description"></p>
+            <div class="meta-row">
+                <span><strong>Magnitude:</strong> <span id="detail-magnitude">-</span></span>
+                <span><strong>First observed:</strong> <span id="detail-when">-</span></span>
+                <span><strong>Confidence:</strong> <span id="detail-confidence">-</span></span>
+            </div>
+        </div>
+
+        <!-- Bias Warnings -->
+        <div class="panel bias-panel" id="bias-panel" style="display: none;">
+            <h3>Bias Alerts</h3>
+            <div id="bias-warnings"></div>
+        </div>
+
+        <!-- Hypotheses Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Hypotheses</h3>
+                <div class="panel-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="generateHypotheses()">Generate with AI</button>
+                    <button class="btn btn-primary btn-sm" onclick="showAddHypothesisModal()">+ Add</button>
+                </div>
+            </div>
+            <div id="hypotheses-list" class="hypotheses-list">
+                <p class="empty-text">No hypotheses yet. What might be causing this effect?</p>
+            </div>
+        </div>
+
+        <!-- Evidence Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Evidence</h3>
+                <button class="btn btn-primary btn-sm" onclick="showAddEvidenceModal()">+ Add Evidence</button>
+            </div>
+            <div id="evidence-list" class="evidence-list">
+                <p class="empty-text">No evidence gathered yet. Use Research, Analysis, or Experiments to gather evidence.</p>
+            </div>
+        </div>
+
+        <!-- Understanding Panel -->
+        <div class="panel understanding-panel">
+            <h3>Current Understanding</h3>
+            <div class="understanding-grid">
+                <div>
+                    <h4>Probable Causes</h4>
+                    <div id="probable-causes">
+                        <p class="empty-text">Not enough evidence yet</p>
+                    </div>
+                </div>
+                <div>
+                    <h4>Key Uncertainties</h4>
+                    <div id="key-uncertainties">
+                        <p class="empty-text">-</p>
+                    </div>
+                </div>
+                <div>
+                    <h4>Dead Ends</h4>
+                    <div id="dead-ends">
+                        <p class="empty-text">No hypotheses rejected yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Panel -->
+        <div class="panel actions-panel">
+            <h3>Next Steps</h3>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="investigateWith('researcher')">Research This</button>
+                <button class="btn btn-secondary" onclick="investigateWith('analyst')">Analyze Data</button>
+                <button class="btn btn-secondary" onclick="investigateWith('dsw')">Build Model</button>
+                <button class="btn btn-primary" onclick="showResolveModal()">Mark Resolved</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Hypothesis Modal -->
+<div id="hypothesis-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-sm" style="background-color: #121a12;">
+        <div class="modal-header">
+            <h2>Add Hypothesis</h2>
+            <button class="modal-close" onclick="closeHypothesisModal()">&times;</button>
+        </div>
+        <form onsubmit="addHypothesis(event)">
+            <div class="form-group">
+                <label>What might be causing the effect?</label>
+                <input type="text" id="hyp-cause" placeholder="e.g., New competitor took market share" required>
+            </div>
+            <div class="form-group">
+                <label>How would this cause the effect? (mechanism)</label>
+                <textarea id="hyp-mechanism" rows="2" placeholder="e.g., Customers switched because competitor offered lower prices"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Initial probability estimate</label>
+                <input type="range" id="hyp-probability" min="5" max="95" value="50" oninput="updateProbLabel(this.value)">
+                <span id="prob-label">50%</span>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeHypothesisModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Hypothesis</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Evidence Modal -->
+<div id="evidence-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-sm" style="background-color: #121a12;">
+        <div class="modal-header">
+            <h2>Add Evidence</h2>
+            <button class="modal-close" onclick="closeEvidenceModal()">&times;</button>
+        </div>
+        <form onsubmit="addEvidence(event)">
+            <div class="form-group">
+                <label>What did you find?</label>
+                <textarea id="ev-summary" rows="3" placeholder="Describe the evidence..." required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Evidence type</label>
+                <select id="ev-type">
+                    <option value="observation">Observation</option>
+                    <option value="research">Research/Literature</option>
+                    <option value="data_analysis">Data Analysis</option>
+                    <option value="experiment">Experiment Result</option>
+                    <option value="expert">Expert Opinion</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Source</label>
+                <input type="text" id="ev-source" placeholder="Where did this come from?">
+            </div>
+            <div class="form-group">
+                <label>Which hypotheses does this support?</label>
+                <div id="ev-supports-list" class="checkbox-list"></div>
+            </div>
+            <div class="form-group">
+                <label>Which hypotheses does this weaken?</label>
+                <div id="ev-weakens-list" class="checkbox-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEvidenceModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Evidence</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Interview Modal -->
+<div id="interview-modal" class="modal" style="display: none;">
+    <div class="modal-content interview-modal" style="background-color: #121a12;">
+        <div class="modal-header">
+            <div>
+                <h2>Decision Guide Interview</h2>
+                <p class="interview-section" id="interview-section-title">Understanding Your Decision</p>
+            </div>
+            <button class="modal-close" onclick="closeInterviewModal()">&times;</button>
+        </div>
+
+        <div class="interview-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="interview-progress-bar" style="width: 0%"></div>
+            </div>
+            <span id="interview-progress-text">0% complete</span>
+        </div>
+
+        <div class="interview-content">
+            <div class="interview-question" id="interview-question">
+                <p class="question-text" id="question-text">Loading...</p>
+                <p class="question-help" id="question-help"></p>
+            </div>
+
+            <div class="interview-answer" id="interview-answer-area">
+                <!-- Dynamic answer input based on question type -->
+            </div>
+
+            <div class="interview-bias-alert" id="interview-bias-alert" style="display: none;">
+                <strong>Bias detected:</strong> <span id="bias-alert-count">0</span> potential cognitive biases found so far.
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="saveAndExitInterview()">Save & Exit</button>
+            <button type="button" class="btn btn-secondary" id="interview-skip-btn" onclick="skipQuestion()" style="display: none;">Skip</button>
+            <button type="button" class="btn btn-primary" id="interview-submit-btn" onclick="submitInterviewAnswer()">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Resume Interview Modal -->
+<div id="resume-interview-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-sm" style="background-color: #121a12;">
+        <div class="modal-header">
+            <h2>Resume Interview?</h2>
+            <button class="modal-close" onclick="closeResumeModal()">&times;</button>
+        </div>
+        <div style="padding: 1.25rem;">
+            <p>You have saved interview progress:</p>
+            <p id="resume-progress-info" style="color: var(--accent-primary); margin: 1rem 0;"></p>
+            <p>Would you like to continue where you left off?</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="startFreshInterview()">Start Fresh</button>
+            <button type="button" class="btn btn-primary" onclick="resumeInterview()">Resume</button>
+        </div>
+    </div>
+</div>
+
+<!-- Interview Complete Modal -->
+<div id="interview-complete-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="background-color: #121a12;">
+        <div class="modal-header">
+            <h2>Interview Complete</h2>
+            <button class="modal-close" onclick="closeInterviewCompleteModal()">&times;</button>
+        </div>
+
+        <div class="interview-complete-content">
+            <div class="recommendation-panel" id="recommendation-panel">
+                <h3>Recommended Next Step</h3>
+                <p id="recommendation-text"></p>
+                <p class="recommendation-reasoning" id="recommendation-reasoning"></p>
+            </div>
+
+            <div class="interview-biases" id="interview-biases-section" style="display: none;">
+                <h3>Cognitive Biases Detected</h3>
+                <div id="interview-biases-list"></div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeInterviewCompleteModal()">Close</button>
+            <button type="button" class="btn btn-primary" id="follow-recommendation-btn" onclick="followRecommendation()">Follow Recommendation</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.problems-page {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.subtitle {
+    color: var(--text-dim);
+    margin: 0.25rem 0 0 0;
+}
+
+.session-toggle {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding: 0.25rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    width: fit-content;
+}
+
+.toggle-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toggle-btn.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.badge {
+    background: rgba(255,255,255,0.2);
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+}
+
+.problem-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.problem-card:hover {
+    border-color: var(--accent-primary);
+}
+
+.problem-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.problem-card .effect-preview {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.problem-card .meta {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.status-badge.active { background: var(--accent-primary-dim); color: var(--accent-primary); }
+.status-badge.resolved { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+
+.probability-bar {
+    height: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    margin-top: 0.5rem;
+}
+
+.probability-fill {
+    height: 100%;
+    background: var(--accent-primary);
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+
+/* Detail View */
+.detail-view {
+    display: none;
+}
+
+.detail-header {
+    margin-bottom: 1.5rem;
+}
+
+.detail-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.panel h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.panel-header h3 {
+    margin: 0;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sm {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.meta-row {
+    display: flex;
+    gap: 2rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 0.75rem;
+}
+
+.bias-panel {
+    border-color: rgba(232, 197, 71, 0.4);
+    background: rgba(232, 197, 71, 0.05);
+}
+
+.bias-warning {
+    padding: 0.75rem;
+    background: rgba(232, 197, 71, 0.1);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.bias-warning strong {
+    color: var(--accent-gold);
+}
+
+.hypothesis-card {
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.hypothesis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.hypothesis-cause {
+    font-weight: 500;
+}
+
+.hypothesis-probability {
+    font-size: 0.9rem;
+    color: var(--accent-primary);
+    font-weight: 500;
+}
+
+.hypothesis-mechanism {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+
+.evidence-item {
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.evidence-meta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.understanding-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.understanding-grid h4 {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin: 0 0 0.75rem 0;
+    text-transform: uppercase;
+}
+
+.cause-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.empty-text {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.checkbox-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.checkbox-list label {
+    display: block;
+    padding: 0.5rem;
+    cursor: pointer;
+}
+
+.checkbox-list label:hover {
+    background: var(--bg-secondary);
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    color: var(--text-dim);
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--bg-tertiary);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #121a12 !important;
+    border: 1px solid rgba(74, 159, 110, 0.3);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .modal-content {
+    background-color: #ffffff !important;
+    border-color: rgba(45, 122, 74, 0.25);
+}
+
+[data-theme="midnight"] .modal-content {
+    background-color: #12121f !important;
+    border-color: rgba(106, 127, 255, 0.3);
+}
+
+.modal-sm {
+    max-width: 450px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background-color: #121a12;
+}
+
+.modal-body {
+    padding: 1.25rem;
+    background-color: #121a12;
+}
+
+[data-theme="light"] .modal-header,
+[data-theme="light"] .modal-body {
+    background-color: #ffffff;
+}
+
+[data-theme="midnight"] .modal-header,
+[data-theme="midnight"] .modal-body {
+    background-color: #12121f;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.modal-content form {
+    padding: 1.25rem;
+    background-color: #121a12;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid var(--border);
+    background-color: #121a12;
+}
+
+[data-theme="light"] .modal-content form,
+[data-theme="light"] .modal-footer {
+    background-color: #ffffff;
+}
+
+[data-theme="midnight"] .modal-content form,
+[data-theme="midnight"] .modal-footer {
+    background-color: #12121f;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+}
+
+.empty-state h3 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+}
+
+/* Interview Modal Styles */
+.interview-modal {
+    max-width: 650px;
+}
+
+.interview-section {
+    color: var(--text-dim);
+    margin: 0.25rem 0 0 0;
+    font-size: 0.9rem;
+}
+
+.interview-progress {
+    padding: 0 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent-primary);
+    transition: width 0.3s ease;
+}
+
+.interview-content {
+    padding: 1.25rem;
+}
+
+.interview-question {
+    margin-bottom: 1.5rem;
+}
+
+.question-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.question-help {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.interview-answer {
+    margin-bottom: 1rem;
+}
+
+.interview-answer textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    resize: vertical;
+}
+
+.interview-answer .choice-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.interview-answer .choice-option {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.interview-answer .choice-option:hover {
+    border-color: var(--accent-primary);
+}
+
+.interview-answer .choice-option.selected {
+    border-color: var(--accent-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.interview-answer .choice-option input {
+    margin-right: 0.75rem;
+}
+
+.interview-answer .scale-input {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.interview-answer .scale-input input[type="range"] {
+    width: 100%;
+}
+
+.interview-answer .scale-labels {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.interview-bias-alert {
+    padding: 0.75rem 1rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 4px;
+    color: #f59e0b;
+    font-size: 0.9rem;
+}
+
+.interview-complete-content {
+    padding: 1.25rem;
+}
+
+.recommendation-panel {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.recommendation-panel h3 {
+    margin: 0 0 0.75rem 0;
+    color: var(--accent-primary);
+}
+
+.recommendation-reasoning {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-top: 0.75rem;
+}
+
+.interview-biases {
+    margin-top: 1rem;
+}
+
+.interview-biases h3 {
+    margin-bottom: 0.75rem;
+}
+
+.btn-accent {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    color: white;
+    border: none;
+}
+
+.btn-accent:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .understanding-grid {
+        grid-template-columns: 1fr;
+    }
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    .meta-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+</style>
+
+<script>
+let problems = [];
+let currentProblem = null;
+
+// Load problems on page load
+document.addEventListener('DOMContentLoaded', loadProblems);
+
+async function loadProblems() {
+    try {
+        const response = await fetch('/api/problems/', { credentials: 'include' });
+        const data = await response.json();
+        problems = data.problems || [];
+        renderProblems();
+    } catch (err) {
+        console.error('Failed to load problems:', err);
+    }
+}
+
+function renderProblems() {
+    const container = document.getElementById('problems-list');
+    const emptyState = document.getElementById('empty-state');
+    const loading = document.getElementById('loading-problems');
+
+    loading.style.display = 'none';
+
+    if (problems.length === 0) {
+        container.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    container.style.display = 'block';
+
+    container.innerHTML = problems.map(p => `
+        <div class="problem-card" onclick="viewProblem('${p.id}')">
+            <h3>${p.title}</h3>
+            <p class="effect-preview">${p.effect_summary}</p>
+            <div class="meta">
+                <span>${p.hypothesis_count} hypotheses</span>
+                <span>${p.evidence_count} pieces of evidence</span>
+                ${p.top_cause ? `<span>Top cause: ${(p.top_cause.probability * 100).toFixed(0)}% - ${p.top_cause.cause.slice(0, 30)}...</span>` : ''}
+                <span class="status-badge ${p.status}">${p.status}</span>
+            </div>
+        </div>
+    `).join('');
+
+    document.getElementById('problem-count').textContent = problems.length;
+}
+
+function showCreateModal() {
+    document.getElementById('create-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('create-modal').style.display = 'none';
+}
+
+// Close modals when clicking outside (on backdrop)
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal')) {
+        e.target.style.display = 'none';
+    }
+});
+
+async function createProblem(e) {
+    e.preventDefault();
+
+    const data = {
+        title: document.getElementById('problem-title').value,
+        effect_description: document.getElementById('effect-description').value,
+        effect_magnitude: document.getElementById('effect-magnitude').value,
+        effect_first_observed: document.getElementById('effect-when').value,
+        domain: document.getElementById('domain').value,
+        available_data: document.getElementById('available-data').value,
+        can_experiment: document.getElementById('can-experiment').checked,
+    };
+
+    try {
+        const response = await fetch('/api/problems/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            closeModal();
+            loadProblems();
+
+            // Show bias warnings if any
+            if (result.bias_warnings && result.bias_warnings.length > 0) {
+                alert('Bias detected in your problem description. Check the problem detail view for warnings.');
+            }
+
+            viewProblem(result.id);
+        } else {
+            alert(result.error || 'Failed to create problem');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function viewProblem(id) {
+    try {
+        const response = await fetch(`/api/problems/${id}/`, { credentials: 'include' });
+        currentProblem = await response.json();
+        renderProblemDetail();
+    } catch (err) {
+        alert('Failed to load problem: ' + err.message);
+    }
+}
+
+function renderProblemDetail() {
+    document.querySelector('.problems-page').style.display = 'none';
+    document.getElementById('detail-view').style.display = 'block';
+
+    const p = currentProblem;
+
+    document.getElementById('detail-problem-title').textContent = p.title;
+    document.getElementById('detail-status').textContent = p.status;
+    document.getElementById('detail-status').className = `status-badge ${p.status}`;
+    document.getElementById('detail-effect-description').textContent = p.effect.description;
+    document.getElementById('detail-magnitude').textContent = p.effect.magnitude || '-';
+    document.getElementById('detail-when').textContent = p.effect.first_observed || '-';
+    document.getElementById('detail-confidence').textContent = p.effect.confidence || '-';
+
+    // Bias warnings
+    const biasPanel = document.getElementById('bias-panel');
+    if (p.bias_warnings && p.bias_warnings.length > 0) {
+        biasPanel.style.display = 'block';
+        document.getElementById('bias-warnings').innerHTML = p.bias_warnings.map(w => `
+            <div class="bias-warning">
+                <strong>${w.type}:</strong> ${w.description}<br>
+                <small>${w.suggestion}</small>
+            </div>
+        `).join('');
+    } else {
+        biasPanel.style.display = 'none';
+    }
+
+    // Hypotheses
+    const hypList = document.getElementById('hypotheses-list');
+    if (p.hypotheses && p.hypotheses.length > 0) {
+        hypList.innerHTML = p.hypotheses.map(h => `
+            <div class="hypothesis-card" data-id="${h.id}">
+                <div class="hypothesis-header">
+                    <span class="hypothesis-cause">${h.cause}</span>
+                    <span class="hypothesis-probability">${(h.probability * 100).toFixed(0)}%</span>
+                </div>
+                ${h.mechanism ? `<div class="hypothesis-mechanism">${h.mechanism}</div>` : ''}
+                <div class="probability-bar">
+                    <div class="probability-fill" style="width: ${h.probability * 100}%"></div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        hypList.innerHTML = '<p class="empty-text">No hypotheses yet. What might be causing this effect?</p>';
+    }
+
+    // Evidence
+    const evList = document.getElementById('evidence-list');
+    if (p.evidence && p.evidence.length > 0) {
+        evList.innerHTML = p.evidence.map(e => `
+            <div class="evidence-item">
+                <div>${e.summary}</div>
+                <div class="evidence-meta">
+                    <span>${e.type}</span>
+                    ${e.source ? `<span>Source: ${e.source}</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } else {
+        evList.innerHTML = '<p class="empty-text">No evidence gathered yet.</p>';
+    }
+
+    // Probable causes
+    const causesList = document.getElementById('probable-causes');
+    if (p.probable_causes && p.probable_causes.length > 0) {
+        causesList.innerHTML = p.probable_causes.map(c => `
+            <div class="cause-item">
+                <span>${c.cause}</span>
+                <span>${(c.probability * 100).toFixed(0)}%</span>
+            </div>
+        `).join('');
+    } else {
+        causesList.innerHTML = '<p class="empty-text">Not enough evidence yet</p>';
+    }
+
+    // Dead ends
+    const deadEndsList = document.getElementById('dead-ends');
+    if (p.dead_ends && p.dead_ends.length > 0) {
+        deadEndsList.innerHTML = p.dead_ends.map(d => `
+            <div style="margin-bottom: 0.5rem;">
+                <s>${d.hypothesis_text}</s>
+                <small style="display: block; color: var(--text-dim);">${d.why_rejected}</small>
+            </div>
+        `).join('');
+    } else {
+        deadEndsList.innerHTML = '<p class="empty-text">No hypotheses rejected yet</p>';
+    }
+}
+
+function backToList() {
+    document.getElementById('detail-view').style.display = 'none';
+    document.querySelector('.problems-page').style.display = 'block';
+    currentProblem = null;
+    loadProblems();
+}
+
+function showAddHypothesisModal() {
+    document.getElementById('hypothesis-modal').style.display = 'flex';
+}
+
+function closeHypothesisModal() {
+    document.getElementById('hypothesis-modal').style.display = 'none';
+}
+
+function updateProbLabel(val) {
+    document.getElementById('prob-label').textContent = val + '%';
+}
+
+async function addHypothesis(e) {
+    e.preventDefault();
+
+    const data = {
+        cause: document.getElementById('hyp-cause').value,
+        mechanism: document.getElementById('hyp-mechanism').value,
+        probability: parseInt(document.getElementById('hyp-probability').value) / 100,
+    };
+
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/hypotheses/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+            closeHypothesisModal();
+            viewProblem(currentProblem.id);
+        } else {
+            const result = await response.json();
+            alert(result.error || 'Failed to add hypothesis');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function generateHypotheses() {
+    if (!confirm('Generate hypotheses using AI? This will use one query.')) return;
+
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/hypotheses/generate/`, {
+            method: 'POST',
+            credentials: 'include',
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            viewProblem(currentProblem.id);
+        } else {
+            alert(result.error || 'Failed to generate hypotheses');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function showAddEvidenceModal() {
+    // Populate hypothesis checkboxes
+    const supportsDiv = document.getElementById('ev-supports-list');
+    const weakensDiv = document.getElementById('ev-weakens-list');
+
+    const checkboxes = currentProblem.hypotheses.map(h => `
+        <label><input type="checkbox" value="${h.id}"> ${h.cause.slice(0, 50)}...</label>
+    `).join('');
+
+    supportsDiv.innerHTML = checkboxes || '<p class="empty-text">No hypotheses to link</p>';
+    weakensDiv.innerHTML = checkboxes || '<p class="empty-text">No hypotheses to link</p>';
+
+    document.getElementById('evidence-modal').style.display = 'flex';
+}
+
+function closeEvidenceModal() {
+    document.getElementById('evidence-modal').style.display = 'none';
+}
+
+async function addEvidence(e) {
+    e.preventDefault();
+
+    const supports = Array.from(document.querySelectorAll('#ev-supports-list input:checked')).map(cb => cb.value);
+    const weakens = Array.from(document.querySelectorAll('#ev-weakens-list input:checked')).map(cb => cb.value);
+
+    const data = {
+        summary: document.getElementById('ev-summary').value,
+        type: document.getElementById('ev-type').value,
+        source: document.getElementById('ev-source').value,
+        supports,
+        weakens,
+    };
+
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/evidence/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+            closeEvidenceModal();
+            viewProblem(currentProblem.id);
+        } else {
+            const result = await response.json();
+            alert(result.error || 'Failed to add evidence');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function investigateWith(agent) {
+    // Store problem context and redirect to agent
+    sessionStorage.setItem('problemContext', JSON.stringify({
+        problemId: currentProblem.id,
+        title: currentProblem.title,
+        effect: currentProblem.effect,
+        hypotheses: currentProblem.hypotheses,
+    }));
+
+    const routes = {
+        researcher: '/app/',  // Chat with research intent
+        analyst: '/app/',     // Chat with analysis intent
+        dsw: '/app/dsw/',
+    };
+
+    window.location.href = routes[agent] || '/app/';
+}
+
+function setSessionType(type) {
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === type);
+    });
+    // Filter would go here
+}
+
+function showResolveModal() {
+    const summary = prompt('What was the probable cause? (Resolution summary)');
+    if (summary) {
+        resolveProblem(summary);
+    }
+}
+
+async function resolveProblem(summary) {
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/resolve/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ summary, confidence: 'medium' }),
+        });
+
+        if (response.ok) {
+            viewProblem(currentProblem.id);
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// =============================================================================
+// Interview Functions
+// =============================================================================
+
+let currentQuestion = null;
+let currentAnswer = null;
+let interviewRecommendation = null;
+
+async function startInterview() {
+    if (!currentProblem) return;
+
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/interview/start/`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            if (data.has_saved_progress) {
+                // Show resume dialog
+                document.getElementById('resume-progress-info').textContent =
+                    `${data.saved_progress.answered} questions answered, section ${data.saved_progress.current_section}`;
+                document.getElementById('resume-interview-modal').style.display = 'flex';
+            } else {
+                currentQuestion = data.question;
+                showInterviewModal(data);
+            }
+        } else {
+            alert(data.error || 'Failed to start interview');
+        }
+    } catch (err) {
+        alert('Error starting interview: ' + err.message);
+    }
+}
+
+function closeResumeModal() {
+    document.getElementById('resume-interview-modal').style.display = 'none';
+}
+
+async function resumeInterview() {
+    closeResumeModal();
+
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/interview/start/`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resume: true }),
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            currentQuestion = data.question;
+            showInterviewModal(data);
+        } else {
+            alert(data.error || 'Failed to resume interview');
+        }
+    } catch (err) {
+        alert('Error resuming interview: ' + err.message);
+    }
+}
+
+async function startFreshInterview() {
+    closeResumeModal();
+
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/interview/start/`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fresh: true }),
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            currentQuestion = data.question;
+            showInterviewModal(data);
+        } else {
+            alert(data.error || 'Failed to start interview');
+        }
+    } catch (err) {
+        alert('Error starting interview: ' + err.message);
+    }
+}
+
+async function saveAndExitInterview() {
+    if (!currentProblem) return;
+
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/interview/save/`, {
+            method: 'POST',
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            closeInterviewModal();
+            alert('Interview progress saved. You can resume later.');
+        } else {
+            alert(data.error || 'Failed to save interview');
+        }
+    } catch (err) {
+        alert('Error saving interview: ' + err.message);
+    }
+}
+
+function showInterviewModal(data) {
+    document.getElementById('interview-modal').style.display = 'flex';
+    updateInterviewUI(data);
+}
+
+function closeInterviewModal() {
+    document.getElementById('interview-modal').style.display = 'none';
+    currentQuestion = null;
+    currentAnswer = null;
+}
+
+function updateInterviewUI(data) {
+    // Update section title
+    if (data.section) {
+        document.getElementById('interview-section-title').textContent = data.section.title;
+    }
+
+    // Update progress
+    const progress = data.progress || { percent_complete: 0 };
+    document.getElementById('interview-progress-bar').style.width = progress.percent_complete + '%';
+    document.getElementById('interview-progress-text').textContent = Math.round(progress.percent_complete) + '% complete';
+
+    // Update question
+    if (data.question) {
+        currentQuestion = data.question;
+        document.getElementById('question-text').textContent = data.question.text;
+        document.getElementById('question-help').textContent = data.question.help_text || '';
+
+        // Show/hide skip button
+        const skipBtn = document.getElementById('interview-skip-btn');
+        skipBtn.style.display = data.question.required ? 'none' : 'block';
+
+        // Render answer input based on question type
+        renderAnswerInput(data.question);
+    }
+
+    // Update bias alert
+    if (data.bias_count && data.bias_count > 0) {
+        document.getElementById('interview-bias-alert').style.display = 'block';
+        document.getElementById('bias-alert-count').textContent = data.bias_count;
+    } else {
+        document.getElementById('interview-bias-alert').style.display = 'none';
+    }
+}
+
+function renderAnswerInput(question) {
+    const container = document.getElementById('interview-answer-area');
+    currentAnswer = null;
+
+    switch (question.type) {
+        case 'text':
+            container.innerHTML = `
+                <textarea id="interview-text-answer"
+                    placeholder="Type your answer..."
+                    oninput="currentAnswer = this.value"></textarea>
+            `;
+            break;
+
+        case 'choice':
+            container.innerHTML = `
+                <div class="choice-options">
+                    ${question.options.map((opt, i) => `
+                        <label class="choice-option" onclick="selectChoice(this, '${opt.replace(/'/g, "\\'")}')">
+                            <input type="radio" name="interview-choice" value="${opt}">
+                            ${opt}
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+            break;
+
+        case 'scale':
+            const min = question.scale_min || 1;
+            const max = question.scale_max || 10;
+            const mid = Math.floor((min + max) / 2);
+            container.innerHTML = `
+                <div class="scale-input">
+                    <input type="range" id="interview-scale-answer"
+                        min="${min}" max="${max}" value="${mid}"
+                        oninput="currentAnswer = this.value; document.getElementById('scale-value').textContent = this.value">
+                    <div class="scale-labels">
+                        <span>${min} - Low</span>
+                        <span id="scale-value">${mid}</span>
+                        <span>${max} - High</span>
+                    </div>
+                </div>
+            `;
+            currentAnswer = mid;
+            break;
+
+        case 'yesno':
+            container.innerHTML = `
+                <div class="choice-options">
+                    <label class="choice-option" onclick="selectChoice(this, 'Yes')">
+                        <input type="radio" name="interview-choice" value="Yes">
+                        Yes
+                    </label>
+                    <label class="choice-option" onclick="selectChoice(this, 'No')">
+                        <input type="radio" name="interview-choice" value="No">
+                        No
+                    </label>
+                </div>
+            `;
+            break;
+
+        default:
+            container.innerHTML = `
+                <textarea id="interview-text-answer"
+                    placeholder="Type your answer..."
+                    oninput="currentAnswer = this.value"></textarea>
+            `;
+    }
+}
+
+function selectChoice(element, value) {
+    // Remove selected class from all options
+    document.querySelectorAll('.choice-option').forEach(opt => opt.classList.remove('selected'));
+    // Add to clicked one
+    element.classList.add('selected');
+    currentAnswer = value;
+}
+
+async function submitInterviewAnswer() {
+    // Get the answer based on question type
+    let answer = currentAnswer;
+
+    if (currentQuestion.type === 'text' && !answer) {
+        const textarea = document.getElementById('interview-text-answer');
+        if (textarea) answer = textarea.value;
+    }
+
+    if (currentQuestion.required && (!answer || answer === '')) {
+        alert('Please provide an answer to continue.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/interview/answer/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ answer }),
+        });
+
+        const data = await response.json();
+
+        if (data.complete) {
+            // Interview complete - show results
+            closeInterviewModal();
+            showInterviewComplete(data);
+            // Refresh the problem view
+            viewProblem(currentProblem.id);
+        } else if (response.ok) {
+            // Continue to next question
+            updateInterviewUI(data);
+        } else {
+            alert(data.error || 'Failed to submit answer');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function skipQuestion() {
+    try {
+        const response = await fetch(`/api/problems/${currentProblem.id}/interview/skip/`, {
+            method: 'POST',
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            updateInterviewUI(data);
+        } else {
+            alert(data.error || 'Cannot skip this question');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function showInterviewComplete(data) {
+    interviewRecommendation = {
+        agent: data.recommended_agent,
+        action: data.recommended_action,
+    };
+
+    // Show recommendation
+    const agentNames = {
+        dsw: 'Data Science Workbench',
+        researcher: 'Researcher',
+        analyst: 'Analyst',
+        none: 'Structured Thinking',
+    };
+
+    document.getElementById('recommendation-text').textContent =
+        `${agentNames[data.recommended_agent] || 'Next step'}: ${data.recommended_action}`;
+    document.getElementById('recommendation-reasoning').textContent = data.routing_reasoning;
+
+    // Show biases if any
+    if (data.bias_warnings && data.bias_warnings.length > 0) {
+        document.getElementById('interview-biases-section').style.display = 'block';
+        document.getElementById('interview-biases-list').innerHTML = data.bias_warnings.map(b => `
+            <div class="bias-warning">
+                <strong>${b.type}:</strong> ${b.description}<br>
+                <small>${b.suggestion}</small>
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('interview-biases-section').style.display = 'none';
+    }
+
+    document.getElementById('interview-complete-modal').style.display = 'flex';
+}
+
+function closeInterviewCompleteModal() {
+    document.getElementById('interview-complete-modal').style.display = 'none';
+    interviewRecommendation = null;
+}
+
+function followRecommendation() {
+    if (!interviewRecommendation) return;
+
+    closeInterviewCompleteModal();
+
+    const routes = {
+        dsw: '/app/dsw/',
+        researcher: '/app/',
+        analyst: '/app/',
+        none: null,
+    };
+
+    // Store problem context for the agent
+    sessionStorage.setItem('problemContext', JSON.stringify({
+        problemId: currentProblem.id,
+        title: currentProblem.title,
+        effect: currentProblem.effect,
+        hypotheses: currentProblem.hypotheses,
+        recommendedAction: interviewRecommendation.action,
+    }));
+
+    const route = routes[interviewRecommendation.agent];
+    if (route) {
+        window.location.href = route;
+    }
+}
+</script>
+{% endblock %}

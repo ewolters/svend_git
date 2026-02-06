@@ -1,0 +1,2839 @@
+{% extends "base_app.html" %}
+
+{% block title %}Learn - SVEND{% endblock %}
+
+{% block extra_head %}
+<!-- Marked.js for markdown parsing -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- KaTeX for LaTeX rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div id="learn-app">
+    <!-- Header -->
+    <div class="learn-header">
+        <div class="learn-header-content">
+            <div>
+                <h1>SVEND Analyst Certification</h1>
+                <p class="learn-subtitle">Master hypothesis-driven investigation and statistical analysis</p>
+            </div>
+            <div class="learn-progress-summary" id="progress-summary">
+                <div class="progress-ring">
+                    <svg viewBox="0 0 36 36">
+                        <path class="progress-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        <path class="progress-ring-fill" id="progress-ring-fill" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                    </svg>
+                    <span class="progress-pct" id="progress-pct">0%</span>
+                </div>
+                <div class="progress-text">
+                    <span id="sections-completed">0</span> of <span id="sections-total">0</span> sections
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="learn-content">
+        <!-- Sidebar: Module List -->
+        <aside class="learn-sidebar">
+            <div class="sidebar-section">
+                <h3>Curriculum</h3>
+                <div id="module-list" class="module-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="sidebar-section" id="certification-section" style="display: none;">
+                <h3>Certification</h3>
+                <div class="cert-status" id="cert-status">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Search</h3>
+                <input type="text" id="search-input" placeholder="Search topics..." class="search-input">
+            </div>
+        </aside>
+
+        <!-- Main: Module/Section Content -->
+        <main class="learn-main">
+            <!-- Welcome View (default) -->
+            <div id="welcome-view" class="view active">
+                <div class="card welcome-card">
+                    <h2>Welcome to SVEND Analyst Certification</h2>
+                    <p>This course will teach you rigorous analytical thinking:</p>
+                    <ul class="welcome-list">
+                        <li><strong>Bayesian reasoning</strong> - Update beliefs with evidence, not intuition</li>
+                        <li><strong>Hypothesis-driven investigation</strong> - Structure your inquiry to avoid bias</li>
+                        <li><strong>Statistical tools</strong> - Choose and interpret the right tests</li>
+                        <li><strong>Data fundamentals</strong> - Clean data, proper sampling, understanding distributions</li>
+                        <li><strong>DSW mastery</strong> - Use SVEND's analysis tools effectively</li>
+                    </ul>
+                    <p>Complete all modules and pass the assessment to earn your <strong>SVEND Certified Analyst</strong> credential.</p>
+                    <button class="btn btn-primary" onclick="startCourse()">Start Learning</button>
+                </div>
+            </div>
+
+            <!-- Module View -->
+            <div id="module-view" class="view">
+                <div class="module-header">
+                    <h2 id="module-title"></h2>
+                    <p id="module-description"></p>
+                </div>
+                <div id="section-list" class="section-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Section Content View -->
+            <div id="section-view" class="view">
+                <div class="section-header">
+                    <button class="btn btn-secondary btn-sm" onclick="backToModule()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                        Back to Module
+                    </button>
+                    <span class="section-breadcrumb" id="section-breadcrumb"></span>
+                </div>
+                <div id="section-content" class="section-content">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="section-footer">
+                    <button class="btn btn-primary" id="complete-section-btn" onclick="completeSection()">
+                        Mark as Complete
+                    </button>
+                </div>
+            </div>
+
+            <!-- Assessment View -->
+            <div id="assessment-view" class="view">
+                <div class="assessment-header">
+                    <h2>Certification Assessment</h2>
+                    <p>Answer <span id="question-count">15</span> questions. Passing score: <span id="passing-score">80%</span></p>
+                    <div class="assessment-timer" id="assessment-timer">30:00</div>
+                </div>
+                <div id="assessment-questions" class="assessment-questions">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="assessment-footer">
+                    <button class="btn btn-primary" id="submit-assessment-btn" onclick="submitAssessment()">
+                        Submit Assessment
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results View -->
+            <div id="results-view" class="view">
+                <div id="results-content" class="results-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Certificate View -->
+            <div id="certificate-view" class="view">
+                <div id="certificate-content" class="certificate-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<style>
+/* Learn Page Styles */
+.learn-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.learn-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.learn-subtitle {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.learn-progress-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.progress-ring {
+    position: relative;
+    width: 60px;
+    height: 60px;
+}
+
+.progress-ring svg {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-bg {
+    fill: none;
+    stroke: var(--bg-tertiary);
+    stroke-width: 3;
+}
+
+.progress-ring-fill {
+    fill: none;
+    stroke: var(--accent-primary);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.5s ease;
+}
+
+.progress-pct {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.progress-text {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* Layout */
+.learn-content {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+}
+
+/* Sidebar */
+.learn-sidebar {
+    position: sticky;
+    top: 2rem;
+    align-self: start;
+}
+
+.sidebar-section {
+    margin-bottom: 2rem;
+}
+
+.sidebar-section h3 {
+    margin-bottom: 1rem;
+}
+
+.module-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.module-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.module-item:hover {
+    border-color: var(--accent-primary-border);
+}
+
+.module-item.active {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-dim);
+}
+
+.module-item.completed {
+    border-left: 3px solid var(--accent-primary);
+}
+
+.module-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    color: var(--text-dim);
+    font-size: 0.75rem;
+}
+
+.module-item.completed .module-icon {
+    background: var(--accent-primary-dim);
+    color: var(--accent-primary);
+}
+
+.module-info {
+    flex: 1;
+}
+
+.module-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.module-progress {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.search-input {
+    width: 100%;
+}
+
+/* Main Content */
+.learn-main {
+    min-height: 60vh;
+}
+
+.view {
+    display: none;
+}
+
+.view.active {
+    display: block;
+}
+
+/* Welcome */
+.welcome-card {
+    max-width: 700px;
+}
+
+.welcome-list {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0;
+}
+
+.welcome-list li {
+    padding: 0.5rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+    color: var(--text-secondary);
+}
+
+.welcome-list li::before {
+    content: ">";
+    position: absolute;
+    left: 0;
+    color: var(--accent-primary);
+}
+
+/* Section List */
+.section-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.section-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.section-item:hover {
+    border-color: var(--accent-primary-border);
+}
+
+.section-item.completed {
+    border-left: 3px solid var(--accent-primary);
+}
+
+.section-item.coming-soon {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.section-status {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    color: var(--text-dim);
+    flex-shrink: 0;
+}
+
+.section-item.completed .section-status {
+    background: var(--accent-primary-dim);
+    color: var(--accent-primary);
+}
+
+.section-info {
+    flex: 1;
+}
+
+.section-title {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.section-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.section-meta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.section-meta span {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+/* Section Content */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-breadcrumb {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.section-content {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-content h3 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.topic-list {
+    list-style: none;
+    padding: 0;
+}
+
+.topic-list li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.topic-list li:last-child {
+    border-bottom: none;
+}
+
+.section-footer {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Assessment */
+.assessment-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.assessment-timer {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.assessment-questions {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.question-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+}
+
+.question-number {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+}
+
+.question-text {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 1.25rem;
+}
+
+.question-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.option-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.option-label:hover {
+    border-color: var(--accent-primary-border);
+}
+
+.option-label input[type="radio"] {
+    width: auto;
+    margin: 0;
+}
+
+.option-label.selected {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-dim);
+}
+
+.assessment-footer {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+/* Results */
+.results-content {
+    text-align: center;
+}
+
+.results-score {
+    font-size: 4rem;
+    font-weight: 300;
+    margin: 1rem 0;
+}
+
+.results-score.passed {
+    color: var(--accent-primary);
+}
+
+.results-score.failed {
+    color: var(--error);
+}
+
+.results-message {
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.results-breakdown {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: left;
+}
+
+.result-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.result-item.correct {
+    border-left: 3px solid var(--accent-primary);
+}
+
+.result-item.incorrect {
+    border-left: 3px solid var(--error);
+}
+
+/* Certificate */
+.certificate-content {
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.certificate-card {
+    background: var(--card-bg);
+    border: 2px solid var(--accent-primary);
+    border-radius: 8px;
+    padding: 3rem;
+    margin-bottom: 2rem;
+}
+
+.certificate-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+}
+
+.certificate-name {
+    font-size: 2rem;
+    font-weight: 400;
+    color: var(--accent-primary);
+    margin-bottom: 0.5rem;
+}
+
+.certificate-holder {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.certificate-date {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.certificate-id {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 2rem;
+}
+
+.share-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+/* Cert status sidebar */
+.cert-status {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.cert-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--accent-primary);
+    font-weight: 500;
+}
+
+.cert-badge svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .learn-content {
+        grid-template-columns: 1fr;
+    }
+
+    .learn-sidebar {
+        position: static;
+    }
+}
+
+/* Rich Content Styles */
+.section-content h2 {
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+.section-content h3 {
+    color: var(--text-primary);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.section-content p {
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 1rem;
+}
+
+.section-content ul, .section-content ol {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.section-content li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.section-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.section-content th, .section-content td {
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    text-align: left;
+}
+
+.section-content th {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.section-content td {
+    color: var(--text-secondary);
+}
+
+.section-content code {
+    background: var(--bg-tertiary);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9em;
+}
+
+.section-content pre {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.section-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.section-content strong {
+    color: var(--text-primary);
+}
+
+.section-content blockquote {
+    border-left: 3px solid var(--accent-primary);
+    margin: 1rem 0;
+    padding-left: 1rem;
+    color: var(--text-secondary);
+}
+
+/* Key Takeaways */
+.key-takeaways {
+    background: var(--accent-primary-dim);
+    border: 1px solid var(--accent-primary-border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+}
+
+.key-takeaways h3 {
+    margin-top: 0;
+    color: var(--accent-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.key-takeaways ul {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.key-takeaways li {
+    margin-bottom: 0.5rem;
+}
+
+/* Practice Questions */
+.practice-questions {
+    margin-top: 2rem;
+}
+
+.practice-questions h3 {
+    margin-bottom: 1rem;
+}
+
+.practice-question {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.practice-question .question-text {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.practice-question .hint-toggle {
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-right: 1rem;
+}
+
+.practice-question .answer-toggle {
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.practice-question .hint, .practice-question .answer {
+    display: none;
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+.practice-question .hint {
+    background: var(--accent-primary-dim);
+    border-left: 3px solid var(--accent-primary);
+}
+
+.practice-question .answer {
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--accent-secondary);
+}
+
+.practice-question .hint.visible, .practice-question .answer.visible {
+    display: block;
+}
+
+/* Interactive Widgets */
+.interactive-widget {
+    background: var(--card-bg);
+    border: 2px solid var(--accent-primary-border);
+    border-radius: 8px;
+    padding: 2rem;
+    margin: 2rem 0;
+}
+
+.interactive-widget h3 {
+    margin-top: 0;
+    color: var(--accent-primary);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.widget-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.widget-row label {
+    min-width: 150px;
+    color: var(--text-secondary);
+}
+
+.widget-row input[type="number"], .widget-row input[type="range"] {
+    flex: 1;
+    max-width: 200px;
+}
+
+.widget-row input[type="range"] {
+    -webkit-appearance: none;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+.widget-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.widget-value {
+    min-width: 60px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+}
+
+.widget-result {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.widget-result .result-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+}
+
+.widget-result .result-value {
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.widget-result .result-explanation {
+    margin-top: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* KaTeX display equations */
+.katex-display {
+    margin: 1.5rem 0;
+    overflow-x: auto;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// State
+let currentView = 'welcome';
+let currentModule = null;
+let currentSection = null;
+let modules = [];
+let progress = {};
+let assessmentId = null;
+let assessmentQuestions = [];
+let assessmentTimer = null;
+let assessmentTimeLeft = 30 * 60; // 30 minutes in seconds
+
+// Initialize
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadModules();
+    await loadProgress();
+    renderModuleList();
+    updateProgressDisplay();
+});
+
+// API calls
+async function loadModules() {
+    try {
+        const response = await fetch('/api/learn/modules/', { credentials: 'include' });
+        if (response.ok) {
+            const data = await response.json();
+            modules = data.modules;
+        }
+    } catch (err) {
+        console.error('Failed to load modules:', err);
+    }
+}
+
+async function loadProgress() {
+    try {
+        const response = await fetch('/api/learn/progress/', { credentials: 'include' });
+        if (response.ok) {
+            progress = await response.json();
+            if (progress.assessment.certified) {
+                document.getElementById('certification-section').style.display = 'block';
+                document.getElementById('cert-status').innerHTML = `
+                    <div class="cert-badge">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Certified Analyst
+                    </div>
+                    <button class="btn btn-secondary btn-sm" style="margin-top: 1rem; width: 100%;" onclick="showCertificate()">
+                        View Certificate
+                    </button>
+                `;
+            } else if (progress.eligible_for_assessment) {
+                document.getElementById('certification-section').style.display = 'block';
+                document.getElementById('cert-status').innerHTML = `
+                    <p style="margin-bottom: 1rem; color: var(--text-secondary);">
+                        You've completed enough content to take the assessment.
+                    </p>
+                    <button class="btn btn-primary" style="width: 100%;" onclick="startAssessment()">
+                        Take Assessment
+                    </button>
+                `;
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load progress:', err);
+    }
+}
+
+// Rendering
+function renderModuleList() {
+    const container = document.getElementById('module-list');
+    container.innerHTML = modules.map(m => `
+        <div class="module-item ${m.completed_sections === m.section_count ? 'completed' : ''}"
+             onclick="selectModule('${m.id}')" data-module="${m.id}">
+            <div class="module-icon">
+                ${m.completed_sections === m.section_count ? '&#10003;' : m.order}
+            </div>
+            <div class="module-info">
+                <div class="module-name">${m.title}</div>
+                <div class="module-progress">${m.completed_sections}/${m.section_count} complete</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateProgressDisplay() {
+    if (!progress.total_sections) return;
+
+    const pct = progress.overall_progress_pct;
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-ring-fill').setAttribute('stroke-dasharray', `${pct}, 100`);
+    document.getElementById('sections-completed').textContent = progress.completed_sections;
+    document.getElementById('sections-total').textContent = progress.total_sections;
+}
+
+// Navigation
+function showView(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId + '-view').classList.add('active');
+    currentView = viewId;
+}
+
+function startCourse() {
+    if (modules.length > 0) {
+        selectModule(modules[0].id);
+    }
+}
+
+async function selectModule(moduleId) {
+    try {
+        const response = await fetch(`/api/learn/modules/${moduleId}/`, { credentials: 'include' });
+        if (response.ok) {
+            const data = await response.json();
+            currentModule = data;
+
+            document.getElementById('module-title').textContent = data.title;
+            document.getElementById('module-description').textContent = data.description;
+
+            document.getElementById('section-list').innerHTML = data.sections.map(s => `
+                <div class="section-item ${s.completed ? 'completed' : ''} ${s.coming_soon ? 'coming-soon' : ''}"
+                     onclick="${s.coming_soon ? '' : `selectSection('${moduleId}', '${s.id}')`}">
+                    <div class="section-status">
+                        ${s.completed ? '&#10003;' : s.coming_soon ? '...' : '&gt;'}
+                    </div>
+                    <div class="section-info">
+                        <div class="section-title">${s.title}</div>
+                        <div class="section-desc">${s.description}</div>
+                        <div class="section-meta">
+                            <span>${s.estimated_minutes} min</span>
+                            <span>${s.topics.length} topics</span>
+                            ${s.interactive ? '<span style="color: var(--accent-primary);">Interactive</span>' : ''}
+                            ${s.coming_soon ? '<span style="color: var(--accent-gold);">Coming Soon</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Update sidebar active state
+            document.querySelectorAll('.module-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.module === moduleId);
+            });
+
+            showView('module');
+        }
+    } catch (err) {
+        console.error('Failed to load module:', err);
+    }
+}
+
+async function selectSection(moduleId, sectionId) {
+    try {
+        const response = await fetch(`/api/learn/modules/${moduleId}/sections/${sectionId}/`, { credentials: 'include' });
+        if (response.ok) {
+            const data = await response.json();
+            currentSection = data;
+
+            document.getElementById('section-breadcrumb').textContent = `${data.module_title} > ${data.title}`;
+
+            // Render section content
+            let html = '';
+
+            // Check if we have rich content
+            if (data.rich_content && data.rich_content.content) {
+                // Render markdown content
+                html += `<div class="markdown-content">${marked.parse(data.rich_content.content)}</div>`;
+
+                // Render interactive widget if available
+                if (data.rich_content.interactive) {
+                    html += renderInteractiveWidget(data.rich_content.interactive);
+                }
+
+                // Render key takeaways
+                if (data.rich_content.key_takeaways && data.rich_content.key_takeaways.length > 0) {
+                    html += `
+                        <div class="key-takeaways">
+                            <h3>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Key Takeaways
+                            </h3>
+                            <ul>
+                                ${data.rich_content.key_takeaways.map(t => `<li>${t}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                // Render practice questions
+                if (data.rich_content.practice_questions && data.rich_content.practice_questions.length > 0) {
+                    html += `
+                        <div class="practice-questions">
+                            <h3>Practice Questions</h3>
+                            ${data.rich_content.practice_questions.map((q, i) => `
+                                <div class="practice-question">
+                                    <div class="question-text">${q.question}</div>
+                                    <div>
+                                        ${q.hint ? `<span class="hint-toggle" onclick="toggleHint(${i})">Show Hint</span>` : ''}
+                                        <span class="answer-toggle" onclick="toggleAnswer(${i})">Show Answer</span>
+                                    </div>
+                                    ${q.hint ? `<div class="hint" id="hint-${i}">${q.hint}</div>` : ''}
+                                    <div class="answer" id="answer-${i}">${q.answer}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+            } else {
+                // Fallback for sections without rich content
+                html = `
+                    <h2>${data.title}</h2>
+                    <p style="margin-bottom: 2rem;">${data.description}</p>
+
+                    <h3>Topics Covered</h3>
+                    <ul class="topic-list">
+                        ${data.topics.map(t => `<li>${t}</li>`).join('')}
+                    </ul>
+
+                    <div style="margin-top: 2rem; padding: 1.5rem; background: var(--accent-primary-dim); border-radius: 4px;">
+                        <p style="margin: 0; color: var(--text-primary);">
+                            <strong>Coming Soon:</strong> Full interactive content for this section is being developed.
+                            For now, review the topics above and mark as complete when you're familiar with them.
+                        </p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('section-content').innerHTML = html;
+
+            // Render LaTeX equations with KaTeX
+            if (typeof renderMathInElement !== 'undefined') {
+                renderMathInElement(document.getElementById('section-content'), {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\[', right: '\\]', display: true},
+                        {left: '\\(', right: '\\)', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+
+            // Initialize any interactive widgets
+            initializeWidgets();
+
+            // Update complete button state
+            const btn = document.getElementById('complete-section-btn');
+            if (data.completed) {
+                btn.textContent = 'Completed';
+                btn.disabled = true;
+            } else {
+                btn.textContent = 'Mark as Complete';
+                btn.disabled = false;
+            }
+
+            showView('section');
+        }
+    } catch (err) {
+        console.error('Failed to load section:', err);
+    }
+}
+
+// Toggle hint/answer visibility
+function toggleHint(idx) {
+    const el = document.getElementById(`hint-${idx}`);
+    el.classList.toggle('visible');
+}
+
+function toggleAnswer(idx) {
+    const el = document.getElementById(`answer-${idx}`);
+    el.classList.toggle('visible');
+}
+
+// Render interactive widgets based on type
+function renderInteractiveWidget(interactive) {
+    switch (interactive.type) {
+        case 'bayesian_calculator':
+            return renderBayesianCalculator(interactive.config);
+        case 'base_rate_calculator':
+            return renderBaseRateCalculator(interactive.config);
+        case 'sample_size_calculator':
+            return renderSampleSizeCalculator(interactive.config);
+        case 'power_calculator':
+            return renderPowerCalculator(interactive.config);
+        case 'hypothesis_tracker':
+            return renderHypothesisTracker(interactive.config);
+        case 'evidence_rater':
+            return renderEvidenceRater(interactive.config);
+        case 'test_selector':
+            return renderTestSelector(interactive.config);
+        case 'results_interpreter':
+            return renderResultsInterpreter(interactive.config);
+        case 'data_cleaner':
+            return renderDataCleaner(interactive.config);
+        case 'regression_simulator':
+            return renderRegressionSimulator(interactive.config);
+        case 'randomization_demo':
+            return renderRandomizationDemo(interactive.config);
+        case 'dag_builder':
+            return renderDAGBuilder(interactive.config);
+        case 'multiple_comparison_demo':
+            return renderMultipleComparisonDemo(interactive.config);
+        case 'trial_analyzer':
+            return renderTrialAnalyzer(interactive.config);
+        case 'ab_analyzer':
+            return renderABAnalyzer(interactive.config);
+        default:
+            return '';
+    }
+}
+
+// Bayesian Calculator Widget
+function renderBayesianCalculator(config) {
+    return `
+        <div class="interactive-widget" id="bayesian-calculator">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+                Interactive: Bayesian Calculator
+            </h3>
+
+            <div class="widget-row">
+                <label>Prior Probability:</label>
+                <input type="range" id="bayes-prior" min="1" max="99" value="30" oninput="updateBayesian()">
+                <span class="widget-value" id="bayes-prior-val">30%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Likelihood Ratio:</label>
+                <input type="range" id="bayes-lr" min="1" max="20" step="0.5" value="3" oninput="updateBayesian()">
+                <span class="widget-value" id="bayes-lr-val">3.0x</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Confidence:</label>
+                <input type="range" id="bayes-conf" min="10" max="100" value="80" oninput="updateBayesian()">
+                <span class="widget-value" id="bayes-conf-val">80%</span>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Posterior Probability</div>
+                <div class="result-value" id="bayes-posterior">56%</div>
+                <div class="result-explanation" id="bayes-explanation">
+                    Starting with 30% confidence, after seeing evidence with LR=3 (adjusted to 2.6 at 80% confidence),
+                    your updated confidence is 56%.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateBayesian() {
+    const prior = parseFloat(document.getElementById('bayes-prior').value) / 100;
+    const lr = parseFloat(document.getElementById('bayes-lr').value);
+    const conf = parseFloat(document.getElementById('bayes-conf').value) / 100;
+
+    // Update display values
+    document.getElementById('bayes-prior-val').textContent = Math.round(prior * 100) + '%';
+    document.getElementById('bayes-lr-val').textContent = lr.toFixed(1) + 'x';
+    document.getElementById('bayes-conf-val').textContent = Math.round(conf * 100) + '%';
+
+    // Calculate adjusted LR
+    const adjustedLR = 1 + (lr - 1) * conf;
+
+    // Calculate posterior using odds form
+    const priorOdds = prior / (1 - prior);
+    const posteriorOdds = priorOdds * adjustedLR;
+    const posterior = posteriorOdds / (1 + posteriorOdds);
+
+    document.getElementById('bayes-posterior').textContent = Math.round(posterior * 100) + '%';
+    document.getElementById('bayes-explanation').textContent =
+        `Starting with ${Math.round(prior * 100)}% confidence, after seeing evidence with LR=${lr.toFixed(1)} ` +
+        `(adjusted to ${adjustedLR.toFixed(1)} at ${Math.round(conf * 100)}% confidence), ` +
+        `your updated confidence is ${Math.round(posterior * 100)}%.`;
+}
+
+// Sample Size Calculator Widget
+function renderSampleSizeCalculator(config) {
+    return `
+        <div class="interactive-widget" id="sample-size-calculator">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="8.5" cy="7" r="4"/>
+                    <path d="M20 8v6M23 11h-6"/>
+                </svg>
+                Interactive: Sample Size Calculator
+            </h3>
+
+            <div class="widget-row">
+                <label>Confidence Level:</label>
+                <select id="sample-conf" onchange="updateSampleSize()">
+                    <option value="1.645">90%</option>
+                    <option value="1.96" selected>95%</option>
+                    <option value="2.576">99%</option>
+                </select>
+            </div>
+
+            <div class="widget-row">
+                <label>Margin of Error:</label>
+                <input type="range" id="sample-margin" min="1" max="10" value="3" oninput="updateSampleSize()">
+                <span class="widget-value" id="sample-margin-val">±3%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Expected Proportion:</label>
+                <input type="range" id="sample-prop" min="5" max="95" value="50" oninput="updateSampleSize()">
+                <span class="widget-value" id="sample-prop-val">50%</span>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Required Sample Size</div>
+                <div class="result-value" id="sample-n">1,068</div>
+                <div class="result-explanation" id="sample-explanation">
+                    To estimate a proportion with ±3% margin of error at 95% confidence, you need at least 1,068 samples.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateSampleSize() {
+    const z = parseFloat(document.getElementById('sample-conf').value);
+    const margin = parseFloat(document.getElementById('sample-margin').value) / 100;
+    const p = parseFloat(document.getElementById('sample-prop').value) / 100;
+
+    document.getElementById('sample-margin-val').textContent = '±' + Math.round(margin * 100) + '%';
+    document.getElementById('sample-prop-val').textContent = Math.round(p * 100) + '%';
+
+    // Calculate n = z^2 * p(1-p) / e^2
+    const n = Math.ceil((z * z * p * (1 - p)) / (margin * margin));
+
+    document.getElementById('sample-n').textContent = n.toLocaleString();
+
+    const confLevel = {1.645: '90%', 1.96: '95%', 2.576: '99%'}[z] || '95%';
+    document.getElementById('sample-explanation').textContent =
+        `To estimate a proportion with ±${Math.round(margin * 100)}% margin of error at ${confLevel} confidence, ` +
+        `you need at least ${n.toLocaleString()} samples.`;
+}
+
+// Hypothesis Tracker Widget
+function renderHypothesisTracker(config) {
+    return `
+        <div class="interactive-widget" id="hypothesis-tracker">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                    <rect x="9" y="3" width="6" height="4" rx="2"/>
+                    <path d="M9 14l2 2 4-4"/>
+                </svg>
+                Interactive: Hypothesis Tracker
+            </h3>
+
+            <div id="hypotheses-list">
+                <div class="hypothesis-item" data-idx="0">
+                    <input type="text" placeholder="Hypothesis A..." value="UI change caused drop" class="hyp-input">
+                    <input type="range" min="0" max="100" value="25" class="hyp-prob" oninput="updateHypProbs()">
+                    <span class="hyp-prob-val">25%</span>
+                </div>
+                <div class="hypothesis-item" data-idx="1">
+                    <input type="text" placeholder="Hypothesis B..." value="Seasonality" class="hyp-input">
+                    <input type="range" min="0" max="100" value="25" class="hyp-prob" oninput="updateHypProbs()">
+                    <span class="hyp-prob-val">25%</span>
+                </div>
+                <div class="hypothesis-item" data-idx="2">
+                    <input type="text" placeholder="Hypothesis C..." value="Competitor action" class="hyp-input">
+                    <input type="range" min="0" max="100" value="25" class="hyp-prob" oninput="updateHypProbs()">
+                    <span class="hyp-prob-val">25%</span>
+                </div>
+                <div class="hypothesis-item" data-idx="3">
+                    <input type="text" placeholder="Hypothesis D..." value="Data bug" class="hyp-input">
+                    <input type="range" min="0" max="100" value="25" class="hyp-prob" oninput="updateHypProbs()">
+                    <span class="hyp-prob-val">25%</span>
+                </div>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Total Probability</div>
+                <div class="result-value" id="hyp-total">100%</div>
+                <div class="result-explanation">
+                    Adjust probabilities as you gather evidence. Try to keep total at or near 100%.
+                </div>
+            </div>
+        </div>
+        <style>
+            .hypothesis-item {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                margin-bottom: 0.75rem;
+            }
+            .hypothesis-item .hyp-input {
+                flex: 1;
+            }
+            .hypothesis-item .hyp-prob {
+                width: 150px;
+            }
+            .hypothesis-item .hyp-prob-val {
+                width: 50px;
+                font-family: 'JetBrains Mono', monospace;
+            }
+        </style>
+    `;
+}
+
+function updateHypProbs() {
+    const items = document.querySelectorAll('.hypothesis-item');
+    let total = 0;
+    items.forEach(item => {
+        const slider = item.querySelector('.hyp-prob');
+        const valEl = item.querySelector('.hyp-prob-val');
+        const val = parseInt(slider.value);
+        valEl.textContent = val + '%';
+        total += val;
+    });
+    const totalEl = document.getElementById('hyp-total');
+    totalEl.textContent = total + '%';
+    totalEl.style.color = total === 100 ? 'var(--accent-primary)' : 'var(--error)';
+}
+
+// Evidence Rater Widget
+function renderEvidenceRater(config) {
+    return `
+        <div class="interactive-widget" id="evidence-rater">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                </svg>
+                Interactive: Evidence Quality Rater
+            </h3>
+
+            <div class="widget-row">
+                <label>Source Type:</label>
+                <select id="ev-source" onchange="updateEvidenceRating()">
+                    <option value="0.95">Controlled experiment</option>
+                    <option value="0.7" selected>Observational study</option>
+                    <option value="0.6">Expert opinion</option>
+                    <option value="0.3">Anecdote</option>
+                </select>
+            </div>
+
+            <div class="widget-row">
+                <label>Sample Size:</label>
+                <select id="ev-sample" onchange="updateEvidenceRating()">
+                    <option value="0.5">Small (n < 30)</option>
+                    <option value="0.7" selected>Moderate (30-100)</option>
+                    <option value="0.85">Large (100-1000)</option>
+                    <option value="0.95">Very Large (1000+)</option>
+                </select>
+            </div>
+
+            <div class="widget-row">
+                <label>Replication:</label>
+                <select id="ev-rep" onchange="updateEvidenceRating()">
+                    <option value="0.6" selected>Single study</option>
+                    <option value="0.8">Replicated 2-3 times</option>
+                    <option value="0.95">Meta-analysis</option>
+                </select>
+            </div>
+
+            <div class="widget-row">
+                <label>Bias Risk:</label>
+                <select id="ev-bias" onchange="updateEvidenceRating()">
+                    <option value="0.95">Low (independent, blinded)</option>
+                    <option value="0.75" selected>Moderate</option>
+                    <option value="0.5">High (conflicts of interest)</option>
+                </select>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Combined Confidence Score</div>
+                <div class="result-value" id="ev-score">25%</div>
+                <div class="result-explanation" id="ev-explanation">
+                    Use this confidence score when applying this evidence to your analysis.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateEvidenceRating() {
+    const source = parseFloat(document.getElementById('ev-source').value);
+    const sample = parseFloat(document.getElementById('ev-sample').value);
+    const rep = parseFloat(document.getElementById('ev-rep').value);
+    const bias = parseFloat(document.getElementById('ev-bias').value);
+
+    const combined = source * sample * rep * bias;
+    document.getElementById('ev-score').textContent = Math.round(combined * 100) + '%';
+
+    let quality = 'low';
+    if (combined > 0.6) quality = 'moderate';
+    if (combined > 0.8) quality = 'high';
+
+    document.getElementById('ev-explanation').textContent =
+        `This evidence has ${quality} quality. Use ${Math.round(combined * 100)}% confidence when applying it.`;
+}
+
+// Test Selector Widget (simplified)
+function renderTestSelector(config) {
+    return `
+        <div class="interactive-widget" id="test-selector">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+                Interactive: Test Selector
+            </h3>
+
+            <div class="widget-row">
+                <label>Outcome Variable:</label>
+                <select id="test-outcome" onchange="updateTestRecommendation()">
+                    <option value="continuous">Continuous (height, revenue)</option>
+                    <option value="binary">Binary (yes/no)</option>
+                    <option value="categorical">Categorical (A/B/C)</option>
+                    <option value="count">Count (events/day)</option>
+                </select>
+            </div>
+
+            <div class="widget-row">
+                <label>Number of Groups:</label>
+                <select id="test-groups" onchange="updateTestRecommendation()">
+                    <option value="1">1 (single group)</option>
+                    <option value="2" selected>2 groups</option>
+                    <option value="3">3+ groups</option>
+                </select>
+            </div>
+
+            <div class="widget-row">
+                <label>Paired/Matched:</label>
+                <select id="test-paired" onchange="updateTestRecommendation()">
+                    <option value="no" selected>No (independent)</option>
+                    <option value="yes">Yes (same subjects)</option>
+                </select>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Recommended Test</div>
+                <div class="result-value" id="test-rec" style="font-size: 1.5rem;">Independent t-test</div>
+                <div class="result-explanation" id="test-explanation">
+                    For comparing means of 2 independent groups with continuous outcomes.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateTestRecommendation() {
+    const outcome = document.getElementById('test-outcome').value;
+    const groups = document.getElementById('test-groups').value;
+    const paired = document.getElementById('test-paired').value;
+
+    let test = 'Unknown';
+    let explanation = '';
+
+    if (outcome === 'continuous') {
+        if (groups === '1') {
+            test = 'One-sample t-test';
+            explanation = 'For testing if a single group mean differs from a known value.';
+        } else if (groups === '2') {
+            if (paired === 'yes') {
+                test = 'Paired t-test';
+                explanation = 'For comparing means of the same subjects before/after.';
+            } else {
+                test = 'Independent t-test';
+                explanation = 'For comparing means of 2 independent groups.';
+            }
+        } else {
+            if (paired === 'yes') {
+                test = 'Repeated measures ANOVA';
+                explanation = 'For comparing means of the same subjects across 3+ conditions.';
+            } else {
+                test = 'One-way ANOVA';
+                explanation = 'For comparing means of 3+ independent groups.';
+            }
+        }
+    } else if (outcome === 'binary' || outcome === 'categorical') {
+        if (groups === '2') {
+            test = 'Chi-square test';
+            explanation = 'For comparing proportions between 2 groups.';
+        } else {
+            test = 'Chi-square test';
+            explanation = 'For comparing proportions across multiple groups.';
+        }
+    } else if (outcome === 'count') {
+        test = 'Poisson regression';
+        explanation = 'For modeling count data with rate outcomes.';
+    }
+
+    document.getElementById('test-rec').textContent = test;
+    document.getElementById('test-explanation').textContent = explanation;
+}
+
+// Results Interpreter Widget (simplified)
+function renderResultsInterpreter(config) {
+    return `
+        <div class="interactive-widget" id="results-interpreter">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 20V10M12 20V4M6 20v-6"/>
+                </svg>
+                Interactive: Results Interpreter
+            </h3>
+
+            <div class="widget-row">
+                <label>P-value:</label>
+                <input type="number" id="ri-pvalue" min="0" max="1" step="0.001" value="0.03" oninput="updateResultsInterpretation()">
+            </div>
+
+            <div class="widget-row">
+                <label>Effect Size (Cohen's d):</label>
+                <input type="number" id="ri-effectsize" min="0" max="3" step="0.1" value="0.2" oninput="updateResultsInterpretation()">
+            </div>
+
+            <div class="widget-row">
+                <label>Sample Size (n):</label>
+                <input type="number" id="ri-samplesize" min="10" max="1000000" step="10" value="1000" oninput="updateResultsInterpretation()">
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Interpretation</div>
+                <div class="result-value" id="ri-verdict" style="font-size: 1.25rem;">Statistically significant, small effect</div>
+                <div class="result-explanation" id="ri-explanation">
+                    The result is statistically significant (p < 0.05), but the effect size is small (d = 0.2).
+                    Consider whether this effect is practically meaningful before making decisions.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateResultsInterpretation() {
+    const pvalue = parseFloat(document.getElementById('ri-pvalue').value);
+    const effectSize = parseFloat(document.getElementById('ri-effectsize').value);
+    const sampleSize = parseInt(document.getElementById('ri-samplesize').value);
+
+    const significant = pvalue < 0.05;
+    let effectLabel = 'negligible';
+    if (effectSize >= 0.2) effectLabel = 'small';
+    if (effectSize >= 0.5) effectLabel = 'medium';
+    if (effectSize >= 0.8) effectLabel = 'large';
+
+    let verdict = '';
+    let explanation = '';
+
+    if (significant && effectLabel !== 'negligible') {
+        if (sampleSize > 10000 && effectLabel === 'small') {
+            verdict = 'Statistically significant, likely overpowered';
+            explanation = `With n=${sampleSize.toLocaleString()}, even tiny effects become significant. The effect size (d=${effectSize}) is small. This may not be practically meaningful.`;
+        } else {
+            verdict = `Statistically significant, ${effectLabel} effect`;
+            explanation = `The result is statistically significant (p=${pvalue}) with a ${effectLabel} effect size (d=${effectSize}). This appears to be a meaningful finding.`;
+        }
+    } else if (significant && effectLabel === 'negligible') {
+        verdict = 'Significant but negligible effect';
+        explanation = `While p=${pvalue} is below 0.05, the effect size (d=${effectSize}) is too small to matter practically. Large sample sizes can make trivial differences "significant."`;
+    } else {
+        verdict = 'Not statistically significant';
+        explanation = `The result is not statistically significant (p=${pvalue}). This could mean no real effect exists, or the sample size was too small to detect one.`;
+    }
+
+    document.getElementById('ri-verdict').textContent = verdict;
+    document.getElementById('ri-explanation').textContent = explanation;
+}
+
+// Data Cleaner Widget (simplified)
+function renderDataCleaner(config) {
+    return `
+        <div class="interactive-widget" id="data-cleaner">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Interactive: Missing Data Strategy Selector
+            </h3>
+
+            <div class="widget-row">
+                <label>% Missing:</label>
+                <input type="range" id="dc-pct" min="1" max="80" value="15" oninput="updateDataCleaningRec()">
+                <span class="widget-value" id="dc-pct-val">15%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Missingness Type:</label>
+                <select id="dc-type" onchange="updateDataCleaningRec()">
+                    <option value="mcar">MCAR (completely random)</option>
+                    <option value="mar" selected>MAR (related to observed)</option>
+                    <option value="mnar">MNAR (related to missing value)</option>
+                </select>
+            </div>
+
+            <div class="widget-row">
+                <label>Variable Importance:</label>
+                <select id="dc-importance" onchange="updateDataCleaningRec()">
+                    <option value="high">High (key outcome/predictor)</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="low">Low (auxiliary variable)</option>
+                </select>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Recommended Strategy</div>
+                <div class="result-value" id="dc-rec" style="font-size: 1.25rem;">Multiple Imputation</div>
+                <div class="result-explanation" id="dc-explanation">
+                    With 15% missing data that is MAR, multiple imputation will preserve variance and provide unbiased estimates.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateDataCleaningRec() {
+    const pct = parseInt(document.getElementById('dc-pct').value);
+    const type = document.getElementById('dc-type').value;
+    const importance = document.getElementById('dc-importance').value;
+
+    document.getElementById('dc-pct-val').textContent = pct + '%';
+
+    let strategy = '';
+    let explanation = '';
+
+    if (type === 'mnar') {
+        strategy = 'Caution Required';
+        explanation = `With MNAR data (${pct}% missing), no imputation method can fully correct the bias. Consider sensitivity analyses or collecting additional data to understand the missingness mechanism.`;
+    } else if (pct > 50) {
+        if (importance === 'low') {
+            strategy = 'Drop Variable';
+            explanation = `With ${pct}% missing and low importance, consider dropping this variable entirely. Imputing more than half the values introduces too much uncertainty.`;
+        } else {
+            strategy = 'Multiple Imputation + Sensitivity';
+            explanation = `With ${pct}% missing in an important variable, use multiple imputation but run sensitivity analyses to check if results are robust to imputation assumptions.`;
+        }
+    } else if (pct > 20) {
+        strategy = 'Multiple Imputation';
+        explanation = `With ${pct}% missing data that is ${type.toUpperCase()}, multiple imputation will preserve variance and reduce bias. Simple mean/mode imputation would distort the distribution.`;
+    } else if (pct > 5) {
+        if (type === 'mcar') {
+            strategy = 'Mean/Mode or Regression Imputation';
+            explanation = `With only ${pct}% missing data that is MCAR, simpler methods like mean imputation are acceptable, though regression imputation is better if practical.`;
+        } else {
+            strategy = 'Regression Imputation';
+            explanation = `With ${pct}% missing data that is MAR, use regression imputation or multiple imputation to account for the relationship with observed variables.`;
+        }
+    } else {
+        strategy = 'Listwise Deletion OK';
+        explanation = `With only ${pct}% missing data that is ${type.toUpperCase()}, listwise deletion (dropping incomplete rows) is acceptable and loses little information.`;
+    }
+
+    document.getElementById('dc-rec').textContent = strategy;
+    document.getElementById('dc-explanation').textContent = explanation;
+}
+
+// Base Rate Calculator Widget
+function renderBaseRateCalculator(config) {
+    return `
+        <div class="interactive-widget" id="base-rate-calculator">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                </svg>
+                Interactive: Base Rate Calculator
+            </h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+                See how base rates affect the probability you actually have a condition given a positive test.
+            </p>
+
+            <div class="widget-row">
+                <label>Base Rate (prevalence):</label>
+                <input type="range" id="br-prevalence" min="0.1" max="20" step="0.1" value="1" oninput="updateBaseRate()">
+                <span class="widget-value" id="br-prevalence-val">1%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Sensitivity (true positive):</label>
+                <input type="range" id="br-sensitivity" min="50" max="99" value="95" oninput="updateBaseRate()">
+                <span class="widget-value" id="br-sensitivity-val">95%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Specificity (true negative):</label>
+                <input type="range" id="br-specificity" min="50" max="99" value="95" oninput="updateBaseRate()">
+                <span class="widget-value" id="br-specificity-val">95%</span>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">If You Test Positive, Probability You Have It</div>
+                <div class="result-value" id="br-ppv">16%</div>
+                <div class="result-explanation" id="br-explanation">
+                    In 1,000 people: 10 have condition (9.5 test positive), 990 don't (49.5 test positive).
+                    Of 59 positive tests, only 9.5 are true positives = 16%.
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px;">
+                <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.5rem;">Natural Frequencies (per 1,000 people)</div>
+                <div id="br-frequencies" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-secondary);">
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateBaseRate() {
+    const prevalence = parseFloat(document.getElementById('br-prevalence').value) / 100;
+    const sensitivity = parseFloat(document.getElementById('br-sensitivity').value) / 100;
+    const specificity = parseFloat(document.getElementById('br-specificity').value) / 100;
+
+    document.getElementById('br-prevalence-val').textContent = (prevalence * 100).toFixed(1) + '%';
+    document.getElementById('br-sensitivity-val').textContent = Math.round(sensitivity * 100) + '%';
+    document.getElementById('br-specificity-val').textContent = Math.round(specificity * 100) + '%';
+
+    // Calculate using 1000 people
+    const n = 1000;
+    const haveCondition = n * prevalence;
+    const dontHave = n - haveCondition;
+
+    const truePositives = haveCondition * sensitivity;
+    const falseNegatives = haveCondition * (1 - sensitivity);
+    const falsePositives = dontHave * (1 - specificity);
+    const trueNegatives = dontHave * specificity;
+
+    const totalPositives = truePositives + falsePositives;
+    const ppv = totalPositives > 0 ? truePositives / totalPositives : 0;
+
+    document.getElementById('br-ppv').textContent = Math.round(ppv * 100) + '%';
+    document.getElementById('br-ppv').style.color = ppv < 0.5 ? 'var(--warning)' : 'var(--accent-primary)';
+
+    document.getElementById('br-explanation').textContent =
+        `In ${n.toLocaleString()} people: ${haveCondition.toFixed(1)} have condition (${truePositives.toFixed(1)} test positive), ` +
+        `${dontHave.toFixed(1)} don't (${falsePositives.toFixed(1)} test positive). ` +
+        `Of ${totalPositives.toFixed(1)} positive tests, only ${truePositives.toFixed(1)} are true positives = ${Math.round(ppv * 100)}%.`;
+
+    document.getElementById('br-frequencies').innerHTML = `
+        Have condition: ${haveCondition.toFixed(1)} → Test +: ${truePositives.toFixed(1)}, Test -: ${falseNegatives.toFixed(1)}<br>
+        Don't have: ${dontHave.toFixed(1)} → Test +: ${falsePositives.toFixed(1)}, Test -: ${trueNegatives.toFixed(1)}<br>
+        <strong>Total positive tests: ${totalPositives.toFixed(1)} (${truePositives.toFixed(1)} true, ${falsePositives.toFixed(1)} false)</strong>
+    `;
+}
+
+// Power Calculator Widget - Interactive visualization
+function renderPowerCalculator(config) {
+    return `
+        <div class="interactive-widget" id="power-calculator">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+                Interactive: Power Analysis Calculator
+            </h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+                See how sample size, effect size, and power are related. Fix any two to solve for the third.
+            </p>
+
+            <div class="widget-row">
+                <label>Effect Size (Cohen's d):</label>
+                <input type="range" id="pwr-effect" min="0.1" max="1.2" step="0.05" value="0.5" oninput="updatePower()">
+                <span class="widget-value" id="pwr-effect-val">0.50 (medium)</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Sample Size (per group):</label>
+                <input type="range" id="pwr-n" min="10" max="500" step="5" value="64" oninput="updatePower()">
+                <span class="widget-value" id="pwr-n-val">64</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Alpha (significance level):</label>
+                <select id="pwr-alpha" onchange="updatePower()">
+                    <option value="0.10">0.10</option>
+                    <option value="0.05" selected>0.05</option>
+                    <option value="0.01">0.01</option>
+                </select>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Statistical Power</div>
+                <div class="result-value" id="pwr-power">80%</div>
+                <div class="result-explanation" id="pwr-explanation">
+                    With n=64 per group and d=0.5, you have 80% power to detect the effect at α=0.05.
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem;">Power Curve (effect size vs power at current n)</div>
+                <div id="power-curve" style="height: 120px; background: var(--bg-tertiary); border-radius: 4px; position: relative; overflow: hidden;">
+                    <canvas id="power-curve-canvas" width="400" height="120"></canvas>
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; font-size: 0.85rem;">
+                <div style="text-align: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 4px;">
+                    <div style="color: var(--text-dim);">For d=0.2 (small)</div>
+                    <div style="color: var(--accent-primary); font-weight: 500;" id="pwr-n-small">n=394/group</div>
+                </div>
+                <div style="text-align: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 4px;">
+                    <div style="color: var(--text-dim);">For d=0.5 (medium)</div>
+                    <div style="color: var(--accent-primary); font-weight: 500;" id="pwr-n-medium">n=64/group</div>
+                </div>
+                <div style="text-align: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 4px;">
+                    <div style="color: var(--text-dim);">For d=0.8 (large)</div>
+                    <div style="color: var(--accent-primary); font-weight: 500;" id="pwr-n-large">n=26/group</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updatePower() {
+    const d = parseFloat(document.getElementById('pwr-effect').value);
+    const n = parseInt(document.getElementById('pwr-n').value);
+    const alpha = parseFloat(document.getElementById('pwr-alpha').value);
+
+    // Effect size label
+    let effectLabel = 'small';
+    if (d >= 0.5) effectLabel = 'medium';
+    if (d >= 0.8) effectLabel = 'large';
+    document.getElementById('pwr-effect-val').textContent = d.toFixed(2) + ` (${effectLabel})`;
+    document.getElementById('pwr-n-val').textContent = n;
+
+    // Calculate power using approximation
+    // Power ≈ Φ(d√(n/2) - z_α/2)
+    const z_alpha = alpha === 0.10 ? 1.645 : (alpha === 0.05 ? 1.96 : 2.576);
+    const ncp = d * Math.sqrt(n / 2); // non-centrality parameter
+    const power = normalCDF(ncp - z_alpha);
+
+    document.getElementById('pwr-power').textContent = Math.round(power * 100) + '%';
+    document.getElementById('pwr-power').style.color = power >= 0.8 ? 'var(--accent-primary)' : 'var(--warning)';
+
+    document.getElementById('pwr-explanation').textContent =
+        `With n=${n} per group and d=${d.toFixed(2)}, you have ${Math.round(power * 100)}% power to detect the effect at α=${alpha}. ` +
+        (power < 0.8 ? 'Consider increasing sample size.' : 'Adequate power achieved.');
+
+    // Calculate required n for standard effect sizes (at 80% power)
+    const z_beta = 0.84; // for 80% power
+    const calcN = (effect) => Math.ceil(2 * Math.pow((z_alpha + z_beta) / effect, 2));
+    document.getElementById('pwr-n-small').textContent = `n=${calcN(0.2)}/group`;
+    document.getElementById('pwr-n-medium').textContent = `n=${calcN(0.5)}/group`;
+    document.getElementById('pwr-n-large').textContent = `n=${calcN(0.8)}/group`;
+
+    // Draw power curve
+    drawPowerCurve(n, alpha);
+}
+
+function normalCDF(x) {
+    // Approximation of standard normal CDF
+    const a1 =  0.254829592;
+    const a2 = -0.284496736;
+    const a3 =  1.421413741;
+    const a4 = -1.453152027;
+    const a5 =  1.061405429;
+    const p  =  0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * x);
+    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return 0.5 * (1.0 + sign * y);
+}
+
+function drawPowerCurve(n, alpha) {
+    const canvas = document.getElementById('power-curve-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw axes
+    ctx.strokeStyle = 'rgba(74, 159, 110, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(40, 10);
+    ctx.lineTo(40, height - 20);
+    ctx.lineTo(width - 10, height - 20);
+    ctx.stroke();
+
+    // Labels
+    ctx.fillStyle = 'rgba(154, 170, 154, 0.8)';
+    ctx.font = '10px Inter';
+    ctx.fillText('Power', 5, 15);
+    ctx.fillText('100%', 10, 15);
+    ctx.fillText('50%', 15, height/2);
+    ctx.fillText('0%', 18, height - 22);
+    ctx.fillText('Effect Size (d)', width/2 - 30, height - 5);
+    ctx.fillText('0.2', 60, height - 8);
+    ctx.fillText('0.5', 160, height - 8);
+    ctx.fillText('0.8', 260, height - 8);
+    ctx.fillText('1.0', 340, height - 8);
+
+    // Draw 80% power line
+    ctx.strokeStyle = 'rgba(232, 197, 71, 0.5)';
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    const y80 = 10 + (1 - 0.8) * (height - 30);
+    ctx.moveTo(40, y80);
+    ctx.lineTo(width - 10, y80);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw power curve
+    const z_alpha = alpha === 0.10 ? 1.645 : (alpha === 0.05 ? 1.96 : 2.576);
+    ctx.strokeStyle = 'var(--accent-primary)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    for (let i = 0; i <= 100; i++) {
+        const d = 0.1 + (i / 100) * 1.0; // d from 0.1 to 1.1
+        const ncp = d * Math.sqrt(n / 2);
+        const power = normalCDF(ncp - z_alpha);
+        const x = 40 + (d - 0.1) / 1.0 * (width - 50);
+        const y = 10 + (1 - power) * (height - 30);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Mark current effect size
+    const currentD = parseFloat(document.getElementById('pwr-effect').value);
+    const currentNCP = currentD * Math.sqrt(n / 2);
+    const currentPower = normalCDF(currentNCP - z_alpha);
+    const cx = 40 + (currentD - 0.1) / 1.0 * (width - 50);
+    const cy = 10 + (1 - currentPower) * (height - 30);
+
+    ctx.fillStyle = 'var(--accent-primary)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Regression to Mean Simulator
+function renderRegressionSimulator(config) {
+    return `
+        <div class="interactive-widget" id="regression-simulator">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18 9l-5 5-4-4-3 3"/>
+                </svg>
+                Interactive: Regression to the Mean
+            </h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+                Select extreme performers at Time 1. See how they regress toward the mean at Time 2.
+            </p>
+
+            <div class="widget-row">
+                <label>Correlation (r) between T1 and T2:</label>
+                <input type="range" id="rtm-corr" min="0" max="100" value="50" oninput="updateRTM()">
+                <span class="widget-value" id="rtm-corr-val">0.50</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Select top performers at T1:</label>
+                <select id="rtm-selection" onchange="updateRTM()">
+                    <option value="10">Top 10%</option>
+                    <option value="20" selected>Top 20%</option>
+                    <option value="50">Top 50%</option>
+                </select>
+            </div>
+
+            <div class="widget-result">
+                <div class="result-label">Expected T2 Performance (relative to mean)</div>
+                <div class="result-value" id="rtm-result">+0.63 SD</div>
+                <div class="result-explanation" id="rtm-explanation">
+                    Top 20% at T1 (avg +1.28 SD above mean) will average only +0.64 SD at T2.
+                    This looks like decline but it's just regression to the mean.
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-dim);">T1 Selection</div>
+                        <div style="font-size: 1.5rem; color: var(--accent-primary);" id="rtm-t1">+1.28 SD</div>
+                    </div>
+                    <div style="font-size: 2rem; color: var(--text-dim);">→</div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-dim);">Expected T2</div>
+                        <div style="font-size: 1.5rem; color: var(--warning);" id="rtm-t2">+0.64 SD</div>
+                    </div>
+                    <div style="font-size: 2rem; color: var(--text-dim);">→</div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-dim);">Apparent "Decline"</div>
+                        <div style="font-size: 1.5rem; color: var(--error);" id="rtm-decline">-0.64 SD</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateRTM() {
+    const r = parseFloat(document.getElementById('rtm-corr').value) / 100;
+    const pct = parseInt(document.getElementById('rtm-selection').value);
+
+    document.getElementById('rtm-corr-val').textContent = r.toFixed(2);
+
+    // Z-score for top X%
+    const zScores = { 10: 1.28, 20: 0.84, 50: 0 };
+    const avgT1 = zScores[pct] || 0.84;
+
+    // Expected T2 = r * T1 (regression to mean formula)
+    const expectedT2 = r * avgT1;
+    const decline = avgT1 - expectedT2;
+
+    document.getElementById('rtm-t1').textContent = '+' + avgT1.toFixed(2) + ' SD';
+    document.getElementById('rtm-t2').textContent = '+' + expectedT2.toFixed(2) + ' SD';
+    document.getElementById('rtm-decline').textContent = '-' + decline.toFixed(2) + ' SD';
+
+    document.getElementById('rtm-result').textContent = '+' + expectedT2.toFixed(2) + ' SD';
+    document.getElementById('rtm-explanation').textContent =
+        `Top ${pct}% at T1 (avg +${avgT1.toFixed(2)} SD above mean) will average only +${expectedT2.toFixed(2)} SD at T2. ` +
+        (r < 1 ? `This ${decline.toFixed(2)} SD "decline" is just regression to the mean, not real deterioration.` : '');
+}
+
+// Randomization Demo Widget
+function renderRandomizationDemo(config) {
+    return `
+        <div class="interactive-widget" id="randomization-demo">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="8" rx="2"/>
+                    <rect x="2" y="14" width="20" height="8" rx="2"/>
+                    <path d="M6 6h.01M6 18h.01"/>
+                </svg>
+                Interactive: Randomization Demo
+            </h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+                See how randomization balances groups on both observed and unobserved variables.
+            </p>
+
+            <button class="btn btn-primary" onclick="runRandomization()" style="margin-bottom: 1rem;">
+                Randomize 100 Participants
+            </button>
+
+            <div id="rand-results" style="display: none;">
+                <table style="width: 100%; font-size: 0.85rem;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Variable</th>
+                            <th style="text-align: center;">Treatment</th>
+                            <th style="text-align: center;">Control</th>
+                            <th style="text-align: center;">Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rand-table-body">
+                    </tbody>
+                </table>
+
+                <div class="widget-result" style="margin-top: 1rem;">
+                    <div class="result-explanation" id="rand-explanation">
+                        Even though we didn't try to balance anything, groups are similar on all variables!
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function runRandomization() {
+    // Simulate 100 participants with various characteristics
+    const participants = [];
+    for (let i = 0; i < 100; i++) {
+        participants.push({
+            age: 30 + Math.random() * 40,
+            female: Math.random() < 0.5,
+            severity: Math.random() * 10,
+            motivation: Math.random() * 10,  // "unobserved"
+            genetics: Math.random() * 10      // "unobserved"
+        });
+    }
+
+    // Randomly assign
+    const shuffled = [...participants].sort(() => Math.random() - 0.5);
+    const treatment = shuffled.slice(0, 50);
+    const control = shuffled.slice(50);
+
+    // Calculate means
+    const mean = (arr, key) => arr.reduce((s, p) => s + p[key], 0) / arr.length;
+    const pct = (arr, key) => arr.filter(p => p[key]).length / arr.length * 100;
+
+    const vars = [
+        { name: 'Age (years)', t: mean(treatment, 'age').toFixed(1), c: mean(control, 'age').toFixed(1), type: 'cont' },
+        { name: 'Female (%)', t: pct(treatment, 'female').toFixed(0) + '%', c: pct(control, 'female').toFixed(0) + '%', type: 'pct' },
+        { name: 'Severity (0-10)', t: mean(treatment, 'severity').toFixed(1), c: mean(control, 'severity').toFixed(1), type: 'cont' },
+        { name: 'Motivation* (0-10)', t: mean(treatment, 'motivation').toFixed(1), c: mean(control, 'motivation').toFixed(1), type: 'cont' },
+        { name: 'Genetic risk* (0-10)', t: mean(treatment, 'genetics').toFixed(1), c: mean(control, 'genetics').toFixed(1), type: 'cont' }
+    ];
+
+    let html = '';
+    vars.forEach(v => {
+        const tVal = parseFloat(v.t);
+        const cVal = parseFloat(v.c);
+        const diff = v.type === 'pct' ?
+            (parseFloat(v.t) - parseFloat(v.c)).toFixed(0) + ' pp' :
+            (tVal - cVal).toFixed(1);
+        const isSmall = Math.abs(tVal - cVal) < (v.type === 'pct' ? 10 : 1);
+
+        html += `<tr>
+            <td>${v.name}</td>
+            <td style="text-align: center;">${v.t}</td>
+            <td style="text-align: center;">${v.c}</td>
+            <td style="text-align: center; color: ${isSmall ? 'var(--accent-primary)' : 'var(--warning)'};">${diff}</td>
+        </tr>`;
+    });
+
+    document.getElementById('rand-table-body').innerHTML = html;
+    document.getElementById('rand-results').style.display = 'block';
+    document.getElementById('rand-explanation').innerHTML =
+        '<strong>*Unobserved variables</strong> (motivation, genetics) are also balanced! ' +
+        'This is why randomization is so powerful - it balances everything, including things we can\'t measure.';
+}
+
+// Multiple Comparison Demo
+function renderMultipleComparisonDemo(config) {
+    return `
+        <div class="interactive-widget" id="multiple-comparison-demo">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20V10M18 20V4M6 20v-4"/>
+                </svg>
+                Interactive: Multiple Comparisons
+            </h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+                Run many tests on random data and see how false positives accumulate.
+            </p>
+
+            <div class="widget-row">
+                <label>Number of tests:</label>
+                <input type="range" id="mc-tests" min="1" max="50" value="20" oninput="document.getElementById('mc-tests-val').textContent = this.value">
+                <span class="widget-value" id="mc-tests-val">20</span>
+            </div>
+
+            <button class="btn btn-primary" onclick="runMultipleTests()" style="margin-bottom: 1rem;">
+                Run Tests (all nulls are true)
+            </button>
+
+            <div class="widget-result">
+                <div class="result-label">Results</div>
+                <div id="mc-results" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
+                    Click "Run Tests" to simulate testing 20 hypotheses where no real effects exist.
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px;">
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                    <strong>Expected false positives</strong> at α=0.05:<br>
+                    <span id="mc-expected">20 tests × 5% = 1 expected false positive</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function runMultipleTests() {
+    const nTests = parseInt(document.getElementById('mc-tests').value);
+    const alpha = 0.05;
+
+    // Generate p-values under null (uniform distribution)
+    const pValues = [];
+    for (let i = 0; i < nTests; i++) {
+        pValues.push(Math.random());
+    }
+
+    // Count significant results
+    const significant = pValues.filter(p => p < alpha);
+    const bonferroniSig = pValues.filter(p => p < alpha / nTests);
+
+    // Display results
+    let html = `<strong>${significant.length} of ${nTests} tests significant (p < 0.05)</strong><br><br>`;
+
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">';
+    pValues.forEach((p, i) => {
+        const isSig = p < alpha;
+        const color = isSig ? 'var(--error)' : 'var(--text-dim)';
+        html += `<span style="padding: 0.25rem 0.5rem; background: ${isSig ? 'rgba(159, 74, 74, 0.2)' : 'var(--bg-secondary)'}; border-radius: 2px; color: ${color}; font-size: 0.75rem;">
+            ${p.toFixed(3)}${isSig ? '*' : ''}
+        </span>`;
+    });
+    html += '</div>';
+
+    html += `<br><strong>After Bonferroni correction (α = ${(alpha/nTests).toFixed(4)}):</strong> ${bonferroniSig.length} significant`;
+
+    document.getElementById('mc-results').innerHTML = html;
+    document.getElementById('mc-expected').textContent =
+        `${nTests} tests × 5% = ${(nTests * 0.05).toFixed(1)} expected false positives. ` +
+        `P(at least one) = ${(100 * (1 - Math.pow(0.95, nTests))).toFixed(0)}%`;
+}
+
+// DAG Builder (simplified)
+function renderDAGBuilder(config) {
+    return `
+        <div class="interactive-widget" id="dag-builder">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="5" cy="12" r="3"/>
+                    <circle cx="19" cy="12" r="3"/>
+                    <circle cx="12" cy="5" r="3"/>
+                    <path d="M8 12h8M7 10l3-3M17 10l-3-3"/>
+                </svg>
+                Interactive: Confounding vs Collider
+            </h3>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;">
+                <div style="padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; text-align: center;">
+                    <div style="font-weight: 500; color: var(--accent-primary); margin-bottom: 0.5rem;">Confounder</div>
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--text-secondary);">
+                        &nbsp;&nbsp;&nbsp;C<br>
+                        &nbsp;&nbsp;↙ ↘<br>
+                        X → Y
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem;">
+                        C causes both X and Y<br>
+                        <strong style="color: var(--accent-primary);">Adjust for C</strong>
+                    </div>
+                </div>
+
+                <div style="padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; text-align: center;">
+                    <div style="font-weight: 500; color: var(--error); margin-bottom: 0.5rem;">Collider</div>
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--text-secondary);">
+                        &nbsp;&nbsp;&nbsp;C<br>
+                        &nbsp;&nbsp;↖ ↗<br>
+                        X → Y
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem;">
+                        X and Y both cause C<br>
+                        <strong style="color: var(--error);">Do NOT adjust for C</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; padding: 1rem; background: var(--accent-primary-dim); border-radius: 4px;">
+                <div style="font-size: 0.9rem; color: var(--text-primary);">
+                    <strong>Example:</strong> Talent and attractiveness both cause Hollywood success (collider).
+                    Among Hollywood stars, talent appears negatively correlated with attractiveness.
+                    This is <em>collider bias</em> - the correlation doesn't exist in the general population.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Trial Analyzer Widget
+function renderTrialAnalyzer(config) {
+    return `
+        <div class="interactive-widget" id="trial-analyzer">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                </svg>
+                Interactive: ITT vs Per-Protocol Analysis
+            </h3>
+
+            <div class="widget-row">
+                <label>Treatment responders:</label>
+                <input type="range" id="trial-resp-t" min="20" max="80" value="60" oninput="updateTrialAnalysis()">
+                <span class="widget-value" id="trial-resp-t-val">60%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Control responders:</label>
+                <input type="range" id="trial-resp-c" min="20" max="80" value="40" oninput="updateTrialAnalysis()">
+                <span class="widget-value" id="trial-resp-c-val">40%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Treatment dropout rate:</label>
+                <input type="range" id="trial-drop-t" min="0" max="50" value="25" oninput="updateTrialAnalysis()">
+                <span class="widget-value" id="trial-drop-t-val">25%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Control dropout rate:</label>
+                <input type="range" id="trial-drop-c" min="0" max="50" value="10" oninput="updateTrialAnalysis()">
+                <span class="widget-value" id="trial-drop-c-val">10%</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem;">
+                <div class="widget-result">
+                    <div class="result-label">ITT Analysis</div>
+                    <div class="result-value" id="trial-itt" style="font-size: 1.25rem;">48% vs 36%</div>
+                    <div class="result-explanation">Dropouts counted as non-responders (conservative)</div>
+                </div>
+                <div class="widget-result">
+                    <div class="result-label">Per-Protocol Analysis</div>
+                    <div class="result-value" id="trial-pp" style="font-size: 1.25rem;">64% vs 40%</div>
+                    <div class="result-explanation">Only completers analyzed (may be biased)</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateTrialAnalysis() {
+    const respT = parseInt(document.getElementById('trial-resp-t').value);
+    const respC = parseInt(document.getElementById('trial-resp-c').value);
+    const dropT = parseInt(document.getElementById('trial-drop-t').value);
+    const dropC = parseInt(document.getElementById('trial-drop-c').value);
+
+    document.getElementById('trial-resp-t-val').textContent = respT + '%';
+    document.getElementById('trial-resp-c-val').textContent = respC + '%';
+    document.getElementById('trial-drop-t-val').textContent = dropT + '%';
+    document.getElementById('trial-drop-c-val').textContent = dropC + '%';
+
+    // Per-protocol: only completers
+    const ppT = respT;
+    const ppC = respC;
+
+    // ITT: dropouts are non-responders
+    // Response among completers * completion rate
+    const ittT = Math.round(respT * (100 - dropT) / 100);
+    const ittC = Math.round(respC * (100 - dropC) / 100);
+
+    document.getElementById('trial-itt').textContent = `${ittT}% vs ${ittC}%`;
+    document.getElementById('trial-pp').textContent = `${ppT}% vs ${ppC}%`;
+}
+
+// A/B Analyzer Widget
+function renderABAnalyzer(config) {
+    return `
+        <div class="interactive-widget" id="ab-analyzer">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Interactive: A/B Test Metrics
+            </h3>
+
+            <div class="widget-row">
+                <label>Control conversion:</label>
+                <input type="range" id="ab-conv-c" min="1" max="20" step="0.5" value="5" oninput="updateABAnalysis()">
+                <span class="widget-value" id="ab-conv-c-val">5.0%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Treatment conversion:</label>
+                <input type="range" id="ab-conv-t" min="1" max="20" step="0.5" value="6" oninput="updateABAnalysis()">
+                <span class="widget-value" id="ab-conv-t-val">6.0%</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Control AOV:</label>
+                <input type="range" id="ab-aov-c" min="20" max="200" step="5" value="100" oninput="updateABAnalysis()">
+                <span class="widget-value" id="ab-aov-c-val">$100</span>
+            </div>
+
+            <div class="widget-row">
+                <label>Treatment AOV:</label>
+                <input type="range" id="ab-aov-t" min="20" max="200" step="5" value="95" oninput="updateABAnalysis()">
+                <span class="widget-value" id="ab-aov-t-val">$95</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem;">
+                <div class="widget-result">
+                    <div class="result-label">Conversion Lift</div>
+                    <div class="result-value" id="ab-conv-lift" style="font-size: 1.25rem;">+20%</div>
+                </div>
+                <div class="widget-result">
+                    <div class="result-label">AOV Change</div>
+                    <div class="result-value" id="ab-aov-lift" style="font-size: 1.25rem;">-5%</div>
+                </div>
+                <div class="widget-result">
+                    <div class="result-label">Revenue/User</div>
+                    <div class="result-value" id="ab-rev-lift" style="font-size: 1.25rem;">+14%</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; font-size: 0.9rem; color: var(--text-secondary);" id="ab-recommendation">
+            </div>
+        </div>
+    `;
+}
+
+function updateABAnalysis() {
+    const convC = parseFloat(document.getElementById('ab-conv-c').value);
+    const convT = parseFloat(document.getElementById('ab-conv-t').value);
+    const aovC = parseFloat(document.getElementById('ab-aov-c').value);
+    const aovT = parseFloat(document.getElementById('ab-aov-t').value);
+
+    document.getElementById('ab-conv-c-val').textContent = convC.toFixed(1) + '%';
+    document.getElementById('ab-conv-t-val').textContent = convT.toFixed(1) + '%';
+    document.getElementById('ab-aov-c-val').textContent = '$' + aovC;
+    document.getElementById('ab-aov-t-val').textContent = '$' + aovT;
+
+    const convLift = ((convT - convC) / convC * 100);
+    const aovLift = ((aovT - aovC) / aovC * 100);
+    const revC = convC * aovC / 100;
+    const revT = convT * aovT / 100;
+    const revLift = ((revT - revC) / revC * 100);
+
+    document.getElementById('ab-conv-lift').textContent = (convLift >= 0 ? '+' : '') + convLift.toFixed(0) + '%';
+    document.getElementById('ab-conv-lift').style.color = convLift >= 0 ? 'var(--accent-primary)' : 'var(--error)';
+
+    document.getElementById('ab-aov-lift').textContent = (aovLift >= 0 ? '+' : '') + aovLift.toFixed(0) + '%';
+    document.getElementById('ab-aov-lift').style.color = aovLift >= 0 ? 'var(--accent-primary)' : 'var(--error)';
+
+    document.getElementById('ab-rev-lift').textContent = (revLift >= 0 ? '+' : '') + revLift.toFixed(0) + '%';
+    document.getElementById('ab-rev-lift').style.color = revLift >= 0 ? 'var(--accent-primary)' : 'var(--error)';
+
+    let rec = `<strong>Revenue per user:</strong> Control $${revC.toFixed(2)} → Treatment $${revT.toFixed(2)}<br>`;
+    if (revLift > 0) {
+        rec += `<span style="color: var(--accent-primary);">✓ Ship the treatment</span> - net positive revenue impact despite `;
+        if (aovLift < 0) rec += 'lower AOV';
+        else rec += 'the changes';
+    } else {
+        rec += `<span style="color: var(--error);">✗ Don't ship</span> - overall revenue impact is negative`;
+    }
+    document.getElementById('ab-recommendation').innerHTML = rec;
+}
+
+// Initialize widgets after they are rendered
+function initializeWidgets() {
+    // Check which widgets exist and initialize them
+    if (document.getElementById('bayesian-calculator')) {
+        updateBayesian();
+    }
+    if (document.getElementById('base-rate-calculator')) {
+        updateBaseRate();
+    }
+    if (document.getElementById('sample-size-calculator')) {
+        updateSampleSize();
+    }
+    if (document.getElementById('power-calculator')) {
+        updatePower();
+    }
+    if (document.getElementById('hypothesis-tracker')) {
+        updateHypProbs();
+    }
+    if (document.getElementById('evidence-rater')) {
+        updateEvidenceRating();
+    }
+    if (document.getElementById('test-selector')) {
+        updateTestRecommendation();
+    }
+    if (document.getElementById('results-interpreter')) {
+        updateResultsInterpretation();
+    }
+    if (document.getElementById('data-cleaner')) {
+        updateDataCleaningRec();
+    }
+    if (document.getElementById('regression-simulator')) {
+        updateRTM();
+    }
+    if (document.getElementById('trial-analyzer')) {
+        updateTrialAnalysis();
+    }
+    if (document.getElementById('ab-analyzer')) {
+        updateABAnalysis();
+    }
+}
+
+function backToModule() {
+    if (currentModule) {
+        selectModule(currentModule.id);
+    }
+}
+
+async function completeSection() {
+    if (!currentModule || !currentSection) return;
+
+    try {
+        const response = await fetch(`/api/learn/progress/${currentModule.id}/complete/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ section_id: currentSection.id })
+        });
+
+        if (response.ok) {
+            const btn = document.getElementById('complete-section-btn');
+            btn.textContent = 'Completed!';
+            btn.disabled = true;
+
+            // Refresh progress
+            await loadProgress();
+            await loadModules();
+            renderModuleList();
+            updateProgressDisplay();
+        }
+    } catch (err) {
+        console.error('Failed to mark complete:', err);
+    }
+}
+
+// Assessment
+async function startAssessment() {
+    try {
+        const response = await fetch('/api/learn/assessment/generate/', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            assessmentId = data.assessment_id;
+            assessmentQuestions = data.questions;
+            assessmentTimeLeft = data.time_limit_minutes * 60;
+
+            renderAssessment();
+            startTimer();
+            showView('assessment');
+        } else {
+            const error = await response.json();
+            alert(error.error || 'Failed to generate assessment');
+        }
+    } catch (err) {
+        console.error('Failed to start assessment:', err);
+        alert('Failed to start assessment. Please try again.');
+    }
+}
+
+function renderAssessment() {
+    document.getElementById('question-count').textContent = assessmentQuestions.length;
+
+    document.getElementById('assessment-questions').innerHTML = assessmentQuestions.map((q, i) => `
+        <div class="question-card" data-question="${i}">
+            <div class="question-number">Question ${i + 1} of ${assessmentQuestions.length}</div>
+            <div class="question-topic" style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+                Topic: ${q.topic}
+            </div>
+            <div class="question-text">${q.question}</div>
+            <div class="question-options">
+                ${q.options.map((opt, j) => `
+                    <label class="option-label" onclick="selectOption(${i}, ${j})">
+                        <input type="radio" name="q${i}" value="${j}">
+                        <span>${opt}</span>
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function selectOption(questionIndex, optionIndex) {
+    const card = document.querySelector(`[data-question="${questionIndex}"]`);
+    card.querySelectorAll('.option-label').forEach((label, i) => {
+        label.classList.toggle('selected', i === optionIndex);
+    });
+}
+
+function startTimer() {
+    const timerEl = document.getElementById('assessment-timer');
+
+    assessmentTimer = setInterval(() => {
+        assessmentTimeLeft--;
+
+        const minutes = Math.floor(assessmentTimeLeft / 60);
+        const seconds = assessmentTimeLeft % 60;
+        timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        if (assessmentTimeLeft <= 0) {
+            clearInterval(assessmentTimer);
+            submitAssessment();
+        }
+    }, 1000);
+}
+
+async function submitAssessment() {
+    clearInterval(assessmentTimer);
+
+    // Collect answers
+    const answers = {};
+    assessmentQuestions.forEach((_, i) => {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected) {
+            answers[i] = parseInt(selected.value);
+        }
+    });
+
+    try {
+        const response = await fetch('/api/learn/assessment/submit/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                assessment_id: assessmentId,
+                answers: answers
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            showResults(data);
+        } else {
+            alert('Failed to submit assessment');
+        }
+    } catch (err) {
+        console.error('Failed to submit:', err);
+        alert('Failed to submit assessment');
+    }
+}
+
+function showResults(data) {
+    const pct = Math.round(data.score * 100);
+
+    document.getElementById('results-content').innerHTML = `
+        <h2>Assessment Results</h2>
+        <div class="results-score ${data.passed ? 'passed' : 'failed'}">${pct}%</div>
+        <p class="results-message">
+            ${data.passed
+                ? 'Congratulations! You passed the assessment.'
+                : `You need ${Math.round(data.passing_score * 100)}% to pass. Keep studying and try again.`}
+        </p>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+            ${data.correct} of ${data.total} questions correct
+        </p>
+
+        ${data.certificate_id ? `
+            <button class="btn btn-primary" onclick="showCertificate()">
+                View Your Certificate
+            </button>
+        ` : `
+            <button class="btn btn-secondary" onclick="showView('welcome')">
+                Return to Course
+            </button>
+        `}
+
+        <h3 style="margin-top: 3rem;">Question Breakdown</h3>
+        <div class="results-breakdown">
+            ${data.results.map((r, i) => `
+                <div class="result-item ${r.is_correct ? 'correct' : 'incorrect'}">
+                    <div>
+                        <strong>Q${i + 1}:</strong> ${r.question}
+                        <br>
+                        <small style="color: var(--text-dim);">
+                            Your answer: ${r.your_answer || 'No answer'}
+                            ${!r.is_correct ? `<br>Correct: ${r.correct_answer}` : ''}
+                        </small>
+                        ${r.explanation ? `<br><small style="color: var(--text-secondary);">${r.explanation}</small>` : ''}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    showView('results');
+
+    // Refresh progress
+    loadProgress();
+}
+
+async function showCertificate() {
+    try {
+        const response = await fetch('/api/learn/certificate/', { credentials: 'include' });
+        if (response.ok) {
+            const data = await response.json();
+
+            document.getElementById('certificate-content').innerHTML = `
+                <div class="certificate-card">
+                    <div class="certificate-title">Certificate of Completion</div>
+                    <div class="certificate-name">SVEND Certified Analyst</div>
+                    <div class="certificate-holder">${data.holder_name}</div>
+                    <p style="color: var(--text-secondary); max-width: 400px; margin: 1rem auto;">
+                        Has demonstrated proficiency in hypothesis-driven investigation,
+                        statistical analysis, and the SVEND Decision Science Workbench.
+                    </p>
+                    <div class="certificate-date">Issued: ${new Date(data.issued_date).toLocaleDateString()}</div>
+                    <div class="certificate-id">Certificate ID: ${data.certificate_id}</div>
+                </div>
+
+                <div class="share-buttons">
+                    <button class="btn btn-primary" onclick="shareCertificate('${data.certificate_id}')">
+                        Share Certificate
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadCertificate()">
+                        Download PDF
+                    </button>
+                </div>
+            `;
+
+            showView('certificate');
+        } else {
+            alert('Certificate not found. Complete the assessment first.');
+        }
+    } catch (err) {
+        console.error('Failed to load certificate:', err);
+    }
+}
+
+function shareCertificate(certId) {
+    const url = `${window.location.origin}/api/learn/certificate/verify/${certId}/`;
+    navigator.clipboard.writeText(url).then(() => {
+        alert('Certificate verification link copied to clipboard!');
+    });
+}
+
+function downloadCertificate() {
+    // Would generate PDF
+    alert('PDF download coming soon');
+}
+
+// Search
+document.getElementById('search-input')?.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    // Simple search through module names - would expand to full text search
+    document.querySelectorAll('.module-item').forEach(el => {
+        const name = el.querySelector('.module-name').textContent.toLowerCase();
+        el.style.display = name.includes(query) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,2135 @@
+{% extends "base_app.html" %}
+{% block title %}Projects - SVEND{% endblock %}
+
+{% block content %}
+<div class="projects-page">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h1>Projects</h1>
+            <p class="subtitle">Track hypotheses. Gather evidence. Find answers.</p>
+        </div>
+        <button class="btn btn-primary" onclick="showCreateModal()">+ New Project</button>
+    </div>
+
+    <!-- Status Filter -->
+    <div class="status-filter">
+        <button class="filter-btn active" data-status="all" onclick="filterByStatus('all')">All</button>
+        <button class="filter-btn" data-status="active" onclick="filterByStatus('active')">Active</button>
+        <button class="filter-btn" data-status="completed" onclick="filterByStatus('completed')">Completed</button>
+    </div>
+
+    <!-- Projects List -->
+    <div id="projects-list">
+        <div class="loading" id="loading-projects">
+            <div class="spinner"></div>
+            <span>Loading projects...</span>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state" style="display: none;">
+        <h3>No projects yet</h3>
+        <p>Start by creating a hypothesis you want to investigate.</p>
+        <button class="btn btn-primary" onclick="showCreateModal()">Create Your First Project</button>
+    </div>
+</div>
+
+<!-- Create Project Modal -->
+<div id="create-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>New Project</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+
+        <form id="project-form" onsubmit="createProject(event)">
+            <div class="form-group">
+                <label for="project-title">Project Title</label>
+                <input type="text" id="project-title" placeholder="e.g., Q4 Defect Investigation" required>
+            </div>
+
+            <div class="form-group">
+                <label for="project-hypothesis">Hypothesis</label>
+                <textarea id="project-hypothesis" rows="3"
+                    placeholder="What do you think is happening? e.g., 'High temperatures are causing increased defect rates'" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="project-description">Description (optional)</label>
+                <textarea id="project-description" rows="2"
+                    placeholder="Additional context, scope, or background..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="project-domain">Domain</label>
+                <select id="project-domain">
+                    <option value="">Select domain...</option>
+                    <option value="manufacturing">Manufacturing</option>
+                    <option value="software">Software/SaaS</option>
+                    <option value="healthcare">Healthcare</option>
+                    <option value="finance">Finance</option>
+                    <option value="retail">Retail/E-commerce</option>
+                    <option value="research">Research</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Project</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Project Detail View -->
+<div id="detail-view" class="detail-view" style="display: none;">
+    <div class="detail-header">
+        <button class="btn btn-secondary btn-sm" onclick="backToList()">&larr; Back to Projects</button>
+        <div class="detail-actions">
+            <button class="btn btn-secondary btn-sm" onclick="editProject()">Edit</button>
+            <button class="btn btn-secondary btn-sm" onclick="archiveProject()">Archive</button>
+        </div>
+    </div>
+
+    <div class="detail-content">
+        <div class="project-info">
+            <div class="project-header">
+                <h1 id="detail-title">Project Title</h1>
+                <span class="status-badge" id="detail-status">active</span>
+            </div>
+            <div class="hypothesis-box">
+                <label>Hypothesis</label>
+                <p id="detail-hypothesis"></p>
+            </div>
+            <p class="project-description" id="detail-description"></p>
+        </div>
+
+        <!-- Hypotheses Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Hypotheses</h2>
+                <button class="btn btn-primary btn-sm" onclick="showAddHypothesisModal()">+ Add Hypothesis</button>
+            </div>
+            <div id="hypotheses-list" class="hypotheses-list">
+                <p class="empty-text">No hypotheses yet. Add one to start testing.</p>
+            </div>
+        </div>
+
+        <!-- Workbenches Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Workbenches</h2>
+                <button class="btn btn-primary btn-sm" onclick="showAddWorkbenchModal()">+ Add Workbench</button>
+            </div>
+            <div id="workbenches-list" class="workbenches-list">
+                <p class="empty-text">No workbenches yet. Add one to start gathering evidence.</p>
+            </div>
+        </div>
+
+        <!-- Datasets Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Datasets</h2>
+                <div class="header-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="showUploadDatasetModal()">+ Upload</button>
+                </div>
+            </div>
+            <div id="datasets-list" class="datasets-list">
+                <p class="empty-text">No datasets yet. Upload data to begin analysis.</p>
+            </div>
+        </div>
+
+        <!-- Experiment Designs Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Experiment Designs</h2>
+                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/experimenter/'">+ New Design</button>
+            </div>
+            <div id="designs-list" class="designs-list">
+                <p class="empty-text">No experiment designs yet. Create one in the DOE Workbench.</p>
+            </div>
+        </div>
+
+        <!-- Knowledge Graph Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Knowledge Graph</h2>
+                <button class="btn btn-secondary btn-sm" onclick="openKnowledgeGraph()">Open Graph</button>
+            </div>
+            <div id="graph-summary" class="graph-summary">
+                <p class="empty-text">No knowledge graph yet. Connect hypotheses to build causal relationships.</p>
+            </div>
+        </div>
+
+        <!-- Conclusion Section (when resolved) -->
+        <div class="section" id="conclusion-section" style="display: none;">
+            <h2>Conclusion</h2>
+            <div class="conclusion-box">
+                <span class="conclusion-status" id="conclusion-status-badge"></span>
+                <p id="detail-conclusion"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hypothesis Detail View -->
+<div id="hypothesis-view" class="detail-view" style="display: none;">
+    <div class="detail-header">
+        <button class="btn btn-secondary btn-sm" onclick="backToProject()">&larr; Back to Project</button>
+        <div class="detail-actions">
+            <button class="btn btn-primary btn-sm" onclick="openCoder()">Open in Coder</button>
+            <button class="btn btn-secondary btn-sm" onclick="editHypothesis()">Edit</button>
+        </div>
+    </div>
+
+    <div class="detail-content">
+        <div class="hypothesis-info">
+            <div class="hypothesis-header">
+                <h1 id="hyp-statement">Hypothesis Statement</h1>
+                <div class="hyp-meta">
+                    <span class="prob-badge" id="hyp-prob">50%</span>
+                    <span class="status-badge investigating" id="hyp-status">investigating</span>
+                </div>
+            </div>
+            <div class="mechanism-box" id="mechanism-box">
+                <label>Mechanism</label>
+                <p id="hyp-mechanism"></p>
+            </div>
+        </div>
+
+        <!-- Evidence Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Evidence</h2>
+                <button class="btn btn-primary btn-sm" onclick="showAddEvidenceModal()">+ Add Evidence</button>
+            </div>
+            <div id="evidence-list" class="evidence-list">
+                <p class="empty-text">No evidence yet. Run analyses to gather evidence.</p>
+            </div>
+        </div>
+
+        <!-- Conversations Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Conversations</h2>
+                <button class="btn btn-primary btn-sm" onclick="startNewConversation()">+ New Conversation</button>
+            </div>
+            <div id="conversations-list" class="conversations-list">
+                <p class="empty-text">No conversations yet. Start one to explore this hypothesis.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Workbench Modal -->
+<div id="workbench-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h2>Add Workbench</h2>
+            <button class="modal-close" onclick="closeWorkbenchModal()">&times;</button>
+        </div>
+
+        <form id="workbench-form" onsubmit="addWorkbench(event)">
+            <div class="form-group">
+                <label for="wb-title">Title</label>
+                <input type="text" id="wb-title" placeholder="e.g., January Batch Analysis" required>
+            </div>
+
+            <div class="form-group">
+                <label for="wb-template">Template</label>
+                <select id="wb-template">
+                    <option value="blank">Blank</option>
+                    <option value="dmaic">DMAIC</option>
+                    <option value="kaizen">Kaizen Event</option>
+                    <option value="8d">8D Report</option>
+                    <option value="a3">A3 Problem Solving</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="wb-description">Description (optional)</label>
+                <textarea id="wb-description" rows="2" placeholder="What will this workbench investigate?"></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeWorkbenchModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Workbench</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Hypothesis Modal -->
+<div id="hypothesis-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Hypothesis</h2>
+            <button class="modal-close" onclick="closeHypothesisModal()">&times;</button>
+        </div>
+
+        <form id="hypothesis-form" onsubmit="addHypothesis(event)">
+            <div class="form-group">
+                <label for="hyp-statement-input">Statement</label>
+                <textarea id="hyp-statement-input" rows="2"
+                    placeholder="e.g., High temperature causes increased defect rates" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="hyp-mechanism-input">Mechanism (optional)</label>
+                <textarea id="hyp-mechanism-input" rows="2"
+                    placeholder="How does this cause produce the effect?"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="hyp-prior">Prior Probability</label>
+                <div class="slider-row">
+                    <input type="range" id="hyp-prior" min="0" max="1" step="0.05" value="0.5">
+                    <span id="hyp-prior-value">50%</span>
+                </div>
+                <small class="form-hint">Your initial belief in this hypothesis before seeing evidence</small>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeHypothesisModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Hypothesis</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Evidence Modal -->
+<div id="evidence-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Evidence</h2>
+            <button class="modal-close" onclick="closeEvidenceModal()">&times;</button>
+        </div>
+
+        <form id="evidence-form" onsubmit="addEvidence(event)">
+            <div class="form-group">
+                <label for="ev-summary">Summary</label>
+                <textarea id="ev-summary" rows="3" required
+                    placeholder="What did you observe or discover?"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Source Type</label>
+                <select id="ev-type">
+                    <option value="observation">Observation</option>
+                    <option value="statistical">Data Analysis</option>
+                    <option value="simulation">Simulation/Code</option>
+                    <option value="experiment">Experiment</option>
+                    <option value="research">Literature</option>
+                    <option value="expert">Expert Opinion</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>How much does this evidence support or oppose the hypothesis?</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="ev-direction" value="supports" checked>
+                        <span class="radio-badge supports">Supports</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="ev-direction" value="weakens">
+                        <span class="radio-badge weakens">Opposes</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="ev-direction" value="neutral">
+                        <span class="radio-badge neutral">Neutral</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="ev-strength">Evidence Strength (Likelihood Ratio)</label>
+                <div class="slider-row">
+                    <input type="range" id="ev-strength" min="0" max="1" step="0.1" value="0.5">
+                    <span id="ev-strength-value">LR: 5.5</span>
+                </div>
+                <small class="form-hint">
+                    How much more likely is this evidence if the hypothesis is true vs. false?
+                    <br>LR=1: No effect | LR=3: Weak | LR=10: Strong | LR=30: Very Strong
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="ev-auto-update" checked>
+                    Automatically update hypothesis probability (Bayesian update)
+                </label>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEvidenceModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Evidence</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Upload Dataset Modal -->
+<div id="dataset-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Upload Dataset</h2>
+            <button class="modal-close" onclick="closeDatasetModal()">&times;</button>
+        </div>
+
+        <form id="dataset-form" onsubmit="uploadDataset(event)">
+            <div class="form-group">
+                <label for="ds-name">Dataset Name</label>
+                <input type="text" id="ds-name" placeholder="e.g., Q4 Production Data" required>
+            </div>
+
+            <div class="form-group">
+                <label for="ds-description">Description (optional)</label>
+                <textarea id="ds-description" rows="2" placeholder="What does this data contain?"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="ds-type">Data Type</label>
+                <select id="ds-type">
+                    <option value="csv">CSV</option>
+                    <option value="excel">Excel</option>
+                    <option value="json">JSON</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="ds-file">File</label>
+                <input type="file" id="ds-file" accept=".csv,.xlsx,.xls,.json" required>
+                <small class="form-hint">Supported formats: CSV, Excel (.xlsx, .xls), JSON</small>
+            </div>
+
+            <div class="form-group">
+                <label for="ds-source">Source (optional)</label>
+                <input type="text" id="ds-source" placeholder="e.g., ERP System, Manual Entry">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDatasetModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="upload-btn">Upload Dataset</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Dataset Detail Modal -->
+<div id="dataset-detail-modal" class="modal" style="display: none;">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h2 id="dataset-detail-title">Dataset</h2>
+            <button class="modal-close" onclick="closeDatasetDetailModal()">&times;</button>
+        </div>
+        <div id="dataset-detail-content" class="dataset-detail-content">
+            <!-- Filled dynamically -->
+        </div>
+    </div>
+</div>
+
+<style>
+.projects-page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.subtitle {
+    color: var(--text-dim);
+    margin: 0.25rem 0 0 0;
+}
+
+.status-filter {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.filter-btn {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.filter-btn.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}
+
+.project-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.project-card:hover {
+    border-color: var(--accent-primary);
+}
+
+.project-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.project-card .hypothesis-preview {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    font-style: italic;
+}
+
+.project-card .meta {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.status-badge.active { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+.status-badge.completed { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.status-badge.archived { background: rgba(100, 100, 100, 0.2); color: #888; }
+
+/* Detail View */
+.detail-view {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.detail-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.project-info {
+    margin-bottom: 2rem;
+}
+
+.project-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.project-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.hypothesis-box {
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--accent-primary);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0 4px 4px 0;
+}
+
+.hypothesis-box label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.hypothesis-box p {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.project-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.section {
+    margin-bottom: 2rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.workbenches-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.workbench-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.workbench-item:hover {
+    border-color: var(--accent-primary);
+}
+
+.workbench-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.95rem;
+}
+
+.workbench-info .meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.workbench-item .template-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+.graph-summary {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.graph-stats {
+    display: flex;
+    gap: 2rem;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.conclusion-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.conclusion-status {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.conclusion-status.supported { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+.conclusion-status.refuted { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.conclusion-status.inconclusive { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.conclusion-status.modified { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+
+/* Modals */
+.modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-sm {
+    max-width: 400px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.modal-content form {
+    padding: 1.25rem;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--border);
+}
+
+/* Utilities */
+.loading {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    color: var(--text-dim);
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--bg-tertiary);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+}
+
+.empty-state h3 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+}
+
+.empty-text {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+
+.btn-sm {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+/* Hypotheses */
+.hypotheses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.hypothesis-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.hypothesis-card:hover {
+    border-color: var(--accent-primary);
+}
+
+.hypothesis-card .statement {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.hypothesis-card .meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.prob-badge {
+    background: var(--accent-primary);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.prob-badge.low { background: #ef4444; }
+.prob-badge.med { background: #f59e0b; }
+.prob-badge.high { background: #4a9f6e; }
+
+.status-badge.investigating { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.status-badge.supported { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+.status-badge.refuted { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.status-badge.inconclusive { background: rgba(100, 100, 100, 0.2); color: #888; }
+
+/* Hypothesis Detail */
+.hypothesis-info {
+    margin-bottom: 1.5rem;
+}
+
+.hypothesis-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.hypothesis-header h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    flex: 1;
+}
+
+.hyp-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.mechanism-box {
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--text-dim);
+    padding: 0.75rem 1rem;
+    border-radius: 0 4px 4px 0;
+}
+
+.mechanism-box label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.mechanism-box p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* Evidence */
+.evidence-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.evidence-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.evidence-item .direction-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.evidence-item .direction-icon.supports { color: #4a9f6e; }
+.evidence-item .direction-icon.weakens { color: #ef4444; }
+.evidence-item .direction-icon.neutral { color: #888; }
+
+.evidence-item .content {
+    flex: 1;
+}
+
+.evidence-item .summary {
+    margin-bottom: 0.25rem;
+}
+
+.evidence-item .meta {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+/* Conversations */
+.conversations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.conversation-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.2s;
+}
+
+.conversation-item:hover {
+    border-color: var(--accent-primary);
+}
+
+.conversation-item .title {
+    font-weight: 500;
+}
+
+.conversation-item .meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+/* Form extras */
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.slider-row input[type="range"] {
+    flex: 1;
+}
+
+.slider-row span {
+    min-width: 40px;
+    text-align: right;
+    font-weight: 500;
+}
+
+.form-hint {
+    display: block;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.radio-group {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+}
+
+.radio-badge {
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.radio-badge.supports { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+.radio-badge.weakens { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.radio-badge.neutral { background: rgba(100, 100, 100, 0.2); color: #888; }
+
+.form-group input[type="checkbox"] {
+    margin-right: 0.5rem;
+}
+
+/* Datasets & Experiment Designs */
+.datasets-list, .designs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dataset-card, .design-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.875rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.dataset-card:hover, .design-card:hover {
+    border-color: var(--accent-primary);
+}
+
+.dataset-info, .design-info {
+    flex: 1;
+}
+
+.dataset-info h4, .design-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dataset-info .meta, .design-info .meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    display: flex;
+    gap: 1rem;
+}
+
+.dataset-actions, .design-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.type-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.type-badge.csv { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+.type-badge.excel { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.type-badge.json { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.type-badge.experiment { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+
+.design-status {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.design-status.planned { background: rgba(100, 100, 100, 0.2); color: #888; }
+.design-status.in_progress { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.design-status.completed { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+.design-status.reviewed { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+
+.execution-score {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.execution-score.high { color: #4a9f6e; }
+.execution-score.med { color: #f59e0b; }
+.execution-score.low { color: #ef4444; }
+
+/* Modal large variant */
+.modal-lg {
+    max-width: 800px;
+}
+
+.dataset-detail-content {
+    padding: 1.25rem;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.dataset-preview {
+    margin-top: 1rem;
+    overflow-x: auto;
+}
+
+.dataset-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.dataset-preview th, .dataset-preview td {
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    text-align: left;
+}
+
+.dataset-preview th {
+    background: var(--bg-secondary);
+    font-weight: 500;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+</style>
+
+<script>
+let projects = [];
+let currentProject = null;
+let currentHypothesis = null;
+let currentFilter = 'all';
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadProjects();
+
+    // Slider value displays
+    document.getElementById('hyp-prior').addEventListener('input', (e) => {
+        document.getElementById('hyp-prior-value').textContent = Math.round(e.target.value * 100) + '%';
+    });
+    document.getElementById('ev-strength').addEventListener('input', (e) => {
+        // Map 0-1 slider to likelihood ratio display
+        const strength = parseFloat(e.target.value);
+        const lr = 1 + strength * 9; // Maps 0→1, 1→10
+        document.getElementById('ev-strength-value').textContent = `LR: ${lr.toFixed(1)}`;
+    });
+});
+
+// Close modals when clicking backdrop
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal')) {
+        e.target.style.display = 'none';
+    }
+});
+
+async function loadProjects() {
+    const loading = document.getElementById('loading-projects');
+    const emptyState = document.getElementById('empty-state');
+    const container = document.getElementById('projects-list');
+
+    try {
+        let url = '/api/core/projects/';
+        if (currentFilter !== 'all') {
+            url += `?status=${currentFilter}`;
+        }
+
+        const response = await fetch(url, { credentials: 'include' });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        projects = await response.json();
+        renderProjects();
+    } catch (err) {
+        console.error('Failed to load projects:', err);
+        // Always hide loading and show empty state on error
+        if (loading) loading.style.display = 'none';
+        if (container) container.style.display = 'none';
+        if (emptyState) {
+            emptyState.style.display = 'block';
+            emptyState.querySelector('h3').textContent = 'Failed to load projects';
+            emptyState.querySelector('p').textContent = 'Please refresh the page or try again later.';
+        }
+    }
+}
+
+function renderProjects() {
+    const container = document.getElementById('projects-list');
+    const emptyState = document.getElementById('empty-state');
+    const loading = document.getElementById('loading-projects');
+
+    loading.style.display = 'none';
+
+    if (projects.length === 0) {
+        container.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    container.style.display = 'block';
+
+    container.innerHTML = projects.map(p => `
+        <div class="project-card" onclick="viewProject('${p.id}')">
+            <h3>
+                ${p.title}
+                <span class="status-badge ${p.status}">${p.status}</span>
+            </h3>
+            <p class="hypothesis-preview">"${truncate(p.problem_statement || p.description, 120)}"</p>
+            <div class="meta">
+                <span>${p.hypothesis_count || 0} hypothes${p.hypothesis_count !== 1 ? 'es' : 'is'}</span>
+                <span>${p.evidence_count || 0} evidence</span>
+                ${p.domain ? `<span>${p.domain}</span>` : ''}
+                <span>Phase: ${p.current_phase || 'define'}</span>
+                <span>Updated ${formatDate(p.updated_at)}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function truncate(str, len) {
+    if (!str) return '';
+    return str.length > len ? str.slice(0, len) + '...' : str;
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now - date;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
+    if (days < 7) return `${days} days ago`;
+    return date.toLocaleDateString();
+}
+
+function filterByStatus(status) {
+    currentFilter = status;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.status === status);
+    });
+    loadProjects();
+}
+
+function showCreateModal() {
+    document.getElementById('create-modal').style.display = 'flex';
+    document.getElementById('project-title').focus();
+}
+
+function closeModal() {
+    document.getElementById('create-modal').style.display = 'none';
+    document.getElementById('project-form').reset();
+}
+
+async function createProject(e) {
+    e.preventDefault();
+
+    const data = {
+        title: document.getElementById('project-title').value,
+        problem_statement: document.getElementById('project-hypothesis').value,
+        description: document.getElementById('project-description').value,
+        domain: document.getElementById('project-domain').value,
+    };
+
+    try {
+        const response = await fetch('/api/core/projects/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            closeModal();
+            viewProject(result.id);
+        } else {
+            alert(result.error || 'Failed to create project');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function viewProject(id) {
+    try {
+        const response = await fetch(`/api/core/projects/${id}/`, { credentials: 'include' });
+        currentProject = await response.json();
+        renderProjectDetail();
+    } catch (err) {
+        alert('Failed to load project: ' + err.message);
+    }
+}
+
+async function renderProjectDetail() {
+    document.querySelector('.projects-page').style.display = 'none';
+    document.getElementById('detail-view').style.display = 'block';
+    document.getElementById('hypothesis-view').style.display = 'none';
+
+    const p = currentProject;
+
+    document.getElementById('detail-title').textContent = p.title;
+    document.getElementById('detail-status').textContent = p.status;
+    document.getElementById('detail-status').className = `status-badge ${p.status}`;
+    document.getElementById('detail-hypothesis').textContent = p.problem_statement || '';
+    document.getElementById('detail-description').textContent = p.description || '';
+
+    // Load hypotheses (already in project response from new API)
+    renderHypothesesFromProject();
+
+    // Load datasets and experiment designs
+    loadDatasets();
+    loadExperimentDesigns();
+
+    // Show methodology and phase
+    const wbList = document.getElementById('workbenches-list');
+    wbList.innerHTML = `
+        <div class="methodology-info" style="padding: 1rem; background: var(--bg-secondary); border-radius: 6px;">
+            <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Methodology</span>
+                    <div style="font-weight: 500;">${p.methodology || 'bayesian'}</div>
+                </div>
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Current Phase</span>
+                    <div style="font-weight: 500;">${p.current_phase || 'define'}</div>
+                </div>
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Can Experiment</span>
+                    <div style="font-weight: 500;">${p.can_experiment ? 'Yes' : 'No'}</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/coder/?project=${p.id}'">Open in Coder</button>
+                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/dsw/?project=${p.id}'">Open in DSW</button>
+                <button class="btn btn-secondary btn-sm" onclick="advancePhase()">Advance Phase</button>
+            </div>
+        </div>
+    `;
+
+    // Knowledge Graph summary - use new API
+    const graphSummary = document.getElementById('graph-summary');
+    graphSummary.innerHTML = `
+        <div class="graph-stats">
+            <div class="stat">
+                <div class="stat-value">${p.hypothesis_count || 0}</div>
+                <div class="stat-label">Hypotheses</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="evidence-count-stat">-</div>
+                <div class="stat-label">Evidence Items</div>
+            </div>
+        </div>
+    `;
+
+    // Load evidence count
+    loadEvidenceCount();
+
+    // Resolution/Conclusion
+    const conclusionSection = document.getElementById('conclusion-section');
+    if (p.resolution_summary) {
+        conclusionSection.style.display = 'block';
+        const status = p.resolution_confidence > 0.7 ? 'supported' : p.resolution_confidence < 0.3 ? 'refuted' : 'inconclusive';
+        document.getElementById('conclusion-status-badge').textContent = `${Math.round(p.resolution_confidence * 100)}% confidence`;
+        document.getElementById('conclusion-status-badge').className = `conclusion-status ${status}`;
+        document.getElementById('detail-conclusion').textContent = p.resolution_summary;
+    } else {
+        conclusionSection.style.display = 'none';
+    }
+}
+
+async function loadEvidenceCount() {
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/evidence/`, { credentials: 'include' });
+        const evidence = await response.json();
+        document.getElementById('evidence-count-stat').textContent = evidence.length;
+    } catch (err) {
+        document.getElementById('evidence-count-stat').textContent = '0';
+    }
+}
+
+function renderHypothesesFromProject() {
+    const hypotheses = currentProject.hypotheses || [];
+    const list = document.getElementById('hypotheses-list');
+
+    if (hypotheses.length === 0) {
+        list.innerHTML = '<p class="empty-text">No hypotheses yet. Add one to start testing.</p>';
+        return;
+    }
+
+    list.innerHTML = hypotheses.map(h => {
+        const prob = h.current_probability;
+        const probClass = prob < 0.3 ? 'low' : prob > 0.7 ? 'high' : 'med';
+        const probPct = Math.round(prob * 100);
+
+        // Create a mini probability bar
+        const probBar = `
+            <div class="prob-bar" style="width: 60px; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
+                <div style="width: ${probPct}%; height: 100%; background: ${prob < 0.3 ? '#ef4444' : prob > 0.7 ? '#4a9f6e' : '#f59e0b'};"></div>
+            </div>
+        `;
+
+        return `
+            <div class="hypothesis-card" onclick="viewHypothesis('${h.id}')">
+                <div class="statement">${truncate(h.statement, 100)}</div>
+                <div class="meta">
+                    <span class="prob-badge ${probClass}">${probPct}%</span>
+                    ${probBar}
+                    <span class="status-badge ${h.status}">${h.status}</span>
+                    <span>${h.evidence_count || 0} evidence</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function advancePhase() {
+    if (!confirm('Advance to the next phase? This will update the project status.')) return;
+
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/advance-phase/`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            await viewProject(currentProject.id);
+        } else {
+            const err = await response.json();
+            alert(err.error || 'Failed to advance phase');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// =============================================================================
+// Hypotheses
+// =============================================================================
+
+async function loadHypotheses() {
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/hypotheses/`, { credentials: 'include' });
+        const hypotheses = await response.json();
+
+        const list = document.getElementById('hypotheses-list');
+        if (hypotheses.length === 0) {
+            list.innerHTML = '<p class="empty-text">No hypotheses yet. Add one to start testing.</p>';
+            return;
+        }
+
+        list.innerHTML = hypotheses.map(h => {
+            const prob = h.current_probability;
+            const probClass = prob < 0.3 ? 'low' : prob > 0.7 ? 'high' : 'med';
+            const probPct = Math.round(prob * 100);
+            const probBar = `
+                <div class="prob-bar" style="width: 60px; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
+                    <div style="width: ${probPct}%; height: 100%; background: ${prob < 0.3 ? '#ef4444' : prob > 0.7 ? '#4a9f6e' : '#f59e0b'};"></div>
+                </div>
+            `;
+            return `
+                <div class="hypothesis-card" onclick="viewHypothesis('${h.id}')">
+                    <div class="statement">${truncate(h.statement, 100)}</div>
+                    <div class="meta">
+                        <span class="prob-badge ${probClass}">${probPct}%</span>
+                        ${probBar}
+                        <span class="status-badge ${h.status}">${h.status}</span>
+                        <span>${h.evidence_count || 0} evidence</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Failed to load hypotheses:', err);
+    }
+}
+
+function showAddHypothesisModal() {
+    document.getElementById('hypothesis-modal').style.display = 'flex';
+    document.getElementById('hyp-statement-input').focus();
+}
+
+function closeHypothesisModal() {
+    document.getElementById('hypothesis-modal').style.display = 'none';
+    document.getElementById('hypothesis-form').reset();
+    document.getElementById('hyp-prior-value').textContent = '50%';
+}
+
+async function addHypothesis(e) {
+    e.preventDefault();
+
+    const data = {
+        statement: document.getElementById('hyp-statement-input').value,
+        mechanism: document.getElementById('hyp-mechanism-input').value,
+        prior_probability: parseFloat(document.getElementById('hyp-prior').value),
+    };
+
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/hypotheses/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            closeHypothesisModal();
+            await loadHypotheses();
+        } else {
+            alert(result.error || 'Failed to add hypothesis');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function viewHypothesis(id) {
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/hypotheses/${id}/`, { credentials: 'include' });
+        currentHypothesis = await response.json();
+        renderHypothesisDetail();
+    } catch (err) {
+        alert('Failed to load hypothesis: ' + err.message);
+    }
+}
+
+function renderHypothesisDetail() {
+    document.getElementById('detail-view').style.display = 'none';
+    document.getElementById('hypothesis-view').style.display = 'block';
+
+    const h = currentHypothesis;
+    const prob = h.current_probability;
+    const prior = h.prior_probability;
+
+    document.getElementById('hyp-statement').textContent = h.statement;
+    const probClass = prob < 0.3 ? 'low' : prob > 0.7 ? 'high' : 'med';
+    document.getElementById('hyp-prob').textContent = Math.round(prob * 100) + '%';
+    document.getElementById('hyp-prob').className = `prob-badge ${probClass}`;
+    document.getElementById('hyp-status').textContent = h.status;
+    document.getElementById('hyp-status').className = `status-badge ${h.status}`;
+
+    const mechBox = document.getElementById('mechanism-box');
+    if (h.mechanism) {
+        document.getElementById('hyp-mechanism').textContent = h.mechanism;
+        mechBox.style.display = 'block';
+    } else {
+        mechBox.style.display = 'none';
+    }
+
+    // Add Bayesian probability evolution display
+    const probEvolution = `
+        <div class="prob-evolution" style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.8rem; color: var(--text-dim);">Prior: ${Math.round(prior * 100)}%</span>
+                <div style="flex: 1; height: 8px; background: var(--bg-tertiary); border-radius: 4px; position: relative;">
+                    <div style="position: absolute; left: ${prior * 100}%; width: 2px; height: 100%; background: var(--text-dim);"></div>
+                    <div style="position: absolute; left: 0; width: ${prob * 100}%; height: 100%; background: ${prob < 0.3 ? '#ef4444' : prob > 0.7 ? '#4a9f6e' : '#f59e0b'}; border-radius: 4px;"></div>
+                </div>
+                <span style="font-size: 0.8rem; font-weight: 600; color: ${prob < 0.3 ? '#ef4444' : prob > 0.7 ? '#4a9f6e' : '#f59e0b'};">
+                    Current: ${Math.round(prob * 100)}%
+                </span>
+            </div>
+            ${h.odds ? `<span style="font-size: 0.75rem; color: var(--text-dim);">Odds: ${h.odds.toFixed(2)}:1</span>` : ''}
+        </div>
+    `;
+
+    // Insert probability evolution after mechanism box
+    const existingProbEvo = document.querySelector('.prob-evolution');
+    if (existingProbEvo) existingProbEvo.remove();
+    mechBox.insertAdjacentHTML('afterend', probEvolution);
+
+    // Evidence - now using evidence_links with likelihood ratios
+    const evList = document.getElementById('evidence-list');
+    const evidenceLinks = h.evidence_links || [];
+
+    if (evidenceLinks.length > 0) {
+        evList.innerHTML = evidenceLinks.map(link => {
+            const lr = link.likelihood_ratio;
+            const direction = link.direction;
+            const icon = direction === 'supports' ? '↑' : direction === 'opposes' ? '↓' : '→';
+
+            // Format likelihood ratio nicely
+            let lrDisplay;
+            if (lr >= 1) {
+                lrDisplay = `LR: ${lr.toFixed(2)}`;
+            } else {
+                lrDisplay = `LR: 1/${(1/lr).toFixed(2)}`;
+            }
+
+            return `
+                <div class="evidence-item">
+                    <span class="direction-icon ${direction === 'supports' ? 'supports' : direction === 'opposes' ? 'weakens' : 'neutral'}">${icon}</span>
+                    <div class="content">
+                        <div class="summary">${link.evidence_summary}</div>
+                        <div class="meta">
+                            <span class="lr-badge" style="background: ${lr > 1 ? 'rgba(74, 159, 110, 0.2)' : lr < 1 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(100, 100, 100, 0.2)'}; color: ${lr > 1 ? '#4a9f6e' : lr < 1 ? '#ef4444' : '#888'}; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.75rem;">
+                                ${lrDisplay}
+                            </span>
+                            <span>${link.evidence_source || 'manual'}</span>
+                            ${link.reasoning ? `<span title="${link.reasoning}">...</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } else {
+        evList.innerHTML = '<p class="empty-text">No evidence yet. Run analyses in Coder or DSW to gather evidence.</p>';
+    }
+
+    // Conversations - simplified for now
+    const convList = document.getElementById('conversations-list');
+    convList.innerHTML = `
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/coder/?project=${currentProject.id}&hypothesis=${h.id}'">Explore in Coder</button>
+            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/dsw/?project=${currentProject.id}'">Analyze in DSW</button>
+        </div>
+    `;
+}
+
+function backToProject() {
+    document.getElementById('hypothesis-view').style.display = 'none';
+    document.getElementById('detail-view').style.display = 'block';
+    currentHypothesis = null;
+    loadHypotheses();
+}
+
+function openCoder() {
+    window.location.href = `/app/coder/?hypothesis=${currentProject.id}|${currentHypothesis.id}`;
+}
+
+function editHypothesis() {
+    alert('Edit functionality coming soon');
+}
+
+// =============================================================================
+// Evidence
+// =============================================================================
+
+function showAddEvidenceModal() {
+    document.getElementById('evidence-modal').style.display = 'flex';
+    document.getElementById('ev-summary').focus();
+}
+
+function closeEvidenceModal() {
+    document.getElementById('evidence-modal').style.display = 'none';
+    document.getElementById('evidence-form').reset();
+    document.getElementById('ev-strength-value').textContent = '0.5';
+}
+
+async function addEvidence(e) {
+    e.preventDefault();
+
+    const direction = document.querySelector('input[name="ev-direction"]:checked').value;
+    const strength = parseFloat(document.getElementById('ev-strength').value);
+
+    // Convert strength + direction to likelihood ratio
+    // strength 0.5 = mild (LR ~2), strength 1.0 = strong (LR ~10)
+    const baseLR = 1 + strength * 9; // Maps 0→1, 1→10
+    const lr = direction === 'supports' ? baseLR : direction === 'weakens' ? 1/baseLR : 1.0;
+
+    // Map old evidence types to new source_type
+    const typeMapping = {
+        'observation': 'observation',
+        'statistical': 'data_analysis',
+        'simulation': 'simulation',
+        'experiment': 'experiment',
+        'research': 'literature',
+        'expert': 'observation'
+    };
+
+    const data = {
+        project_id: currentProject.id,
+        hypothesis_ids: [currentHypothesis.id],
+        summary: document.getElementById('ev-summary').value,
+        source_type: typeMapping[document.getElementById('ev-type').value] || 'observation',
+        code: '',
+        output: {},
+        likelihood_ratios: {
+            [currentHypothesis.id]: lr
+        },
+        confidence: 0.8
+    };
+
+    try {
+        const response = await fetch('/api/core/evidence/from-code/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            closeEvidenceModal();
+            await viewHypothesis(currentHypothesis.id);
+        } else {
+            alert(result.error || 'Failed to add evidence');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// =============================================================================
+// Conversations
+// =============================================================================
+
+async function startNewConversation() {
+    // Navigate to chat with hypothesis context
+    window.location.href = `/chat/?hypothesis=${currentHypothesis.id}&project=${currentProject.id}`;
+}
+
+function openConversation(id) {
+    window.location.href = `/chat/?conversation=${id}&hypothesis=${currentHypothesis.id}&project=${currentProject.id}`;
+}
+
+function backToList() {
+    document.getElementById('detail-view').style.display = 'none';
+    document.querySelector('.projects-page').style.display = 'block';
+    currentProject = null;
+    loadProjects();
+}
+
+function showAddWorkbenchModal() {
+    document.getElementById('workbench-modal').style.display = 'flex';
+    document.getElementById('wb-title').focus();
+}
+
+function closeWorkbenchModal() {
+    document.getElementById('workbench-modal').style.display = 'none';
+    document.getElementById('workbench-form').reset();
+}
+
+async function addWorkbench(e) {
+    e.preventDefault();
+    // Navigate to DSW with project context - workbenches are now sessions in DSW
+    closeWorkbenchModal();
+    window.location.href = `/app/dsw/?project=${currentProject.id}`;
+}
+
+function openWorkbench(id) {
+    // Navigate to DSW with workbench context
+    window.location.href = `/app/dsw/?workbench=${id}`;
+}
+
+function openKnowledgeGraph() {
+    window.location.href = `/app/knowledge/?project=${currentProject.id}`;
+}
+
+function editProject() {
+    // TODO: implement edit modal
+    alert('Edit functionality coming soon');
+}
+
+async function archiveProject() {
+    if (!confirm('Archive this project? You can restore it later.')) return;
+
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            backToList();
+        } else {
+            const result = await response.json();
+            alert(result.error || 'Failed to archive project');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// =============================================================================
+// Datasets
+// =============================================================================
+
+async function loadDatasets() {
+    const datasets = currentProject.datasets || [];
+    const list = document.getElementById('datasets-list');
+
+    if (datasets.length === 0) {
+        list.innerHTML = '<p class="empty-text">No datasets yet. Upload data to begin analysis.</p>';
+        return;
+    }
+
+    list.innerHTML = datasets.map(ds => `
+        <div class="dataset-card" onclick="viewDataset('${ds.id}')">
+            <div class="dataset-info">
+                <h4>
+                    ${ds.name}
+                    <span class="type-badge ${ds.data_type}">${ds.data_type}</span>
+                </h4>
+                <div class="meta">
+                    <span>${ds.row_count || 0} rows</span>
+                    ${ds.columns?.length ? `<span>${ds.columns.length} columns</span>` : ''}
+                    ${ds.size_display ? `<span>${ds.size_display}</span>` : ''}
+                    <span>${formatDate(ds.created_at)}</span>
+                </div>
+            </div>
+            <div class="dataset-actions" onclick="event.stopPropagation()">
+                <button class="btn btn-primary btn-sm" onclick="openDatasetInDSW('${ds.id}')">Open in DSW</button>
+                <button class="btn btn-secondary btn-sm" onclick="deleteDataset('${ds.id}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showUploadDatasetModal() {
+    document.getElementById('dataset-modal').style.display = 'flex';
+    document.getElementById('ds-name').focus();
+}
+
+function closeDatasetModal() {
+    document.getElementById('dataset-modal').style.display = 'none';
+    document.getElementById('dataset-form').reset();
+}
+
+async function uploadDataset(e) {
+    e.preventDefault();
+
+    const uploadBtn = document.getElementById('upload-btn');
+    uploadBtn.textContent = 'Uploading...';
+    uploadBtn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('name', document.getElementById('ds-name').value);
+    formData.append('description', document.getElementById('ds-description').value);
+    formData.append('data_type', document.getElementById('ds-type').value);
+    formData.append('source', document.getElementById('ds-source').value);
+    formData.append('file', document.getElementById('ds-file').files[0]);
+
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/datasets/`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            closeDatasetModal();
+            // Reload project to get updated datasets
+            await viewProject(currentProject.id);
+        } else {
+            alert(result.error || 'Failed to upload dataset');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        uploadBtn.textContent = 'Upload Dataset';
+        uploadBtn.disabled = false;
+    }
+}
+
+async function viewDataset(id) {
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/datasets/${id}/data/`, { credentials: 'include' });
+        const data = await response.json();
+
+        // Find dataset info
+        const dataset = currentProject.datasets.find(d => d.id === id);
+
+        document.getElementById('dataset-detail-title').textContent = dataset?.name || 'Dataset';
+
+        const content = document.getElementById('dataset-detail-content');
+
+        // Build preview table (first 20 rows)
+        let tableHtml = '';
+        if (data.data && data.data.length > 0) {
+            const columns = data.columns || Object.keys(data.data[0]);
+            const previewRows = data.data.slice(0, 20);
+
+            const rowCount = data.data.length;
+            tableHtml = `
+                <div class="dataset-meta" style="margin-bottom: 1rem;">
+                    <p><strong>Rows:</strong> ${rowCount}</p>
+                    <p><strong>Columns:</strong> ${columns.length}</p>
+                    ${dataset?.description ? `<p><strong>Description:</strong> ${dataset.description}</p>` : ''}
+                </div>
+                <div class="dataset-preview">
+                    <table>
+                        <thead>
+                            <tr>${columns.map(c => `<th>${typeof c === 'object' ? c.name : c}</th>`).join('')}</tr>
+                        </thead>
+                        <tbody>
+                            ${previewRows.map(row => `
+                                <tr>${columns.map(c => {
+                                    const colName = typeof c === 'object' ? c.name : c;
+                                    const val = row[colName];
+                                    return `<td>${val !== null && val !== undefined ? val : ''}</td>`;
+                                }).join('')}</tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ${rowCount > 20 ? `<p style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.85rem;">Showing first 20 of ${rowCount} rows</p>` : ''}
+                </div>
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                    <button class="btn btn-primary" onclick="openDatasetInDSW('${id}'); closeDatasetDetailModal();">Open in DSW</button>
+                    <button class="btn btn-secondary" onclick="closeDatasetDetailModal()">Close</button>
+                </div>
+            `;
+        } else {
+            tableHtml = '<p>No data available for preview.</p>';
+        }
+
+        content.innerHTML = tableHtml;
+        document.getElementById('dataset-detail-modal').style.display = 'flex';
+    } catch (err) {
+        alert('Failed to load dataset: ' + err.message);
+    }
+}
+
+function closeDatasetDetailModal() {
+    document.getElementById('dataset-detail-modal').style.display = 'none';
+}
+
+function openDatasetInDSW(datasetId) {
+    window.location.href = `/app/dsw/?project=${currentProject.id}&dataset=${datasetId}`;
+}
+
+async function deleteDataset(id) {
+    if (!confirm('Delete this dataset? This cannot be undone.')) return;
+
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/datasets/${id}/`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (response.ok) {
+            await viewProject(currentProject.id);
+        } else {
+            const result = await response.json();
+            alert(result.error || 'Failed to delete dataset');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// =============================================================================
+// Experiment Designs
+// =============================================================================
+
+async function loadExperimentDesigns() {
+    const designs = currentProject.experiment_designs || [];
+    const list = document.getElementById('designs-list');
+
+    if (designs.length === 0) {
+        list.innerHTML = '<p class="empty-text">No experiment designs yet. Create one in the DOE Workbench.</p>';
+        return;
+    }
+
+    list.innerHTML = designs.map(d => {
+        const scoreClass = d.execution_score ? (d.execution_score >= 80 ? 'high' : d.execution_score >= 60 ? 'med' : 'low') : '';
+
+        return `
+            <div class="design-card" onclick="viewExperimentDesign('${d.id}')">
+                <div class="design-info">
+                    <h4>
+                        ${d.name}
+                        <span class="design-status ${d.status}">${d.status.replace('_', ' ')}</span>
+                    </h4>
+                    <div class="meta">
+                        <span>${formatDesignType(d.design_type)}</span>
+                        <span>${d.num_runs} runs</span>
+                        ${d.factors?.length ? `<span>${d.factors.length} factors</span>` : ''}
+                        ${d.execution_score ? `<span class="execution-score ${scoreClass}">Score: ${d.execution_score.toFixed(0)}%</span>` : ''}
+                        <span>${formatDate(d.created_at)}</span>
+                    </div>
+                </div>
+                <div class="design-actions" onclick="event.stopPropagation()">
+                    ${d.status === 'completed' ? `<button class="btn btn-primary btn-sm" onclick="reviewDesignExecution('${d.id}')">Review Execution</button>` : ''}
+                    <button class="btn btn-secondary btn-sm" onclick="openDesignInExperimenter('${d.id}')">View Design</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function formatDesignType(type) {
+    const types = {
+        'full_factorial': 'Full Factorial',
+        'fractional_factorial': 'Fractional Factorial',
+        'ccd': 'Central Composite',
+        'box_behnken': 'Box-Behnken',
+        'plackett_burman': 'Plackett-Burman',
+        'definitive_screening': 'Definitive Screening',
+        'taguchi': 'Taguchi',
+        'rcbd': 'Randomized Block',
+        'latin_square': 'Latin Square',
+        'custom': 'Custom'
+    };
+    return types[type] || type;
+}
+
+function viewExperimentDesign(id) {
+    // Navigate to experimenter with design loaded
+    window.location.href = `/app/experimenter/?design=${id}&project=${currentProject.id}`;
+}
+
+function openDesignInExperimenter(id) {
+    window.location.href = `/app/experimenter/?design=${id}&project=${currentProject.id}`;
+}
+
+async function reviewDesignExecution(designId) {
+    // Find the design
+    const design = currentProject.experiment_designs?.find(d => d.id === designId);
+    if (!design) {
+        alert('Design not found');
+        return;
+    }
+
+    // Find result datasets
+    const resultDatasets = currentProject.datasets?.filter(d => d.experiment_design === designId) || [];
+
+    if (resultDatasets.length === 0) {
+        alert('No result datasets found for this design. Upload experiment results first.');
+        return;
+    }
+
+    // Use first result dataset
+    const datasetId = resultDatasets[0].id;
+
+    try {
+        // First get the data
+        const dataResponse = await fetch(`/api/core/projects/${currentProject.id}/datasets/${datasetId}/data/`, { credentials: 'include' });
+        const dataResult = await dataResponse.json();
+
+        // Then request execution review
+        const response = await fetch(`/api/core/projects/${currentProject.id}/designs/${designId}/review/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ data: dataResult.data }),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            // Show review results (backend returns { success, review, design })
+            showExecutionReviewModal(result.review);
+        } else {
+            alert(result.error || 'Failed to review design execution');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function showExecutionReviewModal(review) {
+    // Create a modal to show the execution review
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    const scoreClass = review.overall_score >= 80 ? 'high' : review.overall_score >= 60 ? 'med' : 'low';
+    const grade = review.overall_score >= 90 ? 'A' : review.overall_score >= 80 ? 'B' : review.overall_score >= 70 ? 'C' : review.overall_score >= 60 ? 'D' : 'F';
+
+    modal.innerHTML = `
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Design Execution Review</h2>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding: 1.25rem;">
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <div style="font-size: 3rem; font-weight: 700; color: ${scoreClass === 'high' ? '#4a9f6e' : scoreClass === 'med' ? '#f59e0b' : '#ef4444'}">
+                        ${review.overall_score.toFixed(0)}%
+                    </div>
+                    <div style="font-size: 1.5rem; color: var(--text-dim);">Grade: ${review.grade || grade}</div>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;">${review.grade_description || ''}</p>
+                </div>
+
+                <h3 style="margin-bottom: 1rem;">Metric Breakdown</h3>
+                <div style="display: grid; gap: 1rem;">
+                    ${Object.entries(review.scores || {}).map(([key, metric]) => `
+                        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <strong>${formatMetricName(key)}</strong>
+                                <span style="color: ${metric.score >= 80 ? '#4a9f6e' : metric.score >= 60 ? '#f59e0b' : '#ef4444'}; font-weight: 600;">
+                                    ${metric.score.toFixed(0)}%
+                                </span>
+                            </div>
+                            <div style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                                <div style="width: ${metric.score}%; height: 100%; background: ${metric.score >= 80 ? '#4a9f6e' : metric.score >= 60 ? '#f59e0b' : '#ef4444'};"></div>
+                            </div>
+                            ${metric.description ? `<p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">${metric.description}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+
+                ${review.issues?.length ? `
+                    <h3 style="margin: 1.5rem 0 1rem;">Issues Found</h3>
+                    <ul style="color: #ef4444; padding-left: 1.5rem;">
+                        ${review.issues.map(issue => `<li>${issue}</li>`).join('')}
+                    </ul>
+                ` : ''}
+
+                ${review.recommendations?.length ? `
+                    <h3 style="margin: 1.5rem 0 1rem;">Recommendations</h3>
+                    <ul style="color: var(--text-secondary); padding-left: 1.5rem;">
+                        ${review.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                ` : ''}
+
+                <div style="margin-top: 1.5rem; text-align: right;">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+function formatMetricName(key) {
+    const names = {
+        'coverage': 'Run Coverage',
+        'balance': 'Factor Balance',
+        'fidelity': 'Value Fidelity',
+        'randomization': 'Randomization Order',
+        'sample_quality': 'Sample Quality'
+    };
+    return names[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+</script>
+{% endblock %}

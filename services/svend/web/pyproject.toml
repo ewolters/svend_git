@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "svend"
+version = "0.1.0"
+description = "Svend - Tool-augmented reasoning system"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Proprietary"}
+
+dependencies = [
+    "django>=5.0",
+    "djangorestframework>=3.14",
+    "django-cors-headers>=4.3",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "torch>=2.0",
+    "tiktoken>=0.5",
+    "tempora-scheduler",  # Distributed task scheduling (github.com/ewolters/tempora)
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.5",
+    "ruff>=0.3",
+]
+prod = [
+    "gunicorn>=21.0",
+    "psycopg2-binary>=2.9",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP"]
+ignore = ["E501"]

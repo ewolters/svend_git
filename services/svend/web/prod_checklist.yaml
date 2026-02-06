@@ -1,0 +1,234 @@
+# Svend Alpha Production Checklist
+# Target: Go live tonight at svend.ai
+
+machine:
+  ipv4: 108.193.83.15
+  ipv6: 2600:1700:6d85:1000:e283:dff:8294:17ce
+  get_ip_command: "curl -4 ifconfig.me"
+
+dns:
+  - task: Point svend.ai A record to this machine's IP
+    status: pending
+    record_type: A
+    value: 108.193.83.15
+    notes: "Caddy will auto-provision SSL cert once DNS resolves"
+
+  - task: Point www.svend.ai to same IP (or CNAME to svend.ai)
+    status: pending
+    record_type: A or CNAME
+    value: 108.193.83.15 (or CNAME to svend.ai)
+
+server:
+  - task: Install Caddy
+    status: done
+
+  - task: Create Caddyfile
+    status: done
+    path: /home/eric/Desktop/svend_transfer/svend/Caddyfile
+
+  - task: Run Caddy with Caddyfile
+    status: done
+    command: "sudo caddy run --config /home/eric/Desktop/svend_transfer/svend/Caddyfile"
+
+  - task: Install gunicorn
+    status: done
+
+  - task: Create production .env
+    status: done
+    path: /home/eric/Desktop/svend_transfer/svend/.env
+
+  - task: Collect static files
+    status: done
+    command: "python manage.py collectstatic --noinput"
+
+  - task: Run gunicorn
+    status: done
+    command: |
+      source /home/eric/Desktop/svend_transfer/.venv/bin/activate
+      cd /home/eric/Desktop/svend_transfer/svend
+      gunicorn svend.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 120
+
+django:
+  - task: Create .env with production settings
+    status: done
+    settings:
+      - SVEND_ENV=prod
+      - SVEND_DEBUG=false
+      - SVEND_SECRET_KEY=(generated)
+      - SVEND_ALLOWED_HOSTS=svend.ai,www.svend.ai,localhost
+      - SVEND_CORS_ORIGINS=https://svend.ai,https://www.svend.ai
+
+  - task: Run migrations
+    status: done
+
+  - task: Create test user for alpha testers
+    status: done
+    user: testuser / testpass123
+
+models:
+  - task: Safety Router trained
+    status: done
+    accuracy: "100% (46 test cases)"
+    checkpoint: router_27m/training/checkpoints/best_safety_router.pt
+
+  - task: Intuition Model trained
+    status: done
+    accuracy: "93.6% domain, calibrated difficulty"
+    checkpoint: intuition/checkpoints/best_intuition.pt
+
+  - task: Diffusion trained
+    status: done
+    checkpoint: diffusion/checkpoints/best_diffusion.pt
+    notes: "use_diffusion=False for alpha"
+
+  - task: MoE Reasoner training
+    status: in_progress
+    checkpoint: reasoner/checkpoints/checkpoint-36K.pt (after epoch 1)
+    notes: "Epoch 1 completes in ~90 min, will use that checkpoint"
+
+  - task: Verifier
+    status: untrained
+    notes: "Random output for alpha, train after reasoner"
+
+  - task: Language Model
+    status: partial
+    notes: "Base Pythia-410m with FiLM, needs fine-tuning on traces"
+
+features:
+  - task: Trace contract logging
+    status: done
+    models: TraceLog, TrainingCandidate
+
+  - task: Fail-closed correctness gate
+    status: done
+    thresholds:
+      verification_confidence: 0.3
+
+  - task: Training data collection from failures
+    status: done
+    endpoints:
+      - POST /api/messages/{id}/flag/
+      - GET /api/stats/traces/
+    export: "python manage.py export_training_candidates"
+
+  - task: User flagging endpoint
+    status: done
+
+  - task: Frontend chat UI
+    status: done
+    path: /home/eric/Desktop/svend_transfer/svend/templates/chat.html
+
+alpha_access:
+  - task: Invite code system
+    status: done
+    model: accounts.InviteCode
+    setting: SVEND_REQUIRE_INVITE=true (default, set to false for open registration)
+
+  - task: Registration endpoint
+    status: done
+    endpoint: POST /api/register/
+    fields: username, email, password, invite_code
+
+  - task: Generate initial invite codes
+    status: done
+    command: "python manage.py generate_invites 5 --note 'Friends & Family Alpha'"
+    generated_codes:
+      - 7374-0CB8
+      - DEA6-DC9B
+      - 378B-5D25
+      - 8ACA-84FD
+      - E0BD-61ED
+
+  commands:
+    generate_codes: "python manage.py generate_invites <count> --note 'description'"
+    generate_multi_use: "python manage.py generate_invites 1 --uses 10 --note 'shared code'"
+    list_codes: "python manage.py generate_invites --list"
+    disable_invites: "# Set SVEND_REQUIRE_INVITE=false in .env for open registration"
+
+api_endpoints:
+  - GET /api/health/
+  - GET /api/user/
+  - GET /api/conversations/
+  - GET /api/conversations/{id}/
+  - POST /api/chat/
+  - POST /api/share/
+  - POST /api/messages/{id}/flag/
+  - GET /api/stats/traces/
+  - POST /api/register/
+
+go_live_steps:
+  1. Wait for reasoner epoch 1 to complete (~90 min)
+  2. Update pipeline to use checkpoint-36K (or latest)
+  3. Point DNS to this machine
+  4. Wait for Caddy to provision SSL cert (automatic)
+  5. Test https://svend.ai/api/health/
+  6. Test login and chat flow
+  7. Share with friends & family alpha testers
+
+go_live_commands:
+  # 1. Point DNS (in your domain registrar)
+  #    svend.ai → A record → 108.193.83.15
+  #    www.svend.ai → A record → 108.193.83.15 (or CNAME to svend.ai)
+
+  # 2. Update pipeline to latest reasoner checkpoint
+  update_checkpoint: |
+    # Edit /home/eric/Desktop/svend_transfer/k/kjerne/pipeline/svend_pipeline.py
+    # Find: reasoner_checkpoint: Optional[str] = "reasoner/checkpoints/..."
+    # Change to latest checkpoint (e.g., checkpoint-36000.pt)
+
+  # 3. Restart gunicorn to pick up model changes
+  restart_gunicorn: |
+    pkill gunicorn
+    cd /home/eric/Desktop/svend_transfer/svend
+    source /home/eric/Desktop/svend_transfer/.venv/bin/activate
+    gunicorn svend.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 120 &
+
+  # 4. Caddy should already be running, just verify
+  verify_caddy: |
+    # If not running:
+    sudo caddy run --config /home/eric/Desktop/svend_transfer/svend/Caddyfile
+
+  # 5. Test endpoints
+  test_commands: |
+    curl -s https://svend.ai/api/health/
+    curl -s -X POST https://svend.ai/api/chat/ -u testuser:testpass123 -H "Content-Type: application/json" -d '{"message": "Hello"}'
+
+  # 6. Check logs if issues
+  check_logs: |
+    tail -f /tmp/gunicorn_access.log
+    tail -f /tmp/gunicorn_error.log
+    sudo tail -f /var/log/caddy/svend.log
+
+known_limitations_alpha:
+  - LM output quality is rough (Pythia base model, not fine-tuned)
+  - Reasoner only 1 epoch trained
+  - Verifier untrained (random confidence)
+  - No visualizations (charts, molecules) - text only
+  - SQLite database (switch to Postgres for beta)
+
+next_training_batch:
+  - task: Add visualization tool examples
+    status: done
+    path: /home/eric/Desktop/svend_transfer/k/kjerne/reasoner/data/generated/viz_training_data.jsonl
+    count: 83 examples
+    types:
+      - molecule: 44 (SMILES rendering)
+      - latex: 18 (math formulas)
+      - chart: 11 (statistical distributions)
+      - geometry: 6 (shapes, coordinates)
+      - graph: 4 (function plots)
+    notes: "Combine with existing 68K data for next reasoner training run"
+
+  - task: Fine-tune LM on trace->response pairs
+    status: pending
+    script: /home/eric/Desktop/svend_transfer/k/kjerne/language_model/training/train_lm_traces.py
+    data: 68K samples from reasoner_training_120k.json
+    notes: "Run after reasoner epoch 1 completes"
+
+  - task: Install RDKit for more chemistry SMILES
+    status: optional
+    command: "pip install rdkit"
+
+  - task: Train verifier
+    status: pending
+    notes: "Same architecture as reasoner, different objective"

@@ -1,0 +1,2967 @@
+{% extends "base_app.html" %}
+{% block title %}Whiteboard - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ============================================================================
+   WHITEBOARD - Visio-like Visual Mapping Tool
+   ============================================================================ */
+
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.wb-container {
+    --wb-bg: #1a1a1a;
+    --wb-grid: #252525;
+    --wb-accent: #4a9f6e;
+    --wb-text: #e8efe8;
+    --wb-text-dim: #9aaa9a;
+    --wb-border: rgba(74, 159, 110, 0.3);
+    --wb-panel: #121a12;
+
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 60px);
+    background: var(--wb-bg);
+    color: var(--wb-text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    overflow: hidden;
+}
+
+/* Toolbar */
+.wb-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--wb-panel);
+    border-bottom: 1px solid var(--wb-border);
+    flex-shrink: 0;
+}
+
+.wb-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    border-right: 1px solid var(--wb-border);
+}
+
+.wb-toolbar-group:last-child { border-right: none; }
+
+.wb-tool-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--wb-text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.wb-tool-btn:hover {
+    background: rgba(74, 159, 110, 0.15);
+    border-color: var(--wb-border);
+    color: var(--wb-text);
+}
+
+.wb-tool-btn.active {
+    background: rgba(74, 159, 110, 0.25);
+    border-color: var(--wb-accent);
+    color: var(--wb-accent);
+}
+
+.wb-tool-btn svg { width: 20px; height: 20px; }
+
+.wb-color-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.wb-color-btn:hover { transform: scale(1.1); }
+.wb-color-btn.active { border-color: white; }
+
+.wb-toolbar-label {
+    font-size: 10px;
+    color: var(--wb-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+}
+
+.wb-zoom-display {
+    font-size: 11px;
+    color: var(--wb-text-dim);
+    min-width: 50px;
+    text-align: center;
+}
+
+/* Main Area */
+.wb-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.wb-sidebar {
+    width: 220px;
+    background: var(--wb-panel);
+    border-right: 1px solid var(--wb-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.wb-sidebar-section {
+    border-bottom: 1px solid var(--wb-border);
+}
+
+.wb-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(74, 159, 110, 0.1);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--wb-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+}
+
+.wb-sidebar-content {
+    padding: 8px;
+}
+
+.wb-shape-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.wb-shape-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--wb-border);
+    border-radius: 6px;
+    cursor: grab;
+    transition: all 0.15s;
+}
+
+.wb-shape-item:hover {
+    background: rgba(74, 159, 110, 0.15);
+    border-color: var(--wb-accent);
+}
+
+.wb-shape-item svg {
+    width: 28px;
+    height: 28px;
+    color: var(--wb-text-dim);
+}
+
+.wb-shape-item span {
+    font-size: 9px;
+    color: var(--wb-text-dim);
+    text-align: center;
+}
+
+.wb-template-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--wb-border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.wb-template-item:hover {
+    background: rgba(74, 159, 110, 0.15);
+    border-color: var(--wb-accent);
+}
+
+.wb-template-item .icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(74, 159, 110, 0.2);
+    border-radius: 6px;
+    color: var(--wb-accent);
+}
+
+.wb-template-item .info {
+    flex: 1;
+}
+
+.wb-template-item .name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--wb-text);
+}
+
+.wb-template-item .desc {
+    font-size: 10px;
+    color: var(--wb-text-dim);
+}
+
+/* Canvas Area */
+.wb-canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+        linear-gradient(var(--wb-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--wb-grid) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: -1px -1px;
+}
+
+.wb-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: 0 0;
+}
+
+/* SVG for connections - inside canvas, transforms with it */
+.wb-connections {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 5000px;
+    height: 5000px;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 1;
+}
+
+.wb-connections path {
+    pointer-events: stroke;
+    cursor: pointer;
+}
+
+.wb-connections path:hover {
+    stroke-width: 3;
+}
+
+/* Elements should be above connections */
+.wb-element {
+    z-index: 2;
+}
+
+/* Elements */
+.wb-element {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+}
+
+.wb-element.selected {
+    outline: 2px solid var(--wb-accent);
+    outline-offset: 2px;
+}
+
+/* Post-it Note */
+.wb-postit {
+    width: 150px;
+    min-height: 100px;
+    padding: 12px;
+    border-radius: 2px;
+    box-shadow: 3px 3px 10px rgba(0,0,0,0.3);
+    font-size: 13px;
+    line-height: 1.4;
+    overflow: hidden;
+    background: #feff9c; /* Default yellow */
+    color: #333;
+}
+
+.wb-postit[contenteditable="true"] {
+    cursor: text;
+    outline: none;
+}
+
+.wb-element.wb-postit.yellow { background-color: #feff9c !important; color: #333 !important; }
+.wb-element.wb-postit.green { background-color: #7afcff !important; color: #333 !important; }
+.wb-element.wb-postit.pink { background-color: #ff7eb9 !important; color: #333 !important; }
+.wb-element.wb-postit.orange { background-color: #ff9f43 !important; color: #333 !important; }
+.wb-element.wb-postit.blue { background-color: #74b9ff !important; color: #333 !important; }
+.wb-element.wb-postit.purple { background-color: #a29bfe !important; color: #333 !important; }
+
+/* Group/Affinity Header */
+.wb-group {
+    min-width: 200px;
+    min-height: 150px;
+    background: rgba(74, 159, 110, 0.1);
+    border: 2px dashed var(--wb-accent);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.wb-group-header {
+    padding: 8px 12px;
+    background: var(--wb-accent);
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    cursor: text;
+}
+
+/* Process Shapes */
+.wb-process-shape {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wb-panel);
+    border: 2px solid var(--wb-accent);
+    color: var(--wb-text);
+    font-size: 12px;
+    text-align: center;
+    padding: 12px;
+}
+
+.wb-process-shape.rectangle {
+    width: 120px;
+    height: 60px;
+    border-radius: 4px;
+}
+
+.wb-process-shape.diamond {
+    width: 80px;
+    height: 80px;
+    transform: rotate(45deg);
+    border-radius: 4px;
+}
+
+.wb-process-shape.diamond span {
+    transform: rotate(-45deg);
+}
+
+.wb-process-shape.oval {
+    width: 120px;
+    height: 50px;
+    border-radius: 25px;
+}
+
+.wb-process-shape.parallelogram {
+    width: 120px;
+    height: 50px;
+    transform: skewX(-10deg);
+    border-radius: 4px;
+}
+
+.wb-process-shape.parallelogram span {
+    transform: skewX(10deg);
+}
+
+.wb-process-shape.document {
+    width: 120px;
+    height: 60px;
+    border-radius: 2px;
+    position: relative;
+    border-bottom: none;
+}
+
+.wb-process-shape.document::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 16px;
+    background: var(--wb-panel);
+    border: 2px solid var(--wb-accent);
+    border-top: none;
+    border-radius: 0 0 50% 50% / 0 0 100% 100%;
+}
+
+.wb-process-shape.cylinder {
+    width: 100px;
+    height: 80px;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    position: relative;
+}
+
+.wb-process-shape.cylinder::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: var(--wb-panel);
+    border: 2px solid var(--wb-accent);
+    border-radius: 50%;
+    z-index: 2;
+}
+
+.wb-process-shape.cylinder::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--wb-panel);
+    border: 2px solid var(--wb-accent);
+    border-top: none;
+    border-radius: 0 0 50% 50% / 0 0 30% 30%;
+}
+
+/* Connection Points */
+.wb-connection-point {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--wb-accent);
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: crosshair;
+    opacity: 0;
+    transition: opacity 0.15s, transform 0.15s;
+    z-index: 100;
+}
+
+.wb-connection-point:hover {
+    transform: translateX(-50%) scale(1.3);
+    background: #5fc484;
+}
+
+.wb-connection-point.top:hover { transform: translateX(-50%) scale(1.3); }
+.wb-connection-point.bottom:hover { transform: translateX(-50%) scale(1.3); }
+.wb-connection-point.left:hover { transform: translateY(-50%) scale(1.3); }
+.wb-connection-point.right:hover { transform: translateY(-50%) scale(1.3); }
+
+.wb-element:hover .wb-connection-point,
+.wb-element.selected .wb-connection-point {
+    opacity: 1;
+}
+
+/* Show all connection points when in connect mode */
+.wb-container.connect-mode .wb-connection-point {
+    opacity: 0.7;
+}
+
+.wb-container.connect-mode .wb-element:hover .wb-connection-point {
+    opacity: 1;
+}
+
+.wb-connection-point.top { top: -6px; left: 50%; transform: translateX(-50%); }
+.wb-connection-point.bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
+.wb-connection-point.left { left: -6px; top: 50%; transform: translateY(-50%); }
+.wb-connection-point.right { right: -6px; top: 50%; transform: translateY(-50%); }
+
+/* Temporary connection line while dragging */
+.wb-temp-connection {
+    stroke: var(--wb-accent);
+    stroke-width: 2;
+    stroke-dasharray: 5, 5;
+    fill: none;
+    pointer-events: none;
+}
+
+/* VSM Specific */
+.wb-vsm-process {
+    width: 100px;
+    height: 80px;
+    background: var(--wb-panel);
+    border: 2px solid #47a5e8;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+}
+
+.wb-vsm-process .title {
+    padding: 6px;
+    background: #47a5e8;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.wb-vsm-process .metrics {
+    flex: 1;
+    padding: 6px;
+    font-size: 10px;
+    color: var(--wb-text-dim);
+}
+
+.wb-vsm-inventory {
+    width: 60px;
+    height: 60px;
+    background: #e89547;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+/* Text/Label */
+.wb-text {
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--wb-text);
+    background: transparent;
+    border: none;
+    min-width: 50px;
+}
+
+.wb-text[contenteditable="true"]:focus {
+    outline: 1px dashed var(--wb-accent);
+}
+
+/* Context Menu */
+.wb-context-menu {
+    position: fixed;
+    background: var(--wb-panel);
+    border: 1px solid var(--wb-border);
+    border-radius: 8px;
+    padding: 6px 0;
+    min-width: 160px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    z-index: 1000;
+    display: none;
+}
+
+.wb-context-menu.active { display: block; }
+
+.wb-context-item {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--wb-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.wb-context-item:hover {
+    background: rgba(74, 159, 110, 0.2);
+}
+
+.wb-context-item svg {
+    width: 14px;
+    height: 14px;
+    color: var(--wb-text-dim);
+}
+
+.wb-context-sep {
+    height: 1px;
+    background: var(--wb-border);
+    margin: 4px 0;
+}
+
+/* Property Panel */
+.wb-properties {
+    width: 240px;
+    background: var(--wb-panel);
+    border-left: 1px solid var(--wb-border);
+    padding: 12px;
+    overflow-y: auto;
+    display: none;
+}
+
+.wb-properties.active { display: block; }
+
+.wb-prop-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--wb-accent);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.wb-prop-group {
+    margin-bottom: 16px;
+}
+
+.wb-prop-label {
+    font-size: 10px;
+    color: var(--wb-text-dim);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.wb-prop-input {
+    width: 100%;
+    padding: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--wb-border);
+    border-radius: 4px;
+    color: var(--wb-text);
+    font-size: 12px;
+}
+
+.wb-prop-input:focus {
+    outline: none;
+    border-color: var(--wb-accent);
+}
+
+/* Mini-map */
+.wb-minimap {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 150px;
+    height: 100px;
+    background: rgba(18, 26, 18, 0.9);
+    border: 1px solid var(--wb-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.wb-minimap-viewport {
+    position: absolute;
+    border: 1px solid var(--wb-accent);
+    background: rgba(74, 159, 110, 0.2);
+}
+
+/* Keyboard Shortcuts Help */
+.wb-shortcuts {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    font-size: 10px;
+    color: var(--wb-text-dim);
+    opacity: 0.6;
+}
+
+.wb-shortcuts kbd {
+    padding: 2px 5px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    margin-right: 4px;
+}
+
+/* Fishbone Diagram */
+.wb-fishbone {
+    position: relative;
+    min-width: 900px;
+    min-height: 500px;
+}
+
+.wb-fishbone-spine {
+    position: absolute;
+    left: 50px;
+    right: 120px;
+    top: 50%;
+    height: 4px;
+    background: var(--wb-accent);
+    transform: translateY(-50%);
+}
+
+.wb-fishbone-head {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 120px;
+    height: 60px;
+    background: var(--wb-accent);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: text;
+}
+
+.wb-fishbone-bone {
+    position: absolute;
+    width: 3px;
+    background: var(--wb-accent);
+    transform-origin: bottom center;
+}
+
+.wb-fishbone-bone.top {
+    transform: rotate(-30deg);
+}
+
+.wb-fishbone-bone.bottom {
+    transform: rotate(30deg);
+}
+
+.wb-fishbone-category {
+    position: absolute;
+    padding: 6px 12px;
+    background: rgba(74, 159, 110, 0.2);
+    border: 2px solid var(--wb-accent);
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--wb-accent);
+    white-space: nowrap;
+    cursor: text;
+}
+
+.wb-fishbone-causes {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.wb-fishbone-causes.top {
+    bottom: 100%;
+    margin-bottom: 8px;
+}
+
+.wb-fishbone-causes.bottom {
+    top: 100%;
+    margin-top: 8px;
+}
+
+.wb-fishbone-cause {
+    position: relative;
+    padding: 4px 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--wb-border);
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--wb-text);
+    cursor: text;
+    white-space: nowrap;
+}
+
+.wb-fishbone-cause::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 2px;
+    background: var(--wb-accent);
+    opacity: 0.5;
+}
+
+.wb-fishbone-causes.top .wb-fishbone-cause::before {
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.wb-fishbone-causes.bottom .wb-fishbone-cause::before {
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.wb-fishbone-add {
+    padding: 2px 8px;
+    background: transparent;
+    border: 1px dashed var(--wb-border);
+    border-radius: 3px;
+    font-size: 10px;
+    color: var(--wb-text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.wb-fishbone-add:hover {
+    border-color: var(--wb-accent);
+    color: var(--wb-accent);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wb-container">
+    <!-- Toolbar -->
+    <div class="wb-toolbar">
+        <div class="wb-toolbar-group">
+            <button class="wb-tool-btn active" data-tool="select" title="Select (V)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+                </svg>
+            </button>
+            <button class="wb-tool-btn" data-tool="pan" title="Pan (Space+Drag)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3"/>
+                </svg>
+            </button>
+            <button class="wb-tool-btn" data-tool="connect" title="Connect (C)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="wb-toolbar-group">
+            <button class="wb-tool-btn" data-tool="postit" title="Post-it Note (P)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+            </button>
+            <button class="wb-tool-btn" data-tool="text" title="Text (T)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="4 7 4 4 20 4 20 7"/>
+                    <line x1="9" y1="20" x2="15" y2="20"/>
+                    <line x1="12" y1="4" x2="12" y2="20"/>
+                </svg>
+            </button>
+            <button class="wb-tool-btn" data-tool="group" title="Group/Affinity (G)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-dasharray="4 2"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="wb-toolbar-group">
+            <span class="wb-toolbar-label">Color</span>
+            <button class="wb-color-btn active" data-color="yellow" style="background: #feff9c;" title="Yellow"></button>
+            <button class="wb-color-btn" data-color="green" style="background: #7afcff;" title="Cyan"></button>
+            <button class="wb-color-btn" data-color="pink" style="background: #ff7eb9;" title="Pink"></button>
+            <button class="wb-color-btn" data-color="orange" style="background: #ff9f43;" title="Orange"></button>
+            <button class="wb-color-btn" data-color="blue" style="background: #74b9ff;" title="Blue"></button>
+            <button class="wb-color-btn" data-color="purple" style="background: #a29bfe;" title="Purple"></button>
+        </div>
+
+        <div class="wb-toolbar-group">
+            <button class="wb-tool-btn" onclick="undo()" title="Undo (Ctrl+Z)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 10h10a5 5 0 0 1 5 5v2"/>
+                    <polyline points="3 10 7 6"/>
+                    <polyline points="3 10 7 14"/>
+                </svg>
+            </button>
+            <button class="wb-tool-btn" onclick="redo()" title="Redo (Ctrl+Shift+Z)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10H11a5 5 0 0 0-5 5v2"/>
+                    <polyline points="21 10 17 6"/>
+                    <polyline points="21 10 17 14"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="wb-toolbar-group">
+            <button class="wb-tool-btn" onclick="zoomIn()" title="Zoom In (+)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="11" y1="8" x2="11" y2="14"/>
+                    <line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+            </button>
+            <span class="wb-zoom-display" id="zoom-display">100%</span>
+            <button class="wb-tool-btn" onclick="zoomOut()" title="Zoom Out (-)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+            </button>
+            <button class="wb-tool-btn" onclick="zoomReset()" title="Reset Zoom (0)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div style="flex:1;"></div>
+
+        <div class="wb-toolbar-group">
+            <button class="wb-tool-btn" onclick="exportBoard('png')" title="Export as PNG">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+            </button>
+            <button class="wb-tool-btn" onclick="exportBoardJSON()" title="Export as JSON (backup)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="9" y1="15" x2="15" y2="15"/>
+                </svg>
+            </button>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBoardJSON(event)">
+            <button class="wb-tool-btn" onclick="document.getElementById('import-file').click()" title="Import JSON">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+            </button>
+            <button class="wb-tool-btn" onclick="saveBoard()" title="Save to browser (Ctrl+S)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Area -->
+    <div class="wb-main">
+        <!-- Sidebar -->
+        <div class="wb-sidebar">
+            <div class="wb-sidebar-section">
+                <div class="wb-sidebar-header">
+                    <span>Shapes</span>
+                </div>
+                <div class="wb-sidebar-content">
+                    <div class="wb-shape-grid">
+                        <div class="wb-shape-item" draggable="true" data-shape="rectangle">
+                            <svg viewBox="0 0 40 30"><rect x="2" y="2" width="36" height="26" fill="none" stroke="currentColor" stroke-width="2" rx="2"/></svg>
+                            <span>Process</span>
+                        </div>
+                        <div class="wb-shape-item" draggable="true" data-shape="diamond">
+                            <svg viewBox="0 0 40 40"><polygon points="20,2 38,20 20,38 2,20" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                            <span>Decision</span>
+                        </div>
+                        <div class="wb-shape-item" draggable="true" data-shape="oval">
+                            <svg viewBox="0 0 40 25"><ellipse cx="20" cy="12.5" rx="18" ry="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                            <span>Terminal</span>
+                        </div>
+                        <div class="wb-shape-item" draggable="true" data-shape="parallelogram">
+                            <svg viewBox="0 0 40 25"><polygon points="8,2 38,2 32,23 2,23" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                            <span>Data</span>
+                        </div>
+                        <div class="wb-shape-item" draggable="true" data-shape="document">
+                            <svg viewBox="0 0 40 35"><path d="M4,2 L36,2 L36,28 Q20,35 4,28 Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                            <span>Document</span>
+                        </div>
+                        <div class="wb-shape-item" draggable="true" data-shape="cylinder">
+                            <svg viewBox="0 0 40 40"><ellipse cx="20" cy="8" rx="16" ry="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4,8 L4,32" stroke="currentColor" stroke-width="2"/><path d="M36,8 L36,32" stroke="currentColor" stroke-width="2"/><ellipse cx="20" cy="32" rx="16" ry="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                            <span>Database</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wb-sidebar-section">
+                <div class="wb-sidebar-header">
+                    <span>Templates</span>
+                </div>
+                <div class="wb-sidebar-content">
+                    <div class="wb-template-item" onclick="loadTemplate('affinity')">
+                        <div class="icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                            </svg>
+                        </div>
+                        <div class="info">
+                            <div class="name">Affinity Diagram</div>
+                            <div class="desc">Group ideas into themes</div>
+                        </div>
+                    </div>
+                    <div class="wb-template-item" onclick="loadTemplate('interrelationship')">
+                        <div class="icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/>
+                                <path d="M12 8v4M8 17l2-4M16 17l-2-4"/>
+                            </svg>
+                        </div>
+                        <div class="info">
+                            <div class="name">Interrelationship</div>
+                            <div class="desc">Map cause-effect relations</div>
+                        </div>
+                    </div>
+                    <div class="wb-template-item" onclick="loadTemplate('process')">
+                        <div class="icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+                                <rect x="16" y="9" width="6" height="6" rx="1"/><path d="M8 12h1M15 12h1"/>
+                            </svg>
+                        </div>
+                        <div class="info">
+                            <div class="name">Process Map</div>
+                            <div class="desc">Document workflow steps</div>
+                        </div>
+                    </div>
+                    <div class="wb-template-item" onclick="loadTemplate('vsm')">
+                        <div class="icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h4v6H4zM10 4h4v6h-4zM16 4h4v6h-4z"/>
+                                <path d="M6 10v4M12 10v4M18 10v4"/>
+                                <path d="M2 18h20"/>
+                            </svg>
+                        </div>
+                        <div class="info">
+                            <div class="name">Value Stream Map</div>
+                            <div class="desc">Analyze flow & waste</div>
+                        </div>
+                    </div>
+                    <div class="wb-template-item" onclick="loadTemplate('fishbone')">
+                        <div class="icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 12h20M22 12l-4-4M22 12l-4 4"/>
+                                <path d="M6 6l4 6M6 18l4-6M12 4l2 8M12 20l2-8"/>
+                            </svg>
+                        </div>
+                        <div class="info">
+                            <div class="name">Fishbone / Ishikawa</div>
+                            <div class="desc">Cause-and-effect analysis</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wb-sidebar-section">
+                <div class="wb-sidebar-header">
+                    <span>Convert</span>
+                </div>
+                <div class="wb-sidebar-content">
+                    <div class="wb-template-item" onclick="convertAffinityToIR()">
+                        <div class="icon" style="background:rgba(71,165,232,0.2);color:#47a5e8;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                        <div class="info">
+                            <div class="name">Affinity → IR</div>
+                            <div class="desc">Groups become factors</div>
+                        </div>
+                    </div>
+                    <div class="wb-template-item" onclick="analyzeIR()">
+                        <div class="icon" style="background:rgba(232,149,71,0.2);color:#e89547;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18"/>
+                                <path d="M7 12l4-4 4 4 4-4"/>
+                            </svg>
+                        </div>
+                        <div class="info">
+                            <div class="name">Analyze IR</div>
+                            <div class="desc">Count arrows (driver/outcome)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wb-sidebar-section" style="flex:1;overflow-y:auto;">
+                <div class="wb-sidebar-header">
+                    <span>Boards</span>
+                    <button class="wb-tool-btn" style="width:24px;height:24px;" onclick="newBoard()" title="New Board">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="wb-sidebar-content" id="boards-list">
+                    <!-- Saved boards will be listed here -->
+                    <div style="color:var(--wb-text-dim);font-size:11px;text-align:center;padding:20px;">
+                        No saved boards yet
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="wb-canvas-container" id="canvas-container">
+            <div class="wb-canvas" id="canvas">
+                <svg class="wb-connections" id="connections-svg">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
+                            <polygon points="0 0, 12 4, 0 8" fill="#4a9f6e"/>
+                        </marker>
+                    </defs>
+                </svg>
+                <!-- Elements will be created here -->
+            </div>
+
+            <div class="wb-shortcuts">
+                <kbd>V</kbd> Select <kbd>P</kbd> Post-it <kbd>C</kbd> Connect <kbd>Del</kbd> Delete <kbd>Space</kbd> Pan <kbd>Ctrl+Z</kbd> Undo
+            </div>
+        </div>
+
+        <!-- Properties Panel -->
+        <div class="wb-properties" id="properties-panel">
+            <div class="wb-prop-title">Properties</div>
+            <div id="properties-content">
+                <p style="color:var(--wb-text-dim);font-size:11px;">Select an element to edit its properties</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="wb-context-menu" id="context-menu">
+        <div class="wb-context-item" onclick="duplicateSelected()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Duplicate
+        </div>
+        <div class="wb-context-item" onclick="bringToFront()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="18 15 12 9 6 15"/>
+            </svg>
+            Bring to Front
+        </div>
+        <div class="wb-context-item" onclick="sendToBack()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            Send to Back
+        </div>
+        <div class="wb-context-sep"></div>
+        <div class="wb-context-item" onclick="deleteSelected()" style="color:#e85747;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Delete
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================================
+// WHITEBOARD - Visual Mapping Tool
+// ============================================================================
+
+let currentTool = 'select';
+let currentColor = 'yellow';
+let selectedElement = null;
+let elements = [];
+let connections = [];
+let zoom = 1;
+let panX = 0, panY = 0;
+let isPanning = false;
+let isConnecting = false;
+let connectionStart = null;
+let elementIdCounter = 0;
+let isDragging = false;
+let didDrag = false;
+let dragOffset = { x: 0, y: 0 };
+
+// Undo/Redo history
+let history = [];
+let historyIndex = -1;
+const MAX_HISTORY = 50;
+
+const canvas = document.getElementById('canvas');
+const canvasContainer = document.getElementById('canvas-container');
+const connectionsSvg = document.getElementById('connections-svg');
+const contextMenu = document.getElementById('context-menu');
+
+// ============================================================================
+// Undo/Redo System
+// ============================================================================
+
+function saveState() {
+    // Clone current state
+    const state = {
+        elements: JSON.parse(JSON.stringify(elements)),
+        connections: JSON.parse(JSON.stringify(connections)),
+        elementIdCounter
+    };
+
+    // Remove any future states if we're in the middle of history
+    if (historyIndex < history.length - 1) {
+        history = history.slice(0, historyIndex + 1);
+    }
+
+    // Add new state
+    history.push(state);
+
+    // Limit history size
+    if (history.length > MAX_HISTORY) {
+        history.shift();
+    } else {
+        historyIndex++;
+    }
+}
+
+function restoreState(state) {
+    // Clear canvas
+    canvas.querySelectorAll('.wb-element').forEach(el => el.remove());
+    connectionsSvg.querySelectorAll('path').forEach(p => p.remove());
+
+    // Restore data
+    elements = [];
+    connections = state.connections;
+    elementIdCounter = state.elementIdCounter;
+    selectedElement = null;
+
+    // Recreate elements
+    state.elements.forEach(el => {
+        createElement(el.type, el.x, el.y, el, true); // true = skip saving state
+    });
+
+    // Render connections
+    setTimeout(() => renderConnections(), 10);
+}
+
+function undo() {
+    if (historyIndex > 0) {
+        historyIndex--;
+        restoreState(history[historyIndex]);
+    }
+}
+
+function redo() {
+    if (historyIndex < history.length - 1) {
+        historyIndex++;
+        restoreState(history[historyIndex]);
+    }
+}
+
+// ============================================================================
+// Tool Selection
+// ============================================================================
+
+document.querySelectorAll('.wb-tool-btn[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.wb-tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTool = btn.dataset.tool;
+
+        // Set cursor based on tool
+        if (currentTool === 'pan') {
+            canvasContainer.style.cursor = 'grab';
+        } else if (currentTool === 'connect') {
+            canvasContainer.style.cursor = 'crosshair';
+        } else {
+            canvasContainer.style.cursor = 'default';
+        }
+
+        // Toggle connect mode class for showing connection points
+        const container = document.querySelector('.wb-container');
+        if (currentTool === 'connect') {
+            container.classList.add('connect-mode');
+        } else {
+            container.classList.remove('connect-mode');
+        }
+    });
+});
+
+document.querySelectorAll('.wb-color-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.wb-color-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentColor = btn.dataset.color;
+        console.log('Color changed to:', currentColor);
+
+        // Update selected element color
+        if (selectedElement && selectedElement.classList.contains('wb-postit')) {
+            saveState();
+            // Remove old color classes
+            ['yellow', 'green', 'pink', 'orange', 'blue', 'purple'].forEach(c => {
+                selectedElement.classList.remove(c);
+            });
+            // Add new color
+            selectedElement.classList.add(currentColor);
+            updateElementData(selectedElement.dataset.id, { color: currentColor });
+        }
+    });
+});
+
+// ============================================================================
+// Element Creation
+// ============================================================================
+
+function createElement(type, x, y, options = {}, skipHistory = false) {
+    if (!skipHistory) saveState();
+    const id = options.id || `el-${++elementIdCounter}`;
+    const el = document.createElement('div');
+    el.className = 'wb-element';
+    el.dataset.id = id;
+    el.dataset.type = type;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+
+    const elementData = {
+        id,
+        type,
+        x,
+        y,
+        ...options
+    };
+
+    switch (type) {
+        case 'postit':
+            const postitColor = options.color || currentColor;
+            el.classList.add('wb-postit', postitColor);
+            el.contentEditable = 'true';
+            el.textContent = options.text || 'Double-click to edit';
+            elementData.color = postitColor;
+            elementData.text = options.text || '';
+            console.log('Created postit with color:', postitColor, 'classes:', el.className);
+            break;
+
+        case 'text':
+            el.className += ' wb-text';
+            el.contentEditable = 'true';
+            el.textContent = options.text || 'Text';
+            elementData.text = options.text || 'Text';
+            break;
+
+        case 'group':
+            el.className += ' wb-group';
+            el.innerHTML = `<div class="wb-group-header" contenteditable="true">${options.title || 'Group Title'}</div>`;
+            el.style.width = `${options.width || 250}px`;
+            el.style.height = `${options.height || 200}px`;
+            elementData.title = options.title || 'Group Title';
+            elementData.width = options.width || 250;
+            elementData.height = options.height || 200;
+            break;
+
+        case 'rectangle':
+        case 'diamond':
+        case 'oval':
+        case 'parallelogram':
+            el.className += ` wb-process-shape ${type}`;
+            el.innerHTML = `<span contenteditable="true">${options.text || 'Step'}</span>`;
+            elementData.text = options.text || 'Step';
+            break;
+
+        case 'vsm-process':
+            el.className += ' wb-vsm-process';
+            el.innerHTML = `
+                <div class="title" contenteditable="true">${options.title || 'Process'}</div>
+                <div class="metrics">
+                    <div>CT: ${options.ct || '0'}</div>
+                    <div>C/O: ${options.co || '0'}</div>
+                </div>
+            `;
+            break;
+
+        case 'vsm-inventory':
+            el.className += ' wb-vsm-inventory';
+            el.innerHTML = `<div>${options.qty || '0'}</div><div>pcs</div>`;
+            break;
+
+        case 'document':
+            el.className += ' wb-process-shape document';
+            el.innerHTML = `<span contenteditable="true">${options.text || 'Document'}</span>`;
+            elementData.text = options.text || 'Document';
+            break;
+
+        case 'cylinder':
+            el.className += ' wb-process-shape cylinder';
+            el.innerHTML = `<span contenteditable="true" style="position:relative;z-index:3;">${options.text || 'Database'}</span>`;
+            elementData.text = options.text || 'Database';
+            break;
+
+        case 'fishbone':
+            // Fishbone is created separately, but handle restore
+            el.className += ' wb-fishbone';
+            elementData.effect = options.effect || 'Hypothesis / Effect';
+            elementData.categories = options.categories || [];
+            renderFishbone(el, elementData);
+            // Skip adding connection points for fishbone
+            canvas.appendChild(el);
+            elements.push(elementData);
+            return el;
+    }
+
+    // Add connection points
+    addConnectionPoints(el);
+
+    // Event listeners
+    el.addEventListener('mousedown', (e) => onElementMouseDown(e, el));
+    el.addEventListener('dblclick', (e) => onElementDoubleClick(e, el));
+    el.addEventListener('contextmenu', (e) => onElementContextMenu(e, el));
+
+    canvas.appendChild(el);
+    elements.push(elementData);
+
+    return el;
+}
+
+function addConnectionPoints(el) {
+    ['top', 'bottom', 'left', 'right'].forEach(pos => {
+        const point = document.createElement('div');
+        point.className = `wb-connection-point ${pos}`;
+        point.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            startConnection(e, el, pos);
+        });
+        point.addEventListener('mouseup', (e) => {
+            e.stopPropagation();
+            if (isConnecting && connectionStart) {
+                finishConnection(el, pos);
+            }
+        });
+        point.addEventListener('mouseenter', (e) => {
+            if (isConnecting) {
+                point.style.transform = pos === 'top' || pos === 'bottom'
+                    ? 'translateX(-50%) scale(1.5)'
+                    : 'translateY(-50%) scale(1.5)';
+                point.style.background = '#5fc484';
+            }
+        });
+        point.addEventListener('mouseleave', (e) => {
+            point.style.transform = '';
+            point.style.background = '';
+        });
+        el.appendChild(point);
+    });
+}
+
+// ============================================================================
+// Element Interaction
+// ============================================================================
+
+function onElementMouseDown(e, el) {
+    if (e.target.classList.contains('wb-connection-point')) return;
+    if (el.contentEditable === 'true' && document.activeElement === el) return;
+
+    e.stopPropagation();
+
+    selectElement(el);
+
+    if (currentTool === 'select') {
+        isDragging = true;
+        didDrag = false;
+        const rect = el.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        dragOffset.x = e.clientX - rect.left;
+        dragOffset.y = e.clientY - rect.top;
+        el.style.cursor = 'grabbing';
+    }
+}
+
+function onElementDoubleClick(e, el) {
+    if (el.contentEditable === 'true') {
+        el.focus();
+        // Select all text
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+}
+
+function onElementContextMenu(e, el) {
+    e.preventDefault();
+    selectElement(el);
+    showContextMenu(e.clientX, e.clientY);
+}
+
+function selectElement(el) {
+    if (selectedElement) {
+        selectedElement.classList.remove('selected');
+    }
+    selectedElement = el;
+    el.classList.add('selected');
+    showProperties(el);
+}
+
+function deselectAll() {
+    if (selectedElement) {
+        selectedElement.classList.remove('selected');
+        selectedElement = null;
+    }
+    hideContextMenu();
+    document.getElementById('properties-panel').classList.remove('active');
+}
+
+// ============================================================================
+// Connections
+// ============================================================================
+
+let tempConnectionLine = null;
+
+function startConnection(e, el, position) {
+    e.stopPropagation();
+    e.preventDefault();
+    isConnecting = true;
+    connectionStart = { element: el, position };
+    canvasContainer.style.cursor = 'crosshair';
+
+    // Create temporary connection line
+    tempConnectionLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    tempConnectionLine.classList.add('wb-temp-connection');
+    const startPoint = getConnectionPoint(el, position);
+    connectionStart.startPoint = startPoint;
+    tempConnectionLine.setAttribute('d', `M ${startPoint.x} ${startPoint.y} L ${startPoint.x} ${startPoint.y}`);
+    connectionsSvg.appendChild(tempConnectionLine);
+
+    console.log('Started connection from', el.dataset.id, position);
+}
+
+function updateTempConnection(e) {
+    if (!isConnecting || !tempConnectionLine || !connectionStart) return;
+
+    const rect = canvasContainer.getBoundingClientRect();
+    const x = (e.clientX - rect.left - panX) / zoom;
+    const y = (e.clientY - rect.top - panY) / zoom;
+
+    const from = connectionStart.startPoint;
+
+    // Calculate a smooth curve to the cursor
+    const dx = x - from.x;
+    const dy = y - from.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const cpDist = Math.min(100, Math.max(30, dist * 0.4));
+
+    const cp1x = from.x + from.dir.x * cpDist;
+    const cp1y = from.y + from.dir.y * cpDist;
+
+    // Simple curve to cursor
+    const d = `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${x} ${y}, ${x} ${y}`;
+    tempConnectionLine.setAttribute('d', d);
+}
+
+function finishConnection(el, position) {
+    if (!isConnecting || !connectionStart) return;
+
+    // Remove temp line
+    if (tempConnectionLine) {
+        tempConnectionLine.remove();
+        tempConnectionLine = null;
+    }
+
+    if (connectionStart.element !== el) {
+        createConnection(
+            connectionStart.element.dataset.id,
+            connectionStart.position,
+            el.dataset.id,
+            position
+        );
+        console.log('Created connection to', el.dataset.id, position);
+    }
+
+    isConnecting = false;
+    connectionStart = null;
+    canvasContainer.style.cursor = currentTool === 'connect' ? 'crosshair' : 'default';
+}
+
+function cancelConnection() {
+    if (tempConnectionLine) {
+        tempConnectionLine.remove();
+        tempConnectionLine = null;
+    }
+    isConnecting = false;
+    connectionStart = null;
+    canvasContainer.style.cursor = currentTool === 'connect' ? 'crosshair' : 'default';
+}
+
+function createConnection(fromId, fromPos, toId, toPos, options = {}, skipHistory = false) {
+    if (!skipHistory) saveState();
+    const id = `conn-${connections.length}`;
+    connections.push({
+        id,
+        from: { elementId: fromId, position: fromPos },
+        to: { elementId: toId, position: toPos },
+        ...options
+    });
+    renderConnections();
+}
+
+function renderConnections() {
+    // Clear existing paths
+    connectionsSvg.querySelectorAll('path').forEach(p => p.remove());
+
+    connections.forEach(conn => {
+        const fromEl = document.querySelector(`[data-id="${conn.from.elementId}"]`);
+        const toEl = document.querySelector(`[data-id="${conn.to.elementId}"]`);
+
+        if (!fromEl || !toEl) return;
+
+        const fromPoint = getConnectionPoint(fromEl, conn.from.position);
+        const toPoint = getConnectionPoint(toEl, conn.to.position);
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+        // Calculate smooth bezier curve
+        const d = calculateCurvePath(fromPoint, toPoint, conn.from.position, conn.to.position);
+
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', '#4a9f6e');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('marker-end', 'url(#arrowhead)');
+        path.dataset.connectionId = conn.id;
+
+        path.addEventListener('click', () => {
+            // Select connection for deletion
+            path.setAttribute('stroke', '#e85747');
+            setTimeout(() => {
+                if (confirm('Delete this connection?')) {
+                    saveState();
+                    connections = connections.filter(c => c.id !== conn.id);
+                    renderConnections();
+                } else {
+                    path.setAttribute('stroke', '#4a9f6e');
+                }
+            }, 100);
+        });
+
+        connectionsSvg.appendChild(path);
+    });
+}
+
+function getConnectionPoint(el, position) {
+    // Get position directly from element's style (canvas coordinates)
+    const x = parseFloat(el.style.left) || 0;
+    const y = parseFloat(el.style.top) || 0;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+
+    // Padding to keep arrows outside shape bounds
+    const pad = 8;
+
+    switch (position) {
+        case 'top': return { x: x + w/2, y: y - pad, dir: { x: 0, y: -1 } };
+        case 'bottom': return { x: x + w/2, y: y + h + pad, dir: { x: 0, y: 1 } };
+        case 'left': return { x: x - pad, y: y + h/2, dir: { x: -1, y: 0 } };
+        case 'right': return { x: x + w + pad, y: y + h/2, dir: { x: 1, y: 0 } };
+        default: return { x: x + w/2, y: y + h/2, dir: { x: 0, y: 0 } };
+    }
+}
+
+function calculateCurvePath(from, to, fromPos, toPos) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // For very short distances, just use straight line
+    if (dist < 30) {
+        return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+    }
+
+    // Check if the "from" direction points toward the "to" point
+    const fromDotDelta = from.dir.x * dx + from.dir.y * dy;
+    const fromTowardTo = fromDotDelta > 0;
+
+    // Check if the "to" direction points away from the "from" point
+    const toDotDelta = to.dir.x * dx + to.dir.y * dy;
+    const toAwayFromFrom = toDotDelta >= 0;
+
+    let cp1x, cp1y, cp2x, cp2y;
+
+    if (fromTowardTo && toAwayFromFrom) {
+        // IDEAL: Natural flow - from points toward to, to points away
+        // Simple smooth curve
+        const cpDist = Math.min(100, Math.max(25, dist * 0.35));
+        cp1x = from.x + from.dir.x * cpDist;
+        cp1y = from.y + from.dir.y * cpDist;
+        cp2x = to.x - to.dir.x * cpDist;
+        cp2y = to.y - to.dir.y * cpDist;
+    } else if (!fromTowardTo && !toAwayFromFrom) {
+        // OPPOSITE: Both pointing "wrong" way - need to go around
+        // Route perpendicular first, then to target
+        const offset = Math.min(60, Math.max(30, dist * 0.4));
+
+        // Go out perpendicular to the main axis
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // Mostly horizontal - go up or down first
+            const perpY = dy > 0 ? -offset : offset;
+            cp1x = from.x + from.dir.x * offset;
+            cp1y = from.y + perpY;
+            cp2x = to.x - to.dir.x * offset;
+            cp2y = to.y + perpY;
+        } else {
+            // Mostly vertical - go left or right first
+            const perpX = dx > 0 ? -offset : offset;
+            cp1x = from.x + perpX;
+            cp1y = from.y + from.dir.y * offset;
+            cp2x = to.x + perpX;
+            cp2y = to.y - to.dir.y * offset;
+        }
+    } else {
+        // MIXED: One pointing right way, one wrong - gentle adjustment
+        const cpDist = Math.min(60, Math.max(20, dist * 0.25));
+
+        // Extend from connection points but keep it minimal
+        cp1x = from.x + from.dir.x * cpDist;
+        cp1y = from.y + from.dir.y * cpDist;
+        cp2x = to.x - to.dir.x * cpDist;
+        cp2y = to.y - to.dir.y * cpDist;
+
+        // Pull control points toward the midpoint to prevent loops
+        const midX = (from.x + to.x) / 2;
+        const midY = (from.y + to.y) / 2;
+        cp1x = cp1x * 0.7 + midX * 0.3;
+        cp1y = cp1y * 0.7 + midY * 0.3;
+        cp2x = cp2x * 0.7 + midX * 0.3;
+        cp2y = cp2y * 0.7 + midY * 0.3;
+    }
+
+    return `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${to.x} ${to.y}`;
+}
+
+// ============================================================================
+// Canvas Events
+// ============================================================================
+
+canvasContainer.addEventListener('mousedown', (e) => {
+    if (e.target === canvasContainer || e.target === canvas) {
+        deselectAll();
+
+        if (currentTool === 'pan' || e.button === 1) {
+            isPanning = true;
+            canvasContainer.style.cursor = 'grabbing';
+        } else if (currentTool === 'postit') {
+            const rect = canvasContainer.getBoundingClientRect();
+            const x = (e.clientX - rect.left - panX) / zoom;
+            const y = (e.clientY - rect.top - panY) / zoom;
+            const el = createElement('postit', x, y);
+            selectElement(el);
+        } else if (currentTool === 'text') {
+            const rect = canvasContainer.getBoundingClientRect();
+            const x = (e.clientX - rect.left - panX) / zoom;
+            const y = (e.clientY - rect.top - panY) / zoom;
+            const el = createElement('text', x, y);
+            selectElement(el);
+        } else if (currentTool === 'group') {
+            const rect = canvasContainer.getBoundingClientRect();
+            const x = (e.clientX - rect.left - panX) / zoom;
+            const y = (e.clientY - rect.top - panY) / zoom;
+            const el = createElement('group', x, y);
+            selectElement(el);
+        }
+    }
+});
+
+canvasContainer.addEventListener('mousemove', (e) => {
+    if (isPanning) {
+        panX += e.movementX;
+        panY += e.movementY;
+        updateCanvasTransform();
+    } else if (isDragging && selectedElement) {
+        if (!didDrag) {
+            saveState(); // Save state on first move
+            didDrag = true;
+        }
+        const rect = canvasContainer.getBoundingClientRect();
+        const x = (e.clientX - rect.left - panX) / zoom - dragOffset.x;
+        const y = (e.clientY - rect.top - panY) / zoom - dragOffset.y;
+
+        selectedElement.style.left = `${x}px`;
+        selectedElement.style.top = `${y}px`;
+
+        updateElementData(selectedElement.dataset.id, { x, y });
+        renderConnections();
+    } else if (isConnecting) {
+        updateTempConnection(e);
+    }
+});
+
+canvasContainer.addEventListener('mouseup', (e) => {
+    if (isPanning) {
+        isPanning = false;
+        canvasContainer.style.cursor = currentTool === 'pan' ? 'grab' : 'default';
+    }
+    if (isDragging) {
+        isDragging = false;
+        if (selectedElement) {
+            selectedElement.style.cursor = 'move';
+        }
+    }
+    if (isConnecting) {
+        // Check if mouse is over a connection point
+        const target = e.target;
+        if (target.classList.contains('wb-connection-point')) {
+            const el = target.closest('.wb-element');
+            const pos = ['top', 'bottom', 'left', 'right'].find(p => target.classList.contains(p));
+            finishConnection(el, pos);
+        } else {
+            // Cancel the connection if not dropped on a connection point
+            cancelConnection();
+        }
+    }
+});
+
+canvasContainer.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    zoom = Math.max(0.25, Math.min(3, zoom + delta));
+    updateCanvasTransform();
+    document.getElementById('zoom-display').textContent = `${Math.round(zoom * 100)}%`;
+});
+
+// ============================================================================
+// Zoom Controls
+// ============================================================================
+
+function zoomIn() {
+    zoom = Math.min(3, zoom + 0.25);
+    updateCanvasTransform();
+    document.getElementById('zoom-display').textContent = `${Math.round(zoom * 100)}%`;
+}
+
+function zoomOut() {
+    zoom = Math.max(0.25, zoom - 0.25);
+    updateCanvasTransform();
+    document.getElementById('zoom-display').textContent = `${Math.round(zoom * 100)}%`;
+}
+
+function zoomReset() {
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+    updateCanvasTransform();
+    document.getElementById('zoom-display').textContent = '100%';
+}
+
+function updateCanvasTransform() {
+    canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    // SVG is now inside canvas, so it transforms automatically
+}
+
+// ============================================================================
+// Context Menu
+// ============================================================================
+
+function showContextMenu(x, y) {
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+    contextMenu.classList.add('active');
+}
+
+function hideContextMenu() {
+    contextMenu.classList.remove('active');
+}
+
+document.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target)) {
+        hideContextMenu();
+    }
+});
+
+function duplicateSelected() {
+    if (!selectedElement) return;
+    hideContextMenu();
+
+    const data = elements.find(el => el.id === selectedElement.dataset.id);
+    if (!data) return;
+
+    const newEl = createElement(data.type, data.x + 20, data.y + 20, { ...data });
+    selectElement(newEl);
+}
+
+function bringToFront() {
+    if (!selectedElement) return;
+    hideContextMenu();
+    canvas.appendChild(selectedElement);
+}
+
+function sendToBack() {
+    if (!selectedElement) return;
+    hideContextMenu();
+    canvas.insertBefore(selectedElement, canvas.firstChild);
+}
+
+function deleteSelected() {
+    if (!selectedElement) return;
+    hideContextMenu();
+    saveState();
+
+    const id = selectedElement.dataset.id;
+
+    // Remove connections to/from this element
+    connections = connections.filter(c =>
+        c.from.elementId !== id && c.to.elementId !== id
+    );
+    renderConnections();
+
+    // Remove element data
+    elements = elements.filter(el => el.id !== id);
+
+    // Remove DOM element
+    selectedElement.remove();
+    selectedElement = null;
+
+    document.getElementById('properties-panel').classList.remove('active');
+}
+
+// ============================================================================
+// Properties Panel
+// ============================================================================
+
+function showProperties(el) {
+    const panel = document.getElementById('properties-panel');
+    const content = document.getElementById('properties-content');
+    const data = elements.find(e => e.id === el.dataset.id);
+
+    if (!data) return;
+
+    let html = '';
+
+    if (data.type === 'postit' || data.type === 'text') {
+        html = `
+            <div class="wb-prop-group">
+                <div class="wb-prop-label">Content</div>
+                <textarea class="wb-prop-input" style="height:80px;resize:vertical;"
+                    onchange="updateElementContent('${data.id}', this.value)">${el.textContent}</textarea>
+            </div>
+        `;
+    }
+
+    if (data.type === 'group') {
+        html = `
+            <div class="wb-prop-group">
+                <div class="wb-prop-label">Title</div>
+                <input class="wb-prop-input" type="text" value="${data.title || ''}"
+                    onchange="updateGroupTitle('${data.id}', this.value)">
+            </div>
+            <div class="wb-prop-group">
+                <div class="wb-prop-label">Width</div>
+                <input class="wb-prop-input" type="number" value="${data.width || 250}"
+                    onchange="updateGroupSize('${data.id}', this.value, null)">
+            </div>
+            <div class="wb-prop-group">
+                <div class="wb-prop-label">Height</div>
+                <input class="wb-prop-input" type="number" value="${data.height || 200}"
+                    onchange="updateGroupSize('${data.id}', null, this.value)">
+            </div>
+        `;
+    }
+
+    html += `
+        <div class="wb-prop-group">
+            <div class="wb-prop-label">Position</div>
+            <div style="display:flex;gap:8px;">
+                <input class="wb-prop-input" type="number" value="${Math.round(data.x)}" placeholder="X"
+                    onchange="updateElementPosition('${data.id}', this.value, null)" style="flex:1;">
+                <input class="wb-prop-input" type="number" value="${Math.round(data.y)}" placeholder="Y"
+                    onchange="updateElementPosition('${data.id}', null, this.value)" style="flex:1;">
+            </div>
+        </div>
+    `;
+
+    content.innerHTML = html;
+    panel.classList.add('active');
+}
+
+function updateElementData(id, updates) {
+    const idx = elements.findIndex(el => el.id === id);
+    if (idx >= 0) {
+        elements[idx] = { ...elements[idx], ...updates };
+    }
+}
+
+function updateElementContent(id, text) {
+    const el = document.querySelector(`[data-id="${id}"]`);
+    if (el) {
+        el.textContent = text;
+        updateElementData(id, { text });
+    }
+}
+
+function updateElementPosition(id, x, y) {
+    const el = document.querySelector(`[data-id="${id}"]`);
+    if (el) {
+        if (x !== null) el.style.left = `${x}px`;
+        if (y !== null) el.style.top = `${y}px`;
+        updateElementData(id, {
+            x: x !== null ? parseFloat(x) : elements.find(e => e.id === id)?.x,
+            y: y !== null ? parseFloat(y) : elements.find(e => e.id === id)?.y
+        });
+        renderConnections();
+    }
+}
+
+function updateGroupTitle(id, title) {
+    const el = document.querySelector(`[data-id="${id}"]`);
+    if (el) {
+        el.querySelector('.wb-group-header').textContent = title;
+        updateElementData(id, { title });
+    }
+}
+
+function updateGroupSize(id, width, height) {
+    const el = document.querySelector(`[data-id="${id}"]`);
+    if (el) {
+        if (width !== null) el.style.width = `${width}px`;
+        if (height !== null) el.style.height = `${height}px`;
+        updateElementData(id, {
+            width: width !== null ? parseFloat(width) : elements.find(e => e.id === id)?.width,
+            height: height !== null ? parseFloat(height) : elements.find(e => e.id === id)?.height
+        });
+    }
+}
+
+// ============================================================================
+// Templates
+// ============================================================================
+
+function clearCanvas(resetHistory = false) {
+    // Remove elements but preserve the SVG
+    canvas.querySelectorAll('.wb-element').forEach(el => el.remove());
+    connectionsSvg.querySelectorAll('path').forEach(p => p.remove());
+    elements = [];
+    connections = [];
+    elementIdCounter = 0;
+    selectedElement = null;
+
+    if (resetHistory) {
+        history = [];
+        historyIndex = -1;
+    }
+}
+
+function loadTemplate(template) {
+    clearCanvas(true); // Reset history for templates
+
+    switch (template) {
+        case 'affinity':
+            // Create groups
+            createElement('group', 50, 50, { title: 'Theme 1', width: 280, height: 300 });
+            createElement('group', 360, 50, { title: 'Theme 2', width: 280, height: 300 });
+            createElement('group', 670, 50, { title: 'Theme 3', width: 280, height: 300 });
+
+            // Add sample post-its
+            createElement('postit', 70, 120, { color: 'yellow', text: 'Idea 1' });
+            createElement('postit', 70, 240, { color: 'yellow', text: 'Idea 2' });
+            createElement('postit', 380, 120, { color: 'green', text: 'Idea 3' });
+            createElement('postit', 690, 120, { color: 'pink', text: 'Idea 4' });
+            break;
+
+        case 'interrelationship':
+            // Create nodes in a circle
+            const centerX = 400, centerY = 250, radius = 180;
+            const nodes = ['Factor A', 'Factor B', 'Factor C', 'Factor D', 'Factor E'];
+            nodes.forEach((name, i) => {
+                const angle = (i / nodes.length) * 2 * Math.PI - Math.PI/2;
+                const x = centerX + radius * Math.cos(angle) - 60;
+                const y = centerY + radius * Math.sin(angle) - 30;
+                createElement('rectangle', x, y, { text: name });
+            });
+            break;
+
+        case 'process':
+            createElement('oval', 50, 150, { text: 'Start' });
+            createElement('rectangle', 200, 140, { text: 'Step 1' });
+            createElement('diamond', 370, 130, { text: 'Decision?' });
+            createElement('rectangle', 500, 140, { text: 'Step 2' });
+            createElement('oval', 670, 150, { text: 'End' });
+
+            // Add connections
+            setTimeout(() => {
+                createConnection('el-1', 'right', 'el-2', 'left');
+                createConnection('el-2', 'right', 'el-3', 'left');
+                createConnection('el-3', 'right', 'el-4', 'left');
+                createConnection('el-4', 'right', 'el-5', 'left');
+            }, 100);
+            break;
+
+        case 'vsm':
+            // Supplier
+            createElement('rectangle', 50, 100, { text: 'Supplier' });
+
+            // Process boxes
+            createElement('rectangle', 200, 100, { text: 'Process 1' });
+            createElement('rectangle', 380, 100, { text: 'Process 2' });
+            createElement('rectangle', 560, 100, { text: 'Process 3' });
+
+            // Customer
+            createElement('rectangle', 720, 100, { text: 'Customer' });
+
+            // Timeline
+            createElement('text', 50, 280, { text: 'Lead Time: ___' });
+            break;
+
+        case 'fishbone':
+            createFishbone(50, 100, 'Hypothesis / Effect');
+            break;
+    }
+
+    // Save initial state after template load
+    setTimeout(() => saveState(), 100);
+}
+
+// ============================================================================
+// Drag and Drop from Sidebar
+// ============================================================================
+
+document.querySelectorAll('.wb-shape-item[draggable="true"]').forEach(item => {
+    item.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('shape', item.dataset.shape);
+    });
+});
+
+canvasContainer.addEventListener('dragover', (e) => {
+    e.preventDefault();
+});
+
+canvasContainer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const shape = e.dataTransfer.getData('shape');
+    if (shape) {
+        const rect = canvasContainer.getBoundingClientRect();
+        const x = (e.clientX - rect.left - panX) / zoom;
+        const y = (e.clientY - rect.top - panY) / zoom;
+        const el = createElement(shape, x, y);
+        selectElement(el);
+    }
+});
+
+// ============================================================================
+// Keyboard Shortcuts
+// ============================================================================
+
+document.addEventListener('keydown', (e) => {
+    // Don't handle if typing in an editable element
+    if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+
+    switch (e.key.toLowerCase()) {
+        case 'v':
+            document.querySelector('[data-tool="select"]').click();
+            break;
+        case 'p':
+            document.querySelector('[data-tool="postit"]').click();
+            break;
+        case 'c':
+            document.querySelector('[data-tool="connect"]').click();
+            break;
+        case 't':
+            document.querySelector('[data-tool="text"]').click();
+            break;
+        case 'g':
+            document.querySelector('[data-tool="group"]').click();
+            break;
+        case 'delete':
+        case 'backspace':
+            if (selectedElement) {
+                deleteSelected();
+            }
+            break;
+        case '=':
+        case '+':
+            zoomIn();
+            break;
+        case '-':
+            zoomOut();
+            break;
+        case '0':
+            zoomReset();
+            break;
+        case 's':
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                saveBoard();
+            }
+            break;
+        case 'z':
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    redo();
+                } else {
+                    undo();
+                }
+            }
+            break;
+        case 'y':
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                redo();
+            }
+            break;
+        case 'escape':
+            if (isConnecting) {
+                cancelConnection();
+            } else {
+                deselectAll();
+                currentTool = 'select';
+                document.querySelector('[data-tool="select"]').click();
+            }
+            break;
+    }
+
+    // Space for panning
+    if (e.code === 'Space' && !isPanning) {
+        e.preventDefault();
+        canvasContainer.style.cursor = 'grab';
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') {
+        canvasContainer.style.cursor = currentTool === 'pan' ? 'grab' : 'default';
+    }
+});
+
+// ============================================================================
+// Save/Load
+// ============================================================================
+
+function saveBoard() {
+    const boardData = {
+        elements,
+        connections,
+        zoom,
+        panX,
+        panY,
+        timestamp: new Date().toISOString()
+    };
+
+    const name = prompt('Board name:', 'Untitled Board');
+    if (!name) return;
+
+    // Save to localStorage for now
+    const boards = JSON.parse(localStorage.getItem('wb-boards') || '{}');
+    boards[name] = boardData;
+    localStorage.setItem('wb-boards', JSON.stringify(boards));
+
+    loadBoardsList();
+    alert('Board saved!');
+}
+
+function loadBoard(name) {
+    const boards = JSON.parse(localStorage.getItem('wb-boards') || '{}');
+    const data = boards[name];
+    if (!data) return;
+
+    clearCanvas(true); // Reset history when loading board
+    connections = data.connections || [];
+    zoom = data.zoom || 1;
+    panX = data.panX || 0;
+    panY = data.panY || 0;
+    elementIdCounter = 0;
+
+    updateCanvasTransform();
+    document.getElementById('zoom-display').textContent = `${Math.round(zoom * 100)}%`;
+
+    // Recreate elements
+    data.elements.forEach(el => {
+        createElement(el.type, el.x, el.y, el);
+        elementIdCounter = Math.max(elementIdCounter, parseInt(el.id.split('-')[1]) || 0);
+    });
+
+    // Recreate connections
+    setTimeout(() => renderConnections(), 100);
+}
+
+function loadBoardsList() {
+    const boards = JSON.parse(localStorage.getItem('wb-boards') || '{}');
+    const list = document.getElementById('boards-list');
+
+    if (Object.keys(boards).length === 0) {
+        list.innerHTML = '<div style="color:var(--wb-text-dim);font-size:11px;text-align:center;padding:20px;">No saved boards yet</div>';
+        return;
+    }
+
+    list.innerHTML = Object.keys(boards).map(name => `
+        <div class="wb-template-item" style="position:relative;">
+            <div class="icon" onclick="loadBoard('${name}')" style="cursor:pointer;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                </svg>
+            </div>
+            <div class="info" onclick="loadBoard('${name}')" style="cursor:pointer;">
+                <div class="name">${name}</div>
+                <div class="desc">${new Date(boards[name].timestamp).toLocaleDateString()}</div>
+            </div>
+            <button onclick="deleteBoard('${name}')" title="Delete board" style="
+                position:absolute;right:8px;top:50%;transform:translateY(-50%);
+                background:transparent;border:none;color:#9aaa9a;cursor:pointer;
+                padding:4px;opacity:0.5;transition:opacity 0.15s;
+            " onmouseover="this.style.opacity='1';this.style.color='#e85747'" onmouseout="this.style.opacity='0.5';this.style.color='#9aaa9a'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+    `).join('');
+}
+
+function deleteBoard(name) {
+    if (!confirm(`Delete board "${name}"?`)) return;
+
+    const boards = JSON.parse(localStorage.getItem('wb-boards') || '{}');
+    delete boards[name];
+    localStorage.setItem('wb-boards', JSON.stringify(boards));
+    loadBoardsList();
+}
+
+function newBoard() {
+    if (elements.length > 0 && !confirm('Clear current board?')) return;
+
+    clearCanvas();
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+    updateCanvasTransform();
+    document.getElementById('zoom-display').textContent = '100%';
+}
+
+function exportBoard(format) {
+    if (format === 'png') {
+        // Create a canvas and draw all elements
+        const exportCanvas = document.createElement('canvas');
+        const ctx = exportCanvas.getContext('2d');
+
+        // Calculate bounds of all elements
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        elements.forEach(el => {
+            minX = Math.min(minX, el.x);
+            minY = Math.min(minY, el.y);
+            const domEl = document.querySelector(`[data-id="${el.id}"]`);
+            if (domEl) {
+                maxX = Math.max(maxX, el.x + domEl.offsetWidth);
+                maxY = Math.max(maxY, el.y + domEl.offsetHeight);
+            }
+        });
+
+        if (elements.length === 0) {
+            alert('Nothing to export. Add some elements first.');
+            return;
+        }
+
+        const padding = 40;
+        const width = maxX - minX + padding * 2;
+        const height = maxY - minY + padding * 2;
+
+        exportCanvas.width = width;
+        exportCanvas.height = height;
+
+        // Background
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw grid
+        ctx.strokeStyle = '#252525';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < width; x += 20) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+        for (let y = 0; y < height; y += 20) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+
+        // Draw connections
+        ctx.strokeStyle = '#4a9f6e';
+        ctx.lineWidth = 2;
+        connections.forEach(conn => {
+            const fromEl = document.querySelector(`[data-id="${conn.from.elementId}"]`);
+            const toEl = document.querySelector(`[data-id="${conn.to.elementId}"]`);
+            if (!fromEl || !toEl) return;
+
+            const from = getConnectionPoint(fromEl, conn.from.position);
+            const to = getConnectionPoint(toEl, conn.to.position);
+
+            ctx.beginPath();
+            ctx.moveTo(from.x - minX + padding, from.y - minY + padding);
+            ctx.lineTo(to.x - minX + padding, to.y - minY + padding);
+            ctx.stroke();
+
+            // Arrow
+            const angle = Math.atan2(to.y - from.y, to.x - from.x);
+            const headLen = 10;
+            ctx.beginPath();
+            ctx.moveTo(to.x - minX + padding, to.y - minY + padding);
+            ctx.lineTo(
+                to.x - minX + padding - headLen * Math.cos(angle - Math.PI/6),
+                to.y - minY + padding - headLen * Math.sin(angle - Math.PI/6)
+            );
+            ctx.moveTo(to.x - minX + padding, to.y - minY + padding);
+            ctx.lineTo(
+                to.x - minX + padding - headLen * Math.cos(angle + Math.PI/6),
+                to.y - minY + padding - headLen * Math.sin(angle + Math.PI/6)
+            );
+            ctx.stroke();
+        });
+
+        // Draw elements
+        elements.forEach(el => {
+            const domEl = document.querySelector(`[data-id="${el.id}"]`);
+            if (!domEl) return;
+
+            const x = el.x - minX + padding;
+            const y = el.y - minY + padding;
+            const w = domEl.offsetWidth;
+            const h = domEl.offsetHeight;
+
+            if (el.type === 'postit') {
+                const colors = {
+                    yellow: '#feff9c', green: '#7afcff', pink: '#ff7eb9',
+                    orange: '#ff9f43', blue: '#74b9ff', purple: '#a29bfe'
+                };
+                ctx.fillStyle = colors[el.color] || '#feff9c';
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetX = 3;
+                ctx.shadowOffsetY = 3;
+                ctx.fillRect(x, y, w, h);
+                ctx.shadowColor = 'transparent';
+
+                ctx.fillStyle = '#333';
+                ctx.font = '13px Inter, sans-serif';
+                wrapText(ctx, domEl.textContent, x + 12, y + 20, w - 24, 18);
+            } else if (el.type === 'group') {
+                ctx.strokeStyle = '#4a9f6e';
+                ctx.setLineDash([8, 4]);
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, w, h);
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#4a9f6e';
+                ctx.fillRect(x + 8, y + 8, w - 16, 30);
+                ctx.fillStyle = 'white';
+                ctx.font = '600 14px Inter, sans-serif';
+                ctx.fillText(el.title || 'Group', x + 16, y + 28);
+            } else if (el.type === 'text') {
+                ctx.fillStyle = '#e8efe8';
+                ctx.font = '14px Inter, sans-serif';
+                ctx.fillText(domEl.textContent, x, y + 14);
+            } else if (el.type === 'fishbone') {
+                // Draw fishbone diagram
+                const spineY = y + h/2;
+
+                // Main spine
+                ctx.strokeStyle = '#4a9f6e';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(x + 50, spineY);
+                ctx.lineTo(x + w - 120, spineY);
+                ctx.stroke();
+
+                // Effect box
+                ctx.fillStyle = '#4a9f6e';
+                ctx.fillRect(x + w - 120, spineY - 30, 120, 60);
+                ctx.fillStyle = 'white';
+                ctx.font = '600 14px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(el.effect || 'Effect', x + w - 60, spineY + 5);
+                ctx.textAlign = 'left';
+
+                // Draw categories and causes
+                if (el.categories) {
+                    const boneSpacing = (w - 250) / 3;
+                    el.categories.forEach((cat, i) => {
+                        const isTop = i < 3;
+                        const boneX = x + 80 + (i % 3) * boneSpacing;
+
+                        // Bone line
+                        ctx.strokeStyle = '#4a9f6e';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(boneX, spineY);
+                        const endY = isTop ? spineY - 100 : spineY + 100;
+                        ctx.lineTo(boneX + 30, endY);
+                        ctx.stroke();
+
+                        // Category label
+                        ctx.fillStyle = '#4a9f6e';
+                        ctx.font = '600 12px Inter, sans-serif';
+                        const catY = isTop ? spineY - 115 : spineY + 125;
+                        ctx.fillText(cat.name, boneX, catY);
+
+                        // Causes
+                        ctx.font = '11px Inter, sans-serif';
+                        ctx.fillStyle = '#e8efe8';
+                        cat.causes.forEach((cause, j) => {
+                            const causeY = isTop
+                                ? catY - 18 - j * 16
+                                : catY + 18 + j * 16;
+                            ctx.fillText('• ' + cause, boneX, causeY);
+                        });
+                    });
+                }
+            } else {
+                // Process shapes
+                ctx.fillStyle = '#121a12';
+                ctx.strokeStyle = '#4a9f6e';
+                ctx.lineWidth = 2;
+
+                if (el.type === 'diamond') {
+                    ctx.beginPath();
+                    ctx.moveTo(x + w/2, y);
+                    ctx.lineTo(x + w, y + h/2);
+                    ctx.lineTo(x + w/2, y + h);
+                    ctx.lineTo(x, y + h/2);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (el.type === 'oval') {
+                    ctx.beginPath();
+                    ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    ctx.fillRect(x, y, w, h);
+                    ctx.strokeRect(x, y, w, h);
+                }
+
+                ctx.fillStyle = '#e8efe8';
+                ctx.font = '12px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(el.text || '', x + w/2, y + h/2 + 4);
+                ctx.textAlign = 'left';
+            }
+        });
+
+        // Download
+        const link = document.createElement('a');
+        link.download = 'whiteboard.png';
+        link.href = exportCanvas.toDataURL('image/png');
+        link.click();
+    }
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+
+    for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && n > 0) {
+            ctx.fillText(line, x, y);
+            line = words[n] + ' ';
+            y += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+    ctx.fillText(line, x, y);
+}
+
+// ============================================================================
+// Fishbone / Ishikawa Diagram
+// ============================================================================
+
+function createFishbone(x, y, effect) {
+    const id = `fishbone-${++elementIdCounter}`;
+
+    // Standard 6M categories
+    const categories = [
+        { name: 'People', causes: ['Training', 'Skills'] },
+        { name: 'Process', causes: ['Procedure', 'Method'] },
+        { name: 'Equipment', causes: ['Tools', 'Machines'] },
+        { name: 'Materials', causes: ['Quality', 'Supply'] },
+        { name: 'Environment', causes: ['Conditions', 'Layout'] },
+        { name: 'Measurement', causes: ['Accuracy', 'Calibration'] }
+    ];
+
+    // Store fishbone data
+    const fishboneData = {
+        id,
+        type: 'fishbone',
+        x,
+        y,
+        effect,
+        categories: categories.map(c => ({
+            name: c.name,
+            causes: [...c.causes]
+        }))
+    };
+    elements.push(fishboneData);
+
+    // Create DOM element
+    const el = document.createElement('div');
+    el.className = 'wb-element wb-fishbone';
+    el.dataset.id = id;
+    el.dataset.type = 'fishbone';
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+
+    renderFishbone(el, fishboneData);
+
+    // Make draggable
+    el.addEventListener('mousedown', (e) => {
+        if (e.target.contentEditable === 'true' || e.target.classList.contains('wb-fishbone-add')) return;
+        onElementMouseDown(e, el);
+    });
+
+    canvas.appendChild(el);
+    return el;
+}
+
+function renderFishbone(el, data) {
+    const spineLength = 700;
+    const boneSpacing = spineLength / 4;
+
+    let html = `
+        <div class="wb-fishbone-spine"></div>
+        <div class="wb-fishbone-head" contenteditable="true"
+             onblur="updateFishboneEffect('${data.id}', this.textContent)">${data.effect}</div>
+    `;
+
+    data.categories.forEach((cat, i) => {
+        const isTop = i < 3;
+        const xPos = 80 + (i % 3) * boneSpacing;
+        const boneHeight = 120;
+
+        // Bone line
+        html += `
+            <div class="wb-fishbone-bone ${isTop ? 'top' : 'bottom'}"
+                 style="left: ${xPos}px; ${isTop ? 'bottom' : 'top'}: 50%; height: ${boneHeight}px;">
+            </div>
+        `;
+
+        // Category label position
+        const catY = isTop ? -boneHeight - 30 : boneHeight + 10;
+        const catX = xPos + (isTop ? -50 : -50);
+
+        html += `
+            <div class="wb-fishbone-category"
+                 style="left: ${xPos - 40}px; ${isTop ? 'top: 60px' : 'bottom: 60px'};"
+                 contenteditable="true"
+                 onblur="updateFishboneCategory('${data.id}', ${i}, this.textContent)">${cat.name}</div>
+        `;
+
+        // Causes container
+        html += `
+            <div class="wb-fishbone-causes ${isTop ? 'top' : 'bottom'}"
+                 style="left: ${xPos - 30}px; ${isTop ? 'top: 100px' : 'bottom: 100px'};"
+                 data-category="${i}">
+        `;
+
+        cat.causes.forEach((cause, j) => {
+            html += `
+                <div class="wb-fishbone-cause" contenteditable="true"
+                     onblur="updateFishboneCause('${data.id}', ${i}, ${j}, this.textContent)">${cause}</div>
+            `;
+        });
+
+        html += `
+                <button class="wb-fishbone-add" onclick="addFishboneCause('${data.id}', ${i})">+ Add cause</button>
+            </div>
+        `;
+    });
+
+    el.innerHTML = html;
+}
+
+function updateFishboneEffect(id, text) {
+    const data = elements.find(e => e.id === id);
+    if (data) {
+        saveState();
+        data.effect = text;
+    }
+}
+
+function updateFishboneCategory(id, catIndex, text) {
+    const data = elements.find(e => e.id === id);
+    if (data && data.categories[catIndex]) {
+        saveState();
+        data.categories[catIndex].name = text;
+    }
+}
+
+function updateFishboneCause(id, catIndex, causeIndex, text) {
+    const data = elements.find(e => e.id === id);
+    if (data && data.categories[catIndex]) {
+        saveState();
+        if (text.trim() === '') {
+            // Remove empty causes
+            data.categories[catIndex].causes.splice(causeIndex, 1);
+            const el = document.querySelector(`[data-id="${id}"]`);
+            if (el) renderFishbone(el, data);
+        } else {
+            data.categories[catIndex].causes[causeIndex] = text;
+        }
+    }
+}
+
+function addFishboneCause(id, catIndex) {
+    const data = elements.find(e => e.id === id);
+    if (data && data.categories[catIndex]) {
+        saveState();
+        data.categories[catIndex].causes.push('New cause');
+        const el = document.querySelector(`[data-id="${id}"]`);
+        if (el) {
+            renderFishbone(el, data);
+            // Focus the new cause
+            const causes = el.querySelectorAll(`[data-category="${catIndex}"] .wb-fishbone-cause`);
+            const lastCause = causes[causes.length - 1];
+            if (lastCause) {
+                lastCause.focus();
+                // Select all text
+                const range = document.createRange();
+                range.selectNodeContents(lastCause);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Affinity to Interrelationship Conversion
+// ============================================================================
+
+function convertAffinityToIR() {
+    // Find all group elements and extract their titles
+    const groups = elements.filter(el => el.type === 'group');
+
+    if (groups.length === 0) {
+        alert('No groups found. Create an Affinity Diagram with groups first.');
+        return;
+    }
+
+    if (groups.length < 2) {
+        alert('Need at least 2 groups to create an Interrelationship Diagram.');
+        return;
+    }
+
+    // Extract titles from groups
+    const factors = groups.map(g => {
+        const domEl = document.querySelector(`[data-id="${g.id}"]`);
+        const header = domEl?.querySelector('.wb-group-header');
+        return header?.textContent || g.title || 'Factor';
+    });
+
+    if (!confirm(`Convert ${factors.length} groups to Interrelationship Diagram?\n\nFactors: ${factors.join(', ')}`)) {
+        return;
+    }
+
+    // Clear canvas
+    clearCanvas();
+
+    // Calculate layout - arrange in a circle
+    const centerX = 450;
+    const centerY = 300;
+    const radius = Math.min(250, 80 + factors.length * 30);
+
+    factors.forEach((name, i) => {
+        const angle = (i / factors.length) * 2 * Math.PI - Math.PI/2;
+        const x = centerX + radius * Math.cos(angle) - 60;
+        const y = centerY + radius * Math.sin(angle) - 30;
+        createElement('rectangle', x, y, { text: name });
+    });
+
+    // Add instruction text
+    createElement('text', centerX - 100, centerY - 10, {
+        text: 'Draw arrows to show cause → effect'
+    });
+
+    // Switch to connect tool
+    document.querySelector('[data-tool="connect"]').click();
+}
+
+function analyzeIR() {
+    // Count incoming and outgoing connections for each element
+    const shapes = elements.filter(el =>
+        ['rectangle', 'diamond', 'oval', 'parallelogram', 'document', 'cylinder'].includes(el.type)
+    );
+
+    if (shapes.length === 0) {
+        alert('No shapes found to analyze. Create an Interrelationship Diagram first.');
+        return;
+    }
+
+    if (connections.length === 0) {
+        alert('No connections found. Draw arrows between factors to show cause-effect relationships.');
+        return;
+    }
+
+    // Count arrows for each element
+    const analysis = shapes.map(shape => {
+        const outgoing = connections.filter(c => c.from.elementId === shape.id).length;
+        const incoming = connections.filter(c => c.to.elementId === shape.id).length;
+        const domEl = document.querySelector(`[data-id="${shape.id}"]`);
+        const text = domEl?.querySelector('span')?.textContent || shape.text || 'Unknown';
+
+        return {
+            id: shape.id,
+            text,
+            outgoing,
+            incoming,
+            net: outgoing - incoming
+        };
+    });
+
+    // Sort by net (drivers first, outcomes last)
+    analysis.sort((a, b) => b.net - a.net);
+
+    // Build results message
+    let msg = 'INTERRELATIONSHIP ANALYSIS\n';
+    msg += '═'.repeat(40) + '\n\n';
+    msg += 'Factor'.padEnd(20) + 'Out  In   Net\n';
+    msg += '─'.repeat(40) + '\n';
+
+    analysis.forEach(item => {
+        const label = item.text.substring(0, 18).padEnd(20);
+        const out = String(item.outgoing).padStart(3);
+        const inc = String(item.incoming).padStart(4);
+        const net = (item.net >= 0 ? '+' : '') + item.net;
+        msg += `${label}${out} ${inc}   ${net}\n`;
+    });
+
+    msg += '─'.repeat(40) + '\n\n';
+
+    // Identify drivers and outcomes
+    const drivers = analysis.filter(a => a.net > 0);
+    const outcomes = analysis.filter(a => a.net < 0);
+    const neutral = analysis.filter(a => a.net === 0);
+
+    if (drivers.length > 0) {
+        msg += '🔴 DRIVERS (more outgoing):\n';
+        drivers.forEach(d => msg += `   • ${d.text}\n`);
+        msg += '\n';
+    }
+
+    if (outcomes.length > 0) {
+        msg += '🔵 OUTCOMES (more incoming):\n';
+        outcomes.forEach(d => msg += `   • ${d.text}\n`);
+        msg += '\n';
+    }
+
+    if (neutral.length > 0) {
+        msg += '⚪ NEUTRAL (equal in/out):\n';
+        neutral.forEach(d => msg += `   • ${d.text}\n`);
+    }
+
+    msg += '\n💡 Focus improvement efforts on DRIVERS\n   for maximum downstream impact.';
+
+    alert(msg);
+
+    // Also add visual indicators to the diagram
+    analysis.forEach(item => {
+        const domEl = document.querySelector(`[data-id="${item.id}"]`);
+        if (!domEl) return;
+
+        // Remove existing badges
+        domEl.querySelectorAll('.ir-badge').forEach(b => b.remove());
+
+        // Add badge
+        const badge = document.createElement('div');
+        badge.className = 'ir-badge';
+        badge.style.cssText = `
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            min-width: 24px;
+            height: 24px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+            z-index: 10;
+        `;
+
+        if (item.net > 0) {
+            badge.style.background = '#e85747';
+            badge.style.color = 'white';
+            badge.textContent = `+${item.net}`;
+            badge.title = 'Driver: ' + item.outgoing + ' out, ' + item.incoming + ' in';
+        } else if (item.net < 0) {
+            badge.style.background = '#47a5e8';
+            badge.style.color = 'white';
+            badge.textContent = item.net;
+            badge.title = 'Outcome: ' + item.outgoing + ' out, ' + item.incoming + ' in';
+        } else {
+            badge.style.background = '#9aaa9a';
+            badge.style.color = '#0a0f0a';
+            badge.textContent = '0';
+            badge.title = 'Neutral: ' + item.outgoing + ' out, ' + item.incoming + ' in';
+        }
+
+        domEl.appendChild(badge);
+    });
+}
+
+// ============================================================================
+// JSON Export/Import
+// ============================================================================
+
+function exportBoardJSON() {
+    const boardData = {
+        elements,
+        connections,
+        zoom,
+        panX,
+        panY,
+        timestamp: new Date().toISOString(),
+        version: '1.0'
+    };
+
+    const json = JSON.stringify(boardData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.download = `whiteboard-${Date.now()}.json`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function importBoardJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+
+            if (!data.elements || !Array.isArray(data.elements)) {
+                alert('Invalid whiteboard file format.');
+                return;
+            }
+
+            if (elements.length > 0 && !confirm('This will replace your current board. Continue?')) {
+                return;
+            }
+
+            clearCanvas();
+            connections = data.connections || [];
+            zoom = data.zoom || 1;
+            panX = data.panX || 0;
+            panY = data.panY || 0;
+
+            updateCanvasTransform();
+            document.getElementById('zoom-display').textContent = `${Math.round(zoom * 100)}%`;
+
+            // Recreate elements
+            data.elements.forEach(el => {
+                createElement(el.type, el.x, el.y, el);
+                elementIdCounter = Math.max(elementIdCounter, parseInt(el.id.split('-')[1]) || 0);
+            });
+
+            // Recreate connections
+            setTimeout(() => renderConnections(), 100);
+
+            alert('Board imported successfully!');
+        } catch (err) {
+            alert('Error importing file: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+
+    // Reset input so same file can be imported again
+    event.target.value = '';
+}
+
+// ============================================================================
+// Initialize
+// ============================================================================
+
+loadBoardsList();
+saveState(); // Save initial empty state
+</script>
+{% endblock %}

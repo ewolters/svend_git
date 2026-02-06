@@ -1,0 +1,2267 @@
+{% extends "base_app.html" %}
+{% block title %}SVEND - Decision Science Workbench{% endblock %}
+
+{% block content %}
+</div><!-- Close container from base -->
+<div class="workbench-app" id="workbench-app">
+    <!-- Workbench Header -->
+    <div class="wb-header">
+        <div class="wb-header-left">
+            <button class="wb-btn wb-btn-icon" onclick="showWorkbenchList()" title="All Workbenches">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                </svg>
+            </button>
+            <div class="wb-title-group">
+                <input type="text" class="wb-title-input" id="workbench-title" placeholder="Untitled Inquiry" value="">
+                <select class="wb-template-select" id="workbench-template">
+                    <option value="blank">Blank</option>
+                    <option value="dmaic">DMAIC</option>
+                    <option value="kaizen">Kaizen Event</option>
+                    <option value="8d">8D Report</option>
+                    <option value="a3">A3 Problem Solving</option>
+                </select>
+            </div>
+        </div>
+        <div class="wb-header-right">
+            <span class="wb-status" id="workbench-status">Active</span>
+            <button class="wb-btn" onclick="exportWorkbench()">Export</button>
+            <button class="wb-btn wb-btn-primary" onclick="saveWorkbench()">Save</button>
+        </div>
+    </div>
+
+    <!-- Ribbon Toolbar -->
+    <div class="wb-ribbon">
+        <div class="ribbon-tabs">
+            <button class="ribbon-tab active" data-tab="data">Data</button>
+            <button class="ribbon-tab" data-tab="analysis">Analysis</button>
+            <button class="ribbon-tab" data-tab="experiment">Experiment</button>
+            <button class="ribbon-tab" data-tab="ml">ML</button>
+            <button class="ribbon-tab" data-tab="thinking">Thinking</button>
+            <button class="ribbon-tab" data-tab="process">Process</button>
+        </div>
+
+        <!-- Data Tab -->
+        <div class="ribbon-content active" id="ribbon-data">
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Import</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="importFile('.csv')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="12" y1="18" x2="12" y2="12"/>
+                            <line x1="9" y1="15" x2="15" y2="15"/>
+                        </svg>
+                        <span>Import CSV</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="importFile('.xlsx,.xls')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <rect x="8" y="12" width="8" height="6" rx="1"/>
+                        </svg>
+                        <span>Import Excel</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Transform</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn" onclick="window.open('/app/triage/','_blank')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <span>Triage</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="window.open('/app/forge/','_blank')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                            <polyline points="2 17 12 22 22 17"/>
+                            <polyline points="2 12 12 17 22 12"/>
+                        </svg>
+                        <span>Forge</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Graph</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn" onclick="openGraphDialog('histogram')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="12" width="4" height="8"/><rect x="10" y="6" width="4" height="14"/><rect x="17" y="9" width="4" height="11"/>
+                        </svg>
+                        <span>Histogram</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="openGraphDialog('scatter')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="7" cy="17" r="1.5"/><circle cx="10" cy="12" r="1.5"/><circle cx="14" cy="8" r="1.5"/><circle cx="18" cy="6" r="1.5"/><circle cx="12" cy="15" r="1.5"/>
+                        </svg>
+                        <span>Scatter</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="openGraphDialog('boxplot')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="6" y="8" width="12" height="8" rx="1"/><line x1="12" y1="4" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="20"/><line x1="6" y1="12" x2="18" y2="12"/>
+                        </svg>
+                        <span>Boxplot</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="openGraphDialog('timeseries')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="2 17 7 12 12 15 17 8 22 12"/>
+                        </svg>
+                        <span>Time Series</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">View</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn" onclick="viewDataTable()">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="3" y1="15" x2="21" y2="15"/>
+                            <line x1="9" y1="3" x2="9" y2="21"/>
+                        </svg>
+                        <span>Table</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="runSummary()">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                        <span>Summary</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Tab -->
+        <div class="ribbon-content" id="ribbon-analysis">
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Control Charts</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openSPCDialog('X-bar R')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            <line x1="2" y1="6" x2="22" y2="6" stroke-dasharray="2,2" opacity="0.5"/>
+                            <line x1="2" y1="18" x2="22" y2="18" stroke-dasharray="2,2" opacity="0.5"/>
+                        </svg>
+                        <span>X-bar R</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openSPCDialog('I-MR')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="2 17 7 12 12 15 17 8 22 12"/>
+                            <line x1="2" y1="6" x2="22" y2="6" stroke-dasharray="2,2" opacity="0.5"/>
+                            <line x1="2" y1="18" x2="22" y2="18" stroke-dasharray="2,2" opacity="0.5"/>
+                        </svg>
+                        <span>I-MR</span>
+                    </button>
+                </div>
+                <div class="ribbon-buttons-row">
+                    <button class="ribbon-btn-sm" onclick="openSPCDialog('p')">P Chart</button>
+                    <button class="ribbon-btn-sm" onclick="openSPCDialog('c')">C Chart</button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Capability</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openCapabilityDialog()">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 20V10"/>
+                            <path d="M18 20V4"/>
+                            <path d="M6 20v-4"/>
+                            <ellipse cx="12" cy="6" rx="4" ry="2"/>
+                        </svg>
+                        <span>Cp/Cpk Study</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Measurement</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openGageRRDialog()">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                        <span>Gage R&R</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Statistical Tests</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn" onclick="openStatsDialog('regression')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="6" cy="18" r="2"/><circle cx="10" cy="14" r="2"/><circle cx="14" cy="10" r="2"/><circle cx="18" cy="6" r="2"/>
+                            <line x1="4" y1="20" x2="20" y2="4" opacity="0.5"/>
+                        </svg>
+                        <span>Regression</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="openStatsDialog('anova')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="14" width="4" height="6"/><rect x="10" y="8" width="4" height="12"/><rect x="17" y="4" width="4" height="16"/>
+                        </svg>
+                        <span>ANOVA</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="openStatsDialog('ttest')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M9 3h6v2H9zM12 5v14M7 19h10"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span>t-Test</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="openStatsDialog('more')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+                        </svg>
+                        <span>More...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Experiment Tab -->
+        <div class="ribbon-content" id="ribbon-experiment">
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Design of Experiments</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openDOEDialog('full_factorial')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                        </svg>
+                        <span>Full Factorial</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openDOEDialog('fractional_factorial')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7" opacity="0.3"/><rect x="14" y="3" width="7" height="7" opacity="0.3"/>
+                        </svg>
+                        <span>Fractional</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openDOEDialog('ccd')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <ellipse cx="12" cy="12" rx="9" ry="4"/><ellipse cx="12" cy="12" rx="6" ry="2.5"/><ellipse cx="12" cy="12" rx="3" ry="1"/>
+                        </svg>
+                        <span>Response Surface</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Power Analysis</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPowerDialog()">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <span>Sample Size</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ML Tab -->
+        <div class="ribbon-content" id="ribbon-ml">
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">From Intent</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openMLDialog('intent')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <span>From Intent</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">From Data</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openMLDialog('data')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="8" cy="8" r="3"/><circle cx="16" cy="16" r="3"/>
+                            <line x1="10" y1="10" x2="14" y2="14" stroke-dasharray="2,2"/>
+                        </svg>
+                        <span>Train Model</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Time Series</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="window.open('/app/forecast/','_blank')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="2 17 8 11 12 15 16 9"/>
+                            <polyline points="16 9 22 9" stroke-dasharray="2,2"/>
+                        </svg>
+                        <span>Forecast</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thinking Tab -->
+        <div class="ribbon-content" id="ribbon-thinking">
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Capture</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="createArtifact('note')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                        <span>Note</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="createArtifact('hypothesis')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <span>Hypothesis</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="createArtifact('evidence')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                        </svg>
+                        <span>Evidence</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Conclude</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="createArtifact('conclusion')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <span>Conclusion</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Tab -->
+        <div class="ribbon-content" id="ribbon-process">
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Diagrams</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="createArtifact('process_map')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="6" width="6" height="4" rx="1"/><rect x="16" y="6" width="6" height="4" rx="1"/>
+                            <rect x="9" y="14" width="6" height="4" rx="1"/><path d="M8 8h8M12 10v4"/>
+                        </svg>
+                        <span>Process Map</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="createArtifact('fishbone')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <line x1="2" y1="12" x2="22" y2="12"/><line x1="6" y1="6" x2="10" y2="12"/><line x1="6" y1="18" x2="10" y2="12"/>
+                            <line x1="12" y1="6" x2="16" y2="12"/><line x1="12" y1="18" x2="16" y2="12"/>
+                            <polygon points="22 12 18 9 18 15 22 12"/>
+                        </svg>
+                        <span>Fishbone</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="createArtifact('five_whys')">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <text x="6" y="16" font-size="14" font-weight="bold" fill="currentColor">5?</text>
+                        </svg>
+                        <span>5 Whys</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Actions</div>
+                <div class="ribbon-buttons">
+                    <button class="ribbon-btn" onclick="createArtifact('action_item')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/>
+                        </svg>
+                        <span>Action Item</span>
+                    </button>
+                    <button class="ribbon-btn" onclick="createArtifact('control_plan')">
+                        <svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                        <span>Control Plan</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Phase Bar -->
+    <div class="wb-phase-bar" id="phase-bar" style="display: none;">
+        <div class="phase-pills" id="phase-pills"></div>
+        <button class="wb-btn wb-btn-sm" onclick="advancePhase()">Advance Phase</button>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MAIN LAYOUT: Output on top, Data table below (Minitab-style) -->
+    <!-- ============================================================ -->
+    <div class="wb-main">
+        <!-- Output Panel with Tabs -->
+        <div class="wb-output" id="output-panel">
+            <div class="output-tab-bar" id="output-tab-bar">
+                <div class="output-tabs" id="output-tabs"></div>
+                <div class="output-tab-actions">
+                    <button class="wb-btn wb-btn-sm" onclick="clearOutput()" title="Close all tabs">Clear All</button>
+                </div>
+            </div>
+            <div class="output-panes" id="output-panes">
+                <div class="output-empty" id="output-empty">
+                    <div class="empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                    </div>
+                    <div class="empty-text">Import data and run analyses from the ribbon</div>
+                    <div class="empty-hint">Results, charts, and diagnostics appear here</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resize Handle -->
+        <div class="wb-resize-handle" id="resize-handle">
+            <div class="resize-grip"></div>
+        </div>
+
+        <!-- Data Panel (spreadsheet) -->
+        <div class="wb-data" id="data-panel">
+            <div class="data-header">
+                <div class="data-header-left">
+                    <span class="data-title" id="data-title">Worksheet</span>
+                    <span class="data-info" id="data-info"></span>
+                </div>
+                <div class="data-header-right">
+                    <select id="column-selector" style="display:none;">
+                        <option value="">All columns</option>
+                    </select>
+                </div>
+            </div>
+            <div class="data-table-wrapper" id="data-table-wrapper">
+                <div class="data-empty" id="data-empty">
+                    <span>No data loaded — use Import CSV or Import Excel above</span>
+                </div>
+                <table class="data-table" id="data-table" style="display:none;">
+                    <thead id="data-thead"></thead>
+                    <tbody id="data-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loading-text">Processing...</p>
+    </div>
+</div>
+
+<!-- Analysis Dialog (modal for configuring analyses) -->
+<div class="modal" id="analysis-modal" style="display: none;">
+    <div class="modal-backdrop" onclick="closeModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title" id="modal-title">Analysis</span>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-footer">
+            <button class="wb-btn" onclick="closeModal()">Cancel</button>
+            <button class="wb-btn wb-btn-primary" id="modal-submit" onclick="submitModal()">Run</button>
+        </div>
+    </div>
+</div>
+
+<!-- Workbench List Modal -->
+<div class="modal" id="workbench-list-modal" style="display: none;">
+    <div class="modal-backdrop" onclick="closeWorkbenchList()"></div>
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <span class="modal-title">Your Workbenches</span>
+            <button class="modal-close" onclick="closeWorkbenchList()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="workbench-list" id="workbench-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="wb-btn wb-btn-primary" onclick="createNewWorkbench()">New Workbench</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+<style>
+/* ================================================================ */
+/* WORKBENCH APP LAYOUT                                             */
+/* ================================================================ */
+.workbench-app {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 60px);
+    margin: 0;
+    padding: 0;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-primary);
+}
+
+/* Header */
+.wb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1.5rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+}
+.wb-header-left { display: flex; align-items: center; gap: 0.75rem; }
+.wb-header-right { display: flex; align-items: center; gap: 0.5rem; }
+.wb-title-group { display: flex; align-items: center; gap: 0.5rem; }
+.wb-title-input {
+    background: transparent; border: 1px solid transparent;
+    padding: 0.4rem 0.6rem; font-size: 1.1rem; font-weight: 500;
+    color: var(--text); width: 350px; border-radius: 4px;
+}
+.wb-title-input:hover, .wb-title-input:focus { border-color: var(--border); background: var(--bg-tertiary); }
+.wb-template-select {
+    padding: 0.4rem 0.75rem; background: var(--bg-tertiary);
+    border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text-dim); font-size: 0.8rem;
+}
+.wb-status {
+    padding: 0.25rem 0.75rem; background: var(--accent-primary-dim);
+    color: var(--accent); border-radius: 4px; font-size: 0.75rem; font-weight: 500;
+}
+
+/* Buttons */
+.wb-btn {
+    padding: 0.5rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text); font-size: 0.85rem; cursor: pointer; transition: all 0.15s;
+}
+.wb-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
+.wb-btn-primary { background: var(--accent-primary-dim); border-color: var(--accent); color: var(--accent); }
+.wb-btn-primary:hover { background: var(--accent); color: var(--bg); }
+.wb-btn-icon { padding: 0.5rem; display: flex; align-items: center; justify-content: center; }
+.wb-btn-sm { padding: 0.25rem 0.75rem; font-size: 0.75rem; }
+
+/* Ribbon */
+.wb-ribbon { background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+.ribbon-tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    padding: 0 1rem; background: var(--bg-tertiary);
+}
+.ribbon-tab {
+    padding: 0.4rem 1rem; background: transparent; border: none;
+    border-bottom: 2px solid transparent; color: var(--text-dim);
+    font-size: 0.75rem; font-weight: 500; cursor: pointer;
+}
+.ribbon-tab:hover { color: var(--text); }
+.ribbon-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.ribbon-content { display: none; padding: 0.4rem 1.5rem 0.5rem; }
+.ribbon-content.active { display: flex; gap: 0; }
+.ribbon-group { display: flex; flex-direction: column; padding: 0 0.75rem; }
+.ribbon-group-label {
+    font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.03em; text-align: center; padding-top: 0.25rem;
+    border-top: 1px solid var(--border); margin-top: 0.25rem;
+}
+.ribbon-buttons { display: flex; gap: 0.2rem; align-items: flex-start; }
+.ribbon-buttons-row { display: flex; gap: 0.2rem; margin-top: 0.2rem; }
+.ribbon-divider { width: 1px; background: var(--border); margin: 0 0.4rem; align-self: stretch; }
+.ribbon-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+    padding: 0.3rem 0.4rem; background: transparent; border: 1px solid transparent;
+    border-radius: 3px; color: var(--text); font-size: 0.6rem; cursor: pointer; min-width: 44px;
+}
+.ribbon-btn:hover { background: var(--bg-hover); border-color: var(--border); }
+.ribbon-btn-lg { padding: 0.4rem 0.5rem; min-width: 56px; }
+.ribbon-btn-sm {
+    padding: 0.2rem 0.4rem; font-size: 0.55rem; background: var(--bg-tertiary);
+    border: 1px solid var(--border); border-radius: 3px; color: var(--text-dim); cursor: pointer;
+}
+.ribbon-btn-sm:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
+.ribbon-icon { width: 22px; height: 22px; stroke: var(--accent); }
+.ribbon-icon-sm { width: 16px; height: 16px; stroke: var(--accent); }
+
+/* Phase Bar */
+.wb-phase-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.5rem 1.5rem; background: rgba(99, 102, 241, 0.1);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+}
+.phase-pills { display: flex; gap: 0.5rem; }
+.phase-pill {
+    padding: 0.35rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 16px; font-size: 0.75rem; color: var(--text-dim); cursor: pointer;
+}
+.phase-pill.active { background: var(--accent-primary-dim); border-color: var(--accent); color: var(--accent); }
+.phase-pill.completed { background: rgba(74, 200, 110, 0.15); border-color: rgba(74, 200, 110, 0.5); color: #4ac86e; }
+
+/* ================================================================ */
+/* MAIN LAYOUT: Output top, Data bottom                             */
+/* ================================================================ */
+.wb-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Output Panel — Tabbed */
+.wb-output {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+    overflow: hidden;
+}
+.output-tab-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg-tertiary); border-bottom: 1px solid var(--border);
+    flex-shrink: 0; min-height: 32px;
+}
+.output-tabs {
+    display: flex; overflow-x: auto; flex: 1; gap: 0;
+    scrollbar-width: none;
+}
+.output-tabs::-webkit-scrollbar { display: none; }
+.output-tab {
+    display: flex; align-items: center; gap: 0.4rem;
+    padding: 0.35rem 0.75rem; background: transparent; border: none;
+    border-bottom: 2px solid transparent; border-right: 1px solid var(--border);
+    color: var(--text-dim); font-size: 0.7rem; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+}
+.output-tab:hover { background: var(--bg-hover); color: var(--text); }
+.output-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg-secondary); }
+.output-tab .tab-close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 2px; font-size: 10px;
+    opacity: 0.5; cursor: pointer; line-height: 1;
+}
+.output-tab .tab-close:hover { opacity: 1; background: rgba(159,74,74,0.3); }
+.output-tab-actions { padding: 0 0.5rem; flex-shrink: 0; }
+.output-panes { flex: 1; overflow: hidden; position: relative; }
+.output-pane {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    overflow-y: auto; padding: 1rem 1.5rem;
+    display: none;
+}
+.output-pane.active { display: block; }
+.output-empty {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; color: var(--text-dim); text-align: center;
+}
+.output-empty .empty-text { font-size: 0.95rem; margin-top: 0.75rem; }
+.output-empty .empty-hint { font-size: 0.8rem; opacity: 0.6; margin-top: 0.25rem; }
+
+/* Output block (inside a tab pane) */
+.output-block-body { padding: 0; }
+.output-block-body canvas { max-height: 400px; }
+
+/* Metric grid */
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem; }
+.metric-card {
+    padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 4px; text-align: center;
+}
+.metric-card.highlight { border-color: var(--accent); }
+.metric-value { font-size: 1.4rem; font-weight: 600; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+.metric-label { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem; text-transform: uppercase; }
+
+/* Status indicators */
+.result-status {
+    display: inline-block; padding: 0.35rem 0.75rem; border-radius: 4px;
+    font-size: 0.8rem; font-weight: 600; margin-bottom: 0.75rem;
+}
+.result-status.in-control { background: rgba(74, 200, 110, 0.15); color: #4ac86e; }
+.result-status.out-of-control { background: rgba(220, 80, 80, 0.15); color: #dc5050; }
+.result-summary { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; }
+.interpretation { padding: 0.75rem; border-radius: 4px; font-size: 0.85rem; margin-top: 0.75rem; }
+.interpretation.good { background: rgba(74, 200, 110, 0.1); color: #4ac86e; }
+.interpretation.marginal { background: rgba(232, 197, 71, 0.1); color: #e8c547; }
+.interpretation.poor { background: rgba(220, 80, 80, 0.1); color: #dc5050; }
+
+/* Stats output */
+.stats-summary {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; line-height: 1.6;
+    background: var(--bg-tertiary); padding: 1rem; border-radius: 4px;
+    overflow-x: auto; white-space: pre-wrap; color: var(--text-secondary);
+}
+.stats-plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem; margin-top: 0.75rem; }
+.stats-plot { min-height: 300px; }
+.color-accent { color: var(--accent); }
+.color-title { color: var(--text); font-weight: 600; }
+.color-highlight { color: #e8c547; }
+.color-text { color: var(--text-secondary); }
+.color-dim { color: var(--text-dim); }
+.color-success { color: #4ac86e; }
+.color-warning { color: #e8c547; }
+.color-danger { color: #dc5050; }
+
+/* DOE table */
+.doe-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.doe-table th, .doe-table td { padding: 0.4rem 0.75rem; border: 1px solid var(--border); text-align: left; }
+.doe-table th { background: var(--bg-tertiary); font-weight: 500; }
+
+/* Stats table (summary all columns) */
+.stats-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; }
+.stats-table th, .stats-table td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); text-align: right; }
+.stats-table th { background: var(--bg-tertiary); font-weight: 500; color: var(--text-dim); text-align: center; }
+.stats-table td:first-child { text-align: left; }
+.stats-table tr:hover td { background: var(--bg-hover); }
+
+/* Checkbox grid for column selection */
+.checkbox-grid { display: flex; flex-direction: column; gap: 0.35rem; max-height: 200px; overflow-y: auto; padding: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 4px; }
+.checkbox-grid label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; padding: 0.2rem 0.25rem; border-radius: 3px; }
+.checkbox-grid label:hover { background: var(--bg-hover); color: var(--text); }
+.checkbox-grid input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+.checkbox-grid .select-actions { display: flex; gap: 0.5rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); margin-bottom: 0.25rem; }
+.checkbox-grid .select-actions a { font-size: 0.75rem; color: var(--accent); cursor: pointer; text-decoration: none; }
+.checkbox-grid .select-actions a:hover { text-decoration: underline; }
+
+/* Resize Handle */
+.wb-resize-handle {
+    height: 6px; background: var(--bg-tertiary); cursor: row-resize;
+    display: flex; align-items: center; justify-content: center;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.wb-resize-handle:hover { background: var(--accent-primary-dim); }
+.resize-grip { width: 40px; height: 2px; background: var(--text-dim); border-radius: 1px; opacity: 0.5; }
+
+/* Data Panel */
+.wb-data {
+    height: 250px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.data-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.4rem 1.5rem; background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.data-header-left { display: flex; align-items: center; gap: 0.75rem; }
+.data-title { font-size: 0.8rem; font-weight: 500; color: var(--text-dim); }
+.data-info { font-size: 0.7rem; color: var(--text-dim); }
+.data-table-wrapper { flex: 1; overflow: auto; }
+.data-empty {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: var(--text-dim); font-size: 0.85rem;
+}
+
+/* Data Table */
+.data-table {
+    width: 100%; border-collapse: collapse; font-size: 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+.data-table th {
+    padding: 0.35rem 0.75rem; background: var(--bg-secondary);
+    border: 1px solid var(--border); font-weight: 500; color: var(--text-dim);
+    position: sticky; top: 0; z-index: 1; text-align: left;
+    font-size: 0.7rem; text-transform: uppercase;
+}
+.data-table td {
+    padding: 0.3rem 0.75rem; border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+.data-table tr:hover td { background: var(--bg-hover); }
+
+/* Loading */
+.loading-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 1000;
+}
+.spinner {
+    width: 36px; height: 36px; border: 3px solid var(--bg-tertiary);
+    border-top-color: var(--accent-primary); border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Modal */
+.modal {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+}
+.modal-backdrop { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); }
+.modal-content {
+    position: relative; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 8px; width: 90%; max-width: 560px; max-height: 85vh;
+    overflow: hidden; display: flex; flex-direction: column;
+}
+.modal-lg { max-width: 900px; }
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-weight: 500; font-size: 1.1rem; }
+.modal-close { background: transparent; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+.modal-footer {
+    display: flex; justify-content: flex-end; gap: 0.5rem;
+    padding: 1rem 1.25rem; border-top: 1px solid var(--border);
+}
+
+/* Form in modal */
+.form-row { margin-bottom: 1rem; }
+.form-row label { display: block; margin-bottom: 0.4rem; font-size: 0.8rem; color: var(--text-dim); font-weight: 500; }
+.form-row input, .form-row textarea, .form-row select {
+    width: 100%; padding: 0.6rem 0.75rem; background: var(--bg-tertiary);
+    border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 0.9rem;
+}
+.form-row input:focus, .form-row textarea:focus, .form-row select:focus {
+    outline: none; border-color: var(--accent); background: var(--bg-hover);
+}
+.form-row textarea { min-height: 80px; resize: vertical; line-height: 1.4; font-family: 'JetBrains Mono', monospace; }
+.form-row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.form-row small { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem; display: block; }
+
+/* Workbench list */
+.workbench-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.workbench-list-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem 1.25rem; background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer;
+}
+.workbench-list-item:hover { border-color: var(--accent); background: var(--bg-hover); }
+.workbench-list-info h4 { margin: 0 0 0.25rem 0; font-size: 1rem; font-weight: 500; }
+.workbench-list-meta { font-size: 0.75rem; color: var(--text-dim); }
+.workbench-list-badge { padding: 0.25rem 0.5rem; background: var(--bg-secondary); border-radius: 3px; font-size: 0.7rem; color: var(--text-dim); }
+
+/* Toast */
+.wb-toast {
+    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(100%);
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    color: var(--text-secondary); padding: 0.6rem 1rem; border-radius: 4px;
+    font-size: 0.8rem; opacity: 0; transition: all 0.3s ease; z-index: 1000; pointer-events: none;
+}
+.wb-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 900px) {
+    .ribbon-content { padding: 0.4rem 0.5rem; overflow-x: auto; }
+    .wb-header { padding: 0.5rem 1rem; }
+    .wb-title-input { width: 200px; font-size: 1rem; }
+}
+</style>
+
+<script>
+// =============================================================================
+// State
+// =============================================================================
+let currentWorkbench = null;
+let artifacts = [];
+let uploadedData = null;
+let cacheKey = null;       // SPC in-memory cache key (for control charts, capability)
+let dswDataId = null;      // DSW on-disk data id (for regression, ANOVA, stats)
+let chartInstances = {};
+let outputCounter = 0;
+let modalCallback = null;
+
+// =============================================================================
+// Init
+// =============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    setupRibbonTabs();
+    setupResizeHandle();
+    setupDragDrop();
+    setupTemplateChange();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const workbenchId = urlParams.get('id');
+    if (workbenchId) {
+        loadWorkbench(workbenchId);
+    }
+    // Otherwise, just show the empty workspace — ready to import data and analyze
+});
+
+// =============================================================================
+// Ribbon
+// =============================================================================
+function setupRibbonTabs() {
+    document.querySelectorAll('.ribbon-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.ribbon-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('.ribbon-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`ribbon-${tab.dataset.tab}`).classList.add('active');
+        });
+    });
+}
+
+// =============================================================================
+// Template Phase Bar
+// =============================================================================
+function setupTemplateChange() {
+    document.getElementById('workbench-template').addEventListener('change', (e) => updatePhaseBar(e.target.value));
+}
+
+function updatePhaseBar(template) {
+    const phaseBar = document.getElementById('phase-bar');
+    const phasePills = document.getElementById('phase-pills');
+    const templates = {
+        dmaic: ['Define', 'Measure', 'Analyze', 'Improve', 'Control'],
+        '8d': ['D1: Team', 'D2: Problem', 'D3: Contain', 'D4: Root Cause', 'D5: Corrective', 'D6: Implement', 'D7: Prevent', 'D8: Celebrate'],
+        a3: ['Background', 'Current', 'Goal', 'Root Cause', 'Countermeasures', 'Implementation', 'Follow-up'],
+        kaizen: ['Day 1: Current State', 'Day 2: Waste ID', 'Day 3: Future State', 'Day 4: Action Items', 'Day 5: Results']
+    };
+    if (templates[template]) {
+        phaseBar.style.display = 'flex';
+        phasePills.innerHTML = templates[template].map((phase, i) =>
+            `<div class="phase-pill ${i === 0 ? 'active' : ''}" data-phase="${i}">${phase}</div>`
+        ).join('');
+    } else {
+        phaseBar.style.display = 'none';
+    }
+}
+
+// =============================================================================
+// Resize Handle (drag to resize output/data panels)
+// =============================================================================
+function setupResizeHandle() {
+    const handle = document.getElementById('resize-handle');
+    const output = document.getElementById('output-panel');
+    const data = document.getElementById('data-panel');
+    let startY, startOutputH, startDataH;
+
+    handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startY = e.clientY;
+        startOutputH = output.offsetHeight;
+        startDataH = data.offsetHeight;
+        document.addEventListener('mousemove', onResize);
+        document.addEventListener('mouseup', stopResize);
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    function onResize(e) {
+        const dy = e.clientY - startY;
+        const newOutputH = Math.max(150, startOutputH + dy);
+        const newDataH = Math.max(80, startDataH - dy);
+        output.style.flex = 'none';
+        output.style.height = newOutputH + 'px';
+        data.style.height = newDataH + 'px';
+    }
+
+    function stopResize() {
+        document.removeEventListener('mousemove', onResize);
+        document.removeEventListener('mouseup', stopResize);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    }
+}
+
+// =============================================================================
+// Drag & Drop
+// =============================================================================
+function setupDragDrop() {
+    const app = document.getElementById('workbench-app');
+    app.addEventListener('dragover', (e) => { e.preventDefault(); });
+    app.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        if (e.dataTransfer.files.length > 0) {
+            await handleFileUpload(e.dataTransfer.files[0]);
+        }
+    });
+}
+
+// =============================================================================
+// API Helpers
+// =============================================================================
+function getCSRFToken() {
+    return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1];
+}
+
+async function apiCall(endpoint, method = 'GET', data = null) {
+    const opts = { method, credentials: 'include', headers: { 'X-CSRFToken': getCSRFToken() } };
+    if (data) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(data); }
+    const r = await fetch(`/api/workbench/${endpoint}`, opts);
+    if (r.status === 401 || r.redirected) {
+        // @login_required redirects to HTML login page — don't try to parse
+        return { error: 'auth', workbenches: [] };
+    }
+    const ct = r.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return { error: 'bad_response', workbenches: [] };
+    return r.json();
+}
+
+async function apiPost(url, data, isFormData = false) {
+    const opts = { method: 'POST', credentials: 'include', headers: { 'X-CSRFToken': getCSRFToken() } };
+    if (isFormData) {
+        opts.body = data;
+    } else {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(data);
+    }
+    const r = await fetch(url, opts);
+    if (r.status === 401) {
+        window.location.href = '/login/?next=' + encodeURIComponent(window.location.pathname);
+        return { response: r, data: { error: 'Please log in' } };
+    }
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        return { response: r, data: { error: 'Unexpected response from server' } };
+    }
+    return { response: r, data: await r.json() };
+}
+
+function showLoading(show, text) {
+    document.getElementById('loading').style.display = show ? 'flex' : 'none';
+    if (text) document.getElementById('loading-text').textContent = text;
+}
+
+function showToast(msg) {
+    let t = document.getElementById('wb-toast');
+    if (!t) { t = document.createElement('div'); t.id = 'wb-toast'; t.className = 'wb-toast'; document.body.appendChild(t); }
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// =============================================================================
+// OUTPUT PANEL — Tabbed results
+// =============================================================================
+function addOutput(title, contentHtml) {
+    const empty = document.getElementById('output-empty');
+    if (empty) empty.style.display = 'none';
+
+    const id = 'output-' + (++outputCounter);
+    const shortTitle = title.length > 18 ? title.slice(0, 16) + '...' : title;
+
+    // Create tab
+    const tab = document.createElement('button');
+    tab.className = 'output-tab';
+    tab.dataset.pane = id;
+    tab.innerHTML = `<span>${shortTitle}</span><span class="tab-close" onclick="event.stopPropagation(); closeTab('${id}')">&times;</span>`;
+    tab.onclick = () => switchTab(id);
+    document.getElementById('output-tabs').appendChild(tab);
+
+    // Create pane
+    const pane = document.createElement('div');
+    pane.className = 'output-pane';
+    pane.id = id;
+    pane.innerHTML = `<div class="output-block-body">${contentHtml}</div>`;
+    document.getElementById('output-panes').appendChild(pane);
+
+    // Switch to this tab
+    switchTab(id);
+    return id;
+}
+
+function switchTab(id) {
+    document.querySelectorAll('.output-tab').forEach(t => t.classList.toggle('active', t.dataset.pane === id));
+    document.querySelectorAll('.output-pane').forEach(p => p.classList.toggle('active', p.id === id));
+}
+
+function closeTab(id) {
+    const tab = document.querySelector(`.output-tab[data-pane="${id}"]`);
+    const pane = document.getElementById(id);
+    const wasActive = tab && tab.classList.contains('active');
+    if (tab) tab.remove();
+    if (pane) pane.remove();
+
+    // If we closed the active tab, switch to the last remaining tab
+    if (wasActive) {
+        const remaining = document.querySelectorAll('.output-tab');
+        if (remaining.length > 0) {
+            switchTab(remaining[remaining.length - 1].dataset.pane);
+        } else {
+            document.getElementById('output-empty').style.display = 'flex';
+        }
+    }
+}
+
+function clearOutput() {
+    document.getElementById('output-tabs').innerHTML = '';
+    const panes = document.getElementById('output-panes');
+    // Remove all panes but keep the empty placeholder
+    panes.querySelectorAll('.output-pane').forEach(p => p.remove());
+    document.getElementById('output-empty').style.display = 'flex';
+    outputCounter = 0;
+}
+
+// =============================================================================
+// FILE UPLOAD
+// =============================================================================
+function importFile(accept) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.onchange = async (e) => {
+        if (e.target.files[0]) await handleFileUpload(e.target.files[0]);
+    };
+    input.click();
+}
+
+async function handleFileUpload(file) {
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!['.csv', '.xlsx', '.xls'].includes(ext)) { alert('Please upload CSV or Excel file'); return; }
+
+    showLoading(true, 'Uploading ' + file.name + '...');
+
+    try {
+        // Upload to SPC endpoint (for control charts, capability)
+        const spcForm = new FormData();
+        spcForm.append('file', file);
+        const { response: spcResp, data: spcData } = await apiPost('/api/spc/upload/', spcForm, true);
+
+        if (spcResp.ok && spcData.success) {
+            uploadedData = spcData;
+            cacheKey = spcData.cache_key;
+        }
+
+        // Upload to DSW endpoint (for regression, ANOVA, stats analysis)
+        const dswForm = new FormData();
+        dswForm.append('file', file);
+        const { response: dswResp, data: dswData } = await apiPost('/api/dsw/upload-data/', dswForm, true);
+
+        if (dswResp.ok && dswData.id) {
+            dswDataId = dswData.id;
+            // If SPC upload failed, use DSW data for display
+            if (!uploadedData) {
+                uploadedData = {
+                    filename: dswData.filename,
+                    row_count: dswData.rows,
+                    columns: dswData.columns,
+                    preview: dswData.preview,
+                };
+            }
+        }
+
+        showLoading(false);
+
+        if (uploadedData) {
+            displayDataTable(uploadedData);
+            showToast(`Loaded ${file.name} — ${uploadedData.row_count || dswData?.rows || ''} rows`);
+        } else {
+            alert(spcData?.error || dswData?.error || 'Upload failed');
+        }
+    } catch (err) {
+        showLoading(false);
+        alert('Upload error: ' + err.message);
+    }
+}
+
+function displayDataTable(data) {
+    document.getElementById('data-empty').style.display = 'none';
+    const table = document.getElementById('data-table');
+    table.style.display = 'table';
+
+    document.getElementById('data-title').textContent = data.filename || 'Worksheet';
+    document.getElementById('data-info').textContent = `${data.row_count} rows, ${data.columns.length} cols`;
+
+    // Header
+    const thead = document.getElementById('data-thead');
+    thead.innerHTML = '<tr>' + data.columns.map(c => `<th>${c.name}</th>`).join('') + '</tr>';
+
+    // Body (preview rows)
+    const tbody = document.getElementById('data-tbody');
+    if (data.preview) {
+        const cols = data.columns.map(c => c.name);
+        const nRows = data.preview[cols[0]] ? data.preview[cols[0]].length : 0;
+        let html = '';
+        for (let i = 0; i < nRows; i++) {
+            html += '<tr>' + cols.map(c => `<td>${data.preview[c] ? data.preview[c][i] : ''}</td>`).join('') + '</tr>';
+        }
+        tbody.innerHTML = html;
+    }
+
+    // Column selector
+    const sel = document.getElementById('column-selector');
+    sel.style.display = 'inline-block';
+    sel.innerHTML = '<option value="">All columns</option>' +
+        data.columns.map(c => `<option value="${c.name}">${c.name} (${c.dtype})</option>`).join('');
+}
+
+function viewDataTable() {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    // Scroll to data panel
+    document.getElementById('data-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+function getNumericColumns() {
+    if (!uploadedData) return [];
+    return uploadedData.columns.filter(c => c.dtype === 'numeric').map(c => c.name);
+}
+
+function getAllColumns() {
+    if (!uploadedData) return [];
+    return uploadedData.columns.map(c => c.name);
+}
+
+// =============================================================================
+// MODAL SYSTEM
+// =============================================================================
+function openModal(title, bodyHtml, submitLabel, callback) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').innerHTML = bodyHtml;
+    document.getElementById('modal-submit').textContent = submitLabel || 'Run';
+    document.getElementById('analysis-modal').style.display = 'flex';
+    modalCallback = callback;
+}
+
+function closeModal() {
+    document.getElementById('analysis-modal').style.display = 'none';
+    modalCallback = null;
+}
+
+function submitModal() {
+    if (modalCallback) modalCallback();
+}
+
+// =============================================================================
+// SPC: Control Charts
+// =============================================================================
+function openSPCDialog(chartType) {
+    const numCols = getNumericColumns();
+    const colOptions = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const hasData = uploadedData != null;
+
+    let html = '';
+    if (hasData) {
+        html += `<div class="form-row"><label>Value Column</label><select id="dlg-value-col">${colOptions}</select></div>`;
+        html += `<div class="form-row"><label>Subgroup Column (optional)</label><select id="dlg-subgroup-col"><option value="">None</option>${getAllColumns().map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>`;
+    }
+    html += `<div class="form-row"><label>Or enter data manually</label><textarea id="dlg-data" rows="5" placeholder="Values separated by commas or newlines. For subgroups: one row per subgroup."></textarea></div>`;
+    html += `<div class="form-row-inline">
+        <div class="form-row"><label>USL (optional)</label><input type="number" id="dlg-usl" step="any"></div>
+        <div class="form-row"><label>LSL (optional)</label><input type="number" id="dlg-lsl" step="any"></div>
+    </div>`;
+    if (chartType === 'p') {
+        html += `<div class="form-row"><label>Sample Sizes</label><textarea id="dlg-sample-sizes" rows="2" placeholder="50, 50, 48, 52..."></textarea></div>`;
+    }
+    html += `<input type="hidden" id="dlg-chart-type" value="${chartType}">`;
+
+    openModal(`${chartType} Control Chart`, html, 'Create Chart', runControlChart);
+}
+
+async function runControlChart() {
+    const chartType = document.getElementById('dlg-chart-type').value;
+    const usl = document.getElementById('dlg-usl').value;
+    const lsl = document.getElementById('dlg-lsl').value;
+
+    let body = { chart_type: chartType };
+    if (usl) body.usl = parseFloat(usl);
+    if (lsl) body.lsl = parseFloat(lsl);
+
+    // From file
+    const valCol = document.getElementById('dlg-value-col');
+    if (valCol && valCol.value && cacheKey) {
+        body.cache_key = cacheKey;
+        body.value_column = valCol.value;
+        const sgCol = document.getElementById('dlg-subgroup-col');
+        if (sgCol && sgCol.value) body.subgroup_column = sgCol.value;
+        body.analysis_type = 'control_chart';
+
+        closeModal();
+        showLoading(true, 'Creating control chart...');
+        try {
+            const { response, data } = await apiPost('/api/spc/analyze/', body);
+            showLoading(false);
+            if (response.ok && data.success) {
+                renderControlChartOutput(data.chart);
+            } else { alert(data.error || 'Analysis failed'); }
+        } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+        return;
+    }
+
+    // Manual data
+    const dataText = document.getElementById('dlg-data').value.trim();
+    if (!dataText) { alert('Enter data or select a column'); return; }
+
+    const lines = dataText.split('\n');
+    if (chartType === 'X-bar R') {
+        body.data = lines.map(l => l.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v))).filter(sg => sg.length > 0);
+    } else {
+        body.data = [];
+        for (const line of lines) for (const val of line.split(',')) { const n = parseFloat(val.trim()); if (!isNaN(n)) body.data.push(n); }
+    }
+
+    if (chartType === 'p') {
+        const sizesEl = document.getElementById('dlg-sample-sizes');
+        if (sizesEl) body.sample_sizes = sizesEl.value.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+    }
+
+    closeModal();
+    showLoading(true, 'Creating control chart...');
+    try {
+        const { response, data } = await apiPost('/api/spc/chart/', body);
+        showLoading(false);
+        if (response.ok) { renderControlChartOutput(data.chart); }
+        else { alert(data.error || 'Failed'); }
+    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+}
+
+function renderControlChartOutput(chart) {
+    const statusClass = chart.in_control ? 'in-control' : 'out-of-control';
+    const statusText = chart.in_control ? 'IN CONTROL' : 'OUT OF CONTROL';
+    const canvasId = 'chart-canvas-' + (++outputCounter);
+    const secCanvasId = 'sec-chart-canvas-' + outputCounter;
+
+    let html = `<div class="result-status ${statusClass}">${statusText}</div>`;
+    html += `<div class="result-summary">${chart.summary || ''}</div>`;
+    html += `<canvas id="${canvasId}" style="max-height:350px;"></canvas>`;
+    if (chart.secondary_chart) {
+        html += `<canvas id="${secCanvasId}" style="max-height:250px; margin-top:1rem;"></canvas>`;
+    }
+
+    addOutput(chart.chart_type + ' Chart', html);
+
+    // Draw after DOM update
+    setTimeout(() => {
+        drawControlChart(canvasId, chart);
+        if (chart.secondary_chart) drawControlChart(secCanvasId, chart.secondary_chart);
+    }, 50);
+}
+
+function drawControlChart(canvasId, chart) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    const labels = chart.data_points.map((_, i) => i + 1);
+    const datasets = [
+        {
+            label: 'Data', data: chart.data_points,
+            borderColor: SvendTheme.colors.primary, backgroundColor: 'transparent', tension: 0, pointRadius: 4,
+            pointBackgroundColor: chart.data_points.map((v, i) =>
+                (chart.out_of_control || []).some(p => p.index === i) ? SvendTheme.colors.error : SvendTheme.colors.primary
+            ),
+        },
+        { label: 'UCL', data: Array(chart.data_points.length).fill(chart.limits.ucl), borderColor: SvendTheme.colors.error, borderDash: [5, 5], pointRadius: 0 },
+        { label: 'CL', data: Array(chart.data_points.length).fill(chart.limits.cl), borderColor: SvendTheme.colors.textDim, borderDash: [2, 2], pointRadius: 0 },
+        { label: 'LCL', data: Array(chart.data_points.length).fill(chart.limits.lcl), borderColor: SvendTheme.colors.error, borderDash: [5, 5], pointRadius: 0 },
+    ];
+    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: 'line', data: { labels, datasets },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: chart.chart_type + ' Chart', color: SvendTheme.colors.text } },
+            scales: {
+                x: { ticks: { color: SvendTheme.colors.textDim }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                y: { ticks: { color: SvendTheme.colors.textDim }, grid: { color: 'rgba(255,255,255,0.1)' } }
+            }
+        }
+    });
+}
+
+// =============================================================================
+// SPC: Capability Study
+// =============================================================================
+function openCapabilityDialog() {
+    const numCols = getNumericColumns();
+    const colOptions = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const hasData = uploadedData != null;
+
+    let html = '';
+    if (hasData) {
+        html += `<div class="form-row"><label>Value Column</label><select id="dlg-cap-col">${colOptions}</select></div>`;
+    }
+    html += `<div class="form-row"><label>Or enter data manually</label><textarea id="dlg-cap-data" rows="4" placeholder="Measurements separated by commas or newlines"></textarea></div>`;
+    html += `<div class="form-row-inline">
+        <div class="form-row"><label>USL *</label><input type="number" id="dlg-cap-usl" step="any" required></div>
+        <div class="form-row"><label>LSL *</label><input type="number" id="dlg-cap-lsl" step="any" required></div>
+    </div>`;
+    html += `<div class="form-row-inline">
+        <div class="form-row"><label>Target</label><input type="number" id="dlg-cap-target" step="any" placeholder="Midpoint"></div>
+        <div class="form-row"><label>Subgroup Size</label><input type="number" id="dlg-cap-sg" value="1" min="1"></div>
+    </div>`;
+
+    openModal('Process Capability Study', html, 'Analyze', runCapabilityStudy);
+}
+
+async function runCapabilityStudy() {
+    const usl = document.getElementById('dlg-cap-usl').value;
+    const lsl = document.getElementById('dlg-cap-lsl').value;
+    if (!usl || !lsl) { alert('USL and LSL are required'); return; }
+
+    let body = { usl: parseFloat(usl), lsl: parseFloat(lsl) };
+    const target = document.getElementById('dlg-cap-target').value;
+    if (target) body.target = parseFloat(target);
+
+    const colEl = document.getElementById('dlg-cap-col');
+    if (colEl && colEl.value && cacheKey) {
+        body.cache_key = cacheKey;
+        body.value_column = colEl.value;
+        body.analysis_type = 'capability';
+        closeModal();
+        showLoading(true, 'Running capability study...');
+        try {
+            const { response, data } = await apiPost('/api/spc/analyze/', body);
+            showLoading(false);
+            if (response.ok && data.success) renderCapabilityOutput(data.capability);
+            else alert(data.error || 'Failed');
+        } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+        return;
+    }
+
+    const dataText = document.getElementById('dlg-cap-data').value.trim();
+    if (!dataText) { alert('Enter data or select a column'); return; }
+    body.data = dataText.split(/[,\n]/).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+    body.subgroup_size = parseInt(document.getElementById('dlg-cap-sg').value) || 1;
+
+    closeModal();
+    showLoading(true, 'Running capability study...');
+    try {
+        const { response, data } = await apiPost('/api/spc/capability/', body);
+        showLoading(false);
+        if (response.ok) renderCapabilityOutput(data.capability);
+        else alert(data.error || 'Failed');
+    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+}
+
+function renderCapabilityOutput(cap) {
+    const cpkClass = cap.cpk >= 1.33 ? 'good' : (cap.cpk >= 1.0 ? 'marginal' : 'poor');
+    const html = `
+        <div class="metric-grid">
+            <div class="metric-card highlight"><div class="metric-value">${cap.cpk.toFixed(3)}</div><div class="metric-label">Cpk</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.cp.toFixed(3)}</div><div class="metric-label">Cp</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.ppk.toFixed(3)}</div><div class="metric-label">Ppk</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.pp.toFixed(3)}</div><div class="metric-label">Pp</div></div>
+        </div>
+        <div class="metric-grid">
+            <div class="metric-card"><div class="metric-value">${cap.sigma_level.toFixed(2)}</div><div class="metric-label">Sigma Level</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.dpmo.toFixed(0)}</div><div class="metric-label">DPMO</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.yield_percent.toFixed(2)}%</div><div class="metric-label">Yield</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.n_samples}</div><div class="metric-label">n</div></div>
+        </div>
+        <div class="interpretation ${cpkClass}">${cap.interpretation}</div>`;
+    addOutput('Capability Study', html);
+}
+
+// =============================================================================
+// SPC: Gage R&R
+// =============================================================================
+function openGageRRDialog() {
+    let html = `
+        <div class="form-row"><label>Measurement Data</label>
+            <textarea id="dlg-grr-data" rows="8" placeholder="Part, Operator, Trial, Measurement
+1, A, 1, 5.23
+1, A, 2, 5.25
+1, B, 1, 5.24
+..."></textarea>
+            <small>Include headers: Part, Operator, Trial, Measurement</small>
+        </div>
+        <div class="form-row"><label>Process Tolerance (optional)</label>
+            <input type="number" id="dlg-grr-tol" step="any" placeholder="USL - LSL">
+            <small>For %Tolerance calculation</small>
+        </div>`;
+    openModal('Gage R&R Study', html, 'Run Study', runGageRR);
+}
+
+async function runGageRR() {
+    const text = document.getElementById('dlg-grr-data').value.trim();
+    if (!text) { alert('Enter measurement data'); return; }
+
+    const lines = text.split('\n').filter(l => l.trim());
+    const measurements = [];
+    for (let i = 0; i < lines.length; i++) {
+        const parts = lines[i].split(/[,\t]/).map(s => s.trim());
+        if (parts.length >= 4 && !isNaN(parseFloat(parts[3]))) {
+            measurements.push({ part: parts[0], operator: parts[1], trial: parseInt(parts[2]), measurement: parseFloat(parts[3]) });
+        }
+    }
+    if (measurements.length === 0) { alert('Could not parse data. Use format: Part, Operator, Trial, Measurement'); return; }
+
+    const body = { measurements };
+    const tol = document.getElementById('dlg-grr-tol').value;
+    if (tol) body.tolerance = parseFloat(tol);
+
+    closeModal();
+    showLoading(true, 'Running Gage R&R...');
+    try {
+        const { response, data } = await apiPost('/api/spc/analyze/', { analysis_type: 'gage_rr', ...body });
+        showLoading(false);
+        if (response.ok && data.success) {
+            const grr = data.gage_rr || data;
+            let html = `<pre class="stats-summary">${JSON.stringify(grr, null, 2)}</pre>`;
+            addOutput('Gage R&R Study', html);
+        } else { alert(data.error || 'Analysis failed'); }
+    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+}
+
+// =============================================================================
+// SPC: Data Summary
+// =============================================================================
+async function runSummary() {
+    if (!cacheKey) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    if (numCols.length === 0) { alert('No numeric columns found'); return; }
+
+    const checks = numCols.map(c => `<label><input type="checkbox" value="${c}" checked> ${c}</label>`).join('');
+    const html = `
+        <div class="form-row"><label>Select columns to summarize:</label>
+            <div class="checkbox-grid" id="summary-checks">
+                <div class="select-actions">
+                    <a onclick="document.querySelectorAll('#summary-checks input').forEach(c=>c.checked=true)">Select All</a>
+                    <a onclick="document.querySelectorAll('#summary-checks input').forEach(c=>c.checked=false)">Clear All</a>
+                </div>
+                ${checks}
+            </div>
+        </div>`;
+    openModal('Descriptive Statistics', html, 'Calculate', () => {
+        const selected = Array.from(document.querySelectorAll('#summary-checks input:checked')).map(c => c.value);
+        if (selected.length === 0) { alert('Select at least one column'); return; }
+        closeModal();
+        if (selected.length === 1) {
+            fetchAndRenderSummary(selected[0]);
+        } else {
+            runSummaryAll(selected);
+        }
+    });
+}
+
+async function fetchAndRenderSummary(colName) {
+    showLoading(true, `Summarizing ${colName}...`);
+    try {
+        const { response, data } = await apiPost('/api/spc/analyze/', {
+            cache_key: cacheKey, value_column: colName, analysis_type: 'summary'
+        });
+        showLoading(false);
+        if (response.ok && data.success) renderSummaryOutput(colName, data.summary);
+        else alert(data.error || 'Failed');
+    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+}
+
+async function runSummaryAll(cols) {
+    showLoading(true, 'Summarizing all columns...');
+    let rows = [];
+    for (const col of cols) {
+        try {
+            const { response, data } = await apiPost('/api/spc/analyze/', {
+                cache_key: cacheKey, value_column: col, analysis_type: 'summary'
+            });
+            if (response.ok && data.success) rows.push({ col, s: data.summary });
+        } catch (e) { /* skip failed columns */ }
+    }
+    showLoading(false);
+    if (rows.length === 0) { alert('No summaries returned'); return; }
+
+    let html = '<table class="stats-table"><thead><tr><th>Statistic</th>';
+    rows.forEach(r => html += `<th>${r.col}</th>`);
+    html += '</tr></thead><tbody>';
+    const stats = [
+        ['N', 'n', false], ['Mean', 'mean', true], ['Median', 'median', true],
+        ['Std Dev', 'std_dev', true], ['Min', 'min_val', true], ['Max', 'max_val', true],
+        ['Range', 'range_val', true], ['Q1', 'q1', true], ['Q3', 'q3', true],
+        ['IQR', 'iqr', true], ['Skewness', 'skewness', true], ['Kurtosis', 'kurtosis', true]
+    ];
+    for (const [label, key, fmt] of stats) {
+        html += `<tr><td><strong>${label}</strong></td>`;
+        rows.forEach(r => {
+            const v = r.s[key];
+            html += `<td>${fmt && v != null ? v.toFixed(4) : v}</td>`;
+        });
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    addOutput('Summary: All Columns', html);
+}
+
+function renderSummaryOutput(colName, s) {
+    const html = `<pre class="stats-summary">Variable: ${colName}
+──────────────────────
+N        = ${s.n}
+Mean     = ${s.mean.toFixed(4)}
+Median   = ${s.median.toFixed(4)}
+Std Dev  = ${s.std_dev.toFixed(4)}
+Min      = ${s.min_val.toFixed(4)}
+Max      = ${s.max_val.toFixed(4)}
+Range    = ${s.range_val.toFixed(4)}
+Q1       = ${s.q1.toFixed(4)}
+Q3       = ${s.q3.toFixed(4)}
+IQR      = ${s.iqr.toFixed(4)}
+Skewness = ${s.skewness.toFixed(4)}
+Kurtosis = ${s.kurtosis.toFixed(4)}</pre>`;
+    addOutput(`Summary: ${colName}`, html);
+}
+
+// =============================================================================
+// GRAPHS: Histogram, Scatter, Boxplot, Time Series
+// =============================================================================
+function openGraphDialog(graphType) {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const allCols = getAllColumns();
+    const numOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const allOpts = allCols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    let html = '';
+    if (graphType === 'histogram') {
+        html = `<div class="form-row"><label>Variable</label><select id="dlg-graph-var">${numOpts}</select></div>
+            <div class="form-row"><label>Number of Bins</label><input type="number" id="dlg-graph-bins" value="0" min="0" placeholder="0 = auto"></div>`;
+        openModal('Histogram', html, 'Plot', () => {
+            const col = document.getElementById('dlg-graph-var').value;
+            const bins = parseInt(document.getElementById('dlg-graph-bins').value) || 0;
+            closeModal();
+            renderGraph('histogram', { col, bins });
+        });
+    } else if (graphType === 'scatter') {
+        html = `<div class="form-row"><label>X Variable</label><select id="dlg-graph-x">${numOpts}</select></div>
+            <div class="form-row"><label>Y Variable</label><select id="dlg-graph-y">${numOpts.length > 1 ? numOpts : numOpts}</select></div>
+            <div class="form-row"><label>Color By (optional)</label><select id="dlg-graph-color"><option value="">None</option>${allOpts}</select></div>`;
+        openModal('Scatter Plot', html, 'Plot', () => {
+            const x = document.getElementById('dlg-graph-x').value;
+            const y = document.getElementById('dlg-graph-y').value;
+            const color = document.getElementById('dlg-graph-color').value;
+            closeModal();
+            renderGraph('scatter', { x, y, color });
+        });
+    } else if (graphType === 'boxplot') {
+        html = `<div class="form-row"><label>Value Variable</label><select id="dlg-graph-val">${numOpts}</select></div>
+            <div class="form-row"><label>Group By (optional)</label><select id="dlg-graph-group"><option value="">None (single box)</option>${allOpts}</select></div>`;
+        openModal('Box Plot', html, 'Plot', () => {
+            const val = document.getElementById('dlg-graph-val').value;
+            const group = document.getElementById('dlg-graph-group').value;
+            closeModal();
+            renderGraph('boxplot', { val, group });
+        });
+    } else if (graphType === 'timeseries') {
+        html = `<div class="form-row"><label>Value Variable</label><select id="dlg-graph-ts-val">${numOpts}</select></div>
+            <div class="form-row"><label>Time/Index Variable (optional)</label><select id="dlg-graph-ts-time"><option value="">Row index</option>${allOpts}</select></div>`;
+        openModal('Time Series Plot', html, 'Plot', () => {
+            const val = document.getElementById('dlg-graph-ts-val').value;
+            const time = document.getElementById('dlg-graph-ts-time').value;
+            closeModal();
+            renderGraph('timeseries', { val, time });
+        });
+    }
+}
+
+function renderGraph(type, opts) {
+    const preview = uploadedData.preview;
+    const cols = uploadedData.columns.map(c => c.name);
+    // Build arrays from preview data
+    function getCol(name) {
+        if (!preview || !name) return [];
+        if (Array.isArray(preview)) return preview.map(row => row[name]);
+        return preview[name] || [];
+    }
+
+    const plotId = 'graph-' + (++outputCounter);
+    const html = `<div id="${plotId}" style="width:100%;min-height:400px;"></div>`;
+    let plotTitle = '';
+    let traces = [];
+    let layout = {};
+
+    if (type === 'histogram') {
+        const vals = getCol(opts.col).filter(v => v != null && !isNaN(v));
+        traces = [{ x: vals, type: 'histogram', marker: { color: 'rgba(74,159,110,0.7)', line: { color: 'rgba(74,159,110,1)', width: 1 } } }];
+        if (opts.bins > 0) traces[0].nbinsx = opts.bins;
+        plotTitle = 'Histogram of ' + opts.col;
+        layout = { xaxis: { title: opts.col }, yaxis: { title: 'Frequency' } };
+    } else if (type === 'scatter') {
+        const xVals = getCol(opts.x);
+        const yVals = getCol(opts.y);
+        if (opts.color) {
+            const groups = {};
+            const colorVals = getCol(opts.color);
+            xVals.forEach((x, i) => {
+                const g = String(colorVals[i] || 'other');
+                if (!groups[g]) groups[g] = { x: [], y: [] };
+                groups[g].x.push(x);
+                groups[g].y.push(yVals[i]);
+            });
+            traces = Object.entries(groups).map(([name, d]) => ({ x: d.x, y: d.y, mode: 'markers', type: 'scatter', name }));
+        } else {
+            traces = [{ x: xVals, y: yVals, mode: 'markers', type: 'scatter', marker: { color: 'rgba(74,159,110,0.7)' } }];
+        }
+        plotTitle = opts.y + ' vs ' + opts.x;
+        layout = { xaxis: { title: opts.x }, yaxis: { title: opts.y } };
+    } else if (type === 'boxplot') {
+        if (opts.group) {
+            const groups = {};
+            const vals = getCol(opts.val);
+            const grps = getCol(opts.group);
+            vals.forEach((v, i) => {
+                const g = String(grps[i] || 'other');
+                if (!groups[g]) groups[g] = [];
+                groups[g].push(v);
+            });
+            traces = Object.entries(groups).map(([name, y]) => ({ y, type: 'box', name }));
+        } else {
+            traces = [{ y: getCol(opts.val), type: 'box', name: opts.val, marker: { color: 'rgba(74,159,110,0.7)' } }];
+        }
+        plotTitle = 'Box Plot of ' + opts.val;
+        layout = { yaxis: { title: opts.val } };
+    } else if (type === 'timeseries') {
+        const vals = getCol(opts.val);
+        const xVals = opts.time ? getCol(opts.time) : vals.map((_, i) => i + 1);
+        traces = [{ x: xVals, y: vals, type: 'scatter', mode: 'lines+markers', line: { color: 'rgba(74,159,110,1)' }, marker: { size: 4 } }];
+        plotTitle = opts.val + ' over ' + (opts.time || 'observation');
+        layout = { xaxis: { title: opts.time || 'Observation' }, yaxis: { title: opts.val } };
+    }
+
+    const blockId = addOutput(plotTitle, html);
+    setTimeout(() => {
+        Plotly.newPlot(plotId, traces, {
+            ...layout,
+            title: { text: plotTitle, font: { size: 14, color: '#b0b0b0' } },
+            template: 'plotly_dark',
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            margin: { t: 40, r: 20, b: 50, l: 60 },
+        }, { responsive: true, displayModeBar: true });
+    }, 50);
+}
+
+// =============================================================================
+// STATS: Regression, Hypothesis Tests, Intervals, Transforms
+// =============================================================================
+function openStatsDialog(type) {
+    if (!dswDataId) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const allCols = getAllColumns();
+    const numOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const allOpts = allCols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    let html = '';
+    if (type === 'regression') {
+        const predChecks = numCols.map(c => `<label><input type="checkbox" value="${c}"> ${c}</label>`).join('');
+        html = `
+            <div class="form-row"><label>Analysis Type</label><select id="dlg-reg-type">
+                <option value="regression">Linear Regression</option>
+                <option value="stepwise">Stepwise Regression</option>
+                <option value="best_subsets">Best Subsets</option>
+                <option value="robust_regression">Robust Regression</option>
+                <option value="logistic">Logistic Regression</option>
+            </select></div>
+            <div class="form-row"><label>Response Variable</label><select id="dlg-reg-response">${numOpts}</select></div>
+            <div class="form-row"><label>Predictors</label>
+                <div class="checkbox-grid" id="dlg-reg-predictors">
+                    <div class="select-actions">
+                        <a onclick="document.querySelectorAll('#dlg-reg-predictors input').forEach(c=>c.checked=true)">Select All</a>
+                        <a onclick="document.querySelectorAll('#dlg-reg-predictors input').forEach(c=>c.checked=false)">Clear All</a>
+                    </div>
+                    ${predChecks}
+                </div>
+            </div>`;
+        openModal('Regression Analysis', html, 'Run', async () => {
+            const regType = document.getElementById('dlg-reg-type').value;
+            const response = document.getElementById('dlg-reg-response').value;
+            const predictors = Array.from(document.querySelectorAll('#dlg-reg-predictors input:checked')).map(c => c.value);
+            if (!response || predictors.length === 0) { alert('Select response and at least one predictor'); return; }
+            closeModal();
+            await runStatsAnalysis('stats', regType, { response, predictors }, 'Regression');
+        });
+    } else if (type === 'anova') {
+        html = `
+            <div class="form-row"><label>Response Variable</label><select id="dlg-anova-response">${numOpts}</select></div>
+            <div class="form-row"><label>Factor Variable</label><select id="dlg-anova-factor">${allOpts}</select></div>`;
+        openModal('ANOVA', html, 'Run', async () => {
+            const response = document.getElementById('dlg-anova-response').value;
+            const factor = document.getElementById('dlg-anova-factor').value;
+            closeModal();
+            await runStatsAnalysis('stats', 'anova', { response, factor, factors: [factor] }, 'ANOVA');
+        });
+    } else if (type === 'ttest') {
+        html = `
+            <div class="form-row"><label>Test Type</label><select id="dlg-test-type">
+                <option value="ttest">One-Sample t-Test</option>
+                <option value="ttest2">Two-Sample t-Test</option>
+                <option value="paired_t">Paired t-Test</option>
+            </select></div>
+            <div class="form-row"><label>Variable 1</label><select id="dlg-test-var1">${numOpts}</select></div>
+            <div class="form-row"><label>Variable 2 / Group</label><select id="dlg-test-var2"><option value="">N/A</option>${allOpts}</select></div>
+            <div class="form-row"><label>Hypothesized Mean</label><input type="number" id="dlg-test-mu" value="0" step="any"></div>
+            <div class="form-row"><label>Confidence</label><select id="dlg-test-conf"><option value="90">90%</option><option value="95" selected>95%</option><option value="99">99%</option></select></div>`;
+        openModal('t-Test', html, 'Run', async () => {
+            const testType = document.getElementById('dlg-test-type').value;
+            const var1 = document.getElementById('dlg-test-var1').value;
+            const var2 = document.getElementById('dlg-test-var2').value;
+            const conf = parseInt(document.getElementById('dlg-test-conf').value);
+            const config = { var1, conf };
+            if (testType === 'ttest') config.mu = parseFloat(document.getElementById('dlg-test-mu').value) || 0;
+            if (['ttest2', 'paired_t'].includes(testType)) config.var2 = var2;
+            closeModal();
+            await runStatsAnalysis('stats', testType, config, 't-Test');
+        });
+    } else if (type === 'more') {
+        html = `<div class="form-row"><label>Test</label><select id="dlg-more-type">
+            <option value="chi2">Chi-Square</option>
+            <option value="mann_whitney">Mann-Whitney U</option>
+            <option value="kruskal">Kruskal-Wallis H</option>
+            <option value="f_test">F-Test for Variance</option>
+            <option value="equivalence">Equivalence (TOST)</option>
+            <option value="normality">Normality Test</option>
+            <option value="runs_test">Runs Test</option>
+            <option value="bootstrap_ci">Bootstrap CI</option>
+            <option value="tolerance_interval">Tolerance Interval</option>
+            <option value="box_cox">Box-Cox Transform</option>
+        </select></div>
+        <div class="form-row"><label>Variable 1</label><select id="dlg-more-var1">${allOpts}</select></div>
+        <div class="form-row"><label>Variable 2 (if needed)</label><select id="dlg-more-var2"><option value="">N/A</option>${allOpts}</select></div>`;
+        openModal('Statistical Analysis', html, 'Run', async () => {
+            const testType = document.getElementById('dlg-more-type').value;
+            const var1 = document.getElementById('dlg-more-var1').value;
+            const var2 = document.getElementById('dlg-more-var2').value;
+            const config = { var: var1, var1: var1 };
+            if (var2) { config.var2 = var2; config.group_var = var2; config.col_var = var2; config.factor = var2; }
+            closeModal();
+            await runStatsAnalysis('stats', testType, config, testType.replace('_', ' '));
+        });
+    }
+}
+
+async function runStatsAnalysis(analysisType, analysisId, config, outputTitle) {
+    showLoading(true, 'Running ' + outputTitle + '...');
+    try {
+        const { response, data } = await apiPost('/api/dsw/analysis/', {
+            type: analysisType, analysis: analysisId, config, data_id: dswDataId
+        });
+        showLoading(false);
+        if (data.error) { alert(data.error); return; }
+        renderStatsOutput(data, outputTitle);
+    } catch (err) { showLoading(false); alert('Analysis failed: ' + err.message); }
+}
+
+function renderStatsOutput(result, title) {
+    let html = '';
+
+    if (result.summary) {
+        let formatted = result.summary
+            .replace(/<<COLOR:accent>>(.*?)<<\/COLOR>>/g, '<span class="color-accent">$1</span>')
+            .replace(/<<COLOR:title>>(.*?)<<\/COLOR>>/g, '<span class="color-title">$1</span>')
+            .replace(/<<COLOR:highlight>>(.*?)<<\/COLOR>>/g, '<span class="color-highlight">$1</span>')
+            .replace(/<<COLOR:text>>(.*?)<<\/COLOR>>/g, '<span class="color-text">$1</span>')
+            .replace(/<<COLOR:dim>>(.*?)<<\/COLOR>>/g, '<span class="color-dim">$1</span>')
+            .replace(/<<COLOR:success>>(.*?)<<\/COLOR>>/g, '<span class="color-success">$1</span>')
+            .replace(/<<COLOR:good>>(.*?)<<\/COLOR>>/g, '<span class="color-success">$1</span>')
+            .replace(/<<COLOR:warning>>(.*?)<<\/COLOR>>/g, '<span class="color-warning">$1</span>')
+            .replace(/<<COLOR:danger>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>')
+            .replace(/<<COLOR:bad>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>');
+        html += `<pre class="stats-summary">${formatted}</pre>`;
+    }
+
+    if (result.plots && result.plots.length > 0) {
+        const plotIds = [];
+        html += '<div class="stats-plots">';
+        result.plots.forEach((plot, i) => {
+            const plotId = `plot-${outputCounter}-${i}`;
+            plotIds.push({ id: plotId, plot });
+            html += `<div id="${plotId}" class="stats-plot"></div>`;
+        });
+        html += '</div>';
+
+        const blockId = addOutput(title, html);
+
+        // Render Plotly charts after DOM update
+        setTimeout(() => {
+            plotIds.forEach(({ id, plot }) => {
+                const layout = {
+                    ...plot.layout,
+                    template: 'plotly_dark',
+                    paper_bgcolor: 'transparent',
+                    plot_bgcolor: 'transparent',
+                    margin: { t: 40, r: 20, b: 40, l: 60 },
+                    title: { text: plot.title, font: { size: 14, color: '#b0b0b0' } }
+                };
+                Plotly.newPlot(id, plot.data, layout, { responsive: true, displayModeBar: false });
+            });
+        }, 50);
+    } else {
+        addOutput(title, html);
+    }
+}
+
+// =============================================================================
+// DOE
+// =============================================================================
+function openDOEDialog(doeType) {
+    let html = `<div class="form-row"><label>Design Type</label>
+        <select id="dlg-doe-type">
+            <option value="full_factorial" ${doeType === 'full_factorial' ? 'selected' : ''}>Full Factorial</option>
+            <option value="fractional_factorial" ${doeType === 'fractional_factorial' ? 'selected' : ''}>Fractional Factorial</option>
+            <option value="ccd" ${doeType === 'ccd' ? 'selected' : ''}>Central Composite (CCD)</option>
+            <option value="latin_square" ${doeType === 'latin_square' ? 'selected' : ''}>Latin Square</option>
+        </select></div>
+        <div class="form-row"><label>Factors</label>
+            <div id="dlg-factors">
+                <div class="form-row-inline" style="margin-bottom:0.5rem;">
+                    <input type="text" placeholder="Factor name" class="dlg-factor-name" style="padding:0.5rem;">
+                    <input type="text" placeholder="Levels (comma sep)" class="dlg-factor-levels" style="padding:0.5rem;">
+                </div>
+                <div class="form-row-inline" style="margin-bottom:0.5rem;">
+                    <input type="text" placeholder="Factor name" class="dlg-factor-name" style="padding:0.5rem;">
+                    <input type="text" placeholder="Levels (comma sep)" class="dlg-factor-levels" style="padding:0.5rem;">
+                </div>
+            </div>
+            <button type="button" class="wb-btn wb-btn-sm" onclick="addDOEFactor()">+ Add Factor</button>
+        </div>`;
+    openModal('Design of Experiments', html, 'Generate Design', runDOE);
+}
+
+function addDOEFactor() {
+    const div = document.getElementById('dlg-factors');
+    const row = document.createElement('div');
+    row.className = 'form-row-inline';
+    row.style.marginBottom = '0.5rem';
+    row.innerHTML = `<input type="text" placeholder="Factor name" class="dlg-factor-name" style="padding:0.5rem;"><input type="text" placeholder="Levels (comma sep)" class="dlg-factor-levels" style="padding:0.5rem;">`;
+    div.appendChild(row);
+}
+
+async function runDOE() {
+    const doeType = document.getElementById('dlg-doe-type').value;
+    const names = document.querySelectorAll('.dlg-factor-name');
+    const levels = document.querySelectorAll('.dlg-factor-levels');
+    const factors = [];
+    names.forEach((el, i) => {
+        const name = el.value.trim();
+        const lvls = levels[i].value.split(',').map(v => v.trim()).filter(v => v);
+        if (name && lvls.length > 0) factors.push({ name, levels: lvls });
+    });
+    if (factors.length < 2) { alert('Add at least 2 factors'); return; }
+
+    closeModal();
+    showLoading(true, 'Generating design...');
+    try {
+        const { response, data } = await apiPost('/api/experimenter/design/', { design_type: doeType, factors });
+        showLoading(false);
+        if (data.error) { alert(data.error); return; }
+        const design = data.design || data;
+        const runs = design.runs || data.runs || [];
+        let html = '';
+        if (runs.length > 0) {
+            // Extract factor names from the levels dict
+            const factorNames = Object.keys(runs[0].levels || {});
+            const cols = ['Run', ...factorNames];
+            html += '<table class="doe-table"><thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+            runs.forEach(run => {
+                const lvls = run.levels || {};
+                html += '<tr>';
+                html += `<td>${run.run_order || run.run_id || ''}</td>`;
+                factorNames.forEach(f => { html += `<td>${lvls[f] || ''}</td>`; });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            const designName = design.name || design.design_type || doeType;
+            html += `<p style="margin-top:0.75rem;color:var(--text-dim);font-size:0.8rem;">${designName} — ${runs.length} runs</p>`;
+        } else if (data.markdown) {
+            html = `<pre class="stats-summary">${data.markdown}</pre>`;
+        } else {
+            html = `<pre class="stats-summary">${JSON.stringify(design, null, 2)}</pre>`;
+        }
+        addOutput('DOE: ' + doeType.replace('_', ' '), html);
+    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+}
+
+// =============================================================================
+// Power Analysis
+// =============================================================================
+function openPowerDialog() {
+    let html = `
+        <div class="form-row"><label>Effect Size (Cohen's d)</label>
+            <input type="number" id="dlg-pwr-effect" step="0.1" value="0.5">
+            <small>Small: 0.2, Medium: 0.5, Large: 0.8</small></div>
+        <div class="form-row-inline">
+            <div class="form-row"><label>Alpha</label><input type="number" id="dlg-pwr-alpha" step="0.01" value="0.05"></div>
+            <div class="form-row"><label>Power (1-beta)</label><input type="number" id="dlg-pwr-power" step="0.01" value="0.80"></div>
+        </div>
+        <div class="form-row"><label>Test Type</label><select id="dlg-pwr-test">
+            <option value="two_sample">Two-sample t-test</option>
+            <option value="one_sample">One-sample t-test</option>
+            <option value="paired">Paired t-test</option>
+        </select></div>`;
+    openModal('Power Analysis / Sample Size', html, 'Calculate', runPower);
+}
+
+async function runPower() {
+    const body = {
+        effect_size: parseFloat(document.getElementById('dlg-pwr-effect').value),
+        alpha: parseFloat(document.getElementById('dlg-pwr-alpha').value),
+        power: parseFloat(document.getElementById('dlg-pwr-power').value),
+        test_type: document.getElementById('dlg-pwr-test').value,
+    };
+    closeModal();
+    showLoading(true, 'Calculating sample size...');
+    try {
+        const { response, data } = await apiPost('/api/experimenter/power/', body);
+        showLoading(false);
+        if (data.error) { alert(data.error); return; }
+        const pa = data.power_analysis || data;
+        const interp = data.interpretation || {};
+        const perGroup = pa.sample_size_per_group || pa.sample_size || pa.n || '?';
+        const total = pa.total_sample_size || (perGroup !== '?' ? perGroup * 2 : '?');
+        let html = `<div class="metric-grid">
+            <div class="metric-card highlight"><div class="metric-value">${perGroup}</div><div class="metric-label">Per Group</div></div>
+            <div class="metric-card"><div class="metric-value">${total}</div><div class="metric-label">Total N</div></div>
+            <div class="metric-card"><div class="metric-value">${pa.effect_size || body.effect_size}</div><div class="metric-label">Effect Size</div></div>
+            <div class="metric-card"><div class="metric-value">${pa.alpha || body.alpha}</div><div class="metric-label">Alpha</div></div>
+            <div class="metric-card"><div class="metric-value">${pa.power || body.power}</div><div class="metric-label">Power</div></div>
+        </div>`;
+        if (interp.summary) html += `<div class="interpretation good">${interp.summary}</div>`;
+        addOutput('Power Analysis', html);
+    } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+}
+
+// =============================================================================
+// ML: From Intent / From Data
+// =============================================================================
+function openMLDialog(mode) {
+    let html = '';
+    if (mode === 'intent') {
+        html = `
+            <div class="form-row"><label>What do you want to predict?</label>
+                <textarea id="dlg-ml-intent" rows="3" placeholder="e.g., Predict which customers will churn in the next 30 days based on usage patterns"></textarea></div>
+            <div class="form-row-inline">
+                <div class="form-row"><label>Domain</label><select id="dlg-ml-domain">
+                    <option value="">Auto-detect</option>
+                    <option value="churn">Customer Churn</option><option value="fraud">Fraud Detection</option>
+                    <option value="lead_scoring">Lead Scoring</option><option value="quality">Quality Prediction</option>
+                </select></div>
+                <div class="form-row"><label>Sample Size</label><select id="dlg-ml-n">
+                    <option value="100">100</option><option value="500" selected>500</option><option value="1000">1,000</option><option value="5000">5,000</option>
+                </select></div>
+            </div>
+            <div class="form-row"><label>Priority</label><select id="dlg-ml-priority">
+                <option value="balanced">Balanced</option><option value="accuracy">Max Accuracy</option>
+                <option value="interpretability">Interpretability</option><option value="speed">Speed</option>
+            </select></div>`;
+        openModal('Train Model from Intent', html, 'Generate & Train', async () => {
+            const data = {
+                intent: document.getElementById('dlg-ml-intent').value,
+                domain: document.getElementById('dlg-ml-domain').value || null,
+                n_records: parseInt(document.getElementById('dlg-ml-n').value),
+                priority: document.getElementById('dlg-ml-priority').value,
+            };
+            closeModal();
+            showLoading(true, 'Generating schema, data, and training model...');
+            try {
+                const { response: r, data: result } = await apiPost('/api/dsw/from-intent/', data);
+                showLoading(false);
+                if (result.error) { alert(result.error); return; }
+                renderMLOutput(result);
+            } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+        });
+    } else {
+        html = `
+            <div class="form-row"><label>Upload CSV</label><input type="file" id="dlg-ml-file" accept=".csv"></div>
+            <div class="form-row-inline">
+                <div class="form-row"><label>Target Column</label><input type="text" id="dlg-ml-target" placeholder="e.g., churned"></div>
+                <div class="form-row"><label>Priority</label><select id="dlg-ml-data-priority">
+                    <option value="balanced">Balanced</option><option value="accuracy">Max Accuracy</option><option value="interpretability">Interpretability</option>
+                </select></div>
+            </div>
+            <div class="form-row"><label>Intent (optional)</label><textarea id="dlg-ml-data-intent" rows="2" placeholder="What are you trying to predict?"></textarea></div>`;
+        openModal('Train Model from Data', html, 'Clean & Train', async () => {
+            const formData = new FormData();
+            const fileEl = document.getElementById('dlg-ml-file');
+            if (!fileEl.files[0]) { alert('Please select a file'); return; }
+            formData.append('file', fileEl.files[0]);
+            formData.append('target', document.getElementById('dlg-ml-target').value);
+            formData.append('intent', document.getElementById('dlg-ml-data-intent').value);
+            formData.append('priority', document.getElementById('dlg-ml-data-priority').value);
+            closeModal();
+            showLoading(true, 'Cleaning data and training model...');
+            try {
+                const { response: r, data: result } = await apiPost('/api/dsw/from-data/', formData, true);
+                showLoading(false);
+                if (result.error) { alert(result.error); return; }
+                renderMLOutput(result);
+            } catch (err) { showLoading(false); alert('Error: ' + err.message); }
+        });
+    }
+}
+
+function renderMLOutput(result) {
+    let html = '';
+    if (result.schema) html += `<p style="margin-bottom:0.5rem;"><strong>Schema:</strong> ${result.schema.name} (${result.schema.domain})</p>`;
+    if (result.data_shape) html += `<p style="margin-bottom:0.5rem;"><strong>Data:</strong> ${result.data_shape[0]} rows, ${result.data_shape[1]} columns</p>`;
+    if (result.model_type) html += `<p style="margin-bottom:0.75rem;"><strong>Model:</strong> ${result.model_type}</p>`;
+
+    if (result.metrics) {
+        html += '<div class="metric-grid">';
+        for (const [name, value] of Object.entries(result.metrics)) {
+            const v = typeof value === 'number' ? value.toFixed(3) : value;
+            html += `<div class="metric-card"><div class="metric-value">${v}</div><div class="metric-label">${name}</div></div>`;
+        }
+        html += '</div>';
+    }
+
+    if (result.feature_importance && result.feature_importance.length > 0) {
+        html += '<h4 style="margin:0.75rem 0 0.5rem;font-size:0.9rem;">Top Features</h4><ol style="margin:0;padding-left:1.5rem;">';
+        result.feature_importance.slice(0, 10).forEach(f => {
+            const name = f.feature || f[0];
+            const imp = f.importance || f[1];
+            html += `<li style="font-size:0.85rem;margin-bottom:0.25rem;">${name}: ${(imp * 100).toFixed(1)}%</li>`;
+        });
+        html += '</ol>';
+    }
+
+    addOutput('ML Model', html);
+}
+
+// =============================================================================
+// THINKING TAB: Artifact CRUD (notes, hypotheses, evidence, etc.)
+// =============================================================================
+function createArtifact(type) {
+    const typeLabels = {
+        note: 'Note', hypothesis: 'Hypothesis', evidence: 'Evidence',
+        conclusion: 'Conclusion', process_map: 'Process Map', fishbone: 'Fishbone',
+        five_whys: '5 Whys', action_item: 'Action Item', control_plan: 'Control Plan'
+    };
+
+    let html = `<div class="form-row"><label>Title</label><input type="text" id="dlg-art-title" placeholder="Enter title..."></div>`;
+    html += `<div class="form-row"><label>Content</label><textarea id="dlg-art-content" placeholder="Enter content..."></textarea></div>`;
+
+    if (type === 'hypothesis') {
+        html += `<div class="form-row"><label>Initial Probability (0-100%)</label><input type="number" id="dlg-art-prob" min="0" max="100" value="50"></div>`;
+    }
+    if (type === 'action_item') {
+        html += `<div class="form-row-inline">
+            <div class="form-row"><label>Assignee</label><input type="text" id="dlg-art-assignee"></div>
+            <div class="form-row"><label>Due Date</label><input type="date" id="dlg-art-due"></div>
+        </div>`;
+    }
+
+    openModal('New ' + (typeLabels[type] || type), html, 'Create', async () => {
+        const title = document.getElementById('dlg-art-title').value;
+        if (!title) { alert('Enter a title'); return; }
+        const content = { text: document.getElementById('dlg-art-content').value };
+        if (type === 'hypothesis') content.initial_probability = parseInt(document.getElementById('dlg-art-prob')?.value || 50) / 100;
+        if (type === 'action_item') {
+            content.assignee = document.getElementById('dlg-art-assignee')?.value;
+            content.due_date = document.getElementById('dlg-art-due')?.value;
+        }
+
+        closeModal();
+
+        // Show in output immediately
+        let artHtml = `<p><strong>${title}</strong></p><p>${content.text || ''}</p>`;
+        if (content.initial_probability != null) artHtml += `<p>Initial probability: ${(content.initial_probability * 100).toFixed(0)}%</p>`;
+        if (content.assignee) artHtml += `<p><em>Assignee: ${content.assignee}</em></p>`;
+        if (content.due_date) artHtml += `<p><em>Due: ${content.due_date}</em></p>`;
+        addOutput(typeLabels[type] || type, artHtml);
+
+        // Persist to backend if workbench is saved
+        if (currentWorkbench) {
+            try {
+                const data = await apiCall(`${currentWorkbench.id}/artifacts/`, 'POST', {
+                    type, title, content, source: 'user',
+                    probability: type === 'hypothesis' ? content.initial_probability : null
+                });
+                if (data.artifact) artifacts.push(data.artifact);
+            } catch (err) { console.warn('Could not save artifact to server:', err); }
+        }
+    });
+}
+
+// =============================================================================
+// WORKBENCH CRUD
+// =============================================================================
+async function loadWorkbench(id) {
+    try {
+        const data = await apiCall(`${id}/`);
+        currentWorkbench = data;
+        document.getElementById('workbench-title').value = data.inquiry || '';
+        document.getElementById('workbench-template').value = data.template || 'blank';
+        document.getElementById('workbench-status').textContent = data.status || 'Active';
+        updatePhaseBar(data.template);
+        artifacts = data.artifacts || [];
+        history.replaceState({}, '', `/app/new/?id=${id}`);
+    } catch (err) { console.error('Failed to load workbench:', err); }
+}
+
+async function saveWorkbench() {
+    const title = document.getElementById('workbench-title').value.trim();
+    const template = document.getElementById('workbench-template').value;
+    if (!title) { alert('Enter a title'); return; }
+    try {
+        if (currentWorkbench) {
+            const result = await apiCall(`${currentWorkbench.id}/update/`, 'PATCH', { title, template });
+            if (result.error === 'auth') { alert('Please log in to save'); return; }
+        } else {
+            const data = await apiCall('create/', 'POST', { title, template });
+            if (data.error === 'auth') { alert('Please log in to save'); return; }
+            if (data.workbench) {
+                currentWorkbench = { id: data.workbench.id };
+                history.replaceState({}, '', `/app/new/?id=${currentWorkbench.id}`);
+            }
+        }
+        showToast('Saved');
+    } catch (err) { alert('Save failed: ' + err.message); }
+}
+
+function showWorkbenchList() {
+    document.getElementById('workbench-list-modal').style.display = 'flex';
+    loadWorkbenchList();
+}
+function closeWorkbenchList() { document.getElementById('workbench-list-modal').style.display = 'none'; }
+
+async function loadWorkbenchList() {
+    try {
+        const data = await apiCall('');
+        const list = document.getElementById('workbench-list');
+        if (data.error === 'auth') {
+            list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-dim);"><a href="/login/?next=/app/new/" style="color:var(--accent);">Log in</a> to save and load workbenches.</div>';
+            return;
+        }
+        if (!data.workbenches || data.workbenches.length === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-dim);">No workbenches yet. Create your first one!</div>';
+            return;
+        }
+        list.innerHTML = data.workbenches.map(wb => `
+            <div class="workbench-list-item" onclick="closeWorkbenchList(); loadWorkbench('${wb.id}')">
+                <div class="workbench-list-info">
+                    <h4>${wb.title}</h4>
+                    <div class="workbench-list-meta">${wb.artifact_count} artifacts &middot; ${new Date(wb.updated_at).toLocaleDateString()}</div>
+                </div>
+                <div class="workbench-list-badge">${wb.template}</div>
+            </div>
+        `).join('');
+    } catch (err) { console.error(err); }
+}
+
+function createNewWorkbench() {
+    closeWorkbenchList();
+    currentWorkbench = null;
+    artifacts = [];
+    document.getElementById('workbench-title').value = '';
+    document.getElementById('workbench-template').value = 'blank';
+    document.getElementById('phase-bar').style.display = 'none';
+    clearOutput();
+    history.replaceState({}, '', '/app/new/');
+}
+
+async function exportWorkbench() {
+    if (!currentWorkbench) { alert('Save first'); return; }
+    try {
+        const data = await apiCall(`${currentWorkbench.id}/`);
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `${data.inquiry || 'workbench'}.json`; a.click();
+    } catch (err) { console.error(err); }
+}
+
+async function advancePhase() {
+    if (!currentWorkbench) return;
+    try {
+        await apiCall(`${currentWorkbench.id}/advance-phase/`, 'POST');
+        await loadWorkbench(currentWorkbench.id);
+    } catch (err) { console.error(err); }
+}
+</script>
+{% endblock %}

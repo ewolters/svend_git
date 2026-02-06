@@ -1,0 +1,30 @@
+{
+  "node_id": "tempora-1",
+  "host": "0.0.0.0",
+  "port": 7000,
+  "workers": 4,
+  "single_node": true,
+
+  "cluster": {
+    "secret": "${TEMPORA_CLUSTER_SECRET}",
+    "peers": []
+  },
+
+  "election": {
+    "timeout_min_ms": 150,
+    "timeout_max_ms": 300,
+    "heartbeat_interval_ms": 50
+  },
+
+  "scheduler": {
+    "max_queue_depth": 10000,
+    "max_concurrent_per_tenant": 100,
+    "enable_backpressure": true,
+    "enable_temporal_reflexes": true
+  },
+
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+  }
+}

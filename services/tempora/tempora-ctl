@@ -1,0 +1,94 @@
+#!/bin/bash
+# Tempora Control Script
+#
+# Usage:
+#   tempora-ctl start    - Start Tempora server
+#   tempora-ctl stop     - Stop Tempora server
+#   tempora-ctl status   - Show cluster status
+#   tempora-ctl logs     - Tail logs
+
+set -e
+
+TEMPORA_DIR="/home/eric/kjerne/services/svend/web"
+MANAGE="python3 $TEMPORA_DIR/manage.py"
+
+export DJANGO_SETTINGS_MODULE=svend.settings
+
+case "$1" in
+    start)
+        echo "Starting Tempora server..."
+        cd "$TEMPORA_DIR"
+        if [ "$2" == "--daemon" ]; then
+            nohup $MANAGE tempora_server --single-node > /tmp/tempora.log 2>&1 &
+            echo "Started in background. PID: $!"
+            echo "Logs: tail -f /tmp/tempora.log"
+        else
+            exec $MANAGE tempora_server --single-node
+        fi
+        ;;
+
+    stop)
+        echo "Stopping Tempora server..."
+        pkill -f "tempora_server" || echo "No server running"
+        ;;
+
+    restart)
+        $0 stop
+        sleep 2
+        $0 start "$2"
+        ;;
+
+    status)
+        cd "$TEMPORA_DIR"
+        $MANAGE tempora_cluster status
+        ;;
+
+    members)
+        cd "$TEMPORA_DIR"
+        $MANAGE tempora_cluster members
+        ;;
+
+    health)
+        cd "$TEMPORA_DIR"
+        $MANAGE tempora_cluster health
+        ;;
+
+    election)
+        cd "$TEMPORA_DIR"
+        $MANAGE tempora_cluster election
+        ;;
+
+    logs)
+        if [ -f /tmp/tempora.log ]; then
+            tail -f /tmp/tempora.log
+        else
+            journalctl -u tempora -f 2>/dev/null || echo "No logs found"
+        fi
+        ;;
+
+    install-service)
+        echo "Installing systemd service..."
+        sudo cp /home/eric/kjerne/services/tempora/tempora.service /etc/systemd/system/
+        sudo systemctl daemon-reload
+        sudo systemctl enable tempora
+        echo "Service installed. Use: sudo systemctl start tempora"
+        ;;
+
+    *)
+        echo "Tempora Control Script"
+        echo ""
+        echo "Usage: $0 <command>"
+        echo ""
+        echo "Commands:"
+        echo "  start [--daemon]  Start Tempora server"
+        echo "  stop              Stop Tempora server"
+        echo "  restart           Restart Tempora server"
+        echo "  status            Show cluster status"
+        echo "  members           List cluster members"
+        echo "  health            Show member health"
+        echo "  election          Show election state"
+        echo "  logs              Tail server logs"
+        echo "  install-service   Install systemd service"
+        exit 1
+        ;;
+esac

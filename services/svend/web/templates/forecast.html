@@ -1,0 +1,412 @@
+{% extends "base_app.html" %}
+
+{% block title %}Forecast - SVEND{% endblock %}
+
+{% block content %}
+<div class="forecast-page">
+    <div class="page-header">
+        <h1>Time Series Forecast</h1>
+        <p class="subtitle">Statistical forecasting for stocks, crypto, commodities, and custom data</p>
+    </div>
+
+    <div class="disclaimer-banner">
+        <strong>Disclaimer:</strong> This tool is for educational/informational purposes only.
+        It is NOT financial advice. Past performance does not guarantee future results.
+        Always consult a qualified financial advisor before making investment decisions.
+    </div>
+
+    <div class="forecast-layout">
+        <div class="input-section card">
+            <h2>Configure Forecast</h2>
+
+            <div class="form-group">
+                <label for="symbol">Symbol (e.g., AAPL, BTC-USD, GC=F for gold, SI=F for silver)</label>
+                <input type="text" id="symbol" placeholder="Enter symbol...">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="days">Forecast Days</label>
+                    <select id="days">
+                        <option value="7">7 days</option>
+                        <option value="14">14 days</option>
+                        <option value="30" selected>30 days</option>
+                        <option value="60">60 days</option>
+                        <option value="90">90 days</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="method">Method</label>
+                    <select id="method">
+                        <option value="random_walk">Random Walk (Monte Carlo)</option>
+                        <option value="sma">Simple Moving Average</option>
+                        <option value="exp_smooth">Exponential Smoothing</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="runForecast()">Generate Forecast</button>
+
+            <div class="quick-symbols">
+                <span>Quick:</span>
+                <button onclick="setSymbol('AAPL')">AAPL</button>
+                <button onclick="setSymbol('GOOGL')">GOOGL</button>
+                <button onclick="setSymbol('BTC-USD')">Bitcoin</button>
+                <button onclick="setSymbol('ETH-USD')">Ethereum</button>
+                <button onclick="setSymbol('GC=F')">Gold</button>
+                <button onclick="setSymbol('SI=F')">Silver</button>
+                <button onclick="setSymbol('SPY')">S&P 500</button>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Fetching data and generating forecast...</p>
+            </div>
+
+            <div id="results" style="display: none;">
+                <div class="summary-cards">
+                    <div class="card summary-card">
+                        <h3 id="result-name">-</h3>
+                        <div class="price-display">
+                            <span class="current-price" id="current-price">-</span>
+                            <span class="currency" id="currency">USD</span>
+                        </div>
+                    </div>
+
+                    <div class="card summary-card">
+                        <h3>30-Day Forecast</h3>
+                        <div class="forecast-display">
+                            <span class="forecast-price" id="forecast-price">-</span>
+                            <span class="forecast-change" id="forecast-change">-</span>
+                        </div>
+                        <p class="forecast-range" id="forecast-range">90% CI: - to -</p>
+                    </div>
+                </div>
+
+                <div class="card chart-card">
+                    <h3>Forecast Chart</h3>
+                    <canvas id="forecast-chart"></canvas>
+                </div>
+
+                <div class="card method-card">
+                    <h3>Method</h3>
+                    <p id="method-description">-</p>
+                </div>
+            </div>
+
+            <div id="error" class="error-message" style="display: none;"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    .forecast-page {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .disclaimer-banner {
+        background: rgba(232, 197, 71, 0.1);
+        border: 1px solid rgba(232, 197, 71, 0.3);
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .forecast-layout {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 2rem;
+    }
+
+    @media (max-width: 900px) {
+        .forecast-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .input-section h2 {
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .quick-symbols {
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .quick-symbols span {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        margin-right: 0.5rem;
+    }
+
+    .quick-symbols button {
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        margin: 0.25rem;
+    }
+
+    .quick-symbols button:hover {
+        border-color: var(--accent-primary);
+        color: var(--accent-primary);
+    }
+
+    .loading {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--border);
+        border-top-color: var(--accent-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .summary-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .summary-card h3 {
+        font-size: 0.9rem;
+        color: var(--text-dim);
+        margin-bottom: 0.5rem;
+    }
+
+    .price-display, .forecast-display {
+        font-size: 1.5rem;
+        font-weight: 500;
+    }
+
+    .currency {
+        font-size: 0.9rem;
+        color: var(--text-dim);
+        margin-left: 0.25rem;
+    }
+
+    .forecast-change {
+        font-size: 1rem;
+        margin-left: 0.5rem;
+    }
+
+    .forecast-change.positive { color: var(--accent-primary); }
+    .forecast-change.negative { color: var(--error); }
+
+    .forecast-range {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        margin-top: 0.5rem;
+    }
+
+    .chart-card {
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-card h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    #forecast-chart {
+        max-height: 300px;
+    }
+
+    .method-card p {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    .error-message {
+        background: rgba(159, 74, 74, 0.1);
+        border: 1px solid rgba(159, 74, 74, 0.3);
+        color: var(--error);
+        padding: 1rem;
+        border-radius: 6px;
+    }
+</style>
+
+<script>
+    let chart = null;
+
+    function setSymbol(sym) {
+        document.getElementById('symbol').value = sym;
+    }
+
+    async function runForecast() {
+        const symbol = document.getElementById('symbol').value.trim();
+        const days = document.getElementById('days').value;
+        const method = document.getElementById('method').value;
+
+        if (!symbol) {
+            alert('Please enter a symbol');
+            return;
+        }
+
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('error').style.display = 'none';
+
+        try {
+            const response = await fetch('/api/forecast/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ symbol, days: parseInt(days), method }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Forecast failed');
+            }
+
+            displayResults(data);
+
+        } catch (err) {
+            document.getElementById('error').textContent = err.message;
+            document.getElementById('error').style.display = 'block';
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    function displayResults(data) {
+        const info = data.symbol_info;
+        const summary = data.summary;
+        const forecast = data.forecast;
+
+        // Update summary cards
+        document.getElementById('result-name').textContent = `${info.name} (${info.symbol})`;
+        document.getElementById('current-price').textContent = summary.current_price.toFixed(2);
+        document.getElementById('currency').textContent = info.currency || 'USD';
+
+        document.getElementById('forecast-price').textContent = summary.forecast_median.toFixed(2);
+
+        const changeEl = document.getElementById('forecast-change');
+        const pct = summary.expected_change_pct;
+        changeEl.textContent = `(${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`;
+        changeEl.className = `forecast-change ${pct >= 0 ? 'positive' : 'negative'}`;
+
+        document.getElementById('forecast-range').textContent =
+            `90% CI: ${summary.forecast_range_90[0].toFixed(2)} to ${summary.forecast_range_90[1].toFixed(2)}`;
+
+        document.getElementById('method-description').textContent = data.method_description;
+
+        // Draw chart
+        drawChart(data);
+
+        document.getElementById('results').style.display = 'block';
+    }
+
+    function drawChart(data) {
+        const ctx = document.getElementById('forecast-chart').getContext('2d');
+
+        if (chart) {
+            chart.destroy();
+        }
+
+        const historical = data.historical.prices;
+        const forecast = data.forecast;
+
+        // Create labels
+        const histLabels = historical.map((_, i) => `H-${historical.length - i}`);
+        const forecastLabels = forecast.days.map(d => `D+${d}`);
+        const labels = [...histLabels, 'Now', ...forecastLabels];
+
+        // Create datasets
+        const histData = [...historical, null, ...Array(forecast.days.length).fill(null)];
+        const medianData = [...Array(historical.length).fill(null), historical[historical.length - 1], ...forecast.median];
+        const upper95 = [...Array(historical.length + 1).fill(null), ...forecast.upper_95];
+        const lower5 = [...Array(historical.length + 1).fill(null), ...forecast.lower_5];
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Historical',
+                        data: histData,
+                        borderColor: 'rgba(74, 159, 110, 1)',
+                        backgroundColor: 'rgba(74, 159, 110, 0.1)',
+                        fill: false,
+                        tension: 0.1,
+                    },
+                    {
+                        label: 'Forecast (Median)',
+                        data: medianData,
+                        borderColor: 'rgba(232, 197, 71, 1)',
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.1,
+                    },
+                    {
+                        label: '95% Upper',
+                        data: upper95,
+                        borderColor: 'rgba(232, 197, 71, 0.3)',
+                        backgroundColor: 'rgba(232, 197, 71, 0.1)',
+                        fill: '+1',
+                        tension: 0.1,
+                    },
+                    {
+                        label: '5% Lower',
+                        data: lower5,
+                        borderColor: 'rgba(232, 197, 71, 0.3)',
+                        fill: false,
+                        tension: 0.1,
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: { color: 'rgba(255,255,255,0.7)' }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: 'rgba(255,255,255,0.5)' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y: {
+                        ticks: { color: 'rgba(255,255,255,0.5)' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

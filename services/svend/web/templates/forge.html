@@ -1,0 +1,631 @@
+{% extends "base_app.html" %}
+{% block title %}Forge - Synthetic Data{% endblock %}
+
+{% block content %}
+<div class="forge-container">
+    <div class="forge-header">
+        <h1>Forge</h1>
+        <p class="subtitle">Generate synthetic data. Schema-based tabular or LLM-powered text.</p>
+    </div>
+
+    <div class="forge-workspace">
+        <!-- Data Type Selection -->
+        <div class="type-tabs">
+            <button class="type-tab active" data-type="tabular" onclick="selectType('tabular')">
+                <span class="tab-icon">📊</span>
+                <span class="tab-label">Tabular Data</span>
+            </button>
+            <button class="type-tab" data-type="text" onclick="selectType('text')">
+                <span class="tab-icon">📝</span>
+                <span class="tab-label">Text Data</span>
+            </button>
+        </div>
+
+        <!-- Configuration Panel -->
+        <div class="panel config-panel">
+            <div class="panel-header">
+                <span class="panel-title">Configuration</span>
+            </div>
+            <div class="panel-content">
+                <!-- Tabular Config -->
+                <div id="tabular-config" class="type-config">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Domain</label>
+                            <select id="tabular-domain">
+                                <option value="ecommerce">E-commerce</option>
+                                <option value="customer_service">Customer Service</option>
+                                <option value="finance">Finance</option>
+                                <option value="healthcare">Healthcare</option>
+                                <option value="general">General</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Records</label>
+                            <input type="number" id="tabular-count" value="100" min="1" max="100000">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Schema Template</label>
+                        <select id="schema-template" onchange="loadSchemaTemplate()">
+                            <option value="custom">Custom Schema</option>
+                            <option value="products">Products</option>
+                            <option value="orders">Orders</option>
+                            <option value="users">Users</option>
+                            <option value="transactions">Transactions</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Schema Definition (JSON)</label>
+                        <textarea id="schema-def" rows="8" placeholder='{
+  "product_name": {"type": "string"},
+  "price": {"type": "float", "constraints": {"min": 0.01, "max": 1000}},
+  "category": {"type": "category", "constraints": {"values": ["electronics", "clothing", "home"]}}
+}'></textarea>
+                    </div>
+                </div>
+
+                <!-- Text Config -->
+                <div id="text-config" class="type-config" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Domain</label>
+                            <select id="text-domain">
+                                <option value="ecommerce">E-commerce</option>
+                                <option value="customer_service">Customer Service</option>
+                                <option value="general">General</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Records</label>
+                            <input type="number" id="text-count" value="50" min="1" max="10000">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Text Type</label>
+                        <select id="text-type">
+                            <option value="review">Product Reviews</option>
+                            <option value="ticket">Support Tickets</option>
+                            <option value="conversation">Chat Conversations</option>
+                            <option value="generic">Generic Text</option>
+                        </select>
+                    </div>
+
+                    <div class="llm-notice">
+                        <strong>LLM-Powered:</strong> Text generation uses Claude for realistic content.
+                        Falls back to templates if unavailable.
+                    </div>
+                </div>
+
+                <!-- Common Options -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Quality Level</label>
+                        <select id="quality-level">
+                            <option value="standard">Standard</option>
+                            <option value="premium">Premium (2x cost, Synara validation)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Output Format</label>
+                        <select id="output-format">
+                            <option value="jsonl">JSONL</option>
+                            <option value="json">JSON</option>
+                            <option value="csv">CSV</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-generate" onclick="generateData()">
+                    Generate Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="panel results-panel" id="results-panel" style="display: none;">
+            <div class="panel-header">
+                <span class="panel-title">Generation Results</span>
+                <div class="panel-actions">
+                    <button class="btn btn-primary" id="download-btn" onclick="downloadData()">
+                        Download
+                    </button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div id="job-status"></div>
+                <div id="preview-data"></div>
+            </div>
+        </div>
+
+        <!-- Jobs History -->
+        <div class="panel history-panel">
+            <div class="panel-header">
+                <span class="panel-title">Recent Jobs</span>
+                <button class="btn btn-secondary btn-sm" onclick="loadJobs()">Refresh</button>
+            </div>
+            <div class="panel-content" id="jobs-list">
+                <p class="text-dim">No recent jobs</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay" style="display: none;">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">Generating data...</div>
+</div>
+
+<style>
+.forge-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.forge-header {
+    margin-bottom: 1.5rem;
+}
+
+.forge-header h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.forge-header .subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+
+.type-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid rgba(74, 159, 110, 0.2);
+}
+
+.type-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.type-tab:hover {
+    background: rgba(74, 159, 110, 0.1);
+    color: var(--text-primary);
+}
+
+.type-tab.active {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+}
+
+.tab-icon {
+    font-size: 1.25rem;
+}
+
+.tab-label {
+    font-weight: 500;
+}
+
+.panel {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(74, 159, 110, 0.1);
+}
+
+.panel-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.panel-content {
+    padding: 1.25rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.form-group textarea {
+    font-family: monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.llm-notice {
+    padding: 0.75rem;
+    background: rgba(74, 159, 110, 0.1);
+    border-radius: 4px;
+    border-left: 3px solid var(--accent-primary);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.btn-generate {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+}
+
+#job-status {
+    margin-bottom: 1rem;
+}
+
+.status-card {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.status-item {
+    text-align: center;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.status-item .value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.status-item .label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+#preview-data {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 1rem;
+    max-height: 400px;
+    overflow: auto;
+}
+
+#preview-data pre {
+    margin: 0;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+}
+
+.job-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.job-item:last-child {
+    margin-bottom: 0;
+}
+
+.job-info {
+    flex: 1;
+}
+
+.job-info .job-type {
+    font-weight: 500;
+}
+
+.job-info .job-meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.job-status-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+.job-status-badge.completed {
+    background: rgba(74, 159, 110, 0.2);
+    color: var(--accent-primary);
+}
+
+.job-status-badge.processing {
+    background: rgba(232, 197, 71, 0.2);
+    color: #e8c547;
+}
+
+.job-status-badge.failed {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--bg-tertiary);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    margin-top: 1rem;
+    color: var(--text-secondary);
+}
+
+.btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+.text-dim {
+    color: var(--text-dim);
+}
+</style>
+
+<script>
+let currentType = 'tabular';
+let currentJobId = null;
+
+// Schema templates
+const SCHEMA_TEMPLATES = {
+    products: {
+        product_id: {type: "string", constraints: {pattern: "PRD-{uuid}"}},
+        name: {type: "string"},
+        description: {type: "string"},
+        price: {type: "float", constraints: {min: 0.99, max: 999.99}},
+        category: {type: "category", constraints: {values: ["electronics", "clothing", "home", "books", "toys"]}},
+        stock_quantity: {type: "int", constraints: {min: 0, max: 1000}},
+        rating: {type: "float", constraints: {min: 1, max: 5}},
+        created_at: {type: "datetime"},
+    },
+    orders: {
+        order_id: {type: "string", constraints: {pattern: "ORD-{uuid}"}},
+        customer_id: {type: "string"},
+        product_id: {type: "string"},
+        quantity: {type: "int", constraints: {min: 1, max: 10}},
+        total_amount: {type: "float", constraints: {min: 0.99, max: 5000}},
+        status: {type: "category", constraints: {values: ["pending", "processing", "shipped", "delivered", "cancelled"]}},
+        order_date: {type: "datetime"},
+    },
+    users: {
+        user_id: {type: "string", constraints: {pattern: "USR-{uuid}"}},
+        email: {type: "email"},
+        name: {type: "string"},
+        phone: {type: "phone"},
+        age: {type: "int", constraints: {min: 18, max: 80}},
+        country: {type: "category", constraints: {values: ["US", "UK", "CA", "AU", "DE", "FR"]}},
+        signup_date: {type: "datetime"},
+        is_premium: {type: "boolean"},
+    },
+    transactions: {
+        transaction_id: {type: "string", constraints: {pattern: "TXN-{uuid}"}},
+        account_id: {type: "string"},
+        amount: {type: "float", constraints: {min: -10000, max: 10000}},
+        type: {type: "category", constraints: {values: ["deposit", "withdrawal", "transfer", "payment"]}},
+        status: {type: "category", constraints: {values: ["completed", "pending", "failed"]}},
+        timestamp: {type: "datetime"},
+    },
+};
+
+function selectType(type) {
+    currentType = type;
+
+    // Update tabs
+    document.querySelectorAll('.type-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.type === type);
+    });
+
+    // Update config visibility
+    document.getElementById('tabular-config').style.display = type === 'tabular' ? 'block' : 'none';
+    document.getElementById('text-config').style.display = type === 'text' ? 'block' : 'none';
+}
+
+function loadSchemaTemplate() {
+    const template = document.getElementById('schema-template').value;
+    if (template !== 'custom' && SCHEMA_TEMPLATES[template]) {
+        document.getElementById('schema-def').value = JSON.stringify(SCHEMA_TEMPLATES[template], null, 2);
+    }
+}
+
+async function generateData() {
+    showLoading('Generating data...');
+
+    let requestBody;
+
+    if (currentType === 'tabular') {
+        let schema;
+        try {
+            schema = JSON.parse(document.getElementById('schema-def').value);
+        } catch (e) {
+            hideLoading();
+            alert('Invalid schema JSON: ' + e.message);
+            return;
+        }
+
+        requestBody = {
+            data_type: 'tabular',
+            domain: document.getElementById('tabular-domain').value,
+            record_count: parseInt(document.getElementById('tabular-count').value),
+            schema: schema,
+            quality_level: document.getElementById('quality-level').value,
+            output_format: document.getElementById('output-format').value,
+        };
+    } else {
+        requestBody = {
+            data_type: 'text',
+            domain: document.getElementById('text-domain').value,
+            record_count: parseInt(document.getElementById('text-count').value),
+            schema: {text_type: document.getElementById('text-type').value},
+            quality_level: document.getElementById('quality-level').value,
+            output_format: document.getElementById('output-format').value,
+        };
+    }
+
+    try {
+        const response = await fetch('/api/forge/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+        hideLoading();
+
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+
+        currentJobId = data.job_id;
+        showResults(data);
+
+    } catch (err) {
+        hideLoading();
+        alert('Failed to generate: ' + err.message);
+    }
+}
+
+function showResults(data) {
+    document.getElementById('results-panel').style.display = 'block';
+
+    let statusHtml = `
+        <div class="status-card">
+            <div class="status-item">
+                <div class="value">${data.status || 'completed'}</div>
+                <div class="label">Status</div>
+            </div>
+            <div class="status-item">
+                <div class="value">${(data.records_generated || data.record_count || 0).toLocaleString()}</div>
+                <div class="label">Records</div>
+            </div>
+            <div class="status-item">
+                <div class="value">${data.quality_score ? (data.quality_score * 100).toFixed(0) + '%' : 'N/A'}</div>
+                <div class="label">Quality</div>
+            </div>
+            <div class="status-item">
+                <div class="value">${data.estimated_cost_cents ? '$' + (data.estimated_cost_cents / 100).toFixed(2) : 'N/A'}</div>
+                <div class="label">Cost</div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('job-status').innerHTML = statusHtml;
+
+    // Preview data
+    if (data.data) {
+        document.getElementById('preview-data').innerHTML = `
+            <h4>Preview (first 10 records)</h4>
+            <pre>${JSON.stringify(data.data.slice(0, 10), null, 2)}</pre>
+        `;
+    } else {
+        document.getElementById('preview-data').innerHTML = '<p class="text-dim">Data ready for download</p>';
+    }
+
+    // Scroll to results
+    document.getElementById('results-panel').scrollIntoView({behavior: 'smooth'});
+}
+
+function downloadData() {
+    if (!currentJobId) {
+        alert('No job to download');
+        return;
+    }
+    window.location.href = `/api/forge/download/${currentJobId}`;
+}
+
+function showLoading(text) {
+    document.getElementById('loading-text').textContent = text;
+    document.getElementById('loading-overlay').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loading-overlay').style.display = 'none';
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    loadSchemaTemplate();
+});
+</script>
+{% endblock %}

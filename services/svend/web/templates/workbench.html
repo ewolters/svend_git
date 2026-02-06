@@ -1,0 +1,1396 @@
+{% extends "base_app.html" %}
+{% block title %}SVEND - Multi-Agent Workbench{% endblock %}
+
+{% block content %}
+<div class="workbench">
+    <!-- Header -->
+    <div class="workbench-header">
+        <h1>Agent Workbench</h1>
+        <p class="subtitle">Select an agent, configure options, run tasks</p>
+    </div>
+
+    <!-- Agent Selector -->
+    <div class="agent-tabs">
+        <button class="agent-tab active" data-agent="researcher">
+            <span class="tab-icon">🔍</span>
+            <span class="tab-label">Researcher</span>
+        </button>
+        <button class="agent-tab" data-agent="coder">
+            <span class="tab-icon">💻</span>
+            <span class="tab-label">Coder</span>
+        </button>
+        <button class="agent-tab" data-agent="writer">
+            <span class="tab-icon">📝</span>
+            <span class="tab-label">Writer</span>
+        </button>
+        <button class="agent-tab" data-agent="experimenter">
+            <span class="tab-icon">🧪</span>
+            <span class="tab-label">Experimenter</span>
+        </button>
+        <button class="agent-tab" data-agent="eda">
+            <span class="tab-icon">📊</span>
+            <span class="tab-label">EDA</span>
+        </button>
+        <button class="agent-tab" data-agent="editor">
+            <span class="tab-icon">✍️</span>
+            <span class="tab-label">Editor</span>
+        </button>
+    </div>
+
+    <!-- Hypothesis Context Bar -->
+    <div class="hypothesis-context-bar" id="hypothesis-context-bar">
+        <div class="context-label">
+            <span>Hypothesis Context:</span>
+            <select id="problem-selector">
+                <option value="">None (standalone query)</option>
+            </select>
+        </div>
+        <div class="context-info" id="context-info" style="display: none;">
+            <span id="context-effect"></span>
+            <a href="#" id="context-link" target="_blank">View Hypothesis →</a>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+        <!-- Input Panel -->
+        <div class="panel input-panel">
+            <div class="panel-header">
+                <span class="panel-title">Input</span>
+                <span class="agent-badge" id="current-agent-badge">Researcher</span>
+            </div>
+
+            <!-- Researcher Form -->
+            <div class="agent-form" id="form-researcher">
+                <div class="form-group">
+                    <label>Research Query</label>
+                    <textarea id="researcher-query" rows="4" placeholder="What do you want to research?"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Focus</label>
+                        <select id="researcher-focus">
+                            <option value="scientific">Scientific</option>
+                            <option value="market">Market</option>
+                            <option value="general">General</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Depth</label>
+                        <select id="researcher-depth">
+                            <option value="quick">Quick</option>
+                            <option value="standard" selected>Standard</option>
+                            <option value="thorough">Thorough</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coder Form -->
+            <div class="agent-form" id="form-coder" style="display: none;">
+                <div class="form-group">
+                    <label>Code Request</label>
+                    <textarea id="coder-prompt" rows="4" placeholder="What code do you need?"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Language</label>
+                        <select id="coder-language">
+                            <option value="python">Python</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="typescript">TypeScript</option>
+                            <option value="rust">Rust</option>
+                            <option value="go">Go</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Writer Form -->
+            <div class="agent-form" id="form-writer" style="display: none;">
+                <div class="form-group">
+                    <label>Topic</label>
+                    <textarea id="writer-topic" rows="4" placeholder="What should I write about?"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Template</label>
+                        <select id="writer-template">
+                            <option value="executive_summary">Executive Summary</option>
+                            <option value="technical_spec">Technical Spec</option>
+                            <option value="blog_post">Blog Post</option>
+                            <option value="grant_proposal">Grant Proposal</option>
+                            <option value="whitepaper">Whitepaper</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experimenter Form -->
+            <div class="agent-form" id="form-experimenter" style="display: none;">
+                <div class="form-group">
+                    <label>Experiment Goal</label>
+                    <textarea id="experimenter-goal" rows="4" placeholder="What are you trying to test or optimize?"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Design Type</label>
+                        <select id="experimenter-type">
+                            <option value="power">Power Analysis (A/B test)</option>
+                            <option value="factorial">Factorial Design</option>
+                            <option value="response_surface">Response Surface</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-hint" id="experimenter-hint">
+                    <strong>Power Analysis:</strong> Calculate sample size for two-group comparisons (treatment vs control).
+                </div>
+            </div>
+
+            <!-- EDA Form -->
+            <div class="agent-form" id="form-eda" style="display: none;">
+                <div class="form-group">
+                    <label>Upload CSV Data</label>
+                    <input type="file" id="eda-file" accept=".csv" class="file-input">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Dataset Name</label>
+                        <input type="text" id="eda-name" placeholder="my_dataset" class="text-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Generate Charts</label>
+                        <select id="eda-charts">
+                            <option value="true">Yes</option>
+                            <option value="false">No (faster)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-hint">
+                    <strong>Auto EDA:</strong> Automatically profiles your data - column stats, missing values, outliers, correlations, and recommendations.
+                </div>
+            </div>
+
+            <!-- Editor Form -->
+            <div class="agent-form" id="form-editor" style="display: none;">
+                <div class="form-group">
+                    <label>Document to Edit</label>
+                    <textarea id="editor-document" rows="6" placeholder="Paste your document text here..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Document Title</label>
+                        <input type="text" id="editor-title" placeholder="My Document" class="text-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Rubric Type</label>
+                        <select id="editor-rubric">
+                            <option value="auto">Auto-detect</option>
+                            <option value="essay">Essay</option>
+                            <option value="research">Research Paper</option>
+                            <option value="whitepaper">Whitepaper</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Original Prompt (optional, for drift checking)</label>
+                    <input type="text" id="editor-prompt" placeholder="What was the document supposed to address?" class="text-input">
+                </div>
+                <div class="form-hint">
+                    <strong>Editor:</strong> Checks grammar, citations, repetition, gaps, and prompt drift. Produces an editorial report.
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-run" id="run-btn">
+                <span class="btn-text">Run Agent</span>
+                <span class="btn-loading" style="display: none;">Running...</span>
+            </button>
+        </div>
+
+        <!-- Output Panel -->
+        <div class="panel output-panel">
+            <div class="panel-header">
+                <span class="panel-title">Output</span>
+                <div class="panel-actions">
+                    <button class="btn-icon" onclick="copyOutput()" title="Copy">📋</button>
+                    <button class="btn-icon" onclick="downloadOutput()" title="Download">💾</button>
+                    <button class="btn-icon" onclick="clearOutput()" title="Clear">🗑️</button>
+                </div>
+            </div>
+            <div class="output-content" id="output-content">
+                <div class="output-placeholder">
+                    <span class="placeholder-icon">⚡</span>
+                    <span>Run an agent to see results here</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Panel (collapsible) -->
+    <div class="context-panel">
+        <div class="context-header" onclick="toggleContext()">
+            <span>Session History</span>
+            <span class="context-toggle" id="context-toggle">▼</span>
+        </div>
+        <div class="context-content" id="context-content" style="display: none;">
+            <div class="context-placeholder">No history yet. Results will appear here as you run agents.</div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+        <a href="/app/dsw/" class="quick-link">
+            <span class="link-icon">&#128202;</span>
+            <span class="link-text">Decision Science Workbench</span>
+            <span class="link-desc">Full ML pipeline from intent to deployment</span>
+        </a>
+        <a href="/app/workflows/" class="quick-link">
+            <span class="link-icon">&#128279;</span>
+            <span class="link-text">Workflow Builder</span>
+            <span class="link-desc">Chain agents together for complex tasks</span>
+        </a>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">Running agent...</div>
+</div>
+
+<style>
+.workbench {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.workbench-header {
+    margin-bottom: 1.5rem;
+}
+
+.workbench-header h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.workbench-header .subtitle {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+
+/* Agent Tabs */
+.agent-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid rgba(74, 159, 110, 0.2);
+}
+
+.agent-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.agent-tab:hover {
+    background: rgba(74, 159, 110, 0.1);
+    color: var(--text);
+}
+
+.agent-tab.active {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+.tab-icon {
+    font-size: 1.25rem;
+}
+
+/* Hypothesis Context Bar */
+.hypothesis-context-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+}
+
+.context-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.context-label span {
+    font-weight: 500;
+    color: var(--text-dim);
+}
+
+#problem-selector {
+    padding: 0.5rem 1rem;
+    background: var(--card-bg);
+    border: 1px solid rgba(74, 159, 110, 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    min-width: 250px;
+}
+
+.context-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+#context-effect {
+    color: var(--text-dim);
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#context-link {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+#context-link:hover {
+    text-decoration: underline;
+}
+
+.tab-label {
+    font-weight: 500;
+}
+
+/* Workspace */
+.workspace {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 900px) {
+    .workspace {
+        grid-template-columns: 1fr;
+    }
+}
+
+.panel {
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    overflow: hidden;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(74, 159, 110, 0.1);
+}
+
+.panel-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.agent-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 4px;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.btn-icon:hover {
+    background: rgba(74, 159, 110, 0.2);
+}
+
+/* Input Panel */
+.input-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.agent-form {
+    padding: 1rem;
+    flex: 1;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+}
+
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.form-group textarea:focus,
+.form-group select:focus,
+.form-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.form-group .text-input {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.form-group .file-input {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.form-group .file-input::file-selector-button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 1rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-hint {
+    padding: 0.75rem;
+    background: rgba(74, 159, 110, 0.1);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+}
+
+.btn-run {
+    margin: 0 1rem 1rem 1rem;
+    padding: 0.875rem;
+    font-size: 1rem;
+}
+
+/* Output Panel */
+.output-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+}
+
+.output-content {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+.output-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 2rem;
+}
+
+.placeholder-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Markdown Content in Output */
+.output-content .markdown-content {
+    line-height: 1.6;
+}
+
+.output-content .markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    margin: 1rem 0;
+}
+
+.output-content .markdown-content h2,
+.output-content .markdown-content h3,
+.output-content .markdown-content h4 {
+    color: var(--accent);
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.output-content .markdown-content pre {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+}
+
+.output-content .markdown-content code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Context Panel */
+.context-panel {
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    margin-bottom: 1rem;
+}
+
+.context-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.context-header:hover {
+    background: rgba(74, 159, 110, 0.05);
+}
+
+.context-toggle {
+    transition: transform 0.2s;
+}
+
+.context-toggle.open {
+    transform: rotate(180deg);
+}
+
+.context-content {
+    padding: 1rem;
+    border-top: 1px solid rgba(74, 159, 110, 0.1);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.context-placeholder {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem;
+}
+
+.context-item {
+    padding: 0.75rem;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.context-item:last-child {
+    margin-bottom: 0;
+}
+
+.context-item:hover {
+    background: rgba(74, 159, 110, 0.1);
+}
+
+.context-item-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.context-item-agent {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.context-item-time {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+}
+
+/* Quick Links */
+.quick-links {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 600px) {
+    .quick-links {
+        grid-template-columns: 1fr;
+    }
+}
+
+.quick-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.2s ease;
+}
+
+.quick-link:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.link-icon {
+    font-size: 1.5rem;
+}
+
+.link-text {
+    font-weight: 500;
+}
+
+.link-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--card-bg);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--text);
+    font-size: 1rem;
+}
+
+/* Result sections */
+.result-section {
+    margin-bottom: 1.5rem;
+}
+
+.result-section:last-child {
+    margin-bottom: 0;
+}
+
+.result-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 0.25rem;
+}
+
+.result-value {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.result-code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+/* Metric badges and cards */
+.metric-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: rgba(74, 159, 110, 0.2);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.metric-badge.good {
+    background: rgba(74, 200, 110, 0.2);
+    color: #4ac86e;
+}
+
+.metric-badge.warn {
+    background: rgba(255, 200, 0, 0.2);
+    color: #ffc800;
+}
+
+.metric-badge.bad {
+    background: rgba(255, 107, 107, 0.2);
+    color: #ff6b6b;
+}
+
+.metric-card {
+    flex: 1;
+    min-width: 80px;
+    padding: 0.75rem;
+    background: rgba(74, 159, 110, 0.1);
+    border-radius: 6px;
+    text-align: center;
+}
+
+.metric-card.good {
+    background: rgba(74, 200, 110, 0.15);
+}
+
+.metric-card.warn {
+    background: rgba(255, 200, 0, 0.15);
+}
+
+.metric-card.bad {
+    background: rgba(255, 107, 107, 0.15);
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.metric-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 0.25rem;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentAgent = 'researcher';
+let currentResult = null;
+let sessionHistory = [];
+let problems = [];
+let selectedProblemId = null;
+
+// Load problems on page load
+document.addEventListener('DOMContentLoaded', loadProblems);
+
+async function loadProblems() {
+    try {
+        const response = await fetch('/api/problems/', { credentials: 'include' });
+        const data = await response.json();
+        problems = (data.problems || []).filter(p => p.status === 'active');
+
+        const selector = document.getElementById('problem-selector');
+        selector.innerHTML = '<option value="">None (standalone query)</option>' +
+            problems.map(p => `<option value="${p.id}">${p.title}</option>`).join('');
+
+        // Check for problem context from Problems page
+        const storedContext = sessionStorage.getItem('problemContext');
+        if (storedContext) {
+            const ctx = JSON.parse(storedContext);
+            if (ctx.problemId) {
+                selector.value = ctx.problemId;
+                updateProblemContext(ctx.problemId);
+            }
+            sessionStorage.removeItem('problemContext');
+        }
+    } catch (err) {
+        console.error('Failed to load problems:', err);
+    }
+}
+
+document.getElementById('problem-selector').addEventListener('change', (e) => {
+    updateProblemContext(e.target.value);
+});
+
+function updateProblemContext(problemId) {
+    selectedProblemId = problemId || null;
+    const infoDiv = document.getElementById('context-info');
+
+    if (!problemId) {
+        infoDiv.style.display = 'none';
+        return;
+    }
+
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+        document.getElementById('context-effect').textContent = problem.effect_summary || '';
+        document.getElementById('context-link').href = `/app/problems/#${problemId}`;
+        infoDiv.style.display = 'flex';
+    }
+}
+
+// Agent tab switching
+document.querySelectorAll('.agent-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        const agent = tab.dataset.agent;
+        switchAgent(agent);
+    });
+});
+
+function switchAgent(agent) {
+    currentAgent = agent;
+
+    // Update tabs
+    document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-agent="${agent}"]`).classList.add('active');
+
+    // Update forms
+    document.querySelectorAll('.agent-form').forEach(f => f.style.display = 'none');
+    document.getElementById(`form-${agent}`).style.display = 'block';
+
+    // Update badge
+    const names = {
+        researcher: 'Researcher',
+        coder: 'Coder',
+        writer: 'Writer',
+        experimenter: 'Experimenter',
+        eda: 'EDA',
+        editor: 'Editor'
+    };
+    document.getElementById('current-agent-badge').textContent = names[agent];
+}
+
+// Experimenter type hint
+document.getElementById('experimenter-type').addEventListener('change', (e) => {
+    const hints = {
+        power: '<strong>Power Analysis:</strong> Calculate sample size for two-group comparisons (treatment vs control).',
+        factorial: '<strong>Factorial Design:</strong> Test all combinations of experimental factors (e.g., temperature × pressure × time).',
+        response_surface: '<strong>Response Surface:</strong> Optimize continuous factors to find the best settings.'
+    };
+    document.getElementById('experimenter-hint').innerHTML = hints[e.target.value] || '';
+});
+
+// Run button
+document.getElementById('run-btn').addEventListener('click', runAgent);
+
+async function runAgent() {
+    const btn = document.getElementById('run-btn');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoading = btn.querySelector('.btn-loading');
+
+    btn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+
+    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById('loading-text').textContent = `Running ${currentAgent}...`;
+
+    try {
+        let data = {};
+        let endpoint = `/api/agents/${currentAgent}/`;
+        let useFormData = false;
+        let formData = null;
+
+        // Add problem context if selected
+        const problemId = selectedProblemId;
+
+        switch (currentAgent) {
+            case 'researcher':
+                data = {
+                    query: document.getElementById('researcher-query').value,
+                    problem_id: problemId,
+                    focus: document.getElementById('researcher-focus').value,
+                    depth: document.getElementById('researcher-depth').value
+                };
+                break;
+            case 'coder':
+                data = {
+                    prompt: document.getElementById('coder-prompt').value,
+                    language: document.getElementById('coder-language').value,
+                    problem_id: problemId
+                };
+                break;
+            case 'writer':
+                data = {
+                    topic: document.getElementById('writer-topic').value,
+                    template: document.getElementById('writer-template').value,
+                    run_editor: true,
+                    prompt: document.getElementById('writer-topic').value,
+                    problem_id: problemId
+                };
+                break;
+            case 'experimenter':
+                data = {
+                    goal: document.getElementById('experimenter-goal').value,
+                    type: document.getElementById('experimenter-type').value,
+                    problem_id: problemId
+                };
+                break;
+            case 'eda':
+                endpoint = '/api/agents/eda/';
+                useFormData = true;
+                formData = new FormData();
+                const edaFile = document.getElementById('eda-file').files[0];
+                if (!edaFile) {
+                    showError('Please select a CSV file');
+                    return;
+                }
+                formData.append('file', edaFile);
+                formData.append('name', document.getElementById('eda-name').value || 'dataset');
+                formData.append('charts', document.getElementById('eda-charts').value);
+                if (problemId) formData.append('problem_id', problemId);
+                break;
+            case 'editor':
+                data = {
+                    document: document.getElementById('editor-document').value,
+                    title: document.getElementById('editor-title').value || 'Document',
+                    rubric_type: document.getElementById('editor-rubric').value,
+                    prompt: document.getElementById('editor-prompt').value || '',
+                    problem_id: problemId
+                };
+                if (!data.document) {
+                    showError('Please enter document text to edit');
+                    return;
+                }
+                break;
+        }
+
+        // Get CSRF token from cookie
+        const csrfToken = document.cookie.split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1];
+
+        let response;
+        if (useFormData) {
+            response = await fetch(endpoint, {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
+                body: formData
+            });
+        } else {
+            response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+        }
+
+        const result = await response.json();
+
+        if (result.error) {
+            showError(result.error);
+        } else {
+            currentResult = result;
+            showResult(currentAgent, result);
+            addToHistory(currentAgent, data, result);
+        }
+
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        btn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
+}
+
+function showResult(agent, result) {
+    const container = document.getElementById('output-content');
+    let html = '';
+
+    switch (agent) {
+        case 'researcher':
+            html = formatResearchResult(result);
+            break;
+        case 'coder':
+            html = formatCoderResult(result);
+            break;
+        case 'writer':
+            html = formatWriterResult(result);
+            break;
+        case 'experimenter':
+            html = formatExperimenterResult(result);
+            break;
+        case 'eda':
+            html = formatEDAResult(result);
+            break;
+        case 'editor':
+            html = formatEditorResult(result);
+            break;
+        default:
+            html = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function formatResearchResult(result) {
+    let html = '';
+
+    if (result.summary) {
+        html += `<div class="result-section">
+            <div class="result-label">Summary</div>
+            <div>${result.summary}</div>
+        </div>`;
+    }
+
+    if (result.sources && result.sources.length > 0) {
+        html += `<div class="result-section">
+            <div class="result-label">Sources (${result.sources.length})</div>
+            <div>`;
+        result.sources.forEach(s => {
+            html += `<div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                <div style="color: var(--accent);">${s.title || 'Untitled'}</div>
+                <div style="font-size: 0.8rem; color: var(--text-dim); word-break: break-all;">${s.url || ''}</div>
+            </div>`;
+        });
+        html += '</div></div>';
+    }
+
+    if (result.markdown) {
+        html += `<div class="result-section">
+            <div class="result-label">Full Report</div>
+            <div class="markdown-content">${renderMarkdown(result.markdown)}</div>
+        </div>`;
+    }
+
+    return html || `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+}
+
+function formatCoderResult(result) {
+    let html = '';
+
+    if (result.code) {
+        html += `<div class="result-section">
+            <div class="result-label">Generated Code</div>
+            <div class="result-code">${escapeHtml(result.code)}</div>
+        </div>`;
+    }
+
+    if (result.qa_report) {
+        html += `<div class="result-section">
+            <div class="result-label">QA Report</div>
+            <div class="result-code">${escapeHtml(result.qa_report)}</div>
+        </div>`;
+    }
+
+    return html || `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+}
+
+function formatWriterResult(result) {
+    let html = '';
+
+    if (result.editor) {
+        html += '<div class="result-section" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">';
+        html += `<div class="metric-badge ${result.editor.citation_confidence >= 0.7 ? 'good' : 'warn'}">
+            Citations: ${(result.editor.citation_confidence * 100).toFixed(0)}%
+        </div>`;
+        html += `<div class="metric-badge ${result.editor.prompt_alignment >= 0.7 ? 'good' : 'warn'}">
+            Alignment: ${(result.editor.prompt_alignment * 100).toFixed(0)}%
+        </div>`;
+        html += `<div class="metric-badge">Grade: ${result.editor.original_grade} → ${result.editor.improved_grade}</div>`;
+        html += '</div>';
+    }
+
+    const content = result.cleaned_content || result.content || result.text || result.document;
+    if (content) {
+        html += `<div class="result-section">
+            <div class="result-label">Document ${result.cleaned_content ? '(Cleaned)' : ''}</div>
+            <div class="markdown-content">${renderMarkdown(content)}</div>
+        </div>`;
+    }
+
+    return html || `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+}
+
+function formatEDAResult(result) {
+    let html = '';
+
+    html += '<div class="result-section" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">';
+    if (result.shape) {
+        html += `<div class="metric-card">
+            <div class="metric-value">${result.shape[0].toLocaleString()}</div>
+            <div class="metric-label">Rows</div>
+        </div>`;
+        html += `<div class="metric-card">
+            <div class="metric-value">${result.shape[1]}</div>
+            <div class="metric-label">Columns</div>
+        </div>`;
+    }
+    if (result.data_quality_score !== undefined) {
+        html += `<div class="metric-card ${result.data_quality_score >= 0.8 ? 'good' : result.data_quality_score >= 0.6 ? 'warn' : 'bad'}">
+            <div class="metric-value">${(result.data_quality_score * 100).toFixed(0)}%</div>
+            <div class="metric-label">Data Quality</div>
+        </div>`;
+    }
+    html += '</div>';
+
+    if (result.summary) {
+        html += `<div class="result-section">
+            <div class="result-label">Summary</div>
+            <div class="markdown-content">${renderMarkdown(result.summary)}</div>
+        </div>`;
+    }
+
+    return html || `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+}
+
+function formatEditorResult(result) {
+    let html = '';
+
+    html += '<div class="result-section" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">';
+    if (result.citation_confidence !== undefined) {
+        html += `<div class="metric-badge ${result.citation_confidence >= 0.7 ? 'good' : 'warn'}">
+            Citations: ${(result.citation_confidence * 100).toFixed(0)}%
+        </div>`;
+    }
+    if (result.prompt_alignment !== undefined) {
+        html += `<div class="metric-badge ${result.prompt_alignment >= 0.7 ? 'good' : 'warn'}">
+            Alignment: ${(result.prompt_alignment * 100).toFixed(0)}%
+        </div>`;
+    }
+    if (result.original_grade && result.improved_grade) {
+        html += `<div class="metric-badge">Grade: ${result.original_grade} → ${result.improved_grade}</div>`;
+    }
+    html += '</div>';
+
+    if (result.editorial_report) {
+        html += `<div class="result-section">
+            <div class="result-label">Editorial Report</div>
+            <div class="markdown-content">${renderMarkdown(result.editorial_report)}</div>
+        </div>`;
+    }
+
+    return html || `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+}
+
+function formatExperimenterResult(result) {
+    let html = '';
+
+    if (result.sample_size || result.power || result.effect_size) {
+        html += '<div class="result-section" style="display: flex; gap: 1rem; flex-wrap: wrap;">';
+        if (result.sample_size) {
+            html += `<div class="metric-card">
+                <div class="metric-value">${result.sample_size}</div>
+                <div class="metric-label">Sample Size</div>
+            </div>`;
+        }
+        if (result.power) {
+            html += `<div class="metric-card">
+                <div class="metric-value">${(result.power * 100).toFixed(0)}%</div>
+                <div class="metric-label">Power</div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
+    if (result.summary) {
+        html += `<div class="result-section">
+            <div class="result-label">Report</div>
+            <div class="markdown-content">${renderMarkdown(result.summary)}</div>
+        </div>`;
+    }
+
+    return html || `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+}
+
+function renderMarkdown(md) {
+    let html = md;
+    html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+    html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/```([^`]+)```/gs, '<pre>$1</pre>');
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = '<p>' + html + '</p>';
+    html = html.replace(/\n/g, '<br>');
+    html = html.replace(/<p>\s*<\/p>/g, '');
+    return html;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showError(message) {
+    document.getElementById('output-content').innerHTML = `
+        <div style="color: #ff6b6b; padding: 1rem; background: rgba(255,107,107,0.1); border-radius: 6px;">
+            <strong>Error:</strong> ${message}
+        </div>
+    `;
+    document.getElementById('loading-overlay').style.display = 'none';
+    document.getElementById('run-btn').disabled = false;
+    document.querySelector('.btn-text').style.display = 'inline';
+    document.querySelector('.btn-loading').style.display = 'none';
+}
+
+function addToHistory(agent, input, result) {
+    const now = new Date();
+    const time = now.toLocaleTimeString();
+    sessionHistory.unshift({ agent, input, result, time });
+    if (sessionHistory.length > 10) sessionHistory.pop();
+    updateHistoryDisplay();
+}
+
+function updateHistoryDisplay() {
+    const container = document.getElementById('context-content');
+    if (sessionHistory.length === 0) {
+        container.innerHTML = '<div class="context-placeholder">No history yet.</div>';
+        return;
+    }
+    let html = '';
+    sessionHistory.forEach((item, idx) => {
+        const inputSummary = JSON.stringify(item.input).substring(0, 50) + '...';
+        html += `<div class="context-item" onclick="loadFromHistory(${idx})">
+            <div class="context-item-header">
+                <span class="context-item-agent">${item.agent}</span>
+                <span class="context-item-time">${item.time}</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-dim);">${inputSummary}</div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function loadFromHistory(idx) {
+    const item = sessionHistory[idx];
+    if (item) {
+        switchAgent(item.agent);
+        currentResult = item.result;
+        showResult(item.agent, item.result);
+    }
+}
+
+function toggleContext() {
+    const content = document.getElementById('context-content');
+    const toggle = document.getElementById('context-toggle');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.classList.add('open');
+    } else {
+        content.style.display = 'none';
+        toggle.classList.remove('open');
+    }
+}
+
+function copyOutput() {
+    if (currentResult) {
+        const text = currentResult.code || currentResult.content || currentResult.summary || JSON.stringify(currentResult, null, 2);
+        navigator.clipboard.writeText(text).then(() => alert('Copied!'));
+    }
+}
+
+function downloadOutput() {
+    if (currentResult) {
+        const text = currentResult.code || currentResult.content || currentResult.summary || JSON.stringify(currentResult, null, 2);
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentAgent}-result.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+}
+
+function clearOutput() {
+    document.getElementById('output-content').innerHTML = `
+        <div class="output-placeholder">
+            <span class="placeholder-icon">⚡</span>
+            <span>Run an agent to see results here</span>
+        </div>
+    `;
+    currentResult = null;
+}
+</script>
+{% endblock %}

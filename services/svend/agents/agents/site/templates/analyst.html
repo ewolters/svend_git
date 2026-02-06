@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Analyst - ML Training{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <a href="/" style="color: var(--text-dim); text-decoration: none;">&larr; Back to Home</a>
+</div>
+
+<h1 style="margin-bottom: 0.5rem;">Analyst</h1>
+<p style="color: var(--text-dim); margin-bottom: 2rem;">
+    Auto model selection, training, and QA reports with educational documentation.
+</p>
+
+<!-- Models Overview -->
+<div class="card" style="margin-bottom: 2rem;">
+    <h3>Available Models</h3>
+    <p style="color: var(--text-dim); margin-bottom: 1rem;">
+        Interpretable models only. You understand what the model learned.
+    </p>
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+        <span class="tag tag-green">Linear Regression</span>
+        <span class="tag tag-green">Logistic Regression</span>
+        <span class="tag tag-blue">Random Forest</span>
+        <span class="tag tag-blue">Gradient Boosting</span>
+        <span class="tag tag-purple">SVM</span>
+        <span class="tag tag-purple">KNN</span>
+        <span class="tag tag-orange">Naive Bayes</span>
+    </div>
+</div>
+
+<!-- Upload Form -->
+<div class="card">
+    <h3>Train Model</h3>
+    <form id="analyst-form" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="file">CSV File</label>
+            <input type="file" id="file" name="file" accept=".csv" class="file-input" required>
+        </div>
+
+        <div class="form-group">
+            <label for="target">Target Column</label>
+            <input type="text" id="target" name="target" placeholder="e.g., churned, fraud, outcome" required>
+        </div>
+
+        <div class="form-group">
+            <label for="intent">Intent (optional)</label>
+            <textarea id="intent" name="intent" rows="2" placeholder="What are you trying to predict? This helps with model selection."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority">
+                <option value="balanced" selected>Balanced (recommended)</option>
+                <option value="accuracy">Maximum Accuracy</option>
+                <option value="interpretability">Interpretability</option>
+                <option value="speed">Training Speed</option>
+            </select>
+            <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem;">
+                <strong>Balanced:</strong> Best overall performance<br>
+                <strong>Accuracy:</strong> Ensemble methods, longer training<br>
+                <strong>Interpretability:</strong> Simpler models with clear explanations<br>
+                <strong>Speed:</strong> Fast training, lightweight models
+            </p>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Train Model</button>
+    </form>
+</div>
+
+<!-- Results -->
+<div id="results" class="card" style="display: none; margin-top: 2rem;">
+    <h3>Training Results</h3>
+    <div id="results-content"></div>
+
+    <div id="download-section" style="margin-top: 1.5rem; display: none;">
+        <h4>Downloads</h4>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a id="download-report" class="btn btn-secondary" href="#">Download Report</a>
+            <a id="download-code" class="btn btn-secondary" href="#">Download Training Code</a>
+        </div>
+    </div>
+</div>
+
+<!-- Loading -->
+<div id="loading" style="display: none; text-align: center; padding: 3rem;">
+    <div class="spinner"></div>
+    <p style="margin-top: 1rem; color: var(--text-dim);">Training model...</p>
+</div>
+
+<style>
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--card-bg);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.metric-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.metric-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.25rem;
+}
+
+.model-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.feature-list {
+    background: rgba(74, 159, 110, 0.05);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.feature-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(74, 159, 110, 0.1);
+}
+
+.feature-item:last-child {
+    border-bottom: none;
+}
+
+.feature-bar {
+    height: 8px;
+    background: var(--accent);
+    border-radius: 4px;
+    margin-top: 0.25rem;
+}
+
+.cv-score {
+    background: rgba(74, 159, 110, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.recommendations-box {
+    background: rgba(138, 180, 248, 0.1);
+    border: 1px solid rgba(138, 180, 248, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.recommendations-box h4 {
+    color: var(--blue);
+    margin-bottom: 0.5rem;
+}
+
+.warnings-box {
+    background: rgba(255, 183, 77, 0.1);
+    border: 1px solid rgba(255, 183, 77, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.warnings-box h4 {
+    color: var(--orange);
+    margin-bottom: 0.5rem;
+}
+</style>
+
+<script>
+document.getElementById('analyst-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+
+    loading.style.display = 'block';
+    results.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('file', document.getElementById('file').files[0]);
+    formData.append('target', document.getElementById('target').value);
+    formData.append('intent', document.getElementById('intent').value);
+    formData.append('priority', document.getElementById('priority').value);
+
+    try {
+        const response = await fetch('/api/analyst', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            showError(result.error);
+            return;
+        }
+
+        showResults(result);
+
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        loading.style.display = 'none';
+    }
+});
+
+function showResults(result) {
+    const container = document.getElementById('results-content');
+    const download = document.getElementById('download-section');
+
+    let html = '';
+
+    // Model type badge
+    html += `
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <span class="model-badge">${result.model_type}</span>
+            <p style="color: var(--text-dim); margin-top: 0.5rem;">Task: ${result.task_type}</p>
+        </div>
+    `;
+
+    // Metrics grid
+    if (result.metrics) {
+        html += '<div class="metric-grid">';
+        for (const [name, value] of Object.entries(result.metrics)) {
+            const displayValue = typeof value === 'number' ? value.toFixed(3) : value;
+            html += `
+                <div class="metric-card">
+                    <div class="metric-value">${displayValue}</div>
+                    <div class="metric-label">${name}</div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+
+    // Cross-validation score
+    if (result.cv_mean !== undefined) {
+        html += `
+            <div class="cv-score">
+                <strong>Cross-Validation Score:</strong> ${result.cv_mean.toFixed(3)} &plusmn; ${result.cv_std.toFixed(3)}
+            </div>
+        `;
+    }
+
+    // Feature importance
+    if (result.feature_importance && result.feature_importance.length > 0) {
+        const maxImp = Math.max(...result.feature_importance.map(f => f.importance));
+
+        html += '<div class="feature-list"><h4>Feature Importance</h4>';
+        result.feature_importance.forEach(f => {
+            const width = (f.importance / maxImp) * 100;
+            html += `
+                <div class="feature-item">
+                    <span>${f.feature}</span>
+                    <span>${(f.importance * 100).toFixed(1)}%</span>
+                </div>
+                <div class="feature-bar" style="width: ${width}%;"></div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    // Recommendations
+    if (result.recommendations && result.recommendations.length > 0) {
+        html += `
+            <div class="recommendations-box">
+                <h4>Recommendations</h4>
+                <ul>${result.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+            </div>
+        `;
+    }
+
+    // Warnings
+    if (result.warnings && result.warnings.length > 0) {
+        html += `
+            <div class="warnings-box">
+                <h4>Warnings</h4>
+                <ul>${result.warnings.map(w => `<li>${w}</li>`).join('')}</ul>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    // Download buttons
+    if (result.result_id) {
+        document.getElementById('download-report').href = `/api/download/${result.result_id}/report`;
+        document.getElementById('download-code').href = `/api/download/${result.result_id}/code`;
+        download.style.display = 'block';
+    }
+
+    document.getElementById('results').style.display = 'block';
+}
+
+function showError(message) {
+    const container = document.getElementById('results-content');
+    container.innerHTML = `
+        <div style="color: #ff6b6b; padding: 1rem; background: rgba(255, 107, 107, 0.1); border-radius: 8px;">
+            <strong>Error:</strong> ${message}
+        </div>
+    `;
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('download-section').style.display = 'none';
+}
+</script>
+{% endblock %}

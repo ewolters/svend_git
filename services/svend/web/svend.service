@@ -1,0 +1,21 @@
+[Unit]
+Description=Svend AI Agents
+After=network.target
+
+[Service]
+Type=exec
+User=eric
+Group=eric
+WorkingDirectory=/home/eric/kjerne/services/svend/web
+Environment="PATH=/home/eric/.local/bin:/usr/local/bin:/usr/bin"
+ExecStart=/home/eric/kjerne/services/svend/web/start_prod.sh
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+
+# Resource limits
+MemoryMax=4G
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+{% block title %}Workflows - SVEND{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1>Workflows</h1>
+        <p style="margin: 0;">Chain agents together. Save as reusable pipelines.</p>
+    </div>
+    <button class="btn btn-primary" onclick="showCreateModal()">+ New Workflow</button>
+</div>
+
+<!-- Workflow List -->
+<div id="workflow-list">
+    <div class="loading active" id="loading-workflows">
+        <div class="spinner"></div>
+        <span>Loading workflows...</span>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div id="workflow-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">New Workflow</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+
+        <form id="workflow-form">
+            <input type="hidden" id="workflow-id">
+
+            <div class="form-group">
+                <label for="workflow-name">Workflow Name</label>
+                <input type="text" id="workflow-name" placeholder="My Analysis Pipeline" required>
+            </div>
+
+            <div class="form-group">
+                <label>Steps</label>
+                <div id="steps-container"></div>
+                <button type="button" class="btn btn-secondary" onclick="addStep()" style="margin-top: 0.5rem;">
+                    + Add Step
+                </button>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">Save Workflow</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Run Results Modal -->
+<div id="run-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Workflow Results</h2>
+            <button class="modal-close" onclick="closeRunModal()">&times;</button>
+        </div>
+        <div id="run-results"></div>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-tertiary);
+    border: 1px solid rgba(74, 159, 110, 0.3);
+    border-radius: 8px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.workflow-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid rgba(74, 159, 110, 0.15);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.workflow-card:hover {
+    border-color: rgba(74, 159, 110, 0.3);
+}
+
+.workflow-info h3 {
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.workflow-info p {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.workflow-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.step-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.step-item select, .step-item input {
+    flex: 1;
+}
+
+.step-number {
+    width: 24px;
+    height: 24px;
+    background: var(--accent-primary-dim);
+    color: var(--accent-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.step-fields {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.step-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.step-row select, .step-row input {
+    flex: 1;
+}
+
+.remove-step {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 0.25rem;
+}
+
+.remove-step:hover {
+    color: var(--error);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-dim);
+}
+
+.empty-state h3 {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+</style>
+
+<script>
+let workflows = [];
+let editingWorkflow = null;
+
+// Load workflows on page load
+document.addEventListener('DOMContentLoaded', loadWorkflows);
+
+async function loadWorkflows() {
+    try {
+        const response = await fetch('/api/workflows');
+        const data = await response.json();
+        workflows = data.workflows;
+        renderWorkflows();
+    } catch (err) {
+        console.error('Failed to load workflows:', err);
+    }
+}
+
+function renderWorkflows() {
+    const container = document.getElementById('workflow-list');
+
+    if (workflows.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>No workflows yet</h3>
+                <p>Create your first workflow to chain agents together.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = workflows.map(wf => {
+        const steps = JSON.parse(wf.steps);
+        const lastRun = wf.last_run ? new Date(wf.last_run).toLocaleDateString() : 'Never';
+        return `
+            <div class="workflow-card">
+                <div class="workflow-info">
+                    <h3>${wf.name}</h3>
+                    <p>${steps.length} steps &middot; Last run: ${lastRun}</p>
+                </div>
+                <div class="workflow-actions">
+                    <button class="btn btn-primary" onclick="runWorkflow('${wf.id}')">Run</button>
+                    <button class="btn btn-secondary" onclick="editWorkflow('${wf.id}')">Edit</button>
+                    <button class="btn btn-secondary" onclick="deleteWorkflow('${wf.id}')">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function showCreateModal() {
+    editingWorkflow = null;
+    document.getElementById('modal-title').textContent = 'New Workflow';
+    document.getElementById('workflow-id').value = '';
+    document.getElementById('workflow-name').value = '';
+    document.getElementById('steps-container').innerHTML = '';
+    addStep(); // Start with one step
+    document.getElementById('workflow-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('workflow-modal').style.display = 'none';
+}
+
+function closeRunModal() {
+    document.getElementById('run-modal').style.display = 'none';
+}
+
+function addStep(type = 'research', config = {}) {
+    const container = document.getElementById('steps-container');
+    const stepNum = container.children.length + 1;
+
+    const stepHtml = `
+        <div class="step-item" data-step="${stepNum}">
+            <span class="step-number">${stepNum}</span>
+            <div class="step-fields">
+                <div class="step-row">
+                    <select class="step-type" onchange="updateStepFields(this)">
+                        <option value="research" ${type === 'research' ? 'selected' : ''}>Research</option>
+                        <option value="coder" ${type === 'coder' ? 'selected' : ''}>Coder</option>
+                        <option value="writer" ${type === 'writer' ? 'selected' : ''}>Writer</option>
+                        <option value="scrub" ${type === 'scrub' ? 'selected' : ''}>Scrub</option>
+                        <option value="analyst" ${type === 'analyst' ? 'selected' : ''}>Analyst</option>
+                    </select>
+                    <input type="text" class="step-name" placeholder="Step name" value="${config.name || ''}">
+                </div>
+                <div class="step-config">
+                    ${getStepConfigHtml(type, config)}
+                </div>
+            </div>
+            <button type="button" class="remove-step" onclick="removeStep(this)">&times;</button>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', stepHtml);
+}
+
+function getStepConfigHtml(type, config = {}) {
+    switch (type) {
+        case 'research':
+            return `<input type="text" class="step-query" placeholder="Search query" value="${config.query || ''}">`;
+        case 'coder':
+            return `<input type="text" class="step-prompt" placeholder="Code prompt" value="${config.prompt || ''}">`;
+        case 'writer':
+            return `
+                <select class="step-template">
+                    <option value="general" ${config.template === 'general' ? 'selected' : ''}>General</option>
+                    <option value="executive_summary" ${config.template === 'executive_summary' ? 'selected' : ''}>Executive Summary</option>
+                    <option value="technical_spec" ${config.template === 'technical_spec' ? 'selected' : ''}>Technical Spec</option>
+                    <option value="report" ${config.template === 'report' ? 'selected' : ''}>Report</option>
+                </select>
+            `;
+        case 'scrub':
+            return `<input type="text" class="step-rules" placeholder="Domain rules (JSON)" value="${config.rules || ''}">`;
+        case 'analyst':
+            return `<input type="text" class="step-target" placeholder="Target column" value="${config.target || ''}">`;
+        default:
+            return '';
+    }
+}
+
+function updateStepFields(select) {
+    const stepItem = select.closest('.step-item');
+    const configDiv = stepItem.querySelector('.step-config');
+    configDiv.innerHTML = getStepConfigHtml(select.value);
+}
+
+function removeStep(btn) {
+    const container = document.getElementById('steps-container');
+    if (container.children.length > 1) {
+        btn.closest('.step-item').remove();
+        // Renumber steps
+        Array.from(container.children).forEach((step, i) => {
+            step.querySelector('.step-number').textContent = i + 1;
+        });
+    }
+}
+
+function getStepsFromForm() {
+    const steps = [];
+    document.querySelectorAll('.step-item').forEach(item => {
+        const type = item.querySelector('.step-type').value;
+        const name = item.querySelector('.step-name').value;
+
+        const step = { type, name };
+
+        switch (type) {
+            case 'research':
+                step.query = item.querySelector('.step-query')?.value || '';
+                break;
+            case 'coder':
+                step.prompt = item.querySelector('.step-prompt')?.value || '';
+                break;
+            case 'writer':
+                step.template = item.querySelector('.step-template')?.value || 'general';
+                break;
+            case 'scrub':
+                step.rules = item.querySelector('.step-rules')?.value || '';
+                break;
+            case 'analyst':
+                step.target = item.querySelector('.step-target')?.value || '';
+                break;
+        }
+
+        steps.push(step);
+    });
+    return steps;
+}
+
+document.getElementById('workflow-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const workflowId = document.getElementById('workflow-id').value;
+    const name = document.getElementById('workflow-name').value;
+    const steps = getStepsFromForm();
+
+    const url = workflowId ? `/api/workflows/${workflowId}` : '/api/workflows';
+    const method = workflowId ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, steps }),
+        });
+
+        const data = await response.json();
+        if (data.success || data.id) {
+            closeModal();
+            loadWorkflows();
+        } else {
+            alert('Error saving workflow: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Failed to save workflow: ' + err.message);
+    }
+});
+
+function editWorkflow(id) {
+    const wf = workflows.find(w => w.id === id);
+    if (!wf) return;
+
+    editingWorkflow = wf;
+    document.getElementById('modal-title').textContent = 'Edit Workflow';
+    document.getElementById('workflow-id').value = wf.id;
+    document.getElementById('workflow-name').value = wf.name;
+
+    const container = document.getElementById('steps-container');
+    container.innerHTML = '';
+
+    const steps = JSON.parse(wf.steps);
+    steps.forEach(step => addStep(step.type, step));
+
+    document.getElementById('workflow-modal').style.display = 'flex';
+}
+
+async function deleteWorkflow(id) {
+    if (!confirm('Delete this workflow?')) return;
+
+    try {
+        await fetch(`/api/workflows/${id}`, { method: 'DELETE' });
+        loadWorkflows();
+    } catch (err) {
+        alert('Failed to delete workflow: ' + err.message);
+    }
+}
+
+async function runWorkflow(id) {
+    const resultsDiv = document.getElementById('run-results');
+    resultsDiv.innerHTML = '<div class="loading active"><div class="spinner"></div><span>Running workflow...</span></div>';
+    document.getElementById('run-modal').style.display = 'flex';
+
+    try {
+        const response = await fetch(`/api/workflows/${id}/run`, { method: 'POST' });
+        const data = await response.json();
+
+        if (data.error) {
+            resultsDiv.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+        } else {
+            resultsDiv.innerHTML = `
+                <div class="alert alert-success">Workflow completed successfully!</div>
+                <pre>${JSON.stringify(data.result, null, 2)}</pre>
+            `;
+        }
+    } catch (err) {
+        resultsDiv.innerHTML = `<div class="alert alert-error">Failed to run workflow: ${err.message}</div>`;
+    }
+}
+</script>
+{% endblock %}

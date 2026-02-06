@@ -1,0 +1,754 @@
+{% extends "base_app.html" %}
+{% block title %}Coder - SVEND{% endblock %}
+
+{% block content %}
+<div class="coder-page">
+    <!-- Header -->
+    <div class="coder-header">
+        <div class="header-left">
+            <h1>Coder</h1>
+            <span class="subtitle">AI coding assistant</span>
+        </div>
+        <div class="header-right">
+            <select id="model-select">
+                <option value="claude">Claude</option>
+                <option value="sonnet" class="enterprise-only" disabled>Sonnet</option>
+                <option value="opus" class="enterprise-only" disabled>Opus</option>
+            </select>
+            <select id="project-select" title="Active project">
+                <option value="">No project</option>
+            </select>
+            <select id="hypothesis-select" title="Hypothesis context" style="display: none;">
+                <option value="">Select hypothesis...</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="clearChat()">Clear</button>
+        </div>
+    </div>
+
+    <div class="coder-layout">
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div id="chat-messages" class="chat-messages">
+                <div class="system-message">
+                    <strong>Coder</strong> is ready. Describe what you want to build or analyze.
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <textarea id="chat-input" rows="2"
+                    placeholder="Describe what you want to code... (Enter to send, Shift+Enter for newline)"
+                    onkeydown="handleKeydown(event)"></textarea>
+                <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <!-- Code Panel -->
+        <div class="code-panel">
+            <div class="panel-header">
+                <span>Code</span>
+                <div class="panel-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="copyCode()">Copy</button>
+                    <button class="btn btn-primary btn-sm" onclick="runCode()">Run</button>
+                </div>
+            </div>
+            <textarea id="code-editor" spellcheck="false" placeholder="# Code will appear here..."></textarea>
+
+            <div class="output-section">
+                <div class="panel-header">
+                    <span>Output</span>
+                    <div class="panel-actions">
+                        <button id="save-evidence-btn" class="btn btn-primary btn-sm" onclick="saveAsEvidence()" style="display: none;">Save as Evidence</button>
+                        <button class="btn btn-secondary btn-sm" onclick="clearOutput()">Clear</button>
+                    </div>
+                </div>
+                <div id="output-content" class="output-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Context Card (floating) -->
+<div id="context-card" class="context-card" style="display: none;">
+    <div class="context-header">
+        <span>Context</span>
+        <button class="btn-icon" onclick="hideContext()">&times;</button>
+    </div>
+    <div class="context-body">
+        <div id="context-statement"></div>
+    </div>
+</div>
+
+<style>
+.coder-page {
+    height: calc(100vh - 60px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.coder-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.coder-header h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    display: inline;
+}
+
+.subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-left: 0.75rem;
+}
+
+.header-right {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.header-right select {
+    padding: 0.4rem 0.6rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+}
+
+.coder-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    flex: 1;
+    min-height: 0;
+    padding: 1rem 0;
+}
+
+/* Chat Panel */
+.chat-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.system-message {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.message {
+    max-width: 90%;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.message.user {
+    align-self: flex-end;
+    background: var(--accent-primary);
+    color: white;
+}
+
+.message.assistant {
+    align-self: flex-start;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+}
+
+.message.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.message pre {
+    margin: 0.5rem 0 0 0;
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.8rem;
+}
+
+.message code {
+    font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.message-actions {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.message-actions button {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 3px;
+    color: inherit;
+    cursor: pointer;
+}
+
+.message-actions button:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.chat-input-area {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+.chat-input-area textarea {
+    flex: 1;
+    padding: 0.6rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: none;
+}
+
+.chat-input-area textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+/* Code Panel */
+.code-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 4px 4px 0 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#code-editor {
+    flex: 1;
+    min-height: 200px;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 0 0 4px 4px;
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    resize: none;
+}
+
+#code-editor:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.output-section {
+    flex: 1;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.output-content {
+    flex: 1;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.8rem;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+.output-content.error {
+    color: #ef4444;
+}
+
+.output-content.success {
+    color: var(--accent-primary);
+}
+
+/* Context Card */
+.context-card {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    width: 300px;
+    background: var(--bg-card);
+    border: 1px solid var(--accent-primary);
+    border-radius: 8px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.context-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: rgba(74, 159, 110, 0.1);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.context-body {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0;
+}
+
+.btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+.typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    align-self: flex-start;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+</style>
+
+<script>
+let chatHistory = [];
+let currentProject = null;
+let currentHypothesis = null;
+let lastOutput = null;
+let lastCode = null;
+let userTier = 'standard';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await checkUserTier();
+    await loadProjects();
+    document.getElementById('chat-input').focus();
+
+    // Load project/hypothesis from URL if present
+    const params = new URLSearchParams(window.location.search);
+    const projectParam = params.get('project');
+    if (projectParam) {
+        document.getElementById('project-select').value = projectParam;
+        await loadProjectHypotheses();
+        const hypParam = params.get('hypothesis');
+        if (hypParam) {
+            document.getElementById('hypothesis-select').value = hypParam;
+            loadHypothesisContext();
+        }
+    }
+});
+
+async function checkUserTier() {
+    try {
+        const response = await fetch('/api/user/profile/', { credentials: 'include' });
+        if (response.ok) {
+            const data = await response.json();
+            userTier = data.subscription?.plan || 'standard';
+            if (userTier === 'enterprise') {
+                document.querySelectorAll('.enterprise-only').forEach(opt => {
+                    opt.disabled = false;
+                });
+            }
+        }
+    } catch (err) {}
+}
+
+async function loadProjects() {
+    try {
+        const response = await fetch('/api/core/projects/', { credentials: 'include' });
+        const projects = await response.json();
+        const select = document.getElementById('project-select');
+
+        for (const project of projects) {
+            const option = document.createElement('option');
+            option.value = project.id;
+            option.textContent = project.title;
+            select.appendChild(option);
+        }
+    } catch (err) {
+        console.error('Failed to load projects:', err);
+    }
+}
+
+async function loadProjectHypotheses() {
+    const projectId = document.getElementById('project-select').value;
+    const hypSelect = document.getElementById('hypothesis-select');
+
+    // Clear and hide hypothesis select if no project
+    hypSelect.innerHTML = '<option value="">Select hypothesis...</option>';
+    if (!projectId) {
+        hypSelect.style.display = 'none';
+        currentProject = null;
+        currentHypothesis = null;
+        document.getElementById('context-card').style.display = 'none';
+        document.getElementById('save-evidence-btn').style.display = 'none';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/core/projects/${projectId}/hypotheses/`, { credentials: 'include' });
+        const hypotheses = await response.json();
+
+        currentProject = { id: projectId };
+
+        if (hypotheses.length > 0) {
+            hypSelect.style.display = 'inline-block';
+            for (const h of hypotheses) {
+                const option = document.createElement('option');
+                option.value = h.id;
+                option.textContent = `${h.statement.slice(0, 40)}... (${Math.round(h.current_probability * 100)}%)`;
+                hypSelect.appendChild(option);
+            }
+        } else {
+            hypSelect.style.display = 'none';
+        }
+
+        // Show save button when project is selected
+        updateSaveButton();
+
+    } catch (err) {
+        console.error('Failed to load hypotheses:', err);
+    }
+}
+
+async function loadHypothesisContext() {
+    const hypId = document.getElementById('hypothesis-select').value;
+    const projectId = document.getElementById('project-select').value;
+
+    if (!hypId || !projectId) {
+        currentHypothesis = null;
+        document.getElementById('context-card').style.display = 'none';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/core/projects/${projectId}/hypotheses/${hypId}/`, { credentials: 'include' });
+        currentHypothesis = await response.json();
+        currentHypothesis.project_id = projectId;
+
+        document.getElementById('context-statement').textContent = `"${currentHypothesis.statement}"`;
+        document.getElementById('context-card').style.display = 'block';
+    } catch (err) {
+        console.error('Failed to load hypothesis:', err);
+    }
+}
+
+function updateSaveButton() {
+    const btn = document.getElementById('save-evidence-btn');
+    const hasProject = document.getElementById('project-select').value;
+    const hasOutput = lastOutput && !lastOutput.error;
+    btn.style.display = (hasProject && hasOutput) ? 'inline-block' : 'none';
+}
+
+function hideContext() {
+    document.getElementById('context-card').style.display = 'none';
+}
+
+function handleKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = '';
+    addMessage('user', message);
+
+    // Show typing indicator
+    const typingId = showTyping();
+
+    // Check if this is a follow-up about an error
+    const lastOutput = document.getElementById('output-content').textContent;
+    const hasError = document.getElementById('output-content').classList.contains('error');
+
+    let prompt = message;
+    if (hasError && lastOutput && (message.toLowerCase().includes('fix') || message.toLowerCase().includes('error'))) {
+        prompt = `The previous code had this error:\n${lastOutput}\n\nPlease fix it. User says: ${message}`;
+    }
+
+    // Include conversation context for follow-ups
+    const recentHistory = chatHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
+    if (recentHistory && chatHistory.length > 1) {
+        prompt = `Previous conversation:\n${recentHistory}\n\nNew request: ${prompt}`;
+    }
+
+    try {
+        const model = document.getElementById('model-select').value;
+        const context = currentHypothesis ? {
+            hypothesis: currentHypothesis.statement,
+            mechanism: currentHypothesis.mechanism
+        } : {};
+
+        const response = await fetch('/api/dsw/generate-code/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ prompt, model, context })
+        });
+
+        removeTyping(typingId);
+        const data = await response.json();
+
+        if (data.error) {
+            addMessage('error', data.error);
+            return;
+        }
+
+        const code = data.code || '';
+        document.getElementById('code-editor').value = code;
+
+        // Add assistant message with code preview
+        addMessage('assistant', 'Here\'s the code:', code);
+
+    } catch (err) {
+        removeTyping(typingId);
+        addMessage('error', 'Failed to generate code: ' + err.message);
+    }
+}
+
+function addMessage(role, content, code = null) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+
+    let html = escapeHtml(content);
+    if (code) {
+        html += `<pre><code>${escapeHtml(code.slice(0, 500))}${code.length > 500 ? '\n...' : ''}</code></pre>`;
+        html += `<div class="message-actions">
+            <button onclick="runCode()">Run</button>
+            <button onclick="copyCode()">Copy</button>
+        </div>`;
+    }
+    div.innerHTML = html;
+
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+
+    if (role !== 'error') {
+        chatHistory.push({ role, content: code || content });
+    }
+}
+
+function showTyping() {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'typing-indicator';
+    div.id = 'typing-' + Date.now();
+    div.innerHTML = '<span></span><span></span><span></span>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div.id;
+}
+
+function removeTyping(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+
+async function runCode() {
+    const code = document.getElementById('code-editor').value.trim();
+    if (!code) return;
+
+    const outputEl = document.getElementById('output-content');
+    outputEl.textContent = 'Running...';
+    outputEl.className = 'output-content';
+    lastOutput = null;
+    lastCode = code;
+
+    try {
+        const response = await fetch('/api/dsw/execute/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ code })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            outputEl.textContent = data.error;
+            outputEl.className = 'output-content error';
+            lastOutput = { error: true, text: data.error };
+            addMessage('assistant', `Error: ${data.error}\n\nWould you like me to fix this?`);
+        } else {
+            outputEl.textContent = data.output || 'Done (no output)';
+            outputEl.className = 'output-content success';
+            lastOutput = { error: false, text: data.output, data: data };
+        }
+
+        updateSaveButton();
+
+    } catch (err) {
+        outputEl.textContent = 'Execution failed: ' + err.message;
+        outputEl.className = 'output-content error';
+        lastOutput = { error: true, text: err.message };
+    }
+}
+
+async function saveAsEvidence() {
+    const projectId = document.getElementById('project-select').value;
+    if (!projectId || !lastOutput || lastOutput.error) {
+        alert('No successful output to save');
+        return;
+    }
+
+    // Prompt for summary
+    const summary = prompt('Describe what this result shows:', 'Simulation result');
+    if (!summary) return;
+
+    // Get selected hypotheses
+    const hypothesisIds = [];
+    const likelihoodRatios = {};
+    const hypId = document.getElementById('hypothesis-select').value;
+
+    if (hypId) {
+        const lr = prompt(`Likelihood ratio for this hypothesis (>1 supports, <1 opposes, 1 neutral):`, '1.0');
+        if (lr) {
+            hypothesisIds.push(hypId);
+            likelihoodRatios[hypId] = parseFloat(lr) || 1.0;
+        }
+    }
+
+    try {
+        const response = await fetch('/api/core/evidence/from-code/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                project_id: projectId,
+                summary: summary,
+                source_type: 'simulation',
+                code: lastCode,
+                output: lastOutput.data || { text: lastOutput.text },
+                hypothesis_ids: hypothesisIds,
+                likelihood_ratios: likelihoodRatios,
+                confidence: 0.8
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            addMessage('assistant', `Evidence saved! ${data.links?.length > 0 ? 'Hypothesis probabilities updated.' : ''}`);
+
+            // Show probability updates if any
+            if (data.links?.length > 0) {
+                for (const link of data.links) {
+                    addMessage('assistant', `Hypothesis: ${Math.round(link.prior * 100)}% → ${Math.round(link.posterior * 100)}%`);
+                }
+            }
+        } else {
+            addMessage('error', `Failed to save evidence: ${data.error || 'Unknown error'}`);
+        }
+    } catch (err) {
+        addMessage('error', 'Failed to save evidence: ' + err.message);
+    }
+}
+
+function copyCode() {
+    const code = document.getElementById('code-editor').value;
+    navigator.clipboard.writeText(code);
+}
+
+function clearOutput() {
+    document.getElementById('output-content').textContent = '';
+    document.getElementById('output-content').className = 'output-content';
+}
+
+function clearChat() {
+    document.getElementById('chat-messages').innerHTML = `
+        <div class="system-message">
+            <strong>Coder</strong> is ready. Describe what you want to build or analyze.
+        </div>
+    `;
+    document.getElementById('code-editor').value = '';
+    document.getElementById('output-content').textContent = '';
+    chatHistory = [];
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+document.getElementById('project-select').addEventListener('change', loadProjectHypotheses);
+document.getElementById('hypothesis-select').addEventListener('change', loadHypothesisContext);
+</script>
+{% endblock %}

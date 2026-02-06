@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "created": "2024-01-27",
+  "services": {
+    "svend": "1.0.0",
+    "scrub": "1.0.0",
+    "forge": "0.1.0"
+  },
+  "settings": {
+    "snapshot_retention_days": 30,
+    "require_tests_before_deploy": true,
+    "require_lint_before_snapshot": true,
+    "security_block_level": "CRITICAL",
+    "min_quality_grade": "C"
+  },
+  "paths": {
+    "dev": "/home/eric/kjerne",
+    "prod": "/home/eric/prod"
+  }
+}

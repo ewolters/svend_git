@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Environment
+.env
+.env.production
+*.sqlite3
+
+# Media uploads (user data)
+media/
+
+# Static files (generated)
+staticfiles/
+
+# OS
+.DS_Store
+*.swp
+*~
+
+# Temp
+*.log
+cookies.txt

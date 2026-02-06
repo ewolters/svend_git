@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+{% block title %}Decision Science Workbench{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <a href="/" style="color: var(--text-dim); text-decoration: none;">&larr; Back to Home</a>
+</div>
+
+<h1 style="margin-bottom: 0.5rem;">Decision Science Workbench</h1>
+<p style="color: var(--text-dim); margin-bottom: 2rem;">
+    Data cleaning, model training, deployment code, and improvement plans. Start from an idea or your own data.
+</p>
+
+<!-- Pipeline Visualization -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap;">
+        <span class="tag tag-green">Intent</span>
+        <span style="color: var(--text-dim);">&rarr;</span>
+        <span class="tag tag-blue">Schema</span>
+        <span style="color: var(--text-dim);">&rarr;</span>
+        <span class="tag tag-orange">Forge</span>
+        <span style="color: var(--text-dim);">&rarr;</span>
+        <span class="tag tag-blue">Scrub</span>
+        <span style="color: var(--text-dim);">&rarr;</span>
+        <span class="tag tag-purple">Analyst</span>
+        <span style="color: var(--text-dim);">&rarr;</span>
+        <span class="tag tag-green">Deploy</span>
+    </div>
+</div>
+
+<!-- Tab Navigation -->
+<div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(74, 159, 110, 0.2);">
+    <button class="tab-btn active" data-tab="from-intent">From Intent (Zero Data)</button>
+    <button class="tab-btn" data-tab="from-data">From Existing Data</button>
+</div>
+
+<!-- From Intent Tab -->
+<div id="from-intent" class="tab-content active">
+    <div class="card">
+        <h3>Start from Intent</h3>
+        <p style="color: var(--text-dim); margin-bottom: 1.5rem;">
+            Describe what you want to predict. We'll generate schema, synthetic data, and train a model.
+        </p>
+
+        <form id="intent-form">
+            <div class="form-group">
+                <label for="intent">What do you want to predict?</label>
+                <textarea id="intent" name="intent" rows="3" placeholder="e.g., Predict which customers will churn in the next 30 days based on usage patterns and account history"></textarea>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label for="domain">Domain (optional)</label>
+                    <select id="domain" name="domain">
+                        <option value="">Auto-detect</option>
+                        <option value="churn">Customer Churn</option>
+                        <option value="fraud">Fraud Detection</option>
+                        <option value="lead_scoring">Lead Scoring</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="n_records">Sample Size</label>
+                    <select id="n_records" name="n_records">
+                        <option value="100">100 (quick test)</option>
+                        <option value="500" selected>500 (standard)</option>
+                        <option value="1000">1,000</option>
+                        <option value="5000">5,000</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="priority">Priority</label>
+                <select id="priority" name="priority">
+                    <option value="balanced" selected>Balanced</option>
+                    <option value="accuracy">Maximum Accuracy</option>
+                    <option value="interpretability">Interpretability</option>
+                    <option value="speed">Training Speed</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                Generate &amp; Train
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- From Data Tab -->
+<div id="from-data" class="tab-content" style="display: none;">
+    <div class="card">
+        <h3>Start from Data</h3>
+        <p style="color: var(--text-dim); margin-bottom: 1.5rem;">
+            Upload your dataset. We'll clean it and train the best model.
+        </p>
+
+        <form id="data-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="data-file">Upload CSV</label>
+                <input type="file" id="data-file" name="file" accept=".csv" class="file-input">
+            </div>
+
+            <div class="form-group">
+                <label for="target">Target Column</label>
+                <input type="text" id="target" name="target" placeholder="e.g., churned, fraud, converted">
+            </div>
+
+            <div class="form-group">
+                <label for="data-intent">Intent (optional)</label>
+                <textarea id="data-intent" name="intent" rows="2" placeholder="Describe what you're trying to predict..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="data-priority">Priority</label>
+                <select id="data-priority" name="priority">
+                    <option value="balanced" selected>Balanced</option>
+                    <option value="accuracy">Maximum Accuracy</option>
+                    <option value="interpretability">Interpretability</option>
+                    <option value="speed">Training Speed</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                Clean &amp; Train
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Results Section -->
+<div id="results" class="card" style="display: none; margin-top: 2rem;">
+    <h3>Results</h3>
+    <div id="results-content"></div>
+
+    <div id="download-buttons" style="margin-top: 1.5rem; display: none;">
+        <h4>Downloads</h4>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a id="download-report" class="btn btn-secondary" href="#">Download Report</a>
+            <a id="download-code" class="btn btn-secondary" href="#">Download Code</a>
+            <a id="download-data" class="btn btn-secondary" href="#">Download Data</a>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Indicator -->
+<div id="loading" style="display: none; text-align: center; padding: 3rem;">
+    <div class="spinner"></div>
+    <p style="margin-top: 1rem; color: var(--text-dim);">Processing pipeline...</p>
+</div>
+
+<style>
+.tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    color: var(--text);
+}
+
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--card-bg);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.metric-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(74, 159, 110, 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.metric-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.warning-box {
+    background: rgba(255, 183, 77, 0.1);
+    border: 1px solid rgba(255, 183, 77, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.warning-box h4 {
+    color: var(--orange);
+    margin-bottom: 0.5rem;
+}
+</style>
+
+<script>
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).style.display = 'block';
+    });
+});
+
+// From Intent form
+document.getElementById('intent-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = {
+        intent: document.getElementById('intent').value,
+        domain: document.getElementById('domain').value || null,
+        n_records: parseInt(document.getElementById('n_records').value),
+        priority: document.getElementById('priority').value,
+    };
+
+    await runPipeline('/api/dsw/from-intent', formData, false);
+});
+
+// From Data form
+document.getElementById('data-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData();
+    formData.append('file', document.getElementById('data-file').files[0]);
+    formData.append('target', document.getElementById('target').value);
+    formData.append('intent', document.getElementById('data-intent').value);
+    formData.append('priority', document.getElementById('data-priority').value);
+
+    await runPipeline('/api/dsw/from-data', formData, true);
+});
+
+async function runPipeline(endpoint, data, isFormData) {
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+
+    loading.style.display = 'block';
+    results.style.display = 'none';
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: isFormData ? {} : {'Content-Type': 'application/json'},
+            body: isFormData ? data : JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            showError(result.error);
+            return;
+        }
+
+        showResults(result);
+
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+function showResults(result) {
+    const container = document.getElementById('results-content');
+    const downloads = document.getElementById('download-buttons');
+
+    let html = '';
+
+    // Schema info (for from-intent)
+    if (result.schema) {
+        html += `
+            <div style="margin-bottom: 1.5rem;">
+                <h4>Generated Schema</h4>
+                <p><strong>Name:</strong> ${result.schema.name}</p>
+                <p><strong>Domain:</strong> ${result.schema.domain}</p>
+                <p><strong>Features:</strong> ${result.schema.features.join(', ')}</p>
+                <p><strong>Target:</strong> ${result.schema.target}</p>
+            </div>
+        `;
+    }
+
+    // Data shape
+    if (result.data_shape) {
+        html += `<p><strong>Data:</strong> ${result.data_shape[0]} rows, ${result.data_shape[1]} columns</p>`;
+    }
+    if (result.original_shape && result.cleaned_shape) {
+        html += `<p><strong>Data:</strong> ${result.original_shape[0]} &rarr; ${result.cleaned_shape[0]} rows (after cleaning)</p>`;
+    }
+
+    // Model info
+    html += `<p><strong>Model:</strong> ${result.model_type}</p>`;
+
+    // Metrics
+    if (result.metrics) {
+        html += '<div class="metric-grid">';
+        for (const [name, value] of Object.entries(result.metrics)) {
+            const displayValue = typeof value === 'number' ? value.toFixed(3) : value;
+            html += `
+                <div class="metric-card">
+                    <div class="metric-value">${displayValue}</div>
+                    <div class="metric-label">${name}</div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+
+    // Feature importance
+    if (result.feature_importance && result.feature_importance.length > 0) {
+        html += '<h4 style="margin-top: 1.5rem;">Top Features</h4><ol>';
+        result.feature_importance.slice(0, 5).forEach(f => {
+            const name = f.feature || f[0];
+            const imp = f.importance || f[1];
+            html += `<li>${name}: ${(imp * 100).toFixed(1)}%</li>`;
+        });
+        html += '</ol>';
+    }
+
+    // Warnings
+    if (result.warnings && result.warnings.length > 0) {
+        html += `
+            <div class="warning-box">
+                <h4>Warnings</h4>
+                <ul>${result.warnings.map(w => `<li>${w}</li>`).join('')}</ul>
+            </div>
+        `;
+    }
+
+    // Summary
+    if (result.summary) {
+        html += `
+            <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(74, 159, 110, 0.1); border-radius: 8px;">
+                <pre style="white-space: pre-wrap; margin: 0;">${result.summary}</pre>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    // Download buttons
+    if (result.result_id) {
+        document.getElementById('download-report').href = `/api/download/${result.result_id}/report`;
+        document.getElementById('download-code').href = `/api/download/${result.result_id}/code`;
+        document.getElementById('download-data').href = `/api/download/${result.result_id}/data`;
+        downloads.style.display = 'block';
+    }
+
+    document.getElementById('results').style.display = 'block';
+}
+
+function showError(message) {
+    const container = document.getElementById('results-content');
+    container.innerHTML = `
+        <div style="color: #ff6b6b; padding: 1rem; background: rgba(255, 107, 107, 0.1); border-radius: 8px;">
+            <strong>Error:</strong> ${message}
+        </div>
+    `;
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('download-buttons').style.display = 'none';
+}
+</script>
+{% endblock %}

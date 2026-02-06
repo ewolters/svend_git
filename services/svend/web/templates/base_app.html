@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SVEND{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- SmilesDrawer for chemical structures -->
+    <script src="https://unpkg.com/smiles-drawer@2.1.5/dist/smiles-drawer.min.js"></script>
+    <script>
+        // Apply theme immediately to prevent flash
+        (function() {
+            var theme = localStorage.getItem('svend_theme') || '';
+            if (theme) document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        /* === SVEND Theme: Forest at Night (Default) === */
+        :root {
+            /* Backgrounds */
+            --bg-primary: #0a0f0a;
+            --bg-secondary: #0d120d;
+            --bg-tertiary: #121a12;
+            --bg-hover: #1a261a;
+            --bg: #0a0f0a;
+            --card-bg: #121a12;
+
+            /* Primary Accent - Aurora Green */
+            --accent-primary: #4a9f6e;
+            --accent-primary-dim: rgba(74, 159, 110, 0.15);
+            --accent-primary-border: rgba(74, 159, 110, 0.3);
+            --accent: #4a9f6e;
+
+            /* Secondary Accents */
+            --accent-blue: #3a7f8f;
+            --accent-purple: #5a4f7f;
+            --accent-gold: #e8c547;
+            --accent-orange: #e89547;
+
+            /* Text */
+            --text-primary: #e8efe8;
+            --text-secondary: #9aaa9a;
+            --text-dim: #5a6a5a;
+            --text: #e8efe8;
+
+            /* Semantic */
+            --success: #4a9f6e;
+            --warning: #e89547;
+            --error: #9f4a4a;
+            --info: #3a7f8f;
+
+            /* Border */
+            --border: rgba(74, 159, 110, 0.2);
+        }
+
+        /* === Light Theme === */
+        [data-theme="light"] {
+            --bg-primary: #f5f7f5;
+            --bg-secondary: #eef2ee;
+            --bg-tertiary: #e5ebe5;
+            --bg-hover: #dce4dc;
+            --bg: #f5f7f5;
+            --card-bg: #ffffff;
+
+            --accent-primary: #2d7a4a;
+            --accent-primary-dim: rgba(45, 122, 74, 0.1);
+            --accent-primary-border: rgba(45, 122, 74, 0.25);
+            --accent: #2d7a4a;
+
+            --accent-blue: #2a6070;
+            --accent-purple: #4a3f6f;
+            --accent-gold: #b8952a;
+            --accent-orange: #c87520;
+
+            --text-primary: #1a2a1a;
+            --text-secondary: #4a5a4a;
+            --text-dim: #7a8a7a;
+            --text: #1a2a1a;
+
+            --success: #2d7a4a;
+            --warning: #c87520;
+            --error: #a03030;
+            --info: #2a6070;
+
+            --border: rgba(45, 122, 74, 0.2);
+        }
+
+        /* === Midnight Theme === */
+        [data-theme="midnight"] {
+            --bg-primary: #0a0a14;
+            --bg-secondary: #0d0d1a;
+            --bg-tertiary: #12121f;
+            --bg-hover: #1a1a2a;
+            --bg: #0a0a14;
+            --card-bg: #12121f;
+
+            --accent-primary: #6a7fff;
+            --accent-primary-dim: rgba(106, 127, 255, 0.15);
+            --accent-primary-border: rgba(106, 127, 255, 0.3);
+            --accent: #6a7fff;
+
+            --accent-blue: #4a9fdf;
+            --accent-purple: #9a6fff;
+            --accent-gold: #ffd54f;
+            --accent-orange: #ff9547;
+
+            --text-primary: #e8e8f8;
+            --text-secondary: #9a9aaa;
+            --text-dim: #5a5a6a;
+            --text: #e8e8f8;
+
+            --success: #4a9f6e;
+            --warning: #ff9547;
+            --error: #ff5a5a;
+            --info: #4a9fdf;
+
+            --border: rgba(106, 127, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* === Layout === */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* === Header === */
+        header {
+            padding: 1.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: var(--text-primary);
+            margin-left: -0.5rem;
+        }
+
+        .logo-icon {
+            width: 1.5rem;
+            height: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .logo-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: none;
+            stroke: var(--text-primary);
+            stroke-width: 20;
+        }
+
+        .logo-text {
+            font-weight: 300;
+            font-size: 1.5rem;
+            letter-spacing: 0.3em;
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 400;
+            transition: color 0.2s;
+        }
+
+        nav a:hover, nav a.active {
+            color: var(--accent-primary);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-left: 1rem;
+            padding-left: 1rem;
+            border-left: 1px solid var(--border);
+        }
+
+        .user-name {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .logout-btn {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .settings-btn {
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            padding: 0.25rem;
+            transition: color 0.2s;
+        }
+
+        .settings-btn:hover {
+            color: var(--accent-primary);
+        }
+
+        /* Nav Dropdown */
+        .nav-dropdown {
+            position: relative;
+            padding: 0.5rem 0;
+        }
+
+        .nav-dropdown-trigger {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 400;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .nav-dropdown:hover .nav-dropdown-trigger {
+            color: var(--accent-primary);
+        }
+
+        .nav-dropdown-trigger::after {
+            content: ' \25BE';
+            font-size: 0.7em;
+        }
+
+        .nav-dropdown-menu {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            top: 100%;
+            left: -0.5rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.5rem 0;
+            min-width: 160px;
+            z-index: 100;
+            transition: opacity 0.15s, visibility 0.15s;
+        }
+
+        .nav-dropdown:hover .nav-dropdown-menu,
+        .nav-dropdown-menu:hover {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .nav-dropdown-menu a {
+            display: block;
+            padding: 0.6rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .nav-dropdown-menu a:hover {
+            background: var(--bg-hover);
+            color: var(--accent-primary);
+        }
+
+        /* === Main === */
+        main {
+            padding: 3rem 0;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 400;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h3 {
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* === Cards === */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card:hover {
+            border-color: var(--accent-primary-border);
+        }
+
+        /* === Buttons === */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 3px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary-dim);
+            border: 1px solid var(--accent-primary-border);
+            color: var(--accent-primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-primary-dim);
+            border-color: var(--accent-primary-border);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-primary-border);
+            color: var(--text-primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* === Forms === */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-primary-border);
+            background: var(--bg-tertiary);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        /* === Code === */
+        pre, code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        pre {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+
+        code {
+            color: var(--accent-primary);
+        }
+
+        /* === Tags === */
+        .tag {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .tag-green {
+            background: var(--accent-primary-dim);
+            color: var(--accent-primary);
+        }
+
+        /* === Alerts === */
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-warning {
+            background: rgba(232, 149, 71, 0.1);
+            border: 1px solid rgba(232, 149, 71, 0.3);
+            color: var(--accent-orange);
+        }
+
+        .alert-error {
+            background: rgba(159, 74, 74, 0.1);
+            border: 1px solid rgba(159, 74, 74, 0.3);
+            color: var(--error);
+        }
+
+        .alert-success {
+            background: var(--border);
+            border: 1px solid var(--accent-primary-border);
+            color: var(--accent-primary);
+        }
+
+        /* === Verification Banner === */
+        .verification-banner {
+            background: var(--accent-primary-dim);
+            border-bottom: 1px solid var(--accent-primary-border);
+            padding: 0.75rem 0;
+        }
+
+        .verification-banner .container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .verification-banner button {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .verification-banner button:hover {
+            opacity: 0.9;
+        }
+
+        .verification-banner .dismiss-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            padding: 0 0.5rem;
+        }
+
+        /* === Footer === */
+        footer {
+            padding: 2rem 0;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <span class="logo-icon">
+                        <svg viewBox="590 180 400 680" xmlns="http://www.w3.org/2000/svg">
+                            <path d="m 810.34961,183.98438 c -8.00929,0.28308 -15.5701,3.48413 -22.48495,7.32376 -12.87788,7.1817 -24.40922,16.65459 -37.84868,22.84732 -4.31757,2.08674 -9.12821,2.91574 -13.3771,5.16756 -7.15857,3.4834 -13.4768,8.9205 -17.4074,15.89893 -4.63628,8.03202 -6.3024,17.46727 -6.06699,26.65644 0.0985,4.79617 0.75632,9.56171 1.64764,14.269 0.0476,1.43947 -0.58472,2.80552 -0.6551,4.24336 -0.75319,5.38879 0.11601,11.14811 3.19493,15.71841 3.74987,5.93489 9.53028,10.16542 15.27939,14.00871 10.15322,6.72796 21.26277,12.12274 30.43779,20.24424 0.72261,0.57357 1.06428,1.45781 1.01481,2.36706 0.25419,10.62114 0.26429,21.24817 0.15168,31.87217 -0.10997,9.76491 -0.23395,19.53062 -0.32352,29.29514 -0.2559,2.18138 -2.48681,3.93272 -4.67536,3.50098 -1.73761,-0.32579 -2.97662,-1.73361 -4.40792,-2.66331 -35.6616,-26.03244 -71.15984,-52.30412 -107.51397,-77.36576 -1.79592,-1.18526 -3.52006,-2.4953 -5.36053,-3.6031 -2.38777,-1.13215 -5.02429,-1.65761 -7.63204,-1.97563 -6.86268,-0.69881 -13.69347,1.24508 -19.88444,4.07709 -9.03352,4.05728 -17.18145,9.7518 -25.58752,14.92132 -3.36838,2.10086 -6.87005,4.24739 -10.41869,6.1631 -0.99569,0.52942 -2.22,1.17581 -3.31848,1.71944 -4.07079,2.03607 -8.31873,3.71411 -12.69879,4.95454 -4.02638,1.19323 -7.8786,3.2257 -10.74869,6.34031 -2.96251,3.09048 -4.72915,7.11427 -5.71781,11.23537 -1.55545,6.40335 -1.57897,13.05115 -1.41863,19.6009 0.26795,9.17433 1.23843,18.2732 1.00241,27.46227 0.0207,3.42545 -1.03941,6.75735 -0.90681,10.1895 0.001,5.08446 1.56132,10.25252 4.8747,14.1707 4.43736,5.53069 10.76398,9.06598 17.04291,12.11545 11.82295,5.71965 24.58514,9.32817 36.12161,15.66465 2.63761,1.56679 5.14743,3.4485 8.1405,4.29671 4.09389,1.33597 8.5369,1.2958 12.69456,0.26955 7.31277,-1.64267 13.9237,-5.32376 20.51953,-8.74387 4.35604,-2.28907 8.66919,-4.70056 13.22314,-6.57805 2.19027,-0.44436 4.29633,0.48096 6.39883,0.88652 1.12616,0.30405 2.24944,0.63792 3.42471,1.02929 9.89759,3.32419 18.80495,8.95253 27.35797,14.83159 9.60214,6.67635 18.83584,13.8873 28.67442,20.21701 1.81523,1.44232 2.01025,4.45281 0.29511,6.05269 -1.18127,1.12727 -2.69962,1.81802 -4.02559,2.7576 -20.09966,13.11068 -40.67378,25.47586 -60.8399,38.48291 -9.96369,-3.64417 -18.76816,-9.70519 -28.31054,-14.23828 -5.34352,-2.47216 -11.27535,-4.34129 -17.22237,-3.5115 -2.23037,0.31113 -4.43888,1.00335 -6.29472,2.30511 -9.41413,5.6132 -20.00552,8.69886 -30.20947,12.5061 -7.8109,2.84323 -15.72475,5.92179 -22.32775,11.09558 -4.14348,3.33658 -7.40401,8.02695 -8.19394,13.36751 -0.75011,4.4178 0.0808,8.89125 -0.11393,13.33558 -0.0446,2.47431 -0.1663,4.78571 -0.33618,7.26123 -0.7016,9.88267 -2.18914,19.87652 -1.92566,29.86437 0.15833,5.61102 0.98818,11.38546 3.72433,16.36565 2.44787,4.28244 6.64099,7.37128 11.27534,8.93309 2.96165,1.01936 5.95313,1.9621 8.82273,3.22974 16.61941,6.96981 31.54004,17.40843 48.2906,24.09353 8.35504,3.30306 17.3626,5.41067 26.39188,4.73995 1.59654,-0.65955 2.95687,-1.7592 4.46121,-2.59492 34.97252,-21.48909 67.36925,-46.77662 100.70996,-70.64113 2.40223,-1.72533 4.80662,-3.4479 7.20969,-5.17216 3.12283,0.94464 6.45003,2.34189 8.1566,5.30326 2.63181,4.23393 2.95848,9.37168 3.10974,14.22553 0.0833,3.31727 0.004,6.60823 -0.11791,9.87356 -0.21995,6.79385 -0.7923,13.61211 -0.125,20.39843 0.20259,2.16638 0.20474,4.521 -0.33146,6.70372 -1.0519,4.92922 -3.98913,9.33555 -7.88721,12.48684 -4.60501,3.92369 -10.18337,6.53657 -15.54322,9.09565 -5.27007,2.60362 -10.87123,4.82949 -15.34311,8.75008 -3.14872,2.8351 -5.29862,6.60832 -6.92578,10.47774 -3.38575,8.39922 -4.00047,17.60263 -3.79623,26.56693 0.33468,12.34083 2.50879,24.53129 4.78404,36.63584 23.29475,15.98048 48.86901,28.22319 74.1637,40.59903 3.68993,1.78904 7.35713,3.65372 11.08044,5.36581 1.3382,0.36422 2.72081,0.68421 4.08264,0.85588 14.97883,-4.04776 28.84434,-11.24143 42.34205,-18.73961 11.53711,-6.35617 22.86975,-13.13079 34.83628,-18.66637 4.22894,-1.55707 8.44379,-3.61358 11.45999,-7.06209 4.09602,-4.4785 5.93166,-10.51995 6.66278,-16.43202 0.92354,-7.35214 0.49188,-14.78778 -0.0139,-22.15442 -0.67411,-9.31054 -1.67798,-18.63084 -1.29362,-27.9791 -5.24479,-6.86889 -12.45843,-11.86973 -19.80582,-16.25267 -5.70939,-3.42205 -11.57773,-6.5755 -17.2495,-9.97521 -3.48793,-2.1042 -6.91214,-4.29698 -10.24384,-6.71085 -0.72961,-0.25274 -0.3909,-1.04781 -0.45847,-1.63664 0.10339,-17.34117 -0.25832,-34.68823 0.31622,-52.02424 0.0871,-2.86433 0.24803,-5.86427 0.35547,-8.77734 0.24524,-1.51291 0.97602,-2.92863 1.82743,-4.17922 1.01119,-0.96492 2.69388,-0.72675 3.64269,0.20957 13.7572,9.30561 27.45185,18.70282 41.06504,28.21769 14.32134,10.01422 28.62533,20.04233 42.89178,30.13048 9.85111,7.13736 19.42479,14.89572 30.55621,19.99718 6.32797,2.8654 13.46903,4.59642 20.40357,3.28445 5.01892,-0.91491 9.51952,-3.53842 13.56592,-6.54339 4.1904,-2.64327 8.6938,-4.74592 13.1878,-6.81289 12.49,-5.62316 25.6326,-9.85522 37.5685,-16.66375 6.6826,-3.86072 12.9614,-8.79041 17.159,-15.36138 0.077,-0.98215 -0.1432,-2.04092 -0.1765,-3.05218 -1.0891,-15.56938 0.8661,-31.18693 -0.42,-46.74805 -0.6817,-7.73457 -2.3041,-15.61186 -6.4028,-22.31119 -0.698,-1.07942 -1.3987,-2.21543 -2.2632,-3.14351 -6.5959,-2.34922 -12.9212,-5.37852 -19.1484,-8.56287 -8.7431,-4.45721 -17.485,-9.32684 -26.689,-12.95173 -7.9225,-3.0727 -16.4727,-5.18735 -25.01999,-4.27874 -0.69625,0.0946 -1.45907,0.031 -1.9507,0.62492 -1.86973,1.50356 -4.00206,2.99524 -5.93993,4.18562 -3.11255,1.91641 -6.61385,3.63178 -10.16309,4.85819 -5.17482,1.81524 -10.69246,2.62925 -16.17089,2.39377 -0.76721,-0.0353 -1.83478,-0.10813 -2.71485,-0.19727 -8.76802,-0.87792 -17.09685,-4.23876 -24.66465,-8.63987 -6.70946,-3.87704 -12.94638,-8.62728 -18.84121,-13.55739 -5.3555,-2.04179 -10.86973,-4.46433 -14.67498,-8.91892 -2.71108,-3.28176 -3.6238,-8.13451 -1.72969,-12.03365 1.92136,-4.4162 5.87455,-7.47217 9.75916,-10.09482 7.41881,-4.95593 15.60058,-8.5845 23.40489,-12.86517 3.87755,-2.08906 7.78444,-4.23221 11.15815,-7.08878 2.01088,-1.89507 3.89167,-4.04315 6.46834,-5.18776 3.79471,-1.90744 8.31932,-2.18549 12.35001,-0.87941 6.3308,1.82617 11.47084,6.14955 17.28242,9.06683 1.89042,0.93426 3.95479,1.46325 5.78158,2.52681 6.71632,3.31352 14.54253,4.15556 21.85253,2.61957 9.4786,-1.84944 18.1485,-6.35056 26.5334,-10.96985 11.3346,-6.30144 22.2737,-13.46349 34.3962,-18.21392 4.2955,-10.61758 5.7235,-22.14012 6.0312,-33.51651 0.3858,-15.15412 -1.1682,-30.25794 -2.2616,-45.35263 -12.3858,-9.88221 -26.6329,-16.99787 -40.689,-24.14553 -9.5,-4.83571 -19.0575,-9.61979 -28.0582,-15.35042 -6.12007,-4.66644 -14.05816,-6.41988 -21.64672,-5.96219 -1.19198,-0.0473 -2.37843,0.32604 -3.2616,1.13778 -38.22332,26.10576 -75.04874,54.16648 -112.57695,81.24614 -2.71304,0.6413 -5.49842,-0.66111 -7.54085,-2.3846 -2.98399,-2.60674 -4.29719,-6.57185 -4.74676,-10.40275 -0.82369,-5.94443 -0.34169,-11.84447 -0.0213,-17.79103 0.33714,-6.47411 1.01497,-12.99967 0.0809,-19.45673 -0.74071,-5.92858 1.52712,-12.06105 5.76034,-16.24201 4.84104,-4.96478 11.25754,-7.86952 17.35846,-10.94667 3.99683,-2.00052 8.09479,-3.99903 11.43912,-7.01665 0.99698,-0.95764 1.86712,-2.07596 3.12921,-2.70104 5.52795,-3.56549 9.52876,-9.28516 11.25959,-15.60778 2.32363,-7.95342 2.23731,-16.36205 1.6583,-24.55425 -0.85794,-10.76518 -2.81251,-21.40013 -4.13281,-32.11133 -21.60154,-15.33596 -45.2301,-27.50365 -68.56022,-39.89174 -5.52038,-2.93006 -11.02072,-5.90598 -16.52315,-8.86385 -2.21137,-0.75553 -4.61644,-0.71584 -6.9264,-0.73464 z"/>
+                        </svg>
+                    </span>
+                    <span class="logo-text">SVEND</span>
+                </a>
+                <nav>
+                    <a href="/app/projects/">Projects</a>
+                    <a href="/app/new/">DSW</a>
+                    <div class="nav-dropdown">
+                        <span class="nav-dropdown-trigger">Tools</span>
+                        <div class="nav-dropdown-menu">
+                            <a href="/app/whiteboard/">Whiteboard</a>
+                            <a href="/app/experimenter/">Experimenter</a>
+                            <a href="/app/models/">Models</a>
+                        </div>
+                    </div>
+                    <a href="/app/knowledge/">Knowledge</a>
+                    <a href="/app/learn/">Learn</a>
+                    <div class="user-info">
+                        <span class="user-name" id="user-name">Loading...</span>
+                        <a href="/app/settings/" class="settings-btn" title="Settings">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                        </a>
+                        <a href="#" class="logout-btn" onclick="logout()">Logout</a>
+                    </div>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Email Verification Banner -->
+    <div class="verification-banner" id="verification-banner" style="display: none;">
+        <div class="container">
+            <span>Please verify your email to use all features.</span>
+            <button onclick="resendVerification()" id="resend-btn">Resend Email</button>
+            <button onclick="dismissBanner()" class="dismiss-btn">&times;</button>
+        </div>
+    </div>
+
+    <main>
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            SVEND &middot; Decision Science Workbench
+        </div>
+    </footer>
+
+    <script>
+        // Theme management
+        function applyTheme(theme) {
+            if (theme && theme !== '') {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('svend_theme', theme);
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.removeItem('svend_theme');
+            }
+        }
+
+        // Check auth and get user info
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/me/', {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('user-name').textContent = data.username || data.email;
+                    // Apply user's theme preference
+                    if (data.current_theme) {
+                        applyTheme(data.current_theme);
+                    }
+                    // Show verification banner if email not verified
+                    if (data.email && !data.email_verified && !sessionStorage.getItem('verification_dismissed')) {
+                        document.getElementById('verification-banner').style.display = 'block';
+                    }
+                } else {
+                    window.location.href = '/login/';
+                }
+            } catch (err) {
+                console.error('Auth check failed:', err);
+            }
+        }
+
+        // Resend verification email
+        async function resendVerification() {
+            const btn = document.getElementById('resend-btn');
+            btn.textContent = 'Sending...';
+            btn.disabled = true;
+            try {
+                const response = await fetch('/api/auth/send-verification/', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    btn.textContent = 'Sent!';
+                    setTimeout(() => { btn.textContent = 'Resend Email'; btn.disabled = false; }, 3000);
+                } else {
+                    btn.textContent = 'Failed';
+                    setTimeout(() => { btn.textContent = 'Resend Email'; btn.disabled = false; }, 2000);
+                }
+            } catch (err) {
+                btn.textContent = 'Error';
+                setTimeout(() => { btn.textContent = 'Resend Email'; btn.disabled = false; }, 2000);
+            }
+        }
+
+        // Dismiss verification banner for session
+        function dismissBanner() {
+            document.getElementById('verification-banner').style.display = 'none';
+            sessionStorage.setItem('verification_dismissed', 'true');
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout/', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+            localStorage.removeItem('svend_theme');
+            window.location.href = '/login/';
+        }
+
+        checkAuth();
+    </script>
+
+    <!-- SVEND Visualization Module -->
+    <script>
+    // =============================================================================
+    // SVEND Theme Configuration
+    // =============================================================================
+    // Helper to get CSS variable value
+    function getCssVar(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    const SvendTheme = {
+        // Dynamic colors from CSS variables
+        get colors() {
+            return {
+                primary: getCssVar('--accent-primary') || '#4a9f6e',
+                secondary: getCssVar('--accent-blue') || '#3a7f8f',
+                tertiary: getCssVar('--accent-purple') || '#5a4f7f',
+                accent: getCssVar('--accent-gold') || '#e8c547',
+                warning: getCssVar('--warning') || '#e89547',
+                error: getCssVar('--error') || '#9f4a4a',
+                text: getCssVar('--text-primary') || '#e8efe8',
+                textDim: getCssVar('--text-dim') || '#9aaa9a',
+                bg: getCssVar('--bg-primary') || '#0a0f0a',
+                bgCard: getCssVar('--card-bg') || '#121a12',
+                border: getCssVar('--border') || 'rgba(74, 159, 110, 0.2)',
+            };
+        },
+        // Chart.js color palette
+        get chartColors() {
+            return [
+                getCssVar('--accent-primary') || '#4a9f6e',
+                getCssVar('--accent-blue') || '#3a7f8f',
+                getCssVar('--accent-gold') || '#e8c547',
+                getCssVar('--accent-orange') || '#e89547',
+                getCssVar('--accent-purple') || '#5a4f7f',
+                getCssVar('--error') || '#9f4a4a',
+            ];
+        },
+        // With alpha for fills
+        chartColorsAlpha: function(alpha = 0.3) {
+            return this.chartColors.map(c => {
+                // Handle both hex and rgb formats
+                if (c.startsWith('#')) {
+                    const r = parseInt(c.slice(1,3), 16);
+                    const g = parseInt(c.slice(3,5), 16);
+                    const b = parseInt(c.slice(5,7), 16);
+                    return `rgba(${r},${g},${b},${alpha})`;
+                }
+                return c.replace(')', `,${alpha})`).replace('rgb', 'rgba');
+            });
+        }
+    };
+
+    // =============================================================================
+    // KaTeX Auto-rendering
+    // =============================================================================
+    function renderMathInElement(element) {
+        if (typeof renderMathInElement === 'function' && window.katex) {
+            window.renderMathInElement(element, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\[', right: '\\]', display: true},
+                    {left: '\\(', right: '\\)', display: false}
+                ],
+                throwOnError: false,
+                trust: true
+            });
+        }
+    }
+
+    // Auto-render math when KaTeX loads
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.renderMathInElement) {
+            renderMathInElement(document.body);
+        }
+    });
+
+    // =============================================================================
+    // Chart.js with SVEND Theme
+    // =============================================================================
+    const SvendChart = {
+        // Default options for all charts
+        defaults: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: SvendTheme.colors.text,
+                        font: { family: 'Inter', size: 12 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: SvendTheme.colors.bgCard,
+                    titleColor: SvendTheme.colors.text,
+                    bodyColor: SvendTheme.colors.textDim,
+                    borderColor: SvendTheme.colors.primary,
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: SvendTheme.colors.textDim },
+                    grid: { color: 'var(--border)' }
+                },
+                y: {
+                    ticks: { color: SvendTheme.colors.textDim },
+                    grid: { color: 'var(--border)' }
+                }
+            }
+        },
+
+        // Create a line chart
+        line: function(canvasId, labels, datasets, options = {}) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return null;
+
+            const chartDatasets = datasets.map((ds, i) => ({
+                label: ds.label || `Series ${i+1}`,
+                data: ds.data,
+                borderColor: ds.color || SvendTheme.chartColors[i % SvendTheme.chartColors.length],
+                backgroundColor: ds.fill ? SvendTheme.chartColorsAlpha(0.2)[i % SvendTheme.chartColors.length] : 'transparent',
+                fill: ds.fill || false,
+                tension: 0.3,
+                ...ds
+            }));
+
+            return new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: chartDatasets },
+                options: { ...this.defaults, ...options }
+            });
+        },
+
+        // Create a bar chart
+        bar: function(canvasId, labels, datasets, options = {}) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return null;
+
+            const chartDatasets = datasets.map((ds, i) => ({
+                label: ds.label || `Series ${i+1}`,
+                data: ds.data,
+                backgroundColor: ds.color || SvendTheme.chartColorsAlpha(0.7)[i % SvendTheme.chartColors.length],
+                borderColor: ds.borderColor || SvendTheme.chartColors[i % SvendTheme.chartColors.length],
+                borderWidth: 1,
+                ...ds
+            }));
+
+            return new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: chartDatasets },
+                options: { ...this.defaults, ...options }
+            });
+        },
+
+        // Create a pie/doughnut chart
+        pie: function(canvasId, labels, data, options = {}) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return null;
+
+            return new Chart(ctx, {
+                type: options.doughnut ? 'doughnut' : 'pie',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: SvendTheme.chartColorsAlpha(0.8),
+                        borderColor: SvendTheme.colors.bg,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: SvendTheme.colors.text }
+                        }
+                    },
+                    ...options
+                }
+            });
+        },
+
+        // Create a scatter plot
+        scatter: function(canvasId, datasets, options = {}) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return null;
+
+            const chartDatasets = datasets.map((ds, i) => ({
+                label: ds.label || `Series ${i+1}`,
+                data: ds.data,
+                backgroundColor: SvendTheme.chartColorsAlpha(0.7)[i % SvendTheme.chartColors.length],
+                borderColor: SvendTheme.chartColors[i % SvendTheme.chartColors.length],
+                ...ds
+            }));
+
+            return new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets: chartDatasets },
+                options: { ...this.defaults, ...options }
+            });
+        }
+    };
+
+    // =============================================================================
+    // SMILES Chemical Structure Rendering
+    // =============================================================================
+    const SvendSmiles = {
+        drawer: null,
+        options: {
+            width: 300,
+            height: 200,
+            bondThickness: 1.2,
+            bondLength: 20,
+            shortBondLength: 0.8,
+            bondSpacing: 4,
+            atomVisualization: 'default',
+            isomeric: true,
+            debug: false,
+            terminalCarbons: true,
+            explicitHydrogens: false,
+            overlapSensitivity: 0.42,
+            overlapResolutionIterations: 1,
+            compactDrawing: true,
+            fontSizeLarge: 6,
+            fontSizeSmall: 4,
+            padding: 20,
+            // Svend theme colors
+            themes: {
+                svend: {
+                    C: SvendTheme.colors.text,
+                    O: '#ef4444',      // Red for oxygen
+                    N: '#3b82f6',      // Blue for nitrogen
+                    S: '#eab308',      // Yellow for sulfur
+                    P: '#f97316',      // Orange for phosphorus
+                    F: '#22c55e',      // Green for fluorine
+                    Cl: '#22c55e',
+                    Br: '#a855f7',     // Purple for bromine
+                    I: '#a855f7',
+                    background: SvendTheme.colors.bgCard
+                }
+            }
+        },
+
+        init: function() {
+            if (typeof SmilesDrawer !== 'undefined') {
+                this.drawer = new SmilesDrawer.SmiDrawer(this.options);
+            }
+        },
+
+        // Draw SMILES to a canvas element
+        draw: function(smiles, canvasId, options = {}) {
+            if (!this.drawer) this.init();
+            if (!this.drawer) {
+                console.warn('SmilesDrawer not available');
+                return false;
+            }
+
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return false;
+
+            try {
+                SmilesDrawer.parse(smiles, (tree) => {
+                    this.drawer.draw(tree, canvasId, 'svend', false);
+                }, (err) => {
+                    console.error('SMILES parse error:', err);
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = SvendTheme.colors.error;
+                    ctx.font = '12px Inter';
+                    ctx.fillText('Invalid SMILES', 10, 30);
+                });
+                return true;
+            } catch (e) {
+                console.error('SMILES draw error:', e);
+                return false;
+            }
+        },
+
+        // Create a canvas and draw SMILES (returns the canvas element)
+        create: function(smiles, width = 300, height = 200) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.id = 'smiles-' + Math.random().toString(36).substr(2, 9);
+            canvas.style.background = SvendTheme.colors.bgCard;
+            canvas.style.borderRadius = '4px';
+
+            document.body.appendChild(canvas);
+            this.draw(smiles, canvas.id);
+            document.body.removeChild(canvas);
+
+            return canvas;
+        },
+
+        // Auto-render all elements with data-smiles attribute
+        renderAll: function() {
+            document.querySelectorAll('[data-smiles]').forEach(el => {
+                const smiles = el.dataset.smiles;
+                const width = parseInt(el.dataset.width) || 300;
+                const height = parseInt(el.dataset.height) || 200;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.id = 'smiles-' + Math.random().toString(36).substr(2, 9);
+                canvas.style.background = SvendTheme.colors.bgCard;
+                canvas.style.borderRadius = '4px';
+
+                el.innerHTML = '';
+                el.appendChild(canvas);
+                this.draw(smiles, canvas.id);
+            });
+        }
+    };
+
+    // Initialize SMILES drawer when DOM loads
+    document.addEventListener('DOMContentLoaded', function() {
+        SvendSmiles.init();
+        SvendSmiles.renderAll();
+    });
+
+    // =============================================================================
+    // PDF Export Utility
+    // =============================================================================
+    const SvendPDF = {
+        // Export content to PDF via server
+        exportToPDF: async function(content, filename = 'document.pdf', options = {}) {
+            try {
+                const response = await fetch('/api/export/pdf/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        content: content,
+                        format: options.format || 'markdown',
+                        title: options.title || filename.replace('.pdf', ''),
+                        ...options
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('PDF generation failed');
+                }
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+                return true;
+            } catch (e) {
+                console.error('PDF export error:', e);
+                // Fallback: print to PDF
+                this.printToPDF(content, options.title);
+                return false;
+            }
+        },
+
+        // Fallback: open print dialog for PDF
+        printToPDF: function(content, title = 'Document') {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${title}</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+                    <style>
+                        body { font-family: 'Inter', sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
+                        pre { background: #f5f5f5; padding: 1rem; overflow-x: auto; }
+                        code { font-family: 'JetBrains Mono', monospace; }
+                        h1, h2, h3 { margin-top: 1.5rem; }
+                        @media print { body { padding: 0; } }
+                    </style>
+                </head>
+                <body>${content}</body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.onload = function() {
+                printWindow.print();
+            };
+        }
+    };
+
+    // =============================================================================
+    // Visualization Auto-detection and Rendering
+    // =============================================================================
+    const SvendViz = {
+        // Parse and render visualizations in content
+        renderContent: function(element) {
+            if (!element) return;
+
+            // Render LaTeX/KaTeX
+            if (window.renderMathInElement) {
+                window.renderMathInElement(element, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\[', right: '\\]', display: true},
+                        {left: '\\(', right: '\\)', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+
+            // Render SMILES structures
+            SvendSmiles.renderAll();
+
+            // Render any chart data attributes
+            element.querySelectorAll('[data-chart]').forEach(el => {
+                try {
+                    const config = JSON.parse(el.dataset.chart);
+                    const canvasId = 'chart-' + Math.random().toString(36).substr(2, 9);
+                    const canvas = document.createElement('canvas');
+                    canvas.id = canvasId;
+                    el.appendChild(canvas);
+
+                    if (config.type === 'line') {
+                        SvendChart.line(canvasId, config.labels, config.datasets, config.options);
+                    } else if (config.type === 'bar') {
+                        SvendChart.bar(canvasId, config.labels, config.datasets, config.options);
+                    } else if (config.type === 'pie' || config.type === 'doughnut') {
+                        SvendChart.pie(canvasId, config.labels, config.data, { ...config.options, doughnut: config.type === 'doughnut' });
+                    } else if (config.type === 'scatter') {
+                        SvendChart.scatter(canvasId, config.datasets, config.options);
+                    }
+                } catch (e) {
+                    console.error('Chart render error:', e);
+                }
+            });
+        }
+    };
+
+    // Make utilities globally available
+    window.SvendTheme = SvendTheme;
+    window.SvendChart = SvendChart;
+    window.SvendSmiles = SvendSmiles;
+    window.SvendPDF = SvendPDF;
+    window.SvendViz = SvendViz;
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

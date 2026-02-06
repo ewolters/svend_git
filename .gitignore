@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Environment & secrets
+.env
+.env.production
+*.sqlite3
+
+# Media uploads (user data)
+media/
+
+# Generated static files
+staticfiles/
+
+# OS
+.DS_Store
+*.swp
+*~
+
+# Temp / logs
+*.log
+cookies.txt
+
+# Large model files
+*.bin
+*.pt
+*.onnx
+*.safetensors

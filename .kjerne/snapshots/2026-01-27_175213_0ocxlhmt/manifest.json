@@ -1,0 +1,27 @@
+{
+  "id": "0ocxlhmt",
+  "timestamp": "2026-01-27T17:52:13.019379",
+  "message": "Pre-deploy: scrub",
+  "services": [
+    "scrub"
+  ],
+  "author": "eric",
+  "files": {
+    "services/scrub/missing.py": "b7837dd271ea667bd0503583aa280b7d30debec0119f3e7107888d8ab8dd790c",
+    "services/scrub/outliers.py": "d293404c6c68e02575258c657a89d7954fa343578dd98d503ad02f7ae003b54b",
+    "services/scrub/__init__.py": "57be46075ccd2176a0cd4f43638c1ccc12e09e63a076f91f2808dedcde1840a3",
+    "services/scrub/normalize.py": "09988bc2cb66511e56d70af0464a3446ebef905f7fc0a8eb80301603b3c077c0",
+    "services/scrub/cleaner.py": "93662763450ffaeab6f5af72c439cb4fa3afe514d7595a0394a7c477a374e7aa",
+    "services/scrub/types.py": "da25643185f86cd67a58e3ec1ecc9b290be2e75d7e8f0879684d21a0d205dd8a",
+    "core/verifier.py": "fd786c8e64a085f9247b040651e25504d7581c3d1652de804229aed877033567",
+    "core/quality.py": "87c0eb82250239909ec2ed959ff395ba175450ebf36cc5c0ed3b87defce4e358",
+    "core/intent.py": "e773b95bcce1c7f06e8b0d5aac3897144a5af2b4573399bdc32a2449f45d31be",
+    "core/llm.py": "f095b3b5b266dc65881eb48b1064e79d6c05aa68d28ce76d1e0617e20fa98964",
+    "core/executor.py": "3b45004d5508c2fb377f4132560dd4194312ee47c3f62e1df4fc9564ab159db8",
+    "core/search.py": "9f8fb27aad8eefcdffdc49045dce96887c47b4f4f41edc1e735947dece6975d5",
+    "core/__init__.py": "a8c0a85701260d30649fe03a8f1bdcec84508051d94ddef4b6eb225ba3227109",
+    "core/reasoning.py": "713eaa2c9b8ead0b97572aa2d5da3b126dc5f3a8aa9ebe9fe1c16d0ee4255c94",
+    "core/context.py": "a2bdf2810d42c25f3a76f35a70554a6460efaa1d14f52d63a8587234b5b1660c",
+    "core/sources.py": "d9d3e1a431c39d5b37528f53a868a000d6d3596b5b54e21d6bd41e52ed7dcf0f"
+  }
+}
