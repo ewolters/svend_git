@@ -882,6 +882,9 @@ let chartInstances = {};
 let outputCounter = 0;
 let modalCallback = null;
 
+// Safe number formatting — prevents crashes on null/undefined
+function fmt(v, decimals = 4) { return v != null && !isNaN(v) ? Number(v).toFixed(decimals) : '—'; }
+
 // =============================================================================
 // Init
 // =============================================================================
@@ -1340,7 +1343,7 @@ function renderControlChartOutput(chart) {
 
 function drawControlChart(canvasId, chart) {
     const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
+    if (!ctx || !chart.data_points || !chart.limits) return;
     const labels = chart.data_points.map((_, i) => i + 1);
     const datasets = [
         {
@@ -1434,21 +1437,22 @@ async function runCapabilityStudy() {
 }
 
 function renderCapabilityOutput(cap) {
-    const cpkClass = cap.cpk >= 1.33 ? 'good' : (cap.cpk >= 1.0 ? 'marginal' : 'poor');
+    const cpk = cap.cpk != null ? cap.cpk : 0;
+    const cpkClass = cpk >= 1.33 ? 'good' : (cpk >= 1.0 ? 'marginal' : 'poor');
     const html = `
         <div class="metric-grid">
-            <div class="metric-card highlight"><div class="metric-value">${cap.cpk.toFixed(3)}</div><div class="metric-label">Cpk</div></div>
-            <div class="metric-card"><div class="metric-value">${cap.cp.toFixed(3)}</div><div class="metric-label">Cp</div></div>
-            <div class="metric-card"><div class="metric-value">${cap.ppk.toFixed(3)}</div><div class="metric-label">Ppk</div></div>
-            <div class="metric-card"><div class="metric-value">${cap.pp.toFixed(3)}</div><div class="metric-label">Pp</div></div>
+            <div class="metric-card highlight"><div class="metric-value">${fmt(cap.cpk, 3)}</div><div class="metric-label">Cpk</div></div>
+            <div class="metric-card"><div class="metric-value">${fmt(cap.cp, 3)}</div><div class="metric-label">Cp</div></div>
+            <div class="metric-card"><div class="metric-value">${fmt(cap.ppk, 3)}</div><div class="metric-label">Ppk</div></div>
+            <div class="metric-card"><div class="metric-value">${fmt(cap.pp, 3)}</div><div class="metric-label">Pp</div></div>
         </div>
         <div class="metric-grid">
-            <div class="metric-card"><div class="metric-value">${cap.sigma_level.toFixed(2)}</div><div class="metric-label">Sigma Level</div></div>
-            <div class="metric-card"><div class="metric-value">${cap.dpmo.toFixed(0)}</div><div class="metric-label">DPMO</div></div>
-            <div class="metric-card"><div class="metric-value">${cap.yield_percent.toFixed(2)}%</div><div class="metric-label">Yield</div></div>
-            <div class="metric-card"><div class="metric-value">${cap.n_samples}</div><div class="metric-label">n</div></div>
+            <div class="metric-card"><div class="metric-value">${fmt(cap.sigma_level, 2)}</div><div class="metric-label">Sigma Level</div></div>
+            <div class="metric-card"><div class="metric-value">${fmt(cap.dpmo, 0)}</div><div class="metric-label">DPMO</div></div>
+            <div class="metric-card"><div class="metric-value">${fmt(cap.yield_percent, 2)}%</div><div class="metric-label">Yield</div></div>
+            <div class="metric-card"><div class="metric-value">${cap.n_samples || '—'}</div><div class="metric-label">n</div></div>
         </div>
-        <div class="interpretation ${cpkClass}">${cap.interpretation}</div>`;
+        <div class="interpretation ${cpkClass}">${cap.interpretation || ''}</div>`;
     addOutput('Capability Study', html);
 }
 
@@ -1569,11 +1573,11 @@ async function runSummaryAll(cols) {
         ['Range', 'range_val', true], ['Q1', 'q1', true], ['Q3', 'q3', true],
         ['IQR', 'iqr', true], ['Skewness', 'skewness', true], ['Kurtosis', 'kurtosis', true]
     ];
-    for (const [label, key, fmt] of stats) {
+    for (const [label, key, doFmt] of stats) {
         html += `<tr><td><strong>${label}</strong></td>`;
         rows.forEach(r => {
             const v = r.s[key];
-            html += `<td>${fmt && v != null ? v.toFixed(4) : v}</td>`;
+            html += `<td>${doFmt && v != null ? Number(v).toFixed(4) : (v != null ? v : '—')}</td>`;
         });
         html += '</tr>';
     }
@@ -1585,17 +1589,17 @@ function renderSummaryOutput(colName, s) {
     const html = `<pre class="stats-summary">Variable: ${colName}
 ──────────────────────
 N        = ${s.n}
-Mean     = ${s.mean.toFixed(4)}
-Median   = ${s.median.toFixed(4)}
-Std Dev  = ${s.std_dev.toFixed(4)}
-Min      = ${s.min_val.toFixed(4)}
-Max      = ${s.max_val.toFixed(4)}
-Range    = ${s.range_val.toFixed(4)}
-Q1       = ${s.q1.toFixed(4)}
-Q3       = ${s.q3.toFixed(4)}
-IQR      = ${s.iqr.toFixed(4)}
-Skewness = ${s.skewness.toFixed(4)}
-Kurtosis = ${s.kurtosis.toFixed(4)}</pre>`;
+Mean     = ${fmt(s.mean)}
+Median   = ${fmt(s.median)}
+Std Dev  = ${fmt(s.std_dev)}
+Min      = ${fmt(s.min_val)}
+Max      = ${fmt(s.max_val)}
+Range    = ${fmt(s.range_val)}
+Q1       = ${fmt(s.q1)}
+Q3       = ${fmt(s.q3)}
+IQR      = ${fmt(s.iqr)}
+Skewness = ${fmt(s.skewness)}
+Kurtosis = ${fmt(s.kurtosis)}</pre>`;
     addOutput(`Summary: ${colName}`, html);
 }
 
@@ -1818,7 +1822,7 @@ function openStatsDialog(type) {
             const testType = document.getElementById('dlg-more-type').value;
             const var1 = document.getElementById('dlg-more-var1').value;
             const var2 = document.getElementById('dlg-more-var2').value;
-            const config = { var: var1, var1: var1 };
+            const config = { var: var1, var1: var1, row_var: var1 };
             if (var2) { config.var2 = var2; config.group_var = var2; config.col_var = var2; config.factor = var2; }
             closeModal();
             await runStatsAnalysis('stats', testType, config, testType.replace('_', ' '));
