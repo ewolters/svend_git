@@ -1050,6 +1050,7 @@ def run_analysis(request):
 def run_statistical_analysis(df, analysis_id, config):
     """Run statistical analysis."""
     import numpy as np
+    import pandas as pd
     from scipy import stats
 
     result = {"plots": [], "summary": "", "guide_observation": ""}
@@ -1765,8 +1766,8 @@ def run_statistical_analysis(df, analysis_id, config):
         })
 
     elif analysis_id == "chi2":
-        row_var = config.get("row_var")
-        col_var = config.get("col_var")
+        row_var = config.get("row_var") or config.get("var1") or config.get("var")
+        col_var = config.get("col_var") or config.get("var2") or config.get("group_var")
 
         # Create contingency table
         contingency = pd.crosstab(df[row_var], df[col_var])
