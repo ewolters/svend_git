@@ -344,7 +344,7 @@ def upload_data(request):
             "filename": filename,
             "row_count": parsed.row_count,
             "columns": [c.to_dict() for c in parsed.columns],
-            "preview": {col: vals[:10] for col, vals in parsed.data.items()},
+            "preview": {col: vals for col, vals in parsed.data.items()},
             "cache_key": cache_key,
         })
 

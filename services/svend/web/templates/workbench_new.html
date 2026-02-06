@@ -1181,15 +1181,17 @@ function displayDataTable(data) {
     const thead = document.getElementById('data-thead');
     thead.innerHTML = '<tr>' + data.columns.map(c => `<th>${c.name}</th>`).join('') + '</tr>';
 
-    // Body (preview rows)
+    // Body (show up to 500 rows in table; full data available for graphs)
     const tbody = document.getElementById('data-tbody');
     if (data.preview) {
         const cols = data.columns.map(c => c.name);
-        const nRows = data.preview[cols[0]] ? data.preview[cols[0]].length : 0;
+        const totalRows = data.preview[cols[0]] ? data.preview[cols[0]].length : 0;
+        const displayRows = Math.min(totalRows, 500);
         let html = '';
-        for (let i = 0; i < nRows; i++) {
+        for (let i = 0; i < displayRows; i++) {
             html += '<tr>' + cols.map(c => `<td>${data.preview[c] ? data.preview[c][i] : ''}</td>`).join('') + '</tr>';
         }
+        if (totalRows > 500) html += `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--text-dim);font-style:italic;">Showing 500 of ${totalRows} rows</td></tr>`;
         tbody.innerHTML = html;
     }
 
