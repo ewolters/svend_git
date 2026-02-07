@@ -10,6 +10,7 @@ venv/
 .env
 .env.production
 *.sqlite3
+*.db
 
 # Media uploads (user data)
 media/
@@ -25,6 +26,9 @@ staticfiles/
 # Temp / logs
 *.log
 cookies.txt
+
+# Snapshots (binary archives)
+*.tar.gz
 
 # Large model files
 *.bin
