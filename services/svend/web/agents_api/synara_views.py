@@ -34,16 +34,74 @@ from .synara.logic_engine import LogicEngine, validate_hypothesis, parse_and_eva
 
 logger = logging.getLogger(__name__)
 
-# In-memory storage for Synara instances per workbench
-# In production, serialize to database
-_synara_instances: dict[str, Synara] = {}
+# In-memory cache for Synara instances (backed by core.Project.synara_state)
+_synara_cache: dict[str, Synara] = {}
+
+
+def _resolve_project(workbench_id: str):
+    """Resolve a workbench_id to a core.Project.
+
+    Tries core.Project first, then agents_api.Problem (via its core_project FK).
+    Returns the Project or None.
+    """
+    from core.models import Project
+    from .models import Problem
+
+    # Try as core.Project UUID directly
+    try:
+        return Project.objects.get(id=workbench_id)
+    except (Project.DoesNotExist, ValueError):
+        pass
+
+    # Try as agents_api.Problem UUID → follow FK
+    try:
+        problem = Problem.objects.get(id=workbench_id)
+        if problem.core_project:
+            return problem.core_project
+        # Auto-create core.Project if Problem exists but has no link
+        return problem.ensure_core_project()
+    except (Problem.DoesNotExist, ValueError):
+        pass
+
+    return None
 
 
 def get_synara(workbench_id: str) -> Synara:
-    """Get or create Synara instance for a workbench."""
-    if workbench_id not in _synara_instances:
-        _synara_instances[workbench_id] = Synara()
-    return _synara_instances[workbench_id]
+    """Get or create Synara instance for a workbench.
+
+    Loads from core.Project.synara_state on cache miss.
+    """
+    if workbench_id in _synara_cache:
+        return _synara_cache[workbench_id]
+
+    project = _resolve_project(workbench_id)
+    if project and project.synara_state:
+        synara = Synara.from_dict(project.synara_state)
+    else:
+        synara = Synara()
+
+    _synara_cache[workbench_id] = synara
+    return synara
+
+
+def save_synara(workbench_id: str, synara: Synara = None) -> bool:
+    """Persist Synara state to core.Project.synara_state.
+
+    Returns True if saved successfully, False if no project found.
+    """
+    if synara is None:
+        synara = _synara_cache.get(workbench_id)
+    if synara is None:
+        return False
+
+    project = _resolve_project(workbench_id)
+    if project:
+        project.synara_state = synara.to_dict()
+        project.save(update_fields=["synara_state", "updated_at"])
+        return True
+
+    logger.warning(f"No project found for workbench_id={workbench_id}, state not persisted")
+    return False
 
 
 # =============================================================================
@@ -83,6 +141,8 @@ def add_hypothesis(request, workbench_id: str):
         source="user",
     )
 
+    save_synara(workbench_id, synara)
+
     return JsonResponse({
         "success": True,
         "hypothesis": h.to_dict(),
@@ -114,6 +174,7 @@ def delete_hypothesis(request, workbench_id: str, hypothesis_id: str):
 
     if hypothesis_id in synara.graph.hypotheses:
         del synara.graph.hypotheses[hypothesis_id]
+        save_synara(workbench_id, synara)
         return JsonResponse({"success": True})
     else:
         return JsonResponse({"error": "Hypothesis not found"}, status=404)
@@ -158,6 +219,8 @@ def add_link(request, workbench_id: str):
         mechanism=body.get("mechanism", ""),
         strength=body.get("strength", 0.7),
     )
+
+    save_synara(workbench_id, synara)
 
     return JsonResponse({
         "success": True,
@@ -219,6 +282,8 @@ def add_evidence(request, workbench_id: str):
         source=body.get("source", "user"),
         data=body.get("data"),
     )
+
+    save_synara(workbench_id, synara)
 
     return JsonResponse({
         "success": True,
@@ -302,6 +367,7 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
     )
 
     if success:
+        save_synara(workbench_id, synara)
         return JsonResponse({
             "success": True,
             "new_hypothesis": new_h.to_dict() if new_h else None,
@@ -468,7 +534,8 @@ def import_synara(request, workbench_id: str):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     synara = Synara.from_dict(body)
-    _synara_instances[workbench_id] = synara
+    _synara_cache[workbench_id] = synara
+    save_synara(workbench_id, synara)
 
     return JsonResponse({
         "success": True,
@@ -650,6 +717,8 @@ def add_formal_hypothesis(request, workbench_id: str):
     # Store the parsed structure as metadata
     # (In a full implementation, we'd extend HypothesisRegion)
 
+    save_synara(workbench_id, synara)
+
     return JsonResponse({
         "success": True,
         "hypothesis": h.to_dict(),
@@ -724,6 +793,9 @@ def evaluate_workbench_hypothesis(request, workbench_id: str, hypothesis_id: str
         )
     else:
         result = None
+
+    if result:
+        save_synara(workbench_id, synara)
 
     return JsonResponse({
         "success": True,

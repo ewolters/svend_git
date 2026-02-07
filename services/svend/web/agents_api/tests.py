@@ -519,3 +519,89 @@ class DualWriteMigrationTest(TestCase):
 
         # Non-existent ID returns None
         self.assertIsNone(problem._find_core_hypothesis("nonexistent"))
+
+
+class SynaraPersistenceTest(TestCase):
+    """Test Synara belief engine persistence to core.Project."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123',
+        )
+
+    def test_synara_save_and_load(self):
+        """Synara state should survive save/load round-trip."""
+        from core.models import Project
+        from .synara_views import get_synara, save_synara, _synara_cache
+        from .synara.synara import Synara
+
+        project = Project.objects.create(
+            user=self.user,
+            title="Synara Test",
+            problem_statement="Testing persistence",
+        )
+        wb_id = str(project.id)
+
+        synara = get_synara(wb_id)
+        h = synara.create_hypothesis(description="Test cause", prior=0.6)
+        save_synara(wb_id, synara)
+
+        # Clear cache, force reload from DB
+        _synara_cache.pop(wb_id, None)
+        synara2 = get_synara(wb_id)
+
+        self.assertEqual(len(synara2.graph.hypotheses), 1)
+        reloaded_h = list(synara2.graph.hypotheses.values())[0]
+        self.assertEqual(reloaded_h.description, "Test cause")
+        self.assertAlmostEqual(reloaded_h.prior, 0.6)
+
+        # Clean up cache
+        _synara_cache.pop(wb_id, None)
+
+    def test_synara_via_problem_id(self):
+        """Synara should resolve Problem UUID to core.Project."""
+        from .models import Problem
+        from .synara_views import _resolve_project, _synara_cache
+
+        problem = Problem.objects.create(
+            user=self.user,
+            title="Resolve Test",
+            effect_description="Effect",
+        )
+        problem.ensure_core_project()
+
+        project = _resolve_project(str(problem.id))
+        self.assertIsNotNone(project)
+        self.assertEqual(project.id, problem.core_project_id)
+
+    def test_synara_evidence_updates_persist(self):
+        """Evidence-driven belief updates should persist."""
+        from core.models import Project
+        from .synara_views import get_synara, save_synara, _synara_cache
+
+        project = Project.objects.create(
+            user=self.user,
+            title="Belief Test",
+            problem_statement="Testing beliefs",
+        )
+        wb_id = str(project.id)
+
+        synara = get_synara(wb_id)
+        h = synara.create_hypothesis(description="Hypothesis A", prior=0.5)
+        synara.create_evidence(
+            event="supporting_observation",
+            supports=[h.id],
+            strength=0.9,
+        )
+        save_synara(wb_id, synara)
+
+        # Reload and verify posterior changed
+        _synara_cache.pop(wb_id, None)
+        synara2 = get_synara(wb_id)
+        reloaded_h = list(synara2.graph.hypotheses.values())[0]
+        self.assertNotAlmostEqual(reloaded_h.posterior, 0.5, places=2)
+        self.assertEqual(len(synara2.graph.evidence), 1)
+
+        _synara_cache.pop(wb_id, None)

@@ -163,6 +163,13 @@ class Project(models.Model):
         help_text="Knowledge graph this project references",
     )
 
+    # Synara belief engine state (serialized CausalGraph + expansion signals)
+    synara_state = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Persisted Synara belief engine state (graph, expansion signals, update history)",
+    )
+
     # Tags for organization
     tags = models.JSONField(default=list, blank=True)
 

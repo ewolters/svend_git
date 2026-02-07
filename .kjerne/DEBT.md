@@ -18,7 +18,6 @@ Track technical debt here. Review weekly.
 
 ### Synara Belief Engine
 
-[SYNARA] In-memory only — state lost on server restart. Needs persistence to Django ORM (target: core.Project FK model, not agents_api.Problem JSON blobs) | Added: 2026-02-06 | Priority: P1
 [SYNARA] LLM interface stubbed — prompts generated but never call API. Wire to Anthropic/Qwen | Added: 2026-02-06 | Priority: P2
 [SYNARA] Fallacy detection mostly stubbed — _check_fallacy_patterns() returns empty list. Affirming consequent, denying antecedent, false dichotomy undetected | Added: 2026-02-06 | Priority: P3
 [SYNARA] No test coverage for DSL parser or belief engine | Added: 2026-02-06 | Priority: P2
@@ -52,7 +51,8 @@ Track technical debt here. Review weekly.
 [REPO] .kjerne/snapshots/*.tar.gz binary files in git (4.3MB) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 9c9396e
 [DSW] No integration with Projects/Evidence — analysis results never become hypothesis evidence | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 0eef3fb
 [EXPERIMENTER] Only 2/9 endpoints create evidence — extended to 6/9 (power, design, contour, optimize + existing full, analyze) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 0eef3fb
-[CORE] agents_api.Problem → core.Project Phase 1 dual-write — FK field, sync methods, 6 view write paths, existing data migrated | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: (pending)
+[CORE] agents_api.Problem → core.Project Phase 1 dual-write — FK field, sync methods, 6 view write paths, existing data migrated | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: f4fb8db
+[SYNARA] In-memory only → persisted to core.Project.synara_state JSONField. Cache + DB backed, 9 endpoints auto-save | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: (pending)
 
 ---
 *Last reviewed: 2026-02-06*

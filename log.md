@@ -83,4 +83,20 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - End-to-end test: created Problem → ensure_core_project → sync_hypothesis → sync_evidence → verified EvidenceLink + Bayesian update (0.6 → 0.73) → cleaned up. PASSED.
 - Verified all 6 view write paths have dual-write wired in via `inspect.getsource()`
 - Employee Turnover: core.Project created, 5 hypotheses synced
+**Commit:** f4fb8db
+
+---
+
+### 2026-02-06 — P1: Synara persistence to Django ORM
+**Debt item:** [SYNARA] In-memory only — state lost on server restart
+**Files changed:**
+- `services/svend/web/core/models/project.py` — added `synara_state` JSONField to Project model
+- `services/svend/web/core/migrations/0003_add_synara_state.py` — migration adding synara_state column
+- `services/svend/web/agents_api/synara_views.py` — replaced in-memory `_synara_instances` dict with DB-backed `_synara_cache` + `save_synara()`. Added `_resolve_project()` to resolve both Project and Problem UUIDs. Added `save_synara()` calls to all 9 mutating endpoints.
+- `services/svend/web/agents_api/tests.py` — added `SynaraPersistenceTest` class with 3 tests: save/load round-trip, Problem UUID resolution, evidence-belief persistence.
+**Verification:**
+- `python3 manage.py check` — 0 issues
+- `py_compile` — all files pass
+- End-to-end test: created Synara → add hypothesis → add evidence → save → clear cache → reload → verified hypothesis/evidence/posterior survived round-trip. PASSED.
+- Problem-to-Project resolution: Problem UUID → follow FK → save to core.Project. PASSED.
 **Commit:** (pending)
