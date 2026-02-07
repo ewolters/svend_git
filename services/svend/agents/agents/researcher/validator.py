@@ -329,15 +329,20 @@ class ResearchValidator:
 
         A claim is supported if:
         1. Key terms from the claim appear in at least one source
-        2. The semantic meaning is similar (fuzzy matching)
+        2. The semantic meaning is similar (windowed fuzzy matching)
+        3. Bigram overlap confirms phrase-level matches
         """
         claim_lower = claim.lower()
 
         # Extract key terms (nouns, numbers, significant words)
         key_terms = self._extract_key_terms(claim)
 
+        # Extract bigrams for phrase-level matching
+        claim_bigrams = self._extract_bigrams(claim_lower)
+
         supporting = []
         contradicting = []
+        best_scores = []  # Track best match score per source
         issues = []
 
         for src_id, texts in source_texts.items():
@@ -347,14 +352,31 @@ class ResearchValidator:
             terms_found = sum(1 for t in key_terms if t in combined_text)
             term_coverage = terms_found / len(key_terms) if key_terms else 0
 
-            # Check fuzzy similarity
+            # Check bigram overlap (phrase-level matching)
+            bigram_score = 0.0
+            if claim_bigrams:
+                src_bigrams = self._extract_bigrams(combined_text)
+                if src_bigrams:
+                    common = claim_bigrams & src_bigrams
+                    bigram_score = len(common) / len(claim_bigrams)
+
+            # Check windowed fuzzy similarity (compare claim against
+            # same-length windows of source, not the entire source)
             max_similarity = 0
             for text in texts:
                 similarity = self._fuzzy_similarity(claim_lower, text.lower())
                 max_similarity = max(max_similarity, similarity)
 
-            # Decide support/contradiction
-            if term_coverage >= 0.5 or max_similarity >= 0.4:
+            # Combined score: weighted average of all signals
+            combined = (
+                0.4 * term_coverage
+                + 0.3 * bigram_score
+                + 0.3 * max_similarity
+            )
+            best_scores.append(combined)
+
+            # Support thresholds: any strong signal or combined above 0.35
+            if term_coverage >= 0.5 or max_similarity >= 0.4 or combined >= 0.35:
                 supporting.append(src_id)
 
             # Check for contradictions (negation patterns)
@@ -375,9 +397,17 @@ class ResearchValidator:
             if len(supporting) < 2:
                 issues.append("Strong claim with insufficient source support")
 
-        # Calculate confidence
+        # Confidence: smooth curve that rewards multiple sources
+        # 0 sources → 0.0, 1 → 0.5, 2 → 0.7, 3 → 0.82, 5+ → ~0.95
         support_count = len(supporting)
-        confidence = min(1.0, support_count * 0.3 + (0.4 if support_count > 0 else 0))
+        if support_count == 0:
+            confidence = 0.0
+        else:
+            confidence = 1.0 - 0.5 ** support_count
+            # Boost by best match quality
+            if best_scores:
+                best_match = max(best_scores)
+                confidence = confidence * 0.7 + best_match * 0.3
         if contradicting:
             confidence *= 0.5
 
@@ -389,6 +419,11 @@ class ResearchValidator:
             confidence=confidence,
             issues=issues,
         )
+
+    def _extract_bigrams(self, text: str) -> set:
+        """Extract word bigrams for phrase-level matching."""
+        words = re.findall(r'\b[a-z]{3,}\b', text)
+        return {(words[i], words[i + 1]) for i in range(len(words) - 1)}
 
     def _extract_key_terms(self, text: str) -> list[str]:
         """Extract key terms for matching."""
@@ -421,9 +456,34 @@ class ResearchValidator:
 
         return key_terms[:20]  # Limit
 
-    def _fuzzy_similarity(self, text1: str, text2: str) -> float:
-        """Calculate fuzzy similarity between two texts."""
-        return SequenceMatcher(None, text1, text2).ratio()
+    def _fuzzy_similarity(self, claim: str, source: str) -> float:
+        """Calculate fuzzy similarity using windowed comparison.
+
+        Instead of comparing a short claim against an entire source text
+        (which always scores low), slide a claim-sized window across the
+        source and return the best match.
+        """
+        claim_len = len(claim)
+        source_len = len(source)
+
+        if source_len <= claim_len * 2:
+            # Source is short enough to compare directly
+            return SequenceMatcher(None, claim, source).ratio()
+
+        # Slide a window of claim_len * 1.5 across the source
+        window = int(claim_len * 1.5)
+        step = max(1, window // 4)
+        best = 0.0
+
+        for i in range(0, source_len - window + 1, step):
+            chunk = source[i:i + window]
+            score = SequenceMatcher(None, claim, chunk).ratio()
+            if score > best:
+                best = score
+                if best > 0.7:
+                    break  # Good enough, stop early
+
+        return best
 
     def _check_contradiction(self, claim: str, source_text: str) -> bool:
         """Check if source text contradicts the claim."""

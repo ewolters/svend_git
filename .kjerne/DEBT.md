@@ -28,7 +28,6 @@ Track technical debt here. Review weekly.
 
 ### Existing Debt (carried forward)
 
-[CORE] Researcher hallucination detection needs fuzzy threshold tuning | Added: 2024-01-27 | Priority: P2
 [CORE] Writer template validation should support nested sections | Added: 2024-01-27 | Priority: P3
 
 ### Competitive Gaps (vs Minitab/JMP)
@@ -52,6 +51,7 @@ Track technical debt here. Review weekly.
 [AGENTS] Researcher and Coder agents re-enabled — fixed core.intent namespace collision with importlib shim | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 2888c32
 [SYNARA] DSL parser and belief engine test coverage — 46 tests across kernel, belief engine, and DSL parser | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: afd60e0
 [SYNARA] LLM interface wired — 4 server-side endpoints calling Claude via LLMManager, graceful 503 fallback | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: fd16c67
+[CORE] Researcher hallucination detection — windowed fuzzy matching, bigram overlap, smooth confidence curve | Added: 2024-01-27 | Resolved: 2026-02-06 | Commit: 04fae5c
 
 ---
 *Last reviewed: 2026-02-06*

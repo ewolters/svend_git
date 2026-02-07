@@ -165,3 +165,21 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - Prompt generation + JSON extraction: tested in Django shell, all pass
 - Graceful degradation: returns 503 with fallback_prompt when ANTHROPIC_API_KEY not set
 **Commit:** fd16c67
+
+---
+
+### 2026-02-06 — P2: Researcher hallucination detection — fuzzy threshold tuning
+**Debt item:** [CORE] Researcher hallucination detection needs fuzzy threshold tuning
+**Files changed:**
+- `services/svend/agents/agents/researcher/validator.py` — 3 improvements to `_validate_claim()`:
+  1. **Windowed fuzzy matching**: `_fuzzy_similarity()` now slides a claim-sized window across source text instead of comparing whole strings. Claim "crispr can edit genes" vs 200-word source: old=0.25, new=0.71.
+  2. **Bigram overlap**: new `_extract_bigrams()` adds phrase-level matching (word pairs) alongside single-term coverage. Combined score weights: 40% term coverage, 30% bigram overlap, 30% windowed similarity.
+  3. **Smooth confidence curve**: replaced stepwise formula (`count * 0.3 + 0.4`) with `1 - 0.5^n` (0 sources→0.0, 1→0.5, 2→0.75, 3→0.88), blended 70/30 with best match quality.
+- `services/svend/agents/researcher/validator.py` — synced duplicate copy
+**Verification:**
+- `py_compile` — both copies pass
+- Windowed similarity: 0.706 for embedded claim (vs ~0.25 with old method)
+- Bigram extraction: correct word pairs
+- Confidence curve: monotonically increasing, properly scaled
+- Claim validation: "CRISPR enables precise gene editing" correctly supported with confidence 0.60
+**Commit:** 04fae5c
