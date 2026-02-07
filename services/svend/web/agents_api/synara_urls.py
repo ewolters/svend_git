@@ -28,10 +28,16 @@ urlpatterns = [
     # Analysis
     path("<str:workbench_id>/state/", views.get_belief_state, name="synara_state"),
 
-    # LLM Integration
+    # LLM Integration (prompt-only — client calls LLM)
     path("<str:workbench_id>/prompts/validation/", views.get_validation_prompt, name="synara_validation_prompt"),
     path("<str:workbench_id>/prompts/hypothesis/<str:signal_id>/", views.get_hypothesis_prompt, name="synara_hypothesis_prompt"),
     path("<str:workbench_id>/validation/apply/", views.apply_validation_result, name="synara_apply_validation"),
+
+    # LLM Integration (server-side — server calls Claude API)
+    path("<str:workbench_id>/llm/validate/", views.llm_validate, name="synara_llm_validate"),
+    path("<str:workbench_id>/llm/generate-hypotheses/<str:signal_id>/", views.llm_generate_hypotheses, name="synara_llm_generate"),
+    path("<str:workbench_id>/llm/interpret/", views.llm_interpret_evidence, name="synara_llm_interpret"),
+    path("<str:workbench_id>/llm/document/", views.llm_document, name="synara_llm_document"),
 
     # DSL: Formal Hypothesis Language
     path("<str:workbench_id>/dsl/parse/", views.parse_hypothesis_dsl, name="synara_dsl_parse"),

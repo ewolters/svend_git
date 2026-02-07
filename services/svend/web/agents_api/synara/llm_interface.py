@@ -15,6 +15,8 @@ Synara provides the formal engine:
 This module bridges them.
 """
 
+import json
+import logging
 from dataclasses import dataclass, field
 from typing import Optional, Callable, Any
 from datetime import datetime
@@ -27,6 +29,8 @@ from .kernel import (
     ExpansionSignal,
 )
 from .synara import Synara, UpdateResult
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -358,3 +362,97 @@ Include:
                 lines.append(f"\n{len(pending)} unresolved expansion signals (incomplete causal surface)")
 
         return "\n".join(lines)
+
+    # =========================================================================
+    # LLM API Calls
+    # =========================================================================
+
+    @staticmethod
+    def _call_llm(user, prompt: str, system: str = None, max_tokens: int = 4096) -> Optional[str]:
+        """Call LLM via LLMManager. Returns response text or None."""
+        from agents_api.llm_manager import LLMManager
+
+        if not LLMManager.anthropic_available():
+            logger.warning("Anthropic API not available — LLM call skipped")
+            return None
+
+        response = LLMManager.chat(
+            user=user,
+            messages=[{"role": "user", "content": prompt}],
+            system=system or "You are a scientific reasoning assistant. Respond with valid JSON when asked.",
+            max_tokens=max_tokens,
+            temperature=0.3,
+        )
+
+        if response and response.get("content"):
+            return response["content"]
+        return None
+
+    @staticmethod
+    def _extract_json(text: str) -> Optional[dict]:
+        """Extract JSON from LLM response text (handles markdown code blocks)."""
+        if not text:
+            return None
+        # Try direct parse
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        # Try extracting from ```json ... ``` blocks
+        import re
+        match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except json.JSONDecodeError:
+                pass
+        # Try finding first { ... } block
+        brace_start = text.find('{')
+        if brace_start >= 0:
+            depth = 0
+            for i in range(brace_start, len(text)):
+                if text[i] == '{':
+                    depth += 1
+                elif text[i] == '}':
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            return json.loads(text[brace_start:i + 1])
+                        except json.JSONDecodeError:
+                            break
+        logger.warning("Could not extract JSON from LLM response")
+        return None
+
+    def validate_graph_llm(self, user) -> Optional[GraphAnalysis]:
+        """Call LLM to validate the causal graph. Returns structured analysis."""
+        prompt = self.generate_validation_prompt()
+        raw = self._call_llm(user, prompt)
+        parsed = self._extract_json(raw)
+        if parsed:
+            return self.parse_validation_response(parsed)
+        return None
+
+    def generate_hypotheses_llm(
+        self, user, expansion_signal: ExpansionSignal,
+    ) -> list[HypothesisRegion]:
+        """Call LLM to generate hypotheses from expansion signal."""
+        prompt = self.generate_hypothesis_prompt(expansion_signal)
+        raw = self._call_llm(user, prompt)
+        parsed = self._extract_json(raw)
+        if parsed:
+            return self.parse_hypothesis_response(parsed)
+        return []
+
+    def interpret_evidence_llm(
+        self, user, evidence: Evidence, update_result: UpdateResult,
+    ) -> Optional[str]:
+        """Call LLM to interpret evidence update. Returns plain text."""
+        prompt = self.generate_evidence_interpretation_prompt(evidence, update_result)
+        return self._call_llm(user, prompt, max_tokens=1024)
+
+    def document_findings_llm(
+        self, user, format_type: str = "summary",
+    ) -> Optional[str]:
+        """Call LLM to document findings. Returns formatted text."""
+        prompt = self.generate_documentation_prompt(format_type)
+        return self._call_llm(user, prompt, max_tokens=4096)

@@ -508,6 +508,193 @@ def apply_validation_result(request, workbench_id: str):
 
 
 # =============================================================================
+# LLM-Powered Endpoints (Server-Side API Calls)
+# =============================================================================
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@gated
+def llm_validate(request, workbench_id: str):
+    """
+    Server-side LLM validation of the causal graph.
+
+    Generates prompt, calls Claude, parses response, returns analysis.
+    No request body needed.
+    """
+
+    synara = get_synara(workbench_id)
+    interface = SynaraLLMInterface(synara)
+
+    analysis = interface.validate_graph_llm(user=request.user)
+    if analysis is None:
+        return JsonResponse({
+            "error": "LLM unavailable — check ANTHROPIC_API_KEY",
+            "fallback_prompt": interface.generate_validation_prompt(),
+        }, status=503)
+
+    return JsonResponse({
+        "success": True,
+        "issues": [
+            {
+                "type": i.issue_type,
+                "severity": i.severity,
+                "description": i.description,
+                "involved_hypotheses": i.involved_hypotheses,
+                "suggested_fix": i.suggested_fix,
+            }
+            for i in analysis.issues
+        ],
+        "strengths": analysis.strengths,
+        "gaps": analysis.gaps,
+        "suggested_hypotheses": analysis.suggested_hypotheses,
+        "suggested_evidence": analysis.suggested_evidence,
+        "summary": analysis.summary,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@gated
+def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
+    """
+    Server-side LLM hypothesis generation from expansion signal.
+
+    Generates prompt, calls Claude, parses response, adds hypotheses to graph.
+    """
+
+    synara = get_synara(workbench_id)
+
+    signal = next(
+        (s for s in synara.expansion_signals if s.id == signal_id),
+        None
+    )
+    if not signal:
+        return JsonResponse({"error": "Signal not found"}, status=404)
+
+    interface = SynaraLLMInterface(synara)
+    hypotheses = interface.generate_hypotheses_llm(
+        user=request.user,
+        expansion_signal=signal,
+    )
+
+    if not hypotheses:
+        return JsonResponse({
+            "error": "LLM unavailable or returned no hypotheses",
+            "fallback_prompt": interface.generate_hypothesis_prompt(signal),
+        }, status=503)
+
+    save_synara(workbench_id, synara)
+
+    return JsonResponse({
+        "success": True,
+        "hypotheses": [h.to_dict() for h in hypotheses],
+        "count": len(hypotheses),
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@gated
+def llm_interpret_evidence(request, workbench_id: str):
+    """
+    Server-side LLM interpretation of the most recent evidence update.
+
+    Request body (optional):
+    {
+        "evidence_id": "e_abc123"  // specific evidence, defaults to most recent
+    }
+    """
+
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        body = {}
+
+    synara = get_synara(workbench_id)
+
+    if not synara.graph.evidence:
+        return JsonResponse({"error": "No evidence to interpret"}, status=400)
+
+    evidence_id = body.get("evidence_id")
+    if evidence_id:
+        evidence = next((e for e in synara.graph.evidence if e.id == evidence_id), None)
+        if not evidence:
+            return JsonResponse({"error": "Evidence not found"}, status=404)
+    else:
+        evidence = synara.graph.evidence[-1]
+
+    # Find the corresponding update result
+    update_result = next(
+        (u for u in synara.update_history if u.evidence_id == evidence.id),
+        None,
+    )
+    if not update_result:
+        return JsonResponse({"error": "No update result for this evidence"}, status=400)
+
+    interface = SynaraLLMInterface(synara)
+    interpretation = interface.interpret_evidence_llm(
+        user=request.user,
+        evidence=evidence,
+        update_result=update_result,
+    )
+
+    if interpretation is None:
+        return JsonResponse({
+            "error": "LLM unavailable",
+            "fallback_prompt": interface.generate_evidence_interpretation_prompt(
+                evidence, update_result
+            ),
+        }, status=503)
+
+    return JsonResponse({
+        "success": True,
+        "evidence_id": evidence.id,
+        "interpretation": interpretation,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@gated
+def llm_document(request, workbench_id: str):
+    """
+    Server-side LLM documentation of findings.
+
+    Request body (optional):
+    {
+        "format": "summary" | "a3" | "8d" | "technical"
+    }
+    """
+
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        body = {}
+
+    format_type = body.get("format", "summary")
+
+    synara = get_synara(workbench_id)
+    interface = SynaraLLMInterface(synara)
+
+    document = interface.document_findings_llm(
+        user=request.user,
+        format_type=format_type,
+    )
+
+    if document is None:
+        return JsonResponse({
+            "error": "LLM unavailable",
+            "fallback_prompt": interface.generate_documentation_prompt(format_type),
+        }, status=503)
+
+    return JsonResponse({
+        "success": True,
+        "format": format_type,
+        "document": document,
+    })
+
+
+# =============================================================================
 # Serialization
 # =============================================================================
 

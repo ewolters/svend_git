@@ -138,3 +138,30 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - `py_compile` — passes
 - All 46 tests pass (13 kernel + 16 belief + 17 DSL)
 **Commit:** afd60e0
+
+---
+
+### 2026-02-06 — P2: Wire Synara LLM interface to Anthropic API
+**Debt item:** [SYNARA] LLM interface stubbed — prompts generated but never call API
+**Files changed:**
+- `services/svend/web/agents_api/synara/llm_interface.py` — added 6 methods to `SynaraLLMInterface`:
+  - `_call_llm(user, prompt)` — calls Claude via `LLMManager.chat()`, tier-aware model selection
+  - `_extract_json(text)` — robust JSON extraction from LLM responses (direct parse, ```json blocks, brace matching)
+  - `validate_graph_llm(user)` — full round-trip: prompt → Claude → parse → `GraphAnalysis`
+  - `generate_hypotheses_llm(user, signal)` — prompt → Claude → parse → `list[HypothesisRegion]` (auto-added to graph)
+  - `interpret_evidence_llm(user, evidence, result)` — prompt → Claude → plain text interpretation
+  - `document_findings_llm(user, format_type)` — prompt → Claude → formatted document (summary/a3/8d/technical)
+- `services/svend/web/agents_api/synara_views.py` — added 4 server-side LLM endpoints:
+  - `llm_validate` — validates causal graph via Claude
+  - `llm_generate_hypotheses` — generates hypotheses from expansion signal via Claude
+  - `llm_interpret_evidence` — interprets evidence update via Claude
+  - `llm_document` — documents findings via Claude
+  - All return 503 with fallback prompt if API key not set
+- `services/svend/web/agents_api/synara_urls.py` — registered 4 new URL routes under `/api/synara/<wb_id>/llm/`
+**Verification:**
+- `python3 manage.py check` — 0 issues
+- `py_compile` — all files pass
+- URL resolution: all 4 endpoints resolve correctly
+- Prompt generation + JSON extraction: tested in Django shell, all pass
+- Graceful degradation: returns 503 with fallback_prompt when ANTHROPIC_API_KEY not set
+**Commit:** fd16c67

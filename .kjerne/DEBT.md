@@ -15,7 +15,6 @@ Track technical debt here. Review weekly.
 
 ### Synara Belief Engine
 
-[SYNARA] LLM interface stubbed — prompts generated but never call API. Wire to Anthropic/Qwen | Added: 2026-02-06 | Priority: P2
 [SYNARA] Fallacy detection mostly stubbed — _check_fallacy_patterns() returns empty list. Affirming consequent, denying antecedent, false dichotomy undetected | Added: 2026-02-06 | Priority: P3
 
 ### Data Model Migration
@@ -52,6 +51,7 @@ Track technical debt here. Review weekly.
 [SPC] Extended evidence to 5/7 endpoints (summary, recommend added; upload_data/chart_types are read-only, intentionally excluded) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 2888c32
 [AGENTS] Researcher and Coder agents re-enabled — fixed core.intent namespace collision with importlib shim | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 2888c32
 [SYNARA] DSL parser and belief engine test coverage — 46 tests across kernel, belief engine, and DSL parser | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: afd60e0
+[SYNARA] LLM interface wired — 4 server-side endpoints calling Claude via LLMManager, graceful 503 fallback | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: fd16c67
 
 ---
 *Last reviewed: 2026-02-06*
