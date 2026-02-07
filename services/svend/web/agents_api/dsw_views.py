@@ -400,6 +400,30 @@ def dsw_from_data(request):
         if saved_model:
             response_data["model_id"] = str(saved_model.id)
 
+        # Link results as evidence to a Problem (if problem_id provided)
+        problem_id = request.POST.get("problem_id", "")
+        if problem_id:
+            try:
+                from .views import add_finding_to_problem
+                metrics = result_data.get("metrics", {})
+                summary = (
+                    f"Built {result_data.get('model_type', 'model')} on {target}. "
+                    f"Accuracy: {metrics.get('accuracy', 'N/A')}, "
+                    f"Top features: {', '.join(f['feature'] for f in result_data.get('feature_importance', [])[:3])}"
+                )
+                evidence = add_finding_to_problem(
+                    user=request.user,
+                    problem_id=problem_id,
+                    summary=summary,
+                    evidence_type="data_analysis",
+                    source="DSW (from-data)",
+                )
+                if evidence:
+                    response_data["problem_updated"] = True
+                    response_data["evidence_id"] = evidence["id"]
+            except Exception as e_prob:
+                logger.warning(f"Could not link DSW from-data to problem {problem_id}: {e_prob}")
+
         return JsonResponse(response_data)
 
     except ImportError as e:
@@ -960,7 +984,8 @@ def run_analysis(request):
         "type": "stats" | "ml" | "spc" | "viz",
         "analysis": "anova" | "regression" | etc,
         "config": {...},
-        "data_id": "..."
+        "data_id": "...",
+        "problem_id": "..." (optional - links results as evidence to a Problem)
     }
     """
     try:
@@ -1038,6 +1063,42 @@ def run_analysis(request):
         log_agent_action(request.user, "analysis", analysis_id, latency_ms=latency)
 
         logger.info(f"Analysis complete: {analysis_id}, plots: {len(result.get('plots', []))}, summary length: {len(result.get('summary', ''))}")
+
+        # Link results as evidence to a Problem (if problem_id provided)
+        problem_id = body.get("problem_id")
+        if problem_id:
+            try:
+                from .views import add_finding_to_problem
+
+                # Use guide_observation if set, otherwise build from analysis_id + summary
+                observation = result.get("guide_observation", "")
+                if not observation:
+                    summary_text = result.get("summary", "")
+                    # Strip color tags and truncate for evidence summary
+                    import re
+                    clean = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary_text)
+                    observation = f"DSW {analysis_id}: {clean[:200]}" if clean else f"DSW analysis: {analysis_id}"
+
+                evidence_type = {
+                    "stats": "data_analysis",
+                    "ml": "data_analysis",
+                    "bayesian": "data_analysis",
+                    "spc": "data_analysis",
+                    "viz": "observation",
+                }.get(analysis_type, "data_analysis")
+
+                evidence = add_finding_to_problem(
+                    user=request.user,
+                    problem_id=problem_id,
+                    summary=observation,
+                    evidence_type=evidence_type,
+                    source=f"DSW ({analysis_id})",
+                )
+                if evidence:
+                    result["problem_updated"] = True
+                    result["evidence_id"] = evidence["id"]
+            except Exception as e:
+                logger.warning(f"Could not link DSW result to problem {problem_id}: {e}")
 
         return JsonResponse(result)
 

@@ -80,16 +80,39 @@ def power_analysis(request):
 
         effect_interp = interpret_effect_size(effect_size)
 
-        return JsonResponse({
+        summary_text = (
+            f"To detect a {effect_interp} effect (d={effect_size}) with "
+            f"{power:.0%} power at α={alpha}, you need {result.sample_size} total participants"
+            + (f" ({result.sample_size_per_group} per group)" if result.sample_size_per_group else "") + "."
+        )
+
+        response_data = {
             "success": True,
             "power_analysis": result.to_dict(),
             "interpretation": {
                 "effect_size_meaning": effect_interp,
-                "summary": f"To detect a {effect_interp} effect (d={effect_size}) with "
-                          f"{power:.0%} power at α={alpha}, you need {result.sample_size} total participants"
-                          + (f" ({result.sample_size_per_group} per group)" if result.sample_size_per_group else "") + ".",
+                "summary": summary_text,
             },
-        })
+        }
+
+        # Link to problem as evidence (if problem_id provided)
+        problem_id = data.get("problem_id")
+        if problem_id:
+            try:
+                from .problem_views import write_context_file
+                problem = Problem.objects.get(id=problem_id, user=request.user)
+                evidence = problem.add_evidence(
+                    summary=f"Power analysis ({test_type}): {summary_text}",
+                    evidence_type="calculation",
+                    source="Experimenter (Power Analysis)",
+                )
+                write_context_file(problem)
+                response_data["problem_updated"] = True
+                response_data["evidence_id"] = evidence["id"]
+            except Problem.DoesNotExist:
+                pass
+
+        return JsonResponse(response_data)
 
     except Exception as e:
         logger.exception("Power analysis failed")
@@ -219,6 +242,23 @@ def design_experiment(request):
 
         if alias_structure:
             response["alias_structure"] = alias_structure
+
+        # Link to problem as evidence (if problem_id provided)
+        problem_id = data.get("problem_id")
+        if problem_id:
+            try:
+                from .problem_views import write_context_file
+                problem = Problem.objects.get(id=problem_id, user=request.user)
+                evidence = problem.add_evidence(
+                    summary=f"Generated {design_type} design: {design.num_runs} runs, {len(factors)} factors",
+                    evidence_type="experiment",
+                    source="Experimenter (Design)",
+                )
+                write_context_file(problem)
+                response["problem_updated"] = True
+                response["evidence_id"] = evidence["id"]
+            except Problem.DoesNotExist:
+                pass
 
         return JsonResponse(response)
 
@@ -1196,7 +1236,11 @@ def contour_plot(request):
         x_actual = [x_low + (x_high - x_low) * (v + 1) / 2 for v in x_grid]
         y_actual = [y_low + (y_high - y_low) * (v + 1) / 2 for v in y_grid]
 
-        return JsonResponse({
+        optimal_x = round(x_actual[int(np.argmax(Z_mesh.max(axis=0)))], 4)
+        optimal_y = round(y_actual[int(np.argmax(Z_mesh.max(axis=1)))], 4)
+        optimal_z = round(float(Z_mesh.max()), 4)
+
+        response_data = {
             "success": True,
             "contour": {
                 "x": [round(v, 4) for v in x_actual],
@@ -1208,11 +1252,30 @@ def contour_plot(request):
                 "z_max": round(float(Z_mesh.max()), 4),
             },
             "optimal_point": {
-                "x": round(x_actual[int(np.argmax(Z_mesh.max(axis=0)))], 4),
-                "y": round(y_actual[int(np.argmax(Z_mesh.max(axis=1)))], 4),
-                "z": round(float(Z_mesh.max()), 4),
+                "x": optimal_x,
+                "y": optimal_y,
+                "z": optimal_z,
             },
-        })
+        }
+
+        # Link to problem as evidence (if problem_id provided)
+        problem_id = data.get("problem_id")
+        if problem_id:
+            try:
+                from .problem_views import write_context_file
+                problem = Problem.objects.get(id=problem_id, user=request.user)
+                evidence = problem.add_evidence(
+                    summary=f"Response surface: optimal at {x_factor}={optimal_x}, {y_factor}={optimal_y} (predicted={optimal_z})",
+                    evidence_type="data_analysis",
+                    source="Experimenter (Contour)",
+                )
+                write_context_file(problem)
+                response_data["problem_updated"] = True
+                response_data["evidence_id"] = evidence["id"]
+            except Problem.DoesNotExist:
+                pass
+
+        return JsonResponse(response_data)
 
     except Exception as e:
         logger.exception("Contour plot generation failed")
@@ -1368,7 +1431,7 @@ def optimize_response(request):
                     actual = (low + high) / 2 + combo[i] * (high - low) / 2
                     best_settings[f["name"]] = round(actual, 4)
 
-        return JsonResponse({
+        response_data = {
             "success": True,
             "optimization": {
                 "optimal_settings": best_settings,
@@ -1386,7 +1449,27 @@ def optimize_response(request):
                 },
             },
             "interpretation": _interpret_optimization(best_settings, best_predictions, best_composite),
-        })
+        }
+
+        # Link to problem as evidence (if problem_id provided)
+        problem_id = data.get("problem_id")
+        if problem_id:
+            try:
+                from .problem_views import write_context_file
+                problem = Problem.objects.get(id=problem_id, user=request.user)
+                settings_str = ", ".join(f"{k}={v}" for k, v in best_settings.items())
+                evidence = problem.add_evidence(
+                    summary=f"DOE optimization: desirability={best_composite:.2f}, settings: {settings_str}",
+                    evidence_type="experiment",
+                    source="Experimenter (Optimization)",
+                )
+                write_context_file(problem)
+                response_data["problem_updated"] = True
+                response_data["evidence_id"] = evidence["id"]
+            except Problem.DoesNotExist:
+                pass
+
+        return JsonResponse(response_data)
 
     except Exception as e:
         logger.exception("Multi-response optimization failed")

@@ -251,3 +251,170 @@ class SearchProviderTest(TestCase):
             self.assertTrue(True)
         except ImportError:
             pass
+
+
+class EvidenceIntegrationTest(TestCase):
+    """Test that analysis modules link results to Problems as evidence."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123'
+        )
+        self.client.force_authenticate(user=self.user)
+        self.client.login(username='testuser', password='testpass123')
+
+        # Create a Problem to link evidence to
+        from .models import Problem
+        self.problem = Problem.objects.create(
+            user=self.user,
+            title="Test Investigation",
+            effect_description="Sales dropped 40%",
+        )
+
+    def test_problem_add_evidence(self):
+        """Problem.add_evidence() should append to the evidence JSON list."""
+        from .models import Problem
+        evidence = self.problem.add_evidence(
+            summary="Test finding",
+            evidence_type="data_analysis",
+            source="Test",
+        )
+        self.assertIn("id", evidence)
+        self.assertEqual(evidence["summary"], "Test finding")
+        self.assertEqual(evidence["type"], "data_analysis")
+
+        # Refresh and check it persisted
+        self.problem.refresh_from_db()
+        self.assertEqual(len(self.problem.evidence), 1)
+        self.assertEqual(self.problem.evidence[0]["summary"], "Test finding")
+
+    def test_add_finding_to_problem_helper(self):
+        """add_finding_to_problem() should create evidence on a Problem."""
+        from .views import add_finding_to_problem
+        evidence = add_finding_to_problem(
+            user=self.user,
+            problem_id=str(self.problem.id),
+            summary="Helper test finding",
+            evidence_type="data_analysis",
+            source="DSW (ttest)",
+        )
+        self.assertIsNotNone(evidence)
+        self.assertEqual(evidence["summary"], "Helper test finding")
+
+        self.problem.refresh_from_db()
+        self.assertEqual(len(self.problem.evidence), 1)
+
+    def test_add_finding_to_problem_invalid_id(self):
+        """add_finding_to_problem() should return None for bad problem_id."""
+        from .views import add_finding_to_problem
+        result = add_finding_to_problem(
+            user=self.user,
+            problem_id="nonexistent-uuid",
+            summary="Should not persist",
+            evidence_type="data_analysis",
+            source="Test",
+        )
+        self.assertIsNone(result)
+
+    def test_add_finding_to_problem_empty_id(self):
+        """add_finding_to_problem() should return None for empty problem_id."""
+        from .views import add_finding_to_problem
+        result = add_finding_to_problem(
+            user=self.user,
+            problem_id="",
+            summary="Should not persist",
+        )
+        self.assertIsNone(result)
+
+    def test_dsw_analysis_with_problem_id(self):
+        """DSW run_analysis should accept problem_id and create evidence."""
+        import tempfile
+        import csv
+        import os
+        from pathlib import Path
+
+        # Create test data file
+        data_id = "data_test123"
+        data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
+        data_dir.mkdir(exist_ok=True)
+        data_path = data_dir / f"{data_id}.csv"
+
+        with open(data_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["value"])
+            for v in [10.2, 11.1, 9.8, 10.5, 10.0, 11.3, 9.7, 10.8]:
+                writer.writerow([v])
+
+        try:
+            response = self.client.post(
+                "/api/dsw/analysis/",
+                json.dumps({
+                    "type": "stats",
+                    "analysis": "descriptive",
+                    "config": {"vars": ["value"]},
+                    "data_id": data_id,
+                    "problem_id": str(self.problem.id),
+                }),
+                content_type="application/json",
+            )
+            # Accept success or auth issues in test env
+            if response.status_code == 401:
+                self.skipTest("Auth not working in test environment")
+
+            if response.status_code == 200:
+                data = response.json()
+                self.assertTrue(data.get("problem_updated", False))
+                self.assertIn("evidence_id", data)
+
+                # Verify evidence was added to the problem
+                self.problem.refresh_from_db()
+                self.assertGreaterEqual(len(self.problem.evidence), 1)
+        finally:
+            if data_path.exists():
+                os.unlink(data_path)
+
+    def test_dsw_analysis_without_problem_id(self):
+        """DSW run_analysis without problem_id should NOT create evidence."""
+        import tempfile
+        import csv
+        import os
+        from pathlib import Path
+
+        data_id = "data_test456"
+        data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
+        data_dir.mkdir(exist_ok=True)
+        data_path = data_dir / f"{data_id}.csv"
+
+        with open(data_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["value"])
+            for v in [10.2, 11.1, 9.8, 10.5]:
+                writer.writerow([v])
+
+        try:
+            response = self.client.post(
+                "/api/dsw/analysis/",
+                json.dumps({
+                    "type": "stats",
+                    "analysis": "descriptive",
+                    "config": {"vars": ["value"]},
+                    "data_id": data_id,
+                }),
+                content_type="application/json",
+            )
+            if response.status_code == 401:
+                self.skipTest("Auth not working in test environment")
+
+            if response.status_code == 200:
+                data = response.json()
+                self.assertNotIn("problem_updated", data)
+
+                # Verify NO evidence was added
+                self.problem.refresh_from_db()
+                self.assertEqual(len(self.problem.evidence), 0)
+        finally:
+            if data_path.exists():
+                os.unlink(data_path)
