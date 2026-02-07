@@ -605,3 +605,525 @@ class SynaraPersistenceTest(TestCase):
         self.assertEqual(len(synara2.graph.evidence), 1)
 
         _synara_cache.pop(wb_id, None)
+
+
+# =============================================================================
+# Synara Unit Tests — kernel, belief engine, DSL parser
+# =============================================================================
+
+import sys
+import os
+import unittest
+
+# Ensure synara package is importable
+_synara_pkg = os.path.join(os.path.dirname(__file__), 'synara')
+if _synara_pkg not in sys.path:
+    sys.path.insert(0, os.path.dirname(__file__))
+
+
+class KernelHypothesisRegionTest(unittest.TestCase):
+    """Test HypothesisRegion data structure."""
+
+    def test_matches_context_full_match(self):
+        from .synara.kernel import HypothesisRegion
+        h = HypothesisRegion(
+            id="h1",
+            description="Night shift defects",
+            domain_conditions={"shift": "night", "machine": "CNC-3"},
+        )
+        score = h.matches_context({"shift": "night", "machine": "CNC-3", "operator": "John"})
+        self.assertAlmostEqual(score, 1.0)
+
+    def test_matches_context_partial(self):
+        from .synara.kernel import HypothesisRegion
+        h = HypothesisRegion(
+            id="h1",
+            description="Night shift",
+            domain_conditions={"shift": "night", "machine": "CNC-3"},
+        )
+        score = h.matches_context({"shift": "night", "machine": "CNC-5"})
+        self.assertAlmostEqual(score, 0.5)
+
+    def test_matches_context_no_conditions(self):
+        from .synara.kernel import HypothesisRegion
+        h = HypothesisRegion(id="h1", description="General")
+        score = h.matches_context({"shift": "night"})
+        self.assertAlmostEqual(score, 0.5)  # neutral
+
+    def test_to_dict_from_dict_roundtrip(self):
+        from .synara.kernel import HypothesisRegion
+        h = HypothesisRegion(
+            id="h1",
+            description="Test hypothesis",
+            domain_conditions={"shift": "night"},
+            behavior_class="defect_rate_increase",
+            prior=0.6,
+            posterior=0.7,
+            evidence_for=["e1"],
+            evidence_against=["e2"],
+        )
+        d = h.to_dict()
+        h2 = HypothesisRegion.from_dict(d)
+        self.assertEqual(h2.id, "h1")
+        self.assertEqual(h2.description, "Test hypothesis")
+        self.assertAlmostEqual(h2.prior, 0.6)
+        self.assertAlmostEqual(h2.posterior, 0.7)
+        self.assertEqual(h2.evidence_for, ["e1"])
+        self.assertEqual(h2.evidence_against, ["e2"])
+
+
+class KernelEvidenceTest(unittest.TestCase):
+    """Test Evidence data structure."""
+
+    def test_to_dict_from_dict_roundtrip(self):
+        from .synara.kernel import Evidence
+        e = Evidence(
+            id="e1",
+            event="out_of_control_point",
+            context={"shift": "night"},
+            strength=0.9,
+            supports=["h1"],
+            weakens=["h2"],
+        )
+        d = e.to_dict()
+        e2 = Evidence.from_dict(d)
+        self.assertEqual(e2.id, "e1")
+        self.assertEqual(e2.event, "out_of_control_point")
+        self.assertAlmostEqual(e2.strength, 0.9)
+        self.assertEqual(e2.supports, ["h1"])
+        self.assertEqual(e2.weakens, ["h2"])
+
+
+class KernelCausalGraphTest(unittest.TestCase):
+    """Test CausalGraph DAG operations."""
+
+    def _build_chain(self):
+        """Build a simple A -> B -> C chain."""
+        from .synara.kernel import HypothesisRegion, CausalLink, CausalGraph
+        graph = CausalGraph()
+        for hid in ["A", "B", "C"]:
+            graph.add_hypothesis(HypothesisRegion(id=hid, description=f"Hyp {hid}"))
+        graph.add_link(CausalLink(from_id="A", to_id="B", strength=0.8))
+        graph.add_link(CausalLink(from_id="B", to_id="C", strength=0.6))
+        return graph
+
+    def test_roots_and_terminals(self):
+        graph = self._build_chain()
+        self.assertEqual(graph.roots, ["A"])
+        self.assertEqual(graph.terminals, ["C"])
+
+    def test_upstream_downstream(self):
+        graph = self._build_chain()
+        self.assertEqual(graph.get_upstream("B"), ["A"])
+        self.assertEqual(graph.get_downstream("B"), ["C"])
+        self.assertEqual(graph.get_upstream("A"), [])
+        self.assertEqual(graph.get_downstream("C"), [])
+
+    def test_all_ancestors(self):
+        graph = self._build_chain()
+        ancestors = graph.get_all_ancestors("C")
+        self.assertEqual(ancestors, {"A", "B"})
+
+    def test_all_descendants(self):
+        graph = self._build_chain()
+        descendants = graph.get_all_descendants("A")
+        self.assertEqual(descendants, {"B", "C"})
+
+    def test_get_paths_to(self):
+        graph = self._build_chain()
+        paths = graph.get_paths_to("C")
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(paths[0], ["A", "B", "C"])
+
+    def test_add_link_updates_references(self):
+        from .synara.kernel import HypothesisRegion, CausalLink, CausalGraph
+        graph = CausalGraph()
+        graph.add_hypothesis(HypothesisRegion(id="X", description="X"))
+        graph.add_hypothesis(HypothesisRegion(id="Y", description="Y"))
+        graph.add_link(CausalLink(from_id="X", to_id="Y"))
+        self.assertIn("Y", graph.hypotheses["X"].downstream)
+        self.assertIn("X", graph.hypotheses["Y"].upstream)
+
+    def test_diamond_graph(self):
+        """A -> B, A -> C, B -> D, C -> D."""
+        from .synara.kernel import HypothesisRegion, CausalLink, CausalGraph
+        graph = CausalGraph()
+        for hid in ["A", "B", "C", "D"]:
+            graph.add_hypothesis(HypothesisRegion(id=hid, description=hid))
+        graph.add_link(CausalLink(from_id="A", to_id="B"))
+        graph.add_link(CausalLink(from_id="A", to_id="C"))
+        graph.add_link(CausalLink(from_id="B", to_id="D"))
+        graph.add_link(CausalLink(from_id="C", to_id="D"))
+
+        self.assertEqual(graph.roots, ["A"])
+        self.assertEqual(graph.terminals, ["D"])
+        paths = graph.get_paths_to("D")
+        self.assertEqual(len(paths), 2)
+
+    def test_to_dict(self):
+        graph = self._build_chain()
+        d = graph.to_dict()
+        self.assertIn("hypotheses", d)
+        self.assertIn("links", d)
+        self.assertEqual(len(d["hypotheses"]), 3)
+        self.assertEqual(len(d["links"]), 2)
+
+
+class BeliefEngineComputeLikelihoodTest(unittest.TestCase):
+    """Test BeliefEngine.compute_likelihood()."""
+
+    def test_explicit_support(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence
+        engine = BeliefEngine()
+        h = HypothesisRegion(id="h1", description="Test")
+        e = Evidence(id="e1", event="observation", supports=["h1"])
+        likelihood = engine.compute_likelihood(e, h)
+        # Explicit support: base 0.8, strength=1.0, no change
+        self.assertAlmostEqual(likelihood, 0.8)
+
+    def test_explicit_weaken(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence
+        engine = BeliefEngine()
+        h = HypothesisRegion(id="h1", description="Test")
+        e = Evidence(id="e1", event="observation", weakens=["h1"])
+        likelihood = engine.compute_likelihood(e, h)
+        self.assertAlmostEqual(likelihood, 0.2)
+
+    def test_neutral_evidence(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence
+        engine = BeliefEngine()
+        h = HypothesisRegion(id="h1", description="Test")
+        e = Evidence(id="e1", event="random observation")
+        likelihood = engine.compute_likelihood(e, h)
+        self.assertGreater(likelihood, 0.3)
+        self.assertLess(likelihood, 0.7)
+
+    def test_low_strength_pulls_toward_neutral(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence
+        engine = BeliefEngine()
+        h = HypothesisRegion(id="h1", description="Test")
+        e = Evidence(id="e1", event="observation", supports=["h1"], strength=0.0)
+        likelihood = engine.compute_likelihood(e, h)
+        self.assertAlmostEqual(likelihood, 0.5)
+
+    def test_behavior_alignment_positive(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence
+        engine = BeliefEngine()
+        h = HypothesisRegion(
+            id="h1",
+            description="Defect increase",
+            behavior_class="defect_rate_increase",
+        )
+        e = Evidence(id="e1", event="defect_rate_increase detected")
+        likelihood = engine.compute_likelihood(e, h)
+        self.assertGreater(likelihood, 0.5)
+
+    def test_behavior_alignment_conflicting(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence
+        engine = BeliefEngine()
+        h = HypothesisRegion(
+            id="h1",
+            description="Temperature increase",
+            behavior_class="temperature_increase",
+        )
+        e = Evidence(id="e1", event="temperature_decrease observed")
+        likelihood = engine.compute_likelihood(e, h)
+        self.assertLess(likelihood, 0.5)
+
+
+class BeliefEngineUpdatePosteriorsTest(unittest.TestCase):
+    """Test BeliefEngine.update_posteriors()."""
+
+    def test_supporting_evidence_increases_posterior(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence, CausalGraph
+        engine = BeliefEngine()
+        graph = CausalGraph()
+        graph.add_hypothesis(HypothesisRegion(id="h1", description="A", posterior=0.5))
+        graph.add_hypothesis(HypothesisRegion(id="h2", description="B", posterior=0.5))
+        e = Evidence(id="e1", event="test", supports=["h1"])
+
+        likelihoods = {"h1": 0.8, "h2": 0.2}
+        posteriors = engine.update_posteriors(graph, e, likelihoods)
+
+        self.assertGreater(posteriors["h1"], 0.5)
+        self.assertLess(posteriors["h2"], 0.5)
+
+    def test_posteriors_sum_to_approximately_one(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence, CausalGraph
+        engine = BeliefEngine()
+        graph = CausalGraph()
+        graph.add_hypothesis(HypothesisRegion(id="h1", description="A", posterior=0.5))
+        graph.add_hypothesis(HypothesisRegion(id="h2", description="B", posterior=0.3))
+        graph.add_hypothesis(HypothesisRegion(id="h3", description="C", posterior=0.2))
+        e = Evidence(id="e1", event="test")
+
+        likelihoods = {"h1": 0.7, "h2": 0.4, "h3": 0.1}
+        posteriors = engine.update_posteriors(graph, e, likelihoods)
+
+        total = sum(posteriors.values())
+        self.assertAlmostEqual(total, 1.0, places=1)
+
+    def test_posteriors_clamped(self):
+        from .synara.belief import BeliefEngine, MIN_PROBABILITY, MAX_PROBABILITY
+        from .synara.kernel import HypothesisRegion, Evidence, CausalGraph
+        engine = BeliefEngine()
+        graph = CausalGraph()
+        graph.add_hypothesis(HypothesisRegion(id="h1", description="A", posterior=0.99))
+        graph.add_hypothesis(HypothesisRegion(id="h2", description="B", posterior=0.01))
+        e = Evidence(id="e1", event="test")
+
+        likelihoods = {"h1": 0.99, "h2": 0.01}
+        posteriors = engine.update_posteriors(graph, e, likelihoods)
+
+        for p in posteriors.values():
+            self.assertGreaterEqual(p, MIN_PROBABILITY)
+            self.assertLessEqual(p, MAX_PROBABILITY)
+
+    def test_evidence_tracking(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, Evidence, CausalGraph
+        engine = BeliefEngine()
+        graph = CausalGraph()
+        graph.add_hypothesis(HypothesisRegion(id="h1", description="A", posterior=0.5))
+        e = Evidence(id="e1", event="test")
+
+        likelihoods = {"h1": 0.8}
+        engine.update_posteriors(graph, e, likelihoods)
+
+        h = graph.hypotheses["h1"]
+        self.assertIn("e1", h.evidence_for)
+        self.assertNotIn("e1", h.evidence_against)
+
+
+class BeliefEnginePropagationTest(unittest.TestCase):
+    """Test BeliefEngine.propagate_belief()."""
+
+    def test_propagation_through_chain(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, CausalLink, CausalGraph
+        engine = BeliefEngine()
+        graph = CausalGraph()
+        graph.add_hypothesis(HypothesisRegion(id="A", description="Root", posterior=0.8))
+        graph.add_hypothesis(HypothesisRegion(id="B", description="Mid", posterior=0.3))
+        graph.add_link(CausalLink(from_id="A", to_id="B", strength=0.7))
+
+        changes = engine.propagate_belief(graph, "A")
+
+        if "B" in changes:
+            self.assertNotAlmostEqual(changes["B"], 0.3)
+
+    def test_no_propagation_without_downstream(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import HypothesisRegion, CausalGraph
+        engine = BeliefEngine()
+        graph = CausalGraph()
+        graph.add_hypothesis(HypothesisRegion(id="A", description="Leaf", posterior=0.8))
+
+        changes = engine.propagate_belief(graph, "A")
+        self.assertEqual(changes, {})
+
+    def test_nonexistent_hypothesis(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import CausalGraph
+        engine = BeliefEngine()
+        graph = CausalGraph()
+
+        changes = engine.propagate_belief(graph, "nonexistent")
+        self.assertEqual(changes, {})
+
+
+class BeliefEngineExpansionTest(unittest.TestCase):
+    """Test BeliefEngine.check_expansion()."""
+
+    def test_expansion_signal_when_all_below_threshold(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import Evidence
+        engine = BeliefEngine(expansion_threshold=0.1)
+        e = Evidence(id="e1", event="anomaly", context={"location": "lab"})
+        likelihoods = {"h1": 0.05, "h2": 0.03}
+
+        signal = engine.check_expansion(e, likelihoods)
+        self.assertIsNotNone(signal)
+        self.assertEqual(signal.triggering_evidence, "e1")
+        self.assertEqual(signal.event, "anomaly")
+        self.assertIn("contradicts all hypotheses", signal.message)
+        self.assertGreater(len(signal.possible_causes), 0)
+
+    def test_no_expansion_when_above_threshold(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import Evidence
+        engine = BeliefEngine(expansion_threshold=0.1)
+        e = Evidence(id="e1", event="normal observation")
+        likelihoods = {"h1": 0.8, "h2": 0.3}
+
+        signal = engine.check_expansion(e, likelihoods)
+        self.assertIsNone(signal)
+
+    def test_no_expansion_for_empty_likelihoods(self):
+        from .synara.belief import BeliefEngine
+        from .synara.kernel import Evidence
+        engine = BeliefEngine()
+        e = Evidence(id="e1", event="test")
+
+        signal = engine.check_expansion(e, {})
+        self.assertIsNone(signal)
+
+
+class DSLParserBasicTest(unittest.TestCase):
+    """Test DSLParser basic parsing."""
+
+    def test_simple_comparison(self):
+        from .synara.dsl import DSLParser, Comparison, ComparisonOp
+        parser = DSLParser()
+        result = parser.parse("[temperature] > 30")
+        self.assertEqual(len(result.parse_errors), 0)
+        self.assertTrue(result.is_falsifiable)
+        self.assertIn("temperature", result.variables)
+        self.assertIsInstance(result.ast, Comparison)
+        self.assertEqual(result.ast.op, ComparisonOp.GT)
+
+    def test_string_comparison(self):
+        from .synara.dsl import DSLParser, Comparison, ComparisonOp
+        parser = DSLParser()
+        result = parser.parse('[shift] = "night"')
+        self.assertEqual(len(result.parse_errors), 0)
+        self.assertIn("shift", result.variables)
+        self.assertIsInstance(result.ast, Comparison)
+        self.assertEqual(result.ast.op, ComparisonOp.EQ)
+
+    def test_implication(self):
+        from .synara.dsl import DSLParser, Implication
+        parser = DSLParser()
+        result = parser.parse("if [num_holidays] > 3 then [monthly_sales] < 100000")
+        self.assertEqual(len(result.parse_errors), 0)
+        self.assertIsInstance(result.ast, Implication)
+        self.assertIn("num_holidays", result.variables)
+        self.assertIn("monthly_sales", result.variables)
+
+    def test_quantified_always(self):
+        from .synara.dsl import DSLParser, Quantified, Quantifier
+        parser = DSLParser()
+        result = parser.parse("ALWAYS [temperature] > 20")
+        self.assertEqual(len(result.parse_errors), 0)
+        self.assertIsInstance(result.ast, Quantified)
+        self.assertEqual(result.ast.quantifier, Quantifier.ALWAYS)
+        self.assertIn(Quantifier.ALWAYS, result.quantifiers)
+
+    def test_quantified_never(self):
+        from .synara.dsl import DSLParser, Quantified, Quantifier
+        parser = DSLParser()
+        result = parser.parse("NEVER [defect_rate] > 0.05")
+        self.assertEqual(len(result.parse_errors), 0)
+        self.assertIsInstance(result.ast, Quantified)
+        self.assertEqual(result.ast.quantifier, Quantifier.NEVER)
+
+    def test_logical_and(self):
+        from .synara.dsl import DSLParser, LogicalExpr, LogicalOp
+        parser = DSLParser()
+        result = parser.parse("[x] > 10 AND [y] < 20")
+        self.assertEqual(len(result.parse_errors), 0)
+        self.assertIsInstance(result.ast, LogicalExpr)
+        self.assertEqual(result.ast.op, LogicalOp.AND)
+        self.assertEqual(len(result.ast.operands), 2)
+
+    def test_logical_or(self):
+        from .synara.dsl import DSLParser, LogicalExpr, LogicalOp
+        parser = DSLParser()
+        result = parser.parse("[status] = 1 OR [override] = 1")
+        self.assertEqual(len(result.parse_errors), 0)
+        self.assertIsInstance(result.ast, LogicalExpr)
+        self.assertEqual(result.ast.op, LogicalOp.OR)
+
+    def test_domain_condition_when(self):
+        from .synara.dsl import DSLParser, Quantified
+        parser = DSLParser()
+        result = parser.parse('NEVER [defect_rate] > 0.05 WHEN [shift] = "night"')
+        self.assertEqual(len(result.parse_errors), 0)
+        self.assertIsInstance(result.ast, Quantified)
+        self.assertIsNotNone(result.ast.domain)
+
+    def test_empty_input(self):
+        from .synara.dsl import DSLParser
+        parser = DSLParser()
+        result = parser.parse("")
+        self.assertFalse(result.is_falsifiable)
+        self.assertGreater(len(result.parse_errors), 0)
+
+    def test_tautology_detection(self):
+        from .synara.dsl import DSLParser
+        parser = DSLParser()
+        result = parser.parse("[x] = [x]")
+        self.assertFalse(result.is_falsifiable)
+
+    def test_variable_extraction(self):
+        from .synara.dsl import DSLParser
+        parser = DSLParser()
+        result = parser.parse("[a] > 1 AND [b] < 2 AND [c] = 3")
+        self.assertEqual(set(result.variables), {"a", "b", "c"})
+
+
+class DSLParserToDictTest(unittest.TestCase):
+    """Test Hypothesis.to_dict() serialization."""
+
+    def test_comparison_to_dict(self):
+        from .synara.dsl import DSLParser
+        parser = DSLParser()
+        result = parser.parse("[x] > 10")
+        d = result.to_dict()
+        self.assertEqual(d["raw"], "[x] > 10")
+        self.assertIn("x", d["variables"])
+        self.assertEqual(d["structure"]["type"], "comparison")
+        self.assertEqual(d["structure"]["op"], ">")
+
+    def test_implication_to_dict(self):
+        from .synara.dsl import DSLParser
+        parser = DSLParser()
+        result = parser.parse("if [a] > 1 then [b] < 2")
+        d = result.to_dict()
+        self.assertEqual(d["structure"]["type"], "implication")
+        self.assertEqual(d["structure"]["antecedent"]["type"], "comparison")
+        self.assertEqual(d["structure"]["consequent"]["type"], "comparison")
+
+    def test_quantified_to_dict(self):
+        from .synara.dsl import DSLParser
+        parser = DSLParser()
+        result = parser.parse("ALWAYS [x] > 5")
+        d = result.to_dict()
+        self.assertEqual(d["structure"]["type"], "quantified")
+        self.assertEqual(d["structure"]["quantifier"], "always")
+
+
+class DSLFormatTest(unittest.TestCase):
+    """Test hypothesis formatting."""
+
+    def test_format_natural(self):
+        from .synara.dsl import DSLParser, format_hypothesis
+        parser = DSLParser()
+        result = parser.parse("[temperature] > 30")
+        text = format_hypothesis(result, style="natural")
+        self.assertIn("temperature", text)
+        self.assertIn("greater than", text)
+
+    def test_format_formal(self):
+        from .synara.dsl import DSLParser, format_hypothesis
+        parser = DSLParser()
+        result = parser.parse("[x] > 10 AND [y] < 20")
+        text = format_hypothesis(result, style="formal")
+        self.assertIn("x", text)
+        self.assertIn("y", text)
+
+    def test_format_code(self):
+        from .synara.dsl import DSLParser, format_hypothesis
+        parser = DSLParser()
+        result = parser.parse("[x] > 10")
+        text = format_hypothesis(result, style="code")
+        self.assertIn("data['x']", text)
+        self.assertIn(">", text)

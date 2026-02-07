@@ -115,4 +115,26 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - Agent imports: ResearchAgent ✓, CodingAgent ✓, WriterAgent ✓
 - URL resolution: `/api/agents/researcher/` ✓, `/api/agents/coder/` ✓
 - Researcher endpoint made actual search API calls (arXiv, Semantic Scholar) confirming full integration
-**Commit:** (pending)
+**Commit:** 2888c32
+
+---
+
+### 2026-02-06 — P2: Synara DSL parser and belief engine test coverage
+**Debt item:** [SYNARA] No test coverage for DSL parser or belief engine
+**Files changed:**
+- `services/svend/web/agents_api/tests.py` — added 46 unit tests across 9 test classes:
+  - `KernelHypothesisRegionTest` (4 tests): matches_context full/partial/neutral, to_dict/from_dict roundtrip
+  - `KernelEvidenceTest` (1 test): to_dict/from_dict roundtrip
+  - `KernelCausalGraphTest` (8 tests): roots/terminals, upstream/downstream, ancestors/descendants, paths, link references, diamond graph, to_dict
+  - `BeliefEngineComputeLikelihoodTest` (6 tests): explicit support/weaken, neutral, strength scaling, behavior alignment positive/conflicting
+  - `BeliefEngineUpdatePosteriorsTest` (4 tests): supporting evidence increases posterior, normalization, clamping, evidence tracking
+  - `BeliefEnginePropagationTest` (3 tests): chain propagation, no downstream, nonexistent hypothesis
+  - `BeliefEngineExpansionTest` (3 tests): expansion signal generation, no expansion above threshold, empty likelihoods
+  - `DSLParserBasicTest` (11 tests): comparison, string comparison, implication, quantifiers (ALWAYS/NEVER), logical AND/OR, WHEN domain, empty input, tautology detection, variable extraction
+  - `DSLParserToDictTest` (3 tests): comparison/implication/quantified serialization
+  - `DSLFormatTest` (3 tests): natural/formal/code formatting
+**Verification:**
+- `python3 manage.py check` — 0 issues
+- `py_compile` — passes
+- All 46 tests pass (13 kernel + 16 belief + 17 DSL)
+**Commit:** afd60e0
