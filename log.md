@@ -99,4 +99,20 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - `py_compile` — all files pass
 - End-to-end test: created Synara → add hypothesis → add evidence → save → clear cache → reload → verified hypothesis/evidence/posterior survived round-trip. PASSED.
 - Problem-to-Project resolution: Problem UUID → follow FK → save to core.Project. PASSED.
+**Commit:** 841af3d
+
+---
+
+### 2026-02-06 — P2: SPC evidence integration + re-enable agents
+**Debt items:** [SPC] 3/7 endpoints, [AGENTS] Coder/Researcher disabled
+**Files changed:**
+- `services/svend/web/agents_api/spc_views.py` — added `problem_id` support to `statistical_summary()` and `recommend_chart()`. Updated existing 3 endpoints to use `write_context_file()` and `evidence_type="data_analysis"` for consistency.
+- `services/svend/web/agents_api/urls.py` — uncommented researcher and coder agent routes
+- `services/svend/web/agents_api/views.py` — added `importlib.util` shim to pre-load agent core modules (`core.intent`, `core.search`, `core.verifier`, etc.) in dependency order, fixing namespace collision with Django's `core` app. All 3 agents (researcher, coder, writer) now import successfully.
+**Verification:**
+- `python3 manage.py check` — 0 issues
+- `py_compile` — all files pass
+- Agent imports: ResearchAgent ✓, CodingAgent ✓, WriterAgent ✓
+- URL resolution: `/api/agents/researcher/` ✓, `/api/agents/coder/` ✓
+- Researcher endpoint made actual search API calls (arXiv, Semantic Scholar) confirming full integration
 **Commit:** (pending)

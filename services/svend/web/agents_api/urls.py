@@ -7,9 +7,8 @@ from . import views
 app_name = "agents_api"
 
 urlpatterns = [
-    # Agents using Claude API (custom LLMs temporarily disabled)
-    # path("researcher/", views.researcher_agent, name="researcher"),  # Disabled
-    # path("coder/", views.coder_agent, name="coder"),  # Disabled
+    path("researcher/", views.researcher_agent, name="researcher"),
+    path("coder/", views.coder_agent, name="coder"),
     path("writer/", views.writer_agent, name="writer"),
     path("editor/", views.editor_agent, name="editor"),
     path("experimenter/", views.experimenter_agent, name="experimenter"),

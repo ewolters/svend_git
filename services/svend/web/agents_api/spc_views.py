@@ -103,12 +103,13 @@ def control_chart(request):
                     f"{'IN CONTROL' if result.in_control else 'OUT OF CONTROL'}. "
                     f"{len(result.out_of_control)} points outside limits."
                 )
+                from .problem_views import write_context_file
                 problem.add_evidence(
                     summary=evidence_summary,
-                    evidence_type="analysis",
+                    evidence_type="data_analysis",
                     source="SPC Control Chart",
                 )
-                problem.save()
+                write_context_file(problem)
             except Problem.DoesNotExist:
                 pass  # Ignore if problem not found
 
@@ -146,6 +147,7 @@ def recommend_chart(request):
     data_type = body.get("data_type", "continuous")
     subgroup_size = body.get("subgroup_size", 1)
     attribute_type = body.get("attribute_type")
+    problem_id = body.get("problem_id")
 
     recommendation = spc.recommend_chart_type(data_type, subgroup_size, attribute_type)
 
@@ -159,11 +161,34 @@ def recommend_chart(request):
         "u": "u-chart - for defects per unit (varying opportunity)",
     }
 
-    return JsonResponse({
+    response_data = {
         "recommended": recommendation,
         "explanation": explanations.get(recommendation, ""),
         "all_options": explanations,
-    })
+    }
+
+    # Optionally save recommendation as evidence
+    if problem_id:
+        try:
+            problem = Problem.objects.get(id=problem_id, user=request.user)
+            evidence_summary = (
+                f"SPC chart recommendation: {recommendation} — "
+                f"{explanations.get(recommendation, '')} "
+                f"(data_type={data_type}, subgroup_size={subgroup_size})"
+            )
+            from .problem_views import write_context_file
+            evidence = problem.add_evidence(
+                summary=evidence_summary,
+                evidence_type="observation",
+                source="SPC Chart Recommender",
+            )
+            write_context_file(problem)
+            response_data["problem_updated"] = True
+            response_data["evidence_id"] = evidence["id"]
+        except Problem.DoesNotExist:
+            pass
+
+    return JsonResponse(response_data)
 
 
 # =============================================================================
@@ -222,12 +247,13 @@ def capability_study(request):
                     f"Sigma Level={result.sigma_level:.1f}, Yield={result.yield_percent:.2f}%. "
                     f"{result.interpretation}"
                 )
+                from .problem_views import write_context_file
                 problem.add_evidence(
                     summary=evidence_summary,
-                    evidence_type="analysis",
+                    evidence_type="data_analysis",
                     source="SPC Capability Study",
                 )
-                problem.save()
+                write_context_file(problem)
             except Problem.DoesNotExist:
                 pass
 
@@ -266,17 +292,42 @@ def statistical_summary(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     data = body.get("data", [])
+    problem_id = body.get("problem_id")
 
     if not data or len(data) < 2:
         return JsonResponse({"error": "Need at least 2 data points"}, status=400)
 
     try:
         result = spc.calculate_summary(data)
-
-        return JsonResponse({
+        response_data = {
             "success": True,
             "summary": result.to_dict(),
-        })
+        }
+
+        # Optionally save as evidence
+        if problem_id:
+            try:
+                problem = Problem.objects.get(id=problem_id, user=request.user)
+                summary_dict = result.to_dict()
+                evidence_summary = (
+                    f"Statistical Summary (n={summary_dict.get('n', len(data))}): "
+                    f"mean={summary_dict.get('mean', 0):.4f}, "
+                    f"std={summary_dict.get('std', 0):.4f}, "
+                    f"median={summary_dict.get('median', 0):.4f}"
+                )
+                from .problem_views import write_context_file
+                evidence = problem.add_evidence(
+                    summary=evidence_summary,
+                    evidence_type="data_analysis",
+                    source="SPC Statistical Summary",
+                )
+                write_context_file(problem)
+                response_data["problem_updated"] = True
+                response_data["evidence_id"] = evidence["id"]
+            except Problem.DoesNotExist:
+                pass
+
+        return JsonResponse(response_data)
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)

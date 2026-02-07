@@ -117,6 +117,32 @@ for path in [AGENTS_ROOT, AGENTS_INNER]:
     if path not in sys.path:
         sys.path.insert(0, path)
 
+# Fix agent imports: agents/agents/core/ is shadowed by Django's web/core/ app.
+# Agent modules use relative imports (from .sources import ...) which resolve via
+# __package__ = 'core'. We register each submodule under core.{name} in sys.modules
+# and execute in dependency order so cross-imports resolve.
+import importlib.util
+_agent_core_path = os.path.join(AGENTS_INNER, 'core')
+if os.path.isdir(_agent_core_path):
+    # Dependency order: leaf modules first, then modules that import them.
+    _load_order = [
+        'sources', 'intent', 'reasoning', 'quality', 'llm',
+        'executor', 'context', 'problem_context',
+        'verifier', 'search',
+    ]
+    for _mod_name in _load_order:
+        _full_key = f'core.{_mod_name}'
+        _mod_file = os.path.join(_agent_core_path, f'{_mod_name}.py')
+        if _full_key not in sys.modules and os.path.isfile(_mod_file):
+            try:
+                _spec = importlib.util.spec_from_file_location(_full_key, _mod_file)
+                _mod = importlib.util.module_from_spec(_spec)
+                _mod.__package__ = 'core'
+                sys.modules[_full_key] = _mod
+                _spec.loader.exec_module(_mod)
+            except Exception:
+                pass  # Non-fatal — agents fall back gracefully
+
 
 # Use centralized LLM management
 from .llm_manager import get_shared_llm, get_coder_llm

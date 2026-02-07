@@ -11,9 +11,6 @@ Track technical debt here. Review weekly.
 
 ### Integration — Module ↔ Hypothesis Pipeline
 
-[SPC] Only 3/7 endpoints (control_chart, capability_study, analyze_uploaded) create evidence — extend to remaining 4 (upload_data, summary, recommend, chart_types) | Added: 2026-02-06 | Priority: P2
-[AGENTS] Coder agent disabled at router level (url commented out) — has implementation, needs re-enable + project integration | Added: 2026-02-06 | Priority: P2
-[AGENTS] Researcher agent disabled at router level — has full implementation with add_finding_to_problem(), needs re-enable | Added: 2026-02-06 | Priority: P2
 [AGENTS] Writer and Editor agents have no project/evidence integration | Added: 2026-02-06 | Priority: P3
 
 ### Synara Belief Engine
@@ -52,7 +49,9 @@ Track technical debt here. Review weekly.
 [DSW] No integration with Projects/Evidence — analysis results never become hypothesis evidence | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 0eef3fb
 [EXPERIMENTER] Only 2/9 endpoints create evidence — extended to 6/9 (power, design, contour, optimize + existing full, analyze) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 0eef3fb
 [CORE] agents_api.Problem → core.Project Phase 1 dual-write — FK field, sync methods, 6 view write paths, existing data migrated | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: f4fb8db
-[SYNARA] In-memory only → persisted to core.Project.synara_state JSONField. Cache + DB backed, 9 endpoints auto-save | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: (pending)
+[SYNARA] In-memory only → persisted to core.Project.synara_state JSONField. Cache + DB backed, 9 endpoints auto-save | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 841af3d
+[SPC] Extended evidence to 5/7 endpoints (summary, recommend added; upload_data/chart_types are read-only, intentionally excluded) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: (pending)
+[AGENTS] Researcher and Coder agents re-enabled — fixed core.intent namespace collision with importlib shim | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: (pending)
 
 ---
 *Last reviewed: 2026-02-06*
