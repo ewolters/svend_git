@@ -47,7 +47,7 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - `python3 manage.py check` — 0 issues
 - `py_compile` — both files pass
 - End-to-end test: created Problem → added evidence via add_finding_to_problem() → verified 2 evidence items → cleaned up. PASSED.
-**Commit:** (pending)
+**Commit:** 0eef3fb
 
 ---
 
@@ -64,4 +64,23 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - `python3 manage.py check` — 0 issues
 - `py_compile` — passes
 - All 4 endpoints follow the exact same pattern as existing `full_experiment` and `analyze_results`
+**Commit:** 0eef3fb
+
+---
+
+### 2026-02-06 — P1: Phase 1 model migration (Problem → core.Project dual-write)
+**Debt item:** [CORE] agents_api.Problem → core.Project migration
+**Files changed:**
+- `services/svend/web/agents_api/models.py` — added `core_project` FK field to Problem, 4 sync methods: `ensure_core_project()`, `sync_hypothesis_to_core()`, `sync_evidence_to_core()`, `_find_core_hypothesis()`
+- `services/svend/web/agents_api/migrations/0008_add_core_project_fk.py` — migration adding core_project FK column
+- `services/svend/web/agents_api/problem_views.py` — added dual-write calls to 6 write paths: `problems_list()` POST, `add_hypothesis()`, `add_evidence()`, `reject_hypothesis()`, `resolve_problem()`, `generate_hypotheses()`
+- `services/svend/web/agents_api/tests.py` — added `DualWriteMigrationTest` class with 4 tests: ensure_core_project, sync_hypothesis, sync_evidence_with_links, find_core_hypothesis
+**Data migration:**
+- Existing "Employee Turnover" Problem (5 hypotheses, 0 evidence) migrated to core.Project with 5 core.Hypothesis records
+**Verification:**
+- `python3 manage.py check` — 0 issues
+- `py_compile` — all files pass
+- End-to-end test: created Problem → ensure_core_project → sync_hypothesis → sync_evidence → verified EvidenceLink + Bayesian update (0.6 → 0.73) → cleaned up. PASSED.
+- Verified all 6 view write paths have dual-write wired in via `inspect.getsource()`
+- Employee Turnover: core.Project created, 5 hypotheses synced
 **Commit:** (pending)

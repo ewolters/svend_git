@@ -418,3 +418,104 @@ class EvidenceIntegrationTest(TestCase):
         finally:
             if data_path.exists():
                 os.unlink(data_path)
+
+
+class DualWriteMigrationTest(TestCase):
+    """Test Phase 1 dual-write from Problem → core.Project."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@example.com',
+            password='testpass123',
+        )
+
+    def test_ensure_core_project_creates_project(self):
+        """ensure_core_project() should create a core.Project on first call."""
+        from .models import Problem
+        from core.models import Project
+
+        problem = Problem.objects.create(
+            user=self.user,
+            title="Test Problem",
+            effect_description="Something happened",
+            domain="manufacturing",
+        )
+        self.assertIsNone(problem.core_project)
+
+        cp = problem.ensure_core_project()
+        self.assertIsNotNone(cp)
+        self.assertEqual(cp.title, "Test Problem")
+        self.assertEqual(cp.problem_statement, "Something happened")
+        self.assertEqual(cp.domain, "manufacturing")
+
+        # Second call returns same project
+        cp2 = problem.ensure_core_project()
+        self.assertEqual(cp.id, cp2.id)
+
+    def test_sync_hypothesis_to_core(self):
+        """sync_hypothesis_to_core() should create a core.Hypothesis."""
+        from .models import Problem
+        from core.models.hypothesis import Hypothesis
+
+        problem = Problem.objects.create(
+            user=self.user,
+            title="Hyp Test",
+            effect_description="Effect",
+        )
+        hyp = problem.add_hypothesis(
+            cause="Root cause",
+            mechanism="Via X",
+            probability=0.7,
+        )
+        core_hyp = problem.sync_hypothesis_to_core(hyp)
+
+        self.assertEqual(core_hyp.statement, "Root cause")
+        self.assertEqual(core_hyp.mechanism, "Via X")
+        self.assertAlmostEqual(core_hyp.prior_probability, 0.7)
+        self.assertEqual(core_hyp.project_id, problem.core_project_id)
+
+    def test_sync_evidence_to_core_with_links(self):
+        """sync_evidence_to_core() should create Evidence and EvidenceLinks."""
+        from .models import Problem
+        from core.models.hypothesis import Evidence, EvidenceLink
+
+        problem = Problem.objects.create(
+            user=self.user,
+            title="Ev Test",
+            effect_description="Effect",
+        )
+        hyp = problem.add_hypothesis(cause="Cause A", probability=0.5)
+        problem.sync_hypothesis_to_core(hyp)
+
+        ev = problem.add_evidence(
+            summary="Strong correlation found",
+            evidence_type="data_analysis",
+            source="DSW",
+            supports=[hyp["id"]],
+        )
+        core_ev = problem.sync_evidence_to_core(ev)
+
+        self.assertEqual(core_ev.source_type, "analysis")
+        links = EvidenceLink.objects.filter(evidence=core_ev)
+        self.assertEqual(links.count(), 1)
+        self.assertEqual(links.first().direction, "supports")
+
+    def test_find_core_hypothesis(self):
+        """_find_core_hypothesis() should match by statement text."""
+        from .models import Problem
+
+        problem = Problem.objects.create(
+            user=self.user,
+            title="Find Test",
+            effect_description="Effect",
+        )
+        hyp = problem.add_hypothesis(cause="Specific cause", probability=0.5)
+        problem.sync_hypothesis_to_core(hyp)
+
+        found = problem._find_core_hypothesis(hyp["id"])
+        self.assertIsNotNone(found)
+        self.assertEqual(found.statement, "Specific cause")
+
+        # Non-existent ID returns None
+        self.assertIsNone(problem._find_core_hypothesis("nonexistent"))

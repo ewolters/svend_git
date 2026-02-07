@@ -300,6 +300,13 @@ def problems_list(request):
     except Exception as e:
         logger.warning(f"Bias detection failed: {e}")
 
+    # Phase 1 dual-write: create linked core.Project
+    try:
+        core_project = problem.ensure_core_project()
+        logger.info(f"Created core.Project {core_project.id} for Problem {problem.id}")
+    except Exception as e:
+        logger.warning(f"Dual-write failed for Problem {problem.id}: {e}")
+
     # Write initial context file
     write_context_file(problem)
 
@@ -375,6 +382,12 @@ def add_hypothesis(request, problem_id):
         probability=data.get("probability", 0.5),
     )
 
+    # Phase 1 dual-write: sync hypothesis to core.Hypothesis
+    try:
+        problem.sync_hypothesis_to_core(hypothesis)
+    except Exception as e:
+        logger.warning(f"Hypothesis dual-write failed for Problem {problem.id}: {e}")
+
     write_context_file(problem)
 
     return JsonResponse({
@@ -410,6 +423,12 @@ def add_evidence(request, problem_id):
         weakens=data.get("weakens", []),
     )
 
+    # Phase 1 dual-write: sync evidence to core.Evidence + EvidenceLinks
+    try:
+        problem.sync_evidence_to_core(evidence)
+    except Exception as e:
+        logger.warning(f"Evidence dual-write failed for Problem {problem.id}: {e}")
+
     # Update probable causes after new evidence
     problem.update_understanding()
     write_context_file(problem)
@@ -443,6 +462,16 @@ def reject_hypothesis(request, problem_id, hypothesis_id):
         return JsonResponse({"error": "Reason for rejection is required"}, status=400)
 
     problem.reject_hypothesis(hypothesis_id, reason)
+
+    # Phase 1 dual-write: mark core.Hypothesis as rejected
+    try:
+        core_hyp = problem._find_core_hypothesis(hypothesis_id)
+        if core_hyp:
+            core_hyp.status = "rejected"
+            core_hyp.save(update_fields=["status"])
+    except Exception as e:
+        logger.warning(f"Reject dual-write failed for Problem {problem.id}: {e}")
+
     write_context_file(problem)
 
     return JsonResponse({
@@ -476,6 +505,17 @@ def resolve_problem(request, problem_id):
         summary=summary,
         confidence=data.get("confidence", "medium"),
     )
+
+    # Phase 1 dual-write: resolve the core.Project
+    try:
+        if problem.core_project:
+            problem.core_project.resolve(
+                summary=summary,
+                confidence=data.get("confidence", "medium"),
+            )
+    except Exception as e:
+        logger.warning(f"Resolve dual-write failed for Problem {problem.id}: {e}")
+
     write_context_file(problem)
 
     return JsonResponse({
@@ -556,6 +596,11 @@ Focus on testable, specific causes. Vary the probabilities based on how likely e
                     mechanism=h.get("mechanism", ""),
                     probability=h.get("initial_probability", 0.5),
                 )
+                # Phase 1 dual-write
+                try:
+                    problem.sync_hypothesis_to_core(hyp)
+                except Exception as e:
+                    logger.warning(f"LLM hypothesis dual-write failed: {e}")
                 added.append(hyp)
 
             write_context_file(problem)

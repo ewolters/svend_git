@@ -25,7 +25,7 @@ Track technical debt here. Review weekly.
 
 ### Data Model Migration
 
-[CORE] agents_api.Problem (JSON blobs) marked DEPRECATED — migrate to core.Project with proper FK relationships (Hypothesis, Evidence, EvidenceLink models). Migration planned but not executed | Added: 2026-02-06 | Priority: P1
+[CORE] Phase 1 dual-write active — new Problems auto-create core.Project + sync hypotheses/evidence. Phase 2 (remove JSON blobs, full cutover) still pending | Added: 2026-02-06 | Priority: P2
 
 ### Git / Repo Hygiene
 
@@ -50,8 +50,9 @@ Track technical debt here. Review weekly.
 
 [REPO] svend.db tracked in git with user emails | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 9c9396e
 [REPO] .kjerne/snapshots/*.tar.gz binary files in git (4.3MB) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 9c9396e
-[DSW] No integration with Projects/Evidence — analysis results never become hypothesis evidence | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: (pending)
-[EXPERIMENTER] Only 2/9 endpoints create evidence — extended to 6/9 (power, design, contour, optimize + existing full, analyze) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: (pending)
+[DSW] No integration with Projects/Evidence — analysis results never become hypothesis evidence | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 0eef3fb
+[EXPERIMENTER] Only 2/9 endpoints create evidence — extended to 6/9 (power, design, contour, optimize + existing full, analyze) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 0eef3fb
+[CORE] agents_api.Problem → core.Project Phase 1 dual-write — FK field, sync methods, 6 view write paths, existing data migrated | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: (pending)
 
 ---
 *Last reviewed: 2026-02-06*

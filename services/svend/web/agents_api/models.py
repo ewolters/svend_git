@@ -160,6 +160,16 @@ class Problem(models.Model):
         related_name="problems",
     )
 
+    # Phase 1 migration: link to canonical core.Project
+    core_project = models.ForeignKey(
+        'core.Project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='legacy_problems',
+        help_text="Canonical core.Project (Phase 1 migration — dual-write)",
+    )
+
     # Basic info
     title = models.CharField(max_length=255)
     status = models.CharField(
@@ -512,6 +522,145 @@ class Problem(models.Model):
             },
         }
         return guidance.get(self.dmaic_phase, {})
+
+    # =========================================================================
+    # Phase 1 Migration: Dual-write to core.Project
+    # =========================================================================
+
+    def ensure_core_project(self):
+        """Create or return the linked core.Project.
+
+        Called on Problem creation. Maps Problem fields → Project fields.
+        """
+        if self.core_project:
+            return self.core_project
+
+        from core.models import Project
+
+        # Map methodology (Problem uses "none", Project uses "none" — same values except SCIENTIFIC)
+        methodology_map = {
+            "none": "none",
+            "dmaic": "dmaic",
+            "doe": "doe",
+            "pdca": "pdca",
+            "a3": "a3",
+        }
+        mapped_methodology = methodology_map.get(self.methodology, "scientific")
+
+        project = Project.objects.create(
+            user=self.user,
+            title=self.title,
+            problem_statement=self.effect_description,
+            effect_description=self.effect_description,
+            effect_magnitude=self.effect_magnitude,
+            domain=self.domain,
+            stakeholders=self.stakeholders,
+            constraints=self.constraints,
+            can_experiment=self.can_experiment,
+            available_data=self.available_data,
+            methodology=mapped_methodology,
+            status="active",
+        )
+
+        self.core_project = project
+        self.save(update_fields=["core_project"])
+        return project
+
+    def sync_hypothesis_to_core(self, hypothesis_dict: dict):
+        """Sync a JSON hypothesis to a core.Hypothesis FK record.
+
+        Called when a hypothesis is added to the Problem.
+        Returns the core.Hypothesis instance.
+        """
+        project = self.ensure_core_project()
+
+        from core.models.hypothesis import Hypothesis
+
+        core_hyp = Hypothesis.objects.create(
+            project=project,
+            statement=hypothesis_dict["cause"],
+            mechanism=hypothesis_dict.get("mechanism", ""),
+            prior_probability=hypothesis_dict.get("probability", 0.5),
+            current_probability=hypothesis_dict.get("probability", 0.5),
+            created_by=self.user,
+        )
+        return core_hyp
+
+    def sync_evidence_to_core(self, evidence_dict: dict):
+        """Sync a JSON evidence entry to core.Evidence + EvidenceLinks.
+
+        Called when evidence is added to the Problem.
+        Creates the Evidence record and links it to relevant hypotheses.
+        """
+        project = self.ensure_core_project()
+
+        from core.models.hypothesis import Evidence, EvidenceLink, Hypothesis
+
+        # Map evidence types
+        source_map = {
+            "observation": "observation",
+            "research": "research",
+            "data_analysis": "analysis",
+            "experiment": "experiment",
+            "calculation": "calculation",
+        }
+        source_type = source_map.get(evidence_dict.get("type", "observation"), "observation")
+
+        core_evidence = Evidence.objects.create(
+            summary=evidence_dict["summary"],
+            source_type=source_type,
+            source_description=evidence_dict.get("source", ""),
+            confidence=0.8,  # Default; Problem model doesn't track confidence
+            created_by=self.user,
+        )
+
+        # Link to hypotheses that this evidence supports/weakens
+        for hyp_id in evidence_dict.get("supports", []):
+            core_hyp = self._find_core_hypothesis(hyp_id)
+            if core_hyp:
+                link = EvidenceLink.objects.create(
+                    hypothesis=core_hyp,
+                    evidence=core_evidence,
+                    likelihood_ratio=2.0,  # Moderate support (matches _update_probabilities)
+                    reasoning=f"Evidence supports this hypothesis (from Problem sync)",
+                    is_manual=False,
+                )
+                core_hyp.apply_evidence(link)
+
+        for hyp_id in evidence_dict.get("weakens", []):
+            core_hyp = self._find_core_hypothesis(hyp_id)
+            if core_hyp:
+                link = EvidenceLink.objects.create(
+                    hypothesis=core_hyp,
+                    evidence=core_evidence,
+                    likelihood_ratio=0.5,  # Moderate opposition (matches _update_probabilities)
+                    reasoning=f"Evidence opposes this hypothesis (from Problem sync)",
+                    is_manual=False,
+                )
+                core_hyp.apply_evidence(link)
+
+        return core_evidence
+
+    def _find_core_hypothesis(self, json_hyp_id: str):
+        """Find a core.Hypothesis that matches a JSON hypothesis ID.
+
+        Uses the hypothesis statement to match, since JSON IDs are short UUIDs
+        that don't correspond to core.Hypothesis UUIDs.
+        """
+        if not self.core_project:
+            return None
+
+        from core.models.hypothesis import Hypothesis
+
+        # Find the JSON hypothesis to get its statement
+        for hyp in self.hypotheses:
+            if hyp["id"] == json_hyp_id:
+                # Match by statement text
+                return Hypothesis.objects.filter(
+                    project=self.core_project,
+                    statement=hyp["cause"],
+                ).first()
+        return None
 
 
 class CacheEntry(models.Model):
