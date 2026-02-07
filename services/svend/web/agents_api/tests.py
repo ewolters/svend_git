@@ -1127,3 +1127,200 @@ class DSLFormatTest(unittest.TestCase):
         text = format_hypothesis(result, style="code")
         self.assertIn("data['x']", text)
         self.assertIn(">", text)
+
+
+# =============================================================================
+# Synara Fallacy Detection Tests
+# =============================================================================
+
+class FallacyDetectionTest(unittest.TestCase):
+    """Test logic engine fallacy detection patterns."""
+
+    def setUp(self):
+        from .synara.logic_engine import LogicEngine
+        self.engine = LogicEngine()
+
+    def _get_fallacy_types(self, text):
+        """Parse text, validate, return set of fallacy type values."""
+        hypothesis = self.engine.parse(text)
+        fallacies = self.engine.validate(hypothesis)
+        return {f.type.value for f in fallacies}
+
+    # --- Hasty generalization ---
+
+    def test_hasty_generalization_always_without_domain(self):
+        """ALWAYS [x] > 10 without WHEN clause => hasty generalization."""
+        types = self._get_fallacy_types("ALWAYS [x] > 10")
+        self.assertIn("hasty_generalization", types)
+
+    def test_hasty_generalization_never_without_domain(self):
+        """NEVER [x] > 10 without WHEN clause => hasty generalization."""
+        types = self._get_fallacy_types("NEVER [x] > 10")
+        self.assertIn("hasty_generalization", types)
+
+    def test_no_hasty_gen_with_when_clause(self):
+        """ALWAYS [x] > 10 WHEN [y] > 0 has domain restriction => no fallacy."""
+        types = self._get_fallacy_types("ALWAYS [x] > 10 WHEN [y] > 0")
+        self.assertNotIn("hasty_generalization", types)
+
+    def test_no_hasty_gen_for_bare_comparison(self):
+        """Bare comparison [x] > 10 without quantifier => no fallacy."""
+        types = self._get_fallacy_types("[x] > 10")
+        self.assertNotIn("hasty_generalization", types)
+
+    # --- False dichotomy ---
+
+    def test_false_dichotomy_xor_two_options(self):
+        """XOR with exactly 2 options => false dichotomy."""
+        from .synara.dsl import DSLParser, LogicalExpr, LogicalOp, Comparison, Variable, Literal, ComparisonOp
+        from .synara.logic_engine import LogicEngine, FallacyType
+
+        # Build an XOR AST manually (DSL parser may not support XOR syntax)
+        xor_expr = LogicalExpr(
+            op=LogicalOp.XOR,
+            operands=[
+                Comparison(Variable("x"), ComparisonOp.EQ, Literal("a")),
+                Comparison(Variable("x"), ComparisonOp.EQ, Literal("b")),
+            ]
+        )
+        engine = LogicEngine()
+        fallacies = engine._check_fallacy_patterns(xor_expr)
+        types = {f.type for f in fallacies}
+        self.assertIn(FallacyType.FALSE_DICHOTOMY, types)
+
+    def test_false_dichotomy_overlapping_never(self):
+        """Two NEVER constraints on same variable => false dichotomy."""
+        from .synara.dsl import Quantified, Quantifier, Comparison, Variable, Literal, ComparisonOp, LogicalExpr, LogicalOp
+        from .synara.logic_engine import LogicEngine, FallacyType
+
+        # NEVER [x] > 10 AND NEVER [x] < 5
+        ast = LogicalExpr(
+            op=LogicalOp.AND,
+            operands=[
+                Quantified(
+                    quantifier=Quantifier.NEVER,
+                    body=Comparison(Variable("x"), ComparisonOp.GT, Literal(10)),
+                ),
+                Quantified(
+                    quantifier=Quantifier.NEVER,
+                    body=Comparison(Variable("x"), ComparisonOp.LT, Literal(5)),
+                ),
+            ]
+        )
+        engine = LogicEngine()
+        fallacies = engine._check_fallacy_patterns(ast)
+        types = {f.type for f in fallacies}
+        self.assertIn(FallacyType.FALSE_DICHOTOMY, types)
+
+    # --- Overgeneralization ---
+
+    def test_overgeneralization_nested_quantifiers(self):
+        """Nested quantifiers => overgeneralization."""
+        from .synara.dsl import Quantified, Quantifier, Comparison, Variable, Literal, ComparisonOp
+        from .synara.logic_engine import LogicEngine, FallacyType
+
+        ast = Quantified(
+            quantifier=Quantifier.ALWAYS,
+            body=Quantified(
+                quantifier=Quantifier.ALL,
+                body=Comparison(Variable("x"), ComparisonOp.GT, Literal(0)),
+            ),
+        )
+        engine = LogicEngine()
+        fallacies = engine._check_fallacy_patterns(ast)
+        types = {f.type for f in fallacies}
+        self.assertIn(FallacyType.OVERGENERALIZATION, types)
+
+    # --- Affirming the consequent ---
+
+    def test_affirming_consequent_shared_vars(self):
+        """Two implications with shared consequent/antecedent vars => warning."""
+        from .synara.dsl import Implication, Comparison, Variable, Literal, ComparisonOp, LogicalExpr, LogicalOp
+        from .synara.logic_engine import LogicEngine, FallacyType
+
+        # if [rain] > 0 then [wet] = 1  AND  if [wet] = 1 then [slippery] = 1
+        # 'wet' is consequent in first, antecedent in second
+        ast = LogicalExpr(
+            op=LogicalOp.AND,
+            operands=[
+                Implication(
+                    antecedent=Comparison(Variable("rain"), ComparisonOp.GT, Literal(0)),
+                    consequent=Comparison(Variable("wet"), ComparisonOp.EQ, Literal(1)),
+                ),
+                Implication(
+                    antecedent=Comparison(Variable("wet"), ComparisonOp.EQ, Literal(1)),
+                    consequent=Comparison(Variable("slippery"), ComparisonOp.EQ, Literal(1)),
+                ),
+            ]
+        )
+        engine = LogicEngine()
+        fallacies = engine._check_fallacy_patterns(ast)
+        types = {f.type for f in fallacies}
+        self.assertIn(FallacyType.AFFIRMING_CONSEQUENT, types)
+
+    # --- Denying the antecedent ---
+
+    def test_denying_antecedent(self):
+        """Implication + negation of antecedent => denying antecedent."""
+        from .synara.dsl import Implication, Comparison, Variable, Literal, ComparisonOp, LogicalExpr, LogicalOp
+        from .synara.logic_engine import LogicEngine, FallacyType
+
+        # if [rain] > 0 then [wet] = 1  AND  NOT [rain] > 0
+        ast = LogicalExpr(
+            op=LogicalOp.AND,
+            operands=[
+                Implication(
+                    antecedent=Comparison(Variable("rain"), ComparisonOp.GT, Literal(0)),
+                    consequent=Comparison(Variable("wet"), ComparisonOp.EQ, Literal(1)),
+                ),
+                LogicalExpr(
+                    op=LogicalOp.NOT,
+                    operands=[Comparison(Variable("rain"), ComparisonOp.GT, Literal(0))],
+                ),
+            ]
+        )
+        engine = LogicEngine()
+        fallacies = engine._check_fallacy_patterns(ast)
+        types = {f.type for f in fallacies}
+        self.assertIn(FallacyType.DENYING_ANTECEDENT, types)
+
+    # --- Helper method tests ---
+
+    def test_collect_nodes(self):
+        """_collect_nodes finds all nodes of a given type."""
+        from .synara.dsl import Comparison, Variable, Literal, ComparisonOp, LogicalExpr, LogicalOp
+        ast = LogicalExpr(
+            op=LogicalOp.AND,
+            operands=[
+                Comparison(Variable("x"), ComparisonOp.GT, Literal(1)),
+                Comparison(Variable("y"), ComparisonOp.LT, Literal(2)),
+            ]
+        )
+        comps = self.engine._collect_nodes(ast, Comparison)
+        self.assertEqual(len(comps), 2)
+
+    def test_get_variables(self):
+        """_get_variables extracts variable names from AST."""
+        from .synara.dsl import Comparison, Variable, Literal, ComparisonOp
+        ast = Comparison(Variable("temperature"), ComparisonOp.GT, Literal(30))
+        vars = self.engine._get_variables(ast)
+        self.assertEqual(vars, {"temperature"})
+
+    # --- validate_hypothesis convenience function ---
+
+    def test_validate_hypothesis_clean(self):
+        """validate_hypothesis returns valid=True for clean hypothesis."""
+        from .synara.logic_engine import validate_hypothesis
+        result = validate_hypothesis("[x] > 10")
+        self.assertTrue(result["valid"])
+        self.assertIn("variables", result)
+        self.assertIn("x", result["variables"])
+
+    def test_validate_hypothesis_with_fallacy(self):
+        """validate_hypothesis detects fallacies in universal claims."""
+        from .synara.logic_engine import validate_hypothesis
+        result = validate_hypothesis("ALWAYS [x] > 10")
+        # Should be valid (fallacies are warnings, not errors) but have fallacies
+        self.assertTrue(result["valid"])
+        self.assertTrue(len(result["fallacies"]) > 0)
+        self.assertEqual(result["fallacies"][0]["type"], "hasty_generalization")

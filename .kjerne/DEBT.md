@@ -15,8 +15,6 @@ Track technical debt here. Review weekly.
 
 ### Synara Belief Engine
 
-[SYNARA] Fallacy detection mostly stubbed — _check_fallacy_patterns() returns empty list. Affirming consequent, denying antecedent, false dichotomy undetected | Added: 2026-02-06 | Priority: P3
-
 ### Data Model Migration
 
 [CORE] Phase 1 dual-write active — new Problems auto-create core.Project + sync hypotheses/evidence. Phase 2 (remove JSON blobs, full cutover) still pending | Added: 2026-02-06 | Priority: P2
@@ -52,6 +50,7 @@ Track technical debt here. Review weekly.
 [SYNARA] DSL parser and belief engine test coverage — 46 tests across kernel, belief engine, and DSL parser | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: afd60e0
 [SYNARA] LLM interface wired — 4 server-side endpoints calling Claude via LLMManager, graceful 503 fallback | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: fd16c67
 [CORE] Researcher hallucination detection — windowed fuzzy matching, bigram overlap, smooth confidence curve | Added: 2024-01-27 | Resolved: 2026-02-06 | Commit: 04fae5c
+[SYNARA] Fallacy detection — 5 pattern checks (affirming consequent, denying antecedent, false dichotomy, hasty generalization, overgeneralization) + 13 tests | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 7c03824
 
 ---
 *Last reviewed: 2026-02-06*

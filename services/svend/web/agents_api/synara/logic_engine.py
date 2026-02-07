@@ -589,13 +589,192 @@ class LogicEngine:
         return False
 
     def _check_fallacy_patterns(self, ast: Expression) -> list[Fallacy]:
-        """Check for common fallacy patterns."""
+        """Check for common fallacy patterns in the AST.
+
+        Detects:
+        1. Affirming the consequent: P→Q, Q ∴ P  (converse error)
+        2. Denying the antecedent: P→Q, ¬P ∴ ¬Q (inverse error)
+        3. False dichotomy: binary quantifiers on continuous variables
+        4. Hasty generalization: universal quantifier (ALWAYS/NEVER/ALL/NONE)
+           on a single comparison without domain restriction
+        5. Overgeneralization: nested universal quantifiers
+        """
         fallacies = []
 
-        # More fallacy detection could be added here
-        # These require understanding the semantic content, so may need LLM
+        # Collect all implications and quantified statements
+        implications = self._collect_nodes(ast, Implication)
+        quantifieds = self._collect_nodes(ast, Quantified)
+
+        # --- 1. Affirming the consequent ---
+        # Detectable when the same variable appears as consequent in one
+        # implication and as the sole antecedent in another.
+        # e.g. "if [rain] > 0 then [wet] = 1" + "[wet] = 1" (bare assertion)
+        # This is a structural warning about the implication direction.
+        if len(implications) >= 2:
+            consequent_vars = set()
+            antecedent_vars = set()
+            for imp in implications:
+                consequent_vars.update(self._get_variables(imp.consequent))
+                antecedent_vars.update(self._get_variables(imp.antecedent))
+            # If a consequent variable is used as a standalone antecedent
+            # in another implication, warn about directionality
+            shared = consequent_vars & antecedent_vars
+            if shared:
+                fallacies.append(Fallacy(
+                    type=FallacyType.AFFIRMING_CONSEQUENT,
+                    description=(
+                        f"Variables {shared} appear as both consequent and antecedent "
+                        f"across implications — risk of affirming the consequent "
+                        f"(P→Q, Q ∴ P is invalid)"
+                    ),
+                    location="implication chain",
+                    severity="warning",
+                    suggestion="Verify causal direction: does the consequent truly cause the antecedent?",
+                ))
+
+        # --- 2. Denying the antecedent ---
+        # Detectable when an implication's antecedent is negated elsewhere.
+        # e.g. "if [rain] > 0 then [wet] = 1" combined with "NOT [rain] > 0"
+        for imp in implications:
+            # Check if the antecedent is explicitly negated in the AST
+            if self._contains_negation_of(ast, imp.antecedent):
+                fallacies.append(Fallacy(
+                    type=FallacyType.DENYING_ANTECEDENT,
+                    description=(
+                        f"The antecedent of an implication is negated — "
+                        f"'if P then Q; not P' does not entail 'not Q'"
+                    ),
+                    location="implication + negation",
+                    severity="warning",
+                    suggestion="The consequent may still be true for other reasons.",
+                ))
+
+        # --- 3. False dichotomy ---
+        # Detected when a hypothesis uses only = comparisons on what looks
+        # like a continuous variable, or uses XOR with exactly 2 options.
+        logical_exprs = self._collect_nodes(ast, LogicalExpr)
+        for expr in logical_exprs:
+            if expr.op == LogicalOp.XOR and len(expr.operands) == 2:
+                # Binary XOR — might be a false dichotomy
+                fallacies.append(Fallacy(
+                    type=FallacyType.FALSE_DICHOTOMY,
+                    description=(
+                        "XOR with exactly 2 options — there may be additional "
+                        "possibilities not considered"
+                    ),
+                    location="logical expression",
+                    severity="warning",
+                    suggestion="Consider whether a third option exists.",
+                ))
+
+        # Check for "NEVER X AND NEVER NOT-X" pattern (exhaustive negation)
+        never_quants = [q for q in quantifieds
+                        if q.quantifier in (Quantifier.NEVER, Quantifier.NONE)]
+        if len(never_quants) >= 2:
+            # Check if two NEVER quantifiers cover complementary conditions
+            # on the same variable
+            for i, q1 in enumerate(never_quants):
+                q1_vars = self._get_variables(q1.body)
+                for q2 in never_quants[i + 1:]:
+                    q2_vars = self._get_variables(q2.body)
+                    if q1_vars & q2_vars:
+                        fallacies.append(Fallacy(
+                            type=FallacyType.FALSE_DICHOTOMY,
+                            description=(
+                                f"Multiple NEVER constraints on overlapping "
+                                f"variables {q1_vars & q2_vars} — may create "
+                                f"an impossible condition (false dichotomy)"
+                            ),
+                            location="quantifier pair",
+                            severity="warning",
+                            suggestion="Check if these constraints can be simultaneously satisfied.",
+                        ))
+
+        # --- 4. Hasty generalization ---
+        # Universal quantifier without domain restriction on a bare comparison
+        for q in quantifieds:
+            if q.quantifier in (Quantifier.ALWAYS, Quantifier.NEVER,
+                                Quantifier.ALL, Quantifier.NONE):
+                if q.domain is None and isinstance(q.body, Comparison):
+                    fallacies.append(Fallacy(
+                        type=FallacyType.HASTY_GENERALIZATION,
+                        description=(
+                            f"Universal claim ({q.quantifier.value.upper()}) "
+                            f"without domain restriction (WHEN clause) — "
+                            f"may not hold across all conditions"
+                        ),
+                        location="quantifier",
+                        severity="warning",
+                        suggestion="Add a WHEN clause to restrict the domain.",
+                    ))
+
+        # --- 5. Overgeneralization: nested quantifiers ---
+        for q in quantifieds:
+            if isinstance(q.body, Quantified):
+                fallacies.append(Fallacy(
+                    type=FallacyType.OVERGENERALIZATION,
+                    description="Nested quantifiers detected — hypothesis may be overly general",
+                    location="nested quantifier",
+                    severity="warning",
+                    suggestion="Consider splitting into separate, simpler hypotheses.",
+                ))
 
         return fallacies
+
+    def _collect_nodes(self, ast: Expression, node_type: type) -> list:
+        """Recursively collect all nodes of a given type from the AST."""
+        found = []
+        if isinstance(ast, node_type):
+            found.append(ast)
+        if isinstance(ast, LogicalExpr):
+            for op in ast.operands:
+                found.extend(self._collect_nodes(op, node_type))
+        elif isinstance(ast, Implication):
+            found.extend(self._collect_nodes(ast.antecedent, node_type))
+            found.extend(self._collect_nodes(ast.consequent, node_type))
+        elif isinstance(ast, Quantified):
+            found.extend(self._collect_nodes(ast.body, node_type))
+            if ast.domain:
+                found.extend(self._collect_nodes(ast.domain.condition, node_type))
+        return found
+
+    def _get_variables(self, ast: Expression) -> set:
+        """Extract all variable names from an AST node."""
+        if isinstance(ast, Variable):
+            return {ast.name}
+        elif isinstance(ast, Comparison):
+            return self._get_variables(ast.left) | self._get_variables(ast.right)
+        elif isinstance(ast, LogicalExpr):
+            result = set()
+            for op in ast.operands:
+                result |= self._get_variables(op)
+            return result
+        elif isinstance(ast, Implication):
+            return self._get_variables(ast.antecedent) | self._get_variables(ast.consequent)
+        elif isinstance(ast, Quantified):
+            result = self._get_variables(ast.body)
+            if ast.over:
+                result.add(ast.over.name)
+            return result
+        return set()
+
+    def _contains_negation_of(self, ast: Expression, target: Expression) -> bool:
+        """Check if the AST contains a NOT wrapping something similar to target."""
+        if isinstance(ast, LogicalExpr) and ast.op == LogicalOp.NOT:
+            # Check if the negated operand shares variables with target
+            neg_vars = self._get_variables(ast.operands[0])
+            target_vars = self._get_variables(target)
+            if neg_vars and neg_vars == target_vars:
+                return True
+        # Recurse
+        if isinstance(ast, LogicalExpr):
+            return any(self._contains_negation_of(op, target) for op in ast.operands)
+        elif isinstance(ast, Implication):
+            return (self._contains_negation_of(ast.antecedent, target) or
+                    self._contains_negation_of(ast.consequent, target))
+        elif isinstance(ast, Quantified):
+            return self._contains_negation_of(ast.body, target)
+        return False
 
 
 # =============================================================================

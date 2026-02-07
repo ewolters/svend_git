@@ -183,3 +183,22 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - Confidence curve: monotonically increasing, properly scaled
 - Claim validation: "CRISPR enables precise gene editing" correctly supported with confidence 0.60
 **Commit:** 04fae5c
+
+---
+
+### 2026-02-06 — P3: Synara fallacy detection — implement pattern checks
+**Debt item:** [SYNARA] Fallacy detection mostly stubbed
+**Files changed:**
+- `services/svend/web/agents_api/synara/logic_engine.py` — replaced `_check_fallacy_patterns()` stub (returned `[]`) with 5 structural pattern detectors:
+  1. **Affirming the consequent**: shared variables between consequent/antecedent across multiple implications
+  2. **Denying the antecedent**: negation of an implication's antecedent found in AST
+  3. **False dichotomy**: XOR with exactly 2 options, or overlapping NEVER constraints on same variable
+  4. **Hasty generalization**: universal quantifier (ALWAYS/NEVER) without WHEN domain restriction
+  5. **Overgeneralization**: nested quantifiers
+- Added 3 helper methods: `_collect_nodes()`, `_get_variables()`, `_contains_negation_of()`
+- `services/svend/web/agents_api/tests.py` — added `FallacyDetectionTest` class with 13 tests covering all 5 fallacy types, helper methods, and `validate_hypothesis()` convenience function
+**Verification:**
+- `python3 manage.py check` — 0 issues
+- All 13 fallacy detection tests pass
+- Django shell verification: hasty generalization, XOR false dichotomy, WHEN clause suppression all correct
+**Commit:** 7c03824
