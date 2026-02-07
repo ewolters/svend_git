@@ -219,4 +219,34 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - `python3 manage.py check` — 0 issues
 - `py_compile` — passes
 - End-to-end: Wilcoxon p=0.0020, Friedman p=0.0003, Spearman rho=0.95 — all correct
-**Commit:** bb02440
+**Commit:** bfe3956
+
+---
+
+### 2026-02-06 — P2: Phase 2 model cutover — read paths from core.Project FKs
+**Debt item:** [CORE] Phase 2 model cutover
+**Files changed:**
+- `services/svend/web/agents_api/models.py` — added 6 reader methods to Problem:
+  - `get_hypotheses()` → reads from core.Hypothesis FKs, falls back to JSON blob
+  - `get_evidence()` → reads from core.Evidence via EvidenceLinks, falls back to JSON blob
+  - `get_dead_ends()` → reads from core.Hypothesis status=rejected, falls back to JSON blob
+  - `get_probable_causes()` → reads from top core.Hypothesis by probability, falls back to JSON blob
+  - `get_hypothesis_count()` → ORM count or JSON len
+  - `get_evidence_count()` → ORM count or JSON len
+- `services/svend/web/agents_api/problem_views.py` — switched 8 read paths:
+  - `problem_to_dict()` — hypotheses, evidence, dead_ends, probable_causes
+  - `write_context_file()` — hypotheses, evidence, dead_ends, probable_causes
+  - `problems_list()` GET — hypothesis_count, evidence_count, top_cause
+  - `add_evidence()` response — updated_hypotheses, probable_causes
+  - `reject_hypothesis()` response — dead_ends, probable_causes
+  - `generate_hypotheses()` — prompt context + response
+- `services/svend/web/agents_api/views.py` — `get_problem_context_for_agent()` switched to `get_hypotheses()`
+**Design:** All methods read from core.Project FKs when `core_project` FK exists, falling back to JSON blobs when not. API response shape unchanged — templates require no modifications. Fields without core equivalents (`key_uncertainties`, `recommended_next_steps`, `bias_warnings`) stay on Problem.
+**Verification:**
+- `python3 manage.py check` — 0 issues
+- `py_compile` — all 3 files pass
+- problem_to_dict(): 5 hypotheses from core FKs, correct dict shape (id, cause, probability, status, etc.)
+- write_context_file(): context JSON has 5 hypotheses + 3 probable causes from core FKs
+- get_problem_context_for_agent(): hypothesis text from core.Hypothesis
+- Fallback: clearing core_project falls back to JSON blob
+**Commit:** 98a1628

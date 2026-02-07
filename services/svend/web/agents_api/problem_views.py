@@ -75,18 +75,18 @@ def write_context_file(problem: Problem) -> Path:
             "available_data": problem.available_data,
         },
 
-        # Current hypotheses with probabilities
-        "hypotheses": problem.hypotheses,
+        # Current hypotheses with probabilities (Phase 2: core FKs)
+        "hypotheses": problem.get_hypotheses(),
 
-        # Evidence gathered
-        "evidence": problem.evidence,
+        # Evidence gathered (Phase 2: core FKs)
+        "evidence": problem.get_evidence(),
 
-        # What we've ruled out
-        "dead_ends": problem.dead_ends,
+        # What we've ruled out (Phase 2: core FKs)
+        "dead_ends": problem.get_dead_ends(),
 
         # Current understanding
         "understanding": {
-            "probable_causes": problem.probable_causes,
+            "probable_causes": problem.get_probable_causes(),
             "key_uncertainties": problem.key_uncertainties,
             "recommended_next_steps": problem.recommended_next_steps,
         },
@@ -188,13 +188,13 @@ def problem_to_dict(problem: Problem) -> dict:
             "available_data": problem.available_data,
         },
 
-        # Living state
-        "hypotheses": problem.hypotheses,
-        "evidence": problem.evidence,
-        "dead_ends": problem.dead_ends,
+        # Living state (Phase 2: read from core.Project FKs when available)
+        "hypotheses": problem.get_hypotheses(),
+        "evidence": problem.get_evidence(),
+        "dead_ends": problem.get_dead_ends(),
 
         # Understanding
-        "probable_causes": problem.probable_causes,
+        "probable_causes": problem.get_probable_causes(),
         "key_uncertainties": problem.key_uncertainties,
         "recommended_next_steps": problem.recommended_next_steps,
 
@@ -239,9 +239,9 @@ def problems_list(request):
                     "title": p.title,
                     "status": p.status,
                     "effect_summary": p.effect_description[:100] + "..." if len(p.effect_description) > 100 else p.effect_description,
-                    "hypothesis_count": len(p.hypotheses),
-                    "evidence_count": len(p.evidence),
-                    "top_cause": p.probable_causes[0] if p.probable_causes else None,
+                    "hypothesis_count": p.get_hypothesis_count(),
+                    "evidence_count": p.get_evidence_count(),
+                    "top_cause": p.get_probable_causes()[0] if p.get_probable_causes() else None,
                     "updated_at": p.updated_at.isoformat(),
                 }
                 for p in problems
@@ -436,8 +436,8 @@ def add_evidence(request, problem_id):
     return JsonResponse({
         "success": True,
         "evidence": evidence,
-        "updated_hypotheses": problem.hypotheses,
-        "probable_causes": problem.probable_causes,
+        "updated_hypotheses": problem.get_hypotheses(),
+        "probable_causes": problem.get_probable_causes(),
     })
 
 
@@ -476,8 +476,8 @@ def reject_hypothesis(request, problem_id, hypothesis_id):
 
     return JsonResponse({
         "success": True,
-        "dead_ends": problem.dead_ends,
-        "probable_causes": problem.probable_causes,
+        "dead_ends": problem.get_dead_ends(),
+        "probable_causes": problem.get_probable_causes(),
     })
 
 
@@ -571,7 +571,7 @@ Available data: {problem.available_data or 'None specified'}
 Can experiment: {'Yes' if problem.can_experiment else 'No'}
 
 EXISTING HYPOTHESES:
-{json.dumps(problem.hypotheses, indent=2) if problem.hypotheses else 'None yet'}
+{json.dumps(problem.get_hypotheses(), indent=2) if problem.get_hypotheses() else 'None yet'}
 
 Generate hypotheses as a JSON array:
 [
@@ -608,7 +608,7 @@ Focus on testable, specific causes. Vary the probabilities based on how likely e
             return JsonResponse({
                 "success": True,
                 "generated": added,
-                "all_hypotheses": problem.hypotheses,
+                "all_hypotheses": problem.get_hypotheses(),
             })
 
         return JsonResponse({"error": "Failed to parse LLM response"}, status=500)

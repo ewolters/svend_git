@@ -13,11 +13,9 @@ Track technical debt here. Review weekly.
 
 [AGENTS] Writer and Editor agents have no project/evidence integration | Added: 2026-02-06 | Priority: P3
 
-### Synara Belief Engine
-
 ### Data Model Migration
 
-[CORE] Phase 1 dual-write active — new Problems auto-create core.Project + sync hypotheses/evidence. Phase 2 (remove JSON blobs, full cutover) still pending | Added: 2026-02-06 | Priority: P2
+[CORE] Phase 3 pending — remove JSON blobs entirely, drop Problem.hypotheses/evidence/dead_ends/probable_causes fields. Blocked until all Problems have core_project FK | Added: 2026-02-06 | Priority: P3
 
 ### Git / Repo Hygiene
 
@@ -50,7 +48,8 @@ Track technical debt here. Review weekly.
 [SYNARA] LLM interface wired — 4 server-side endpoints calling Claude via LLMManager, graceful 503 fallback | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: fd16c67
 [CORE] Researcher hallucination detection — windowed fuzzy matching, bigram overlap, smooth confidence curve | Added: 2024-01-27 | Resolved: 2026-02-06 | Commit: 04fae5c
 [SYNARA] Fallacy detection — 5 pattern checks (affirming consequent, denying antecedent, false dichotomy, hasty generalization, overgeneralization) + 13 tests | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 0ba85e8
-[DSW] Non-parametric battery extended — Wilcoxon signed-rank, Friedman test, Spearman correlation with p-values/CIs | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: bb02440
+[DSW] Non-parametric battery extended — Wilcoxon signed-rank, Friedman test, Spearman correlation with p-values/CIs | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: bfe3956
+[CORE] Phase 2 model cutover — all read paths now use core.Project FKs with JSON fallback. 8 read paths switched, API shape unchanged | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 98a1628
 
 ---
 *Last reviewed: 2026-02-06*

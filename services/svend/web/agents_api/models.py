@@ -524,6 +524,98 @@ class Problem(models.Model):
         return guidance.get(self.dmaic_phase, {})
 
     # =========================================================================
+    # Phase 2 Migration: Read from core.Project FKs
+    # =========================================================================
+
+    def get_hypotheses(self) -> list[dict]:
+        """Read hypotheses from core.Project FKs, fall back to JSON blob."""
+        if self.core_project:
+            return [
+                {
+                    "id": str(h.id)[:8],
+                    "cause": h.statement,
+                    "mechanism": h.mechanism,
+                    "probability": h.current_probability,
+                    "testable": h.is_testable,
+                    "evidence_for": [str(e.evidence_id)[:8] for e in h.supporting_evidence],
+                    "evidence_against": [str(e.evidence_id)[:8] for e in h.opposing_evidence],
+                    "status": h.status,
+                    "created_at": h.created_at.isoformat(),
+                }
+                for h in self.core_project.hypotheses.all()
+            ]
+        return self.hypotheses
+
+    def get_evidence(self) -> list[dict]:
+        """Read evidence from core.Evidence via EvidenceLinks, fall back to JSON blob."""
+        if self.core_project:
+            from core.models.hypothesis import Evidence, EvidenceLink
+            # Get distinct evidence linked to any hypothesis in this project
+            evidence_ids = EvidenceLink.objects.filter(
+                hypothesis__project=self.core_project
+            ).values_list("evidence_id", flat=True).distinct()
+            evidences = Evidence.objects.filter(id__in=evidence_ids).order_by("-created_at")
+            return [
+                {
+                    "id": str(e.id)[:8],
+                    "type": e.source_type,
+                    "summary": e.summary,
+                    "source": e.source_description,
+                    "supports": [
+                        str(link.hypothesis_id)[:8]
+                        for link in e.hypothesis_links.filter(likelihood_ratio__gt=1.0)
+                    ],
+                    "weakens": [
+                        str(link.hypothesis_id)[:8]
+                        for link in e.hypothesis_links.filter(likelihood_ratio__lt=1.0)
+                    ],
+                    "timestamp": e.created_at.isoformat(),
+                }
+                for e in evidences
+            ]
+        return self.evidence
+
+    def get_dead_ends(self) -> list[dict]:
+        """Read dead ends from core.Hypothesis with status=rejected, fall back to JSON blob."""
+        if self.core_project:
+            rejected = self.core_project.hypotheses.filter(status="rejected")
+            return [
+                {
+                    "hypothesis_id": str(h.id)[:8],
+                    "hypothesis_text": h.statement,
+                    "why_rejected": h.mechanism or "Rejected based on evidence",
+                    "timestamp": h.updated_at.isoformat(),
+                }
+                for h in rejected
+            ]
+        return self.dead_ends
+
+    def get_probable_causes(self) -> list[dict]:
+        """Read probable causes from core.Hypothesis by probability, fall back to JSON blob."""
+        if self.core_project:
+            active = self.core_project.hypotheses.filter(
+                status__in=["active", "uncertain"]
+            ).order_by("-current_probability")[:3]
+            return [
+                {"cause": h.statement, "probability": h.current_probability}
+                for h in active
+                if h.current_probability > 0.2
+            ]
+        return self.probable_causes
+
+    def get_hypothesis_count(self) -> int:
+        """Count hypotheses from core.Project or JSON blob."""
+        if self.core_project:
+            return self.core_project.hypotheses.count()
+        return len(self.hypotheses)
+
+    def get_evidence_count(self) -> int:
+        """Count evidence from core.Project or JSON blob."""
+        if self.core_project:
+            return self.core_project.evidence_count
+        return len(self.evidence)
+
+    # =========================================================================
     # Phase 1 Migration: Dual-write to core.Project
     # =========================================================================
 

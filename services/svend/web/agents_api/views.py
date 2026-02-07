@@ -82,10 +82,11 @@ def get_problem_context_for_agent(user, problem_id: str) -> str:
         if problem.domain:
             context_parts.append(f"**Domain:** {problem.domain}")
 
-        if problem.hypotheses:
+        hypotheses = problem.get_hypotheses()
+        if hypotheses:
             context_parts.append("")
             context_parts.append("**Current hypotheses:**")
-            for h in problem.hypotheses[:5]:  # Top 5
+            for h in hypotheses[:5]:  # Top 5
                 context_parts.append(f"- {h.get('cause', '')} ({h.get('probability', 0.5)*100:.0f}% likely)")
 
         if problem.key_uncertainties:
