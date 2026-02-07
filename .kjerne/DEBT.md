@@ -31,7 +31,6 @@ Track technical debt here. Review weekly.
 ### Competitive Gaps (vs Minitab/JMP)
 
 [DSW] No mixed-effects / multi-level modeling | Added: 2026-02-06 | Priority: P3
-[DSW] Non-parametric battery limited to Mann-Whitney + Kruskal — missing Friedman, Wilcoxon signed-rank, Spearman | Added: 2026-02-06 | Priority: P3
 [DOE] No split-plot or mixture designs | Added: 2026-02-06 | Priority: P3
 [DOE] Single response optimization only — no multi-response | Added: 2026-02-06 | Priority: P3
 [SPC] No multivariate control charts | Added: 2026-02-06 | Priority: P3
@@ -50,7 +49,8 @@ Track technical debt here. Review weekly.
 [SYNARA] DSL parser and belief engine test coverage — 46 tests across kernel, belief engine, and DSL parser | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: afd60e0
 [SYNARA] LLM interface wired — 4 server-side endpoints calling Claude via LLMManager, graceful 503 fallback | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: fd16c67
 [CORE] Researcher hallucination detection — windowed fuzzy matching, bigram overlap, smooth confidence curve | Added: 2024-01-27 | Resolved: 2026-02-06 | Commit: 04fae5c
-[SYNARA] Fallacy detection — 5 pattern checks (affirming consequent, denying antecedent, false dichotomy, hasty generalization, overgeneralization) + 13 tests | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 7c03824
+[SYNARA] Fallacy detection — 5 pattern checks (affirming consequent, denying antecedent, false dichotomy, hasty generalization, overgeneralization) + 13 tests | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 0ba85e8
+[DSW] Non-parametric battery extended — Wilcoxon signed-rank, Friedman test, Spearman correlation with p-values/CIs | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: bb02440
 
 ---
 *Last reviewed: 2026-02-06*

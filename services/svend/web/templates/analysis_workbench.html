@@ -3020,6 +3020,9 @@ const analysisMenus = {
             { id: 'changepoint', name: 'Change Point Detection', desc: 'When did the shift occur?' },
             { id: 'mann_whitney', name: 'Mann-Whitney U', desc: 'Non-parametric 2-sample' },
             { id: 'kruskal', name: 'Kruskal-Wallis', desc: 'Non-parametric ANOVA' },
+            { id: 'wilcoxon', name: 'Wilcoxon Signed-Rank', desc: 'Non-parametric paired' },
+            { id: 'friedman', name: 'Friedman Test', desc: 'Non-parametric repeated measures' },
+            { id: 'spearman', name: 'Spearman Correlation', desc: 'Rank correlation with p-value' },
             { id: 'main_effects', name: 'Main Effects Plot', desc: 'DOE factor effects' },
             { id: 'interaction', name: 'Interaction Plot', desc: 'Factor interactions' },
             { id: 'multi_vari', name: 'Multi-Vari Chart', desc: 'Variation sources' },
@@ -3413,6 +3416,56 @@ function generateConfigForm(type, id) {
                 </div>
                 <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
                     <strong style="color:var(--aw-accent);">Non-parametric ANOVA:</strong> Tests if 3+ groups have different distributions without assuming normality.
+                </div>
+            `;
+        }
+        if (id === 'wilcoxon') {
+            return `
+                <div class="aw-form-group">
+                    <label>Before / Sample 1:</label>
+                    <select id="cfg-var1">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>After / Sample 2:</label>
+                    <select id="cfg-var2">${numCols}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Non-parametric paired test:</strong> Use when paired differences aren't normally distributed. Tests if the median difference is zero.
+                </div>
+            `;
+        }
+        if (id === 'friedman') {
+            const numColCheckboxes = columns.filter(c => c.dtype === 'number').map(c => `
+                <label class="aw-checkbox-item">
+                    <input type="checkbox" name="vars" value="${c.name}">
+                    <span>${c.name}</span>
+                </label>
+            `).join('') || '<span style="color:var(--aw-text-muted)">No numeric columns found</span>';
+
+            return `
+                <div class="aw-form-group">
+                    <label>Repeated measures (select 3+):</label>
+                    <div class="aw-checkbox-list" id="cfg-vars-list">
+                        ${numColCheckboxes}
+                    </div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Non-parametric repeated measures:</strong> Select 3+ measurement columns (e.g., Time1, Time2, Time3). Each row is one subject measured under all conditions.
+                </div>
+            `;
+        }
+        if (id === 'spearman') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variable X:</label>
+                    <select id="cfg-var1">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Variable Y:</label>
+                    <select id="cfg-var2">${numCols}</select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Rank correlation:</strong> Measures monotonic association without assuming linearity. Returns rho, p-value, and confidence interval.
                 </div>
             `;
         }

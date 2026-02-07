@@ -2246,6 +2246,212 @@ def run_statistical_analysis(df, analysis_id, config):
         result["guide_observation"] = f"Kruskal-Wallis H = {stat:.2f}, p = {pval:.4f}. " + ("Groups differ." if pval < 0.05 else "No difference.")
         result["statistics"] = {"H_statistic": float(stat), "p_value": float(pval), "epsilon_squared": float(epsilon_sq)}
 
+    elif analysis_id == "wilcoxon":
+        """
+        Wilcoxon Signed-Rank Test - non-parametric alternative to paired t-test.
+        Tests if paired differences are symmetrically distributed around zero.
+        """
+        var1 = config.get("var1")
+        var2 = config.get("var2")
+
+        sample1 = df[var1].dropna()
+        sample2 = df[var2].dropna()
+        # Align lengths for paired data
+        min_len = min(len(sample1), len(sample2))
+        sample1 = sample1.iloc[:min_len]
+        sample2 = sample2.iloc[:min_len]
+
+        if min_len < 6:
+            result["summary"] = f"Wilcoxon signed-rank requires at least 6 paired observations. Got {min_len}."
+            return result
+
+        diffs = sample1.values - sample2.values
+        stat, pval = stats.wilcoxon(sample1, sample2)
+
+        # Effect size: r = Z / sqrt(N)
+        z_score = stats.norm.ppf(pval / 2)
+        effect_r = abs(z_score) / np.sqrt(min_len)
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>WILCOXON SIGNED-RANK TEST<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Pair:<</COLOR>> {var1} vs {var2}\n"
+        summary += f"<<COLOR:highlight>>N pairs:<</COLOR>> {min_len}\n\n"
+        summary += f"<<COLOR:text>>Differences (var1 - var2):<</COLOR>>\n"
+        summary += f"  Median diff: {np.median(diffs):.4f}\n"
+        summary += f"  Mean diff:   {np.mean(diffs):.4f}\n"
+        summary += f"  Std diff:    {np.std(diffs, ddof=1):.4f}\n\n"
+        summary += f"<<COLOR:highlight>>Test Statistic (W):<</COLOR>> {stat:.2f}\n"
+        summary += f"<<COLOR:highlight>>p-value:<</COLOR>> {pval:.6f}\n"
+        summary += f"<<COLOR:highlight>>Effect Size (r):<</COLOR>> {effect_r:.4f}\n\n"
+
+        if pval < 0.05:
+            summary += f"<<COLOR:accent>>Significant difference between paired samples (p < 0.05)<</COLOR>>\n"
+        else:
+            summary += f"<<COLOR:text>>No significant difference between paired samples (p >= 0.05)<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        # Histogram of differences
+        result["plots"].append({
+            "title": f"Paired Differences: {var1} - {var2}",
+            "data": [
+                {"type": "histogram", "x": diffs.tolist(), "name": "Differences",
+                 "marker": {"color": "rgba(71,165,232,0.7)", "line": {"color": "#47a5e8", "width": 1}}},
+                {"type": "scatter", "x": [0, 0], "y": [0, min_len // 3], "mode": "lines",
+                 "name": "Zero", "line": {"color": "#e89547", "dash": "dash", "width": 2}}
+            ],
+            "layout": {"height": 300, "xaxis": {"title": "Difference"}, "yaxis": {"title": "Count"}}
+        })
+
+        result["guide_observation"] = f"Wilcoxon signed-rank W = {stat:.2f}, p = {pval:.4f}. " + ("Paired samples differ." if pval < 0.05 else "No paired difference.")
+        result["statistics"] = {"W_statistic": float(stat), "p_value": float(pval), "effect_size_r": float(effect_r), "median_diff": float(np.median(diffs)), "n_pairs": int(min_len)}
+
+    elif analysis_id == "friedman":
+        """
+        Friedman Test - non-parametric alternative to repeated measures ANOVA.
+        Tests if k related samples have different distributions.
+        Requires multiple measurement columns (repeated measures).
+        """
+        vars_list = config.get("vars", [])
+        if not vars_list:
+            # Fallback: use var1 and var2 as minimum
+            var1 = config.get("var1")
+            var2 = config.get("var2")
+            if var1 and var2:
+                vars_list = [var1, var2]
+
+        if len(vars_list) < 3:
+            result["summary"] = f"Friedman test requires at least 3 related samples (repeated measures). Got {len(vars_list)}.\n\nSelect 3+ measurement columns (e.g., Time1, Time2, Time3)."
+            return result
+
+        # Drop rows with any missing values across all vars
+        clean_df = df[vars_list].dropna()
+        n_subjects = len(clean_df)
+
+        if n_subjects < 5:
+            result["summary"] = f"Friedman test requires at least 5 complete observations. Got {n_subjects}."
+            return result
+
+        groups = [clean_df[v].values for v in vars_list]
+        stat, pval = stats.friedmanchisquare(*groups)
+
+        # Effect size: Kendall's W = chi2 / (N * (k - 1))
+        k = len(vars_list)
+        kendall_w = stat / (n_subjects * (k - 1))
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>FRIEDMAN TEST<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Repeated Measures:<</COLOR>> {', '.join(vars_list)}\n"
+        summary += f"<<COLOR:highlight>>N subjects:<</COLOR>> {n_subjects}\n"
+        summary += f"<<COLOR:highlight>>k conditions:<</COLOR>> {k}\n\n"
+
+        for v in vars_list:
+            col = clean_df[v]
+            summary += f"  {v}: median={col.median():.4f}, mean={col.mean():.4f}, sd={col.std():.4f}\n"
+        summary += "\n"
+
+        summary += f"<<COLOR:highlight>>Chi-square:<</COLOR>> {stat:.4f}\n"
+        summary += f"<<COLOR:highlight>>df:<</COLOR>> {k - 1}\n"
+        summary += f"<<COLOR:highlight>>p-value:<</COLOR>> {pval:.6f}\n"
+        summary += f"<<COLOR:highlight>>Kendall's W:<</COLOR>> {kendall_w:.4f}\n\n"
+
+        if pval < 0.05:
+            summary += f"<<COLOR:accent>>Significant difference across conditions (p < 0.05)<</COLOR>>\n"
+            summary += f"<<COLOR:text>>Consider Wilcoxon signed-rank tests for pairwise comparisons (with Bonferroni correction).<</COLOR>>\n"
+        else:
+            summary += f"<<COLOR:text>>No significant difference across conditions (p >= 0.05)<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        # Box plots for each condition
+        result["plots"].append({
+            "title": "Friedman: Repeated Measures Comparison",
+            "data": [
+                {"type": "box", "y": clean_df[v].tolist(), "name": v,
+                 "marker": {"color": ["#4a9f6e", "#47a5e8", "#e89547", "#9f4a4a", "#6c5ce7", "#e84747", "#47e8c4", "#c4e847"][i % 8]},
+                 "fillcolor": ["rgba(74,159,110,0.3)", "rgba(71,165,232,0.3)", "rgba(232,149,71,0.3)", "rgba(159,74,74,0.3)", "rgba(108,92,231,0.3)", "rgba(232,71,71,0.3)", "rgba(71,232,196,0.3)", "rgba(196,232,71,0.3)"][i % 8]}
+                for i, v in enumerate(vars_list)
+            ],
+            "layout": {"height": 300, "yaxis": {"title": "Value"}}
+        })
+
+        result["guide_observation"] = f"Friedman chi2 = {stat:.2f}, p = {pval:.4f}, W = {kendall_w:.3f}. " + ("Conditions differ." if pval < 0.05 else "No difference.")
+        result["statistics"] = {"chi2_statistic": float(stat), "p_value": float(pval), "kendall_w": float(kendall_w), "df": int(k - 1), "n_subjects": int(n_subjects)}
+
+    elif analysis_id == "spearman":
+        """
+        Spearman Rank Correlation - non-parametric measure of monotonic association.
+        Returns rho, p-value, and confidence interval (unlike matrix-only correlation).
+        """
+        var1 = config.get("var1", config.get("var"))
+        var2 = config.get("var2", config.get("group_var"))
+
+        x = df[var1].dropna()
+        y = df[var2].dropna()
+        # Align
+        common_idx = x.index.intersection(y.index)
+        x = x.loc[common_idx]
+        y = y.loc[common_idx]
+        n = len(x)
+
+        if n < 5:
+            result["summary"] = f"Spearman correlation requires at least 5 observations. Got {n}."
+            return result
+
+        rho, pval = stats.spearmanr(x, y)
+
+        # Fisher z-transform CI
+        z = np.arctanh(rho)
+        se = 1.0 / np.sqrt(n - 3) if n > 3 else float('inf')
+        ci_low = np.tanh(z - 1.96 * se)
+        ci_high = np.tanh(z + 1.96 * se)
+
+        # Interpret strength
+        abs_rho = abs(rho)
+        if abs_rho >= 0.7:
+            strength = "strong"
+        elif abs_rho >= 0.4:
+            strength = "moderate"
+        elif abs_rho >= 0.2:
+            strength = "weak"
+        else:
+            strength = "negligible"
+        direction = "positive" if rho > 0 else "negative"
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>SPEARMAN RANK CORRELATION<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Variables:<</COLOR>> {var1} vs {var2}\n"
+        summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
+        summary += f"<<COLOR:highlight>>Spearman rho:<</COLOR>> {rho:.4f}\n"
+        summary += f"<<COLOR:highlight>>p-value:<</COLOR>> {pval:.6f}\n"
+        summary += f"<<COLOR:highlight>>95% CI:<</COLOR>> [{ci_low:.4f}, {ci_high:.4f}]\n\n"
+        summary += f"<<COLOR:text>>Interpretation: {strength.capitalize()} {direction} monotonic association<</COLOR>>\n"
+
+        if pval < 0.05:
+            summary += f"<<COLOR:accent>>Statistically significant (p < 0.05)<</COLOR>>\n"
+        else:
+            summary += f"<<COLOR:text>>Not statistically significant (p >= 0.05)<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        # Scatter with rank overlay
+        result["plots"].append({
+            "title": f"Spearman: {var1} vs {var2} (rho={rho:.3f})",
+            "data": [{
+                "type": "scatter", "mode": "markers",
+                "x": x.tolist(), "y": y.tolist(),
+                "marker": {"color": "#47a5e8", "size": 6, "opacity": 0.7},
+                "name": "Data"
+            }],
+            "layout": {"height": 300, "xaxis": {"title": var1}, "yaxis": {"title": var2}}
+        })
+
+        result["guide_observation"] = f"Spearman rho = {rho:.3f}, p = {pval:.4f}. {strength.capitalize()} {direction} monotonic association."
+        result["statistics"] = {"spearman_rho": float(rho), "p_value": float(pval), "ci_lower": float(ci_low), "ci_upper": float(ci_high), "n": int(n)}
+
     elif analysis_id == "main_effects":
         """
         Main Effects Plot - shows how each factor affects the response.

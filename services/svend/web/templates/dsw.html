@@ -689,6 +689,9 @@ Or paste from spreadsheet (tab-separated)"></textarea>
                             <option value="chi2">Chi-Square Test</option>
                             <option value="mann_whitney">Mann-Whitney U</option>
                             <option value="kruskal">Kruskal-Wallis H</option>
+                            <option value="wilcoxon">Wilcoxon Signed-Rank</option>
+                            <option value="friedman">Friedman Test</option>
+                            <option value="spearman">Spearman Correlation</option>
                             <option value="f_test">F-Test for Variance</option>
                             <option value="equivalence">Equivalence (TOST)</option>
                             <option value="normality">Normality Test</option>
@@ -2574,7 +2577,7 @@ function updateStatsTestForm() {
     const muGroup = document.getElementById('test-mu-group');
 
     // Tests that need a second variable
-    const needsVar2 = ['ttest2', 'paired_t', 'chi2', 'mann_whitney', 'f_test', 'equivalence', 'anova', 'anova2', 'kruskal'];
+    const needsVar2 = ['ttest2', 'paired_t', 'chi2', 'mann_whitney', 'f_test', 'equivalence', 'anova', 'anova2', 'kruskal', 'wilcoxon', 'spearman', 'friedman'];
     var2Group.style.display = needsVar2.includes(type) ? 'block' : 'none';
 
     // Tests that need mu
@@ -2587,9 +2590,12 @@ function updateStatsTestForm() {
     if (type === 'chi2') {
         var1Label.textContent = 'Row Variable';
         var2Label.textContent = 'Column Variable';
-    } else if (type === 'paired_t') {
+    } else if (['paired_t', 'wilcoxon'].includes(type)) {
         var1Label.textContent = 'Before/Sample 1';
         var2Label.textContent = 'After/Sample 2';
+    } else if (type === 'spearman') {
+        var1Label.textContent = 'Variable X';
+        var2Label.textContent = 'Variable Y';
     } else if (['anova', 'kruskal', 'mann_whitney'].includes(type)) {
         var1Label.textContent = 'Response';
         var2Label.textContent = 'Factor/Group';
@@ -2661,13 +2667,13 @@ async function runStatsTest() {
     if (type === 'ttest') {
         config.var1 = var1;
         config.mu = parseFloat(document.getElementById('stats-test-mu').value) || 0;
-    } else if (['ttest2', 'paired_t', 'f_test'].includes(type)) {
+    } else if (['ttest2', 'paired_t', 'f_test', 'wilcoxon', 'spearman'].includes(type)) {
         config.var1 = var1;
         config.var2 = var2;
     } else if (type === 'chi2') {
         config.row_var = var1;
         config.col_var = var2;
-    } else if (['anova', 'kruskal', 'mann_whitney'].includes(type)) {
+    } else if (['anova', 'kruskal', 'mann_whitney', 'friedman'].includes(type)) {
         config.response = var1;
         config.var = var1;
         config.group_var = var2;

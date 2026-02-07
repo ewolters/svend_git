@@ -201,4 +201,22 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - `python3 manage.py check` — 0 issues
 - All 13 fallacy detection tests pass
 - Django shell verification: hasty generalization, XOR false dichotomy, WHEN clause suppression all correct
-**Commit:** 7c03824
+**Commit:** 0ba85e8
+
+---
+
+### 2026-02-06 — P3: Extend non-parametric battery — Friedman, Wilcoxon, Spearman
+**Debt item:** [DSW] Non-parametric battery limited to Mann-Whitney + Kruskal
+**Files changed:**
+- `services/svend/web/agents_api/dsw_views.py` — added 3 new analysis types after Kruskal-Wallis:
+  1. **Wilcoxon signed-rank** (`wilcoxon`): paired non-parametric test with effect size r, difference histogram
+  2. **Friedman test** (`friedman`): repeated measures non-parametric ANOVA with Kendall's W, 3+ column checkbox selection
+  3. **Spearman correlation** (`spearman`): rank correlation with p-value, 95% CI (Fisher z-transform), scatter plot
+- `services/svend/web/templates/dsw.html` — added 3 options to dropdown, updated needsVar2/labels/config JS
+- `services/svend/web/templates/analysis_workbench.html` — added 3 items to analysis catalog, form configs with checkboxes for Friedman
+- `services/svend/web/templates/workbench_new.html` — added 3 options to More Tests dropdown
+**Verification:**
+- `python3 manage.py check` — 0 issues
+- `py_compile` — passes
+- End-to-end: Wilcoxon p=0.0020, Friedman p=0.0003, Spearman rho=0.95 — all correct
+**Commit:** bb02440
