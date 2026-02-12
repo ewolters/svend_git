@@ -7,8 +7,11 @@ Tenants (Organizations) allow:
 """
 
 import uuid
+from datetime import timedelta
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Tenant(models.Model):
@@ -103,3 +106,63 @@ class Membership(models.Model):
     def can_admin(self) -> bool:
         """Can this member manage the tenant?"""
         return self.role in (self.Role.OWNER, self.Role.ADMIN)
+
+
+def _invite_expiry():
+    return timezone.now() + timedelta(days=7)
+
+
+class OrgInvitation(models.Model):
+    """Email invitation to join a tenant/organization.
+
+    Created by owner/admin, sent to an email address.
+    The recipient can accept via a unique token link.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        EXPIRED = "expired", "Expired"
+        CANCELLED = "cancelled", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+    )
+    email = models.EmailField(help_text="Email address of the invitee")
+    role = models.CharField(
+        max_length=20,
+        choices=Membership.Role.choices,
+        default=Membership.Role.MEMBER,
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="org_invitations_sent",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(default=_invite_expiry)
+
+    class Meta:
+        db_table = "core_org_invitation"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Invite {self.email} → {self.tenant.name} ({self.status})"
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_valid(self) -> bool:
+        return self.status == self.Status.PENDING and not self.is_expired

@@ -20,7 +20,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from accounts.permissions import gated, require_auth
+from accounts.permissions import gated_paid
 
 from .synara import (
     Synara,
@@ -110,7 +110,7 @@ def save_synara(workbench_id: str, synara: Synara = None) -> bool:
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def add_hypothesis(request, workbench_id: str):
     """
     Add a hypothesis region to the belief engine.
@@ -151,7 +151,7 @@ def add_hypothesis(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def get_hypotheses(request, workbench_id: str):
     """Get all hypotheses, sorted by posterior."""
 
@@ -166,7 +166,7 @@ def get_hypotheses(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["DELETE"])
-@require_auth
+@gated_paid
 def delete_hypothesis(request, workbench_id: str, hypothesis_id: str):
     """Remove a hypothesis from the belief engine."""
 
@@ -186,7 +186,7 @@ def delete_hypothesis(request, workbench_id: str, hypothesis_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def add_link(request, workbench_id: str):
     """
     Add a causal link between hypotheses.
@@ -230,7 +230,7 @@ def add_link(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def get_links(request, workbench_id: str):
     """Get all causal links."""
 
@@ -248,7 +248,7 @@ def get_links(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def add_evidence(request, workbench_id: str):
     """
     Add evidence and trigger belief update.
@@ -294,7 +294,7 @@ def add_evidence(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def get_evidence(request, workbench_id: str):
     """Get all evidence."""
 
@@ -312,7 +312,7 @@ def get_evidence(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def get_expansions(request, workbench_id: str):
     """Get pending expansion signals."""
 
@@ -327,7 +327,7 @@ def get_expansions(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def resolve_expansion(request, workbench_id: str, signal_id: str):
     """
     Resolve an expansion signal.
@@ -382,7 +382,7 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def get_belief_state(request, workbench_id: str):
     """Get current belief state summary."""
 
@@ -404,7 +404,7 @@ def get_belief_state(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def explain_hypothesis(request, workbench_id: str, hypothesis_id: str):
     """Get explanation for a hypothesis's probability."""
 
@@ -416,7 +416,7 @@ def explain_hypothesis(request, workbench_id: str, hypothesis_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def get_causal_chains(request, workbench_id: str, hypothesis_id: str):
     """Get all causal chains leading to a hypothesis."""
 
@@ -436,7 +436,7 @@ def get_causal_chains(request, workbench_id: str, hypothesis_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def get_validation_prompt(request, workbench_id: str):
     """Get prompt for LLM to validate the causal graph."""
 
@@ -451,7 +451,7 @@ def get_validation_prompt(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def get_hypothesis_prompt(request, workbench_id: str, signal_id: str):
     """Get prompt for LLM to generate hypotheses from expansion signal."""
 
@@ -474,7 +474,7 @@ def get_hypothesis_prompt(request, workbench_id: str, signal_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def apply_validation_result(request, workbench_id: str):
     """
     Apply LLM validation result to the graph.
@@ -513,7 +513,7 @@ def apply_validation_result(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def llm_validate(request, workbench_id: str):
     """
     Server-side LLM validation of the causal graph.
@@ -554,7 +554,7 @@ def llm_validate(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
     """
     Server-side LLM hypothesis generation from expansion signal.
@@ -594,7 +594,7 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def llm_interpret_evidence(request, workbench_id: str):
     """
     Server-side LLM interpretation of the most recent evidence update.
@@ -655,7 +655,7 @@ def llm_interpret_evidence(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def llm_document(request, workbench_id: str):
     """
     Server-side LLM documentation of findings.
@@ -700,7 +700,7 @@ def llm_document(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def export_synara(request, workbench_id: str):
     """Export Synara state as JSON."""
 
@@ -711,7 +711,7 @@ def export_synara(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def import_synara(request, workbench_id: str):
     """Import Synara state from JSON."""
 
@@ -737,7 +737,7 @@ def import_synara(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def parse_hypothesis_dsl(request, workbench_id: str):
     """
     Parse a formal hypothesis statement.
@@ -775,7 +775,7 @@ def parse_hypothesis_dsl(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def validate_hypothesis_dsl(request, workbench_id: str):
     """
     Validate a hypothesis for logical issues.
@@ -807,7 +807,7 @@ def validate_hypothesis_dsl(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def evaluate_hypothesis_dsl(request, workbench_id: str):
     """
     Evaluate a hypothesis against data.
@@ -852,7 +852,7 @@ def evaluate_hypothesis_dsl(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def add_formal_hypothesis(request, workbench_id: str):
     """
     Add a formal hypothesis to the belief engine.
@@ -919,7 +919,7 @@ def add_formal_hypothesis(request, workbench_id: str):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def evaluate_workbench_hypothesis(request, workbench_id: str, hypothesis_id: str):
     """
     Evaluate a specific hypothesis against workbench data.

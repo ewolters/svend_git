@@ -8,6 +8,14 @@
     <h1>Account Settings</h1>
     <p class="subtitle">Manage your profile and preferences</p>
 
+    <!-- Settings tabs -->
+    <div class="settings-tabs" id="settings-tabs">
+        <button class="settings-tab active" data-tab="account">Account</button>
+        <button class="settings-tab" data-tab="org" id="org-tab-btn" style="display:none;">Organization</button>
+    </div>
+
+    <!-- Account tab (all existing sections) -->
+    <div class="settings-tab-content active" id="tab-account">
     <div class="settings-grid">
         <!-- Profile Section -->
         <section class="card settings-section">
@@ -27,6 +35,62 @@
                     <textarea id="bio" name="bio" rows="3" placeholder="Tell us about yourself"></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Profile</button>
+            </form>
+        </section>
+
+        <!-- About You Section -->
+        <section class="card settings-section">
+            <h2>About You</h2>
+            <p class="section-desc">Help us personalize your experience</p>
+            <form id="about-form">
+                <div class="form-group">
+                    <label for="industry">Industry</label>
+                    <select id="industry" name="industry">
+                        <option value="">Select your industry</option>
+                        <option value="manufacturing">Manufacturing</option>
+                        <option value="healthcare">Healthcare</option>
+                        <option value="technology">Technology</option>
+                        <option value="finance">Finance</option>
+                        <option value="education">Education</option>
+                        <option value="government">Government</option>
+                        <option value="consulting">Consulting</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" name="role">
+                        <option value="">Select your role</option>
+                        <option value="engineer">Engineer</option>
+                        <option value="manager">Manager</option>
+                        <option value="analyst">Analyst</option>
+                        <option value="executive">Executive</option>
+                        <option value="student">Student</option>
+                        <option value="consultant">Consultant</option>
+                        <option value="researcher">Researcher</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="experience_level">Quality / Opex Experience</label>
+                    <select id="experience_level" name="experience_level">
+                        <option value="">Select your experience level</option>
+                        <option value="beginner">Beginner — new to quality and process improvement</option>
+                        <option value="intermediate">Intermediate — familiar with core concepts</option>
+                        <option value="advanced">Advanced — experienced practitioner</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="organization_size">Organization Size</label>
+                    <select id="organization_size" name="organization_size">
+                        <option value="">Select your organization size</option>
+                        <option value="small">Small (1-50)</option>
+                        <option value="medium">Medium (51-500)</option>
+                        <option value="large">Large (501-5000)</option>
+                        <option value="enterprise">Enterprise (5000+)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
             </form>
         </section>
 
@@ -76,7 +140,10 @@
                     <select id="theme" name="current_theme" onchange="previewTheme(this.value)">
                         <option value="">Default (Forest Night)</option>
                         <option value="light">Light</option>
+                        <option value="nordic">Nordic Frost</option>
+                        <option value="sandstone">Sandstone</option>
                         <option value="midnight">Midnight</option>
+                        <option value="contrast">High Contrast</option>
                     </select>
                 </div>
                 <div class="form-group checkbox-group">
@@ -116,6 +183,84 @@
         </section>
     </div>
 
+    </div><!-- /settings-grid -->
+    </div><!-- /tab-account -->
+
+    <!-- Organization tab -->
+    <div class="settings-tab-content" id="tab-org">
+        <div class="settings-grid">
+            <!-- Org Info -->
+            <section class="card settings-section">
+                <h2>Organization</h2>
+                <div id="org-info-content">
+                    <p class="text-dim">Loading...</p>
+                </div>
+            </section>
+
+            <!-- Seat Usage -->
+            <section class="card settings-section" id="org-seats-section" style="display:none;">
+                <h2>Seats</h2>
+                <div class="seat-bar-container">
+                    <div class="seat-bar">
+                        <div class="seat-bar-fill" id="seat-bar-fill"></div>
+                    </div>
+                    <p class="seat-label"><span id="seat-used">0</span> / <span id="seat-max">10</span> seats used</p>
+                </div>
+                <p class="help-text" id="seat-pending-text" style="display:none;"></p>
+                <button class="btn btn-secondary" id="purchase-seat-btn" style="display:none;" onclick="purchaseSeat()">Purchase Additional Seat ($129)</button>
+            </section>
+
+            <!-- Members List -->
+            <section class="card settings-section" id="org-members-section" style="display:none;">
+                <h2>Members</h2>
+                <div id="members-table-container">
+                    <table class="members-table">
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Role</th>
+                                <th>Joined</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="members-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Invite Member -->
+            <section class="card settings-section" id="org-invite-section" style="display:none;">
+                <h2>Invite Member</h2>
+                <form id="invite-form">
+                    <div class="invite-row">
+                        <div class="form-group" style="flex:1;">
+                            <label for="invite-email">Email</label>
+                            <input type="email" id="invite-email" placeholder="colleague@company.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="invite-role">Role</label>
+                            <select id="invite-role">
+                                <option value="member">Member</option>
+                                <option value="viewer">Viewer</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="align-self:flex-end;">Send Invite</button>
+                    </div>
+                </form>
+                <p class="help-text">The invite link will be valid for 7 days. A seat must be available.</p>
+            </section>
+
+            <!-- Pending Invitations -->
+            <section class="card settings-section" id="org-invites-section" style="display:none;">
+                <h2>Pending Invitations</h2>
+                <div id="invites-list">
+                    <p class="text-dim">No pending invitations</p>
+                </div>
+            </section>
+        </div>
+    </div><!-- /tab-org -->
+
     <div id="toast" class="toast"></div>
 </div>
 
@@ -148,6 +293,12 @@
         color: var(--text-dim);
         margin-top: 0.25rem;
         display: block;
+    }
+
+    .section-desc {
+        color: var(--text-dim);
+        font-size: 0.85rem;
+        margin-bottom: 1.25rem;
     }
 
     .checkbox-group label {
@@ -214,7 +365,7 @@
     }
 
     .danger-zone {
-        border-color: rgba(159, 74, 74, 0.3);
+        border-color: var(--error-border);
     }
 
     .danger-zone h2 {
@@ -233,20 +384,144 @@
     }
 
     .btn-danger {
-        background: rgba(159, 74, 74, 0.15);
-        border: 1px solid rgba(159, 74, 74, 0.3);
+        background: var(--error-dim);
+        border: 1px solid var(--error-border);
         color: var(--error);
     }
 
     .btn-danger:hover:not(:disabled) {
-        background: rgba(159, 74, 74, 0.25);
-        border-color: rgba(159, 74, 74, 0.5);
+        background: var(--error-dim);
+        border-color: var(--error-border);
     }
 
     .btn-danger:disabled {
         opacity: 0.4;
         cursor: not-allowed;
     }
+
+    /* Settings tabs */
+    .settings-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .settings-tab {
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 0.9rem;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+    }
+
+    .settings-tab:hover { color: var(--text-primary); }
+    .settings-tab.active {
+        color: var(--accent-primary);
+        border-bottom-color: var(--accent-primary);
+    }
+
+    .settings-tab-content { display: none; }
+    .settings-tab-content.active { display: block; }
+
+    /* Org management */
+    .seat-bar-container { margin-bottom: 1rem; }
+
+    .seat-bar {
+        height: 8px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+    }
+
+    .seat-bar-fill {
+        height: 100%;
+        background: var(--accent-primary);
+        border-radius: 4px;
+        transition: width 0.3s;
+    }
+
+    .seat-bar-fill.near-limit { background: var(--accent-gold); }
+    .seat-bar-fill.at-limit { background: var(--error); }
+
+    .seat-label {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .members-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .members-table th {
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .members-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--bg-tertiary);
+        font-size: 0.9rem;
+    }
+
+    .members-table tr:last-child td { border-bottom: none; }
+
+    .role-badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    .role-badge.owner { background: rgba(232, 197, 71, 0.2); color: var(--accent-gold); }
+    .role-badge.admin { background: rgba(99, 179, 237, 0.2); color: #63b3ed; }
+    .role-badge.member { background: var(--bg-tertiary); color: var(--text-secondary); }
+    .role-badge.viewer { background: var(--bg-tertiary); color: var(--text-dim); }
+
+    .invite-row {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .invite-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--bg-tertiary);
+    }
+
+    .invite-item:last-child { border-bottom: none; }
+
+    .invite-email {
+        font-size: 0.9rem;
+        color: var(--text-primary);
+    }
+
+    .invite-meta {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .text-dim { color: var(--text-dim); }
 
     .toast {
         position: fixed;
@@ -273,7 +548,7 @@
     }
 
     .toast.error {
-        background: rgba(159, 74, 74, 0.9);
+        background: var(--error);
         color: white;
     }
 </style>
@@ -335,6 +610,12 @@
             document.getElementById('email').value = currentUser.email || '';
             document.getElementById('bio').value = currentUser.bio || '';
 
+            // About You
+            document.getElementById('industry').value = currentUser.industry || '';
+            document.getElementById('role').value = currentUser.role || '';
+            document.getElementById('experience_level').value = currentUser.experience_level || '';
+            document.getElementById('organization_size').value = currentUser.organization_size || '';
+
             // Subscription info
             const tierBadge = document.getElementById('tier-badge');
             tierBadge.textContent = currentUser.tier.toUpperCase();
@@ -377,6 +658,36 @@
                 body: JSON.stringify({
                     display_name: document.getElementById('display_name').value,
                     bio: document.getElementById('bio').value,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to update profile');
+            }
+
+            showToast('Profile updated');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // About You form
+    document.getElementById('about-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('/api/auth/profile/', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    industry: document.getElementById('industry').value,
+                    role: document.getElementById('role').value,
+                    experience_level: document.getElementById('experience_level').value,
+                    organization_size: document.getElementById('organization_size').value,
                 }),
             });
 
@@ -484,7 +795,264 @@
         }
     });
 
+    // ---- Settings tabs ----
+    document.querySelectorAll('.settings-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+            if (btn.dataset.tab === 'org' && !orgLoaded) loadOrgData();
+        });
+    });
+
+    // ---- Organization Management ----
+    let orgLoaded = false;
+    let orgData = null;
+
+    async function loadOrgData() {
+        try {
+            const res = await fetch('/api/core/org/', { credentials: 'include' });
+            orgData = await res.json();
+
+            if (!orgData.has_org) {
+                document.getElementById('org-info-content').innerHTML =
+                    '<p class="text-dim">You are not a member of any organization.</p>';
+                orgLoaded = true;
+                return;
+            }
+
+            const org = orgData.org;
+            const mem = orgData.membership;
+
+            document.getElementById('org-info-content').innerHTML = `
+                <div style="margin-bottom:1rem;">
+                    <strong style="font-size:1.1rem;">${org.name}</strong>
+                    <span class="role-badge ${mem.role}" style="margin-left:0.75rem;">${mem.role}</span>
+                </div>
+                <p style="color:var(--text-secondary); font-size:0.85rem;">
+                    Plan: <strong>${org.plan}</strong> &middot;
+                    Slug: <code>${org.slug}</code>
+                </p>
+            `;
+
+            // Show sections based on admin status
+            if (mem.can_admin) {
+                document.getElementById('org-seats-section').style.display = '';
+                document.getElementById('org-members-section').style.display = '';
+                document.getElementById('org-invite-section').style.display = '';
+                document.getElementById('org-invites-section').style.display = '';
+                loadOrgMembers();
+                loadOrgInvitations();
+            }
+
+            orgLoaded = true;
+        } catch (err) {
+            document.getElementById('org-info-content').innerHTML =
+                '<p class="text-dim">Failed to load organization data.</p>';
+        }
+    }
+
+    async function loadOrgMembers() {
+        try {
+            const res = await fetch('/api/core/org/members/', { credentials: 'include' });
+            const data = await res.json();
+
+            // Seat bar
+            const used = data.seat_count;
+            const max = data.max_members;
+            const pct = Math.min(100, (used / max) * 100);
+
+            document.getElementById('seat-used').textContent = used;
+            document.getElementById('seat-max').textContent = max;
+
+            const fill = document.getElementById('seat-bar-fill');
+            fill.style.width = pct + '%';
+            fill.className = 'seat-bar-fill' +
+                (pct >= 100 ? ' at-limit' : pct >= 80 ? ' near-limit' : '');
+
+            // Show purchase button when near or at limit
+            if (pct >= 80) {
+                document.getElementById('purchase-seat-btn').style.display = '';
+            }
+
+            // Members table
+            const tbody = document.getElementById('members-tbody');
+            tbody.innerHTML = data.members.map(m => `
+                <tr>
+                    <td>
+                        <div>${m.display_name}</div>
+                        <div style="font-size:0.75rem; color:var(--text-dim);">${m.email}</div>
+                    </td>
+                    <td><span class="role-badge ${m.role}">${m.role}</span></td>
+                    <td style="font-size:0.8rem; color:var(--text-dim);">
+                        ${m.joined_at ? new Date(m.joined_at).toLocaleDateString() : '—'}
+                    </td>
+                    <td>
+                        ${m.is_current_user ? '<span style="font-size:0.75rem; color:var(--text-dim);">You</span>' :
+                          `<select class="btn-sm" onchange="changeRole('${m.id}', this.value)" style="margin-right:0.5rem;">
+                              <option value="" disabled selected>Role</option>
+                              <option value="viewer">Viewer</option>
+                              <option value="member">Member</option>
+                              <option value="admin">Admin</option>
+                              <option value="owner">Owner</option>
+                           </select>
+                           <button class="btn btn-danger btn-sm" onclick="removeMember('${m.id}', '${m.email}')">Remove</button>`
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            console.error('Failed to load members:', err);
+        }
+    }
+
+    async function changeRole(membershipId, newRole) {
+        if (!newRole) return;
+        if (!confirm(`Change role to ${newRole}?`)) return;
+
+        try {
+            const res = await fetch(`/api/core/org/members/${membershipId}/role/`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+                body: JSON.stringify({ role: newRole }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            showToast('Role updated');
+            loadOrgMembers();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    async function removeMember(membershipId, email) {
+        if (!confirm(`Remove ${email} from the organization? This cannot be undone.`)) return;
+
+        try {
+            const res = await fetch(`/api/core/org/members/${membershipId}/remove/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            showToast('Member removed');
+            loadOrgMembers();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    // Invite form
+    document.getElementById('invite-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('invite-email').value.trim();
+        const role = document.getElementById('invite-role').value;
+
+        try {
+            const res = await fetch('/api/core/org/invite/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+                body: JSON.stringify({ email, role }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || data.message);
+
+            showToast(`Invitation sent to ${email}`);
+            document.getElementById('invite-email').value = '';
+            loadOrgInvitations();
+            loadOrgMembers(); // Refresh seat count
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    async function loadOrgInvitations() {
+        try {
+            const res = await fetch('/api/core/org/invitations/', { credentials: 'include' });
+            const data = await res.json();
+
+            const pending = data.invitations.filter(i => i.status === 'pending' && !i.is_expired);
+            const container = document.getElementById('invites-list');
+
+            // Update pending count in seat section
+            if (pending.length > 0) {
+                const pendingText = document.getElementById('seat-pending-text');
+                pendingText.textContent = `${pending.length} pending invite${pending.length > 1 ? 's' : ''} (count toward seat limit)`;
+                pendingText.style.display = '';
+            }
+
+            if (pending.length === 0) {
+                container.innerHTML = '<p class="text-dim">No pending invitations</p>';
+                return;
+            }
+
+            container.innerHTML = pending.map(inv => `
+                <div class="invite-item">
+                    <div>
+                        <div class="invite-email">${inv.email}</div>
+                        <div class="invite-meta">
+                            <span class="role-badge ${inv.role}">${inv.role}</span> &middot;
+                            Expires ${new Date(inv.expires_at).toLocaleDateString()} &middot;
+                            Invited by ${inv.invited_by || 'unknown'}
+                        </div>
+                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="cancelInvite('${inv.id}')">Cancel</button>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.error('Failed to load invitations:', err);
+        }
+    }
+
+    async function cancelInvite(inviteId) {
+        if (!confirm('Cancel this invitation?')) return;
+        try {
+            const res = await fetch(`/api/core/org/invitations/${inviteId}/cancel/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            showToast('Invitation cancelled');
+            loadOrgInvitations();
+            loadOrgMembers();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    function purchaseSeat() {
+        // Redirect to Stripe checkout for seat purchase
+        // For now, direct to billing page with seat param
+        window.location.href = '/billing/checkout/?plan=seat';
+    }
+
     // Load data on page load
     loadUserData();
+
+    // After loading user data, check if org tab should be visible
+    async function checkOrgAccess() {
+        try {
+            const res = await fetch('/api/core/org/', { credentials: 'include' });
+            const data = await res.json();
+            if (data.has_org) {
+                document.getElementById('org-tab-btn').style.display = '';
+            }
+        } catch (err) {
+            // Silently ignore — no org tab
+        }
+    }
+    checkOrgAccess();
+
+    // Handle URL hash for direct tab navigation
+    if (location.hash === '#org') {
+        document.querySelector('[data-tab="org"]').click();
+    }
 </script>
 {% endblock %}

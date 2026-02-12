@@ -1,6 +1,6 @@
 # DSW vs Minitab — Gap Analysis
 
-**Last updated:** 2026-02-07
+**Last updated:** 2026-02-12
 **Svend pricing:** $29/month ($348/year) vs Minitab $1,851/year vs JMP $1,320–$8,400/year
 
 ## Summary Scorecard
@@ -10,11 +10,11 @@
 | Basic Statistics | **100%** | Proportion tests, Fisher's exact ✓ |
 | Regression | **90%** | Exceed on modern methods, missing GLM variants |
 | ANOVA | **85%** | Missing GLM, split-plot, repeated measures |
-| DOE | **80%** | Missing split-plot, mixture, multi-response |
-| SPC | **85%** | Core complete, missing specialty charts |
+| DOE | **85%** | Missing split-plot, mixture; multi-response done |
+| SPC | **93%** | Core + MA, Zone, G, T, MEWMA; missing I-MR-R/S, Gen.Var. |
 | Capability | **90%** | Solid (Cp/Cpk/Pp/Ppk + sigma) |
 | MSA | **90%** | 6 methods: crossed, nested, linearity, Type 1, attribute, agreement |
-| Reliability | **60%** | Big 3 present, missing deep reliability |
+| Reliability | **75%** | Big 3 + dist ID, ALT, repairable, warranty, probit |
 | Time Series | **90%** | Beat Minitab (Granger, changepoint) |
 | Multivariate | **90%** | Beat Minitab (SEM) |
 | Power/Sample Size | **85%** | 14 calculators (5 Experimenter + 9 DSW) |
@@ -24,7 +24,7 @@
 | Quality Tools | **85%** | Pareto, multi-vari, fishbone (in Whiteboard) |
 | Visualization | **80%** | Plotly-based, missing 3D surface, dotplots |
 
-**Overall: ~89% Minitab parity, with clear advantages in Bayesian, ML, and modern regression.**
+**Overall: ~91% Minitab parity, with clear advantages in Bayesian, ML, and modern regression.**
 
 ## Svend Advantages (not in Minitab)
 
@@ -75,7 +75,7 @@ Currently have: crossed Gage R&R + 5 new methods (6 total)
 ### P2.1 DOE Expansion → Experimenter module (`experimenter_views.py`)
 - [ ] Split-plot designs (hard-to-change factors)
 - [ ] Mixture designs (components sum to 100%)
-- [ ] Multi-response optimization (desirability across multiple Y's)
+- [x] Multi-response optimization (desirability across multiple Y's) — interactive calculator with profiles + contour
 - [ ] General full factorial (multi-level, not just 2-level)
 - [ ] Augment design (add runs to existing design)
 
@@ -86,7 +86,7 @@ Missing:
 - [ ] Lognormal, exponential, loglogistic distribution fitting
 - [ ] Accelerated Life Testing (ALT)
 - [ ] Repairable systems (Mean Cumulative Function)
-- [ ] Probit analysis
+- [x] Probit analysis — interactive dose-response explorer (probit + logit, IRLS fitting, ED50 CI)
 - [ ] Demonstration/estimation test plans
 - [ ] Warranty prediction
 
@@ -95,13 +95,13 @@ Currently have: I-MR, X-bar R/S, P, NP, C, U, CUSUM, EWMA, T², capability
 Missing:
 - [ ] Laney P' chart (overdispersion-adjusted proportions)
 - [ ] Laney U' chart (overdispersion-adjusted rates)
-- [ ] G chart (time/count between rare events)
-- [ ] T chart (time between events)
-- [ ] Moving Average chart
+- [x] G chart (time/count between rare events) — interactive rare events lab with simulate mode
+- [x] T chart (time between events) — interactive rare events lab with simulate mode
+- [x] Moving Average chart — backend + workbench UI with configurable span
 - [ ] I-MR-R/S (between/within)
-- [ ] Zone chart
+- [x] Zone chart — backend + workbench UI with color-coded A/B/C zones and cumulative scoring
 - [ ] Generalized Variance chart
-- [ ] MEWMA chart
+- [x] MEWMA chart — backend + workbench UI with configurable lambda and variable contribution
 
 ---
 

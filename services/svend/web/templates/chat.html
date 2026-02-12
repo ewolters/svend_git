@@ -19,10 +19,10 @@
             --accent-primary-dim: rgba(74, 159, 110, 0.15);
             --accent-primary-border: rgba(74, 159, 110, 0.3);
             --accent-blue: #3a7f8f;
-            --accent-red: #9f4a4a;
+            --accent-red: #d06060;
             --text-primary: #e8efe8;
             --text-secondary: #9aaa9a;
-            --text-dim: #5a6a5a;
+            --text-dim: #7a8f7a;
         }
 
         body {
@@ -232,7 +232,7 @@
         }
 
         .meta-badge.domain { border-color: var(--accent-primary-border); color: var(--accent-primary); }
-        .meta-badge.blocked { border-color: rgba(159, 74, 74, 0.3); color: #9f4a4a; background: rgba(159, 74, 74, 0.1); }
+        .meta-badge.blocked { border-color: var(--error-border); color: var(--error); background: var(--error-dim); }
         .meta-badge.verified { border-color: var(--accent-primary-border); color: var(--accent-primary); }
 
         .assistant-response {
@@ -634,7 +634,7 @@
             font-size: 0.85rem;
             margin-bottom: 1rem;
             padding: 0.5rem;
-            background: rgba(159, 74, 74, 0.1);
+            background: var(--error-dim);
             border-radius: 4px;
         }
 

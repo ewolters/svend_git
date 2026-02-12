@@ -2546,7 +2546,7 @@ function runMultipleTests() {
     pValues.forEach((p, i) => {
         const isSig = p < alpha;
         const color = isSig ? 'var(--error)' : 'var(--text-dim)';
-        html += `<span style="padding: 0.25rem 0.5rem; background: ${isSig ? 'rgba(159, 74, 74, 0.2)' : 'var(--bg-secondary)'}; border-radius: 2px; color: ${color}; font-size: 0.75rem;">
+        html += `<span style="padding: 0.25rem 0.5rem; background: ${isSig ? 'rgba(208, 96, 96, 0.2)' : 'var(--bg-secondary)'}; border-radius: 2px; color: ${color}; font-size: 0.75rem;">
             ${p.toFixed(3)}${isSig ? '*' : ''}
         </span>`;
     });

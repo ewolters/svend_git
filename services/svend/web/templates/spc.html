@@ -301,20 +301,20 @@ For X-bar R: Enter subgroups, one per line:
 }
 
 .result-status.out-of-control {
-    background: rgba(159, 74, 74, 0.2);
-    color: #9f4a4a;
+    background: var(--error-dim);
+    color: var(--error);
 }
 
 .out-of-control-list {
-    background: rgba(159, 74, 74, 0.1);
-    border: 1px solid rgba(159, 74, 74, 0.3);
+    background: var(--error-dim);
+    border: 1px solid var(--error-border);
     border-radius: 4px;
     padding: 0.75rem;
     margin-top: 1rem;
 }
 
 .out-of-control-list h4 {
-    color: #9f4a4a;
+    color: var(--error);
     margin: 0 0 0.5rem 0;
 }
 
@@ -364,7 +364,7 @@ For X-bar R: Enter subgroups, one per line:
 }
 
 .interpretation.poor {
-    border-left: 3px solid #9f4a4a;
+    border-left: 3px solid var(--error);
 }
 
 /* Reference styling */

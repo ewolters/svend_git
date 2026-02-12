@@ -10,7 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from accounts.permissions import rate_limited, require_auth
+from accounts.permissions import gated_paid
 from .models import RCASession
 
 
@@ -135,7 +135,7 @@ Be direct. A weak countermeasure that gets implemented is worse than no counterm
 
 
 @csrf_exempt
-@rate_limited
+@gated_paid
 @require_http_methods(["POST"])
 def critique(request):
     """Critique a causal claim in an RCA chain.
@@ -220,7 +220,7 @@ def critique(request):
 
 
 @csrf_exempt
-@rate_limited
+@gated_paid
 @require_http_methods(["POST"])
 def evaluate_chain(request):
     """Evaluate a complete RCA chain for overall quality.
@@ -308,7 +308,7 @@ Be direct. If it's solid, say so. If it's garbage dressed up as analysis, say th
 
 
 @csrf_exempt
-@rate_limited
+@gated_paid
 @require_http_methods(["POST"])
 def critique_countermeasure(request):
     """Critique a proposed countermeasure.
@@ -388,7 +388,7 @@ Be specific. If it's weak, say why and suggest stronger alternatives from higher
 # =============================================================================
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def list_sessions(request):
     """List user's RCA sessions."""
@@ -399,7 +399,7 @@ def list_sessions(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def create_session(request):
     """Create a new RCA session."""
@@ -453,7 +453,7 @@ def create_session(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def get_session(request, session_id):
     """Get a single RCA session."""
@@ -465,7 +465,7 @@ def get_session(request, session_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_session(request, session_id):
     """Update an RCA session."""
@@ -508,7 +508,7 @@ def update_session(request, session_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["DELETE"])
 def delete_session(request, session_id):
     """Delete an RCA session."""
@@ -521,7 +521,7 @@ def delete_session(request, session_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def link_to_a3(request, session_id):
     """Link an RCA session to an A3 report and optionally populate root cause."""
@@ -583,7 +583,7 @@ def link_to_a3(request, session_id):
 # =============================================================================
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def find_similar(request):
     """Find similar past RCA sessions based on incident description.
@@ -668,7 +668,7 @@ def find_similar(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def reindex_embeddings(request):
     """Regenerate embeddings for all user's RCA sessions.

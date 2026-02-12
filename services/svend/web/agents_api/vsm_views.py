@@ -16,15 +16,16 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
-from accounts.permissions import require_auth
+from accounts.permissions import gated_paid, require_feature
 from .models import ValueStreamMap
+from .hoshin_calculations import estimate_savings_from_vsm_delta
 from core.models import Project
 
 logger = logging.getLogger(__name__)
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def list_vsm(request):
     """List user's value stream maps.
@@ -49,7 +50,7 @@ def list_vsm(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def create_vsm(request):
     """Create a new value stream map."""
@@ -85,7 +86,7 @@ def create_vsm(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def get_vsm(request, vsm_id):
     """Get a single VSM with full details."""
@@ -97,7 +98,7 @@ def get_vsm(request, vsm_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_vsm(request, vsm_id):
     """Update a VSM."""
@@ -143,7 +144,7 @@ def update_vsm(request, vsm_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["DELETE"])
 def delete_vsm(request, vsm_id):
     """Delete a VSM."""
@@ -154,7 +155,7 @@ def delete_vsm(request, vsm_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def add_process_step(request, vsm_id):
     """Add a process step to the VSM.
@@ -206,7 +207,7 @@ def add_process_step(request, vsm_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def add_inventory(request, vsm_id):
     """Add inventory triangle between process steps.
@@ -249,7 +250,7 @@ def add_inventory(request, vsm_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def add_kaizen_burst(request, vsm_id):
     """Add a kaizen burst (improvement opportunity).
@@ -289,7 +290,7 @@ def add_kaizen_burst(request, vsm_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def create_future_state(request, vsm_id):
     """Create a future state VSM from the current state.
@@ -331,7 +332,7 @@ def create_future_state(request, vsm_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def compare_vsm(request, vsm_id):
     """Compare current and future state VSMs.
@@ -393,4 +394,127 @@ def compare_vsm(request, vsm_id):
         "current": current.to_dict(),
         "future": future.to_dict(),
         "comparison": comparison,
+    })
+
+
+@csrf_exempt
+@require_feature("hoshin_kanri")
+@require_http_methods(["POST"])
+def generate_proposals(request, vsm_id):
+    """Auto-propose CI projects from VSM kaizen bursts.
+
+    Diffs current vs future state VSM, matches kaizen bursts to process
+    steps, and estimates savings from metric deltas.
+
+    Request body (optional):
+    {
+        "annual_volume": 100000,
+        "cost_per_unit": 50.0
+    }
+
+    Returns list of proposals for user review before creating projects.
+    """
+    import math
+
+    current = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+
+    # Find future state
+    future = None
+    if current.project:
+        future = ValueStreamMap.objects.filter(
+            owner=request.user,
+            project=current.project,
+            status=ValueStreamMap.Status.FUTURE,
+        ).exclude(id=current.id).first()
+
+    if not future:
+        return JsonResponse({
+            "error": "No future state VSM found. Create a future state first.",
+        }, status=400)
+
+    bursts = future.kaizen_bursts or []
+    if not bursts:
+        return JsonResponse({
+            "error": "No kaizen bursts on the future state VSM.",
+        }, status=400)
+
+    data = json.loads(request.body) if request.body else {}
+    annual_volume = float(data.get("annual_volume", 100000))
+    cost_per_unit = float(data.get("cost_per_unit", 50.0))
+
+    current_steps = {s.get("name", ""): s for s in (current.process_steps or [])}
+    future_steps = future.process_steps or []
+
+    proposals = []
+    for burst in bursts:
+        burst_id = burst.get("id", "")
+        burst_x = float(burst.get("x", 0))
+        burst_y = float(burst.get("y", 0))
+        burst_text = burst.get("text", "Improvement")
+        burst_priority = burst.get("priority", "medium")
+
+        # Find nearest future-state process step by distance
+        nearest_step = None
+        min_dist = float("inf")
+        for step in future_steps:
+            sx = float(step.get("x", 0))
+            sy = float(step.get("y", 0))
+            dist = math.sqrt((burst_x - sx) ** 2 + (burst_y - sy) ** 2)
+            if dist < min_dist:
+                min_dist = dist
+                nearest_step = step
+
+        if not nearest_step:
+            continue
+
+        step_name = nearest_step.get("name", "Unknown")
+
+        # Match to current-state step by name
+        current_step = current_steps.get(step_name, {})
+
+        # Estimate savings from metric deltas
+        if current_step:
+            estimate = estimate_savings_from_vsm_delta(
+                current_step, nearest_step,
+                annual_volume=annual_volume,
+                cost_per_unit=cost_per_unit,
+            )
+        else:
+            estimate = {
+                "cycle_time_delta": 0, "changeover_delta": 0,
+                "uptime_delta": 0, "operators_delta": 0,
+                "estimated_annual_savings": 0,
+                "suggested_method": "direct",
+                "improvement_pct": 0,
+            }
+
+        proposals.append({
+            "burst_id": burst_id,
+            "burst_text": burst_text,
+            "priority": burst_priority,
+            "process_step": step_name,
+            "has_current_match": bool(current_step),
+            "metric_deltas": {
+                "cycle_time": estimate["cycle_time_delta"],
+                "changeover": estimate["changeover_delta"],
+                "uptime": estimate["uptime_delta"],
+                "operators": estimate["operators_delta"],
+            },
+            "estimated_annual_savings": estimate["estimated_annual_savings"],
+            "suggested_method": estimate["suggested_method"],
+            "improvement_pct": estimate["improvement_pct"],
+            "suggested_title": f"{burst_text} — {step_name}",
+            "suggested_type": "labor" if estimate["suggested_method"] in ("time_reduction", "headcount") else "material",
+        })
+
+    return JsonResponse({
+        "vsm_id": str(vsm_id),
+        "vsm_name": current.name,
+        "future_vsm_id": str(future.id),
+        "proposals": proposals,
+        "count": len(proposals),
+        "defaults": {
+            "annual_volume": annual_volume,
+            "cost_per_unit": cost_per_unit,
+        },
     })

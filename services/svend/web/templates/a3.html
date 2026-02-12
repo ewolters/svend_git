@@ -292,23 +292,13 @@
 }
 
 .a3-modal {
-    background-color: #121a12 !important;
-    border: 1px solid rgba(74, 159, 110, 0.3);
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--border);
     border-radius: 8px;
     width: 500px;
     max-height: 80vh;
     overflow: auto;
     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-}
-
-[data-theme="light"] .a3-modal {
-    background-color: #ffffff !important;
-    border-color: rgba(45, 122, 74, 0.25);
-}
-
-[data-theme="midnight"] .a3-modal {
-    background-color: #12121f !important;
-    border-color: rgba(106, 127, 255, 0.3);
 }
 
 .a3-modal-header {
@@ -1001,5 +991,10 @@ async function autoPopulate() {
         alert('Auto-populate failed');
     }
 }
+</script>
+<script>
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
+});
 </script>
 {% endblock %}

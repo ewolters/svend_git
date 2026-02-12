@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
-from accounts.permissions import require_auth
+from accounts.permissions import gated_paid
 from .models import Board, BoardParticipant, BoardVote
 from core.models import Project, Hypothesis
 
@@ -38,7 +38,7 @@ def get_participant_color(board, user):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def create_board(request):
     """Create a new board, optionally linked to a project."""
@@ -81,7 +81,7 @@ def create_board(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def get_board(request, room_code):
     """Get board state by room code."""
@@ -141,7 +141,7 @@ def get_board(request, room_code):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_board(request, room_code):
     """Update board state."""
@@ -200,7 +200,7 @@ def update_board(request, room_code):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def update_cursor(request, room_code):
     """Update cursor position for presence."""
@@ -221,7 +221,7 @@ def update_cursor(request, room_code):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def toggle_voting(request, room_code):
     """Toggle voting mode (owner only)."""
@@ -252,7 +252,7 @@ def toggle_voting(request, room_code):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def add_vote(request, room_code):
     """Add a dot vote to an element."""
@@ -294,7 +294,7 @@ def add_vote(request, room_code):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["DELETE"])
 def remove_vote(request, room_code, element_id):
     """Remove a dot vote from an element."""
@@ -322,7 +322,7 @@ def remove_vote(request, room_code, element_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def list_boards(request):
     """List user's boards (owned + participated).
@@ -361,7 +361,7 @@ def list_boards(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["DELETE"])
 def delete_board(request, room_code):
     """Delete a board (owner only)."""
@@ -376,7 +376,7 @@ def delete_board(request, room_code):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def export_hypotheses(request, room_code):
     """Export causal relationships from whiteboard as hypotheses.
@@ -590,7 +590,7 @@ def _render_connection_svg(conn, elements, offset_x=0, offset_y=0):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def export_svg(request, room_code):
     """Export whiteboard as SVG for embedding in A3 reports.

@@ -248,8 +248,8 @@
     }
 
     .error-message {
-        background: rgba(159, 74, 74, 0.1);
-        border: 1px solid rgba(159, 74, 74, 0.3);
+        background: var(--error-dim);
+        border: 1px solid var(--error-border);
         color: var(--error);
         padding: 1rem;
         border-radius: 6px;
@@ -408,5 +408,10 @@
             }
         });
     }
+</script>
+<script>
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
+});
 </script>
 {% endblock %}

@@ -8,9 +8,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permissions import rate_limited, require_ml
+from accounts.permissions import rate_limited, require_ml, require_org_admin
 from .models import (
-    Tenant, Membership, KnowledgeGraph, Entity, Relationship,
+    Tenant, Membership, OrgInvitation, KnowledgeGraph, Entity, Relationship,
     Project, Dataset, ExperimentDesign, Hypothesis, Evidence, EvidenceLink,
 )
 from .serializers import (
@@ -1168,3 +1168,312 @@ def _perform_execution_review(design, actual_data):
         "issues": issues,
         "recommendations": recommendations,
     }
+
+
+# =============================================================================
+# Organization Management
+# =============================================================================
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def org_info(request):
+    """Get current user's organization info and their membership."""
+    membership = Membership.objects.filter(
+        user=request.user, is_active=True
+    ).select_related("tenant").first()
+
+    if not membership:
+        return Response({"has_org": False})
+
+    tenant = membership.tenant
+    return Response({
+        "has_org": True,
+        "org": {
+            "id": str(tenant.id),
+            "name": tenant.name,
+            "slug": tenant.slug,
+            "plan": tenant.plan,
+            "max_members": tenant.max_members,
+            "member_count": tenant.member_count,
+            "is_active": tenant.is_active,
+        },
+        "membership": {
+            "role": membership.role,
+            "can_admin": membership.can_admin,
+            "can_edit": membership.can_edit,
+            "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
+        },
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_members(request):
+    """List all members in the organization."""
+    members = Membership.objects.filter(
+        tenant=request.org_tenant, is_active=True
+    ).select_related("user").order_by("role", "user__email")
+
+    return Response({
+        "members": [
+            {
+                "id": str(m.id),
+                "email": m.user.email,
+                "display_name": getattr(m.user, "display_name", "") or m.user.email,
+                "role": m.role,
+                "can_admin": m.can_admin,
+                "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+                "is_current_user": m.user_id == request.user.id,
+            }
+            for m in members
+        ],
+        "max_members": request.org_tenant.max_members,
+        "seat_count": members.count(),
+    })
+
+
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_change_role(request, membership_id):
+    """Change a member's role. Only owners can promote to admin/owner."""
+    try:
+        target = Membership.objects.get(
+            id=membership_id, tenant=request.org_tenant, is_active=True
+        )
+    except Membership.DoesNotExist:
+        return Response({"error": "Member not found"}, status=404)
+
+    new_role = request.data.get("role")
+    if new_role not in dict(Membership.Role.choices):
+        return Response({"error": f"Invalid role: {new_role}"}, status=400)
+
+    # Only owners can assign owner/admin roles
+    if new_role in (Membership.Role.OWNER, Membership.Role.ADMIN):
+        if request.org_membership.role != Membership.Role.OWNER:
+            return Response({
+                "error": "Only owners can assign owner or admin roles",
+            }, status=403)
+
+    # Cannot demote yourself if you're the last owner
+    if target.user_id == request.user.id and target.role == Membership.Role.OWNER:
+        owner_count = Membership.objects.filter(
+            tenant=request.org_tenant, role=Membership.Role.OWNER, is_active=True
+        ).count()
+        if owner_count <= 1:
+            return Response({
+                "error": "Cannot change role — you are the only owner",
+            }, status=400)
+
+    target.role = new_role
+    target.save()
+    return Response({"success": True, "role": new_role})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_remove_member(request, membership_id):
+    """Remove a member from the organization."""
+    try:
+        target = Membership.objects.get(
+            id=membership_id, tenant=request.org_tenant, is_active=True
+        )
+    except Membership.DoesNotExist:
+        return Response({"error": "Member not found"}, status=404)
+
+    # Cannot remove yourself
+    if target.user_id == request.user.id:
+        return Response({"error": "Cannot remove yourself"}, status=400)
+
+    # Cannot remove another owner unless you're also owner
+    if target.role == Membership.Role.OWNER:
+        if request.org_membership.role != Membership.Role.OWNER:
+            return Response({"error": "Only owners can remove other owners"}, status=403)
+
+    target.is_active = False
+    target.save()
+    return Response({"success": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_invite(request):
+    """Invite a user to the organization by email."""
+    email = (request.data.get("email") or "").strip().lower()
+    role = request.data.get("role", Membership.Role.MEMBER)
+
+    if not email:
+        return Response({"error": "Email is required"}, status=400)
+
+    if role not in dict(Membership.Role.choices):
+        return Response({"error": f"Invalid role: {role}"}, status=400)
+
+    # Only owners can invite as admin/owner
+    if role in (Membership.Role.OWNER, Membership.Role.ADMIN):
+        if request.org_membership.role != Membership.Role.OWNER:
+            return Response({
+                "error": "Only owners can invite as owner or admin",
+            }, status=403)
+
+    tenant = request.org_tenant
+
+    # Check seat limit
+    current_seats = tenant.member_count
+    pending_invites = OrgInvitation.objects.filter(
+        tenant=tenant, status=OrgInvitation.Status.PENDING
+    ).count()
+    if (current_seats + pending_invites) >= tenant.max_members:
+        return Response({
+            "error": "Seat limit reached",
+            "max_members": tenant.max_members,
+            "current": current_seats,
+            "pending": pending_invites,
+            "message": f"Your organization has {tenant.max_members} seats. "
+                       "Contact support to add more seats ($129/seat).",
+        }, status=400)
+
+    # Check if already a member
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    existing_user = User.objects.filter(email=email).first()
+    if existing_user:
+        if Membership.objects.filter(
+            tenant=tenant, user=existing_user, is_active=True
+        ).exists():
+            return Response({"error": "User is already a member"}, status=400)
+
+    # Check for existing pending invite
+    existing_invite = OrgInvitation.objects.filter(
+        tenant=tenant, email=email, status=OrgInvitation.Status.PENDING
+    ).first()
+    if existing_invite:
+        return Response({
+            "error": "An invitation is already pending for this email",
+            "invite_id": str(existing_invite.id),
+        }, status=400)
+
+    invitation = OrgInvitation.objects.create(
+        tenant=tenant,
+        email=email,
+        role=role,
+        invited_by=request.user,
+    )
+
+    # TODO: Send invitation email with accept link
+    # For now, return the token so the admin can share it manually
+    return Response({
+        "success": True,
+        "invitation": {
+            "id": str(invitation.id),
+            "email": invitation.email,
+            "role": invitation.role,
+            "token": str(invitation.token),
+            "expires_at": invitation.expires_at.isoformat(),
+        },
+    }, status=201)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_invitations(request):
+    """List pending invitations for the organization."""
+    invites = OrgInvitation.objects.filter(
+        tenant=request.org_tenant,
+    ).select_related("invited_by").order_by("-created_at")[:50]
+
+    return Response({
+        "invitations": [
+            {
+                "id": str(inv.id),
+                "email": inv.email,
+                "role": inv.role,
+                "status": inv.status,
+                "is_expired": inv.is_expired,
+                "invited_by": inv.invited_by.email if inv.invited_by else None,
+                "created_at": inv.created_at.isoformat(),
+                "expires_at": inv.expires_at.isoformat(),
+            }
+            for inv in invites
+        ],
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@require_org_admin
+def org_cancel_invitation(request, invitation_id):
+    """Cancel a pending invitation."""
+    try:
+        invitation = OrgInvitation.objects.get(
+            id=invitation_id, tenant=request.org_tenant,
+            status=OrgInvitation.Status.PENDING,
+        )
+    except OrgInvitation.DoesNotExist:
+        return Response({"error": "Invitation not found"}, status=404)
+
+    invitation.status = OrgInvitation.Status.CANCELLED
+    invitation.save()
+    return Response({"success": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def org_accept_invitation(request):
+    """Accept an organization invitation via token.
+
+    This endpoint does NOT require org_admin — any authenticated user
+    can accept an invitation addressed to their email.
+    """
+    token = request.data.get("token")
+    if not token:
+        return Response({"error": "Token is required"}, status=400)
+
+    try:
+        invitation = OrgInvitation.objects.get(token=token)
+    except OrgInvitation.DoesNotExist:
+        return Response({"error": "Invalid invitation"}, status=404)
+
+    if not invitation.is_valid:
+        if invitation.is_expired:
+            invitation.status = OrgInvitation.Status.EXPIRED
+            invitation.save()
+            return Response({"error": "Invitation has expired"}, status=400)
+        return Response({"error": f"Invitation is {invitation.status}"}, status=400)
+
+    # Check email matches
+    if request.user.email.lower() != invitation.email.lower():
+        return Response({
+            "error": "This invitation was sent to a different email address",
+        }, status=403)
+
+    # Check if already a member
+    if Membership.objects.filter(
+        tenant=invitation.tenant, user=request.user, is_active=True
+    ).exists():
+        invitation.status = OrgInvitation.Status.ACCEPTED
+        invitation.save()
+        return Response({"error": "You are already a member of this organization"}, status=400)
+
+    from django.utils import timezone as tz
+
+    # Create membership
+    Membership.objects.create(
+        tenant=invitation.tenant,
+        user=request.user,
+        role=invitation.role,
+        invited_by=invitation.invited_by,
+        joined_at=tz.now(),
+    )
+
+    invitation.status = OrgInvitation.Status.ACCEPTED
+    invitation.save()
+
+    return Response({
+        "success": True,
+        "org_name": invitation.tenant.name,
+        "role": invitation.role,
+    })

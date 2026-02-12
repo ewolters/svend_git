@@ -12,7 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
-from accounts.permissions import require_auth
+from accounts.permissions import gated_paid
 from .models import A3Report, Board, DSWResult
 from core.models import Project, Hypothesis
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def list_a3_reports(request):
     """List user's A3 reports.
@@ -45,7 +45,7 @@ def list_a3_reports(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def create_a3_report(request):
     """Create a new A3 report."""
@@ -85,7 +85,7 @@ def create_a3_report(request):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["GET"])
 def get_a3_report(request, report_id):
     """Get a single A3 report with full details."""
@@ -132,7 +132,7 @@ def get_a3_report(request, report_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_a3_report(request, report_id):
     """Update an A3 report."""
@@ -161,7 +161,7 @@ def update_a3_report(request, report_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["DELETE"])
 def delete_a3_report(request, report_id):
     """Delete an A3 report."""
@@ -172,7 +172,7 @@ def delete_a3_report(request, report_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def import_to_a3(request, report_id):
     """Import content from other tools into an A3 section.
@@ -312,7 +312,7 @@ def import_to_a3(request, report_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def auto_populate_a3(request, report_id):
     """Auto-populate A3 sections using LLM based on project data.
@@ -411,7 +411,7 @@ Write a concise response (2-4 sentences) suitable for an A3 report section."""
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["POST"])
 def embed_diagram(request, report_id):
     """Embed a whiteboard diagram (SVG) into an A3 section.
@@ -513,7 +513,7 @@ def embed_diagram(request, report_id):
 
 
 @csrf_exempt
-@require_auth
+@gated_paid
 @require_http_methods(["DELETE"])
 def remove_diagram(request, report_id, diagram_id):
     """Remove an embedded diagram from an A3 report."""

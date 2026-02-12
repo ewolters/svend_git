@@ -41,4 +41,14 @@ urlpatterns = [
     path("graph/entities/<uuid:entity_id>/", views.entity_detail, name="entity_detail"),
     path("graph/relationships/", views.relationship_list, name="relationship_list"),
     path("graph/check-consistency/", views.check_consistency, name="check_consistency"),
+
+    # Organization management
+    path("org/", views.org_info, name="org_info"),
+    path("org/members/", views.org_members, name="org_members"),
+    path("org/members/<uuid:membership_id>/role/", views.org_change_role, name="org_change_role"),
+    path("org/members/<uuid:membership_id>/remove/", views.org_remove_member, name="org_remove_member"),
+    path("org/invite/", views.org_invite, name="org_invite"),
+    path("org/invitations/", views.org_invitations, name="org_invitations"),
+    path("org/invitations/<uuid:invitation_id>/cancel/", views.org_cancel_invitation, name="org_cancel_invitation"),
+    path("org/accept-invite/", views.org_accept_invitation, name="org_accept_invitation"),
 ]

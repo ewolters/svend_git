@@ -987,7 +987,7 @@
     width: 14px; height: 14px; border-radius: 2px; font-size: 10px;
     opacity: 0.5; cursor: pointer; line-height: 1;
 }
-.output-tab .tab-close:hover { opacity: 1; background: rgba(159,74,74,0.3); }
+.output-tab .tab-close:hover { opacity: 1; background: var(--error-dim); }
 .output-tab-actions { padding: 0 0.5rem; flex-shrink: 0; }
 .output-panes { flex: 1; overflow: hidden; position: relative; }
 .output-pane {
@@ -2338,6 +2338,44 @@ function openSPCExtDialog(chartId) {
             closeModal();
             runStatsAnalysis('spc', 'between_within', config, 'Between/Within Capability');
         };
+    } else if (chartId === 'moving_average') {
+        title = 'Moving Average Chart';
+        html = `<div class="form-row"><label>Measurement Column</label><select id="dlg-spc-meas">${numOpts}</select></div>
+            <div class="form-row"><label>Span (window size)</label><input type="number" id="dlg-spc-span" value="5" min="2" max="50"></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">Smooths short-term noise. Larger span = more smoothing, better at detecting sustained shifts.</p>`;
+        onRun = () => {
+            closeModal();
+            runStatsAnalysis('spc', 'moving_average', {
+                measurement: document.getElementById('dlg-spc-meas').value,
+                span: parseInt(document.getElementById('dlg-spc-span').value) || 5
+            }, 'Moving Average Chart');
+        };
+    } else if (chartId === 'zone_chart') {
+        title = 'Zone Chart';
+        html = `<div class="form-row"><label>Measurement Column</label><select id="dlg-spc-meas">${numOpts}</select></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">Color-coded A/B/C zones with cumulative scoring. Signals when zone score reaches 8 (equivalent to Western Electric rules).</p>`;
+        onRun = () => {
+            closeModal();
+            runStatsAnalysis('spc', 'zone_chart', {
+                measurement: document.getElementById('dlg-spc-meas').value
+            }, 'Zone Chart');
+        };
+    } else if (chartId === 'mewma') {
+        title = 'MEWMA (Multivariate EWMA)';
+        const multiOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+        html = `<div class="form-row"><label>Variables (select 2+)</label><select id="dlg-spc-vars" multiple size="5" style="min-height:100px;">${multiOpts}</select></div>
+            <div class="form-row"><label>Lambda (smoothing, 0.05-0.3)</label><input type="number" id="dlg-spc-lambda" value="0.1" step="0.05" min="0.05" max="1"></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">Multivariate extension of EWMA. Smaller λ = more sensitive to small shifts. Select at least 2 numeric variables.</p>`;
+        onRun = () => {
+            const sel = document.getElementById('dlg-spc-vars');
+            const vars = Array.from(sel.selectedOptions).map(o => o.value);
+            if (vars.length < 2) { alert('Select at least 2 variables'); return; }
+            closeModal();
+            runStatsAnalysis('spc', 'mewma', {
+                variables: vars,
+                lambda: parseFloat(document.getElementById('dlg-spc-lambda').value) || 0.1
+            }, 'MEWMA Chart');
+        };
     }
     openModal(title, html, 'Create Chart', onRun);
 }
@@ -3180,7 +3218,7 @@ function renderGraph(type, opts) {
                 if (!groups[g]) groups[g] = [];
                 groups[g].push(v);
             });
-            const colors = ['rgba(74,159,110,0.9)', 'rgba(58,127,143,0.9)', 'rgba(232,197,71,0.9)', 'rgba(232,149,71,0.9)', 'rgba(90,79,127,0.9)', 'rgba(159,74,74,0.9)'];
+            const colors = ['rgba(74,159,110,0.9)', 'rgba(58,127,143,0.9)', 'rgba(232,197,71,0.9)', 'rgba(232,149,71,0.9)', 'rgba(90,79,127,0.9)', 'rgba(208,96,96,0.9)'];
             let ci = 0;
             for (const [name, gvals] of Object.entries(groups)) {
                 const gs = [...gvals].sort((a, b) => a - b);

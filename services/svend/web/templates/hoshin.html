@@ -1,0 +1,2731 @@
+{% extends "base_app.html" %}
+{% block title %}Hoshin Kanri — SVEND{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+.hoshin-app { padding: 24px; max-width: 1440px; margin: 0 auto; }
+
+/* Header */
+.hoshin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.hoshin-header h1 { margin: 0; font-size: 22px; font-weight: 500; color: var(--text-primary); }
+.hoshin-header .meta { display: flex; align-items: center; gap: 8px; }
+.fy-btn-group { display: flex; gap: 2px; margin-left: 16px; }
+.fy-btn { padding: 5px 14px; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-secondary);
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.fy-btn:first-child { border-radius: 6px 0 0 6px; }
+.fy-btn:last-child { border-radius: 0 6px 6px 0; }
+.fy-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.fy-btn:hover:not(.active) { background: var(--bg-hover); color: var(--text-primary); }
+.badge-count { padding: 3px 10px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 12px; font-size: 11px; color: var(--text-secondary); }
+
+/* Tab navigation */
+.hoshin-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.hoshin-tab { padding: 10px 20px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+    font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.hoshin-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.hoshin-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.hoshin-panel { display: none; }
+.hoshin-panel.active { display: block; }
+
+/* Filter toolbar */
+.filter-bar { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.filter-bar .filter-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+.filter-dropdown { position: relative; display: inline-block; }
+.filter-btn { padding: 5px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.filter-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.filter-btn.has-filter { background: rgba(74,159,110,0.15); border-color: var(--accent); color: var(--accent); }
+.filter-menu { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; min-width: 200px;
+    background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+    z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.4); max-height: 300px; overflow-y: auto; }
+.filter-menu.open { display: block; }
+.filter-menu label { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-size: 12px;
+    color: var(--text-primary); cursor: pointer; border-radius: 4px; }
+.filter-menu label:hover { background: var(--bg-hover); }
+.filter-menu input[type=checkbox], .filter-menu input[type=radio] { accent-color: var(--accent); }
+.filter-menu .divider { border-top: 1px solid var(--border); margin: 6px 0; }
+.filter-menu .select-all { font-weight: 600; color: var(--text-secondary); padding-bottom: 6px;
+    border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.filter-reset { padding: 5px 12px; background: transparent; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-secondary); font-size: 12px; cursor: pointer; margin-left: auto; }
+.filter-reset:hover { background: var(--bg-hover); color: var(--text-primary); }
+.filter-check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+.filter-check input { accent-color: var(--accent); }
+
+/* Summary cards */
+.summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.summary-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; }
+.summary-card .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.summary-card .value { font-size: 28px; font-weight: 600; color: var(--text-primary); margin: 4px 0;
+    font-family: 'JetBrains Mono', monospace; }
+.summary-card .sub { font-size: 12px; color: var(--text-dim); }
+.positive { color: var(--success) !important; }
+.negative { color: var(--error) !important; }
+.warning-color { color: #e89547 !important; }
+
+/* Charts */
+.charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+.chart-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.chart-card .chart-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px;
+    font-weight: 500; color: var(--text-secondary); }
+
+/* Tables */
+.hoshin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hoshin-table th { text-align: left; padding: 10px 12px; color: var(--text-secondary); font-weight: 500; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+.hoshin-table th.text-end { text-align: right; }
+.hoshin-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-primary); }
+.hoshin-table td.text-end { text-align: right; }
+.hoshin-table tr:hover td { background: var(--bg-hover); }
+.hoshin-table .footer-row td { border-top: 2px solid var(--border); font-weight: 600; background: var(--bg-secondary); }
+
+/* Status pills */
+.status-pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.status-proposed { background: rgba(74,159,110,0.15); color: #4a9f6e; }
+.status-budgeted { background: rgba(58,127,143,0.15); color: #3a7f8f; }
+.status-active { background: rgba(74,159,110,0.25); color: #6fcf97; }
+.status-delayed { background: rgba(232,149,71,0.2); color: #e89547; }
+.status-completed { background: rgba(74,159,110,0.35); color: #a8e6cf; }
+.status-aborted { background: rgba(207,111,111,0.2); color: #cf6f6f; }
+
+/* Class badges */
+.class-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.class-kaizen { background: rgba(124,58,237,0.2); color: #a78bfa; }
+.class-project { background: rgba(120,120,120,0.2); color: #aaa; }
+
+/* Opportunity badges */
+.opp-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.opp-carryover { background: rgba(58,127,143,0.2); color: #5bc0de; }
+.opp-budgeted_new { background: rgba(232,149,71,0.2); color: #e89547; }
+.opp-contingency { background: rgba(74,159,110,0.15); color: #4a9f6e; }
+.opp-unplanned { background: rgba(207,111,111,0.15); color: #cf6f6f; }
+
+/* Progress bar */
+.progress-bar-wrap { width: 120px; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;
+    display: inline-block; vertical-align: middle; }
+.progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.progress-bar-fill.green { background: var(--accent); }
+.progress-bar-fill.yellow { background: #e89547; }
+.progress-bar-fill.red { background: var(--error); }
+
+/* Bowler chart */
+.bowler-wrap { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;
+    margin: 0 12px 12px 12px; padding: 16px; animation: slideDown 0.2s ease; }
+@keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 600px; } }
+.bowler-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+.bowler-table th { padding: 6px 8px; text-align: center; font-size: 10px; font-weight: 600; color: var(--text-secondary);
+    text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.bowler-table td { padding: 6px 8px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.bowler-table .row-label { text-align: right; font-weight: 600; color: var(--text-secondary); font-family: inherit;
+    font-size: 11px; text-transform: uppercase; white-space: nowrap; }
+.bowler-table .target-row td { color: var(--text-dim); }
+.bowler-table .total-col { border-left: 2px solid var(--border); font-weight: 600; }
+.bowler-info { display: flex; gap: 24px; margin-top: 12px; flex-wrap: wrap; }
+.bowler-info .info-item { font-size: 12px; color: var(--text-secondary); }
+.bowler-info .info-item strong { color: var(--text-primary); }
+.bowler-actions { display: flex; gap: 8px; margin-top: 12px; }
+.month-editable { cursor: pointer; border-radius: 3px; padding: 2px 4px; }
+.month-editable:hover { background: rgba(74,159,110,0.15); }
+
+/* Monthly edit inline */
+.month-edit-panel { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; margin-top: 12px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.month-edit-panel label { display: block; font-size: 10px; color: var(--text-secondary); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 4px; }
+.month-edit-panel input { width: 100%; padding: 6px 8px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text-primary); font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+.month-edit-panel input:focus { outline: none; border-color: var(--accent); }
+
+/* Site cards */
+.sites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.site-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px;
+    cursor: pointer; transition: all 0.2s; }
+.site-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.site-card .site-name { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.site-card .site-code { display: inline-block; padding: 1px 8px; background: var(--bg-secondary); border-radius: 4px;
+    font-size: 11px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+.site-card .site-meta { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+.site-card .site-meta span { display: block; margin-bottom: 2px; }
+.site-card .site-stats { display: flex; gap: 16px; font-size: 12px; margin-bottom: 8px; }
+.site-card .site-stats .stat { color: var(--text-secondary); }
+.site-card .site-stats .stat strong { color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+.site-card .site-progress { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; }
+.site-card .site-progress .fill { height: 100%; border-radius: 3px; }
+
+/* Section header */
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-header h2 { margin: 0; font-size: 18px; color: var(--text-primary); font-weight: 500; }
+
+/* Buttons */
+.btn-h { padding: 7px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn-h.primary { background: var(--accent); color: white; }
+.btn-h.primary:hover { filter: brightness(1.1); }
+.btn-h.secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-h.secondary:hover { background: var(--bg-hover); }
+.btn-h.danger { background: var(--error); color: white; }
+.btn-h.small { padding: 4px 10px; font-size: 11px; }
+.btn-h.outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+.btn-h.outline:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Forms */
+.hoshin-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 900px; }
+.hoshin-form .full { grid-column: 1 / -1; }
+.hoshin-form label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px; }
+.hoshin-form input, .hoshin-form select, .hoshin-form textarea {
+    width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 13px; font-family: inherit; }
+.hoshin-form input:focus, .hoshin-form select:focus, .hoshin-form textarea:focus { outline: none; border-color: var(--accent); }
+
+/* Radio toggle group */
+.radio-group { display: flex; gap: 2px; }
+.radio-group label { padding: 6px 14px; background: var(--bg-secondary); border: 1px solid var(--border);
+    font-size: 12px; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; }
+.radio-group label:first-of-type { border-radius: 6px 0 0 6px; }
+.radio-group label:last-of-type { border-radius: 0 6px 6px 0; }
+.radio-group input { display: none; }
+.radio-group input:checked + span { background: var(--accent); color: white; }
+.radio-group label:has(input:checked) { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* Modal */
+.hoshin-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000;
+    justify-content: center; align-items: flex-start; padding-top: 60px; }
+.hoshin-modal.open { display: flex; }
+.hoshin-modal-content { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; max-width: 900px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.hoshin-modal-content h3 { margin: 0 0 16px; color: var(--text-primary); font-size: 16px; }
+
+/* Proposal cards */
+.proposal-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 16px;
+    margin-bottom: 12px; display: flex; gap: 16px; align-items: flex-start; }
+.proposal-card input[type=checkbox] { margin-top: 4px; accent-color: var(--accent); }
+.proposal-card .proposal-info { flex: 1; }
+.proposal-card .proposal-title { color: var(--text-primary); font-weight: 500; font-size: 14px; }
+.proposal-card .proposal-meta { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+.proposal-card .proposal-savings { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-weight: 600;
+    font-size: 14px; white-space: nowrap; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+.empty-state p { margin: 0; font-size: 13px; }
+
+/* Table card wrapper */
+.table-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.table-card .table-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex;
+    justify-content: space-between; align-items: center; }
+.table-card .table-header span { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+
+/* Project detail */
+.project-detail { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+.project-detail-main { min-width: 0; }
+.project-detail-side { display: flex; flex-direction: column; gap: 16px; }
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.detail-header h2 { margin: 0; font-size: 20px; font-weight: 500; color: var(--text-primary); }
+.detail-header .detail-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.detail-breadcrumb { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+.detail-breadcrumb a { color: var(--accent); text-decoration: none; }
+.detail-breadcrumb a:hover { text-decoration: underline; }
+
+/* Sub-tabs within project detail */
+.sub-tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+.sub-tab { padding: 8px 16px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+    font-size: 12px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.sub-tab:hover { color: var(--text-primary); }
+.sub-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.sub-panel { display: none; }
+.sub-panel.active { display: block; }
+
+/* Side cards */
+.side-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.side-card h4 { margin: 0 0 12px; font-size: 13px; font-weight: 500; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.5px; }
+.side-card .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0;
+    font-size: 12px; color: var(--text-secondary); }
+.side-card .stat-row strong { color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+.side-card .quick-links a { display: block; padding: 6px 0; color: var(--accent); text-decoration: none;
+    font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.side-card .quick-links a:hover { text-decoration: underline; }
+
+/* Charter form */
+.charter-section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; margin-bottom: 16px; }
+.charter-section h3 { margin: 0 0 14px; font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.charter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.charter-grid .full { grid-column: 1 / -1; }
+.charter-grid label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px;
+    text-transform: uppercase; letter-spacing: 0.5px; }
+.charter-grid input, .charter-grid select, .charter-grid textarea {
+    width: 100%; padding: 7px 10px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 12px; font-family: inherit; box-sizing: border-box; }
+.charter-grid input:focus, .charter-grid select:focus, .charter-grid textarea:focus { outline: none; border-color: var(--accent); }
+
+/* Team roster */
+.team-list { display: flex; flex-direction: column; gap: 6px; }
+.team-member { display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: var(--bg-secondary);
+    border-radius: 6px; font-size: 12px; color: var(--text-primary); }
+.team-member .role { color: var(--text-dim); font-size: 11px; }
+.team-member .remove { cursor: pointer; color: var(--error); opacity: 0.6; margin-left: auto; }
+.team-member .remove:hover { opacity: 1; }
+
+/* Gantt chart */
+.gantt-container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; margin-bottom: 16px; overflow-x: auto; }
+.gantt-chart { position: relative; min-height: 200px; }
+.gantt-header { display: flex; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; }
+.gantt-labels { width: 200px; flex-shrink: 0; }
+.gantt-timeline { flex: 1; position: relative; display: flex; }
+.gantt-month { flex: 1; text-align: center; font-size: 10px; color: var(--text-dim); padding: 4px 0; }
+.gantt-row { display: flex; align-items: center; height: 32px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.gantt-row-label { width: 200px; flex-shrink: 0; font-size: 12px; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
+.gantt-row-bars { flex: 1; position: relative; height: 20px; }
+.gantt-bar { position: absolute; height: 16px; top: 2px; border-radius: 4px; cursor: pointer;
+    transition: opacity 0.2s; min-width: 4px; }
+.gantt-bar:hover { opacity: 0.8; }
+.gantt-bar-fill { height: 100%; border-radius: 4px; opacity: 0.4; }
+.gantt-bar.status-not_started { background: var(--bg-secondary); border: 1px solid var(--border); }
+.gantt-bar.status-in_progress { background: rgba(74,159,110,0.3); border: 1px solid var(--accent); }
+.gantt-bar.status-completed { background: rgba(74,159,110,0.5); border: 1px solid #6fcf97; }
+.gantt-bar.status-blocked { background: rgba(207,111,111,0.3); border: 1px solid var(--error); }
+.gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--error); opacity: 0.5; z-index: 1; }
+
+/* Action items table */
+.action-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.action-table th { text-align: left; padding: 8px 10px; color: var(--text-secondary); font-weight: 500;
+    font-size: 10px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.action-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-primary); }
+.action-table tr:hover td { background: var(--bg-hover); }
+.action-status { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+.action-status.not_started { background: rgba(120,120,120,0.2); color: #aaa; }
+.action-status.in_progress { background: rgba(74,159,110,0.2); color: #4a9f6e; }
+.action-status.completed { background: rgba(74,159,110,0.35); color: #a8e6cf; }
+.action-status.blocked { background: rgba(207,111,111,0.2); color: #cf6f6f; }
+
+/* Baseline grid */
+.baseline-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 16px; }
+.baseline-cell { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.baseline-cell .month-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 4px; }
+.baseline-cell input { width: 100%; padding: 5px 6px; background: var(--bg-tertiary); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text-primary); font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    box-sizing: border-box; }
+.baseline-cell input:focus { outline: none; border-color: var(--accent); }
+
+/* Calc library */
+.calc-method-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 12px; overflow: hidden; }
+.calc-method-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; transition: background 0.2s; }
+.calc-method-header:hover { background: var(--bg-hover); }
+.calc-method-header .method-name { font-weight: 500; color: var(--text-primary); font-size: 14px; }
+.calc-method-header .method-category { display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; background: rgba(74,159,110,0.15); color: #4a9f6e; }
+.calc-method-body { padding: 0 16px 16px; display: none; }
+.calc-method-body.open { display: block; }
+.calc-method-body .formula { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent);
+    background: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; }
+.calc-method-body .variables { display: flex; flex-wrap: wrap; gap: 6px; }
+.calc-method-body .var-tag { padding: 3px 8px; background: var(--bg-secondary); border-radius: 4px;
+    font-size: 11px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+
+/* Formula editor */
+.formula-editor { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.formula-input { width: 100%; padding: 10px 14px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--accent); font-size: 14px; font-family: 'JetBrains Mono', monospace;
+    box-sizing: border-box; }
+.formula-input:focus { outline: none; border-color: var(--accent); }
+.formula-test-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.formula-test-grid label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 2px; }
+.formula-test-grid input { width: 100%; padding: 6px 8px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text-primary); font-size: 12px; font-family: 'JetBrains Mono', monospace;
+    box-sizing: border-box; }
+.formula-result { margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 14px; text-align: center; }
+
+@media (max-width: 900px) {
+    .project-detail { grid-template-columns: 1fr; }
+    .baseline-grid { grid-template-columns: repeat(3, 1fr); }
+    .charter-grid { grid-template-columns: 1fr; }
+    .formula-test-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hoshin-app">
+    <!-- Header -->
+    <div class="hoshin-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <h1>Hoshin Kanri</h1>
+            <span style="font-size:12px;color:var(--text-dim);">Continuous Improvement Portfolio</span>
+        </div>
+        <div class="meta">
+            <span class="badge-count" id="site-count-badge">0 Sites</span>
+            <span class="badge-count" id="proj-count-badge">0 Projects</span>
+            <div class="fy-btn-group" id="fy-buttons"></div>
+        </div>
+    </div>
+
+    <div class="hoshin-tabs" id="main-tabs">
+        <a class="hoshin-tab active" href="#/dashboard">Dashboard</a>
+        <a class="hoshin-tab" href="#/projects">Projects</a>
+        <a class="hoshin-tab" href="#/sites">Sites</a>
+        <a class="hoshin-tab" href="#/calc-library">Calculations</a>
+    </div>
+
+    <!-- ============ DASHBOARD ============ -->
+    <div id="tab-dashboard" class="hoshin-panel active">
+        <!-- Filter toolbar -->
+        <div class="filter-bar" id="dash-filters">
+            <span class="filter-label">Filters:</span>
+
+            <!-- Site filter -->
+            <div class="filter-dropdown">
+                <button class="filter-btn" id="btn-filter-site" onclick="toggleFilterMenu('menu-site')">Site</button>
+                <div class="filter-menu" id="menu-site">
+                    <label class="select-all"><input type="checkbox" id="site-select-all"> Select All</label>
+                    <div id="site-filter-options"></div>
+                </div>
+            </div>
+
+            <!-- Opportunity filter -->
+            <div class="filter-dropdown">
+                <button class="filter-btn" id="btn-filter-opp" onclick="toggleFilterMenu('menu-opp')">Opportunity</button>
+                <div class="filter-menu" id="menu-opp">
+                    <label class="select-all"><input type="checkbox" id="opp-select-all" checked> Select All</label>
+                    <label><input type="checkbox" class="filter-opp" value="carryover" checked> Carryover</label>
+                    <label><input type="checkbox" class="filter-opp" value="budgeted_new" checked> Budgeted New</label>
+                    <label><input type="checkbox" class="filter-opp" value="contingency" checked> Contingency</label>
+                    <label><input type="checkbox" class="filter-opp" value="unplanned" checked> Unplanned</label>
+                </div>
+            </div>
+
+            <!-- Type filter -->
+            <div class="filter-dropdown">
+                <button class="filter-btn" id="btn-filter-type" onclick="toggleFilterMenu('menu-type')">Project Type</button>
+                <div class="filter-menu" id="menu-type">
+                    <label class="select-all"><input type="checkbox" id="type-select-all"> Select All</label>
+                    <label><input type="checkbox" class="filter-type" value="material"> Material</label>
+                    <label><input type="checkbox" class="filter-type" value="labor"> Labor</label>
+                    <label><input type="checkbox" class="filter-type" value="quality"> Quality</label>
+                    <label><input type="checkbox" class="filter-type" value="throughput"> Throughput</label>
+                    <label><input type="checkbox" class="filter-type" value="energy"> Energy</label>
+                    <label><input type="checkbox" class="filter-type" value="safety"> Safety</label>
+                    <label><input type="checkbox" class="filter-type" value="other"> Other</label>
+                </div>
+            </div>
+
+            <!-- Status filter -->
+            <div class="filter-dropdown">
+                <button class="filter-btn" id="btn-filter-status" onclick="toggleFilterMenu('menu-status')">Status</button>
+                <div class="filter-menu" id="menu-status">
+                    <label class="select-all"><input type="checkbox" id="status-select-all"> Select All</label>
+                    <label><input type="checkbox" class="filter-status" value="proposed"> Proposed</label>
+                    <label><input type="checkbox" class="filter-status" value="budgeted"> Budgeted</label>
+                    <label><input type="checkbox" class="filter-status" value="active" checked> Active</label>
+                    <label><input type="checkbox" class="filter-status" value="delayed" checked> Delayed</label>
+                    <label><input type="checkbox" class="filter-status" value="completed" checked> Completed</label>
+                    <label><input type="checkbox" class="filter-status" value="aborted"> Aborted</label>
+                </div>
+            </div>
+
+            <!-- Date range filter -->
+            <div class="filter-dropdown">
+                <button class="filter-btn" id="btn-filter-date" onclick="toggleFilterMenu('menu-date')">YTD</button>
+                <div class="filter-menu" id="menu-date">
+                    <label><input type="radio" name="dateRange" class="filter-date" value="ytd" checked> Year to Date</label>
+                    <div class="divider"></div>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="q1"> Q1 (Jan-Mar)</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="q2"> Q2 (Apr-Jun)</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="q3"> Q3 (Jul-Sep)</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="q4"> Q4 (Oct-Dec)</label>
+                    <div class="divider"></div>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="jan"> January</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="feb"> February</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="mar"> March</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="apr"> April</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="may"> May</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="jun"> June</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="jul"> July</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="aug"> August</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="sep"> September</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="oct"> October</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="nov"> November</label>
+                    <label><input type="radio" name="dateRange" class="filter-date" value="dec"> December</label>
+                </div>
+            </div>
+
+            <!-- Include contingency checkbox -->
+            <label class="filter-check">
+                <input type="checkbox" id="include-contingency"> Include Contingency in Target
+            </label>
+
+            <button class="filter-reset" onclick="resetFilters()">Reset</button>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="summary-row" id="dash-summary"></div>
+
+        <!-- Charts -->
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-header">Monthly Savings Trend</div>
+                <div id="dash-trend-chart" style="height:320px;padding:8px;"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">By Project Type</div>
+                <div id="dash-type-chart" style="height:320px;padding:8px;"></div>
+            </div>
+        </div>
+
+        <!-- Site performance table -->
+        <div class="table-card">
+            <div class="table-header">
+                <span>Site Performance</span>
+                <span class="badge-count" style="font-size:10px;">excludes Aborted</span>
+            </div>
+            <table class="hoshin-table">
+                <thead><tr>
+                    <th>Site</th><th class="text-end">Projects</th><th class="text-end">Target</th>
+                    <th class="text-end">YTD Savings</th><th class="text-end">Variance</th><th>Progress</th>
+                </tr></thead>
+                <tbody id="dash-site-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============ PROJECTS ============ -->
+    <div id="tab-projects" class="hoshin-panel">
+        <div class="section-header">
+            <h2>CI Projects</h2>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-h secondary" onclick="openVSMProposals()">New from VSM</button>
+                <button class="btn-h primary" onclick="openProjectForm()">+ New Project</button>
+            </div>
+        </div>
+
+        <!-- Simple filter row -->
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+            <select id="proj-filter-site" onchange="renderProjectsTable()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                <option value="">All Sites</option>
+            </select>
+            <select id="proj-filter-status" onchange="renderProjectsTable()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                <option value="">All Statuses</option>
+                <option value="proposed">Proposed</option><option value="budgeted">Budgeted</option>
+                <option value="active">Active</option><option value="delayed">Delayed</option>
+                <option value="completed">Completed</option><option value="aborted">Aborted</option>
+            </select>
+            <select id="proj-filter-type" onchange="renderProjectsTable()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                <option value="">All Types</option>
+                <option value="material">Material</option><option value="labor">Labor</option>
+                <option value="quality">Quality</option><option value="throughput">Throughput</option>
+                <option value="energy">Energy</option><option value="safety">Safety</option><option value="other">Other</option>
+            </select>
+            <select id="proj-filter-opp" onchange="renderProjectsTable()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                <option value="">All Opportunities</option>
+                <option value="carryover">Carryover</option><option value="budgeted_new">Budgeted New</option>
+                <option value="contingency">Contingency</option><option value="unplanned">Unplanned</option>
+            </select>
+        </div>
+
+        <div class="table-card">
+            <table class="hoshin-table" id="projects-table">
+                <thead><tr>
+                    <th>Site</th><th>Project</th><th>Description</th><th>Class</th><th>Type</th>
+                    <th>Opportunity</th><th class="text-end">Target</th><th class="text-end">YTD</th>
+                    <th class="text-end">Variance</th><th>Status</th><th width="80"></th>
+                </tr></thead>
+                <tbody id="proj-table"></tbody>
+                <tfoot id="proj-footer"></tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============ SITES ============ -->
+    <div id="tab-sites" class="hoshin-panel">
+        <div class="section-header">
+            <h2>Manufacturing Sites</h2>
+            <button class="btn-h primary" onclick="openSiteForm()">+ New Site</button>
+        </div>
+        <div class="sites-grid" id="sites-grid"></div>
+    </div>
+
+    <!-- ============ PROJECT DETAIL ============ -->
+    <div id="tab-project-detail" class="hoshin-panel">
+        <div class="detail-breadcrumb">
+            <a href="#/projects">Projects</a> / <span id="detail-project-title">—</span>
+        </div>
+        <div class="detail-header">
+            <div>
+                <h2 id="detail-title">—</h2>
+                <div class="detail-meta">
+                    <span class="status-pill" id="detail-status-pill">—</span>
+                    <span class="class-badge" id="detail-class-badge">—</span>
+                    <span style="font-size:12px;color:var(--text-dim);" id="detail-site-name"></span>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-h secondary" onclick="openEditProject(currentDetailId)">Edit</button>
+                <button class="btn-h danger small" onclick="deleteProject(currentDetailId)">Delete</button>
+            </div>
+        </div>
+
+        <div class="project-detail">
+            <div class="project-detail-main">
+                <div class="sub-tabs" id="detail-sub-tabs">
+                    <a class="sub-tab active" href="" data-subtab="overview">Overview</a>
+                    <a class="sub-tab" href="" data-subtab="charter" id="charter-tab-link">Charter</a>
+                    <a class="sub-tab" href="" data-subtab="plan" id="plan-tab-link">Plan</a>
+                    <a class="sub-tab" href="" data-subtab="calculations">Calculations</a>
+                </div>
+
+                <!-- OVERVIEW sub-panel -->
+                <div class="sub-panel active" id="sub-overview">
+                    <div class="chart-card" style="margin-bottom:16px;">
+                        <div class="chart-header">Bowler Chart — Monthly Target vs Actual</div>
+                        <div style="padding:16px;overflow-x:auto;" id="detail-bowler"></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">Project Info</div>
+                        <div style="padding:16px;" id="detail-info"></div>
+                    </div>
+                </div>
+
+                <!-- CHARTER sub-panel -->
+                <div class="sub-panel" id="sub-charter">
+                    <div class="charter-section">
+                        <h3>Event Information</h3>
+                        <div class="charter-grid">
+                            <div><label>Event Type</label><select id="ch-event-type">
+                                <option value="">— Select —</option>
+                                <option value="Scrap Reduction">Scrap Reduction</option>
+                                <option value="SMED/Changeover">SMED/Changeover</option>
+                                <option value="TPM">TPM</option>
+                                <option value="5S">5S</option>
+                                <option value="Business Process">Business Process</option>
+                                <option value="Flow/Layout">Flow/Layout</option>
+                                <option value="Standard Work">Standard Work</option>
+                                <option value="Other">Other</option>
+                            </select></div>
+                            <div><label>Location / Room</label><input id="ch-location" placeholder="e.g. Training Room B"></div>
+                            <div><label>Start Date</label><input id="ch-start" type="date"></div>
+                            <div><label>End Date</label><input id="ch-end" type="date"></div>
+                            <div class="full"><label>Daily Schedule</label><input id="ch-schedule" placeholder="e.g. 7:00 AM - 4:00 PM"></div>
+                        </div>
+                    </div>
+                    <div class="charter-section">
+                        <h3>Problem & Objectives</h3>
+                        <div class="charter-grid">
+                            <div class="full"><label>Problem Statement</label><textarea id="ch-problem" rows="3" placeholder="Describe the problem this event will address..."></textarea></div>
+                            <div class="full"><label>Event Objectives</label><textarea id="ch-objectives" rows="3" placeholder="What do we want to achieve?"></textarea></div>
+                        </div>
+                    </div>
+                    <div class="charter-section">
+                        <h3>Metrics</h3>
+                        <div class="charter-grid">
+                            <div><label>Primary Metric</label><input id="ch-metric1-name" placeholder="e.g. Scrap %"></div>
+                            <div><label>Baseline</label><input id="ch-metric1-baseline" type="number" step="any" placeholder="Current value"></div>
+                            <div><label>Target</label><input id="ch-metric1-target" type="number" step="any" placeholder="Target value"></div>
+                            <div><label>Improvement %</label><input id="ch-metric1-pct" disabled style="background:var(--bg-tertiary);"></div>
+                        </div>
+                        <div class="charter-grid" style="margin-top:12px;">
+                            <div><label>Secondary Metric (Optional)</label><input id="ch-metric2-name" placeholder="e.g. Cycle Time"></div>
+                            <div><label>Baseline</label><input id="ch-metric2-baseline" type="number" step="any"></div>
+                            <div><label>Target</label><input id="ch-metric2-target" type="number" step="any"></div>
+                            <div></div>
+                        </div>
+                    </div>
+                    <div class="charter-section">
+                        <h3>Scope & Boundaries</h3>
+                        <div class="charter-grid">
+                            <div><label>Beginning Process</label><input id="ch-scope-start" placeholder="e.g. Raw material intake"></div>
+                            <div><label>End Process</label><input id="ch-scope-end" placeholder="e.g. Final packaging"></div>
+                            <div class="full"><label>Excluded Items</label><textarea id="ch-excluded" rows="2" placeholder="What is NOT in scope..."></textarea></div>
+                        </div>
+                    </div>
+                    <div class="charter-section">
+                        <h3>Ownership</h3>
+                        <div class="charter-grid">
+                            <div><label>Process Owner</label><input id="ch-owner" placeholder="Name"></div>
+                            <div><label>Sponsor(s)</label><input id="ch-sponsors" placeholder="Names"></div>
+                        </div>
+                    </div>
+                    <div class="charter-section">
+                        <h3>Team Roster</h3>
+                        <div class="team-list" id="ch-team-list"></div>
+                        <div style="display:flex;gap:8px;margin-top:10px;">
+                            <input id="ch-team-name" placeholder="Name" style="flex:1;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <select id="ch-team-role" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                                <option value="Member">Member</option>
+                                <option value="Team Leader">Team Leader</option>
+                                <option value="Facilitator">Facilitator</option>
+                                <option value="SME">SME</option>
+                            </select>
+                            <input id="ch-team-dept" placeholder="Department" style="width:120px;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <button class="btn-h small primary" onclick="addTeamMember()">Add</button>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                        <button class="btn-h primary" onclick="saveCharter()">Save Charter</button>
+                    </div>
+                </div>
+
+                <!-- PLAN sub-panel -->
+                <div class="sub-panel" id="sub-plan">
+                    <div class="charter-section">
+                        <h3>Background & Current Conditions</h3>
+                        <div class="charter-grid">
+                            <div class="full"><label>Background</label><textarea id="plan-background" rows="3" placeholder="Why is this project needed?"></textarea></div>
+                            <div class="full"><label>Current Conditions</label><textarea id="plan-current" rows="3" placeholder="What is the current state?"></textarea></div>
+                        </div>
+                    </div>
+                    <div class="charter-section">
+                        <h3>Objectives & Countermeasures</h3>
+                        <div class="charter-grid">
+                            <div class="full"><label>Objectives & Targets</label><textarea id="plan-objectives" rows="2" placeholder="What we aim to achieve..."></textarea></div>
+                            <div class="full"><label>Countermeasures</label><textarea id="plan-countermeasures" rows="3" placeholder="Actions to address root causes..."></textarea></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:16px;">
+                        <button class="btn-h primary" onclick="savePlan()">Save Plan</button>
+                    </div>
+
+                    <div class="gantt-container">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                            <h3 style="margin:0;font-size:14px;color:var(--text-primary);">Gantt Chart</h3>
+                            <button class="btn-h small primary" onclick="openActionModal()">+ Add Action</button>
+                        </div>
+                        <div id="gantt-chart"></div>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-header">
+                            <span>Action Items</span>
+                            <span class="badge-count" id="action-count-badge">0 items</span>
+                        </div>
+                        <table class="action-table">
+                            <thead><tr>
+                                <th>#</th><th>Title</th><th>Owner</th><th>Start</th><th>End</th>
+                                <th>Status</th><th>Progress</th><th width="80"></th>
+                            </tr></thead>
+                            <tbody id="action-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- CALCULATIONS sub-panel -->
+                <div class="sub-panel" id="sub-calculations">
+                    <div class="charter-section">
+                        <h3>Prior Year Baseline Data</h3>
+                        <div style="display:flex;gap:16px;margin-bottom:12px;align-items:flex-end;">
+                            <div>
+                                <label style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:3px;">Cost per Unit ($)</label>
+                                <input id="calc-cost-per-unit" type="number" step="0.01" style="width:120px;padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;font-family:'JetBrains Mono',monospace;">
+                            </div>
+                            <div>
+                                <label style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:3px;">Unit of Measure</label>
+                                <select id="calc-uom" style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;">
+                                    <option value="Units">Units</option><option value="MSI">MSI</option>
+                                    <option value="Hours">Hours</option><option value="Ft">Ft</option>
+                                    <option value="Lbs">Lbs</option><option value="$">$</option>
+                                    <option value="%">%</option>
+                                </select>
+                            </div>
+                            <div style="font-size:14px;font-family:'JetBrains Mono',monospace;">
+                                TTM Average: <strong id="calc-ttm-avg" class="positive">—</strong>
+                            </div>
+                        </div>
+                        <div class="baseline-grid" id="baseline-grid"></div>
+                        <div style="text-align:right;">
+                            <button class="btn-h primary" onclick="saveBaseline()">Save Baseline</button>
+                        </div>
+                    </div>
+
+                    <div class="charter-section">
+                        <h3>Monthly Operational Data</h3>
+                        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-end;">
+                            <div>
+                                <label style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:3px;">Month</label>
+                                <select id="calc-month-select" onchange="loadMonthData()" style="padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;">
+                                    <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                                    <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+                                    <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                                    <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="calc-month-form"></div>
+                    </div>
+
+                    <div class="charter-section">
+                        <h3>Calculation Method & Formula</h3>
+                        <div id="calc-formula-ref"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-detail-side">
+                <div class="side-card">
+                    <h4>Monthly Trend</h4>
+                    <div id="detail-trend-mini" style="height:160px;"></div>
+                </div>
+                <div class="side-card">
+                    <h4>Action Items</h4>
+                    <div id="detail-action-summary"></div>
+                </div>
+                <div class="side-card">
+                    <h4>Quick Links</h4>
+                    <div class="quick-links" id="detail-quick-links"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ CALC LIBRARY ============ -->
+    <div id="tab-calc-library" class="hoshin-panel">
+        <div class="section-header">
+            <h2>Calculation Methods Library</h2>
+        </div>
+        <div id="calc-library-list"></div>
+
+        <div class="formula-editor" style="margin-top:24px;">
+            <h3 style="margin:0 0 12px;font-size:14px;color:var(--text-primary);">Formula Tester</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">Test custom formulas with sample values. Available variables: <code>baseline</code>, <code>actual</code>, <code>volume</code>, <code>sales</code>, <code>rate</code>, <code>variance</code></p>
+            <input class="formula-input" id="lib-formula" placeholder="e.g. (baseline - actual) * volume * rate" value="(baseline - actual) * volume * rate">
+            <div class="formula-test-grid">
+                <div><label>Baseline</label><input id="lib-baseline" type="number" value="20" step="any"></div>
+                <div><label>Actual</label><input id="lib-actual" type="number" value="15" step="any"></div>
+                <div><label>Volume</label><input id="lib-volume" type="number" value="10000" step="any"></div>
+                <div><label>Sales ($)</label><input id="lib-sales" type="number" value="0" step="any"></div>
+                <div><label>Rate ($/unit)</label><input id="lib-rate" type="number" value="0.25" step="any"></div>
+                <div><label>Variance (auto)</label><input id="lib-variance" disabled style="background:var(--bg-tertiary);"></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+                <button class="btn-h primary" onclick="testFormula()">Test Formula</button>
+                <div class="formula-result" id="lib-result" style="flex:1;">Enter a formula and click Test</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ NEW PROJECT MODAL ============ -->
+<div class="hoshin-modal" id="project-modal">
+    <div class="hoshin-modal-content" style="max-width:900px;">
+        <h3 id="project-modal-title">New CI Project</h3>
+        <div class="hoshin-form" id="project-form">
+            <div class="full"><label>Title</label><input id="pf-title" placeholder="e.g. Reduce scrap on Line 3"></div>
+            <div><label>Site</label><select id="pf-site"></select></div>
+            <div><label>Fiscal Year</label><input id="pf-fy" type="number"></div>
+            <div>
+                <label>Project Class</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="pf-class" value="project" checked><span>Project</span></label>
+                    <label><input type="radio" name="pf-class" value="kaizen"><span>Kaizen Event</span></label>
+                </div>
+            </div>
+            <div><label>Project Type</label><select id="pf-type">
+                <option value="material">Material</option><option value="labor">Labor</option>
+                <option value="quality">Quality</option><option value="throughput">Throughput</option>
+                <option value="energy">Energy</option><option value="safety">Safety</option><option value="other">Other</option>
+            </select></div>
+            <div><label>Opportunity</label><select id="pf-opp">
+                <option value="budgeted_new">Budgeted New</option><option value="carryover">Carryover</option>
+                <option value="contingency">Contingency</option><option value="unplanned">Unplanned</option>
+            </select></div>
+            <div><label>Calculation Method</label><select id="pf-calc"></select></div>
+            <div><label>Annual Savings Target ($)</label><input id="pf-target" type="number" step="100" value="0"></div>
+            <div><label>Champion</label><input id="pf-champion" placeholder="Name"></div>
+            <div><label>Leader</label><input id="pf-leader" placeholder="Name"></div>
+            <div><label>Methodology</label><select id="pf-method">
+                <option value="">— None —</option><option value="PDCA">PDCA</option><option value="DMAIC">DMAIC</option>
+                <option value="A3">A3</option><option value="8D">8D</option><option value="Kaizen">Kaizen</option>
+            </select></div>
+            <div><label>Status</label><select id="pf-status">
+                <option value="proposed">Proposed</option><option value="budgeted">Budgeted</option>
+                <option value="active">Active</option><option value="delayed">Delayed</option>
+                <option value="completed">Completed</option>
+            </select></div>
+            <div class="full" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+                <button class="btn-h secondary" onclick="closeModal('project-modal')">Cancel</button>
+                <button class="btn-h primary" id="btn-save-project" onclick="saveProject()">Create Project</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ NEW SITE MODAL ============ -->
+<div class="hoshin-modal" id="site-modal">
+    <div class="hoshin-modal-content" style="max-width:700px;">
+        <h3 id="site-modal-title">New Manufacturing Site</h3>
+        <div class="hoshin-form" id="site-form">
+            <div><label>Site Name</label><input id="sf-name" placeholder="e.g. Springfield Plant"></div>
+            <div><label>Code</label><input id="sf-code" placeholder="e.g. SPR-01"></div>
+            <div><label>Business Unit</label><input id="sf-bu" placeholder="e.g. Packaging Division"></div>
+            <div><label>CI Leader</label><input id="sf-ci" placeholder="Name"></div>
+            <div><label>Plant Manager</label><input id="sf-pm" placeholder="Name"></div>
+            <div><label>Controller</label><input id="sf-ctrl" placeholder="Name"></div>
+            <div class="full"><label>Address</label><textarea id="sf-addr" rows="2" placeholder="Address"></textarea></div>
+            <div class="full" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+                <button class="btn-h secondary" onclick="closeModal('site-modal')">Cancel</button>
+                <button class="btn-h primary" onclick="saveSite()">Create Site</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MONTHLY DATA MODAL ============ -->
+<div class="hoshin-modal" id="monthly-modal">
+    <div class="hoshin-modal-content" style="max-width:550px;">
+        <h3 id="monthly-modal-title">Enter Monthly Data</h3>
+        <div id="monthly-form-body"></div>
+    </div>
+</div>
+
+<!-- ============ VSM PROPOSALS MODAL ============ -->
+<div class="hoshin-modal" id="vsm-modal">
+    <div class="hoshin-modal-content">
+        <h3>Generate CI Proposals from VSM</h3>
+        <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:11px;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Select Value Stream Map</label>
+            <select id="vsm-select" style="width:100%;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;"></select>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:16px;align-items:flex-end;">
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Annual Volume</label><input id="vsm-volume" type="number" value="100000" style="width:140px;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;"></div>
+            <div><label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;">Cost/Unit ($)</label><input id="vsm-cost" type="number" value="50" step="0.01" style="width:120px;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;"></div>
+            <button class="btn-h primary" onclick="generateProposals()">Generate</button>
+        </div>
+        <div id="vsm-proposals"></div>
+        <div id="vsm-actions" style="display:none;text-align:right;margin-top:12px;">
+            <button class="btn-h secondary" onclick="closeModal('vsm-modal')">Cancel</button>
+            <button class="btn-h primary" onclick="createFromProposals()" style="margin-left:8px;">Create Selected</button>
+        </div>
+    </div>
+</div>
+<!-- ============ ACTION ITEM MODAL ============ -->
+<div class="hoshin-modal" id="action-modal">
+    <div class="hoshin-modal-content" style="max-width:600px;">
+        <h3 id="action-modal-title">New Action Item</h3>
+        <div class="hoshin-form" id="action-form">
+            <div class="full"><label>Title</label><input id="af-title" placeholder="Action item title"></div>
+            <div><label>Owner</label><input id="af-owner" placeholder="Name"></div>
+            <div><label>Status</label><select id="af-status">
+                <option value="not_started">Not Started</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="blocked">Blocked</option>
+            </select></div>
+            <div><label>Start Date</label><input id="af-start" type="date"></div>
+            <div><label>End Date</label><input id="af-end" type="date"></div>
+            <div><label>Progress (%)</label><input id="af-progress" type="number" min="0" max="100" value="0"></div>
+            <div><label>Depends On</label><select id="af-depends"><option value="">— None —</option></select></div>
+            <div class="full"><label>Description</label><textarea id="af-desc" rows="2" placeholder="Details..."></textarea></div>
+            <div class="full" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+                <button class="btn-h secondary" onclick="closeModal('action-modal')">Cancel</button>
+                <button class="btn-h primary" id="btn-save-action" onclick="saveActionItem()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ════════════════════════════════════════════════════════════════
+// DATA LAYER
+// ════════════════════════════════════════════════════════════════
+const API = '/api/hoshin';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let allProjects = [];
+let sitesCache = [];
+let calcMethods = [];
+let selectedFY = new Date().getFullYear();
+let expandedProjectId = null;
+let editingProjectId = null;
+let currentDetailId = null;
+let currentDetailProject = null;
+let currentActionItems = [];
+let editingActionId = null;
+let charterTeamMembers = [];
+
+// ════════════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════════════
+function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+}
+
+async function api(path, opts = {}) {
+    const resp = await fetch(`${API}${path}`, {
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        ...opts,
+    });
+    return resp.json();
+}
+
+function fmt$(v) {
+    if (v == null || isNaN(v)) return '$0';
+    const n = parseFloat(v);
+    return '$' + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0});
+}
+
+function fmtVariance(v) {
+    const n = parseFloat(v) || 0;
+    if (n >= 0) return '$' + n.toLocaleString(undefined, {maximumFractionDigits: 0});
+    return '($' + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0}) + ')';
+}
+
+function pctColor(pct) {
+    if (pct >= 80) return 'green';
+    if (pct >= 50) return 'yellow';
+    return 'red';
+}
+
+function pctClass(pct) {
+    if (pct >= 80) return 'positive';
+    if (pct >= 50) return 'warning-color';
+    return 'negative';
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════════════
+// HASH ROUTER
+// ════════════════════════════════════════════════════════════════
+function navigate(hash) {
+    if (!hash || hash === '#' || hash === '#/') hash = '#/dashboard';
+    const parts = hash.replace('#/', '').split('/');
+    const route = parts[0];
+
+    // Hide all panels
+    document.querySelectorAll('.hoshin-panel').forEach(p => p.classList.remove('active'));
+
+    // Update main tab active state
+    document.querySelectorAll('#main-tabs .hoshin-tab').forEach(t => t.classList.remove('active'));
+
+    if (route === 'dashboard') {
+        document.getElementById('tab-dashboard').classList.add('active');
+        document.querySelector('#main-tabs [href="#/dashboard"]').classList.add('active');
+        updateDashboard();
+    } else if (route === 'projects') {
+        document.getElementById('tab-projects').classList.add('active');
+        document.querySelector('#main-tabs [href="#/projects"]').classList.add('active');
+        renderProjectsTable();
+    } else if (route === 'sites') {
+        document.getElementById('tab-sites').classList.add('active');
+        document.querySelector('#main-tabs [href="#/sites"]').classList.add('active');
+        renderSitesGrid();
+    } else if (route === 'project' && parts[1]) {
+        document.getElementById('tab-project-detail').classList.add('active');
+        document.querySelector('#main-tabs [href="#/projects"]').classList.add('active');
+        const projectId = parts[1];
+        const subTab = parts[2] || 'overview';
+        loadProjectDetail(projectId, subTab);
+    } else if (route === 'calc-library') {
+        document.getElementById('tab-calc-library').classList.add('active');
+        document.querySelector('#main-tabs [href="#/calc-library"]').classList.add('active');
+        renderCalcLibrary();
+    } else {
+        // Fallback to dashboard
+        document.getElementById('tab-dashboard').classList.add('active');
+        document.querySelector('#main-tabs [href="#/dashboard"]').classList.add('active');
+        updateDashboard();
+    }
+}
+
+// Prevent default link behavior for hash links
+document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[href^="#/"]');
+    if (link) {
+        e.preventDefault();
+        const href = link.getAttribute('href');
+        if (location.hash !== href) {
+            location.hash = href;
+        } else {
+            navigate(href);
+        }
+    }
+});
+
+window.addEventListener('hashchange', () => navigate(location.hash));
+
+// Legacy wrapper
+function showTab(tab) { location.hash = '#/' + tab; }
+
+// ════════════════════════════════════════════════════════════════
+// FISCAL YEAR SELECTOR
+// ════════════════════════════════════════════════════════════════
+function renderFYButtons() {
+    const years = [selectedFY - 1, selectedFY, selectedFY + 1];
+    document.getElementById('fy-buttons').innerHTML = years.map(y =>
+        `<button class="fy-btn ${y === selectedFY ? 'active' : ''}" onclick="changeFY(${y})">${y}</button>`
+    ).join('');
+}
+
+async function changeFY(year) {
+    selectedFY = year;
+    renderFYButtons();
+    await loadAllProjects();
+    updateDashboard();
+}
+
+// ════════════════════════════════════════════════════════════════
+// FILTER TOOLBAR
+// ════════════════════════════════════════════════════════════════
+function toggleFilterMenu(menuId) {
+    // Close all others first
+    document.querySelectorAll('.filter-menu.open').forEach(m => {
+        if (m.id !== menuId) m.classList.remove('open');
+    });
+    document.getElementById(menuId).classList.toggle('open');
+}
+
+// Close menus when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.filter-dropdown')) {
+        document.querySelectorAll('.filter-menu.open').forEach(m => m.classList.remove('open'));
+    }
+});
+
+function getCheckedValues(cls) {
+    return Array.from(document.querySelectorAll('.' + cls + ':checked')).map(cb => cb.value);
+}
+
+function getDateRange() {
+    const val = (document.querySelector('.filter-date:checked') || {}).value || 'ytd';
+    const map = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    if (val === 'ytd') return [0, 11];
+    if (val === 'q1') return [0, 2];
+    if (val === 'q2') return [3, 5];
+    if (val === 'q3') return [6, 8];
+    if (val === 'q4') return [9, 11];
+    if (map.hasOwnProperty(val)) return [map[val], map[val]];
+    return [0, 11];
+}
+
+function getDateLabel() {
+    const val = (document.querySelector('.filter-date:checked') || {}).value || 'ytd';
+    const labels = {ytd:'YTD',q1:'Q1',q2:'Q2',q3:'Q3',q4:'Q4',
+        jan:'Jan',feb:'Feb',mar:'Mar',apr:'Apr',may:'May',jun:'Jun',
+        jul:'Jul',aug:'Aug',sep:'Sep',oct:'Oct',nov:'Nov',dec:'Dec'};
+    return labels[val] || 'YTD';
+}
+
+function updateFilterButton(btnId, values, defaultText) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (values.length === 0) {
+        btn.textContent = defaultText;
+        btn.classList.remove('has-filter');
+    } else {
+        btn.textContent = defaultText + ' (' + values.length + ')';
+        btn.classList.add('has-filter');
+    }
+}
+
+function setupSelectAll(selectAllId, filterClass) {
+    const sa = document.getElementById(selectAllId);
+    if (!sa) return;
+    const cbs = document.querySelectorAll('.' + filterClass);
+
+    sa.addEventListener('change', function() {
+        cbs.forEach(cb => cb.checked = sa.checked);
+        updateDashboard();
+    });
+    cbs.forEach(cb => cb.addEventListener('change', function() {
+        const all = Array.from(cbs).every(c => c.checked);
+        const none = Array.from(cbs).every(c => !c.checked);
+        sa.checked = all;
+        sa.indeterminate = !all && !none;
+    }));
+}
+
+function resetFilters() {
+    // Uncheck site, type
+    document.querySelectorAll('.filter-site, .filter-type').forEach(cb => cb.checked = false);
+    ['site-select-all', 'type-select-all'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.checked = false; el.indeterminate = false; }
+    });
+
+    // Re-check all opportunity
+    document.querySelectorAll('.filter-opp').forEach(cb => cb.checked = true);
+    const oppSa = document.getElementById('opp-select-all');
+    if (oppSa) { oppSa.checked = true; oppSa.indeterminate = false; }
+
+    // Reset status: active+delayed+completed checked, rest unchecked
+    document.querySelectorAll('.filter-status').forEach(cb => {
+        cb.checked = ['active', 'delayed', 'completed'].includes(cb.value);
+    });
+    const stSa = document.getElementById('status-select-all');
+    if (stSa) { stSa.checked = false; stSa.indeterminate = true; }
+
+    // Reset date to YTD
+    const ytd = document.getElementById('menu-date').querySelector('input[value="ytd"]');
+    if (ytd) ytd.checked = true;
+
+    document.getElementById('include-contingency').checked = false;
+    updateDashboard();
+}
+
+function filterProjects(projects) {
+    const siteF = getCheckedValues('filter-site');
+    const oppF = getCheckedValues('filter-opp');
+    const typeF = getCheckedValues('filter-type');
+    const statusF = getCheckedValues('filter-status');
+
+    return projects.filter(p => {
+        if (siteF.length > 0 && !siteF.includes(String(p.site_id || ''))) return false;
+        if (oppF.length > 0 && !oppF.includes(p.opportunity || '')) return false;
+        if (typeF.length > 0 && !typeF.includes(p.project_type || '')) return false;
+        if (statusF.length > 0 && !statusF.includes(p.hoshin_status || '')) return false;
+        return true;
+    });
+}
+
+// ════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════════════════════════
+function updateDashboard() {
+    const filtered = filterProjects(allProjects);
+    const [startMonth, endMonth] = getDateRange();
+    const includeContingency = document.getElementById('include-contingency').checked;
+
+    // Update filter button labels
+    updateFilterButton('btn-filter-site', getCheckedValues('filter-site'), 'Site');
+    updateFilterButton('btn-filter-opp', getCheckedValues('filter-opp').length === 4 ? [] : getCheckedValues('filter-opp'), 'Opportunity');
+    updateFilterButton('btn-filter-type', getCheckedValues('filter-type'), 'Project Type');
+    const statusF = getCheckedValues('filter-status');
+    const defaultStatus = statusF.length === 3 && statusF.includes('active') && statusF.includes('delayed') && statusF.includes('completed');
+    updateFilterButton('btn-filter-status', defaultStatus ? [] : statusF, 'Status');
+
+    const dateBtn = document.getElementById('btn-filter-date');
+    const dLabel = getDateLabel();
+    dateBtn.textContent = dLabel;
+    if (dLabel !== 'YTD') dateBtn.classList.add('has-filter');
+    else dateBtn.classList.remove('has-filter');
+
+    // Calculate totals
+    let totalTarget = 0, totalSavings = 0;
+    let monthlyActuals = new Array(12).fill(0);
+    let monthlyTargets = new Array(12).fill(0);
+    let byType = {};
+    let bySite = {};
+
+    filtered.forEach(p => {
+        const ma = p.monthly_actuals || [];
+        const target = Math.abs(parseFloat(p.annual_savings_target) || 0);
+        const monthlyTarget = target / 12;
+
+        // Target proration
+        if (includeContingency || p.opportunity !== 'contingency') {
+            for (let i = startMonth; i <= endMonth; i++) {
+                totalTarget += monthlyTarget;
+            }
+            for (let i = 0; i < 12; i++) {
+                monthlyTargets[i] += monthlyTarget;
+            }
+        }
+
+        // Actuals
+        for (let i = startMonth; i <= endMonth; i++) {
+            const entry = ma.find(e => e.month === (i + 1));
+            const savings = entry ? (parseFloat(entry.savings) || 0) : 0;
+            totalSavings += savings;
+        }
+        for (let i = 0; i < 12; i++) {
+            const entry = ma.find(e => e.month === (i + 1));
+            monthlyActuals[i] += entry ? (parseFloat(entry.savings) || 0) : 0;
+        }
+
+        // By type
+        const t = p.project_type || 'other';
+        if (!byType[t]) byType[t] = 0;
+        for (let i = startMonth; i <= endMonth; i++) {
+            const entry = ma.find(e => e.month === (i + 1));
+            byType[t] += entry ? Math.abs(parseFloat(entry.savings) || 0) : 0;
+        }
+
+        // By site
+        const sKey = p.site_id || 'unassigned';
+        const sName = p.site_name || 'Unassigned';
+        if (!bySite[sKey]) bySite[sKey] = {name: sName, target: 0, ytd: 0, count: 0};
+        bySite[sKey].count++;
+        if (includeContingency || p.opportunity !== 'contingency') {
+            bySite[sKey].target += target;
+        }
+        bySite[sKey].ytd += parseFloat(p.ytd_savings) || 0;
+    });
+
+    // Update badges
+    document.getElementById('site-count-badge').textContent = sitesCache.length + ' Sites';
+    document.getElementById('proj-count-badge').textContent = filtered.length + ' Projects';
+
+    // Render summary cards
+    const variance = totalSavings - totalTarget;
+    const pct = totalTarget > 0 ? (totalSavings / totalTarget * 100) : 0;
+
+    document.getElementById('dash-summary').innerHTML = `
+        <div class="summary-card">
+            <div class="label">Annual Target</div>
+            <div class="value">${fmt$(totalTarget)}</div>
+            <div class="sub">FY ${selectedFY}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">YTD Savings</div>
+            <div class="value ${totalSavings >= 0 ? 'positive' : 'negative'}">${fmt$(totalSavings)}</div>
+            <div class="sub">${pct.toFixed(1)}% of target</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Variance to Target</div>
+            <div class="value ${variance >= 0 ? 'positive' : 'negative'}">${fmtVariance(variance)}</div>
+            <div class="sub">${variance >= 0 ? 'Ahead of' : 'Behind'} plan</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Target Achievement</div>
+            <div class="value ${pctClass(pct)}">${pct.toFixed(1)}%</div>
+            <div class="sub">${filtered.length} projects</div>
+        </div>
+    `;
+
+    // Render trend chart
+    let cumTarget = 0, cumActual = 0;
+    const cumTargetY = monthlyTargets.map(t => { cumTarget += t; return cumTarget; });
+    const cumActualY = monthlyActuals.map(a => { cumActual += a; return cumActual; });
+
+    Plotly.react('dash-trend-chart', [
+        {x: MONTHS, y: monthlyActuals, type: 'bar', marker: {color: 'rgba(74,159,110,0.3)'}, name: 'Monthly Actual', yaxis: 'y2'},
+        {x: MONTHS, y: cumTargetY, type: 'scatter', mode: 'lines', line: {color: 'rgba(232,149,71,0.6)', width: 2, dash: 'dash'}, name: 'Cumulative Target'},
+        {x: MONTHS, y: cumActualY, type: 'scatter', mode: 'lines+markers', line: {color: '#4a9f6e', width: 2.5}, marker: {size: 6}, name: 'Cumulative Actual'},
+    ], {
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: {color: '#9aaa9a', size: 11}, showlegend: true,
+        legend: {orientation: 'h', y: 1.12, x: 0.5, xanchor: 'center'},
+        xaxis: {gridcolor: 'rgba(255,255,255,0.05)'},
+        yaxis: {title: 'Cumulative ($)', gridcolor: 'rgba(255,255,255,0.05)', tickformat: '$,.0f'},
+        yaxis2: {overlaying: 'y', side: 'right', showgrid: false, title: 'Monthly ($)', tickformat: '$,.0f'},
+        margin: {t: 40, b: 40, l: 70, r: 70},
+    }, {responsive: true, displayModeBar: false});
+
+    // Render type donut
+    const typeLabels = Object.keys(byType);
+    const typeValues = Object.values(byType);
+    const typeColors = {
+        material: '#4a9f6e', labor: '#3a7f8f', quality: '#e89547', throughput: '#5bc0de',
+        energy: '#a78bfa', safety: '#cf6f6f', other: '#777'
+    };
+
+    Plotly.react('dash-type-chart', [{
+        values: typeValues.length ? typeValues : [1],
+        labels: typeLabels.length ? typeLabels.map(t => t.charAt(0).toUpperCase() + t.slice(1)) : ['No Data'],
+        type: 'pie', hole: 0.5,
+        marker: {colors: typeLabels.length ? typeLabels.map(t => typeColors[t] || '#777') : ['#333']},
+        textinfo: 'label+percent', textfont: {size: 11, color: '#9aaa9a'},
+        hovertemplate: '%{label}: $%{value:,.0f}<extra></extra>',
+    }], {
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: {color: '#9aaa9a', size: 11},
+        showlegend: false,
+        margin: {t: 20, b: 20, l: 20, r: 20},
+    }, {responsive: true, displayModeBar: false});
+
+    // Render site performance table
+    const siteRows = Object.entries(bySite).map(([id, s]) => {
+        const v = s.ytd - s.target;
+        const p = s.target > 0 ? Math.round(s.ytd / s.target * 100) : 0;
+        const pc = pctColor(p);
+        return `<tr style="cursor:pointer;" onclick="filterBySite('${id}')">
+            <td><strong>${s.name}</strong></td>
+            <td class="text-end">${s.count}</td>
+            <td class="text-end">${fmt$(s.target)}</td>
+            <td class="text-end ${s.ytd >= 0 ? 'positive' : 'negative'}">${fmt$(s.ytd)}</td>
+            <td class="text-end ${v >= 0 ? 'positive' : 'negative'}">${fmtVariance(v)}</td>
+            <td>
+                <span style="font-size:12px;margin-right:6px;font-family:'JetBrains Mono',monospace;">${p}%</span>
+                <div class="progress-bar-wrap"><div class="progress-bar-fill ${pc}" style="width:${Math.min(100, Math.abs(p))}%"></div></div>
+            </td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('dash-site-table').innerHTML = siteRows ||
+        `<tr><td colspan="6" class="empty-state" style="padding:40px;"><p>No sites configured. Add sites first.</p></td></tr>`;
+}
+
+function filterBySite(siteId) {
+    // Switch to projects tab filtered by this site
+    const sel = document.getElementById('proj-filter-site');
+    sel.value = siteId === 'unassigned' ? '' : siteId;
+    location.hash = '#/projects';
+}
+
+// ════════════════════════════════════════════════════════════════
+// PROJECTS TABLE
+// ════════════════════════════════════════════════════════════════
+function renderProjectsTable() {
+    const siteF = document.getElementById('proj-filter-site').value;
+    const statusF = document.getElementById('proj-filter-status').value;
+    const typeF = document.getElementById('proj-filter-type').value;
+    const oppF = document.getElementById('proj-filter-opp').value;
+
+    let filtered = allProjects.filter(p => {
+        if (siteF && String(p.site_id || '') !== siteF) return false;
+        if (statusF && p.hoshin_status !== statusF) return false;
+        if (typeF && p.project_type !== typeF) return false;
+        if (oppF && p.opportunity !== oppF) return false;
+        return true;
+    });
+
+    let totalTarget = 0, totalYTD = 0;
+
+    const rows = filtered.map(p => {
+        const target = Math.abs(parseFloat(p.annual_savings_target) || 0);
+        const ytd = parseFloat(p.ytd_savings) || 0;
+        const v = ytd - target;
+        totalTarget += target;
+        totalYTD += ytd;
+
+        const classHtml = p.project_class === 'kaizen'
+            ? '<span class="class-badge class-kaizen">Kaizen</span>'
+            : '<span class="class-badge class-project">Project</span>';
+
+        const oppHtml = p.opportunity
+            ? `<span class="opp-badge opp-${p.opportunity}">${(p.opportunity || '').replace('_', ' ')}</span>`
+            : '—';
+
+        return `<tr style="cursor:pointer;" onclick="location.hash='#/project/${p.id}'">
+            <td>${p.site_name || '—'}</td>
+            <td><strong>${p.project_title || '—'}</strong></td>
+            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.project_description || ''}</td>
+            <td>${classHtml}</td>
+            <td style="font-size:11px;">${(p.project_type || '—')}</td>
+            <td>${oppHtml}</td>
+            <td class="text-end">${fmt$(target)}</td>
+            <td class="text-end ${ytd >= 0 ? 'positive' : 'negative'}">${fmt$(ytd)}</td>
+            <td class="text-end ${v >= 0 ? 'positive' : 'negative'}">${fmtVariance(v)}</td>
+            <td><span class="status-pill status-${p.hoshin_status}">${p.hoshin_status}</span></td>
+            <td><button class="btn-h small outline" onclick="event.stopPropagation();openEditProject('${p.id}')">Edit</button></td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('proj-table').innerHTML = rows ||
+        `<tr><td colspan="11" class="empty-state" style="padding:40px;"><p>No projects found.</p></td></tr>`;
+
+    // Footer totals
+    if (filtered.length > 0) {
+        const fv = totalYTD - totalTarget;
+        document.getElementById('proj-footer').innerHTML = `<tr class="footer-row">
+            <td colspan="6">Showing ${filtered.length} project(s)</td>
+            <td class="text-end">${fmt$(totalTarget)}</td>
+            <td class="text-end ${totalYTD >= 0 ? 'positive' : 'negative'}">${fmt$(totalYTD)}</td>
+            <td class="text-end ${fv >= 0 ? 'positive' : 'negative'}">${fmtVariance(fv)}</td>
+            <td colspan="2"></td>
+        </tr>`;
+    } else {
+        document.getElementById('proj-footer').innerHTML = '';
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// BOWLER CHART (EXPANDABLE ROW)
+// ════════════════════════════════════════════════════════════════
+async function toggleProjectDetail(hoshinId, rowEl) {
+    // Remove any existing expanded detail
+    const existing = document.getElementById('bowler-' + hoshinId);
+    if (existing) {
+        existing.remove();
+        expandedProjectId = null;
+        return;
+    }
+
+    // Remove previously expanded
+    document.querySelectorAll('.bowler-wrap').forEach(el => el.remove());
+    expandedProjectId = hoshinId;
+
+    // Fetch full project detail
+    const data = await api(`/projects/${hoshinId}/`);
+    const p = data.project;
+    if (!p) return;
+
+    const target = Math.abs(parseFloat(p.annual_savings_target) || 0);
+    const monthlyTarget = target / 12;
+    const ma = p.monthly_actuals || [];
+
+    // Build bowler chart
+    let targetCells = '', actualCells = '', varianceCells = '';
+    let targetTotal = 0, actualTotal = 0;
+
+    for (let i = 0; i < 12; i++) {
+        const mt = monthlyTarget;
+        targetTotal += mt;
+        const entry = ma.find(e => e.month === (i + 1));
+        const actual = entry ? (parseFloat(entry.savings) || 0) : 0;
+        actualTotal += actual;
+        const variance = actual - mt;
+
+        targetCells += `<td class="text-end" style="color:var(--text-dim);">${mt > 0 ? fmt$(mt) : '—'}</td>`;
+        actualCells += `<td class="text-end month-editable" onclick="event.stopPropagation();openMonthlyEdit('${hoshinId}', ${i+1}, ${JSON.stringify(entry || {}).replace(/"/g, '&quot;')})"
+            style="${actual > 0 ? 'color:var(--success);' : actual < 0 ? 'color:var(--error);' : ''}">${entry ? fmt$(actual) : '—'}</td>`;
+        const vc = variance > 0 ? 'positive' : variance < 0 ? 'negative' : '';
+        varianceCells += `<td class="text-end ${vc}">${entry ? fmtVariance(variance) : '—'}</td>`;
+    }
+
+    const vTotal = actualTotal - targetTotal;
+
+    const bowlerHtml = `
+        <table class="bowler-table">
+            <thead><tr><th></th>${MONTHS.map(m => `<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
+            <tbody>
+                <tr class="target-row"><td class="row-label">Target</td>${targetCells}<td class="text-end total-col">${fmt$(targetTotal)}</td></tr>
+                <tr><td class="row-label">Actual</td>${actualCells}<td class="text-end total-col ${actualTotal >= 0 ? 'positive' : 'negative'}">${fmt$(actualTotal)}</td></tr>
+                <tr><td class="row-label">Variance</td>${varianceCells}<td class="text-end total-col ${vTotal >= 0 ? 'positive' : 'negative'}">${fmtVariance(vTotal)}</td></tr>
+            </tbody>
+        </table>
+        <div class="bowler-info">
+            <div class="info-item">Calc: <strong>${p.calculation_method || 'None'}</strong></div>
+            <div class="info-item">Champion: <strong>${p.champion_name || '—'}</strong></div>
+            <div class="info-item">Leader: <strong>${p.leader_name || '—'}</strong></div>
+            <div class="info-item">Method: <strong>${p.methodology || '—'}</strong></div>
+            <div class="info-item">Class: <strong>${p.project_class === 'kaizen' ? 'Kaizen Event' : 'Project'}</strong></div>
+        </div>
+        <div class="bowler-actions">
+            <button class="btn-h small outline" onclick="event.stopPropagation();openEditProject('${hoshinId}')">Edit Project</button>
+            <button class="btn-h small danger" onclick="event.stopPropagation();deleteProject('${hoshinId}')">Delete</button>
+        </div>
+        <div id="month-edit-${hoshinId}"></div>
+    `;
+
+    // Insert after the clicked row
+    const detailRow = document.createElement('tr');
+    detailRow.id = 'bowler-' + hoshinId;
+    detailRow.innerHTML = `<td colspan="11" style="padding:0;"><div class="bowler-wrap">${bowlerHtml}</div></td>`;
+    rowEl.insertAdjacentElement('afterend', detailRow);
+}
+
+// ════════════════════════════════════════════════════════════════
+// MONTHLY DATA ENTRY
+// ════════════════════════════════════════════════════════════════
+function openMonthlyEdit(hoshinId, month, existing) {
+    const container = document.getElementById('month-edit-' + hoshinId);
+    if (!container) return;
+
+    const baseline = existing.baseline || '';
+    const actual = existing.actual || '';
+    const volume = existing.volume || '';
+    const cost = existing.cost_per_unit || '';
+
+    container.innerHTML = `
+        <div class="month-edit-panel">
+            <div><label>Month</label><input value="${MONTHS[month-1]}" disabled></div>
+            <div><label>Baseline</label><input id="me-baseline-${hoshinId}" type="number" step="any" value="${baseline}"></div>
+            <div><label>Actual</label><input id="me-actual-${hoshinId}" type="number" step="any" value="${actual}"></div>
+            <div><label>Volume</label><input id="me-volume-${hoshinId}" type="number" step="any" value="${volume}"></div>
+            <div><label>Cost/Unit</label><input id="me-cost-${hoshinId}" type="number" step="any" value="${cost}"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+            <button class="btn-h small secondary" onclick="document.getElementById('month-edit-${hoshinId}').innerHTML='';">Cancel</button>
+            <button class="btn-h small primary" onclick="saveMonthlyData('${hoshinId}', ${month})">Save ${MONTHS[month-1]}</button>
+        </div>
+    `;
+}
+
+async function saveMonthlyData(hoshinId, month) {
+    const body = {
+        baseline: parseFloat(document.getElementById('me-baseline-' + hoshinId).value) || 0,
+        actual: parseFloat(document.getElementById('me-actual-' + hoshinId).value) || 0,
+        volume: parseFloat(document.getElementById('me-volume-' + hoshinId).value) || 0,
+        cost_per_unit: parseFloat(document.getElementById('me-cost-' + hoshinId).value) || 0,
+    };
+
+    const result = await api(`/projects/${hoshinId}/monthly/${month}/`, {
+        method: 'PUT', body: JSON.stringify(body)
+    });
+
+    if (result.success) {
+        // Refresh the project data and re-render
+        await loadAllProjects();
+        // Re-expand the bowler chart
+        document.querySelectorAll('.bowler-wrap').forEach(el => el.parentElement.parentElement.remove());
+        expandedProjectId = null;
+        renderProjectsTable();
+        updateDashboard();
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// SITES GRID
+// ════════════════════════════════════════════════════════════════
+function renderSitesGrid() {
+    if (!sitesCache.length) {
+        document.getElementById('sites-grid').innerHTML = `
+            <div class="empty-state" style="grid-column:1/-1;">
+                <div class="icon">&#9874;</div>
+                <p>No sites configured yet.</p>
+                <button class="btn-h primary" onclick="openSiteForm()" style="margin-top:12px;">+ Add First Site</button>
+            </div>`;
+        return;
+    }
+
+    // Calculate per-site stats from allProjects
+    const siteStats = {};
+    sitesCache.forEach(s => siteStats[s.id] = {target: 0, ytd: 0, count: 0});
+
+    allProjects.forEach(p => {
+        if (p.site_id && siteStats[p.site_id]) {
+            siteStats[p.site_id].count++;
+            siteStats[p.site_id].target += Math.abs(parseFloat(p.annual_savings_target) || 0);
+            siteStats[p.site_id].ytd += parseFloat(p.ytd_savings) || 0;
+        }
+    });
+
+    const cards = sitesCache.map(s => {
+        const st = siteStats[s.id] || {target: 0, ytd: 0, count: 0};
+        const pct = st.target > 0 ? Math.round(st.ytd / st.target * 100) : 0;
+        const pc = pctColor(pct);
+
+        return `<div class="site-card" onclick="filterBySite('${s.id}')">
+            <div class="site-name">${s.name}</div>
+            ${s.code ? `<div class="site-code">${s.code}</div>` : ''}
+            <div class="site-meta">
+                ${s.business_unit ? `<span>${s.business_unit}</span>` : ''}
+                ${s.ci_leader ? `<span>CI: ${s.ci_leader}</span>` : ''}
+                ${s.plant_manager ? `<span>PM: ${s.plant_manager}</span>` : ''}
+            </div>
+            <div class="site-stats">
+                <div class="stat"><strong>${st.count}</strong> projects</div>
+                <div class="stat">Target: <strong>${fmt$(st.target)}</strong></div>
+                <div class="stat">YTD: <strong class="${st.ytd >= 0 ? 'positive' : 'negative'}">${fmt$(st.ytd)}</strong></div>
+            </div>
+            <div class="site-progress"><div class="fill" style="width:${Math.min(100, Math.abs(pct))}%;background:var(--${pc === 'green' ? 'accent' : pc === 'yellow' ? 'warning' : 'error'});"></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);">${pct}% achieved</span>
+                <button class="btn-h small danger" onclick="event.stopPropagation();deleteSite('${s.id}')">Delete</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('sites-grid').innerHTML = cards;
+}
+
+// ════════════════════════════════════════════════════════════════
+// PROJECT CRUD
+// ════════════════════════════════════════════════════════════════
+function openProjectForm(prefill) {
+    editingProjectId = null;
+    document.getElementById('project-modal-title').textContent = 'New CI Project';
+    document.getElementById('btn-save-project').textContent = 'Create Project';
+
+    // Populate site dropdown
+    const sel = document.getElementById('pf-site');
+    sel.innerHTML = '<option value="">— No site —</option>' + sitesCache.map(s =>
+        `<option value="${s.id}">${s.name}</option>`).join('');
+
+    // Populate calc methods
+    const calcSel = document.getElementById('pf-calc');
+    calcSel.innerHTML = '<option value="">— None —</option>' + calcMethods.map(m =>
+        `<option value="${m.code}">${m.name}</option>`).join('');
+
+    // Reset form
+    document.getElementById('pf-title').value = '';
+    document.getElementById('pf-fy').value = selectedFY;
+    document.getElementById('pf-target').value = '0';
+    document.getElementById('pf-champion').value = '';
+    document.getElementById('pf-leader').value = '';
+    document.getElementById('pf-status').value = 'proposed';
+    document.querySelector('input[name="pf-class"][value="project"]').checked = true;
+
+    if (prefill) {
+        if (prefill.site_id) sel.value = prefill.site_id;
+    }
+
+    document.getElementById('project-modal').classList.add('open');
+}
+
+async function openEditProject(hoshinId) {
+    const data = await api(`/projects/${hoshinId}/`);
+    const p = data.project;
+    if (!p) return;
+
+    editingProjectId = hoshinId;
+    document.getElementById('project-modal-title').textContent = 'Edit Project';
+    document.getElementById('btn-save-project').textContent = 'Update Project';
+
+    // Populate dropdowns
+    const sel = document.getElementById('pf-site');
+    sel.innerHTML = '<option value="">— No site —</option>' + sitesCache.map(s =>
+        `<option value="${s.id}">${s.name}</option>`).join('');
+    const calcSel = document.getElementById('pf-calc');
+    calcSel.innerHTML = '<option value="">— None —</option>' + calcMethods.map(m =>
+        `<option value="${m.code}">${m.name}</option>`).join('');
+
+    // Fill form
+    document.getElementById('pf-title').value = p.project_title || '';
+    if (p.site_id) sel.value = p.site_id;
+    document.getElementById('pf-fy').value = p.fiscal_year || selectedFY;
+    const classRadio = document.querySelector(`input[name="pf-class"][value="${p.project_class || 'project'}"]`);
+    if (classRadio) classRadio.checked = true;
+    document.getElementById('pf-type').value = p.project_type || 'material';
+    document.getElementById('pf-opp').value = p.opportunity || 'budgeted_new';
+    calcSel.value = p.calculation_method || '';
+    document.getElementById('pf-target').value = Math.abs(parseFloat(p.annual_savings_target) || 0);
+    document.getElementById('pf-champion').value = p.champion_name || '';
+    document.getElementById('pf-leader').value = p.leader_name || '';
+    document.getElementById('pf-method').value = p.methodology || '';
+    document.getElementById('pf-status').value = p.hoshin_status || 'active';
+
+    document.getElementById('project-modal').classList.add('open');
+}
+
+async function saveProject() {
+    const body = {
+        title: document.getElementById('pf-title').value,
+        site_id: document.getElementById('pf-site').value || null,
+        fiscal_year: parseInt(document.getElementById('pf-fy').value) || selectedFY,
+        project_class: document.querySelector('input[name="pf-class"]:checked').value,
+        project_type: document.getElementById('pf-type').value,
+        opportunity: document.getElementById('pf-opp').value,
+        calculation_method: document.getElementById('pf-calc').value,
+        annual_savings_target: parseFloat(document.getElementById('pf-target').value) || 0,
+        champion_name: document.getElementById('pf-champion').value,
+        leader_name: document.getElementById('pf-leader').value,
+        methodology: document.getElementById('pf-method').value,
+        hoshin_status: document.getElementById('pf-status').value,
+    };
+
+    let result;
+    if (editingProjectId) {
+        result = await api(`/projects/${editingProjectId}/update/`, {method: 'PUT', body: JSON.stringify(body)});
+    } else {
+        result = await api('/projects/create/', {method: 'POST', body: JSON.stringify(body)});
+    }
+
+    if (result.success) {
+        closeModal('project-modal');
+        editingProjectId = null;
+        await loadAllProjects();
+        renderProjectsTable();
+        updateDashboard();
+    }
+}
+
+async function deleteProject(hoshinId) {
+    if (!confirm('Delete this project? This cannot be undone.')) return;
+    const result = await api(`/projects/${hoshinId}/delete/`, {method: 'DELETE'});
+    if (result.success) {
+        await loadAllProjects();
+        renderProjectsTable();
+        updateDashboard();
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// SITE CRUD
+// ════════════════════════════════════════════════════════════════
+function openSiteForm() {
+    document.getElementById('site-modal-title').textContent = 'New Manufacturing Site';
+    document.getElementById('sf-name').value = '';
+    document.getElementById('sf-code').value = '';
+    document.getElementById('sf-bu').value = '';
+    document.getElementById('sf-ci').value = '';
+    document.getElementById('sf-pm').value = '';
+    document.getElementById('sf-ctrl').value = '';
+    document.getElementById('sf-addr').value = '';
+    document.getElementById('site-modal').classList.add('open');
+}
+
+async function saveSite() {
+    const body = {
+        name: document.getElementById('sf-name').value,
+        code: document.getElementById('sf-code').value,
+        business_unit: document.getElementById('sf-bu').value,
+        ci_leader: document.getElementById('sf-ci').value,
+        plant_manager: document.getElementById('sf-pm').value,
+        controller: document.getElementById('sf-ctrl').value,
+        address: document.getElementById('sf-addr').value,
+    };
+    const result = await api('/sites/create/', {method: 'POST', body: JSON.stringify(body)});
+    if (result.success) {
+        closeModal('site-modal');
+        await loadSites();
+        renderSitesGrid();
+        populateSiteFilters();
+        updateDashboard();
+    }
+}
+
+async function deleteSite(id) {
+    if (!confirm('Delete this site? Projects assigned to it will become unassigned.')) return;
+    await api(`/sites/${id}/delete/`, {method: 'DELETE'});
+    await loadSites();
+    renderSitesGrid();
+    populateSiteFilters();
+    updateDashboard();
+}
+
+// ════════════════════════════════════════════════════════════════
+// VSM PROPOSALS
+// ════════════════════════════════════════════════════════════════
+let currentProposals = [];
+
+async function openVSMProposals() {
+    const resp = await fetch('/api/vsm/?status=current', {headers: {'Content-Type': 'application/json'}});
+    const data = await resp.json();
+    const sel = document.getElementById('vsm-select');
+    sel.innerHTML = (data.maps || []).map(m =>
+        `<option value="${m.id}">${m.name || 'Untitled VSM'} (${m.product_family || ''})</option>`).join('');
+    if (!sel.options.length) sel.innerHTML = '<option value="">No current-state VSMs found</option>';
+    document.getElementById('vsm-proposals').innerHTML =
+        '<div style="color:var(--text-dim);text-align:center;padding:20px;">Select a VSM and click Generate</div>';
+    document.getElementById('vsm-actions').style.display = 'none';
+    document.getElementById('vsm-modal').classList.add('open');
+}
+
+async function generateProposals() {
+    const vsmId = document.getElementById('vsm-select').value;
+    if (!vsmId) return;
+
+    document.getElementById('vsm-proposals').innerHTML =
+        '<div style="text-align:center;padding:20px;color:var(--text-dim);">Generating proposals...</div>';
+
+    const body = {
+        annual_volume: parseFloat(document.getElementById('vsm-volume').value) || 100000,
+        cost_per_unit: parseFloat(document.getElementById('vsm-cost').value) || 50,
+    };
+
+    const resp = await fetch(`/api/vsm/${vsmId}/generate-proposals/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+
+    if (data.error) {
+        document.getElementById('vsm-proposals').innerHTML =
+            `<div style="color:var(--error);padding:12px;">${data.error}</div>`;
+        return;
+    }
+
+    currentProposals = data.proposals || [];
+    if (!currentProposals.length) {
+        document.getElementById('vsm-proposals').innerHTML =
+            '<div style="color:var(--text-dim);padding:12px;">No proposals generated. Ensure the future state has kaizen bursts.</div>';
+        return;
+    }
+
+    const html = currentProposals.map((p, i) => `
+        <div class="proposal-card">
+            <input type="checkbox" id="prop-${i}" checked>
+            <div class="proposal-info">
+                <div class="proposal-title">${p.suggested_title}</div>
+                <div class="proposal-meta">
+                    Step: ${p.process_step} | Method: ${p.suggested_method} | Priority: ${p.priority}
+                    ${p.metric_deltas.cycle_time ? ` | C/T &Delta;${p.metric_deltas.cycle_time.toFixed(1)}s` : ''}
+                    ${p.metric_deltas.changeover ? ` | C/O &Delta;${p.metric_deltas.changeover.toFixed(1)}s` : ''}
+                    ${p.metric_deltas.uptime ? ` | Uptime +${p.metric_deltas.uptime.toFixed(1)}%` : ''}
+                </div>
+            </div>
+            <div class="proposal-savings">${fmt$(p.estimated_annual_savings)}/yr</div>
+        </div>
+    `).join('');
+
+    document.getElementById('vsm-proposals').innerHTML = html;
+    document.getElementById('vsm-actions').style.display = 'block';
+}
+
+async function createFromProposals() {
+    const vsmId = document.getElementById('vsm-select').value;
+    const proposals = currentProposals.map((p, i) => ({
+        ...p,
+        title: p.suggested_title,
+        project_class: 'project',
+        project_type: p.suggested_type,
+        calculation_method: p.suggested_method,
+        annual_savings_target: p.estimated_annual_savings,
+        approved: document.getElementById(`prop-${i}`).checked,
+    }));
+
+    const body = {
+        vsm_id: vsmId,
+        fiscal_year: selectedFY,
+        site_id: sitesCache.length ? sitesCache[0].id : null,
+        proposals,
+    };
+
+    const result = await api('/projects/from-proposals/', {method: 'POST', body: JSON.stringify(body)});
+    if (result.success) {
+        closeModal('vsm-modal');
+        await loadAllProjects();
+        showTab('projects');
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PROJECT DETAIL VIEW
+// ════════════════════════════════════════════════════════════════
+async function loadProjectDetail(hoshinId, subTab) {
+    currentDetailId = hoshinId;
+
+    const data = await api(`/projects/${hoshinId}/`);
+    const p = data.project;
+    if (!p) { location.hash = '#/projects'; return; }
+    currentDetailProject = p;
+    currentActionItems = p.action_items || [];
+
+    // Update sub-tab links to include project id
+    document.querySelectorAll('#detail-sub-tabs .sub-tab').forEach(t => {
+        const st = t.dataset.subtab;
+        t.href = `#/project/${hoshinId}/${st}`;
+    });
+
+    // Header
+    document.getElementById('detail-project-title').textContent = p.project_title || '—';
+    document.getElementById('detail-title').textContent = p.project_title || '—';
+    document.getElementById('detail-status-pill').className = `status-pill status-${p.hoshin_status}`;
+    document.getElementById('detail-status-pill').textContent = p.hoshin_status;
+    document.getElementById('detail-class-badge').className = `class-badge class-${p.project_class}`;
+    document.getElementById('detail-class-badge').textContent = p.project_class === 'kaizen' ? 'Kaizen Event' : 'Project';
+    document.getElementById('detail-site-name').textContent = p.site_name ? `@ ${p.site_name}` : '';
+
+    // Show/hide charter vs plan tabs
+    const charterLink = document.getElementById('charter-tab-link');
+    const planLink = document.getElementById('plan-tab-link');
+    charterLink.style.display = p.project_class === 'kaizen' ? '' : 'none';
+    planLink.style.display = p.project_class === 'project' ? '' : 'none';
+
+    // Render sub-tab
+    showSubTab(subTab || 'overview');
+
+    // Side panel
+    renderDetailSidebar(p);
+}
+
+function showSubTab(subTab) {
+    document.querySelectorAll('#detail-sub-tabs .sub-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('active'));
+
+    const tabEl = document.querySelector(`#detail-sub-tabs [data-subtab="${subTab}"]`);
+    if (tabEl) tabEl.classList.add('active');
+    const panel = document.getElementById(`sub-${subTab}`);
+    if (panel) panel.classList.add('active');
+
+    const p = currentDetailProject;
+    if (!p) return;
+
+    if (subTab === 'overview') renderDetailOverview(p);
+    else if (subTab === 'charter') renderCharter(p);
+    else if (subTab === 'plan') renderPlan(p);
+    else if (subTab === 'calculations') renderCalculations(p);
+}
+
+function renderDetailOverview(p) {
+    const target = Math.abs(parseFloat(p.annual_savings_target) || 0);
+    const monthlyTarget = target / 12;
+    const ma = p.monthly_actuals || [];
+
+    // Bowler chart
+    let targetCells = '', actualCells = '', varianceCells = '';
+    let targetTotal = 0, actualTotal = 0;
+
+    for (let i = 0; i < 12; i++) {
+        const mt = monthlyTarget;
+        targetTotal += mt;
+        const entry = ma.find(e => e.month === (i + 1));
+        const actual = entry ? (parseFloat(entry.savings) || 0) : 0;
+        actualTotal += actual;
+        const variance = actual - mt;
+
+        targetCells += `<td class="text-end" style="color:var(--text-dim);">${mt > 0 ? fmt$(mt) : '—'}</td>`;
+        actualCells += `<td class="text-end month-editable" onclick="openMonthlyEditDetail(${i+1})"
+            style="${actual > 0 ? 'color:var(--success);' : actual < 0 ? 'color:var(--error);' : ''}">${entry ? fmt$(actual) : '—'}</td>`;
+        const vc = variance > 0 ? 'positive' : variance < 0 ? 'negative' : '';
+        varianceCells += `<td class="text-end ${vc}">${entry ? fmtVariance(variance) : '—'}</td>`;
+    }
+
+    const vTotal = actualTotal - targetTotal;
+
+    document.getElementById('detail-bowler').innerHTML = `
+        <table class="bowler-table">
+            <thead><tr><th></th>${MONTHS.map(m => `<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
+            <tbody>
+                <tr class="target-row"><td class="row-label">Target</td>${targetCells}<td class="text-end total-col">${fmt$(targetTotal)}</td></tr>
+                <tr><td class="row-label">Actual</td>${actualCells}<td class="text-end total-col ${actualTotal >= 0 ? 'positive' : 'negative'}">${fmt$(actualTotal)}</td></tr>
+                <tr><td class="row-label">Variance</td>${varianceCells}<td class="text-end total-col ${vTotal >= 0 ? 'positive' : 'negative'}">${fmtVariance(vTotal)}</td></tr>
+            </tbody>
+        </table>`;
+
+    // Project info
+    document.getElementById('detail-info').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;">
+            <div><span style="color:var(--text-dim);">Champion:</span> <strong>${p.champion_name || '—'}</strong></div>
+            <div><span style="color:var(--text-dim);">Leader:</span> <strong>${p.leader_name || '—'}</strong></div>
+            <div><span style="color:var(--text-dim);">Methodology:</span> <strong>${p.methodology || '—'}</strong></div>
+            <div><span style="color:var(--text-dim);">Calc Method:</span> <strong>${p.calculation_method || '—'}</strong></div>
+            <div><span style="color:var(--text-dim);">Opportunity:</span> <span class="opp-badge opp-${p.opportunity}">${(p.opportunity || '—').replace('_', ' ')}</span></div>
+            <div><span style="color:var(--text-dim);">Fiscal Year:</span> <strong>${p.fiscal_year}</strong></div>
+            <div><span style="color:var(--text-dim);">Savings %:</span> <strong class="${p.savings_pct >= 80 ? 'positive' : p.savings_pct >= 50 ? 'warning-color' : 'negative'}">${(p.savings_pct || 0).toFixed(1)}%</strong></div>
+            <div><span style="color:var(--text-dim);">Goal:</span> <strong>${p.goal_metric || '—'}</strong></div>
+        </div>`;
+}
+
+function openMonthlyEditDetail(month) {
+    const p = currentDetailProject;
+    const entry = (p.monthly_actuals || []).find(e => e.month === month) || {};
+    document.getElementById('monthly-modal-title').textContent = `${MONTHS[month-1]} Data — ${p.project_title}`;
+
+    const isCustom = p.calculation_method === 'custom';
+    document.getElementById('monthly-form-body').innerHTML = `
+        <div class="hoshin-form" style="max-width:100%;">
+            <div><label>Baseline</label><input id="md-baseline" type="number" step="any" value="${entry.baseline || ''}"></div>
+            <div><label>Actual</label><input id="md-actual" type="number" step="any" value="${entry.actual || ''}"></div>
+            <div><label>Volume</label><input id="md-volume" type="number" step="any" value="${entry.volume || ''}"></div>
+            <div><label>Cost/Unit</label><input id="md-cost" type="number" step="any" value="${entry.cost_per_unit || ''}"></div>
+            ${p.calculation_method === 'claims' ? `<div><label>Sales ($)</label><input id="md-sales" type="number" step="any" value="${entry.sales || ''}"></div>` : ''}
+            <div class="full" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+                <button class="btn-h secondary" onclick="closeModal('monthly-modal')">Cancel</button>
+                <button class="btn-h primary" onclick="saveMonthlyDataDetail(${month})">Save</button>
+            </div>
+        </div>`;
+    document.getElementById('monthly-modal').classList.add('open');
+}
+
+async function saveMonthlyDataDetail(month) {
+    const body = {
+        baseline: parseFloat(document.getElementById('md-baseline').value) || 0,
+        actual: parseFloat(document.getElementById('md-actual').value) || 0,
+        volume: parseFloat(document.getElementById('md-volume').value) || 0,
+        cost_per_unit: parseFloat(document.getElementById('md-cost').value) || 0,
+    };
+    const salesEl = document.getElementById('md-sales');
+    if (salesEl) body.sales = parseFloat(salesEl.value) || 0;
+
+    const result = await api(`/projects/${currentDetailId}/monthly/${month}/`, {
+        method: 'PUT', body: JSON.stringify(body)
+    });
+    if (result.success) {
+        closeModal('monthly-modal');
+        await loadAllProjects();
+        await loadProjectDetail(currentDetailId, 'overview');
+    }
+}
+
+function renderDetailSidebar(p) {
+    // Mini trend chart
+    const ma = p.monthly_actuals || [];
+    const savings = MONTHS.map((_, i) => {
+        const entry = ma.find(e => e.month === (i + 1));
+        return entry ? (parseFloat(entry.savings) || 0) : 0;
+    });
+
+    Plotly.react('detail-trend-mini', [{
+        x: MONTHS, y: savings, type: 'bar',
+        marker: {color: savings.map(v => v >= 0 ? 'rgba(74,159,110,0.5)' : 'rgba(207,111,111,0.5)')},
+    }], {
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: {color: '#9aaa9a', size: 10}, showlegend: false,
+        xaxis: {showgrid: false}, yaxis: {showgrid: false, tickformat: '$,.0f'},
+        margin: {t: 5, b: 20, l: 50, r: 5},
+    }, {responsive: true, displayModeBar: false});
+
+    // Action items summary
+    const items = currentActionItems;
+    const counts = {not_started: 0, in_progress: 0, completed: 0, blocked: 0};
+    items.forEach(a => { if (counts.hasOwnProperty(a.status)) counts[a.status]++; });
+
+    document.getElementById('detail-action-summary').innerHTML = `
+        <div class="stat-row"><span>Not Started</span><strong>${counts.not_started}</strong></div>
+        <div class="stat-row"><span>In Progress</span><strong style="color:var(--accent);">${counts.in_progress}</strong></div>
+        <div class="stat-row"><span>Completed</span><strong style="color:#6fcf97;">${counts.completed}</strong></div>
+        <div class="stat-row"><span>Blocked</span><strong style="color:var(--error);">${counts.blocked}</strong></div>
+        <div class="stat-row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:4px;">
+            <span>Total</span><strong>${items.length}</strong></div>`;
+
+    // Quick links
+    document.getElementById('detail-quick-links').innerHTML = `
+        <a href="javascript:void(0)" onclick="openEditProject('${p.id}')">Edit Project Details</a>
+        <a href="#/project/${p.id}/charter">${p.project_class === 'kaizen' ? 'Kaizen Charter' : 'Charter'}</a>
+        <a href="#/project/${p.id}/plan">Project Plan & Gantt</a>
+        <a href="#/project/${p.id}/calculations">Calculations & Baseline</a>
+        <a href="#/projects">Back to Projects List</a>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// KAIZEN CHARTER
+// ════════════════════════════════════════════════════════════════
+function renderCharter(p) {
+    const c = p.kaizen_charter || {};
+    document.getElementById('ch-event-type').value = c.event_type || '';
+    document.getElementById('ch-location').value = c.location || '';
+    document.getElementById('ch-start').value = c.event_date || '';
+    document.getElementById('ch-end').value = c.end_date || '';
+    document.getElementById('ch-schedule').value = c.schedule || '';
+    document.getElementById('ch-problem').value = c.problem_statement || '';
+    document.getElementById('ch-objectives').value = c.objectives || '';
+    document.getElementById('ch-metric1-name').value = c.primary_metric || '';
+    document.getElementById('ch-metric1-baseline').value = c.primary_baseline || '';
+    document.getElementById('ch-metric1-target').value = c.primary_target || '';
+    document.getElementById('ch-metric2-name').value = c.secondary_metric || '';
+    document.getElementById('ch-metric2-baseline').value = c.secondary_baseline || '';
+    document.getElementById('ch-metric2-target').value = c.secondary_target || '';
+    document.getElementById('ch-scope-start').value = c.process_start || '';
+    document.getElementById('ch-scope-end').value = c.process_end || '';
+    document.getElementById('ch-excluded').value = c.excluded || '';
+    document.getElementById('ch-owner').value = c.process_owner || '';
+    document.getElementById('ch-sponsors').value = c.sponsors || '';
+
+    // Compute improvement %
+    updateCharterMetricPct();
+    document.getElementById('ch-metric1-baseline').addEventListener('input', updateCharterMetricPct);
+    document.getElementById('ch-metric1-target').addEventListener('input', updateCharterMetricPct);
+
+    // Team roster
+    charterTeamMembers = c.team_members || [];
+    renderCharterTeam();
+}
+
+function updateCharterMetricPct() {
+    const b = parseFloat(document.getElementById('ch-metric1-baseline').value) || 0;
+    const t = parseFloat(document.getElementById('ch-metric1-target').value) || 0;
+    const pct = b > 0 ? ((b - t) / b * 100).toFixed(1) : '—';
+    document.getElementById('ch-metric1-pct').value = pct + '%';
+}
+
+function renderCharterTeam() {
+    document.getElementById('ch-team-list').innerHTML = charterTeamMembers.map((m, i) => `
+        <div class="team-member">
+            <strong>${m.name}</strong>
+            <span class="role">${m.role}</span>
+            ${m.department ? `<span class="role">(${m.department})</span>` : ''}
+            <span class="remove" onclick="removeTeamMember(${i})">&#x2715;</span>
+        </div>
+    `).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:8px;">No team members added.</div>';
+}
+
+function addTeamMember() {
+    const name = document.getElementById('ch-team-name').value.trim();
+    if (!name) return;
+    charterTeamMembers.push({
+        name: name,
+        role: document.getElementById('ch-team-role').value,
+        department: document.getElementById('ch-team-dept').value.trim(),
+    });
+    document.getElementById('ch-team-name').value = '';
+    document.getElementById('ch-team-dept').value = '';
+    renderCharterTeam();
+}
+
+function removeTeamMember(index) {
+    charterTeamMembers.splice(index, 1);
+    renderCharterTeam();
+}
+
+async function saveCharter() {
+    const charter = {
+        event_type: document.getElementById('ch-event-type').value,
+        location: document.getElementById('ch-location').value,
+        event_date: document.getElementById('ch-start').value,
+        end_date: document.getElementById('ch-end').value,
+        schedule: document.getElementById('ch-schedule').value,
+        problem_statement: document.getElementById('ch-problem').value,
+        objectives: document.getElementById('ch-objectives').value,
+        primary_metric: document.getElementById('ch-metric1-name').value,
+        primary_baseline: parseFloat(document.getElementById('ch-metric1-baseline').value) || null,
+        primary_target: parseFloat(document.getElementById('ch-metric1-target').value) || null,
+        secondary_metric: document.getElementById('ch-metric2-name').value,
+        secondary_baseline: parseFloat(document.getElementById('ch-metric2-baseline').value) || null,
+        secondary_target: parseFloat(document.getElementById('ch-metric2-target').value) || null,
+        process_start: document.getElementById('ch-scope-start').value,
+        process_end: document.getElementById('ch-scope-end').value,
+        excluded: document.getElementById('ch-excluded').value,
+        process_owner: document.getElementById('ch-owner').value,
+        sponsors: document.getElementById('ch-sponsors').value,
+        team_members: charterTeamMembers,
+    };
+
+    const result = await api(`/projects/${currentDetailId}/update/`, {
+        method: 'PUT', body: JSON.stringify({kaizen_charter: charter})
+    });
+    if (result.success) {
+        currentDetailProject.kaizen_charter = charter;
+        alert('Charter saved.');
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PROJECT PLAN & GANTT
+// ════════════════════════════════════════════════════════════════
+function renderPlan(p) {
+    const c = p.kaizen_charter || {};
+    document.getElementById('plan-background').value = c.background || '';
+    document.getElementById('plan-current').value = c.current_conditions || '';
+    document.getElementById('plan-objectives').value = c.plan_objectives || '';
+    document.getElementById('plan-countermeasures').value = c.countermeasures || '';
+
+    renderGanttChart();
+    renderActionItemsTable();
+}
+
+async function savePlan() {
+    const charter = currentDetailProject.kaizen_charter || {};
+    charter.background = document.getElementById('plan-background').value;
+    charter.current_conditions = document.getElementById('plan-current').value;
+    charter.plan_objectives = document.getElementById('plan-objectives').value;
+    charter.countermeasures = document.getElementById('plan-countermeasures').value;
+
+    const result = await api(`/projects/${currentDetailId}/update/`, {
+        method: 'PUT', body: JSON.stringify({kaizen_charter: charter})
+    });
+    if (result.success) {
+        currentDetailProject.kaizen_charter = charter;
+        alert('Plan saved.');
+    }
+}
+
+function renderGanttChart() {
+    const items = currentActionItems;
+    if (!items.length) {
+        document.getElementById('gantt-chart').innerHTML =
+            '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">No action items yet. Add one to see the Gantt chart.</div>';
+        return;
+    }
+
+    // Find date range
+    const today = new Date();
+    let minDate = new Date(today.getFullYear(), 0, 1);
+    let maxDate = new Date(today.getFullYear(), 11, 31);
+
+    items.forEach(item => {
+        if (item.start_date) {
+            const d = new Date(item.start_date);
+            if (d < minDate) minDate = d;
+        }
+        if (item.end_date) {
+            const d = new Date(item.end_date);
+            if (d > maxDate) maxDate = d;
+        }
+    });
+
+    // Add 2-week padding
+    minDate = new Date(minDate.getTime() - 14 * 86400000);
+    maxDate = new Date(maxDate.getTime() + 14 * 86400000);
+    const totalDays = Math.max(1, (maxDate - minDate) / 86400000);
+
+    // Month headers
+    const months = [];
+    let d = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    while (d <= maxDate) {
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const startOffset = Math.max(0, (d - minDate) / 86400000);
+        const endOffset = Math.min(totalDays, (monthEnd - minDate) / 86400000);
+        const widthPct = ((endOffset - startOffset) / totalDays * 100);
+        months.push(`<div class="gantt-month" style="width:${widthPct}%;">${MONTHS[d.getMonth()]} ${d.getFullYear()}</div>`);
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    }
+
+    // Today marker position
+    const todayPct = ((today - minDate) / 86400000 / totalDays * 100);
+
+    // Rows
+    const rows = items.map((item, idx) => {
+        const start = item.start_date ? new Date(item.start_date) : today;
+        const end = item.end_date ? new Date(item.end_date) : new Date(start.getTime() + 7 * 86400000);
+        const leftPct = Math.max(0, (start - minDate) / 86400000 / totalDays * 100);
+        const widthPct = Math.max(1, (end - start) / 86400000 / totalDays * 100);
+        const progress = item.progress || 0;
+
+        return `<div class="gantt-row">
+            <div class="gantt-row-label" title="${item.title}">${idx + 1}. ${item.title}</div>
+            <div class="gantt-row-bars">
+                <div class="gantt-bar status-${item.status}" style="left:${leftPct}%;width:${widthPct}%;"
+                     title="${item.title} (${progress}%)" onclick="openEditAction('${item.id}')">
+                    <div class="gantt-bar-fill" style="width:${progress}%;background:currentColor;"></div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('gantt-chart').innerHTML = `
+        <div class="gantt-header">
+            <div class="gantt-labels" style="font-size:10px;color:var(--text-dim);font-weight:600;">TASK</div>
+            <div class="gantt-timeline">${months.join('')}</div>
+        </div>
+        <div style="position:relative;">
+            ${todayPct > 0 && todayPct < 100 ? `<div class="gantt-today" style="left:calc(200px + ${todayPct}% * (100% - 200px) / 100%);" title="Today"></div>` : ''}
+            ${rows}
+        </div>`;
+}
+
+function renderActionItemsTable() {
+    const items = currentActionItems;
+    document.getElementById('action-count-badge').textContent = items.length + ' items';
+
+    document.getElementById('action-table-body').innerHTML = items.map((a, i) => `
+        <tr>
+            <td>${i + 1}</td>
+            <td><strong>${a.title}</strong>${a.description ? `<br><small style="color:var(--text-dim);">${a.description.substring(0, 50)}</small>` : ''}</td>
+            <td>${a.owner_name || '—'}</td>
+            <td>${a.start_date || '—'}</td>
+            <td>${a.end_date || '—'}</td>
+            <td><span class="action-status ${a.status}">${a.status.replace('_', ' ')}</span></td>
+            <td>
+                <div class="progress-bar-wrap" style="width:80px;">
+                    <div class="progress-bar-fill ${pctColor(a.progress || 0)}" style="width:${a.progress || 0}%;"></div>
+                </div>
+                <span style="font-size:10px;margin-left:4px;">${a.progress || 0}%</span>
+            </td>
+            <td>
+                <button class="btn-h small outline" onclick="openEditAction('${a.id}')">Edit</button>
+                <button class="btn-h small danger" onclick="deleteAction('${a.id}')" style="margin-left:4px;">&#x2715;</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:30px;">No action items.</td></tr>';
+}
+
+function openActionModal(prefill) {
+    editingActionId = null;
+    document.getElementById('action-modal-title').textContent = 'New Action Item';
+    document.getElementById('btn-save-action').textContent = 'Create';
+    document.getElementById('af-title').value = '';
+    document.getElementById('af-owner').value = '';
+    document.getElementById('af-status').value = 'not_started';
+    document.getElementById('af-start').value = '';
+    document.getElementById('af-end').value = '';
+    document.getElementById('af-progress').value = '0';
+    document.getElementById('af-desc').value = '';
+
+    // Populate depends dropdown
+    const depSel = document.getElementById('af-depends');
+    depSel.innerHTML = '<option value="">— None —</option>' +
+        currentActionItems.map(a => `<option value="${a.id}">${a.title}</option>`).join('');
+
+    document.getElementById('action-modal').classList.add('open');
+}
+
+function openEditAction(actionId) {
+    const a = currentActionItems.find(i => i.id === actionId);
+    if (!a) return;
+
+    editingActionId = actionId;
+    document.getElementById('action-modal-title').textContent = 'Edit Action Item';
+    document.getElementById('btn-save-action').textContent = 'Update';
+    document.getElementById('af-title').value = a.title || '';
+    document.getElementById('af-owner').value = a.owner_name || '';
+    document.getElementById('af-status').value = a.status || 'not_started';
+    document.getElementById('af-start').value = a.start_date || '';
+    document.getElementById('af-end').value = a.end_date || '';
+    document.getElementById('af-progress').value = a.progress || 0;
+    document.getElementById('af-desc').value = a.description || '';
+
+    const depSel = document.getElementById('af-depends');
+    depSel.innerHTML = '<option value="">— None —</option>' +
+        currentActionItems.filter(i => i.id !== actionId).map(i =>
+            `<option value="${i.id}" ${a.depends_on_id === i.id ? 'selected' : ''}>${i.title}</option>`).join('');
+
+    document.getElementById('action-modal').classList.add('open');
+}
+
+async function saveActionItem() {
+    const body = {
+        title: document.getElementById('af-title').value,
+        owner_name: document.getElementById('af-owner').value,
+        status: document.getElementById('af-status').value,
+        start_date: document.getElementById('af-start').value || null,
+        end_date: document.getElementById('af-end').value || null,
+        progress: parseInt(document.getElementById('af-progress').value) || 0,
+        description: document.getElementById('af-desc').value,
+        depends_on_id: document.getElementById('af-depends').value || null,
+    };
+
+    let result;
+    if (editingActionId) {
+        result = await api(`/actions/${editingActionId}/update/`, {method: 'PUT', body: JSON.stringify(body)});
+    } else {
+        result = await api(`/projects/${currentDetailId}/actions/create/`, {method: 'POST', body: JSON.stringify(body)});
+    }
+
+    if (result.success) {
+        closeModal('action-modal');
+        editingActionId = null;
+        // Reload action items
+        const data = await api(`/projects/${currentDetailId}/`);
+        if (data.project) {
+            currentDetailProject = data.project;
+            currentActionItems = data.project.action_items || [];
+        }
+        renderGanttChart();
+        renderActionItemsTable();
+        renderDetailSidebar(currentDetailProject);
+    }
+}
+
+async function deleteAction(actionId) {
+    if (!confirm('Delete this action item?')) return;
+    const result = await api(`/actions/${actionId}/delete/`, {method: 'DELETE'});
+    if (result.success) {
+        currentActionItems = currentActionItems.filter(a => a.id !== actionId);
+        renderGanttChart();
+        renderActionItemsTable();
+        renderDetailSidebar(currentDetailProject);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// CALCULATIONS VIEW
+// ════════════════════════════════════════════════════════════════
+function renderCalculations(p) {
+    // Baseline grid
+    const baseline = p.baseline_data || [];
+    const grid = document.getElementById('baseline-grid');
+    let gridHtml = '';
+    for (let i = 1; i <= 12; i++) {
+        const entry = baseline.find(b => b.month === i) || {};
+        gridHtml += `<div class="baseline-cell">
+            <div class="month-label">${MONTHS[i-1]}</div>
+            <input id="bl-metric-${i}" type="number" step="any" placeholder="Metric" value="${entry.metric_value || ''}">
+            <input id="bl-volume-${i}" type="number" step="any" placeholder="Volume" value="${entry.volume || ''}" style="margin-top:4px;">
+        </div>`;
+    }
+    grid.innerHTML = gridHtml;
+
+    // Cost per unit and UOM
+    const firstBaseline = baseline[0] || {};
+    document.getElementById('calc-cost-per-unit').value = firstBaseline.cost_per_unit || '';
+    if (firstBaseline.uom) document.getElementById('calc-uom').value = firstBaseline.uom;
+
+    // TTM average
+    const values = baseline.filter(b => b.metric_value != null).map(b => b.metric_value);
+    const ttm = values.length ? (values.reduce((a, b) => a + b, 0) / values.length) : 0;
+    document.getElementById('calc-ttm-avg').textContent = ttm ? ttm.toFixed(4) : '—';
+
+    // Bind inputs to auto-update TTM
+    for (let i = 1; i <= 12; i++) {
+        document.getElementById(`bl-metric-${i}`).addEventListener('input', updateTTMPreview);
+    }
+
+    // Set month selector to current month
+    const curMonth = new Date().getMonth() + 1;
+    document.getElementById('calc-month-select').value = curMonth;
+    loadMonthData();
+
+    // Formula reference
+    renderFormulaReference(p);
+}
+
+function updateTTMPreview() {
+    const values = [];
+    for (let i = 1; i <= 12; i++) {
+        const v = parseFloat(document.getElementById(`bl-metric-${i}`).value);
+        if (!isNaN(v)) values.push(v);
+    }
+    const ttm = values.length ? (values.reduce((a, b) => a + b, 0) / values.length) : 0;
+    document.getElementById('calc-ttm-avg').textContent = ttm ? ttm.toFixed(4) : '—';
+}
+
+async function saveBaseline() {
+    const costPerUnit = parseFloat(document.getElementById('calc-cost-per-unit').value) || 0;
+    const uom = document.getElementById('calc-uom').value;
+    const baseline = [];
+
+    for (let i = 1; i <= 12; i++) {
+        const metricVal = parseFloat(document.getElementById(`bl-metric-${i}`).value);
+        const volume = parseFloat(document.getElementById(`bl-volume-${i}`).value);
+        if (!isNaN(metricVal) || !isNaN(volume)) {
+            baseline.push({
+                month: i,
+                metric_value: isNaN(metricVal) ? null : metricVal,
+                volume: isNaN(volume) ? null : volume,
+                cost_per_unit: costPerUnit,
+                uom: uom,
+            });
+        }
+    }
+
+    const result = await api(`/projects/${currentDetailId}/update/`, {
+        method: 'PUT', body: JSON.stringify({baseline_data: baseline})
+    });
+    if (result.success) {
+        currentDetailProject.baseline_data = baseline;
+        alert('Baseline saved.');
+    }
+}
+
+function loadMonthData() {
+    const month = parseInt(document.getElementById('calc-month-select').value);
+    const p = currentDetailProject;
+    const entry = (p.monthly_actuals || []).find(e => e.month === month) || {};
+    const method = p.calculation_method || 'direct';
+
+    let formHtml = `<div class="hoshin-form" style="max-width:100%;">
+        <div><label>Baseline Value</label><input id="cm-baseline" type="number" step="any" value="${entry.baseline || ''}"></div>
+        <div><label>Actual Value</label><input id="cm-actual" type="number" step="any" value="${entry.actual || ''}"></div>
+        <div><label>Volume</label><input id="cm-volume" type="number" step="any" value="${entry.volume || ''}"></div>
+        <div><label>Cost/Unit ($)</label><input id="cm-cost" type="number" step="any" value="${entry.cost_per_unit || ''}"></div>`;
+
+    if (method === 'claims') {
+        formHtml += `<div><label>Sales ($)</label><input id="cm-sales" type="number" step="any" value="${entry.sales || ''}"></div>`;
+    }
+
+    if (entry.savings != null) {
+        formHtml += `<div><label>Calculated Savings</label><input disabled value="$${(entry.savings || 0).toFixed(2)}" style="background:var(--bg-tertiary);font-weight:600;color:${entry.savings >= 0 ? 'var(--success)' : 'var(--error)'};"></div>`;
+    }
+
+    formHtml += `<div class="full" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+        <button class="btn-h primary" onclick="saveCalcMonth(${month})">Save ${MONTHS[month-1]}</button>
+    </div></div>`;
+
+    document.getElementById('calc-month-form').innerHTML = formHtml;
+}
+
+async function saveCalcMonth(month) {
+    const body = {
+        baseline: parseFloat(document.getElementById('cm-baseline').value) || 0,
+        actual: parseFloat(document.getElementById('cm-actual').value) || 0,
+        volume: parseFloat(document.getElementById('cm-volume').value) || 0,
+        cost_per_unit: parseFloat(document.getElementById('cm-cost').value) || 0,
+    };
+    const salesEl = document.getElementById('cm-sales');
+    if (salesEl) body.sales = parseFloat(salesEl.value) || 0;
+
+    const result = await api(`/projects/${currentDetailId}/monthly/${month}/`, {
+        method: 'PUT', body: JSON.stringify(body)
+    });
+    if (result.success) {
+        await loadAllProjects();
+        await loadProjectDetail(currentDetailId, 'calculations');
+    }
+}
+
+function renderFormulaReference(p) {
+    const method = p.calculation_method || '';
+    const methodInfo = calcMethods.find(m => m.code === method);
+
+    let html = '';
+    if (method === 'custom' && p.custom_formula) {
+        html = `
+            <div style="margin-bottom:12px;">
+                <label style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:4px;">Custom Formula</label>
+                <input class="formula-input" id="calc-custom-formula" value="${p.custom_formula}" style="margin-bottom:4px;">
+                <input style="width:100%;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;" id="calc-custom-desc" placeholder="Description" value="${p.custom_formula_desc || ''}">
+            </div>
+            <p style="font-size:11px;color:var(--text-dim);">Variables: <code>baseline</code>, <code>actual</code>, <code>volume</code>, <code>sales</code>, <code>rate</code>, <code>variance</code></p>
+            <p style="font-size:11px;color:var(--text-dim);">Functions: <code>abs()</code>, <code>min()</code>, <code>max()</code>, <code>round()</code>, <code>sqrt()</code>, <code>pow()</code></p>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="btn-h primary small" onclick="saveCustomFormula()">Save Formula</button>
+                <button class="btn-h secondary small" onclick="testFormulaInline()">Test</button>
+            </div>
+            <div id="calc-formula-test-result" style="margin-top:8px;"></div>`;
+    } else if (methodInfo) {
+        html = `
+            <div style="margin-bottom:8px;">
+                <strong style="color:var(--text-primary);">${methodInfo.name}</strong>
+                <span class="opp-badge" style="margin-left:8px;background:rgba(74,159,110,0.15);color:#4a9f6e;">${methodInfo.category}</span>
+            </div>
+            <div class="formula" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent);background:var(--bg-secondary);padding:8px 12px;border-radius:6px;margin-bottom:8px;">${methodInfo.formula}</div>
+            <p style="font-size:12px;color:var(--text-secondary);">${methodInfo.description}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                ${(methodInfo.variables || []).map(v => `<span class="var-tag" style="padding:3px 8px;background:var(--bg-secondary);border-radius:4px;font-size:11px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;">${v}</span>`).join('')}
+            </div>`;
+    } else {
+        html = '<p style="color:var(--text-dim);font-size:12px;">No calculation method selected for this project.</p>';
+    }
+
+    document.getElementById('calc-formula-ref').innerHTML = html;
+}
+
+async function saveCustomFormula() {
+    const formula = document.getElementById('calc-custom-formula').value;
+    const desc = document.getElementById('calc-custom-desc').value;
+
+    const result = await api(`/projects/${currentDetailId}/update/`, {
+        method: 'PUT', body: JSON.stringify({custom_formula: formula, custom_formula_desc: desc})
+    });
+    if (result.success) {
+        currentDetailProject.custom_formula = formula;
+        currentDetailProject.custom_formula_desc = desc;
+        alert('Formula saved.');
+    }
+}
+
+async function testFormulaInline() {
+    const formula = document.getElementById('calc-custom-formula').value;
+    const result = await api('/test-formula/', {
+        method: 'POST',
+        body: JSON.stringify({
+            formula: formula,
+            variables: {baseline: 100, actual: 80, volume: 10000, sales: 500000, rate: 0.25}
+        })
+    });
+
+    const el = document.getElementById('calc-formula-test-result');
+    if (result.success) {
+        el.innerHTML = `<div class="formula-result positive" style="text-align:left;">Result: <strong>$${result.result.toLocaleString()}</strong>
+            <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">(baseline=100, actual=80, volume=10000, rate=0.25)</span></div>`;
+    } else {
+        el.innerHTML = `<div class="formula-result negative" style="text-align:left;">Error: ${result.error}</div>`;
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// CALC LIBRARY
+// ════════════════════════════════════════════════════════════════
+function renderCalcLibrary() {
+    const categoryColors = {
+        material: 'rgba(74,159,110,0.15)',
+        labor: 'rgba(58,127,143,0.15)',
+        quality: 'rgba(232,149,71,0.15)',
+        other: 'rgba(120,120,120,0.15)',
+    };
+    const categoryTextColors = {
+        material: '#4a9f6e', labor: '#3a7f8f', quality: '#e89547', other: '#aaa',
+    };
+
+    const cards = calcMethods.map(m => `
+        <div class="calc-method-card">
+            <div class="calc-method-header" onclick="this.nextElementSibling.classList.toggle('open')">
+                <div>
+                    <span class="method-name">${m.name}</span>
+                    <span class="method-category" style="margin-left:8px;background:${categoryColors[m.category] || categoryColors.other};color:${categoryTextColors[m.category] || categoryTextColors.other};">${m.category}</span>
+                </div>
+                <span style="color:var(--text-dim);font-size:18px;">&#x25BE;</span>
+            </div>
+            <div class="calc-method-body">
+                <div class="formula">${m.formula}</div>
+                <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">${m.description}</p>
+                <div class="variables">
+                    ${(m.variables || []).map(v => `<span class="var-tag">${v}</span>`).join('')}
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    // Add custom method card
+    const customCard = `
+        <div class="calc-method-card" style="border-color:var(--accent);border-style:dashed;">
+            <div class="calc-method-header" onclick="this.nextElementSibling.classList.toggle('open')">
+                <div>
+                    <span class="method-name">Custom Formula</span>
+                    <span class="method-category" style="background:rgba(167,139,250,0.15);color:#a78bfa;">custom</span>
+                </div>
+                <span style="color:var(--text-dim);font-size:18px;">&#x25BE;</span>
+            </div>
+            <div class="calc-method-body">
+                <div class="formula">(user-defined formula)</div>
+                <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">
+                    Define your own savings formula using arithmetic operators and built-in variables.
+                    Set <code>calculation_method</code> to "custom" on a project and define the formula.
+                </p>
+                <div class="variables">
+                    <span class="var-tag">baseline</span>
+                    <span class="var-tag">actual</span>
+                    <span class="var-tag">volume</span>
+                    <span class="var-tag">sales</span>
+                    <span class="var-tag">rate</span>
+                    <span class="var-tag">variance</span>
+                </div>
+                <p style="font-size:11px;color:var(--text-dim);margin:8px 0 0;">
+                    Safe functions: <code>abs()</code>, <code>min()</code>, <code>max()</code>, <code>round()</code>, <code>sqrt()</code>, <code>pow()</code>
+                </p>
+            </div>
+        </div>`;
+
+    document.getElementById('calc-library-list').innerHTML = cards + customCard;
+}
+
+async function testFormula() {
+    const formula = document.getElementById('lib-formula').value;
+    const baseline = parseFloat(document.getElementById('lib-baseline').value) || 0;
+    const actual = parseFloat(document.getElementById('lib-actual').value) || 0;
+    document.getElementById('lib-variance').value = (baseline - actual).toFixed(4);
+
+    const result = await api('/test-formula/', {
+        method: 'POST',
+        body: JSON.stringify({
+            formula: formula,
+            variables: {
+                baseline: baseline,
+                actual: actual,
+                volume: parseFloat(document.getElementById('lib-volume').value) || 0,
+                sales: parseFloat(document.getElementById('lib-sales').value) || 0,
+                rate: parseFloat(document.getElementById('lib-rate').value) || 0,
+            }
+        })
+    });
+
+    const el = document.getElementById('lib-result');
+    if (result.success) {
+        el.innerHTML = `<span class="positive" style="font-size:18px;">$${result.result.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:4})}</span>`;
+    } else {
+        el.innerHTML = `<span class="negative">${result.error}</span>`;
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// DATA LOADING
+// ════════════════════════════════════════════════════════════════
+async function loadSites() {
+    const data = await api('/sites/');
+    sitesCache = data.sites || [];
+}
+
+async function loadAllProjects() {
+    const data = await api(`/projects/?fiscal_year=${selectedFY}`);
+    allProjects = data.projects || [];
+}
+
+function populateSiteFilters() {
+    // Dashboard multi-select
+    const container = document.getElementById('site-filter-options');
+    container.innerHTML = sitesCache.map(s =>
+        `<label><input type="checkbox" class="filter-site" value="${s.id}"> ${s.name}</label>`
+    ).join('');
+
+    // Rebind select-all
+    setupSelectAll('site-select-all', 'filter-site');
+    document.querySelectorAll('.filter-site').forEach(cb => cb.addEventListener('change', updateDashboard));
+
+    // Projects tab simple dropdown
+    const projSel = document.getElementById('proj-filter-site');
+    projSel.innerHTML = '<option value="">All Sites</option>' + sitesCache.map(s =>
+        `<option value="${s.id}">${s.name}</option>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+async function init() {
+    renderFYButtons();
+
+    // Load data in parallel
+    await Promise.all([loadSites(), api('/calculation-methods/')
+        .then(data => calcMethods = data.methods || [])]);
+
+    populateSiteFilters();
+    await loadAllProjects();
+
+    // Setup filter listeners
+    setupSelectAll('opp-select-all', 'filter-opp');
+    setupSelectAll('type-select-all', 'filter-type');
+    setupSelectAll('status-select-all', 'filter-status');
+
+    document.querySelectorAll('.filter-opp, .filter-type, .filter-status, .filter-site').forEach(cb =>
+        cb.addEventListener('change', updateDashboard));
+    document.querySelectorAll('.filter-date').forEach(rb =>
+        rb.addEventListener('change', updateDashboard));
+    document.getElementById('include-contingency').addEventListener('change', updateDashboard);
+
+    // Close modals on backdrop click
+    document.querySelectorAll('.hoshin-modal').forEach(m => {
+        m.addEventListener('click', function(e) {
+            if (e.target === this) this.classList.remove('open');
+        });
+    });
+
+    // Initial navigate from hash
+    navigate(location.hash || '#/dashboard');
+}
+
+init();
+</script>
+{% endblock %}

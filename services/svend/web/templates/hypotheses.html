@@ -42,7 +42,7 @@
 
 <!-- Create Hypothesis Modal -->
 <div id="create-modal" class="modal" style="display: none;">
-    <div class="modal-content" style="background-color: #121a12;">
+    <div class="modal-content">
         <div class="modal-header">
             <h2>New Hypothesis Session</h2>
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -200,7 +200,7 @@
 
 <!-- Add Cause Modal -->
 <div id="hypothesis-modal" class="modal" style="display: none;">
-    <div class="modal-content modal-sm" style="background-color: #121a12;">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Add Cause</h2>
             <button class="modal-close" onclick="closeHypothesisModal()">&times;</button>
@@ -229,7 +229,7 @@
 
 <!-- Add Evidence Modal -->
 <div id="evidence-modal" class="modal" style="display: none;">
-    <div class="modal-content modal-sm" style="background-color: #121a12;">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Add Evidence</h2>
             <button class="modal-close" onclick="closeEvidenceModal()">&times;</button>
@@ -271,7 +271,7 @@
 
 <!-- Interview Modal -->
 <div id="interview-modal" class="modal" style="display: none;">
-    <div class="modal-content interview-modal" style="background-color: #121a12;">
+    <div class="modal-content interview-modal">
         <div class="modal-header">
             <div>
                 <h2>Decision Guide Interview</h2>
@@ -312,7 +312,7 @@
 
 <!-- Resume Interview Modal -->
 <div id="resume-interview-modal" class="modal" style="display: none;">
-    <div class="modal-content modal-sm" style="background-color: #121a12;">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Resume Interview?</h2>
             <button class="modal-close" onclick="closeResumeModal()">&times;</button>
@@ -331,7 +331,7 @@
 
 <!-- Interview Complete Modal -->
 <div id="interview-complete-modal" class="modal" style="display: none;">
-    <div class="modal-content" style="background-color: #121a12;">
+    <div class="modal-content">
         <div class="modal-header">
             <h2>Interview Complete</h2>
             <button class="modal-close" onclick="closeInterviewCompleteModal()">&times;</button>
@@ -669,24 +669,14 @@
 }
 
 .modal-content {
-    background-color: #121a12 !important;
-    border: 1px solid rgba(74, 159, 110, 0.3);
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--border);
     border-radius: 8px;
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="light"] .modal-content {
-    background-color: #ffffff !important;
-    border-color: rgba(45, 122, 74, 0.25);
-}
-
-[data-theme="midnight"] .modal-content {
-    background-color: #12121f !important;
-    border-color: rgba(106, 127, 255, 0.3);
 }
 
 .modal-sm {
@@ -699,22 +689,12 @@
     align-items: center;
     padding: 1.25rem;
     border-bottom: 1px solid var(--border);
-    background-color: #121a12;
+    background-color: var(--card-bg);
 }
 
 .modal-body {
     padding: 1.25rem;
-    background-color: #121a12;
-}
-
-[data-theme="light"] .modal-header,
-[data-theme="light"] .modal-body {
-    background-color: #ffffff;
-}
-
-[data-theme="midnight"] .modal-header,
-[data-theme="midnight"] .modal-body {
-    background-color: #12121f;
+    background-color: var(--card-bg);
 }
 
 .modal-header h2 {
@@ -732,7 +712,7 @@
 
 .modal-content form {
     padding: 1.25rem;
-    background-color: #121a12;
+    background-color: var(--card-bg);
 }
 
 .modal-footer {
@@ -742,17 +722,7 @@
     padding-top: 1rem;
     margin-top: 1rem;
     border-top: 1px solid var(--border);
-    background-color: #121a12;
-}
-
-[data-theme="light"] .modal-content form,
-[data-theme="light"] .modal-footer {
-    background-color: #ffffff;
-}
-
-[data-theme="midnight"] .modal-content form,
-[data-theme="midnight"] .modal-footer {
-    background-color: #12121f;
+    background-color: var(--card-bg);
 }
 
 .empty-state {

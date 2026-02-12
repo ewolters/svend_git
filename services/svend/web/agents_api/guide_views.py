@@ -15,7 +15,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from accounts.permissions import require_auth
+from accounts.permissions import gated_paid, require_auth, require_enterprise
 from .llm_manager import LLMManager
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ Be helpful, concise, and professional.""",
 
 
 @csrf_exempt
-@require_auth
+@require_enterprise
 @require_http_methods(["POST"])
 def guide_chat(request):
     """General-purpose guide chat endpoint.
@@ -173,7 +173,7 @@ def guide_chat(request):
 
 
 @csrf_exempt
-@require_auth
+@require_enterprise
 @require_http_methods(["POST"])
 def summarize_project(request):
     """Summarize an entire project for report generation.

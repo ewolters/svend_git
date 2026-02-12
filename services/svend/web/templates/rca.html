@@ -1773,4 +1773,9 @@ document.getElementById('why-input').addEventListener('keydown', (e) => {
 });
 renderChain();
 </script>
+<script>
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
+});
+</script>
 {% endblock %}

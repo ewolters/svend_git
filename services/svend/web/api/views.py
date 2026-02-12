@@ -9,6 +9,9 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 
+from accounts.constants import (
+    TIER_FEATURES, Tier, Industry, Role, ExperienceLevel, OrganizationSize,
+)
 from chat.models import Conversation, Message, SharedConversation, TraceLog, TrainingCandidate
 from inference import process_query
 from inference.flywheel import get_flywheel, FlywheelResult
@@ -757,12 +760,19 @@ def me(request):
         "tier": user.tier,
         "display_name": user.display_name or user.username,
         "avatar_url": user.avatar_url,
+        "bio": user.bio,
+        "industry": user.industry,
+        "role": user.role,
+        "experience_level": user.experience_level,
+        "organization_size": user.organization_size,
+        "is_staff": user.is_staff,
         "queries_today": user.queries_today,
         "daily_limit": user.daily_limit,
         "total_queries": user.total_queries,
         "subscription_active": hasattr(user, 'subscription') and user.subscription.is_active,
         "preferences": user.preferences or {},
         "current_theme": user.current_theme,
+        "features": TIER_FEATURES.get(user.tier, TIER_FEATURES[Tier.FREE]),
     })
 
 
@@ -773,11 +783,28 @@ def update_profile(request):
     user = request.user
 
     # Allowed fields to update
-    allowed = ["display_name", "avatar_url", "bio", "preferences", "current_theme"]
+    allowed = [
+        "display_name", "avatar_url", "bio", "preferences", "current_theme",
+        "industry", "role", "experience_level", "organization_size",
+    ]
+
+    # Valid choices for constrained fields
+    valid_choices = {
+        "industry": [c[0] for c in Industry.choices] + [""],
+        "role": [c[0] for c in Role.choices] + [""],
+        "experience_level": [c[0] for c in ExperienceLevel.choices] + [""],
+        "organization_size": [c[0] for c in OrganizationSize.choices] + [""],
+    }
 
     for field in allowed:
         if field in request.data:
-            setattr(user, field, request.data[field])
+            value = request.data[field]
+            if field in valid_choices and value not in valid_choices[field]:
+                return Response(
+                    {"error": f"Invalid value for {field}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            setattr(user, field, value)
 
     user.save()
 
@@ -789,6 +816,10 @@ def update_profile(request):
             "bio": user.bio,
             "preferences": user.preferences,
             "current_theme": user.current_theme,
+            "industry": user.industry,
+            "role": user.role,
+            "experience_level": user.experience_level,
+            "organization_size": user.organization_size,
         },
     })
 

@@ -1303,6 +1303,16 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+
+                <div class="calc-derivation" id="rto-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('rto-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="rto-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Yamazumi -->
@@ -1772,6 +1782,16 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+
+                <div class="calc-derivation" id="kanban-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('kanban-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="kanban-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- EPEI -->
@@ -1823,6 +1843,16 @@ input[type="number"] {
                             <span>Interpretation</span>
                             <span>Run every part every <span id="epei-interpret">1.6</span> days</span>
                         </div>
+                    </div>
+                </div>
+
+                <div class="calc-derivation" id="epei-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('epei-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="epei-derivation-body">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </div>
@@ -1907,6 +1937,16 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title">Demand Distribution & Service Level</div>
                     <div id="safety-chart" style="height: 350px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="safety-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('safety-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="safety-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -2124,6 +2164,16 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+
+                <div class="calc-derivation" id="oee-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('oee-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="oee-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Bottleneck -->
@@ -2208,6 +2258,16 @@ input[type="number"] {
                             <span>Interpretation</span>
                             <span id="littles-interpret">L = λW (the fundamental law of flow)</span>
                         </div>
+                    </div>
+                </div>
+
+                <div class="calc-derivation" id="littles-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('littles-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="littles-derivation-body">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </div>
@@ -2414,6 +2474,16 @@ input[type="number"] {
                         <div id="qf-monte-chart" style="height: 220px;"></div>
                     </div>
                 </div>
+
+                <div class="calc-derivation" id="queue-finite-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('queue-finite-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="queue-finite-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Priority Queue -->
@@ -2454,6 +2524,16 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title">Wait Time by Priority Class</div>
                     <div id="qp-chart" style="height: 300px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="queue-priority-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('queue-priority-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="queue-priority-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -2526,6 +2606,16 @@ input[type="number"] {
                 <div class="calc-section">
                     <div class="calc-section-title">Staffing Table</div>
                     <div id="qo-table" style="overflow-x: auto;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="calc-derivation" id="queue-optimizer-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('queue-optimizer-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="queue-optimizer-derivation-body">
                         <!-- Populated by JS -->
                     </div>
                 </div>
@@ -2794,6 +2884,16 @@ input[type="number"] {
                         <div id="qt-monte-chart" style="height: 220px;"></div>
                     </div>
                 </div>
+
+                <div class="calc-derivation" id="queue-tandem-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('queue-tandem-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="queue-tandem-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Pitch -->
@@ -2843,6 +2943,16 @@ input[type="number"] {
                             <span>Use</span>
                             <span>Water spider pickup interval</span>
                         </div>
+                    </div>
+                </div>
+
+                <div class="calc-derivation" id="pitch-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('pitch-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="pitch-derivation-body">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </div>
@@ -3017,6 +3127,16 @@ input[type="number"] {
                     <div class="calc-chart-title">Yield Waterfall</div>
                     <div id="rty-chart" style="height: 350px;"></div>
                 </div>
+
+                <div class="calc-derivation" id="rty-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('rty-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="rty-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- DPMO / Sigma -->
@@ -3089,6 +3209,16 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+
+                <div class="calc-derivation" id="dpmo-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('dpmo-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="dpmo-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Inventory Turns -->
@@ -3134,6 +3264,16 @@ input[type="number"] {
                             <span>Days on Hand</span>
                             <span>365 ÷ Turns</span>
                         </div>
+                    </div>
+                </div>
+
+                <div class="calc-derivation" id="turns-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('turns-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="turns-derivation-body">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </div>
@@ -3215,6 +3355,16 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title">Cost of Quality Breakdown</div>
                     <div id="coq-chart" style="height: 350px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="coq-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('coq-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="coq-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -3367,6 +3517,16 @@ input[type="number"] {
                     <div class="calc-chart-title">Changeover Waterfall</div>
                     <div id="smed-chart" style="height: 350px;"></div>
                 </div>
+
+                <div class="calc-derivation" id="smed-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('smed-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="smed-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Changeover Matrix -->
@@ -3434,6 +3594,16 @@ input[type="number"] {
                     <div class="calc-breakdown-row">
                         <span>Scale</span>
                         <span>Each factor: 1 (best) to 10 (worst)</span>
+                    </div>
+                </div>
+
+                <div class="calc-derivation" id="fmea-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('fmea-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="fmea-derivation-body">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </div>
@@ -3508,6 +3678,16 @@ input[type="number"] {
                     <div class="calc-chart-title">Process Distribution vs Spec Limits</div>
                     <div id="cpk-chart" style="height: 350px;"></div>
                 </div>
+
+                <div class="calc-derivation" id="cpk-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('cpk-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="cpk-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Sample Size -->
@@ -3581,6 +3761,16 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+
+                <div class="calc-derivation" id="samplesize-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('samplesize-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="samplesize-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Line Efficiency -->
@@ -3651,6 +3841,16 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title">Time Loss Waterfall</div>
                     <div id="lineeff-chart" style="height: 350px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="lineeff-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('lineeff-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="lineeff-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -3776,6 +3976,16 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+
+                <div class="calc-derivation" id="ole-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('ole-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="ole-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
             </div>
 
             <!-- Cycle Time Study -->
@@ -3821,6 +4031,16 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title">Time Breakdown</div>
                     <div id="cycletime-chart" style="height: 350px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="cycletime-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('cycletime-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="cycletime-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -3889,6 +4109,16 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title">Heijunka Box (First 10 Intervals)</div>
                     <div id="heijunka-chart" style="height: 350px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="heijunka-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('heijunka-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="heijunka-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -4104,6 +4334,16 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title">Capacity Load by Day</div>
                     <div id="capacity-chart" style="height: 350px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="capacity-load-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('capacity-load-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="capacity-load-derivation-body">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -5771,6 +6011,30 @@ function calcRTO() {
     document.getElementById('rto-staff').innerHTML = `${staff}<span class="calc-result-unit">people</span>`;
     document.getElementById('rto-efficiency').textContent = `${efficiency.toFixed(1)}%`;
     document.getElementById('rto-buffer').textContent = `+${buffer.toFixed(2)} operators`;
+
+    // Update derivation
+    document.getElementById('rto-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Calculate Base RTO</div>
+            <span class="formula">RTO = Cycle Time ÷ Takt Time</span><br>
+            RTO = ${cycle} ÷ ${takt} = <strong>${rto.toFixed(2)} operators</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Add Variation Margin</div>
+            <span class="formula">RTO + Margin = RTO × (1 + CoV)</span><br>
+            = ${rto.toFixed(2)} × (1 + ${cov.toFixed(2)}) = <strong>${rtoMargin.toFixed(2)} operators</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Round Up to Whole People</div>
+            <span class="formula">Staff = ⌈RTO + Margin⌉</span><br>
+            Staff = ⌈${rtoMargin.toFixed(2)}⌉ = <strong>${staff} people</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Calculate Line Efficiency</div>
+            <span class="formula">Efficiency = (Base RTO ÷ Staff) × 100</span><br>
+            = (${rto.toFixed(2)} ÷ ${staff}) × 100 = <strong>${efficiency.toFixed(1)}%</strong>
+        </div>
+    `;
 }
 
 // ============================================================================
@@ -7319,6 +7583,29 @@ function calcKanban() {
     document.getElementById('kanban-ss').innerHTML = `${Math.round(safety)}<span class="calc-result-unit">units</span>`;
     document.getElementById('kanban-cards').innerHTML = `${cards}<span class="calc-result-unit">cards</span>`;
     document.getElementById('kanban-total').textContent = `${Math.round(total)} units`;
+
+    // Update derivation
+    document.getElementById('kanban-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Calculate Base Stock</div>
+            <span class="formula">Base = Demand × Lead Time</span><br>
+            Base = ${demand} × ${lead} = <strong>${Math.round(base)} units</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Calculate Safety Stock</div>
+            <span class="formula">Safety = Base × Safety Factor %</span><br>
+            Safety = ${Math.round(base)} × ${safetyPct}% = <strong>${Math.round(safety)} units</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Calculate Kanban Cards</div>
+            <span class="formula">Cards = ⌈(Base + Safety) ÷ Container Size⌉</span><br>
+            Cards = ⌈(${Math.round(base)} + ${Math.round(safety)}) ÷ ${container}⌉ = ⌈${(total / container).toFixed(2)}⌉ = <strong>${cards} cards</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Interpretation</div>
+            Total inventory in the loop: <strong>${Math.round(total)} units</strong> across ${cards} containers of ${container} units each.
+        </div>
+    `;
 }
 
 // ============================================================================
@@ -7339,6 +7626,29 @@ function calcEPEI() {
     document.getElementById('epei-total').innerHTML = `${totalCO}<span class="calc-result-unit">min</span>`;
     document.getElementById('epei-budget').innerHTML = `${Math.round(budget)}<span class="calc-result-unit">min</span>`;
     document.getElementById('epei-interpret').textContent = epei.toFixed(1);
+
+    // Update derivation
+    document.getElementById('epei-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Total Changeover Time per Cycle</div>
+            <span class="formula">Total C/O = Parts × Changeover Time</span><br>
+            Total C/O = ${parts} × ${changeover} = <strong>${totalCO} min</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Changeover Budget per Day</div>
+            <span class="formula">Budget = Available Hours × 60 × Target %</span><br>
+            Budget = ${available} × 60 × ${targetPct}% = <strong>${Math.round(budget)} min/day</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Calculate EPEI</div>
+            <span class="formula">EPEI = Total C/O ÷ Daily Budget</span><br>
+            EPEI = ${totalCO} ÷ ${Math.round(budget)} = <strong>${epei.toFixed(1)} days</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Interpretation</div>
+            With ${parts} parts and ${changeover} min per changeover, you can run <strong>Every Part Every ${epei.toFixed(1)} days</strong> within the ${targetPct}% time budget.
+        </div>
+    `;
 }
 
 // ============================================================================
@@ -7447,6 +7757,31 @@ function calcSafety() {
         },
         showlegend: false
     }, { responsive: true, displayModeBar: false });
+
+    // Update derivation
+    document.getElementById('safety-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Mean Demand During Lead Time</div>
+            <span class="formula">Mean = Demand × Lead Time</span><br>
+            Mean = ${demand} × ${lead} = <strong>${Math.round(meanDemand)} units</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Combined Standard Deviation</div>
+            <span class="formula">σ_combined = √(LT × σ_d² + D² × σ_LT²)</span><br>
+            = √(${lead} × ${demandStd}² + ${demand}² × ${leadStd}²)<br>
+            = √(${(lead * demandStd * demandStd).toFixed(0)} + ${(demand * demand * leadStd * leadStd).toFixed(0)}) = <strong>${combined.toFixed(1)} units</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Safety Stock</div>
+            <span class="formula">Safety Stock = Z × σ_combined</span><br>
+            = ${z.toFixed(2)} × ${combined.toFixed(1)} = <strong>${Math.round(safety)} units</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Reorder Point</div>
+            <span class="formula">ROP = Mean Demand + Safety Stock</span><br>
+            ROP = ${Math.round(meanDemand)} + ${Math.round(safety)} = <strong>${Math.round(rop)} units</strong>
+        </div>
+    `;
 }
 
 // ============================================================================
@@ -7645,6 +7980,30 @@ function calcOEE() {
     document.getElementById('oee-runtime').textContent = `${runtime} min`;
     document.getElementById('oee-good').textContent = `${good} units`;
 
+    // Update derivation
+    document.getElementById('oee-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Availability</div>
+            <span class="formula">Availability = (Planned − Downtime) ÷ Planned</span><br>
+            = (${planned} − ${downtime}) ÷ ${planned} = ${runtime} ÷ ${planned} = <strong>${(availability * 100).toFixed(1)}%</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Performance</div>
+            <span class="formula">Performance = (Produced × Ideal Cycle) ÷ Runtime</span><br>
+            = (${produced} × ${ideal}/60) ÷ ${runtime} = <strong>${(performance * 100).toFixed(1)}%</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Quality</div>
+            <span class="formula">Quality = (Produced − Defects) ÷ Produced</span><br>
+            = (${produced} − ${defects}) ÷ ${produced} = ${good} ÷ ${produced} = <strong>${(quality * 100).toFixed(1)}%</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: OEE</div>
+            <span class="formula">OEE = Availability × Performance × Quality</span><br>
+            = ${(availability * 100).toFixed(1)}% × ${(performance * 100).toFixed(1)}% × ${(quality * 100).toFixed(1)}% = <strong>${oee.toFixed(1)}%</strong>
+        </div>
+    `;
+
     // OEE Loss Breakdown Donut Chart
     const availLoss = (1 - availability) * 100;
     const perfLoss = availability * (1 - performance) * 100;
@@ -7791,6 +8150,40 @@ function calcLittles() {
 
     document.getElementById('littles-result-label').textContent = label;
     document.getElementById('littles-result').innerHTML = `${result.toFixed(1)}<span class="calc-result-unit">${unit}</span>`;
+
+    // Update derivation
+    let derivation = '';
+    if (solve === 'wip') {
+        derivation = `
+            <div class="step">
+                <div class="step-num">Little's Law: Solve for WIP</div>
+                <span class="formula">L = λ × W</span><br>
+                WIP = Throughput × Lead Time<br>
+                WIP = ${thr} × ${lt} = <strong>${result.toFixed(1)} units</strong>
+            </div>`;
+    } else if (solve === 'throughput') {
+        derivation = `
+            <div class="step">
+                <div class="step-num">Little's Law: Solve for Throughput</div>
+                <span class="formula">λ = L ÷ W</span><br>
+                Throughput = WIP ÷ Lead Time<br>
+                Throughput = ${wip} ÷ ${lt} = <strong>${result.toFixed(1)} units/hr</strong>
+            </div>`;
+    } else {
+        derivation = `
+            <div class="step">
+                <div class="step-num">Little's Law: Solve for Lead Time</div>
+                <span class="formula">W = L ÷ λ</span><br>
+                Lead Time = WIP ÷ Throughput<br>
+                Lead Time = ${wip} ÷ ${thr} = <strong>${result.toFixed(1)} hours</strong>
+            </div>`;
+    }
+    derivation += `
+        <div class="step">
+            <div class="step-num">Interpretation</div>
+            Little's Law (L = λW) is a fundamental relationship that holds for <em>any</em> stable system, regardless of arrival distribution or service pattern.
+        </div>`;
+    document.getElementById('littles-derivation-body').innerHTML = derivation;
 }
 
 // ============================================================================
@@ -8054,6 +8447,33 @@ function calcQueueFinite() {
         Pk > 0.01 ? `${(Pk * 100).toFixed(1)}% blocking — acceptable for most applications` :
         `<1% blocking — system well-sized`;
 
+    // Update derivation
+    document.getElementById('queue-finite-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Traffic Intensity</div>
+            <span class="formula">r = λ/μ = ${lambda}/${mu} = ${r.toFixed(2)}</span><br>
+            <span class="formula">ρ = λ/(cμ) = ${lambda}/(${c}×${mu}) = ${(rho * 100).toFixed(1)}%</span>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: State Probabilities P(0)...P(K)</div>
+            M/M/${c}/${K} finite queue — calculate ${K + 1} state probabilities and normalize.<br>
+            P₀ = <strong>${(P[0] * 100).toFixed(2)}%</strong> (empty system probability)
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Blocking Probability</div>
+            <span class="formula">P(K) = probability system is full</span><br>
+            P(${K}) = <strong>${(Pk * 100).toFixed(2)}%</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Performance Metrics</div>
+            <span class="formula">Effective λ = λ(1 − P_K)</span> = ${lambda} × ${(1 - Pk).toFixed(4)} = <strong>${effLambda.toFixed(2)}/hr</strong><br>
+            <span class="formula">L = Σ n×P(n)</span> = <strong>${L.toFixed(2)} in system</strong><br>
+            <span class="formula">Lq = Σ (n−c)×P(n) for n≥c</span> = <strong>${Lq.toFixed(2)} in queue</strong><br>
+            <span class="formula">W = L/λ_eff</span> = <strong>${(W * 60).toFixed(1)} min in system</strong><br>
+            <span class="formula">Wq = Lq/λ_eff</span> = <strong>${(Wq * 60).toFixed(1)} min waiting</strong>
+        </div>
+    `;
+
     // Chart: Blocking probability vs capacity
     const caps = [];
     const blockProbs = [];
@@ -8245,6 +8665,27 @@ function calcQueuePriority() {
         xaxis: { tickangle: -20, gridcolor: 'rgba(255,255,255,0.1)' },
         yaxis: { title: 'Average Wait (min)', gridcolor: 'rgba(255,255,255,0.1)' }
     }, { responsive: true, displayModeBar: false });
+
+    // Update derivation
+    const prioritySteps = results.map((r, i) => `
+        <div class="step">
+            <div class="step-num">Class ${i + 1}: ${r.name}</div>
+            λ = ${r.lambda}/hr (${r.share.toFixed(0)}% of traffic)<br>
+            Average wait: <strong>${r.Wq.toFixed(1)} min</strong>
+        </div>`).join('');
+    document.getElementById('queue-priority-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">System Parameters</div>
+            Total λ = ${totalLambda}/hr, μ = ${mu}/hr, c = ${c} server(s)<br>
+            <span class="formula">ρ = λ/(cμ) = ${totalLambda}/(${c}×${mu}) = ${(rho * 100).toFixed(1)}%</span>
+        </div>
+        <div class="step">
+            <div class="step-num">Priority Queue Model</div>
+            Non-preemptive priority: higher-priority classes get shorter waits at the expense of lower-priority classes.<br>
+            <span class="formula">Wq_k = W₀ × ρ_k / (ρ × (1−σ_{k-1})(1−σ_k))</span>
+        </div>
+        ${prioritySteps}
+    `;
 }
 
 function calcMMcWait(lambda, mu, c) {
@@ -8303,6 +8744,31 @@ function calcOptimizer() {
     document.getElementById('qo-total-cost').textContent = '$' + Math.round(optimal?.totalCost || 0);
     document.getElementById('qo-wait').innerHTML = `${(optimal?.WqMin || 0).toFixed(1)}<span class="calc-result-unit">min</span>`;
     document.getElementById('qo-util').innerHTML = `${(optimal?.rho || 0).toFixed(0)}<span class="calc-result-unit">%</span>`;
+
+    // Update derivation
+    document.getElementById('queue-optimizer-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Minimum Servers Required</div>
+            <span class="formula">c_min = ⌈λ/μ⌉ = ⌈${lambda}/${mu}⌉ = ${minServers}</span><br>
+            System requires at least ${minServers} server(s) for stability.
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Cost Model</div>
+            <span class="formula">Total Cost = (c × Server Cost) + (λ × Wq × Wait Cost)</span><br>
+            Server cost = $${serverCost}/hr per server, Wait cost = $${waitCost}/hr per waiting customer
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Optimal Staffing</div>
+            Tested c = ${minServers} to ${maxServers} servers<br>
+            Optimal: <strong>c = ${optimalC}</strong> at $${Math.round(optimal?.totalCost || 0)}/hr total<br>
+            (Staff: $${Math.round(optimal?.staffCostHr || 0)}/hr + Wait: $${Math.round(optimal?.waitCostHr || 0)}/hr)
+        </div>
+        <div class="step">
+            <div class="step-num">Performance at Optimal</div>
+            Utilization: <strong>${(optimal?.rho || 0).toFixed(0)}%</strong>,
+            Avg Wait: <strong>${(optimal?.WqMin || 0).toFixed(1)} min</strong>
+        </div>
+    `;
 
     // Chart
     Plotly.newPlot('qo-chart', [
@@ -8907,6 +9373,26 @@ function calcTandem() {
         yaxis: { title: 'Time (min)', gridcolor: 'rgba(255,255,255,0.1)' },
         legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
     }, { responsive: true, displayModeBar: false });
+
+    // Update derivation
+    const tandemSteps = results.map(r => `
+        <div class="step">
+            <div class="step-num">${r.name} (c=${r.c}, μ=${r.mu}/hr)</div>
+            ρ = ${lambda}/(${r.c}×${r.mu}) = <strong>${(r.rho * 100).toFixed(0)}%</strong>${r.name === bottleneck.name ? ' ← Bottleneck' : ''}<br>
+            Wait: ${r.Wq.toFixed(1)} min + Service: ${(60/r.mu).toFixed(1)} min = <strong>${r.W.toFixed(1)} min</strong>
+        </div>`).join('');
+    document.getElementById('queue-tandem-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Tandem Queue Model</div>
+            Jackson's theorem: each stage analyzed independently as M/M/c with arrival rate λ = ${lambda}/hr.
+        </div>
+        ${tandemSteps}
+        <div class="step">
+            <div class="step-num">End-to-End</div>
+            <span class="formula">Total Time = Σ (Wait + Service) across all stages</span><br>
+            = <strong>${totalTime.toFixed(0)} min</strong> (${totalWait.toFixed(0)} min waiting + ${results.reduce((s, r) => s + 60/r.mu, 0).toFixed(0)} min service)
+        </div>
+    `;
 }
 
 function toggleTandemMonteCarlo(btn) {
@@ -8956,6 +9442,24 @@ function calcPitch() {
     document.getElementById('pitch-result').innerHTML = `${pitchMin.toFixed(1)}<span class="calc-result-unit">min</span>`;
     document.getElementById('pitch-per-hour').textContent = perHour.toFixed(1);
     document.getElementById('pitch-per-shift').textContent = Math.round(perShift);
+
+    // Update derivation
+    document.getElementById('pitch-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Calculate Pitch</div>
+            <span class="formula">Pitch = Takt Time × Pack-out Quantity</span><br>
+            Pitch = ${takt} sec × ${pack} units = ${pitchSec} sec = <strong>${pitchMin.toFixed(1)} min</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Pickups per Hour</div>
+            <span class="formula">Per Hour = 60 ÷ Pitch (min)</span><br>
+            = 60 ÷ ${pitchMin.toFixed(1)} = <strong>${perHour.toFixed(1)} pickups/hr</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Interpretation</div>
+            The water spider visits every <strong>${pitchMin.toFixed(1)} minutes</strong> to collect a container of ${pack} units, making <strong>${Math.round(perShift)} pickups per 8-hour shift</strong>.
+        </div>
+    `;
 }
 
 // ============================================================================
@@ -9005,6 +9509,27 @@ function calcRTY() {
     document.getElementById('rty-result').innerHTML = `${rty.toFixed(1)}<span class="calc-result-unit">%</span>`;
     document.getElementById('rty-defects').innerHTML = `${defects.toFixed(1)}<span class="calc-result-unit">%</span>`;
     document.getElementById('rty-hidden').textContent = `${defects.toFixed(1)}% rework/scrap hidden in process`;
+
+    // Update derivation
+    const rtySteps = rtyData.map((s, i) => {
+        const cumYield = rtyData.slice(0, i + 1).reduce((acc, x) => acc * (x.fpy / 100), 1) * 100;
+        return `<div class="step">
+            <div class="step-num">${s.name}: FPY = ${s.fpy}%</div>
+            Cumulative yield after this step: ${i === 0 ? s.fpy : `${rtyData.slice(0, i).reduce((acc, x) => acc * (x.fpy / 100), 1) * 100 > 0 ? (rtyData.slice(0, i).reduce((acc, x) => acc * (x.fpy / 100), 1) * 100).toFixed(1) : '0'}% × ${s.fpy}%`} = <strong>${cumYield.toFixed(1)}%</strong>
+        </div>`;
+    }).join('');
+    document.getElementById('rty-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Formula</div>
+            <span class="formula">RTY = FPY₁ × FPY₂ × ... × FPYₙ</span><br>
+            = ${rtyData.map(s => (s.fpy / 100).toFixed(4)).join(' × ')} = <strong>${(rty / 100).toFixed(4)} = ${rty.toFixed(1)}%</strong>
+        </div>
+        ${rtySteps}
+        <div class="step">
+            <div class="step-num">Hidden Factory</div>
+            ${defects.toFixed(1)}% of units require rework or become scrap — this waste is often invisible in traditional yield reporting.
+        </div>
+    `;
 
     // Waterfall chart
     const names = ['Start', ...rtyData.map(s => s.name), 'RTY'];
@@ -9082,6 +9607,46 @@ function calcDPMO() {
     document.getElementById('dpmo-sigma').innerHTML = `${sigma.toFixed(2)}<span class="calc-result-unit">σ</span>`;
     document.getElementById('dpmo-yield-result').innerHTML = `${yield_.toFixed(4)}<span class="calc-result-unit">%</span>`;
     document.getElementById('dpmo-rate').textContent = `${(100 - yield_).toFixed(4)}%`;
+
+    // Update derivation
+    let dpmoDerivation = '';
+    if (mode === 'defects') {
+        const defects = parseFloat(document.getElementById('dpmo-defects').value) || 0;
+        const units = parseFloat(document.getElementById('dpmo-units').value) || 1;
+        const opp = parseFloat(document.getElementById('dpmo-opp').value) || 1;
+        dpmoDerivation = `
+            <div class="step">
+                <div class="step-num">Step 1: Calculate DPMO</div>
+                <span class="formula">DPMO = (Defects ÷ (Units × Opportunities)) × 1,000,000</span><br>
+                = (${defects} ÷ (${units} × ${opp})) × 1,000,000<br>
+                = (${defects} ÷ ${units * opp}) × 1,000,000 = <strong>${Math.round(dpmo).toLocaleString()} DPMO</strong>
+            </div>`;
+    } else if (mode === 'dpmo') {
+        dpmoDerivation = `
+            <div class="step">
+                <div class="step-num">Step 1: Direct DPMO Input</div>
+                DPMO = <strong>${Math.round(dpmo).toLocaleString()}</strong>
+            </div>`;
+    } else {
+        dpmoDerivation = `
+            <div class="step">
+                <div class="step-num">Step 1: Convert Yield to DPMO</div>
+                <span class="formula">DPMO = (1 − Yield/100) × 1,000,000</span><br>
+                = (1 − ${yield_.toFixed(2)}/100) × 1,000,000 = <strong>${Math.round(dpmo).toLocaleString()} DPMO</strong>
+            </div>`;
+    }
+    dpmoDerivation += `
+        <div class="step">
+            <div class="step-num">Step 2: Calculate Sigma Level</div>
+            <span class="formula">σ ≈ 0.8406 + √(29.37 − 2.221 × ln(DPMO))</span><br>
+            Sigma Level = <strong>${sigma.toFixed(2)}σ</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Process Yield</div>
+            <span class="formula">Yield = (1 − DPMO/1,000,000) × 100</span><br>
+            = <strong>${yield_.toFixed(4)}%</strong>
+        </div>`;
+    document.getElementById('dpmo-derivation-body').innerHTML = dpmoDerivation;
 }
 
 // ============================================================================
@@ -9099,6 +9664,25 @@ function calcTurns() {
     document.getElementById('turns-result').innerHTML = `${turns.toFixed(1)}<span class="calc-result-unit">/yr</span>`;
     document.getElementById('turns-doh').innerHTML = `${doh.toFixed(1)}<span class="calc-result-unit">days</span>`;
     document.getElementById('turns-woh').innerHTML = `${woh.toFixed(1)}<span class="calc-result-unit">weeks</span>`;
+
+    // Update derivation
+    document.getElementById('turns-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Inventory Turns</div>
+            <span class="formula">Turns = COGS ÷ Average Inventory</span><br>
+            = $${cogs.toLocaleString()} ÷ $${inv.toLocaleString()} = <strong>${turns.toFixed(1)} turns/year</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Days on Hand</div>
+            <span class="formula">DOH = 365 ÷ Turns</span><br>
+            = 365 ÷ ${turns.toFixed(1)} = <strong>${doh.toFixed(1)} days</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Weeks on Hand</div>
+            <span class="formula">WOH = 52 ÷ Turns</span><br>
+            = 52 ÷ ${turns.toFixed(1)} = <strong>${woh.toFixed(1)} weeks</strong>
+        </div>
+    `;
 }
 
 // ============================================================================
@@ -9126,6 +9710,37 @@ function calcCOQ() {
     document.getElementById('coq-appr-total').textContent = fmt(appraisal);
     document.getElementById('coq-fail-total').textContent = fmt(failure);
     document.getElementById('coq-total').textContent = fmt(total);
+
+    // Update derivation
+    const prevPct = total > 0 ? ((prevention / total) * 100).toFixed(0) : 0;
+    const apprPct = total > 0 ? ((appraisal / total) * 100).toFixed(0) : 0;
+    const failPct = total > 0 ? ((failure / total) * 100).toFixed(0) : 0;
+    document.getElementById('coq-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Prevention Costs</div>
+            <span class="formula">Prevention = Training + Planning + Systems</span><br>
+            = ${fmt(training)} + ${fmt(planning)} + ${fmt(systems)} = <strong>${fmt(prevention)}</strong> (${prevPct}%)
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Appraisal Costs</div>
+            <span class="formula">Appraisal = Inspection + Testing + Audits</span><br>
+            = ${fmt(inspection)} + ${fmt(testing)} + ${fmt(audits)} = <strong>${fmt(appraisal)}</strong> (${apprPct}%)
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Failure Costs</div>
+            <span class="formula">Failure = Internal + External</span><br>
+            = ${fmt(internal)} + ${fmt(external)} = <strong>${fmt(failure)}</strong> (${failPct}%)
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Total Cost of Quality</div>
+            <span class="formula">CoQ = Prevention + Appraisal + Failure</span><br>
+            = ${fmt(prevention)} + ${fmt(appraisal)} + ${fmt(failure)} = <strong>${fmt(total)}</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Interpretation</div>
+            ${failure > prevention + appraisal ? 'Failure costs dominate — invest more in prevention to reduce total CoQ.' : 'Good balance — prevention spending is keeping failure costs in check.'}
+        </div>
+    `;
 
     // Pie chart
     Plotly.newPlot('coq-chart', [{
@@ -9205,6 +9820,32 @@ function calcSMED() {
     document.getElementById('smed-external').innerHTML = `${external}<span class="calc-result-unit">min</span>`;
     document.getElementById('smed-target').innerHTML = `${internal}<span class="calc-result-unit">min</span>`;
     document.getElementById('smed-reduction').textContent = `${reduction.toFixed(0)}% (${external} min saved)`;
+
+    // Update derivation
+    const intElements = smedData.filter(s => s.type === 'internal');
+    const extElements = smedData.filter(s => s.type === 'external');
+    document.getElementById('smed-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Classify Elements</div>
+            <strong>Internal</strong> (machine stopped): ${intElements.length} elements = ${internal} min<br>
+            <strong>External</strong> (machine running): ${extElements.length} elements = ${external} min
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Current Total Changeover</div>
+            <span class="formula">Current = Internal + External</span><br>
+            = ${internal} + ${external} = <strong>${total} min</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: SMED Target</div>
+            <span class="formula">Target = Internal Only (externalize the rest)</span><br>
+            Target changeover = <strong>${internal} min</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Potential Reduction</div>
+            <span class="formula">Savings = External time moved outside changeover</span><br>
+            = ${external} min saved = <strong>${reduction.toFixed(0)}% reduction</strong>
+        </div>
+    `;
 
     // Update internal seconds display for Line Sim link
     document.getElementById('smed-internal-seconds').textContent = `${internal * 60}s`;
@@ -10069,6 +10710,22 @@ function calcFMEA() {
     const rpns = fmeaData.map(f => ({ ...f, rpn: f.severity * f.occurrence * f.detection }));
     rpns.sort((a, b) => b.rpn - a.rpn);
 
+    // Update derivation
+    const fmeaSteps = rpns.map(f => `
+        <div class="step">
+            <div class="step-num">${f.mode}</div>
+            <span class="formula">RPN = S × O × D</span> = ${f.severity} × ${f.occurrence} × ${f.detection} = <strong>${f.rpn}</strong>
+            ${f.rpn > 100 ? ' <span style="color:#e74c3c;">⚠ Action required</span>' : f.rpn > 50 ? ' <span style="color:#f39c12;">Monitor</span>' : ' <span style="color:#4a9f6e;">Acceptable</span>'}
+        </div>`).join('');
+    document.getElementById('fmea-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Formula</div>
+            <span class="formula">Risk Priority Number = Severity × Occurrence × Detection</span><br>
+            Each factor: 1 (best) to 10 (worst). RPN range: 1–1,000.
+        </div>
+        ${fmeaSteps}
+    `;
+
     Plotly.newPlot('fmea-chart', [{
         y: rpns.map(f => f.mode),
         x: rpns.map(f => f.rpn),
@@ -10114,6 +10771,31 @@ function calcCpk() {
     document.getElementById('cpk-cpu').textContent = cpu.toFixed(2);
     document.getElementById('cpk-cpl').textContent = cpl.toFixed(2);
     document.getElementById('cpk-defects').textContent = defectRate < 0.01 ? '<0.01%' : `${defectRate.toFixed(2)}%`;
+
+    // Update derivation
+    document.getElementById('cpk-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Process Capability (Cp)</div>
+            <span class="formula">Cp = (USL − LSL) ÷ (6σ)</span><br>
+            = (${usl} − ${lsl}) ÷ (6 × ${std}) = ${(usl - lsl).toFixed(3)} ÷ ${(6 * std).toFixed(3)} = <strong>${cp.toFixed(2)}</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Upper Capability Index (Cpu)</div>
+            <span class="formula">Cpu = (USL − X̄) ÷ (3σ)</span><br>
+            = (${usl} − ${mean}) ÷ (3 × ${std}) = ${(usl - mean).toFixed(3)} ÷ ${(3 * std).toFixed(3)} = <strong>${cpu.toFixed(2)}</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Lower Capability Index (Cpl)</div>
+            <span class="formula">Cpl = (X̄ − LSL) ÷ (3σ)</span><br>
+            = (${mean} − ${lsl}) ÷ (3 × ${std}) = ${(mean - lsl).toFixed(3)} ÷ ${(3 * std).toFixed(3)} = <strong>${cpl.toFixed(2)}</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Process Capability Index (Cpk)</div>
+            <span class="formula">Cpk = min(Cpu, Cpl)</span><br>
+            = min(${cpu.toFixed(2)}, ${cpl.toFixed(2)}) = <strong>${cpk.toFixed(2)}</strong>
+            ${cpk >= 1.33 ? ' — Excellent' : cpk >= 1.0 ? ' — Acceptable' : cpk >= 0.67 ? ' — Poor' : ' — Incapable'}
+        </div>
+    `;
 
     let assessment = '';
     if (cpk >= 1.33) assessment = 'Excellent - process is capable';
@@ -10208,6 +10890,42 @@ function calcSampleSize() {
 
     document.getElementById('sample-result').innerHTML = `${Math.ceil(n)}<span class="calc-result-unit">${type === 'comparison' ? 'per group' : 'samples'}</span>`;
     document.getElementById('sample-formula').textContent = formula;
+
+    // Update derivation
+    let sampleDerivation = '';
+    if (type === 'mean') {
+        const margin = parseFloat(document.getElementById('sample-margin').value) || 1;
+        const std = parseFloat(document.getElementById('sample-std').value) || 1;
+        sampleDerivation = `
+            <div class="step">
+                <div class="step-num">Estimating a Mean</div>
+                <span class="formula">n = (Zσ / E)²</span><br>
+                Where Z = ${z} (confidence), σ = ${std} (std dev), E = ${margin} (margin of error)<br>
+                n = (${z} × ${std} / ${margin})² = (${(z * std / margin).toFixed(2)})² = <strong>${Math.ceil(n)} samples</strong>
+            </div>`;
+    } else if (type === 'proportion') {
+        const margin = parseFloat(document.getElementById('sample-margin').value) / 100 || 0.05;
+        const p = parseFloat(document.getElementById('sample-prop').value) / 100 || 0.5;
+        sampleDerivation = `
+            <div class="step">
+                <div class="step-num">Estimating a Proportion</div>
+                <span class="formula">n = Z²p(1−p) / E²</span><br>
+                Where Z = ${z}, p = ${p.toFixed(2)}, E = ${margin.toFixed(4)}<br>
+                n = ${z}² × ${p.toFixed(2)} × ${(1 - p).toFixed(2)} / ${margin.toFixed(4)}² = <strong>${Math.ceil(n)} samples</strong>
+            </div>`;
+    } else {
+        const std = parseFloat(document.getElementById('sample-std').value) || 1;
+        const zb = parseFloat(document.getElementById('sample-power').value);
+        const effect = parseFloat(document.getElementById('sample-effect').value) || 1;
+        sampleDerivation = `
+            <div class="step">
+                <div class="step-num">Two-Sample Comparison</div>
+                <span class="formula">n = 2((Z_α + Z_β)σ / δ)² per group</span><br>
+                Where Z_α = ${z}, Z_β = ${zb}, σ = ${std}, δ = ${effect}<br>
+                n = 2 × ((${z} + ${zb}) × ${std} / ${effect})² = <strong>${Math.ceil(n)} per group</strong>
+            </div>`;
+    }
+    document.getElementById('samplesize-derivation-body').innerHTML = sampleDerivation;
 }
 
 // ============================================================================
@@ -10232,8 +10950,32 @@ function calcLineEff() {
     document.getElementById('lineeff-rate').innerHTML = `${actualRate.toFixed(0)}<span class="calc-result-unit">/hr</span>`;
     document.getElementById('lineeff-lost').textContent = Math.round(lost);
 
-    // Waterfall chart
+    // Update derivation
     const running = scheduled - planned - unplanned - changeover - minor;
+    document.getElementById('lineeff-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Theoretical Output</div>
+            <span class="formula">Theoretical = Rate × (Scheduled ÷ 60)</span><br>
+            = ${theoretical} × (${scheduled} ÷ 60) = <strong>${theoreticalOutput.toFixed(0)} units</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Running Time</div>
+            <span class="formula">Running = Scheduled − Planned − Unplanned − Changeover − Minor</span><br>
+            = ${scheduled} − ${planned} − ${unplanned} − ${changeover} − ${minor} = <strong>${running} min</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Line Efficiency</div>
+            <span class="formula">Efficiency = (Actual Output ÷ Theoretical) × 100</span><br>
+            = (${actual} ÷ ${theoreticalOutput.toFixed(0)}) × 100 = <strong>${efficiency.toFixed(1)}%</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Lost Units</div>
+            <span class="formula">Lost = Theoretical − Actual</span><br>
+            = ${theoreticalOutput.toFixed(0)} − ${actual} = <strong>${Math.round(lost)} units</strong>
+        </div>
+    `;
+
+    // Waterfall chart
     const categories = ['Scheduled', 'Planned', 'Unplanned', 'Changeover', 'Minor Stops', 'Running'];
     const values = [scheduled, -planned, -unplanned, -changeover, -minor, 0];
 
@@ -10292,6 +11034,30 @@ function calcOLE() {
     // Breakdown stats
     document.getElementById('ole-avail-hours').textContent = `${available.toFixed(1)} hrs`;
     document.getElementById('ole-good-display').textContent = `${good} units`;
+
+    // Update derivation
+    document.getElementById('ole-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Availability</div>
+            <span class="formula">Availability = (Scheduled − Absent − Breaks) ÷ Scheduled</span><br>
+            = (${scheduled} − ${absent} − ${breaks}) ÷ ${scheduled} = ${available.toFixed(1)} ÷ ${scheduled} = <strong>${(availability * 100).toFixed(1)}%</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Performance</div>
+            <span class="formula">Performance = Actual Output ÷ (Available × Standard Rate)</span><br>
+            = ${actual} ÷ (${available.toFixed(1)} × ${standard}) = ${actual} ÷ ${expectedOutput.toFixed(0)} = <strong>${(performance * 100).toFixed(1)}%</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Quality</div>
+            <span class="formula">Quality = Good Units ÷ Actual Output</span><br>
+            = ${good} ÷ ${actual} = <strong>${(quality * 100).toFixed(1)}%</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: OLE</div>
+            <span class="formula">OLE = Availability × Performance × Quality</span><br>
+            = ${(availability * 100).toFixed(1)}% × ${(performance * 100).toFixed(1)}% × ${(quality * 100).toFixed(1)}% = <strong>${ole.toFixed(1)}%</strong>
+        </div>
+    `;
 
     // Donut chart
     const availLoss = (1 - availability) * 100;
@@ -10372,6 +11138,30 @@ function calcCycle() {
     document.getElementById('cycle-wait').innerHTML = `${wait}<span class="calc-result-unit">sec</span>`;
     document.getElementById('cycle-va-pct').textContent = total > 0 ? `${((va / total) * 100).toFixed(0)}%` : '0%';
     document.getElementById('cycle-waste-pct').textContent = total > 0 ? `${(((nva + wait) / total) * 100).toFixed(0)}%` : '0%';
+
+    // Update derivation
+    const vaPct = total > 0 ? ((va / total) * 100).toFixed(0) : 0;
+    const nvaPct = total > 0 ? ((nva / total) * 100).toFixed(0) : 0;
+    const waitPct = total > 0 ? ((wait / total) * 100).toFixed(0) : 0;
+    document.getElementById('cycletime-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Value-Add Time</div>
+            VA = ${cycleData.filter(c => c.type === 'va').map(c => c.time).join(' + ') || '0'} = <strong>${va} sec</strong> (${vaPct}%)
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Non Value-Add Time</div>
+            NVA = ${cycleData.filter(c => c.type === 'nva').map(c => c.time).join(' + ') || '0'} = <strong>${nva} sec</strong> (${nvaPct}%)
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Wait Time</div>
+            Wait = ${cycleData.filter(c => c.type === 'wait').map(c => c.time).join(' + ') || '0'} = <strong>${wait} sec</strong> (${waitPct}%)
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Total Cycle Time</div>
+            <span class="formula">Total = VA + NVA + Wait</span><br>
+            = ${va} + ${nva} + ${wait} = <strong>${total} sec</strong>
+        </div>
+    `;
 
     Plotly.newPlot('cycletime-chart', [{
         values: [va, nva, wait],
@@ -10517,6 +11307,28 @@ function calcHeijunka() {
     document.getElementById('heijunka-intervals').textContent = intervals;
     document.getElementById('heijunka-total').textContent = totalDemand;
     document.getElementById('heijunka-per-pitch').textContent = perPitch.toFixed(1);
+
+    // Update derivation
+    const productBreakdown = heijunkaData.map(p =>
+        `${p.product}: ${p.demand} units (${totalDemand > 0 ? ((p.demand / totalDemand) * 100).toFixed(0) : 0}% of mix)`
+    ).join('<br>');
+    document.getElementById('heijunka-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Calculate Intervals</div>
+            <span class="formula">Intervals = Available Time ÷ Pitch</span><br>
+            = ${time} ÷ ${pitch} = <strong>${intervals} intervals</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Total Demand</div>
+            ${productBreakdown}<br>
+            Total = <strong>${totalDemand} units</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Units per Pitch Interval</div>
+            <span class="formula">Per Pitch = Total Demand ÷ Intervals</span><br>
+            = ${totalDemand} ÷ ${intervals} = <strong>${perPitch.toFixed(1)} units/interval</strong>
+        </div>
+    `;
 
     // Calculate pattern
     const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
@@ -11177,6 +11989,30 @@ function calcCapacityLoad() {
     document.getElementById('cap-available').innerHTML = `${totalCapacity.toFixed(1)}<span class="calc-result-unit">hrs</span>`;
     document.getElementById('cap-utilization').innerHTML = `${utilization.toFixed(0)}<span class="calc-result-unit">%</span>`;
     document.getElementById('cap-overload-days').textContent = overloadDays;
+
+    // Update derivation
+    document.getElementById('capacity-load-derivation-body').innerHTML = `
+        <div class="step">
+            <div class="step-num">Step 1: Effective Daily Capacity</div>
+            <span class="formula">Effective = Hours/Day × Efficiency %</span><br>
+            = ${hoursPerDay} × ${(efficiency * 100).toFixed(0)}% = <strong>${effectiveHours.toFixed(1)} hrs/day</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 2: Total Available Capacity</div>
+            <span class="formula">Total Capacity = Effective Hours × Days</span><br>
+            = ${effectiveHours.toFixed(1)} × ${daysToShow} = <strong>${totalCapacity.toFixed(1)} hrs</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 3: Total Load</div>
+            Total from ${capacityOrders.length} work orders = <strong>${totalLoad.toFixed(1)} hrs</strong>
+        </div>
+        <div class="step">
+            <div class="step-num">Step 4: Utilization</div>
+            <span class="formula">Utilization = Total Load ÷ Total Capacity × 100</span><br>
+            = ${totalLoad.toFixed(1)} ÷ ${totalCapacity.toFixed(1)} × 100 = <strong>${utilization.toFixed(0)}%</strong>
+            ${overloadDays > 0 ? '<br><span style="color:#e74c3c;">⚠ ' + overloadDays + ' day(s) exceed capacity</span>' : ''}
+        </div>
+    `;
 
     // Chart
     const days = [];
@@ -14539,11 +15375,14 @@ function runDesirability() {
             traces.push({x: [bestPredictions[i]], y: [bestIndividual[i]], type: 'scatter', mode: 'markers', marker: {size: 10, color: '#e74c3c', symbol: 'star'}, name: `Optimal: ${bestPredictions[i].toFixed(2)}`});
         }
         Plotly.react(div.id, traces, {
-            template: 'plotly_dark', height: 220, margin: {t: 30, b: 40, l: 50, r: 20},
-            title: {text: `${r.name} (${r.goal}) — d = ${bestIndividual ? bestIndividual[i].toFixed(3) : '?'}`, font: {size: 13}},
-            xaxis: {title: r.name, range: [yMin, yMax]}, yaxis: {title: 'd(y)', range: [-0.05, 1.05]},
+            height: 220, margin: {t: 30, b: 40, l: 50, r: 20},
+            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+            font: {color: '#9aaa9a', size: 10},
+            title: {text: `${r.name} (${r.goal}) — d = ${bestIndividual ? bestIndividual[i].toFixed(3) : '?'}`, font: {size: 13, color: '#c0c0c0'}},
+            xaxis: {title: r.name, range: [yMin, yMax], gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
+            yaxis: {title: 'd(y)', range: [-0.05, 1.05], gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
             showlegend: false,
-        }, {displayModeBar: false});
+        }, {responsive: true, displayModeBar: false});
     });
 
     // Render contour
@@ -14555,10 +15394,13 @@ function runDesirability() {
             contourTraces.push({x: [bestSettings[0]], y: [bestSettings[1]], type: 'scatter', mode: 'markers', marker: {size: 14, color: '#e74c3c', symbol: 'star', line: {color: 'white', width: 2}}, name: 'Optimal'});
         }
         Plotly.react('desir-contour', contourTraces, {
-            template: 'plotly_dark', height: 400, margin: {t: 30, b: 50, l: 60, r: 20},
-            xaxis: {title: factors[0].name}, yaxis: {title: factors[1].name},
+            height: 400, margin: {t: 30, b: 50, l: 60, r: 20},
+            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+            font: {color: '#9aaa9a', size: 10},
+            xaxis: {title: factors[0].name, gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
+            yaxis: {title: factors[1].name, gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
             showlegend: false,
-        }, {displayModeBar: false});
+        }, {responsive: true, displayModeBar: false});
     } else if (factors.length === 1) {
         // 1D: line plot of composite D vs factor
         const xVals = contourX, dLine = [];
@@ -14570,10 +15412,13 @@ function runDesirability() {
             {x: xVals, y: dLine, type: 'scatter', mode: 'lines', line: {color: '#4a9f6e', width: 2.5}},
             bestSettings ? {x: [bestSettings[0]], y: [bestD], type: 'scatter', mode: 'markers', marker: {size: 12, color: '#e74c3c', symbol: 'star'}, name: 'Optimal'} : null,
         ].filter(Boolean), {
-            template: 'plotly_dark', height: 400, margin: {t: 30, b: 50, l: 60, r: 20},
-            xaxis: {title: factors[0].name}, yaxis: {title: 'Composite D', range: [-0.05, 1.05]},
+            height: 400, margin: {t: 30, b: 50, l: 60, r: 20},
+            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+            font: {color: '#9aaa9a', size: 10},
+            xaxis: {title: factors[0].name, gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
+            yaxis: {title: 'Composite D', range: [-0.05, 1.05], gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
             showlegend: false,
-        }, {displayModeBar: false});
+        }, {responsive: true, displayModeBar: false});
     }
 
     // Results cards
@@ -14752,11 +15597,15 @@ function reRenderChart(data, limits, type, highlightIdx) {
     }
 
     Plotly.react('re-chart', traces, {
-        template: 'plotly_dark', height: 350, showlegend: true,
-        xaxis: {title: 'Sample #'}, yaxis: {title: type === 'G' ? 'Count' : 'Time'},
+        height: 350, showlegend: true,
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: {color: '#9aaa9a', size: 10},
+        xaxis: {title: 'Sample #', gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
+        yaxis: {title: type === 'G' ? 'Count' : 'Time', gridcolor: 'rgba(255,255,255,0.07)', tickfont: {color: '#9aaa9a'}},
+        legend: {orientation: 'h', y: -0.2, font: {size: 10, color: '#9aaa9a'}},
         shapes,
         annotations: shiftAt > 0 && shiftAt < data.length ? [{x: shiftAt, y: 1, yref: 'paper', text: 'Shift', showarrow: false, font: {color: '#f39c12', size: 11}, yanchor: 'bottom'}] : [],
-    }, {displayModeBar: false});
+    }, {responsive: true, displayModeBar: false});
 
     // Update metrics
     const estRate = type === 'G' ? limits.pHat : limits.lambdaHat;
@@ -14807,10 +15656,11 @@ function reRenderDistribution(data, type) {
         {x: data, type: 'histogram', nbinsx: nBins, marker: {color: 'rgba(74,159,110,0.4)', line: {color: '#4a9f6e', width: 1}}, name: 'Observed'},
         {x: fitted_x, y: fitted_y.map(v => v * scaleFactor), type: 'scatter', mode: 'lines', line: {color: '#e74c3c', width: 2}, name: type === 'G' ? 'Geometric Fit' : 'Exponential Fit'},
     ], {
-        template: 'plotly_dark', height: 280, showlegend: true,
-        xaxis: {title: type === 'G' ? 'Count Between Events' : 'Time Between Events'},
-        yaxis: {title: 'Frequency'},
-    }, {displayModeBar: false});
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: {color: '#9aaa9a', size: 10}, height: 280, showlegend: true,
+        xaxis: {title: type === 'G' ? 'Count Between Events' : 'Time Between Events', gridcolor: 'rgba(255,255,255,0.07)'},
+        yaxis: {title: 'Frequency', gridcolor: 'rgba(255,255,255,0.07)'},
+    }, {responsive: true, displayModeBar: false});
 }
 
 function reUpdateInsights(data, ooc, type) {
@@ -15017,8 +15867,20 @@ function probitFit(data, model) {
     const y = valid.map(d => d.r / d.n);
     const n = valid.map(d => d.n);
 
-    // Initialize beta
-    let beta = [0, 1];
+    // Smart initial beta via OLS on transformed proportions
+    const yTrans = valid.map(d => {
+        const pObs = Math.max(0.01, Math.min(0.99, d.r / d.n));
+        return model === 'probit' ? probitPhiInv(pObs) : Math.log(pObs / (1 - pObs));
+    });
+    const xBar = logDose.reduce((a, b) => a + b, 0) / logDose.length;
+    const yBar = yTrans.reduce((a, b) => a + b, 0) / yTrans.length;
+    let sxy = 0, sxx = 0;
+    for (let i = 0; i < logDose.length; i++) {
+        sxy += (logDose[i] - xBar) * (yTrans[i] - yBar);
+        sxx += (logDose[i] - xBar) * (logDose[i] - xBar);
+    }
+    let beta = sxx > 1e-12 ? [yBar - (sxy / sxx) * xBar, sxy / sxx] : [0, 1];
+    if (beta[1] <= 0) beta = [yBar, 0.5]; // fallback: ensure positive slope
     const maxIter = 50;
 
     for (let iter = 0; iter < maxIter; iter++) {
@@ -15035,7 +15897,11 @@ function probitFit(data, model) {
             return ex / ((1 + ex) * (1 + ex));
         });
         const W = pClamped.map((pi, i) => n[i] * deriv[i] * deriv[i] / (pi * (1 - pi)));
-        const z = eta.map((e, i) => e + (y[i] - pClamped[i]) / deriv[i]);
+        // Clamp working response to prevent extreme values when derivative is small
+        const z = eta.map((e, i) => {
+            const raw = e + (y[i] - pClamped[i]) / Math.max(deriv[i], 1e-6);
+            return Math.max(-20, Math.min(20, raw));
+        });
 
         // WLS: solve (X'WX)beta = X'Wz where X = [1, logDose]
         let XtWX00 = 0, XtWX01 = 0, XtWX11 = 0, XtWz0 = 0, XtWz1 = 0;
@@ -15055,6 +15921,9 @@ function probitFit(data, model) {
             (XtWX11 * XtWz0 - XtWX01 * XtWz1) / det,
             (-XtWX01 * XtWz0 + XtWX00 * XtWz1) / det,
         ];
+
+        // Guard against NaN
+        if (isNaN(newBeta[0]) || isNaN(newBeta[1])) break;
 
         const change = Math.abs(newBeta[0] - beta[0]) + Math.abs(newBeta[1] - beta[1]);
         beta = newBeta;
@@ -15126,6 +15995,7 @@ function probitCalcED(beta, pTarget, model) {
     // ED_p: find dose where P(response) = pTarget
     // link(a + b*log(dose)) = pTarget
     // a + b*log(dose) = link_inv(pTarget)
+    if (!beta[1] || Math.abs(beta[1]) < 1e-12) return NaN;
     let etaTarget;
     if (model === 'probit') {
         etaTarget = probitPhiInv(pTarget);
@@ -15133,6 +16003,7 @@ function probitCalcED(beta, pTarget, model) {
         etaTarget = Math.log(pTarget / (1 - pTarget));
     }
     const logDose = (etaTarget - beta[0]) / beta[1];
+    if (logDose > 700 || logDose < -700) return NaN;
     return Math.exp(logDose);
 }
 
@@ -15166,13 +16037,14 @@ function probitUpdate() {
     const etaAtED50 = model === 'probit' ? 0 : 0;
     const slopeAtED50 = beta[1] * (model === 'probit' ? probitPhiPDF(etaAtED50) : 0.25) / ed50;
 
-    // Update metric cards
-    document.getElementById('probit-ed50').textContent = ed50.toFixed(3);
-    document.getElementById('probit-ed50-ci').textContent = `[${ciLow.toFixed(3)}, ${ciHigh.toFixed(3)}]`;
-    document.getElementById('probit-ed10').textContent = ed10.toFixed(3);
-    document.getElementById('probit-ed90').textContent = ed90.toFixed(3);
-    document.getElementById('probit-slope').textContent = slopeAtED50.toFixed(4);
-    document.getElementById('probit-gof').textContent = fit.chi2p.toFixed(4) + (fit.chi2p > 0.05 ? ' (good fit)' : ' (poor fit)');
+    // Update metric cards (NaN-safe)
+    const fmt = (v, d) => isNaN(v) || !isFinite(v) ? '—' : v.toFixed(d);
+    document.getElementById('probit-ed50').textContent = fmt(ed50, 3);
+    document.getElementById('probit-ed50-ci').textContent = `[${fmt(ciLow, 3)}, ${fmt(ciHigh, 3)}]`;
+    document.getElementById('probit-ed10').textContent = fmt(ed10, 3);
+    document.getElementById('probit-ed90').textContent = fmt(ed90, 3);
+    document.getElementById('probit-slope').textContent = fmt(slopeAtED50, 4);
+    document.getElementById('probit-gof').textContent = fmt(fit.chi2p, 4) + (fit.chi2p > 0.05 ? ' (good fit)' : ' (poor fit)');
 
     // Plot S-curve
     const minDose = Math.min(...valid.map(d => d.dose)) * 0.5;
@@ -15215,13 +16087,14 @@ function probitUpdate() {
     });
 
     Plotly.react('probit-chart', traces, {
-        template: 'plotly_dark', height: 400, showlegend: true,
-        xaxis: {title: 'Dose', type: useLog ? 'log' : 'linear'},
-        yaxis: {title: 'Response Probability', range: [-0.05, 1.05]},
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: {color: '#9aaa9a', size: 10}, height: 400, showlegend: true,
+        xaxis: {title: 'Dose', type: useLog ? 'log' : 'linear', gridcolor: 'rgba(255,255,255,0.07)'},
+        yaxis: {title: 'Response Probability', range: [-0.05, 1.05], gridcolor: 'rgba(255,255,255,0.07)'},
         annotations: [
             {x: useLog ? Math.log10(ed50) : ed50, y: 0.5, text: `ED50 = ${ed50.toFixed(2)}`, showarrow: true, arrowhead: 2, ax: 40, ay: -30, font: {color: '#fdcb6e', size: 12}},
         ],
-    }, {displayModeBar: false});
+    }, {responsive: true, displayModeBar: false});
 
     // Insights
     const insightSection = document.getElementById('probit-insight-section');

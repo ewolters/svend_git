@@ -7,6 +7,8 @@ from django.contrib.auth import views as auth_views
 from django.urls import path, include
 from django.views.generic import TemplateView
 
+from api.internal_views import dashboard_view
+
 urlpatterns = [
     path("", TemplateView.as_view(template_name="landing.html"), name="home"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
@@ -40,6 +42,8 @@ urlpatterns = [
     path("app/calculators/", TemplateView.as_view(template_name="calculators.html"), name="calculators"),
     path("app/rca/", TemplateView.as_view(template_name="rca.html"), name="rca"),
     path("app/learn/", TemplateView.as_view(template_name="learn.html"), name="learn"),
+    path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
+    path("internal/dashboard/", dashboard_view, name="internal-dashboard"),
     path("admin/", admin.site.urls),
     path("api/", include("api.urls")),
     path("api/files/", include("files.urls")),
@@ -59,6 +63,7 @@ urlpatterns = [
     path("api/vsm/", include("agents_api.vsm_urls")),  # Value Stream Mapping
     path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
+    path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
     path("chat/", include("chat.urls")),

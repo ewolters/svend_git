@@ -48,6 +48,7 @@ TIER_FEATURES = {
         "ai_assistant": False,   # No Anthropic
         "collaboration": False,  # No team features
         "forge_api": False,      # No synthetic data API
+        "hoshin_kanri": False,   # No CI project management
         "priority_support": False,
     },
     Tier.FOUNDER: {
@@ -57,6 +58,7 @@ TIER_FEATURES = {
         "ai_assistant": False,   # No Anthropic
         "collaboration": False,
         "forge_api": True,
+        "hoshin_kanri": False,
         "priority_support": True,  # Founders get priority as thanks
     },
     Tier.PRO: {
@@ -66,6 +68,7 @@ TIER_FEATURES = {
         "ai_assistant": False,   # No Anthropic
         "collaboration": False,
         "forge_api": True,
+        "hoshin_kanri": False,
         "priority_support": False,
     },
     Tier.TEAM: {
@@ -75,6 +78,7 @@ TIER_FEATURES = {
         "ai_assistant": False,   # Still no Anthropic
         "collaboration": True,   # Team collaboration
         "forge_api": True,
+        "hoshin_kanri": False,
         "priority_support": True,
     },
     Tier.ENTERPRISE: {
@@ -84,10 +88,48 @@ TIER_FEATURES = {
         "ai_assistant": True,    # Anthropic access
         "collaboration": True,
         "forge_api": True,
+        "hoshin_kanri": True,    # Hoshin Kanri CI project management
         "priority_support": True,
     },
 }
 
+
+
+# --- User profile choices ---
+
+class Industry(models.TextChoices):
+    MANUFACTURING = "manufacturing", "Manufacturing"
+    HEALTHCARE = "healthcare", "Healthcare"
+    TECHNOLOGY = "technology", "Technology"
+    FINANCE = "finance", "Finance"
+    EDUCATION = "education", "Education"
+    GOVERNMENT = "government", "Government"
+    CONSULTING = "consulting", "Consulting"
+    OTHER = "other", "Other"
+
+
+class Role(models.TextChoices):
+    ENGINEER = "engineer", "Engineer"
+    MANAGER = "manager", "Manager"
+    ANALYST = "analyst", "Analyst"
+    EXECUTIVE = "executive", "Executive"
+    STUDENT = "student", "Student"
+    CONSULTANT = "consultant", "Consultant"
+    RESEARCHER = "researcher", "Researcher"
+    OTHER = "other", "Other"
+
+
+class ExperienceLevel(models.TextChoices):
+    BEGINNER = "beginner", "Beginner"
+    INTERMEDIATE = "intermediate", "Intermediate"
+    ADVANCED = "advanced", "Advanced"
+
+
+class OrganizationSize(models.TextChoices):
+    SMALL = "small", "Small (1-50)"
+    MEDIUM = "medium", "Medium (51-500)"
+    LARGE = "large", "Large (501-5000)"
+    ENTERPRISE = "enterprise", "Enterprise (5000+)"
 
 
 def get_daily_limit(tier: str) -> int:

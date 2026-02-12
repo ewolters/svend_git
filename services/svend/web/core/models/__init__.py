@@ -7,7 +7,7 @@ This module contains the foundational models:
 - Hypothesis, Evidence, EvidenceLink: Bayesian reasoning
 """
 
-from .tenant import Tenant, Membership
+from .tenant import Tenant, Membership, OrgInvitation
 from .graph import KnowledgeGraph, Entity, Relationship
 from .project import Project, Dataset, ExperimentDesign
 from .hypothesis import Hypothesis, Evidence, EvidenceLink
@@ -16,6 +16,7 @@ __all__ = [
     # Multi-tenancy
     "Tenant",
     "Membership",
+    "OrgInvitation",
     # Knowledge Graph
     "KnowledgeGraph",
     "Entity",

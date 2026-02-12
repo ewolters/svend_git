@@ -2726,4 +2726,9 @@ function removeTypingIndicator(id) {
     if (el) el.remove();
 }
 </script>
+<script>
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
+});
+</script>
 {% endblock %}

@@ -15,6 +15,151 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-12 — Multi-tenancy org management
+
+**Debt item:** N/A (Enterprise feature — org member management)
+**Files changed:**
+- `core/models/tenant.py` — Added `OrgInvitation` model (email, tenant FK, role, UUID token, status [pending/accepted/expired/cancelled], expires_at with 7-day default)
+- `core/models/__init__.py` — Export `OrgInvitation`
+- `core/migrations/0005_org_invitation.py` — Migration for new model
+- `accounts/permissions.py` — Added `@require_org_admin` decorator (checks Membership.can_admin, NOT Django is_staff)
+- `core/views.py` — Added 8 org management endpoints: org_info, org_members, org_change_role, org_remove_member, org_invite, org_invitations, org_cancel_invitation, org_accept_invitation. Seat limit enforced. Owner-only guards for admin/owner role assignment.
+- `core/urls.py` — Added 8 URL patterns under `org/` prefix
+- `templates/settings.html` — Added Account/Organization tab system with seat bar, members table, invite form, pending invitations
+**Verification:** `python manage.py check` passes. Team/Enterprise user sees Organization tab in settings. Seats at $129/seat.
+
+---
+
+### 2026-02-12 — Internal telemetry dashboard
+
+**Debt item:** N/A (new feature — staff-only)
+**Files changed:**
+- `api/internal_views.py` — **NEW** — 7 endpoints: dashboard_view (template render), api_overview (KPI cards), api_users (signups, tiers, demographics, DAU), api_usage (requests/day, domains, tokens, errors), api_performance (latency, pipeline stages, gate rates, error stages), api_business (revenue, funnel, churn, founder slots, feature adoption), api_insights (POST — sends anonymized data snapshot to Anthropic API, returns AI analysis)
+- `templates/internal_dashboard.html` — **NEW** — Full single-page dashboard. KPI card row, 5 tabs (Users/Usage/Performance/Business/AI Insights), Chart.js visualizations (line, bar, doughnut), time range selector (7d/30d/90d), lazy-loaded tabs, AI chat interface with quick prompts. Theme-aware via SvendTheme.chartColors
+- `api/urls.py` — Added 6 internal API routes under `/api/internal/`
+- `svend/urls.py` — Added `/internal/dashboard/` page route
+- `templates/base_app.html` — Added hidden "Internal" nav link, shown via JS for `is_staff` users
+- `api/views.py` — Added `is_staff` to `me()` response (done in prior session)
+**Verification:** Visit `/internal/dashboard/` as staff user → KPI cards, all 5 tabs render with real DB data. Non-staff → redirected. Time range selector updates all charts. AI Insights tab → sends prompt to Claude, displays response.
+
+---
+
+### 2026-02-12 — Hoshin Kanri subsystem expansion
+
+**Debt item:** N/A (Enterprise feature expansion)
+**Files changed:**
+- `services/svend/web/templates/base_app.html` — Replaced hidden hoshin link in Methods dropdown with top-level "Hoshin Kanri" nav dropdown (enterprise-only) with Dashboard/Projects/Sites/Calculations links
+- `services/svend/web/templates/hoshin.html` — Expanded from 1461 to 2730 lines. Added hash-based SPA router (#/dashboard, #/projects, #/sites, #/project/:id, #/project/:id/charter, #/project/:id/plan, #/project/:id/calculations, #/calc-library). New views: project detail with bowler chart + sidebar, kaizen charter form, project plan with Gantt chart + action items CRUD, calculations with baseline data entry + monthly operational data + formula editor, calculation method library with formula tester
+- `agents_api/hoshin_calculations.py` — Added safe custom formula evaluator (AST-based, restricted to arithmetic + abs/min/max/round/sqrt/pow). Added `custom` to CALCULATION_METHODS and calculate_savings() dispatch
+- `agents_api/models.py` — Added `custom_formula` and `custom_formula_desc` fields to HoshinProject
+- `agents_api/hoshin_views.py` — Added `test_formula` endpoint (POST /api/hoshin/test-formula/), handle custom_formula fields in create/update, pass formula to calculate_savings for custom method
+- `agents_api/hoshin_urls.py` — Added test-formula/ URL pattern
+- `agents_api/migrations/0023_hoshin_custom_formula.py` — Migration for new model fields
+**Verification:** Enterprise user sees Hoshin Kanri dropdown in nav. Navigate to #/dashboard, #/projects, click project row to see detail. Test charter form, plan/Gantt, calculations with baseline. Test formula at #/calc-library. `python manage.py check` passes.
+
+---
+
+### 2026-02-12 — Add "Show Derivation" to 24 calculator tools
+
+**Debt item:** N/A (Feature parity)
+**Files changed:**
+- `services/svend/web/templates/calculators.html` — Added collapsible "Show Derivation" sections to 24 formula-based calculators (rto, kanban, epei, safety, oee, littles, pitch, rty, dpmo, turns, coq, smed, fmea, cpk, samplesize, lineeff, ole, cycletime, heijunka, capacity-load, queue-finite, queue-priority, queue-optimizer, queue-tandem). Each shows step-by-step formula work with substituted values. Reuses existing CSS and toggleDerivation() function from takt/eoq/queue. Simulators and interactive tools excluded as not appropriate.
+**Verification:** Open calculators page, navigate to any modified calculator, verify "Show Derivation" appears and shows correct math when expanded.
+
+---
+
+### 2026-02-12 — Housekeeping: STANDARD.md update + user profile fields
+
+**Debt item:** N/A (Foundation for personalized onboarding)
+**Files changed:**
+- `STANDARD.md` — Full rewrite to v2.0: updated directory tree, added sections for subscription tiers, feature gating (backend + frontend), theme system, template pattern, API surface table (19 routes), data model migration state, user profile fields, production environment docs, emergency procedures, key commands. Preserved 5S framework structure.
+- `accounts/constants.py` — Added 4 TextChoices enums: Industry (8 options), Role (8 options), ExperienceLevel (3 options), OrganizationSize (4 options).
+- `accounts/models.py` — Added 4 CharField fields to User model: industry, role, experience_level, organization_size. All blank=True for backwards compatibility.
+- `accounts/migrations/0006_user_profile_fields.py` — Migration adding the 4 new fields.
+- `api/views.py` — Fixed bug: `me()` was missing `bio` in response (settings page couldn't load it). Added 4 new profile fields to `me()` response. Expanded `update_profile()` allowed list with validation against TextChoices. Added Industry/Role/ExperienceLevel/OrganizationSize imports.
+- `templates/settings.html` — Added "About You" section between Profile and Password with 4 dropdowns (industry, role, experience level, org size). Added `.section-desc` CSS. Added form submit handler + data loading in JS.
+- `.kjerne/config.json` — Updated versions: lab 1.0.0→2.0.0, svend 1.0.0→2.0.0.
+**Verification:**
+- `python3 manage.py makemigrations accounts --check` — no pending changes
+- Settings page → "About You" section visible, dropdowns save and persist
+- `/api/auth/me/` returns bio + industry + role + experience_level + organization_size
+- STANDARD.md accurately reflects current architecture
+
+---
+
+### 2026-02-12 — Theme system overhaul: contrast fixes + 3 new themes
+
+**Debt item:** N/A (UX improvement — WCAG contrast compliance + expanded theme options)
+**Files changed:**
+- `templates/base_app.html` — Fixed contrast failures in Forest/Light/Midnight themes (`--text-dim`, `--error`, `--accent-purple`, `--accent-blue`). Added 3 new themes: Nordic Frost (light cool-blue), Sandstone (light warm), High Contrast (dark OLED). Added 4 semantic vars per theme (`--error-dim`, `--error-border`, `--warning-dim`, `--warning-border`). Updated SvendTheme JS fallback colors.
+- `templates/settings.html` — Added Nordic Frost, Sandstone, High Contrast to theme selector dropdown. Replaced hardcoded rgba(159,74,74,...) with `var(--error-dim/border/error)`.
+- `templates/dsw.html` — Replaced 5 instances of hardcoded `#9f4a4a` / `rgba(159,74,74,...)` with CSS variables.
+- `templates/spc.html` — Replaced 6 instances of hardcoded error colors with CSS variables.
+- `templates/forecast.html` — Replaced rgba error colors with CSS variables.
+- `templates/models.html` — Replaced rgba error colors + modal overrides with `var(--card-bg)`.
+- `templates/hoshin.html` — Replaced rgba error background with `var(--error-dim)`.
+- `templates/chat.html` — Fixed `--accent-red` and `--text-dim` CSS vars, replaced rgba instances.
+- `templates/learn.html` — Updated JS rgba to new #d06060-based values.
+- `templates/workbench_new.html` — Replaced rgba in CSS and JS chart colors.
+- `templates/analysis_workbench.html` — Updated `--aw-text-muted` (#5a6a5a→#7a8f7a), `--aw-danger` (#9f4a4a→#d06060), fixed ~20 inline hex references, updated rgba.
+- `templates/login.html`, `register.html`, `privacy.html`, `terms.html`, `landing.html`, `verify_email.html` — Updated `--text-dim` (#5a6a5a→#7a8f7a) and `--error` where defined.
+- `templates/problems.html`, `hypotheses.html`, `projects.html`, `a3.html` — Replaced per-theme modal `[data-theme="light/midnight"]` overrides with universal `var(--card-bg)` / `var(--border)`. Removed inline `background-color: #121a12` from modal HTML elements.
+**Verification:**
+- Settings → cycle all 6 themes, each applies instantly and looks cohesive
+- `grep -r '#5a6a5a\|#9f4a4a\|rgba(159' templates/` returns 0 matches
+- Modals open with correct background in all themes
+- DSW/SPC error indicators clearly visible in all themes
+
+---
+
+### 2026-02-12 — Hoshin Kanri CI module (Enterprise-only)
+
+**Debt item:** N/A (Enterprise tier feature — CI project tracking with savings calculations)
+**Files changed:**
+- `services/svend/web/accounts/constants.py` — Added `hoshin_kanri` feature flag to all 5 tier dicts (only `True` for ENTERPRISE)
+- `services/svend/web/agents_api/models.py` — Added 3 models: `Site` (manufacturing plant), `HoshinProject` (OneToOne wrapper on core.Project for CI tracking), `ActionItem` (task/Gantt for any project)
+- `services/svend/web/agents_api/migrations/0022_hoshin_kanri.py` — Migration creating `hoshin_sites`, `hoshin_projects`, `action_items` tables
+- `services/svend/web/agents_api/hoshin_calculations.py` — NEW: 8 savings calculation methods (waste_pct, time_reduction, headcount, claims, layout, freight, energy, direct) + VSM delta estimator
+- `services/svend/web/agents_api/hoshin_views.py` — NEW: 18 API endpoints for sites CRUD, hoshin projects CRUD, monthly actuals, batch creation from VSM proposals, dashboard rollup, action items
+- `services/svend/web/agents_api/hoshin_urls.py` — NEW: URL routing for all hoshin endpoints
+- `services/svend/web/agents_api/vsm_views.py` — Added `generate_proposals` view: diffs current/future VSM kaizen bursts, estimates savings per burst
+- `services/svend/web/agents_api/vsm_urls.py` — Added generate-proposals URL
+- `services/svend/web/svend/urls.py` — Added `api/hoshin/` and `app/hoshin/` routes
+- `services/svend/web/templates/hoshin.html` — NEW: Enterprise dashboard with savings rollup, project management, site management, VSM proposal workflow
+- `services/svend/web/templates/vsm.html` — Added "Generate CI Proposals" button (enterprise-only) with review modal for approving proposals and creating hoshin projects
+**Verification:** Django check passes. Non-enterprise users see no hoshin UI. Enterprise users: create site, create hoshin project, update monthly actuals, generate proposals from VSM.
+**Commit:** pending
+
+---
+
+### 2026-02-12 — Feature tiering: gate paid tools from free users
+
+**Debt item:** N/A (Product differentiation / monetization)
+**Files changed:**
+- `services/svend/web/api/views.py` — Added `features` dict from `TIER_FEATURES` to `/api/auth/me/` response (single source of truth for frontend gating)
+- `services/svend/web/accounts/permissions.py` — Added `@gated_paid` decorator (auth + `full_tools` feature check + rate limiting; returns 403 with upgrade prompt for free users)
+- `services/svend/web/agents_api/whiteboard_views.py` — 11 endpoints: `@require_auth` → `@gated_paid`
+- `services/svend/web/agents_api/a3_views.py` — 9 endpoints: `@require_auth` → `@gated_paid`
+- `services/svend/web/agents_api/vsm_views.py` — 10 endpoints: `@require_auth` → `@gated_paid`
+- `services/svend/web/agents_api/rca_views.py` — 11 endpoints: `@require_auth`/`@rate_limited` → `@gated_paid`
+- `services/svend/web/agents_api/experimenter_views.py` — 9 endpoints: `@gated` → `@gated_paid`
+- `services/svend/web/agents_api/synara_views.py` — 26 endpoints: `@gated`/`@require_auth` → `@gated_paid`
+- `services/svend/web/agents_api/forecast_views.py` — 2 endpoints: `@gated` → `@gated_paid`
+- `services/svend/web/agents_api/guide_views.py` — `guide_chat`/`summarize_project` → `@require_enterprise`; fixed missing `require_auth` import that crashed entire site
+- `services/svend/web/workbench/graph_views.py` — 20 endpoints: replaced inline `is_authenticated` checks with `@require_auth` decorator
+- `services/svend/web/templates/base_app.html` — Added `window.svendUser` global, upgrade modal HTML/CSS, global 403 interceptor, `svendUserReady` custom event
+- `services/svend/web/templates/dashboard.html` — Added `data-feature="full_tools"` to 6 paid tool cards; JS gating adds `.locked` class + PRO badge + click-to-upgrade for free users; `loadRecent()` skips paid-API fetches for free users
+- `services/svend/web/templates/experimenter.html` — Page-level gate check (upgrade modal on load for free users)
+- `services/svend/web/templates/forecast.html` — Page-level gate check
+- `services/svend/web/templates/a3.html` — Page-level gate check
+- `services/svend/web/templates/rca.html` — Page-level gate check
+- `services/svend/web/templates/vsm.html` — Page-level gate check
+- `services/svend/web/templates/whiteboard.html` — Page-level gate check
+**Verification:** Log in as free user → dashboard shows PRO badges on 6 tools → clicking locked card shows upgrade modal → navigating directly to `/app/whiteboard/` shows upgrade modal → API calls to paid endpoints return 403. Log in as paid user → all tools unlocked. Free tools (DSW, SPC, Projects, Learn, Calculators) remain accessible to all.
+**Commit:** pending
+
+---
+
 ### 2026-02-12 — Subscription system debug audit (17 bugs fixed)
 
 **Debt item:** N/A (Critical bug fixes across billing/subscription system)
@@ -27,6 +172,39 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - `services/svend/web/api/views.py` — `user_info` endpoint now reads `subscription_active` from Subscription model (consistent with `/api/auth/me/`)
 **Verification:** All 6 files pass `ast.parse()`. Full endpoint flow should be tested: checkout → webhook → status → portal → payment failure → cancellation.
 **Commit:** pending
+
+---
+
+### 2026-02-12 — P2 Gap Closure: Interactive Quality & DOE Tools + Backend SPC Charts
+
+**Debt item:** DSW_gaps.md P2.1 (Multi-response optimization), P2.2 (Probit analysis), P2.3 (G chart, T chart, Moving Average, Zone, MEWMA)
+
+**Files changed:**
+
+**Phase A: Interactive Calculator Tools (calculators.html)**
+- `services/svend/web/templates/calculators.html`:
+  - Added "Quality & DOE" nav group with 3 new interactive tools
+  - **Multi-Response Desirability Optimizer**: Define 2-4 responses with goal (maximize/minimize/target), bounds, weight/importance sliders. Define factors with ranges and linear response model coefficients. Client-side grid search optimization (up to 4 factors). Plotly desirability profile plots per response, composite D contour/surface plot, optimal settings with star marker. Sensitivity analysis insight panel (factor perturbation, binding response identification, improvement suggestions). Load Example with pharmaceutical formulation (Yield/Purity/Cost vs Temperature/Pressure).
+  - **SPC Rare Events Lab (G + T Chart)**: Toggle between G chart (geometric, count between events) and T chart (exponential, time between events). Configurable baseline event rate, sample size, shift injection point and magnitude slider. Two modes: Generate All (instant) or Simulate (timer-based point-by-point like Kanban/Beer Game/TOC simulators). Pause/resume and speed controls in simulate mode. Control chart with UCL/LCL, OOC diamond markers, shift annotation line. Distribution fit panel (histogram + geometric/exponential PDF overlay). Insight panel with ARL analysis, shift detection delay, chart selection guidance.
+  - **Probit / Dose-Response Explorer**: Editable data table (dose, n_tested, n_responding). Model toggle (Probit/Logit). Client-side IRLS fitting (Newton-Raphson on log-likelihood, Abramowitz & Stegun normal CDF). Plotly S-curve with fitted model, confidence bands (delta method), ED10/ED50/ED90 vertical marker lines. Auto log-scale when dose range > 10x. Fieller's theorem CI on ED50. Pearson chi-squared goodness of fit. Insight panel with model summary, slope interpretation, ED90/ED10 ratio analysis. Load Example with LD50 toxicology data (7 dose levels).
+  - Added `calcMeta` entries and `ops-nav-item` elements for all 3 tools
+
+**Phase B: Backend SPC Charts (dsw_views.py + workbench_new.html)**
+- `services/svend/web/agents_api/dsw_views.py`:
+  - Added `moving_average` to `run_spc_analysis()`: configurable span (window size), variable-width control limits that tighten as window fills, individual data points shown faded behind MA line, OOC detection, summary with effective shift detection size
+  - Added `zone_chart` to `run_spc_analysis()`: color-coded A/B/C zone bands (green/yellow/red Plotly shapes), per-point zone scoring (A=8, B=4, C=2), cumulative score tracking with side-change reset, signal at cumulative ≥ 8, data points colored by zone, zone labels, separate cumulative score chart
+  - Added `mewma` to `run_spc_analysis()`: multivariate EWMA with configurable lambda, chi-squared UCL, time-varying covariance matrix for T² statistic, auto-select numeric columns if none specified, covariance regularization for near-singular matrices, variable contribution bar chart at first OOC point
+
+- `services/svend/web/templates/workbench_new.html`:
+  - Added 3 ribbon buttons (MA, Zone, MEWMA) to Control Charts group with custom SVG icons
+  - Added 3 dialog cases in `openSPCExtDialog()`: Moving Average (measurement + span), Zone Chart (measurement), MEWMA (multi-select variables + lambda)
+
+**Verification:**
+1. Navigate to `/app/calculators/` → "Quality & DOE" group visible with 3 tools
+2. **Desirability**: Click "Load Example" → 3 profile plots + contour → drag weight sliders in response config → re-run → contour updates → insight shows sensitivity
+3. **SPC Rare Events**: Set rate=0.02, shift at sample 30, magnitude 3x → select "Simulate" mode → click Generate → watch chart build live → shift detected → insight shows delay
+4. **Probit**: Click "Load Example" → S-curve fits → ED50 shown → toggle Probit/Logit → curve shape changes → CI band shown
+5. **DSW Workbench → Analysis → Control Charts**: MA, Zone, MEWMA buttons visible → run each with data → charts render with OOC detection
 
 ---
 

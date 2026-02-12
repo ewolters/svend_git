@@ -1521,3 +1521,297 @@ class AssessmentAttempt(models.Model):
         return f"{self.user} — assessment {score_str}"
 
 
+# =============================================================================
+# Hoshin Kanri CI Project Management (Enterprise-only)
+# =============================================================================
+
+
+class Site(models.Model):
+    """Manufacturing site within an enterprise tenant.
+
+    One Tenant (billing entity) can have many Sites (physical plants).
+    Contacts are text fields — operators/managers often don't have Svend accounts.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        related_name="sites",
+    )
+    name = models.CharField(max_length=255)
+    code = models.CharField(
+        max_length=20, blank=True,
+        help_text="Short site code, e.g. PLT-01",
+    )
+    business_unit = models.CharField(max_length=255, blank=True)
+    plant_manager = models.CharField(max_length=255, blank=True)
+    ci_leader = models.CharField(max_length=255, blank=True)
+    controller = models.CharField(max_length=255, blank=True)
+    address = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hoshin_sites"
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.code})" if self.code else self.name
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "tenant_id": str(self.tenant_id),
+            "name": self.name,
+            "code": self.code,
+            "business_unit": self.business_unit,
+            "plant_manager": self.plant_manager,
+            "ci_leader": self.ci_leader,
+            "controller": self.controller,
+            "address": self.address,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+def _current_year():
+    from datetime import date
+    return date.today().year
+
+
+class HoshinProject(models.Model):
+    """CI improvement project extending core.Project with Hoshin Kanri tracking.
+
+    Wraps core.Project (1:1) to add manufacturing CI-specific fields:
+    - Project classification (kaizen event vs extended project)
+    - Savings categorization and monthly financial tracking
+    - Fiscal year budgeting and site assignment
+    - Link back to originating VSM kaizen burst
+
+    The core.Project provides: 5W2H, SMART goals, team, methodology,
+    phase tracking, milestones, hypothesis/evidence, Bayesian reasoning.
+    """
+
+    class ProjectClass(models.TextChoices):
+        KAIZEN = "kaizen", "Kaizen Event"
+        PROJECT = "project", "Extended Project"
+
+    class ProjectType(models.TextChoices):
+        MATERIAL = "material", "Material Savings"
+        LABOR = "labor", "Labor Savings"
+        QUALITY = "quality", "Quality Improvement"
+        THROUGHPUT = "throughput", "Throughput Improvement"
+        ENERGY = "energy", "Energy Reduction"
+        SAFETY = "safety", "Safety Improvement"
+        OTHER = "other", "Other"
+
+    class Opportunity(models.TextChoices):
+        CARRYOVER = "carryover", "Carryover from Prior Year"
+        BUDGETED_NEW = "budgeted_new", "Budgeted New"
+        CONTINGENCY = "contingency", "Contingency"
+        UNPLANNED = "unplanned", "Unplanned/Reactive"
+
+    class HoshinStatus(models.TextChoices):
+        PROPOSED = "proposed", "Proposed"
+        BUDGETED = "budgeted", "Budgeted"
+        ACTIVE = "active", "Active"
+        DELAYED = "delayed", "Delayed"
+        COMPLETED = "completed", "Completed"
+        ABORTED = "aborted", "Aborted"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.OneToOneField(
+        "core.Project",
+        on_delete=models.CASCADE,
+        related_name="hoshin",
+    )
+    site = models.ForeignKey(
+        Site,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="hoshin_projects",
+    )
+    project_class = models.CharField(
+        max_length=20, choices=ProjectClass.choices, default=ProjectClass.PROJECT,
+    )
+    project_type = models.CharField(
+        max_length=20, choices=ProjectType.choices, default=ProjectType.MATERIAL,
+    )
+    opportunity = models.CharField(
+        max_length=20, choices=Opportunity.choices, default=Opportunity.BUDGETED_NEW,
+    )
+    hoshin_status = models.CharField(
+        max_length=20, choices=HoshinStatus.choices, default=HoshinStatus.PROPOSED,
+    )
+    fiscal_year = models.IntegerField(default=_current_year, help_text="Fiscal year")
+    annual_savings_target = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text="Target annual savings in dollars",
+    )
+    calculation_method = models.CharField(
+        max_length=30, blank=True,
+        help_text="waste_pct, time_reduction, headcount, claims, freight, energy, direct, layout, custom",
+    )
+    custom_formula = models.CharField(
+        max_length=500, blank=True, default="",
+        help_text="Custom formula e.g. '(baseline - actual) * volume * rate'",
+    )
+    custom_formula_desc = models.CharField(
+        max_length=200, blank=True, default="",
+        help_text="Human-readable description of the custom formula",
+    )
+    kaizen_charter = models.JSONField(
+        default=dict, blank=True,
+        help_text="Kaizen event logistics: {event_date, end_date, location, schedule, "
+                  "event_type, primary_metric, primary_baseline, primary_target, "
+                  "secondary_metric, secondary_baseline, secondary_target, "
+                  "process_start, process_end}",
+    )
+    monthly_actuals = models.JSONField(
+        default=list, blank=True,
+        help_text="Monthly savings: [{month, baseline, actual, volume, cost_per_unit, savings}]",
+    )
+    baseline_data = models.JSONField(
+        default=list, blank=True,
+        help_text="Prior year baselines: [{month, metric_value, volume, cost_per_unit}]",
+    )
+    source_vsm = models.ForeignKey(
+        ValueStreamMap,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="hoshin_projects",
+    )
+    source_burst_id = models.CharField(
+        max_length=50, blank=True,
+        help_text="ID of originating kaizen burst in source_vsm.kaizen_bursts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hoshin_projects"
+        ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["site", "hoshin_status"]),
+            models.Index(fields=["fiscal_year", "hoshin_status"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.get_project_class_display()}] {self.project.title}"
+
+    @property
+    def ytd_savings(self):
+        return sum(m.get("savings", 0) or 0 for m in (self.monthly_actuals or []))
+
+    @property
+    def savings_pct(self):
+        if not self.annual_savings_target:
+            return 0
+        return float(self.ytd_savings / float(self.annual_savings_target) * 100)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id),
+            "project_title": self.project.title,
+            "project_status": self.project.status,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "site_name": self.site.name if self.site else None,
+            "project_class": self.project_class,
+            "project_type": self.project_type,
+            "opportunity": self.opportunity,
+            "hoshin_status": self.hoshin_status,
+            "fiscal_year": self.fiscal_year,
+            "annual_savings_target": float(self.annual_savings_target),
+            "calculation_method": self.calculation_method,
+            "custom_formula": self.custom_formula,
+            "custom_formula_desc": self.custom_formula_desc,
+            "kaizen_charter": self.kaizen_charter,
+            "monthly_actuals": self.monthly_actuals,
+            "baseline_data": self.baseline_data,
+            "ytd_savings": self.ytd_savings,
+            "savings_pct": self.savings_pct,
+            "source_vsm_id": str(self.source_vsm_id) if self.source_vsm_id else None,
+            "source_burst_id": self.source_burst_id,
+            "champion_name": self.project.champion_name,
+            "leader_name": self.project.leader_name,
+            "team_members": self.project.team_members,
+            "methodology": self.project.methodology,
+            "current_phase": self.project.current_phase,
+            "goal_metric": self.project.goal_metric,
+            "goal_baseline": str(self.project.goal_baseline) if self.project.goal_baseline else None,
+            "goal_target": str(self.project.goal_target) if self.project.goal_target else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class ActionItem(models.Model):
+    """Task/action item with Gantt-style tracking for any project type.
+
+    Attached to core.Project so it works for Hoshin CI projects,
+    A3 reports, and general investigations alike.
+    """
+
+    class Status(models.TextChoices):
+        NOT_STARTED = "not_started", "Not Started"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETED = "completed", "Completed"
+        BLOCKED = "blocked", "Blocked"
+        CANCELLED = "cancelled", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.CASCADE,
+        related_name="action_items",
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    owner_name = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.NOT_STARTED,
+    )
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    progress = models.IntegerField(default=0, help_text="0-100%")
+    depends_on = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="dependents",
+    )
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "action_items"
+        ordering = ["sort_order", "start_date"]
+
+    def __str__(self):
+        return self.title
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id),
+            "title": self.title,
+            "description": self.description,
+            "owner_name": self.owner_name,
+            "status": self.status,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "due_date": self.due_date.isoformat() if self.due_date else None,
+            "progress": self.progress,
+            "depends_on_id": str(self.depends_on_id) if self.depends_on_id else None,
+            "sort_order": self.sort_order,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+

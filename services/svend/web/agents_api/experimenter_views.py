@@ -22,7 +22,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from accounts.permissions import gated, require_auth
+from accounts.permissions import gated_paid, require_auth
 from .models import Problem
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ from experimenter.stats import PowerAnalyzer, interpret_effect_size
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def power_analysis(request):
     """
     DEPRECATED: Use DSW power calculators instead (9 types via /api/dsw/analysis/).
@@ -124,7 +124,7 @@ def power_analysis(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def design_experiment(request):
     """
     Generate an experimental design.
@@ -313,7 +313,7 @@ def _calculate_alias_structure(factors: list, resolution: int) -> dict:
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def full_experiment(request):
     """
     Full experiment design with power analysis and DOE.
@@ -399,7 +399,7 @@ def full_experiment(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def analyze_results(request):
     """
     Professional DOE Analysis - Minitab-class functionality.
@@ -1101,7 +1101,7 @@ def design_types(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def contour_plot(request):
     """
     Generate contour plot data for response surface visualization.
@@ -1290,7 +1290,7 @@ def contour_plot(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def optimize_response(request):
     """
     Multi-response optimization with desirability functions.
@@ -1555,7 +1555,7 @@ Keep responses concise but informative. Use bullet points for clarity. When appr
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def doe_guidance_chat(request):
     """
     DOE Guidance chat endpoint using Qwen LLM.
@@ -1822,7 +1822,7 @@ What specific question do you have about your experiment?"""
 
 @csrf_exempt
 @require_http_methods(["GET"])
-@gated
+@gated_paid
 def available_models(request):
     """Get available LLM models for DOE guidance."""
     from .llm_manager import LLMManager

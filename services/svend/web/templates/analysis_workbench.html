@@ -24,13 +24,13 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     --aw-border-dark: rgba(74, 159, 110, 0.4);
     --aw-text: #e8efe8;
     --aw-text-dim: #9aaa9a;
-    --aw-text-muted: #5a6a5a;
+    --aw-text-muted: #7a8f7a;
     --aw-accent: #4a9f6e;
     --aw-accent-dim: rgba(74, 159, 110, 0.15);
     --aw-accent-light: rgba(74, 159, 110, 0.25);
     --aw-success: #4a9f6e;
     --aw-warning: #e89547;
-    --aw-danger: #9f4a4a;
+    --aw-danger: #d06060;
     --aw-toolbar-height: 28px;
     --aw-menubar-height: 22px;
     --aw-statusbar-height: 20px;
@@ -914,7 +914,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 
 .aw-analysis-item .desc {
     font-size: 10px;
-    color: #5a6a5a;
+    color: var(--aw-text-muted);
 }
 
 /* Resizer */
@@ -1441,7 +1441,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         <div class="aw-dialog-body" id="data-dialog-body">
             <p style="color:#9aaa9a;margin-bottom:12px;">Select a cleaned dataset from Triage or upload a new file:</p>
             <div id="triage-datasets-list" style="margin-bottom:16px;">
-                <div class="aw-empty" style="padding:20px;color:#5a6a5a;"><span>Loading datasets...</span></div>
+                <div class="aw-empty" style="padding:20px;color:#7a8f7a;"><span>Loading datasets...</span></div>
             </div>
             <div style="border-top:1px solid rgba(74,159,110,0.25);padding-top:12px;">
                 <p style="color:#9aaa9a;margin-bottom:8px;">Or upload a new file:</p>
@@ -1451,7 +1451,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
             <div style="border-top:1px solid rgba(74,159,110,0.25);padding-top:12px;margin-top:12px;">
                 <p style="color:#9aaa9a;margin-bottom:8px;">New to SVEND? Try our sample dataset:</p>
                 <button class="aw-btn aw-btn-primary" onclick="loadSampleData()">Load Sample Data</button>
-                <span style="font-size:10px;color:#5a6a5a;margin-left:8px;">Manufacturing quality data (30 batches)</span>
+                <span style="font-size:10px;color:#7a8f7a;margin-left:8px;">Manufacturing quality data (30 batches)</span>
             </div>
         </div>
     </div>
@@ -1618,7 +1618,7 @@ async function loadTriageDatasets() {
 
         if (datasets.length === 0) {
             container.innerHTML = `
-                <div class="aw-empty" style="padding:20px;color:#5a6a5a;">
+                <div class="aw-empty" style="padding:20px;color:#7a8f7a;">
                     <span>No cleaned datasets found.</span>
                     <span style="margin-top:8px;display:block;">Use Triage to clean data first, or upload a file below.</span>
                 </div>
@@ -1633,14 +1633,14 @@ async function loadTriageDatasets() {
                 </svg>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:500;color:#e8efe8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ds.filename}</div>
-                    <div style="font-size:9px;color:#5a6a5a;">${new Date(ds.created_at).toLocaleString()}</div>
+                    <div style="font-size:9px;color:#7a8f7a;">${new Date(ds.created_at).toLocaleString()}</div>
                 </div>
             </div>
         `).join('');
 
     } catch (err) {
         console.error('Load datasets error:', err);
-        container.innerHTML = `<div class="aw-empty" style="padding:20px;color:#9f4a4a;"><span>Error loading datasets</span></div>`;
+        container.innerHTML = `<div class="aw-empty" style="padding:20px;color:#d06060;"><span>Error loading datasets</span></div>`;
     }
 }
 
@@ -2723,7 +2723,7 @@ function resetDataDialog() {
     dialogBody.innerHTML = `
         <p style="color:#9aaa9a;margin-bottom:12px;">Select a cleaned dataset from Triage or upload a new file:</p>
         <div id="triage-datasets-list" style="margin-bottom:16px;">
-            <div class="aw-empty" style="padding:20px;color:#5a6a5a;"><span>Loading datasets...</span></div>
+            <div class="aw-empty" style="padding:20px;color:#7a8f7a;"><span>Loading datasets...</span></div>
         </div>
         <div style="border-top:1px solid rgba(74,159,110,0.25);padding-top:12px;">
             <p style="color:#9aaa9a;margin-bottom:8px;">Or upload a new file:</p>
@@ -2743,7 +2743,7 @@ function startNewSession(dataResult) {
     document.getElementById('history-list').innerHTML = '';
 
     // Clear graphs pane
-    document.getElementById('graph-pane').innerHTML = '<div style="padding:20px;color:#5a6a5a;text-align:center;">Run an analysis to see graphs</div>';
+    document.getElementById('graph-pane').innerHTML = '<div style="padding:20px;color:#7a8f7a;text-align:center;">Run an analysis to see graphs</div>';
 
     // Reset assistant messages
     document.getElementById('assistant-messages').innerHTML = `
@@ -2977,7 +2977,7 @@ function formatColoredOutput(text) {
         'dim': '#7a8a7a',
         'success': '#4a9f6e',
         'warning': '#e89547',
-        'danger': '#9f4a4a'
+        'danger': '#d06060'
     };
 
     // First escape HTML entities
@@ -3205,7 +3205,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Variables:</label>
                     <div class="aw-checkbox-list" style="max-height:200px;overflow-y:auto;">
-                        ${checkboxes || '<span style="color:#5a6a5a;">No numeric columns</span>'}
+                        ${checkboxes || '<span style="color:#7a8f7a;">No numeric columns</span>'}
                     </div>
                     <div style="margin-top:6px;">
                         <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('vars', true)">Select All</button>
@@ -3317,7 +3317,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Control group:</label>
                     <select id="cfg-control">${catCols || colOptions}</select>
-                    <small style="color:#5a6a5a;">Select factor first, then pick the control level</small>
+                    <small style="color:#7a8f7a;">Select factor first, then pick the control level</small>
                 </div>
                 <div class="aw-form-group">
                     <label>Confidence level:</label>
@@ -3342,7 +3342,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Response variables (select 2+):</label>
                     <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
-                        ${checkboxes || '<span style="color:#5a6a5a;">No numeric columns</span>'}
+                        ${checkboxes || '<span style="color:#7a8f7a;">No numeric columns</span>'}
                     </div>
                     <div style="margin-top:6px;">
                         <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('responses', true)">Select All</button>
@@ -3402,7 +3402,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Random factor (nesting):</label>
                     <select id="cfg-random_factor">${catCols || colOptions}</select>
-                    <small style="color:#5a6a5a;">E.g., operators within machines, batches within suppliers</small>
+                    <small style="color:#7a8f7a;">E.g., operators within machines, batches within suppliers</small>
                 </div>
                 <div class="aw-form-group">
                     <label>Confidence level:</label>
@@ -3427,7 +3427,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Variables:</label>
                     <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
-                        ${checkboxes || '<span style="color:#5a6a5a;">No numeric columns</span>'}
+                        ${checkboxes || '<span style="color:#7a8f7a;">No numeric columns</span>'}
                     </div>
                     <div style="margin-top:6px;">
                         <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('vars', true)">Select All</button>
@@ -4461,7 +4461,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Predictors:</label>
                     <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
-                        ${predChecks || '<span style="color:#5a6a5a;">No numeric columns</span>'}
+                        ${predChecks || '<span style="color:#7a8f7a;">No numeric columns</span>'}
                     </div>
                     <div style="margin-top:6px;">
                         <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('predictors', true)">All</button>
@@ -4525,7 +4525,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Covariates:</label>
                     <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
-                        ${predChecks || '<span style="color:#5a6a5a;">No columns available</span>'}
+                        ${predChecks || '<span style="color:#7a8f7a;">No columns available</span>'}
                     </div>
                     <div style="margin-top:6px;">
                         <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('covariates', true)">All</button>
@@ -4558,7 +4558,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Predictors:</label>
                     <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
-                        ${predChecks || '<span style="color:#5a6a5a;">No numeric columns</span>'}
+                        ${predChecks || '<span style="color:#7a8f7a;">No numeric columns</span>'}
                     </div>
                     <div style="margin-top:6px;">
                         <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('predictors', true)">All</button>
@@ -5139,7 +5139,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Variables:</label>
                     <select id="cfg-vars" multiple style="height:120px;">${numCols}</select>
-                    <small style="color:#5a6a5a;">Select 2-6 variables for matrix</small>
+                    <small style="color:#7a8f7a;">Select 2-6 variables for matrix</small>
                 </div>
                 <div class="aw-form-group">
                     <label>Color by:</label>
@@ -5200,7 +5200,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Variables:</label>
                     <select id="cfg-vars" multiple style="height:120px;">${numCols}</select>
-                    <small style="color:#5a6a5a;">Select numeric columns for correlation heatmap</small>
+                    <small style="color:#7a8f7a;">Select numeric columns for correlation heatmap</small>
                 </div>
             `;
         }
@@ -5217,7 +5217,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Expression:</label>
                     <input type="text" id="cfg-expression" placeholder="e.g., Price * Quantity">
-                    <small style="color:#5a6a5a;">Use column names, operators (+, -, *, /), and functions (log, sqrt, abs)</small>
+                    <small style="color:#7a8f7a;">Use column names, operators (+, -, *, /), and functions (log, sqrt, abs)</small>
                 </div>
                 <div class="aw-form-group">
                     <label>Available columns:</label>
@@ -5303,7 +5303,7 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group" id="cfg-melt-options">
                     <label>ID columns (keep as-is):</label>
                     <select id="cfg-id_cols" multiple style="height:80px;">${colOptions}</select>
-                    <small style="color:#5a6a5a;">Columns that identify each row</small>
+                    <small style="color:#7a8f7a;">Columns that identify each row</small>
                 </div>
                 <div class="aw-form-group" id="cfg-pivot-options" style="display:none;">
                     <label>Index column:</label>
@@ -5588,7 +5588,7 @@ function displayGraphs(plots) {
     }
 
     if (typeof Plotly === 'undefined') {
-        pane.innerHTML = '<div style="padding:20px;color:#9f4a4a;">Error: Plotly not loaded</div>';
+        pane.innerHTML = '<div style="padding:20px;color:#d06060;">Error: Plotly not loaded</div>';
         return;
     }
 
@@ -6354,7 +6354,7 @@ async function askAssistant() {
         document.getElementById(thinkingId)?.remove();
 
         container.innerHTML += `
-            <div style="padding:8px;background:rgba(159,74,74,0.15);border-left:2px solid var(--aw-danger);margin-bottom:8px;font-size:11px;border-radius:3px;">
+            <div style="padding:8px;background:rgba(208,96,96,0.15);border-left:2px solid var(--aw-danger);margin-bottom:8px;font-size:11px;border-radius:3px;">
                 <strong>Error:</strong> ${err.message}
             </div>
         `;

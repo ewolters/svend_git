@@ -4138,4 +4138,9 @@ loadBoardsList();
 saveState(); // Save initial empty state
 initCollaboration(); // Check for room code in URL
 </script>
+<script>
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
+});
+</script>
 {% endblock %}

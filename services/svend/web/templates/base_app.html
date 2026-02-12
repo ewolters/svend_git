@@ -25,7 +25,6 @@
     <style>
         /* === SVEND Theme: Forest at Night (Default) === */
         :root {
-            /* Backgrounds */
             --bg-primary: #0a0f0a;
             --bg-secondary: #0d120d;
             --bg-tertiary: #121a12;
@@ -33,31 +32,31 @@
             --bg: #0a0f0a;
             --card-bg: #121a12;
 
-            /* Primary Accent - Aurora Green */
             --accent-primary: #4a9f6e;
             --accent-primary-dim: rgba(74, 159, 110, 0.15);
             --accent-primary-border: rgba(74, 159, 110, 0.3);
             --accent: #4a9f6e;
 
-            /* Secondary Accents */
-            --accent-blue: #3a7f8f;
-            --accent-purple: #5a4f7f;
+            --accent-blue: #4a9faf;
+            --accent-purple: #8a7fbf;
             --accent-gold: #e8c547;
             --accent-orange: #e89547;
 
-            /* Text */
             --text-primary: #e8efe8;
             --text-secondary: #9aaa9a;
-            --text-dim: #5a6a5a;
+            --text-dim: #7a8f7a;
             --text: #e8efe8;
 
-            /* Semantic */
             --success: #4a9f6e;
             --warning: #e89547;
-            --error: #9f4a4a;
-            --info: #3a7f8f;
+            --error: #d06060;
+            --info: #4a9faf;
 
-            /* Border */
+            --error-dim: rgba(208, 96, 96, 0.15);
+            --error-border: rgba(208, 96, 96, 0.3);
+            --warning-dim: rgba(232, 149, 71, 0.1);
+            --warning-border: rgba(232, 149, 71, 0.3);
+
             --border: rgba(74, 159, 110, 0.2);
         }
 
@@ -77,20 +76,99 @@
 
             --accent-blue: #2a6070;
             --accent-purple: #4a3f6f;
-            --accent-gold: #b8952a;
-            --accent-orange: #c87520;
+            --accent-gold: #846a0a;
+            --accent-orange: #9a580a;
 
             --text-primary: #1a2a1a;
             --text-secondary: #4a5a4a;
-            --text-dim: #7a8a7a;
+            --text-dim: #5f705f;
             --text: #1a2a1a;
 
             --success: #2d7a4a;
-            --warning: #c87520;
+            --warning: #9a580a;
             --error: #a03030;
             --info: #2a6070;
 
+            --error-dim: rgba(160, 48, 48, 0.1);
+            --error-border: rgba(160, 48, 48, 0.25);
+            --warning-dim: rgba(154, 88, 10, 0.1);
+            --warning-border: rgba(154, 88, 10, 0.25);
+
             --border: rgba(45, 122, 74, 0.2);
+        }
+
+        /* === Nordic Frost Theme (Light, Cool) === */
+        [data-theme="nordic"] {
+            --bg-primary: #f2f5f8;
+            --bg-secondary: #e8edf2;
+            --bg-tertiary: #dde3ea;
+            --bg-hover: #d2d9e2;
+            --bg: #f2f5f8;
+            --card-bg: #ffffff;
+
+            --accent-primary: #2a6b50;
+            --accent-primary-dim: rgba(42, 107, 80, 0.1);
+            --accent-primary-border: rgba(42, 107, 80, 0.25);
+            --accent: #2a6b50;
+
+            --accent-blue: #1a5f80;
+            --accent-purple: #4a3f70;
+            --accent-gold: #7a6505;
+            --accent-orange: #9a5808;
+
+            --text-primary: #1a2030;
+            --text-secondary: #485060;
+            --text-dim: #5f6878;
+            --text: #1a2030;
+
+            --success: #2a6b50;
+            --warning: #9a5808;
+            --error: #b02828;
+            --info: #1a5f80;
+
+            --error-dim: rgba(176, 40, 40, 0.1);
+            --error-border: rgba(176, 40, 40, 0.25);
+            --warning-dim: rgba(154, 88, 8, 0.1);
+            --warning-border: rgba(154, 88, 8, 0.25);
+
+            --border: rgba(42, 107, 80, 0.18);
+        }
+
+        /* === Sandstone Theme (Light, Warm) === */
+        [data-theme="sandstone"] {
+            --bg-primary: #f7f4f0;
+            --bg-secondary: #ede8e2;
+            --bg-tertiary: #e3ddd5;
+            --bg-hover: #d9d2c8;
+            --bg: #f7f4f0;
+            --card-bg: #ffffff;
+
+            --accent-primary: #2d7a4a;
+            --accent-primary-dim: rgba(45, 122, 74, 0.1);
+            --accent-primary-border: rgba(45, 122, 74, 0.25);
+            --accent: #2d7a4a;
+
+            --accent-blue: #2a607a;
+            --accent-purple: #5a4070;
+            --accent-gold: #7a6208;
+            --accent-orange: #a06010;
+
+            --text-primary: #2a2420;
+            --text-secondary: #5a524a;
+            --text-dim: #6f675f;
+            --text: #2a2420;
+
+            --success: #2d7a4a;
+            --warning: #a06010;
+            --error: #a82a2a;
+            --info: #2a607a;
+
+            --error-dim: rgba(168, 42, 42, 0.1);
+            --error-border: rgba(168, 42, 42, 0.25);
+            --warning-dim: rgba(160, 96, 16, 0.1);
+            --warning-border: rgba(160, 96, 16, 0.25);
+
+            --border: rgba(45, 122, 74, 0.18);
         }
 
         /* === Midnight Theme === */
@@ -114,7 +192,7 @@
 
             --text-primary: #e8e8f8;
             --text-secondary: #9a9aaa;
-            --text-dim: #5a5a6a;
+            --text-dim: #7e7e95;
             --text: #e8e8f8;
 
             --success: #4a9f6e;
@@ -122,7 +200,49 @@
             --error: #ff5a5a;
             --info: #4a9fdf;
 
+            --error-dim: rgba(255, 90, 90, 0.15);
+            --error-border: rgba(255, 90, 90, 0.3);
+            --warning-dim: rgba(255, 149, 71, 0.1);
+            --warning-border: rgba(255, 149, 71, 0.3);
+
             --border: rgba(106, 127, 255, 0.2);
+        }
+
+        /* === High Contrast Theme (Dark, Accessibility) === */
+        [data-theme="contrast"] {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-tertiary: #141414;
+            --bg-hover: #1e1e1e;
+            --bg: #000000;
+            --card-bg: #0a0a0a;
+
+            --accent-primary: #50c080;
+            --accent-primary-dim: rgba(80, 192, 128, 0.15);
+            --accent-primary-border: rgba(80, 192, 128, 0.35);
+            --accent: #50c080;
+
+            --accent-blue: #50b0e0;
+            --accent-purple: #b090f0;
+            --accent-gold: #f0d050;
+            --accent-orange: #f0a050;
+
+            --text-primary: #ffffff;
+            --text-secondary: #c0c0c0;
+            --text-dim: #909090;
+            --text: #ffffff;
+
+            --success: #50c080;
+            --warning: #f0a050;
+            --error: #f06060;
+            --info: #50b0e0;
+
+            --error-dim: rgba(240, 96, 96, 0.15);
+            --error-border: rgba(240, 96, 96, 0.35);
+            --warning-dim: rgba(240, 160, 80, 0.1);
+            --warning-border: rgba(240, 160, 80, 0.35);
+
+            --border: rgba(80, 192, 128, 0.25);
         }
 
         * {
@@ -480,14 +600,14 @@
         }
 
         .alert-warning {
-            background: rgba(232, 149, 71, 0.1);
-            border: 1px solid rgba(232, 149, 71, 0.3);
-            color: var(--accent-orange);
+            background: var(--warning-dim);
+            border: 1px solid var(--warning-border);
+            color: var(--warning);
         }
 
         .alert-error {
-            background: rgba(159, 74, 74, 0.1);
-            border: 1px solid rgba(159, 74, 74, 0.3);
+            background: var(--error-dim);
+            border: 1px solid var(--error-border);
             color: var(--error);
         }
 
@@ -543,6 +663,115 @@
             color: var(--text-dim);
             font-size: 0.8rem;
         }
+
+        /* === Upgrade Modal === */
+        .upgrade-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upgrade-overlay.active {
+            display: flex;
+        }
+
+        .upgrade-modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent-primary-border);
+            border-radius: 8px;
+            padding: 2.5rem;
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .upgrade-modal h2 {
+            font-size: 1.3rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .upgrade-modal p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .upgrade-modal .pro-badge {
+            display: inline-block;
+            background: var(--accent-primary-dim);
+            color: var(--accent-primary);
+            padding: 0.2rem 0.6rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 1rem;
+        }
+
+        .upgrade-modal .btn-upgrade {
+            display: inline-block;
+            background: var(--accent-primary);
+            color: #fff;
+            padding: 0.8rem 2rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .upgrade-modal .btn-upgrade:hover {
+            opacity: 0.9;
+        }
+
+        .upgrade-modal .btn-dismiss {
+            display: block;
+            margin-top: 1rem;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .upgrade-modal .btn-dismiss:hover {
+            color: var(--text-secondary);
+        }
+
+        /* === Locked Tool Card === */
+        .tool-card.locked {
+            opacity: 0.55;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .tool-card.locked .pro-tag {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: var(--accent-primary-dim);
+            color: var(--accent-primary);
+            padding: 0.15rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .tool-card.locked .lock-icon {
+            margin-right: 0.4rem;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -584,7 +813,17 @@
                             <a href="#" class="disabled">8D</a>
                         </div>
                     </div>
+                    <div class="nav-dropdown" id="nav-hoshin-dropdown" style="display:none;">
+                        <span class="nav-dropdown-trigger">Hoshin Kanri</span>
+                        <div class="nav-dropdown-menu">
+                            <a href="/app/hoshin/#/dashboard">Dashboard</a>
+                            <a href="/app/hoshin/#/projects">Projects</a>
+                            <a href="/app/hoshin/#/sites">Sites</a>
+                            <a href="/app/hoshin/#/calc-library">Calculations</a>
+                        </div>
+                    </div>
                     <a href="/app/learn/">Learn</a>
+                    <a href="/internal/dashboard/" id="nav-internal" style="display:none;">Internal</a>
                     <div class="user-info">
                         <span class="user-name" id="user-name">Loading...</span>
                         <a href="/app/settings/" class="settings-btn" title="Settings">
@@ -634,6 +873,8 @@
         }
 
         // Check auth and get user info
+        window.svendUser = null;
+
         async function checkAuth() {
             try {
                 const response = await fetch('/api/auth/me/', {
@@ -641,6 +882,7 @@
                 });
                 if (response.ok) {
                     const data = await response.json();
+                    window.svendUser = data;
                     document.getElementById('user-name').textContent = data.username || data.email;
                     // Apply user's theme preference
                     if (data.current_theme) {
@@ -650,6 +892,18 @@
                     if (data.email && !data.email_verified && !sessionStorage.getItem('verification_dismissed')) {
                         document.getElementById('verification-banner').style.display = 'block';
                     }
+                    // Show enterprise-only nav items
+                    if (data.features && data.features.hoshin_kanri) {
+                        const hNav = document.getElementById('nav-hoshin-dropdown');
+                        if (hNav) hNav.style.display = '';
+                    }
+                    // Show internal dashboard for staff
+                    if (data.is_staff) {
+                        const iNav = document.getElementById('nav-internal');
+                        if (iNav) iNav.style.display = '';
+                    }
+                    // Notify pages that user data is ready
+                    window.dispatchEvent(new CustomEvent('svendUserReady', { detail: data }));
                 } else {
                     window.location.href = '/login/';
                 }
@@ -657,6 +911,44 @@
                 console.error('Auth check failed:', err);
             }
         }
+
+        // Upgrade modal helpers
+        function showUpgradeModal(message) {
+            if (message) {
+                document.getElementById('upgrade-message').textContent = message;
+            }
+            document.getElementById('upgrade-overlay').classList.add('active');
+        }
+
+        function closeUpgradeModal() {
+            document.getElementById('upgrade-overlay').classList.remove('active');
+        }
+
+        // Close modal on overlay click (deferred — element is in body)
+        document.addEventListener('DOMContentLoaded', function() {
+            var overlay = document.getElementById('upgrade-overlay');
+            if (overlay) overlay.addEventListener('click', function(e) {
+                if (e.target === this) closeUpgradeModal();
+            });
+        });
+
+        // Global 403 interceptor for upgrade-required responses
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = async function(...args) {
+                const response = await originalFetch.apply(this, args);
+                if (response.status === 403) {
+                    const clone = response.clone();
+                    try {
+                        const body = await clone.json();
+                        if (body.error === 'Upgrade required') {
+                            showUpgradeModal(body.message);
+                        }
+                    } catch(e) { /* not JSON, ignore */ }
+                }
+                return response;
+            };
+        })();
 
         // Resend verification email
         async function resendVerification() {
@@ -718,13 +1010,13 @@
         get colors() {
             return {
                 primary: getCssVar('--accent-primary') || '#4a9f6e',
-                secondary: getCssVar('--accent-blue') || '#3a7f8f',
-                tertiary: getCssVar('--accent-purple') || '#5a4f7f',
+                secondary: getCssVar('--accent-blue') || '#4a9faf',
+                tertiary: getCssVar('--accent-purple') || '#8a7fbf',
                 accent: getCssVar('--accent-gold') || '#e8c547',
                 warning: getCssVar('--warning') || '#e89547',
-                error: getCssVar('--error') || '#9f4a4a',
+                error: getCssVar('--error') || '#d06060',
                 text: getCssVar('--text-primary') || '#e8efe8',
-                textDim: getCssVar('--text-dim') || '#9aaa9a',
+                textDim: getCssVar('--text-dim') || '#7a8f7a',
                 bg: getCssVar('--bg-primary') || '#0a0f0a',
                 bgCard: getCssVar('--card-bg') || '#121a12',
                 border: getCssVar('--border') || 'rgba(74, 159, 110, 0.2)',
@@ -734,11 +1026,11 @@
         get chartColors() {
             return [
                 getCssVar('--accent-primary') || '#4a9f6e',
-                getCssVar('--accent-blue') || '#3a7f8f',
+                getCssVar('--accent-blue') || '#4a9faf',
                 getCssVar('--accent-gold') || '#e8c547',
                 getCssVar('--accent-orange') || '#e89547',
-                getCssVar('--accent-purple') || '#5a4f7f',
-                getCssVar('--error') || '#9f4a4a',
+                getCssVar('--accent-purple') || '#8a7fbf',
+                getCssVar('--error') || '#d06060',
             ];
         },
         // With alpha for fills
@@ -1148,6 +1440,17 @@
     window.SvendPDF = SvendPDF;
     window.SvendViz = SvendViz;
     </script>
+    <!-- Upgrade Modal -->
+    <div class="upgrade-overlay" id="upgrade-overlay">
+        <div class="upgrade-modal">
+            <span class="pro-badge">PRO</span>
+            <h2>Upgrade to unlock this tool</h2>
+            <p id="upgrade-message">This feature requires a paid subscription. Upgrade to access all analysis tools, DOE, whiteboard, forecasting, and more.</p>
+            <a href="/billing/checkout/" class="btn-upgrade">View Plans</a>
+            <button class="btn-dismiss" onclick="closeUpgradeModal()">Maybe later</button>
+        </div>
+    </div>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>

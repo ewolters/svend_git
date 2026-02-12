@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from accounts.permissions import gated, require_auth
+from accounts.permissions import gated_paid
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ def exponential_smoothing_forecast(prices, days=30, alpha=0.3):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def forecast(request):
     """Generate time series forecast.
 
@@ -309,7 +309,7 @@ def forecast(request):
 
 
 @require_http_methods(["GET"])
-@require_auth
+@gated_paid
 def quote(request):
     """Get current quote for a symbol."""
     symbol = request.GET.get("symbol", "").strip().upper()

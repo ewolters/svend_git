@@ -1,0 +1,890 @@
+{% extends "base_app.html" %}
+{% block title %}Internal Dashboard — SVEND{% endblock %}
+
+{% block content %}
+<style>
+    .dash-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .dash-header h1 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    .dash-header .badge {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 3px;
+        background: var(--accent-primary);
+        color: var(--bg-primary);
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-left: 0.5rem;
+    }
+    .time-selector {
+        display: flex;
+        gap: 4px;
+    }
+    .time-selector button {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        background: var(--bg-secondary);
+        color: var(--text-dim);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.15s;
+    }
+    .time-selector button:hover {
+        border-color: var(--accent-primary);
+        color: var(--text-primary);
+    }
+    .time-selector button.active {
+        background: var(--accent-primary);
+        color: var(--bg-primary);
+        border-color: var(--accent-primary);
+        font-weight: 600;
+    }
+
+    /* KPI Cards */
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 16px;
+        text-align: center;
+    }
+    .kpi-card .kpi-value {
+        font-size: 1.6rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .kpi-card .kpi-label {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+    }
+
+    /* Tabs */
+    .tab-bar {
+        display: flex;
+        gap: 2px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 1.5rem;
+    }
+    .tab-bar button {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-family: 'Inter', sans-serif;
+        border-bottom: 2px solid transparent;
+        transition: all 0.15s;
+    }
+    .tab-bar button:hover {
+        color: var(--text-primary);
+    }
+    .tab-bar button.active {
+        color: var(--accent-primary);
+        border-bottom-color: var(--accent-primary);
+        font-weight: 500;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Chart Grid */
+    .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+        gap: 16px;
+        margin-bottom: 1.5rem;
+    }
+    .chart-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 16px;
+    }
+    .chart-card h3 {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-dim);
+        margin: 0 0 12px 0;
+    }
+    .chart-card canvas {
+        max-height: 280px;
+    }
+    .chart-card.full-width {
+        grid-column: 1 / -1;
+    }
+
+    /* Stats row inside chart cards */
+    .stat-row {
+        display: flex;
+        gap: 24px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+    }
+    .stat-item {
+        text-align: center;
+    }
+    .stat-item .stat-val {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-item .stat-lbl {
+        font-size: 0.65rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+
+    /* AI Insights */
+    .insights-container {
+        max-width: 800px;
+    }
+    .insights-prompts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .insights-prompts button {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        background: var(--bg-secondary);
+        color: var(--text-dim);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.15s;
+    }
+    .insights-prompts button:hover {
+        border-color: var(--accent-primary);
+        color: var(--text-primary);
+    }
+    .insights-input {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .insights-input textarea {
+        flex: 1;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border-radius: 6px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        resize: vertical;
+        min-height: 60px;
+    }
+    .insights-input textarea:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+    }
+    .insights-input button {
+        padding: 10px 20px;
+        background: var(--accent-primary);
+        color: var(--bg-primary);
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 0.85rem;
+        align-self: flex-end;
+    }
+    .insights-input button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .insights-response {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 20px;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        line-height: 1.6;
+        min-height: 100px;
+        white-space: pre-wrap;
+    }
+    .insights-response h1, .insights-response h2, .insights-response h3 {
+        color: var(--accent-primary);
+        margin-top: 1em;
+    }
+    .insights-response h1 { font-size: 1.2rem; }
+    .insights-response h2 { font-size: 1.05rem; }
+    .insights-response h3 { font-size: 0.95rem; }
+    .insights-response ul, .insights-response ol {
+        padding-left: 1.5em;
+    }
+    .insights-response strong {
+        color: var(--text-primary);
+    }
+    .insights-loading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-dim);
+        font-size: 0.85rem;
+    }
+    .insights-loading .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent-primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-dim);
+        font-size: 0.9rem;
+    }
+</style>
+
+<!-- Header -->
+<div class="dash-header">
+    <h1>Internal Dashboard <span class="badge">Staff</span></h1>
+    <div class="time-selector">
+        <button onclick="setDays(7)" id="btn-7d">7d</button>
+        <button onclick="setDays(30)" id="btn-30d" class="active">30d</button>
+        <button onclick="setDays(90)" id="btn-90d">90d</button>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-row" id="kpi-row">
+    <div class="kpi-card"><div class="kpi-value" id="kpi-users">—</div><div class="kpi-label">Total Users</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-active">—</div><div class="kpi-label">Active Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-requests">—</div><div class="kpi-label">Requests Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-errors">—</div><div class="kpi-label">Errors Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-latency">—</div><div class="kpi-label">Avg Latency</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-mrr">—</div><div class="kpi-label">Est. MRR</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-conversion">—</div><div class="kpi-label">Conversion</div></div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+    <button class="active" onclick="switchTab('users')">Users</button>
+    <button onclick="switchTab('usage')">Usage</button>
+    <button onclick="switchTab('performance')">Performance</button>
+    <button onclick="switchTab('business')">Business</button>
+    <button onclick="switchTab('insights')">AI Insights</button>
+</div>
+
+<!-- Tab: Users -->
+<div class="tab-content active" id="tab-users">
+    <div class="chart-grid">
+        <div class="chart-card full-width"><h3>Signups Over Time</h3><canvas id="chart-signups"></canvas></div>
+        <div class="chart-card"><h3>Tier Distribution</h3><canvas id="chart-tiers"></canvas></div>
+        <div class="chart-card"><h3>Active Users (DAU)</h3><canvas id="chart-dau"></canvas></div>
+        <div class="chart-card"><h3>Industry</h3><canvas id="chart-industry"></canvas></div>
+        <div class="chart-card"><h3>Role</h3><canvas id="chart-role"></canvas></div>
+        <div class="chart-card">
+            <h3>Email Verification</h3>
+            <canvas id="chart-verification"></canvas>
+            <div class="stat-row">
+                <div class="stat-item"><div class="stat-val" id="stat-verified">—</div><div class="stat-lbl">Verified</div></div>
+                <div class="stat-item"><div class="stat-val" id="stat-unverified">—</div><div class="stat-lbl">Unverified</div></div>
+                <div class="stat-item"><div class="stat-val" id="stat-vrate">—</div><div class="stat-lbl">Rate</div></div>
+            </div>
+        </div>
+        <div class="chart-card"><h3>Experience Level</h3><canvas id="chart-experience"></canvas></div>
+    </div>
+</div>
+
+<!-- Tab: Usage -->
+<div class="tab-content" id="tab-usage">
+    <div class="chart-grid">
+        <div class="chart-card full-width"><h3>Requests per Day</h3><canvas id="chart-requests"></canvas></div>
+        <div class="chart-card"><h3>Domain / Tool Popularity</h3><canvas id="chart-domains"></canvas></div>
+        <div class="chart-card"><h3>Tokens Consumed per Day</h3><canvas id="chart-tokens"></canvas></div>
+        <div class="chart-card full-width"><h3>Error Rate Trend</h3><canvas id="chart-errors"></canvas></div>
+    </div>
+</div>
+
+<!-- Tab: Performance -->
+<div class="tab-content" id="tab-performance">
+    <div class="chart-grid">
+        <div class="chart-card full-width"><h3>Average Response Time (ms)</h3><canvas id="chart-latency"></canvas></div>
+        <div class="chart-card"><h3>Pipeline Stage Breakdown (avg ms)</h3><canvas id="chart-stages"></canvas></div>
+        <div class="chart-card"><h3>Gate Pass Rate</h3><canvas id="chart-gates"></canvas></div>
+        <div class="chart-card"><h3>Errors by Stage</h3><canvas id="chart-error-stages"></canvas></div>
+    </div>
+</div>
+
+<!-- Tab: Business -->
+<div class="tab-content" id="tab-business">
+    <div class="chart-grid">
+        <div class="chart-card"><h3>Revenue by Tier (MRR)</h3><canvas id="chart-revenue"></canvas></div>
+        <div class="chart-card">
+            <h3>Conversion Funnel</h3><canvas id="chart-funnel"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Subscription Health</h3>
+            <div style="padding: 20px 0;">
+                <div class="stat-row" style="border-top: none; padding-top: 0; justify-content: center;">
+                    <div class="stat-item"><div class="stat-val" id="stat-active-subs">—</div><div class="stat-lbl">Active Subs</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-churning" style="color: var(--error);">—</div><div class="stat-lbl">Cancelling</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-founder-slots">—</div><div class="stat-lbl">Founder Slots</div></div>
+                </div>
+            </div>
+        </div>
+        <div class="chart-card"><h3>Feature Adoption (Paid Users)</h3><canvas id="chart-features"></canvas></div>
+    </div>
+</div>
+
+<!-- Tab: AI Insights -->
+<div class="tab-content" id="tab-insights">
+    <div class="insights-container">
+        <div class="insights-prompts">
+            <button onclick="askInsight('What are the biggest growth opportunities based on this data?')">Growth opportunities</button>
+            <button onclick="askInsight('Analyze churn risk. Which user segments are most at risk and why?')">Churn risk</button>
+            <button onclick="askInsight('Which features should we prioritize building next based on usage patterns?')">Feature priorities</button>
+            <button onclick="askInsight('Write 3 marketing angles we could use based on our user demographics and usage data.')">Marketing angles</button>
+            <button onclick="askInsight('Identify any concerning trends or anomalies in the data.')">Anomaly detection</button>
+        </div>
+        <div class="insights-input">
+            <textarea id="insights-prompt" placeholder="Ask a question about your data..."></textarea>
+            <button onclick="sendInsight()" id="insights-send">Analyze</button>
+        </div>
+        <div id="insights-output" class="insights-response" style="display:none;"></div>
+    </div>
+</div>
+
+<script>
+// =========================================================================
+// Dashboard State
+// =========================================================================
+let selectedDays = 30;
+let activeTab = 'users';
+const charts = {};
+const tabLoaded = {};
+
+// =========================================================================
+// Theme-aware chart defaults
+// =========================================================================
+function chartDefaults() {
+    const c = SvendTheme.colors;
+    Chart.defaults.color = c.textDim;
+    Chart.defaults.borderColor = c.border;
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.plugins.legend.labels.boxWidth = 12;
+    Chart.defaults.plugins.legend.labels.padding = 12;
+}
+
+function cc(i) { return SvendTheme.chartColors[i % SvendTheme.chartColors.length]; }
+function cca(i, a) { return SvendTheme.chartColorsAlpha(a)[i % SvendTheme.chartColors.length]; }
+
+// Destroy a chart if it exists, then create new
+function makeChart(id, config) {
+    if (charts[id]) { charts[id].destroy(); }
+    const ctx = document.getElementById(id);
+    if (!ctx) return null;
+    charts[id] = new Chart(ctx, config);
+    return charts[id];
+}
+
+// =========================================================================
+// Data fetching
+// =========================================================================
+async function apiFetch(endpoint) {
+    const r = await fetch(`/api/internal/${endpoint}/?days=${selectedDays}`, { credentials: 'include' });
+    if (!r.ok) throw new Error(`API error: ${r.status}`);
+    return r.json();
+}
+
+// =========================================================================
+// KPI Cards
+// =========================================================================
+async function loadKPIs() {
+    try {
+        const d = await apiFetch('overview');
+        document.getElementById('kpi-users').textContent = d.total_users.toLocaleString();
+        document.getElementById('kpi-active').textContent = d.active_today.toLocaleString();
+        document.getElementById('kpi-requests').textContent = d.requests_today.toLocaleString();
+        document.getElementById('kpi-errors').textContent = d.errors_today.toLocaleString();
+        document.getElementById('kpi-latency').textContent = d.avg_latency_ms ? d.avg_latency_ms + 'ms' : '—';
+        document.getElementById('kpi-mrr').textContent = '$' + d.mrr.toLocaleString();
+        document.getElementById('kpi-conversion').textContent = d.conversion_rate + '%';
+    } catch (e) {
+        console.error('KPI load failed:', e);
+    }
+}
+
+// =========================================================================
+// Tab: Users
+// =========================================================================
+async function loadUsers() {
+    const d = await apiFetch('users');
+    chartDefaults();
+
+    // Signups over time
+    makeChart('chart-signups', {
+        type: 'line',
+        data: {
+            labels: d.signups.map(s => s.date),
+            datasets: [{
+                label: 'Signups',
+                data: d.signups.map(s => s.count),
+                borderColor: cc(0),
+                backgroundColor: cca(0, 0.15),
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    // Tier distribution
+    makeChart('chart-tiers', {
+        type: 'doughnut',
+        data: {
+            labels: d.tiers.map(t => t.tier),
+            datasets: [{
+                data: d.tiers.map(t => t.count),
+                backgroundColor: d.tiers.map((_, i) => cc(i)),
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    // DAU
+    makeChart('chart-dau', {
+        type: 'line',
+        data: {
+            labels: d.active_trend.map(a => a.date),
+            datasets: [{
+                label: 'DAU',
+                data: d.active_trend.map(a => a.count),
+                borderColor: cc(1),
+                backgroundColor: cca(1, 0.15),
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    // Industry
+    if (d.industries.length) {
+        makeChart('chart-industry', {
+            type: 'bar',
+            data: {
+                labels: d.industries.map(i => i.industry),
+                datasets: [{
+                    data: d.industries.map(i => i.count),
+                    backgroundColor: d.industries.map((_, i) => cc(i)),
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Role
+    if (d.roles.length) {
+        makeChart('chart-role', {
+            type: 'bar',
+            data: {
+                labels: d.roles.map(r => r.role),
+                datasets: [{
+                    data: d.roles.map(r => r.count),
+                    backgroundColor: d.roles.map((_, i) => cc(i)),
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Experience
+    if (d.experience.length) {
+        makeChart('chart-experience', {
+            type: 'bar',
+            data: {
+                labels: d.experience.map(e => e.experience_level),
+                datasets: [{
+                    data: d.experience.map(e => e.count),
+                    backgroundColor: d.experience.map((_, i) => cc(i)),
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Verification
+    makeChart('chart-verification', {
+        type: 'doughnut',
+        data: {
+            labels: ['Verified', 'Unverified'],
+            datasets: [{
+                data: [d.verified_count, d.total_count - d.verified_count],
+                backgroundColor: [cc(0), cc(5)],
+            }]
+        },
+        options: { responsive: true }
+    });
+    document.getElementById('stat-verified').textContent = d.verified_count;
+    document.getElementById('stat-unverified').textContent = d.total_count - d.verified_count;
+    document.getElementById('stat-vrate').textContent = d.verification_rate + '%';
+}
+
+// =========================================================================
+// Tab: Usage
+// =========================================================================
+async function loadUsage() {
+    const d = await apiFetch('usage');
+    chartDefaults();
+
+    makeChart('chart-requests', {
+        type: 'line',
+        data: {
+            labels: d.daily_requests.map(r => r.date),
+            datasets: [{
+                label: 'Requests',
+                data: d.daily_requests.map(r => r.count),
+                borderColor: cc(0),
+                backgroundColor: cca(0, 0.15),
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    if (d.domain_popularity.length) {
+        makeChart('chart-domains', {
+            type: 'bar',
+            data: {
+                labels: d.domain_popularity.map(p => p[0]),
+                datasets: [{
+                    data: d.domain_popularity.map(p => p[1]),
+                    backgroundColor: d.domain_popularity.map((_, i) => cc(i)),
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
+
+    makeChart('chart-tokens', {
+        type: 'line',
+        data: {
+            labels: d.daily_tokens.map(t => t.date),
+            datasets: [
+                {
+                    label: 'Input',
+                    data: d.daily_tokens.map(t => t.input),
+                    borderColor: cc(0),
+                    backgroundColor: cca(0, 0.1),
+                    fill: true,
+                    tension: 0.3,
+                },
+                {
+                    label: 'Output',
+                    data: d.daily_tokens.map(t => t.output),
+                    borderColor: cc(1),
+                    backgroundColor: cca(1, 0.1),
+                    fill: true,
+                    tension: 0.3,
+                }
+            ]
+        },
+        options: { responsive: true }
+    });
+
+    makeChart('chart-errors', {
+        type: 'line',
+        data: {
+            labels: d.daily_errors.map(e => e.date),
+            datasets: [{
+                label: 'Error Rate %',
+                data: d.daily_errors.map(e => e.rate),
+                borderColor: cc(5),
+                backgroundColor: cca(5, 0.15),
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// =========================================================================
+// Tab: Performance
+// =========================================================================
+async function loadPerformance() {
+    const d = await apiFetch('performance');
+    chartDefaults();
+
+    makeChart('chart-latency', {
+        type: 'line',
+        data: {
+            labels: d.latency_trend.map(l => l.date),
+            datasets: [{
+                label: 'Avg ms',
+                data: d.latency_trend.map(l => l.avg_ms),
+                borderColor: cc(1),
+                backgroundColor: cca(1, 0.15),
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    const stages = d.stage_breakdown;
+    makeChart('chart-stages', {
+        type: 'bar',
+        data: {
+            labels: Object.keys(stages).map(s => s.charAt(0).toUpperCase() + s.slice(1)),
+            datasets: [{
+                data: Object.values(stages),
+                backgroundColor: Object.keys(stages).map((_, i) => cc(i)),
+            }]
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    makeChart('chart-gates', {
+        type: 'line',
+        data: {
+            labels: d.gate_trend.map(g => g.date),
+            datasets: [{
+                label: 'Pass Rate %',
+                data: d.gate_trend.map(g => g.rate),
+                borderColor: cc(0),
+                backgroundColor: cca(0, 0.15),
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { min: 0, max: 100 } }
+        }
+    });
+
+    if (d.error_stages.length) {
+        makeChart('chart-error-stages', {
+            type: 'doughnut',
+            data: {
+                labels: d.error_stages.map(e => e.error_stage),
+                datasets: [{
+                    data: d.error_stages.map(e => e.count),
+                    backgroundColor: d.error_stages.map((_, i) => cc(i)),
+                }]
+            },
+            options: { responsive: true }
+        });
+    }
+}
+
+// =========================================================================
+// Tab: Business
+// =========================================================================
+async function loadBusiness() {
+    const d = await apiFetch('business');
+    chartDefaults();
+
+    // Revenue doughnut
+    const tiers = Object.keys(d.revenue);
+    makeChart('chart-revenue', {
+        type: 'doughnut',
+        data: {
+            labels: tiers.map(t => `${t} ($${d.revenue[t].mrr}/mo)`),
+            datasets: [{
+                data: tiers.map(t => d.revenue[t].mrr),
+                backgroundColor: tiers.map((_, i) => cc(i)),
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    // Conversion funnel
+    const f = d.funnel;
+    makeChart('chart-funnel', {
+        type: 'bar',
+        data: {
+            labels: ['Signed Up', 'Verified Email', 'First Query', 'Paid'],
+            datasets: [{
+                data: [f.total, f.verified, f.queried, f.paid],
+                backgroundColor: [cc(0), cc(1), cc(2), cc(3)],
+            }]
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    // Subscription stats
+    document.getElementById('stat-active-subs').textContent = d.churn.active_subscriptions;
+    document.getElementById('stat-churning').textContent = d.churn.cancelling;
+    document.getElementById('stat-founder-slots').textContent = `${d.founder_slots.used}/100`;
+
+    // Feature adoption
+    if (d.feature_adoption.length) {
+        makeChart('chart-features', {
+            type: 'bar',
+            data: {
+                labels: d.feature_adoption.map(f => f[0]),
+                datasets: [{
+                    data: d.feature_adoption.map(f => f[1]),
+                    backgroundColor: d.feature_adoption.map((_, i) => cc(i)),
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
+}
+
+// =========================================================================
+// Tab: AI Insights
+// =========================================================================
+function askInsight(prompt) {
+    document.getElementById('insights-prompt').value = prompt;
+    sendInsight();
+}
+
+async function sendInsight() {
+    const textarea = document.getElementById('insights-prompt');
+    const btn = document.getElementById('insights-send');
+    const output = document.getElementById('insights-output');
+    const prompt = textarea.value.trim();
+    if (!prompt) return;
+
+    btn.disabled = true;
+    output.style.display = 'block';
+    output.innerHTML = '<div class="insights-loading"><div class="spinner"></div>Analyzing data with Claude...</div>';
+
+    try {
+        const r = await fetch('/api/internal/insights/', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ prompt }),
+        });
+        const d = await r.json();
+        if (d.error) {
+            output.innerHTML = `<span style="color:var(--error)">Error: ${d.error}</span>`;
+        } else {
+            output.innerHTML = formatMarkdown(d.insights);
+        }
+    } catch (e) {
+        output.innerHTML = `<span style="color:var(--error)">Request failed: ${e.message}</span>`;
+    }
+    btn.disabled = false;
+}
+
+function getCSRF() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+// Basic markdown → HTML (headers, bold, lists, code blocks)
+function formatMarkdown(text) {
+    return text
+        .replace(/```([\s\S]*?)```/g, '<pre style="background:var(--bg-secondary);padding:12px;border-radius:4px;overflow-x:auto;"><code>$1</code></pre>')
+        .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:2px 5px;border-radius:3px;">$1</code>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^\- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        .replace(/<\/ul>\s*<ul>/g, '')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>');
+}
+
+// =========================================================================
+// Tab & Time Management
+// =========================================================================
+const loaders = {
+    users: loadUsers,
+    usage: loadUsage,
+    performance: loadPerformance,
+    business: loadBusiness,
+    insights: () => {},  // No auto-load
+};
+
+function switchTab(tab) {
+    // Update tab bar
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.tab-bar button[onclick="switchTab('${tab}')"]`).classList.add('active');
+
+    // Show/hide content
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+
+    activeTab = tab;
+
+    // Lazy load
+    if (!tabLoaded[tab] || tabLoaded[tab].stale) {
+        loaders[tab]().then(() => {
+            tabLoaded[tab] = { stale: false };
+        }).catch(e => console.error(`Tab ${tab} failed:`, e));
+    }
+}
+
+function setDays(d) {
+    selectedDays = d;
+    document.querySelectorAll('.time-selector button').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + d + 'd').classList.add('active');
+
+    // Mark all tabs as stale
+    Object.keys(tabLoaded).forEach(k => { tabLoaded[k].stale = true; });
+
+    loadKPIs();
+    switchTab(activeTab);
+}
+
+// =========================================================================
+// Init
+// =========================================================================
+window.addEventListener('svendUserReady', (e) => {
+    if (!e.detail.is_staff) {
+        window.location.href = '/app/';
+        return;
+    }
+    chartDefaults();
+    loadKPIs();
+    switchTab('users');
+});
+</script>
+{% endblock %}

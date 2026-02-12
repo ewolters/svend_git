@@ -7,7 +7,10 @@ from datetime import timedelta
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-from .constants import Tier, get_daily_limit, has_feature, is_paid_tier
+from .constants import (
+    Tier, Industry, Role, ExperienceLevel, OrganizationSize,
+    get_daily_limit, has_feature, is_paid_tier,
+)
 
 
 class Subscription(models.Model):
@@ -162,6 +165,12 @@ class User(AbstractUser):
     display_name = models.CharField(max_length=100, blank=True)
     avatar_url = models.URLField(blank=True)
     bio = models.TextField(blank=True)
+
+    # Profile — demographics (for personalized onboarding + learning paths)
+    industry = models.CharField(max_length=20, choices=Industry.choices, blank=True)
+    role = models.CharField(max_length=20, choices=Role.choices, blank=True)
+    experience_level = models.CharField(max_length=20, choices=ExperienceLevel.choices, blank=True)
+    organization_size = models.CharField(max_length=20, choices=OrganizationSize.choices, blank=True)
 
     # Preferences (JSON blob for flexibility)
     preferences = models.JSONField(null=True, blank=True)  # theme, shortcuts, etc.

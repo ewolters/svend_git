@@ -745,8 +745,13 @@
                 <button class="btn btn-secondary" style="width:100%; margin-bottom:0.5rem;" onclick="compareStates()">
                     Compare States
                 </button>
-                <button class="btn btn-secondary" style="width:100%;" onclick="exportVSM()">
+                <button class="btn btn-secondary" style="width:100%; margin-bottom:0.5rem;" onclick="exportVSM()">
                     Export
+                </button>
+                <button class="btn btn-primary" id="btn-generate-proposals"
+                        style="width:100%; display:none; background:#7c3aed; border-color:#7c3aed;"
+                        onclick="openProposalModal()">
+                    Generate CI Proposals
                 </button>
             </div>
         </div>
@@ -936,6 +941,52 @@
     </div>
 </div>
 
+<!-- CI Proposals Modal -->
+<div id="proposals-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#121a12; padding:2rem; border-radius:8px; width:640px; max-height:80vh; overflow-y:auto; border:1px solid rgba(124,58,237,0.3); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <h3 style="color:#7c3aed;">Generate CI Proposals from VSM</h3>
+            <button onclick="closeProposalModal()" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:1.2rem;">&times;</button>
+        </div>
+
+        <!-- Step 1: Parameters -->
+        <div id="proposal-params">
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                Diff kaizen bursts between current and future state VSMs to auto-propose CI projects with estimated savings.
+            </p>
+            <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+                <div style="flex:1;">
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:0.25rem;">Annual Volume</label>
+                    <input type="number" id="proposal-volume" value="100000" style="width:100%; padding:0.5rem; font-size:0.85rem;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:0.25rem;">Cost per Unit ($)</label>
+                    <input type="number" id="proposal-cost" value="50" step="0.01" style="width:100%; padding:0.5rem; font-size:0.85rem;">
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; background:#7c3aed; border-color:#7c3aed;" onclick="generateVSMProposals()">
+                Analyze Kaizen Bursts
+            </button>
+        </div>
+
+        <!-- Step 2: Review proposals -->
+        <div id="proposal-results" style="display:none;">
+            <div id="proposal-list"></div>
+            <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeProposalModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex:1; background:#7c3aed; border-color:#7c3aed;" onclick="createSelectedProposals()">
+                    Create Selected Projects
+                </button>
+            </div>
+        </div>
+
+        <div id="proposal-loading" style="display:none; text-align:center; padding:2rem; color:var(--text-dim);">
+            Analyzing VSM deltas...
+        </div>
+        <div id="proposal-error" style="display:none; color:var(--error); padding:1rem; font-size:0.85rem;"></div>
+    </div>
+</div>
+
 <!-- New VSM Dialog -->
 <div id="new-vsm-dialog" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#121a12; padding:2rem; border-radius:8px; width:400px; border:1px solid rgba(74,159,110,0.3); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
@@ -961,6 +1012,11 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
+});
+</script>
 <script>
 // =============================================================================
 // VSM State
@@ -1093,6 +1149,7 @@ async function loadVSM(id) {
 
         renderVSM();
         updateMetrics();
+        updateProposalButton();
         document.getElementById('empty-state').style.display = 'none';
         // Seed undo history with initial state
         vsmHistory = [];
@@ -2731,6 +2788,149 @@ async function compareStates() {
 function exportVSM() {
     // TODO: PDF/image export
     alert('Export coming soon');
+}
+
+// =============================================================================
+// CI Proposals (Enterprise)
+// =============================================================================
+let proposalData = [];
+
+function updateProposalButton() {
+    const btn = document.getElementById('btn-generate-proposals');
+    if (!btn) return;
+    const user = window.svendUser;
+    if (user && user.features && user.features.hoshin_kanri && currentVSM && currentVSM.status !== 'future') {
+        btn.style.display = 'block';
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+// Also check when user data arrives (may happen before or after VSM load)
+window.addEventListener('svendUserReady', function() { updateProposalButton(); });
+
+function openProposalModal() {
+    const modal = document.getElementById('proposals-modal');
+    modal.style.display = 'flex';
+    // Reset to params step
+    document.getElementById('proposal-params').style.display = 'block';
+    document.getElementById('proposal-results').style.display = 'none';
+    document.getElementById('proposal-loading').style.display = 'none';
+    document.getElementById('proposal-error').style.display = 'none';
+}
+
+function closeProposalModal() {
+    document.getElementById('proposals-modal').style.display = 'none';
+}
+
+async function generateVSMProposals() {
+    const volume = document.getElementById('proposal-volume').value || 100000;
+    const cost = document.getElementById('proposal-cost').value || 50;
+
+    document.getElementById('proposal-params').style.display = 'none';
+    document.getElementById('proposal-loading').style.display = 'block';
+    document.getElementById('proposal-error').style.display = 'none';
+
+    try {
+        const response = await fetch(`/api/vsm/${vsmId}/generate-proposals/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ annual_volume: parseFloat(volume), cost_per_unit: parseFloat(cost) })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            document.getElementById('proposal-loading').style.display = 'none';
+            document.getElementById('proposal-error').style.display = 'block';
+            document.getElementById('proposal-error').textContent = data.error || 'Failed to generate proposals.';
+            document.getElementById('proposal-params').style.display = 'block';
+            return;
+        }
+
+        proposalData = data.proposals || [];
+        document.getElementById('proposal-loading').style.display = 'none';
+
+        if (proposalData.length === 0) {
+            document.getElementById('proposal-error').style.display = 'block';
+            document.getElementById('proposal-error').textContent = 'No proposals generated. Ensure kaizen bursts exist on the future state.';
+            document.getElementById('proposal-params').style.display = 'block';
+            return;
+        }
+
+        renderProposalCards(proposalData);
+        document.getElementById('proposal-results').style.display = 'block';
+    } catch (err) {
+        document.getElementById('proposal-loading').style.display = 'none';
+        document.getElementById('proposal-error').style.display = 'block';
+        document.getElementById('proposal-error').textContent = 'Network error: ' + err.message;
+        document.getElementById('proposal-params').style.display = 'block';
+    }
+}
+
+function renderProposalCards(proposals) {
+    const container = document.getElementById('proposal-list');
+    const priorityColors = { high: '#ef4444', medium: '#f59e0b', low: '#6b7280' };
+
+    container.innerHTML = proposals.map((p, i) => `
+        <div style="background:var(--bg-tertiary); border:1px solid var(--border); border-radius:4px; padding:1rem; margin-bottom:0.75rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                <input type="checkbox" id="proposal-${i}" checked style="accent-color:#7c3aed;">
+                <label for="proposal-${i}" style="font-weight:500; flex:1; cursor:pointer;">${p.suggested_title}</label>
+                <span style="font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:2px; background:${priorityColors[p.priority] || '#6b7280'}22; color:${priorityColors[p.priority] || '#6b7280'}; text-transform:uppercase;">${p.priority}</span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-dim); margin-bottom:0.5rem;">
+                Process: <strong style="color:var(--text-secondary);">${p.process_step}</strong>
+                ${p.has_current_match ? '' : '<span style="color:var(--warning);"> (no baseline match)</span>'}
+            </div>
+            <div style="display:flex; gap:1rem; font-size:0.75rem; color:var(--text-dim);">
+                ${p.metric_deltas.cycle_time ? `<span>C/T: ${p.metric_deltas.cycle_time > 0 ? '-' : '+'}${Math.abs(p.metric_deltas.cycle_time)}s</span>` : ''}
+                ${p.metric_deltas.changeover ? `<span>C/O: ${p.metric_deltas.changeover > 0 ? '-' : '+'}${Math.abs(p.metric_deltas.changeover)}s</span>` : ''}
+                ${p.metric_deltas.uptime ? `<span>Uptime: ${p.metric_deltas.uptime > 0 ? '+' : ''}${p.metric_deltas.uptime}%</span>` : ''}
+            </div>
+            <div style="margin-top:0.5rem; font-size:0.85rem;">
+                Est. savings: <strong style="color:var(--success);">$${(p.estimated_annual_savings || 0).toLocaleString()}</strong>/yr
+                <span style="font-size:0.7rem; color:var(--text-dim); margin-left:0.5rem;">(${p.suggested_method}${p.improvement_pct ? ', ' + p.improvement_pct.toFixed(1) + '%' : ''})</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function createSelectedProposals() {
+    const selected = proposalData.filter((_, i) => document.getElementById(`proposal-${i}`).checked);
+    if (selected.length === 0) {
+        alert('Select at least one proposal.');
+        return;
+    }
+
+    try {
+        const volume = document.getElementById('proposal-volume').value || 100000;
+        const cost = document.getElementById('proposal-cost').value || 50;
+
+        const response = await fetch('/api/hoshin/projects/from-proposals/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                vsm_id: vsmId,
+                proposals: selected,
+                annual_volume: parseFloat(volume),
+                cost_per_unit: parseFloat(cost)
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            alert(data.error || 'Failed to create projects.');
+            return;
+        }
+
+        const data = await response.json();
+        closeProposalModal();
+        alert(`Created ${data.created} CI project(s). View them in Hoshin Kanri.`);
+    } catch (err) {
+        alert('Error creating projects: ' + err.message);
+    }
 }
 
 // =============================================================================

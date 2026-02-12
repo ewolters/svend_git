@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
+from accounts.permissions import require_auth
 from .models import Workbench, KnowledgeGraph, EpistemicLog, Project, Hypothesis
 
 logger = logging.getLogger(__name__)
@@ -68,23 +69,19 @@ def get_or_create_project_graph(project_id: str, user) -> KnowledgeGraph:
 # =============================================================================
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_graph(request, workbench_id: str):
     """Get the knowledge graph for a workbench."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_graph(workbench_id, request.user)
     return JsonResponse(graph.to_dict())
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["DELETE"])
 def clear_graph(request, workbench_id: str):
     """Clear all nodes and edges from the graph."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_graph(workbench_id, request.user)
     graph.nodes = []
     graph.edges = []
@@ -99,6 +96,7 @@ def clear_graph(request, workbench_id: str):
 # =============================================================================
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def add_node(request, workbench_id: str):
     """
@@ -112,9 +110,6 @@ def add_node(request, workbench_id: str):
         "metadata": {}
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -143,12 +138,10 @@ def add_node(request, workbench_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["DELETE"])
 def remove_node(request, workbench_id: str, node_id: str):
     """Remove a node and all connected edges."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_graph(workbench_id, request.user)
 
     node = graph.get_node(node_id)
@@ -161,12 +154,10 @@ def remove_node(request, workbench_id: str, node_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_nodes(request, workbench_id: str):
     """Get all nodes in the graph."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_graph(workbench_id, request.user)
 
     return JsonResponse({
@@ -180,6 +171,7 @@ def get_nodes(request, workbench_id: str):
 # =============================================================================
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def add_edge(request, workbench_id: str):
     """
@@ -194,9 +186,6 @@ def add_edge(request, workbench_id: str):
         "metadata": {}
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -235,6 +224,7 @@ def add_edge(request, workbench_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def update_edge_weight(request, workbench_id: str, edge_id: str):
     """
@@ -246,9 +236,6 @@ def update_edge_weight(request, workbench_id: str, edge_id: str):
         "evidence_id": "optional-evidence-reference"
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -288,12 +275,10 @@ def update_edge_weight(request, workbench_id: str, edge_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_edges(request, workbench_id: str):
     """Get all edges in the graph."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_graph(workbench_id, request.user)
 
     return JsonResponse({
@@ -307,6 +292,7 @@ def get_edges(request, workbench_id: str):
 # =============================================================================
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def apply_evidence(request, workbench_id: str):
     """
@@ -324,9 +310,6 @@ def apply_evidence(request, workbench_id: str):
         ]
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -372,6 +355,7 @@ def apply_evidence(request, workbench_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def check_expansion(request, workbench_id: str):
     """
@@ -386,9 +370,6 @@ def check_expansion(request, workbench_id: str):
         }
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -423,12 +404,10 @@ def check_expansion(request, workbench_id: str):
 # =============================================================================
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_causal_chain(request, workbench_id: str, from_node: str, to_node: str):
     """Get all causal chains between two nodes."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_graph(workbench_id, request.user)
 
     chains = graph.get_causal_chain(from_node, to_node)
@@ -451,12 +430,10 @@ def get_causal_chain(request, workbench_id: str, from_node: str, to_node: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_upstream_causes(request, workbench_id: str, node_id: str):
     """Get all causes upstream of a node."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_graph(workbench_id, request.user)
 
     depth = int(request.GET.get("depth", 3))
@@ -475,12 +452,10 @@ def get_upstream_causes(request, workbench_id: str, node_id: str):
 # =============================================================================
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_expansion_signals(request, workbench_id: str):
     """Get pending expansion signals."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_graph(workbench_id, request.user)
 
     pending = [s for s in graph.expansion_signals if s.get("status") == "pending"]
@@ -492,6 +467,7 @@ def get_expansion_signals(request, workbench_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def resolve_expansion(request, workbench_id: str, signal_id: str):
     """
@@ -503,9 +479,6 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
         "new_node": {...}  // if adding new hypothesis
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -558,12 +531,10 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
 # =============================================================================
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_epistemic_log(request, workbench_id: str):
     """Get the epistemic log for a workbench."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
 
     limit = int(request.GET.get("limit", 50))
@@ -594,6 +565,7 @@ def get_epistemic_log(request, workbench_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def mark_log_outcome(request, workbench_id: str, log_id: str):
     """
@@ -605,9 +577,6 @@ def mark_log_outcome(request, workbench_id: str, log_id: str):
         "led_to_dead_end": false
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -633,17 +602,16 @@ def mark_log_outcome(request, workbench_id: str, log_id: str):
 # =============================================================================
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_project_graph(request, project_id: str):
     """Get the knowledge graph for a project."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     graph = get_or_create_project_graph(project_id, request.user)
     return JsonResponse(graph.to_dict())
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def add_hypothesis_to_graph(request, project_id: str, hypothesis_id: str):
     """
@@ -662,9 +630,6 @@ def add_hypothesis_to_graph(request, project_id: str, hypothesis_id: str):
         ]
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     project = get_object_or_404(Project, id=project_id, user=request.user)
     hypothesis = get_object_or_404(Hypothesis, id=hypothesis_id, project=project)
 
@@ -739,6 +704,7 @@ def add_hypothesis_to_graph(request, project_id: str, hypothesis_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["POST"])
 def connect_hypotheses(request, project_id: str):
     """
@@ -752,9 +718,6 @@ def connect_hypotheses(request, project_id: str):
         "mechanism": "High temperature causes material degradation"
     }
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -837,12 +800,10 @@ def connect_hypotheses(request, project_id: str):
 
 
 @csrf_exempt
+@require_auth
 @require_http_methods(["GET"])
 def get_hypothesis_connections(request, project_id: str, hypothesis_id: str):
     """Get all connections to/from a hypothesis in the knowledge graph."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=401)
-
     project = get_object_or_404(Project, id=project_id, user=request.user)
     hypothesis = get_object_or_404(Hypothesis, id=hypothesis_id, project=project)
 

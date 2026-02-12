@@ -1,13 +1,14 @@
 # Kjerne Lab Standards
 
-**Version:** 1.0
+**Version:** 2.0
+**Last updated:** 2026-02-12
 **Philosophy:** 5S + Traceability + Quality Gates
 
 ---
 
 ## 5S Methodology
 
-The Kjerne lab follows 5S principles adapted for software development:
+The Kjerne lab follows 5S principles adapted for software development.
 
 ### 1. SEIRI (Sort)
 
@@ -20,11 +21,7 @@ The Kjerne lab follows 5S principles adapted for software development:
 | Documentation that's read | READMEs nobody updates |
 | Config that's used | Legacy config files |
 
-**Enforcement:** `kjerne lint` scans for:
-- Unused imports
-- Unreachable code
-- Empty files
-- Orphan test files
+**Enforcement:** Manual review before commit. Check for unused imports, unreachable code, empty files.
 
 ### 2. SEITON (Set in Order)
 
@@ -32,31 +29,84 @@ The Kjerne lab follows 5S principles adapted for software development:
 
 ```
 ~/kjerne/
-├── core/                    # SHARED - imported by all services
-│   ├── llm.py               # LLM loading utilities
-│   ├── quality.py           # Quality framework
-│   └── ...
-├── services/                # PRODUCTS - deployable units
-│   ├── svend/               # Agent service ($5/mo)
-│   │   ├── agents/          # Individual agents
-│   │   ├── tools/           # Deterministic tools
-│   │   ├── docs/            # Documentation generators
-│   │   └── api/             # FastAPI endpoints
-│   ├── forge/               # Synthetic data API
-│   │   ├── generators/      # Data generators
-│   │   ├── schemas/         # Data schemas
-│   │   └── api/             # FastAPI endpoints
-│   └── scrub/               # Data cleaning service
-│       ├── cleaners/        # Cleaning modules
-│       └── api/             # FastAPI endpoints
-├── lab/                     # R&D - not deployed
-│   └── synara/              # Synara OS development
-├── .kjerne/                 # Meta-tooling
-│   ├── snapshots/           # Point-in-time snapshots
-│   ├── diffs/               # Diff history
-│   ├── hooks/               # Pre-deploy hooks
-│   └── config.json          # Lab configuration
-└── STANDARD.md              # This file
+├── core/                           # SHARED utilities
+│   ├── llm.py                      # LLM loading (Qwen, Claude via Anthropic)
+│   ├── quality.py                  # Quality framework
+│   ├── bayesian.py                 # Unified BayesianUpdater
+│   ├── reasoning.py                # Reasoning graph
+│   ├── intent.py                   # Intent parsing
+│   ├── executor.py                 # Tool execution
+│   ├── context.py                  # Context management
+│   ├── sources.py                  # Source tracking
+│   ├── search.py                   # Search utilities
+│   └── verifier.py                 # Verification logic
+│
+├── services/svend/                 # The Svend product
+│   ├── agents/agents/              # Agent implementations
+│   │   ├── experimenter/           # DOE agent (agent.py, doe.py, stats.py)
+│   │   ├── guide/                  # Interview/decision guide
+│   │   ├── writer/                 # Writing agent
+│   │   ├── reviewer/               # Review agent
+│   │   ├── researcher/             # Research agent
+│   │   └── coder/                  # Code execution agent
+│   │
+│   ├── web/                        # Django web application
+│   │   ├── manage.py
+│   │   ├── svend/                  # Django project (settings.py, urls.py)
+│   │   │
+│   │   ├── accounts/               # Auth, billing, permissions
+│   │   │   ├── models.py           # User, Subscription, InviteCode
+│   │   │   ├── constants.py        # Tier, TIER_FEATURES, TIER_LIMITS
+│   │   │   ├── permissions.py      # Access control decorators
+│   │   │   └── billing.py          # Stripe webhook integration
+│   │   │
+│   │   ├── api/                    # Chat API + auth endpoints
+│   │   │   └── views.py            # me(), login(), register(), update_profile()
+│   │   │
+│   │   ├── agents_api/             # Analysis & tool endpoints (15 modules)
+│   │   │   ├── dsw_views.py        # Statistical engine (64+ analyses)
+│   │   │   ├── spc_views.py        # SPC / control charts
+│   │   │   ├── experimenter_views.py  # DOE
+│   │   │   ├── synara_views.py     # Bayesian belief engine
+│   │   │   ├── whiteboard_views.py # Collaborative whiteboard
+│   │   │   ├── a3_views.py         # A3 problem-solving reports
+│   │   │   ├── vsm_views.py        # Value stream mapping
+│   │   │   ├── rca_views.py        # Root cause analysis
+│   │   │   ├── forecast_views.py   # Time series forecasting
+│   │   │   ├── learn_views.py      # Learning center (10 modules, 47 sections)
+│   │   │   ├── guide_views.py      # AI guide (Enterprise)
+│   │   │   ├── hoshin_views.py     # Hoshin Kanri CI (Enterprise)
+│   │   │   ├── triage_views.py     # Data triage
+│   │   │   ├── workflow_views.py   # Workflows
+│   │   │   ├── problem_views.py    # Problem management
+│   │   │   ├── synara/             # Synara engine (belief.py, dsl.py, kernel.py)
+│   │   │   ├── models.py           # Problem, VSM, HoshinProject, ActionItem
+│   │   │   └── learn_content.py    # Learning curriculum content
+│   │   │
+│   │   ├── core/                   # Target data models
+│   │   │   └── models/
+│   │   │       ├── project.py      # Project, Dataset, ExperimentDesign
+│   │   │       └── hypothesis.py   # Hypothesis, Evidence, EvidenceLink
+│   │   │
+│   │   ├── chat/                   # Chat/conversation models
+│   │   ├── workbench/              # Knowledge graph views
+│   │   ├── inference/              # LLM pipeline (Qwen, cognition)
+│   │   ├── forge/                  # Synthetic data (Forge)
+│   │   ├── files/                  # File management
+│   │   └── templates/              # Django templates (40+ HTML files)
+│   │
+│   └── site/                       # Landing page (svend.ai)
+│
+├── .kjerne/                        # Meta-tooling
+│   ├── config.json                 # Lab version, service versions
+│   ├── DEBT.md                     # Technical debt tracker
+│   └── snapshots/                  # Point-in-time snapshots
+│
+├── CLAUDE.md                       # Project context for AI assistants
+├── STANDARD.md                     # This file
+├── log.md                          # Change log (all edits)
+├── DEBT-001.md                     # Debt closure process
+└── DSW_gaps.md                     # Competitive gap analysis vs Minitab/JMP
 ```
 
 **Naming Conventions:**
@@ -65,295 +115,272 @@ The Kjerne lab follows 5S principles adapted for software development:
 - Classes: `PascalCase`
 - Functions: `lowercase_snake`
 - Constants: `UPPER_SNAKE`
+- URL patterns: `kebab-case` (e.g., `/api/dsw/paired-t-test/`)
+- Template files: `lowercase_snake.html`
 
 ### 3. SEISO (Shine)
 
 **Rule:** Clean as you go. Technical debt is tracked, not ignored.
 
 **Before committing:**
-1. Run `kjerne lint` - must pass
-2. Run `kjerne test` - must pass
-3. Run `kjerne security` - no CRITICAL/HIGH
+1. `python3 manage.py check` — Django system check
+2. `python3 manage.py makemigrations --check --dry-run` — no pending migrations
+3. Manual smoke test of affected pages
+4. Log the change in `log.md`
 
 **Debt tracking:**
 - File: `~/kjerne/.kjerne/DEBT.md`
 - Format: `[SERVICE] Description | Added: DATE | Priority: P1/P2/P3`
+- Closure process: `DEBT-001.md`
 - Review weekly
 
 ### 4. SEIKETSU (Standardize)
 
 **Rule:** Same patterns everywhere. Copy-paste should work.
 
-**Service Template:**
-```
-service_name/
-├── __init__.py              # Exports public API
-├── agent.py                 # Main orchestrator (if agent-based)
-├── models.py                # Data models (dataclasses/Pydantic)
-├── config.py                # Service configuration
-├── api/                     # API endpoints (if service has API)
-│   ├── __init__.py
-│   ├── routes.py
-│   └── schemas.py           # Request/response schemas
-└── tests/
-    ├── __init__.py
-    ├── test_agent.py
-    └── conftest.py
-```
-
-**Quality Report Interface:**
-Every service must produce a `QualityReport` (from `core.quality`):
+**API Endpoint Pattern (agents_api):**
 ```python
-from core.quality import QualityReport, QualityGrade
+@csrf_exempt
+@gated_paid         # or @rate_limited, @require_enterprise, etc.
+def endpoint(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    data = json.loads(request.body)
+    # ... process ...
+    return JsonResponse({...})
+```
 
-class ServiceResult:
-    output: Any
-    quality: QualityReport  # Required
+**API Endpoint Pattern (api/):**
+```python
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def endpoint(request):
+    # ... process ...
+    return Response({...})
 ```
 
 **Error Handling:**
-```python
-# Standard pattern - raise domain-specific exceptions
-class ServiceError(Exception):
-    """Base for this service."""
-    pass
-
-class ValidationError(ServiceError):
-    """Input validation failed."""
-    pass
-
-class ProcessingError(ServiceError):
-    """Processing failed."""
-    pass
-```
+- All API endpoints return JSON
+- Standard error shape: `{"error": "message"}`
+- HTTP status codes: 400 (bad input), 401 (not authenticated), 403 (tier too low), 429 (rate limited), 500 (server error)
 
 ### 5. SHITSUKE (Sustain)
 
-**Rule:** The system enforces itself. Humans just review.
+**Rule:** The system enforces itself where possible. Humans review the rest.
 
-**Automated enforcement:**
-- `kjerne lint` runs before snapshot
-- `kjerne test` runs before prod deploy
-- `kjerne security` runs before prod deploy
-- `kjerne diff` shows what changed
+**Automated:**
+- Git tracks all changes (this machine is production)
+- `log.md` documents every change
+- Feature gating enforced by decorators (can't bypass without code change)
 
 **Manual review:**
 - Weekly: Review `DEBT.md`, close or defer
-- Monthly: Review service boundaries, refactor if leaking
-- Quarterly: Review core/ for bloat
+- Monthly: Review service boundaries
+- Quarterly: Review `core/` for bloat
 
 ---
 
-## Mini-Git Workflow
+## Subscription Tiers
 
-### Concept
+Five-tier pricing model. Single source of truth: `accounts/constants.py`.
 
-The lab has two states:
-- **~/kjerne/** - Development (active work)
-- **~/prod/** - Production (stable, deployed)
+| Tier | Price | Queries/Day | Key Features |
+|------|-------|-------------|--------------|
+| **FREE** | $0 | 5 | Basic DSW only |
+| **FOUNDER** | $19/mo | 50 | All PRO features + priority support (100 slots, locked rate) |
+| **PRO** | $29/mo | 50 | Full tools, basic ML, Forge API |
+| **TEAM** | $79/mo | 200 | + Collaboration |
+| **ENTERPRISE** | $199/mo | 1000 | + Anthropic AI, + Hoshin Kanri CI |
 
-Mini-git provides:
-1. **Snapshots** - Point-in-time captures of services
-2. **Diffs** - What changed between snapshots
-3. **Validation** - Quality gates before deployment
-4. **Sync** - Safe copy from dev to prod
+**Feature flags** (8 total in `TIER_FEATURES`):
+`basic_dsw`, `basic_ml`, `full_tools`, `ai_assistant`, `collaboration`, `forge_api`, `hoshin_kanri`, `priority_support`
 
-### Commands
+**Helper functions:**
+- `has_feature(tier, feature)` — check if tier has feature
+- `is_paid_tier(tier)` — check if tier is paid
+- `get_daily_limit(tier)` — get query limit
+- `can_use_anthropic(tier)` — Enterprise only
 
-```bash
-# Snapshot current state
-kjerne snapshot "Added user auth to Svend"
+---
 
-# View recent snapshots
-kjerne log
+## Feature Gating
 
-# View what changed since last snapshot
-kjerne diff
+### Backend (accounts/permissions.py)
 
-# Validate before deploy (runs all checks)
-kjerne validate services/svend
+Seven decorators for access control:
 
-# Deploy to prod (copies validated service)
-kjerne deploy services/svend
+| Decorator | What it checks |
+|-----------|---------------|
+| `@require_auth` | Authenticated only |
+| `@rate_limited` | Auth + daily query limit |
+| `@gated_paid` | Auth + `full_tools` feature + rate limit |
+| `@require_paid` | Auth + any paid tier |
+| `@require_team` | Auth + TEAM+ tier |
+| `@require_enterprise` | Auth + ENTERPRISE tier |
+| `@require_feature(name)` | Auth + specific feature flag |
+| `@require_ml` | Auth + `basic_ml` feature |
 
-# Rollback prod to previous snapshot
-kjerne rollback services/svend
-```
+**Decorator stacking order:** `@csrf_exempt` → `@gated_paid` (or equivalent) → view function.
 
-### Snapshot Format
+### Frontend (base_app.html)
 
-```
-.kjerne/snapshots/
-├── 2024-01-27_143022_abc123/
-│   ├── manifest.json          # What was snapshotted
-│   ├── checksums.json         # SHA256 of all files
-│   ├── services_svend.tar.gz  # Compressed snapshot
-│   └── quality.json           # Quality report at snapshot time
-```
+- `window.svendUser` — global set by `checkAuth()` with tier, features, email_verified, etc.
+- `svendUserReady` — CustomEvent dispatched when user data loaded. Pages listen for this to check access.
+- **403 interceptor** — global fetch wrapper that catches "Upgrade required" responses and shows upgrade modal
+- **Tool card gating** — dashboard cards with `data-feature="full_tools"` get `.locked` class + PRO badge for free users
 
-**manifest.json:**
-```json
-{
-  "id": "abc123",
-  "timestamp": "2024-01-27T14:30:22Z",
-  "message": "Added user auth to Svend",
-  "services": ["svend"],
-  "author": "eric",
-  "checksums_sha256": "..."
-}
-```
-
-### Validation Rules
-
-Before `kjerne deploy`, these must pass:
-
-| Check | Failure Action |
-|-------|----------------|
-| Syntax (all .py parse) | Block |
-| Tests pass | Block |
-| No CRITICAL security | Block |
-| No HIGH security | Warn (require --force) |
-| Quality grade >= C | Warn (require --force) |
-| No uncommitted changes | Block |
-
-### Deployment Flow
-
-```
-kjerne dev                    # Normal development
-    │
-    ▼
-kjerne snapshot "message"     # Capture state
-    │
-    ▼
-kjerne validate services/X    # Run all checks
-    │
-    ├── FAIL → Fix issues
-    │
-    ▼ PASS
-kjerne deploy services/X      # Copy to ~/prod/
-    │
-    ▼
-~/prod/services/X is live
+**Page-level gate pattern:**
+```javascript
+window.addEventListener('svendUserReady', function(e) {
+    if (!e.detail.features || !e.detail.features.full_tools) {
+        showUpgradeModal();
+    }
+});
 ```
 
 ---
 
-## Service Interfaces
+## Theme System
 
-Services must be standalone but connectable.
+Six CSS themes defined in `base_app.html` using `[data-theme]` attribute on `<html>`:
 
-### Import Rules
+| Theme | Type | Description |
+|-------|------|-------------|
+| (default) | Dark | Forest at Night — green accents on dark green |
+| `light` | Light | Light — green accents on white |
+| `nordic` | Light | Nordic Frost — cool blue-gray |
+| `sandstone` | Light | Sandstone — warm cream/parchment |
+| `midnight` | Dark | Midnight — deep blue |
+| `contrast` | Dark | High Contrast — true black, OLED-friendly |
 
-```python
-# ALLOWED - import from core
-from core.quality import QualityReport
-from core.llm import load_qwen
+**WCAG AA compliance:** All themes pass 4.5:1 contrast for normal text, 3:1 for large text.
 
-# ALLOWED - import within same service
-from .models import MyModel
-from .config import settings
+**Semantic CSS variables** (defined per theme):
+- Colors: `--text-primary`, `--text-secondary`, `--text-dim`, `--bg-primary`, `--bg-secondary`, `--bg-tertiary`, `--card-bg`, `--border`
+- Accents: `--accent-primary`, `--accent-blue`, `--accent-gold`, `--accent-orange`, `--accent-purple`
+- Status: `--error`, `--warning`, `--info`, `--success`
+- Semantic: `--error-dim`, `--error-border`, `--warning-dim`, `--warning-border`, `--accent-primary-dim`, `--accent-primary-border`
 
-# FORBIDDEN - cross-service imports
-from services.svend.agents import ResearchAgent  # NO!
+**Rule:** Never hardcode colors in templates. Always use CSS variables. Modal backgrounds use `var(--card-bg)`, not hex values.
+
+---
+
+## Template Pattern
+
+All app pages extend `base_app.html`:
+
+```html
+{% extends "base_app.html" %}
+{% block title %}Page Title - SVEND{% endblock %}
+{% block content %}
+    <!-- page content -->
+{% endblock %}
+{% block scripts %}
+    <!-- page-specific JS -->
+{% endblock %}
 ```
 
-### Service Communication
+**base_app.html provides:**
+- Navigation header with dropdowns
+- Theme system (6 themes + JS switcher)
+- Auth check (`checkAuth()` → `window.svendUser` → `svendUserReady` event)
+- Verification banner (email not verified)
+- Upgrade modal (triggered by 403)
+- SvendTheme JS object (chart colors, CSS var getters)
+- Chart.js, KaTeX, SmilesDrawer (loaded on demand)
 
-Services communicate via:
-1. **API calls** (preferred for deployed services)
-2. **Adapter interfaces** (for local dev/testing)
+**Standalone pages** (login, register, landing, etc.) define their own CSS variables and don't extend base_app.html.
 
-```python
-# Adapter pattern for testability
-class ForgeAdapter:
-    def __init__(self, base_url: str = None):
-        self.base_url = base_url or "http://localhost:8001"
+---
 
-    def generate(self, schema: dict, n: int) -> pd.DataFrame:
-        # In prod: HTTP call
-        # In test: mock
-        pass
+## API Surface
+
+| Route | Module | Purpose | Gate |
+|-------|--------|---------|------|
+| `/api/` | api/views.py | Chat, auth, user management | Mixed |
+| `/api/dsw/` | dsw_views.py | Statistical analysis (64+ analyses) | @rate_limited |
+| `/api/spc/` | spc_views.py | SPC / control charts | @rate_limited |
+| `/api/experimenter/` | experimenter_views.py | DOE | @gated_paid |
+| `/api/synara/` | synara_views.py | Bayesian belief engine | @gated_paid |
+| `/api/whiteboard/` | whiteboard_views.py | Collaborative whiteboard | @gated_paid |
+| `/api/a3/` | a3_views.py | A3 problem-solving | @gated_paid |
+| `/api/vsm/` | vsm_views.py | Value stream mapping | @gated_paid |
+| `/api/rca/` | rca_views.py | Root cause analysis | @gated_paid |
+| `/api/forecast/` | forecast_views.py | Time series forecasting | @gated_paid |
+| `/api/learn/` | learn_views.py | Learning center | @require_auth |
+| `/api/guide/` | guide_views.py | AI guide | @require_enterprise |
+| `/api/hoshin/` | hoshin_views.py | Hoshin Kanri CI | @require_enterprise |
+| `/api/triage/` | triage_views.py | Data triage | @rate_limited |
+| `/api/workflows/` | workflow_views.py | Workflows | @rate_limited |
+| `/api/core/` | core/views.py | Projects, hypotheses, evidence | @require_auth |
+| `/api/workbench/` | workbench/views.py | Knowledge graph | @require_auth |
+| `/api/forge/` | forge/views.py | Synthetic data | @require_paid |
+| `/api/files/` | files/views.py | File management | @require_auth |
+
+---
+
+## Data Model (Migration in Progress)
+
+### Current State: Dual-Write (Phase 2)
+
+Two systems coexist:
+- **Legacy:** `agents_api.Problem` — stores hypotheses/evidence as JSON blobs in JSONFields
+- **Target:** `core.Project` → `core.Hypothesis` → `core.Evidence` → `core.EvidenceLink` — proper FK relationships
+
+Phase 2 (dual-write) is complete: all write paths create both Problem JSON and core.Project FKs. All read paths use core.Project with JSON fallback.
+
+**Phase 3 (pending):** Drop JSON blob fields from Problem model entirely. Blocked until all workflows confirmed working on FK-only reads.
+
+### Target Model Relationships
+
+```
+Project (uuid)
+  ├── Hypothesis (uuid, FK→Project)
+  │     ├── prior_probability, current_probability
+  │     ├── probability_history (JSON)
+  │     └── evidence_links → EvidenceLink
+  │           ├── likelihood_ratio
+  │           ├── direction (supports/opposes/neutral)
+  │           └── FK→Evidence
+  ├── Evidence (uuid, source_type, result_type, p_value, effect_size, ...)
+  ├── Dataset (uuid, FK→Project)
+  └── ExperimentDesign (uuid, FK→Project, FK→Hypothesis)
 ```
 
 ---
 
-## Quality Gates
+## User Profile
 
-### Per-Service Requirements
+### Model Fields (accounts/models.py)
 
-| Service | Lint | Tests | Security | Quality Grade |
-|---------|------|-------|----------|---------------|
-| svend | Required | Required | No CRITICAL | >= C |
-| forge | Required | Required | No CRITICAL | >= C |
-| scrub | Required | Required | No CRITICAL | >= C |
-| core | Required | Required | No HIGH | >= B |
+| Field | Type | Purpose |
+|-------|------|---------|
+| `tier` | CharField(choices) | Subscription tier (FREE→ENTERPRISE) |
+| `display_name` | CharField | Display name |
+| `bio` | TextField | User bio |
+| `industry` | CharField(choices) | Manufacturing, healthcare, etc. |
+| `role` | CharField(choices) | Engineer, manager, analyst, etc. |
+| `experience_level` | CharField(choices) | Beginner, intermediate, advanced |
+| `organization_size` | CharField(choices) | Small, medium, large, enterprise |
+| `preferences` | JSONField | Flexible settings (show_reasoning, auto_scroll) |
+| `current_theme` | CharField | Active theme name |
+| `email_verified` | BooleanField | Email verification status |
 
-### Continuous Checks
+### API
 
-The `.kjerne/hooks/pre-snapshot` runs automatically:
-```bash
-#!/bin/bash
-kjerne lint
-kjerne test --quick
-kjerne security --level HIGH
-```
-
----
-
-## File Ownership
-
-| Path | Owner | Changes Require |
-|------|-------|-----------------|
-| `core/` | Lab | Review by any service owner |
-| `services/svend/` | Svend team | Self-review |
-| `services/forge/` | Forge team | Self-review |
-| `services/scrub/` | Scrub team | Self-review |
-| `.kjerne/` | Lab | Review + STANDARD.md update |
-| `STANDARD.md` | Lab | Consensus |
+- `GET /api/auth/me/` — returns full user profile + features dict
+- `PATCH /api/auth/profile/` — updates allowed profile fields with validation
 
 ---
 
-## Versioning
+## Production Environment
 
-### Lab Version
-
-The entire lab has a version (in `.kjerne/config.json`):
-```json
-{
-  "version": "1.0.0",
-  "services": {
-    "svend": "1.2.0",
-    "forge": "0.5.0",
-    "scrub": "0.3.0"
-  }
-}
-```
-
-### Service Versions
-
-Each service has its own version in `__init__.py`:
-```python
-__version__ = "1.2.0"
-```
-
-Bump rules:
-- **MAJOR** - Breaking API changes
-- **MINOR** - New features, backward compatible
-- **PATCH** - Bug fixes only
-
----
-
-## Migration Checklist
-
-When adding a new service to Kjerne:
-
-- [ ] Create directory under `services/`
-- [ ] Add `__init__.py` with `__version__`
-- [ ] Add `tests/` directory with at least one test
-- [ ] Ensure no cross-service imports
-- [ ] Add entry to `.kjerne/config.json`
-- [ ] Run `kjerne validate services/newservice`
-- [ ] Update this STANDARD.md if needed
+- **This machine is production.** Do not restructure, rename, or move files without explicit approval.
+- **Database:** SQLite (on this machine)
+- **Server:** Gunicorn behind Cloudflare Tunnel
+- **Git is the safety net.** Always commit before making changes.
+- **All changes logged** in `log.md` at the root.
+- **Debt tracked** in `.kjerne/DEBT.md`, closed via `DEBT-001.md` process.
 
 ---
 
@@ -361,27 +388,49 @@ When adding a new service to Kjerne:
 
 ### Production Issue
 
+1. Check gunicorn logs: `journalctl -u gunicorn` or process output
+2. If Django import error: fix the import, reload gunicorn (`kill -HUP`)
+3. If data issue: check SQLite directly
+4. Document the incident in `log.md`
+5. If severe: `git stash` or `git checkout` to revert
+
+### Key Commands
+
 ```bash
-# 1. Rollback immediately
-kjerne rollback services/affected_service
+# Activate venv
+source ~/Desktop/svend_transfer/k/kjerne/.venv/bin/activate
 
-# 2. Document
-echo "INCIDENT $(date): Description" >> .kjerne/INCIDENTS.md
+# Reload gunicorn (graceful)
+kill -HUP $(pgrep -f gunicorn | head -1)
 
-# 3. Investigate in dev
-# ... fix ...
+# Django management
+cd ~/kjerne/services/svend/web
+python3 manage.py check
+python3 manage.py makemigrations --check --dry-run
+python3 manage.py migrate
 
-# 4. Re-deploy with extra validation
-kjerne validate --strict services/affected_service
-kjerne deploy services/affected_service
+# Verify no broken templates
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/login/
 ```
-
-### Lost Snapshot
-
-Snapshots are in `.kjerne/snapshots/`. If deleted:
-1. Check if copied to external backup
-2. If not, use `kjerne rebuild` to create new baseline
 
 ---
 
-*Last updated: 2024-01-27*
+## Versioning
+
+Lab and service versions tracked in `.kjerne/config.json`:
+
+```json
+{
+  "version": "2.0.0",
+  "services": {
+    "svend": "2.0.0",
+    "scrub": "1.0.0",
+    "forge": "0.1.0"
+  }
+}
+```
+
+Bump rules:
+- **MAJOR** — Breaking API changes, model migrations
+- **MINOR** — New features, backward compatible
+- **PATCH** — Bug fixes only

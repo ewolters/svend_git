@@ -1182,7 +1182,7 @@ Or paste from spreadsheet (tab-separated)"></textarea>
 }
 
 .result-status.in-control { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
-.result-status.out-of-control { background: rgba(159, 74, 74, 0.2); color: #9f4a4a; }
+.result-status.out-of-control { background: var(--error-dim); color: var(--error); }
 
 .interpretation {
     padding: 1rem;
@@ -1193,7 +1193,7 @@ Or paste from spreadsheet (tab-separated)"></textarea>
 
 .interpretation.good { border-left: 3px solid #4a9f6e; }
 .interpretation.marginal { border-left: 3px solid #e8c547; }
-.interpretation.poor { border-left: 3px solid #9f4a4a; }
+.interpretation.poor { border-left: 3px solid var(--error); }
 
 /* MSA Styles */
 .msa-assessment {
@@ -1214,8 +1214,8 @@ Or paste from spreadsheet (tab-separated)"></textarea>
 }
 
 .msa-assessment.poor {
-    background: rgba(159, 74, 74, 0.15);
-    border: 1px solid #9f4a4a;
+    background: var(--error-dim);
+    border: 1px solid var(--error);
 }
 
 .assessment-value {
@@ -1225,7 +1225,7 @@ Or paste from spreadsheet (tab-separated)"></textarea>
 
 .msa-assessment.good .assessment-value { color: #4a9f6e; }
 .msa-assessment.marginal .assessment-value { color: #e8c547; }
-.msa-assessment.poor .assessment-value { color: #9f4a4a; }
+.msa-assessment.poor .assessment-value { color: var(--error); }
 
 .assessment-label {
     font-size: 0.9rem;
@@ -1239,7 +1239,7 @@ Or paste from spreadsheet (tab-separated)"></textarea>
 
 .msa-assessment.good .assessment-status { color: #4a9f6e; }
 .msa-assessment.marginal .assessment-status { color: #e8c547; }
-.msa-assessment.poor .assessment-status { color: #9f4a4a; }
+.msa-assessment.poor .assessment-status { color: var(--error); }
 
 .chart-grid {
     display: grid;

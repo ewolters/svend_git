@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from . import views
+from . import internal_views, views
 
 app_name = "api"
 
@@ -42,4 +42,12 @@ urlpatterns = [
 
     # Export
     path("export/pdf/", views.export_pdf, name="export_pdf"),
+
+    # Internal telemetry (staff-only)
+    path("internal/overview/", internal_views.api_overview, name="internal_overview"),
+    path("internal/users/", internal_views.api_users, name="internal_users"),
+    path("internal/usage/", internal_views.api_usage, name="internal_usage"),
+    path("internal/performance/", internal_views.api_performance, name="internal_performance"),
+    path("internal/business/", internal_views.api_business, name="internal_business"),
+    path("internal/insights/", internal_views.api_insights, name="internal_insights"),
 ]

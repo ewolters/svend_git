@@ -174,6 +174,85 @@ def require_ml(view_func):
     return wrapper
 
 
+def gated_paid(view_func):
+    """Auth + paid tier (full_tools) + rate limiting.
+
+    Use for premium analysis tools: DOE, Synara, Whiteboard, A3, VSM,
+    RCA, Forecast, Forge, Guide.
+
+    Free users get 403 with upgrade prompt.
+    Paid users get rate-limited per tier.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
+
+        user = request.user
+
+        if not has_feature(user.tier, "full_tools"):
+            return JsonResponse({
+                "error": "Upgrade required",
+                "feature": "full_tools",
+                "tier": user.tier,
+                "upgrade_url": "/billing/checkout/",
+                "message": "This tool requires a paid subscription. Upgrade to unlock all analysis tools.",
+            }, status=403)
+
+        if not user.can_query():
+            return JsonResponse({
+                "error": "Daily query limit reached",
+                "limit": user.daily_limit,
+                "used": user.queries_today,
+                "tier": user.tier,
+                "upgrade_url": "/billing/checkout/",
+            }, status=429)
+
+        response = view_func(request, *args, **kwargs)
+
+        if response.status_code < 400:
+            user.increment_queries()
+
+        return response
+    return wrapper
+
+
+def require_org_admin(view_func):
+    """Require that the user is an owner or admin of their org.
+
+    Checks Membership.can_admin (owner or admin role), NOT Django is_staff.
+    The tenant is resolved from the request via _get_tenant() pattern
+    or from the user's active membership.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
+
+        from core.models import Membership
+        membership = Membership.objects.filter(
+            user=request.user, is_active=True
+        ).select_related("tenant").first()
+
+        if not membership:
+            return JsonResponse({
+                "error": "You are not a member of any organization",
+            }, status=403)
+
+        if not membership.can_admin:
+            return JsonResponse({
+                "error": "Organization admin access required",
+                "role": membership.role,
+                "message": "Only owners and admins can manage organization settings.",
+            }, status=403)
+
+        # Attach tenant and membership to request for downstream use
+        request.org_tenant = membership.tenant
+        request.org_membership = membership
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 # Legacy aliases for backwards compatibility
 gated = rate_limited  # Old name -> new name
 require_auth = require_auth
