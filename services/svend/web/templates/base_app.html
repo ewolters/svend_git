@@ -295,6 +295,17 @@
             color: var(--accent-primary);
         }
 
+        .nav-dropdown-menu a.disabled {
+            color: var(--text-dim);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .nav-dropdown-menu a.disabled:hover {
+            background: transparent;
+            color: var(--text-dim);
+        }
+
         /* === Main === */
         main {
             padding: 3rem 0;
@@ -548,16 +559,31 @@
                 </a>
                 <nav>
                     <a href="/app/projects/">Projects</a>
-                    <a href="/app/new/">DSW</a>
                     <div class="nav-dropdown">
-                        <span class="nav-dropdown-trigger">Tools</span>
+                        <span class="nav-dropdown-trigger">Analysis</span>
                         <div class="nav-dropdown-menu">
-                            <a href="/app/whiteboard/">Whiteboard</a>
-                            <a href="/app/experimenter/">Experimenter</a>
+                            <a href="/app/dsw/">DSW</a>
+                            <a href="/app/experimenter/">DOE</a>
                             <a href="/app/models/">Models</a>
                         </div>
                     </div>
-                    <a href="/app/knowledge/">Knowledge</a>
+                    <div class="nav-dropdown">
+                        <span class="nav-dropdown-trigger">Visual</span>
+                        <div class="nav-dropdown-menu">
+                            <a href="/app/whiteboard/">Whiteboard</a>
+                            <a href="/app/vsm/">Value Stream Map</a>
+                        </div>
+                    </div>
+                    <div class="nav-dropdown">
+                        <span class="nav-dropdown-trigger">Methods</span>
+                        <div class="nav-dropdown-menu">
+                            <a href="/app/a3/">A3</a>
+                            <a href="/app/rca/">Root Cause</a>
+                            <a href="/app/calculators/">Operations</a>
+                            <a href="#" class="disabled">DMAIC</a>
+                            <a href="#" class="disabled">8D</a>
+                        </div>
+                    </div>
                     <a href="/app/learn/">Learn</a>
                     <div class="user-info">
                         <span class="user-name" id="user-name">Loading...</span>

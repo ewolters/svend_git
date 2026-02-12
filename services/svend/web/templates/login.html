@@ -172,7 +172,7 @@
             </form>
 
             <div class="footer">
-                Don't have an account? <a href="/register/">Sign up</a>
+                Don't have an account? <a href="/register/" id="register-link">Sign up</a>
             </div>
         </div>
     </div>
@@ -181,6 +181,18 @@
         const form = document.getElementById('loginForm');
         const errorDiv = document.getElementById('error');
         const submitBtn = document.getElementById('submitBtn');
+
+        // Get redirect URL from query params (for @login_required redirects)
+        const urlParams = new URLSearchParams(window.location.search);
+        const nextUrlRaw = urlParams.get('next') || '/app/';
+        // Decode in case it's double-encoded, then use for redirect
+        const nextUrl = decodeURIComponent(nextUrlRaw);
+
+        // Pass next URL to register link so new users can sign up and continue
+        if (nextUrl !== '/app/') {
+            const registerLink = document.getElementById('register-link');
+            registerLink.href = '/register/?next=' + encodeURIComponent(nextUrl);
+        }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -204,7 +216,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    window.location.href = '/app/';
+                    window.location.href = nextUrl;
                 } else {
                     errorDiv.textContent = data.error || 'Invalid credentials';
                     errorDiv.classList.add('show');

@@ -544,7 +544,7 @@ def user_info(request):
         "tier": user.tier,
         "queries_today": user.queries_today,
         "daily_limit": user.daily_limit,
-        "subscription_active": user.subscription_active,
+        "subscription_active": hasattr(user, 'subscription') and user.subscription.is_active,
     })
 
 
@@ -811,6 +811,11 @@ def register(request):
     email = request.data.get("email", "").strip()
     password = request.data.get("password", "")
     invite_code = request.data.get("invite_code", "").strip().upper()
+    plan = request.data.get("plan", "").strip().lower()  # founder, pro, team, enterprise
+
+    # Paid plans bypass invite requirement (they're paying customers)
+    paid_plans = ["founder", "pro", "team", "enterprise"]
+    is_paid_signup = plan in paid_plans
 
     # Validation
     if not username or len(username) < 3:
@@ -837,9 +842,9 @@ def register(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Check invite code if required
+    # Check invite code if required (paid plans bypass this)
     invite = None
-    if settings.require_invite:
+    if settings.require_invite and not is_paid_signup:
         if not invite_code:
             return Response(
                 {"error": "Invite code required for alpha access"},

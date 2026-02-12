@@ -18,6 +18,21 @@ from typing import Any
 import numpy as np
 
 
+def _to_python(val):
+    """Convert numpy types to Python native types for JSON serialization."""
+    if isinstance(val, (np.integer, np.int64, np.int32)):
+        return int(val)
+    elif isinstance(val, (np.floating, np.float64, np.float32)):
+        return float(val)
+    elif isinstance(val, np.ndarray):
+        return val.tolist()
+    elif isinstance(val, dict):
+        return {k: _to_python(v) for k, v in val.items()}
+    elif isinstance(val, (list, tuple)):
+        return [_to_python(v) for v in val]
+    return val
+
+
 @dataclass
 class Factor:
     """A factor (independent variable) in an experiment."""
@@ -96,14 +111,14 @@ class ExperimentDesign:
         return matrix
 
     def to_dict(self) -> dict:
-        """Export as dictionary."""
+        """Export as dictionary (JSON-serializable)."""
         return {
             "name": self.name,
             "design_type": self.design_type,
             "factors": [
                 {
                     "name": f.name,
-                    "levels": f.levels,
+                    "levels": _to_python(f.levels),
                     "level_names": f.level_names,
                     "units": f.units,
                 }
@@ -111,20 +126,20 @@ class ExperimentDesign:
             ],
             "runs": [
                 {
-                    "run_id": r.run_id,
-                    "standard_order": r.standard_order,
-                    "run_order": r.run_order,
-                    "levels": r.factor_levels,
-                    "coded": r.coded_levels,
-                    "block": r.block,
-                    "replicate": r.replicate,
+                    "run_id": _to_python(r.run_id),
+                    "standard_order": _to_python(r.standard_order),
+                    "run_order": _to_python(r.run_order),
+                    "levels": _to_python(r.factor_levels),
+                    "coded": _to_python(r.coded_levels),
+                    "block": _to_python(r.block),
+                    "replicate": _to_python(r.replicate),
                     "center_point": r.is_center_point,
                 }
                 for r in self.runs
             ],
             "properties": {
                 "num_runs": self.num_runs,
-                "resolution": self.resolution,
+                "resolution": _to_python(self.resolution),
                 "num_blocks": self.num_blocks,
                 "num_replicates": self.num_replicates,
                 "num_center_points": self.num_center_points,

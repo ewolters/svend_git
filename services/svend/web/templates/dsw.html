@@ -686,6 +686,27 @@ Or paste from spreadsheet (tab-separated)"></textarea>
                             <option value="paired_t">Paired t-Test</option>
                             <option value="anova">One-Way ANOVA</option>
                             <option value="anova2">Two-Way ANOVA</option>
+                            <option value="tukey_hsd">Tukey HSD (Post-Hoc)</option>
+                            <option value="games_howell">Games-Howell (Post-Hoc)</option>
+                            <option value="dunnett">Dunnett's (vs Control)</option>
+                            <option value="dunn">Dunn's (Non-Parametric Post-Hoc)</option>
+                            <option value="hotelling_t2">Hotelling's T² (Multivariate)</option>
+                            <option value="manova">MANOVA</option>
+                            <option value="nested_anova">Nested ANOVA (Mixed-Effects)</option>
+                            <option value="sarima">SARIMA (Seasonal Forecasting)</option>
+                            <option value="kaplan_meier">Kaplan-Meier Survival</option>
+                            <option value="cox_ph">Cox Proportional Hazards</option>
+                            <option value="discriminant_analysis">Discriminant Analysis (LDA/QDA)</option>
+                            <option value="acceptance_sampling">Acceptance Sampling</option>
+                            <option value="gage_rr_nested">Gage R&R (Nested)</option>
+                            <option value="gage_linearity_bias">Gage Linearity & Bias</option>
+                            <option value="gage_type1">Type 1 Gage Study</option>
+                            <option value="attribute_gage">Attribute Gage</option>
+                            <option value="attribute_agreement">Attribute Agreement</option>
+                            <option value="prop_1sample">1-Proportion Z-Test</option>
+                            <option value="prop_2sample">2-Proportion Z-Test</option>
+                            <option value="fisher_exact">Fisher's Exact Test</option>
+                            <option value="poisson_1sample">Poisson Rate Test</option>
                             <option value="chi2">Chi-Square Test</option>
                             <option value="mann_whitney">Mann-Whitney U</option>
                             <option value="kruskal">Kruskal-Wallis H</option>
@@ -696,6 +717,15 @@ Or paste from spreadsheet (tab-separated)"></textarea>
                             <option value="equivalence">Equivalence (TOST)</option>
                             <option value="normality">Normality Test</option>
                             <option value="runs_test">Runs Test</option>
+                            <option value="power_z">1-Sample Z Power</option>
+                            <option value="power_1prop">1-Proportion Power</option>
+                            <option value="power_2prop">2-Proportion Power</option>
+                            <option value="power_1variance">1-Variance Power</option>
+                            <option value="power_2variance">2-Variance Power</option>
+                            <option value="power_equivalence">Equivalence Power</option>
+                            <option value="power_doe">DOE Factorial Power</option>
+                            <option value="sample_size_ci">Sample Size for CI</option>
+                            <option value="sample_size_tolerance">Sample Size for Tolerance</option>
                         </select>
                     </div>
                     <div class="form-group" id="test-var1-group">
@@ -2577,7 +2607,7 @@ function updateStatsTestForm() {
     const muGroup = document.getElementById('test-mu-group');
 
     // Tests that need a second variable
-    const needsVar2 = ['ttest2', 'paired_t', 'chi2', 'mann_whitney', 'f_test', 'equivalence', 'anova', 'anova2', 'kruskal', 'wilcoxon', 'spearman', 'friedman'];
+    const needsVar2 = ['ttest2', 'paired_t', 'chi2', 'mann_whitney', 'f_test', 'equivalence', 'anova', 'anova2', 'kruskal', 'wilcoxon', 'spearman', 'friedman', 'tukey_hsd', 'games_howell', 'dunnett', 'dunn', 'hotelling_t2', 'manova', 'nested_anova', 'kaplan_meier', 'cox_ph', 'discriminant_analysis', 'prop_2sample', 'fisher_exact', 'gage_rr_nested', 'gage_linearity_bias', 'attribute_gage', 'attribute_agreement'];
     var2Group.style.display = needsVar2.includes(type) ? 'block' : 'none';
 
     // Tests that need mu
@@ -2596,8 +2626,53 @@ function updateStatsTestForm() {
     } else if (type === 'spearman') {
         var1Label.textContent = 'Variable X';
         var2Label.textContent = 'Variable Y';
-    } else if (['anova', 'kruskal', 'mann_whitney'].includes(type)) {
+    } else if (type === 'nested_anova') {
         var1Label.textContent = 'Response';
+        var2Label.textContent = 'Fixed Factor';
+    } else if (['kaplan_meier', 'cox_ph'].includes(type)) {
+        var1Label.textContent = 'Time Variable';
+        var2Label.textContent = 'Event (1=event, 0=censored)';
+    } else if (type === 'discriminant_analysis') {
+        var1Label.textContent = 'Group Variable';
+        var2Label.textContent = 'Predictor';
+    } else if (type === 'acceptance_sampling') {
+        var1Label.textContent = '(Not needed)';
+        var2Label.textContent = '(Not needed)';
+    } else if (type === 'prop_1sample') {
+        var1Label.textContent = 'Variable (binary / categorical)';
+        var2Label.textContent = '(Not needed)';
+    } else if (type === 'prop_2sample') {
+        var1Label.textContent = 'Variable (binary / categorical)';
+        var2Label.textContent = 'Group Variable';
+    } else if (type === 'fisher_exact') {
+        var1Label.textContent = 'Row Variable';
+        var2Label.textContent = 'Column Variable';
+    } else if (type === 'poisson_1sample') {
+        var1Label.textContent = 'Count Variable';
+        var2Label.textContent = '(Not needed)';
+    } else if (type.startsWith('power_') || type.startsWith('sample_size_')) {
+        var1Label.textContent = '(Not needed — uses parameters)';
+        var2Label.textContent = '(Not needed)';
+    } else if (type === 'gage_rr_nested') {
+        var1Label.textContent = 'Measurement';
+        var2Label.textContent = 'Part';
+    } else if (type === 'gage_linearity_bias') {
+        var1Label.textContent = 'Measurement';
+        var2Label.textContent = 'Reference';
+    } else if (type === 'gage_type1') {
+        var1Label.textContent = 'Measurement';
+        var2Label.textContent = '(Not needed)';
+    } else if (type === 'attribute_gage') {
+        var1Label.textContent = 'Appraiser Call';
+        var2Label.textContent = 'Reference (truth)';
+    } else if (type === 'attribute_agreement') {
+        var1Label.textContent = 'Rating';
+        var2Label.textContent = 'Part/Item';
+    } else if (['anova', 'kruskal', 'mann_whitney', 'tukey_hsd', 'games_howell', 'dunnett', 'dunn'].includes(type)) {
+        var1Label.textContent = 'Response';
+        var2Label.textContent = 'Factor/Group';
+    } else if (['hotelling_t2', 'manova'].includes(type)) {
+        var1Label.textContent = 'Response (use Regression tab for multi-select)';
         var2Label.textContent = 'Factor/Group';
     } else {
         var1Label.textContent = 'Variable';
@@ -2673,12 +2748,84 @@ async function runStatsTest() {
     } else if (type === 'chi2') {
         config.row_var = var1;
         config.col_var = var2;
-    } else if (['anova', 'kruskal', 'mann_whitney', 'friedman'].includes(type)) {
+    } else if (['anova', 'kruskal', 'mann_whitney', 'friedman', 'tukey_hsd', 'games_howell', 'dunnett', 'dunn'].includes(type)) {
         config.response = var1;
         config.var = var1;
         config.group_var = var2;
         config.factor = var2;
         config.factors = [var2];
+    } else if (type === 'nested_anova') {
+        config.response = var1;
+        config.fixed_factor = var2;
+        config.random_factor = var2;
+    } else if (['kaplan_meier', 'cox_ph'].includes(type)) {
+        config.time_col = var1;
+        config.event_col = var2;
+        if (type === 'cox_ph') config.covariates = [var2];
+    } else if (type === 'discriminant_analysis') {
+        config.response = var1;
+        config.predictors = [var2];
+        config.method = 'lda';
+    } else if (type === 'acceptance_sampling') {
+        config.plan_type = 'single';
+        config.sample_size = 50;
+        config.accept_number = 2;
+        config.lot_size = 1000;
+        config.aql = 0.01;
+        config.ltpd = 0.05;
+    } else if (type === 'prop_1sample') {
+        config.var = var1;
+        config.p0 = 0.5;
+    } else if (type === 'prop_2sample') {
+        config.var = var1;
+        config.group_var = var2;
+    } else if (type === 'fisher_exact') {
+        config.row_var = var1;
+        config.col_var = var2;
+    } else if (type === 'poisson_1sample') {
+        config.var = var1;
+        config.rate0 = 1.0;
+        config.exposure = 1.0;
+    } else if (type === 'power_z') {
+        config.delta = 0.5; config.sigma = 1.0;
+    } else if (type === 'power_1prop') {
+        config.p0 = 0.5; config.pa = 0.65;
+    } else if (type === 'power_2prop') {
+        config.p1 = 0.5; config.p2 = 0.65;
+    } else if (type === 'power_1variance') {
+        config.sigma0 = 1.0; config.sigma1 = 1.5;
+    } else if (type === 'power_2variance') {
+        config.variance_ratio = 2.0;
+    } else if (type === 'power_equivalence') {
+        config.delta = 0.0; config.margin = 0.5; config.sigma = 1.0;
+    } else if (type === 'power_doe') {
+        config.factors = 3; config.delta = 1.0; config.sigma = 1.0;
+    } else if (type === 'sample_size_ci') {
+        config.type = 'mean'; config.sigma = 1.0; config.half_width = 0.5;
+    } else if (type === 'sample_size_tolerance') {
+        config.coverage = 0.99; config.confidence = 0.95;
+    } else if (type === 'gage_rr_nested') {
+        config.measurement = var1; config.part = var2; config.operator = var2;
+    } else if (type === 'gage_linearity_bias') {
+        config.measurement = var1; config.reference = var2;
+    } else if (type === 'gage_type1') {
+        config.measurement = var1; config.reference = 0; config.tolerance = 1.0;
+    } else if (type === 'attribute_gage') {
+        config.result = var1; config.reference = var2;
+    } else if (type === 'attribute_agreement') {
+        config.rating = var1; config.part = var2; config.appraiser = var2;
+    } else if (['hotelling_t2', 'manova'].includes(type)) {
+        // For multivariate tests from the simple form, use var1 as single response
+        // For proper multi-response, use regression predictors or workbench_new dialog
+        config.responses = [var1];
+        config.group_var = var2;
+        config.factor = var2;
+        // Try to grab regression predictors if available (multi-select)
+        const predSel = document.getElementById('stats-reg-predictors');
+        if (predSel) {
+            const selected = Array.from(predSel.selectedOptions).map(o => o.value);
+            if (selected.length >= 2) config.responses = selected;
+        }
     } else if (type === 'equivalence') {
         config.var = var1;
         config.group_var = var2;

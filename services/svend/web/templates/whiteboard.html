@@ -97,6 +97,44 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     margin-right: 8px;
 }
 
+.wb-project-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.wb-project-select {
+    background: var(--wb-panel);
+    border: 1px solid var(--wb-border);
+    padding: 4px 8px;
+    font-size: 11px;
+    color: var(--wb-text);
+    border-radius: 4px;
+    max-width: 150px;
+    cursor: pointer;
+}
+
+.wb-project-select:focus {
+    border-color: var(--wb-accent);
+    outline: none;
+}
+
+.wb-project-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--wb-text-dim);
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.wb-project-link:hover {
+    color: var(--wb-accent);
+    background: rgba(74, 159, 110, 0.15);
+}
+
 .wb-zoom-display {
     font-size: 11px;
     color: var(--wb-text-dim);
@@ -253,7 +291,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     height: 5000px;
     pointer-events: none;
     overflow: visible;
-    z-index: 1;
+    z-index: 10;
 }
 
 .wb-connections path {
@@ -475,6 +513,40 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 .wb-connection-point.left { left: -6px; top: 50%; transform: translateY(-50%); }
 .wb-connection-point.right { right: -6px; top: 50%; transform: translateY(-50%); }
 
+/* Diamond connection points - position at corners and counter-rotate */
+.wb-process-shape.diamond .wb-connection-point.top {
+    top: -21%;
+    left: 50%;
+    transform: rotate(-45deg) translateX(-50%);
+}
+.wb-process-shape.diamond .wb-connection-point.bottom {
+    bottom: -21%;
+    top: auto;
+    left: 50%;
+    transform: rotate(-45deg) translateX(-50%);
+}
+.wb-process-shape.diamond .wb-connection-point.left {
+    left: -21%;
+    top: 50%;
+    transform: rotate(-45deg) translateY(-50%);
+}
+.wb-process-shape.diamond .wb-connection-point.right {
+    right: -21%;
+    left: auto;
+    top: 50%;
+    transform: rotate(-45deg) translateY(-50%);
+}
+
+/* Diamond connection point hover states */
+.wb-process-shape.diamond .wb-connection-point.top:hover,
+.wb-process-shape.diamond .wb-connection-point.bottom:hover {
+    transform: rotate(-45deg) translateX(-50%) scale(1.3);
+}
+.wb-process-shape.diamond .wb-connection-point.left:hover,
+.wb-process-shape.diamond .wb-connection-point.right:hover {
+    transform: rotate(-45deg) translateY(-50%) scale(1.3);
+}
+
 /* Temporary connection line while dragging */
 .wb-temp-connection {
     stroke: var(--wb-accent);
@@ -482,6 +554,113 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     stroke-dasharray: 5, 5;
     fill: none;
     pointer-events: none;
+}
+
+/* Causal (If-Then) Connections */
+.wb-causal-connection {
+    stroke: #e89547 !important;
+    stroke-width: 3 !important;
+}
+
+.wb-connection-label {
+    font-size: 10px;
+    font-weight: 600;
+    fill: #e89547;
+    pointer-events: none;
+}
+
+.wb-connection-label.if-label {
+    fill: #e89547;
+}
+
+.wb-connection-label.then-label {
+    fill: #47a5e8;
+}
+
+/* Connector Style Selector */
+.wb-connector-styles {
+    display: none;
+    gap: 2px;
+    margin-left: 4px;
+    padding: 0 4px;
+    border-left: 1px solid var(--wb-border);
+}
+
+.wb-container.connect-mode .wb-connector-styles {
+    display: flex;
+}
+
+.wb-conn-style-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--wb-text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    padding: 0;
+}
+
+.wb-conn-style-btn:hover {
+    background: rgba(74, 159, 110, 0.15);
+    border-color: var(--wb-border);
+    color: var(--wb-text);
+}
+
+.wb-conn-style-btn.active {
+    background: rgba(74, 159, 110, 0.25);
+    border-color: var(--wb-accent);
+    color: var(--wb-accent);
+}
+
+.wb-conn-style-btn svg { width: 18px; height: 18px; }
+
+/* Logic Gate Elements */
+.wb-gate {
+    min-width: 60px;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wb-panel);
+    border: 2px solid #a29bfe;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #a29bfe;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.wb-gate.and-gate {
+    border-color: #a29bfe;
+    color: #a29bfe;
+    border-radius: 8px 30px 30px 8px;
+}
+
+.wb-gate.or-gate {
+    border-color: #ff7eb9;
+    color: #ff7eb9;
+    border-radius: 30px;
+}
+
+.wb-gate::before {
+    content: attr(data-gate-type);
+}
+
+/* Causal tool indicator */
+.wb-tool-btn.causal-mode {
+    background: rgba(232, 149, 71, 0.25) !important;
+    border-color: #e89547 !important;
+    color: #e89547 !important;
+}
+
+.wb-container.causal-mode .wb-connection-point {
+    background: #e89547;
 }
 
 /* VSM Specific */
@@ -791,6 +970,208 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     border-color: var(--wb-accent);
     color: var(--wb-accent);
 }
+
+/* ============================================================================
+   COLLABORATION & VOTING
+   ============================================================================ */
+
+.wb-room-code {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(74, 159, 110, 0.15);
+    border: 1px solid var(--wb-accent);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--wb-accent);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.wb-room-code:hover {
+    background: rgba(74, 159, 110, 0.25);
+}
+
+.wb-participants {
+    display: flex;
+    align-items: center;
+    gap: -6px;
+    margin-left: 8px;
+}
+
+.wb-participant {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--wb-panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    margin-left: -6px;
+    position: relative;
+    cursor: default;
+}
+
+.wb-participant:first-child {
+    margin-left: 0;
+}
+
+.wb-participant[title]::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--wb-panel);
+    border: 1px solid var(--wb-border);
+    padding: 2px 6px;
+    font-size: 10px;
+    white-space: nowrap;
+    border-radius: 3px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 100;
+}
+
+.wb-participant:hover::after {
+    opacity: 1;
+}
+
+.wb-vote-btn.active {
+    background: rgba(232, 149, 71, 0.25) !important;
+    border-color: #e89547 !important;
+    color: #e89547 !important;
+}
+
+.wb-votes-remaining {
+    font-size: 11px;
+    color: #e89547;
+    padding: 4px 8px;
+    background: rgba(232, 149, 71, 0.15);
+    border-radius: 4px;
+}
+
+/* Vote dots on elements */
+.wb-vote-count {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    min-width: 22px;
+    height: 22px;
+    background: #e89547;
+    color: white;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    z-index: 10;
+}
+
+.wb-vote-count.zero {
+    display: none;
+}
+
+/* Voting overlay on elements */
+.wb-element.voting-mode {
+    cursor: pointer;
+}
+
+.wb-element.voting-mode:hover::after {
+    content: '+1';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(232, 149, 71, 0.9);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.wb-element.voted::after {
+    content: '✓ voted';
+    background: rgba(74, 159, 110, 0.9);
+}
+
+/* Cursor presence */
+.wb-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+    transition: left 0.1s, top 0.1s;
+}
+
+.wb-cursor-pointer {
+    width: 12px;
+    height: 18px;
+}
+
+.wb-cursor-label {
+    position: absolute;
+    top: 18px;
+    left: 8px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    color: white;
+    white-space: nowrap;
+}
+
+/* Sync indicator */
+.wb-sync-status {
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    padding: 6px 12px;
+    background: var(--wb-panel);
+    border: 1px solid var(--wb-border);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--wb-text-dim);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wb-sync-status.syncing {
+    border-color: #e89547;
+    color: #e89547;
+}
+
+.wb-sync-status.synced {
+    border-color: var(--wb-accent);
+    color: var(--wb-accent);
+}
+
+.wb-sync-status.error {
+    border-color: #e85747;
+    color: #e85747;
+}
+
+.wb-sync-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.wb-sync-status.syncing .wb-sync-dot {
+    animation: pulse 1s infinite;
+}
 </style>
 {% endblock %}
 
@@ -816,6 +1197,34 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                     <line x1="10" y1="14" x2="21" y2="3"/>
                 </svg>
             </button>
+            <button class="wb-tool-btn" data-tool="causal" title="If-Then Connection (I)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#e89547" stroke-width="2">
+                    <circle cx="5" cy="12" r="3"/>
+                    <circle cx="19" cy="12" r="3"/>
+                    <path d="M8 12h8" stroke-width="3"/>
+                    <polyline points="14 9 17 12 14 15" fill="none"/>
+                </svg>
+            </button>
+            <div class="wb-connector-styles">
+                <button class="wb-conn-style-btn" data-conn-style="straight" title="Straight connector">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="4" y1="20" x2="20" y2="4"/>
+                        <polygon points="20 4, 14 6, 18 10" fill="currentColor" stroke="none"/>
+                    </svg>
+                </button>
+                <button class="wb-conn-style-btn active" data-conn-style="orthogonal" title="Right-angle connector (default)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4,20 4,12 20,12 20,4" fill="none"/>
+                        <polygon points="20 4, 17 8, 23 8" fill="currentColor" stroke="none"/>
+                    </svg>
+                </button>
+                <button class="wb-conn-style-btn" data-conn-style="curved" title="Curved connector">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 20 C4 12, 20 12, 20 4" fill="none"/>
+                        <polygon points="20 4, 17 8, 23 8" fill="currentColor" stroke="none"/>
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <div class="wb-toolbar-group">
@@ -893,6 +1302,15 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         <div style="flex:1;"></div>
 
         <div class="wb-toolbar-group">
+            <button class="wb-tool-btn" onclick="exportCausalAsHypotheses()" title="Export If-Then as Hypotheses" style="color: #e89547;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="6" cy="12" r="3"/>
+                    <circle cx="18" cy="12" r="3"/>
+                    <path d="M9 12h6" stroke-width="2"/>
+                    <polyline points="13 9 16 12 13 15"/>
+                    <path d="M18 6v-2a2 2 0 0 1 2-2h1"/>
+                </svg>
+            </button>
             <button class="wb-tool-btn" onclick="exportBoard('png')" title="Export as PNG">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -915,11 +1333,56 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                     <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
             </button>
-            <button class="wb-tool-btn" onclick="saveBoard()" title="Save to browser (Ctrl+S)">
+            <button class="wb-tool-btn" onclick="saveBoard()" title="Save (Ctrl+S)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                     <polyline points="17 21 17 13 7 13 7 21"/>
                     <polyline points="7 3 7 8 15 8"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Collaboration controls -->
+        <div class="wb-toolbar-group wb-collab-controls" id="collab-controls" style="display:none;">
+            <div class="wb-room-code" id="room-code-display" onclick="copyRoomLink()" title="Click to copy link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                <span id="room-code-text">------</span>
+            </div>
+            <div class="wb-participants" id="participants-list"></div>
+        </div>
+
+        <div class="wb-toolbar-group">
+            <button class="wb-tool-btn wb-vote-btn" id="vote-toggle" onclick="toggleVoting()" title="Toggle Dot Voting" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                </svg>
+            </button>
+            <span class="wb-votes-remaining" id="votes-remaining" style="display:none;">3 votes</span>
+        </div>
+
+        <div class="wb-toolbar-group wb-project-group">
+            <select id="project-select" class="wb-project-select" title="Link to project">
+                <option value="">No project</option>
+            </select>
+            <a href="#" id="project-link" class="wb-project-link" style="display:none" title="Open project">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+            </a>
+        </div>
+
+        <div class="wb-toolbar-group">
+            <button class="wb-tool-btn" onclick="shareBoard()" title="Share / Create Room">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                 </svg>
             </button>
         </div>
@@ -958,6 +1421,14 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                         <div class="wb-shape-item" draggable="true" data-shape="cylinder">
                             <svg viewBox="0 0 40 40"><ellipse cx="20" cy="8" rx="16" ry="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4,8 L4,32" stroke="currentColor" stroke-width="2"/><path d="M36,8 L36,32" stroke="currentColor" stroke-width="2"/><ellipse cx="20" cy="32" rx="16" ry="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                             <span>Database</span>
+                        </div>
+                        <div class="wb-shape-item" draggable="true" data-shape="gate-and">
+                            <svg viewBox="0 0 40 30"><path d="M4,4 L20,4 Q36,4 36,15 Q36,26 20,26 L4,26 Z" fill="none" stroke="#a29bfe" stroke-width="2"/><text x="14" y="19" font-size="10" fill="#a29bfe" font-weight="bold">AND</text></svg>
+                            <span>AND Gate</span>
+                        </div>
+                        <div class="wb-shape-item" draggable="true" data-shape="gate-or">
+                            <svg viewBox="0 0 40 30"><path d="M4,4 Q12,15 4,26 Q20,20 36,15 Q20,10 4,4" fill="none" stroke="#ff7eb9" stroke-width="2"/><text x="12" y="19" font-size="10" fill="#ff7eb9" font-weight="bold">OR</text></svg>
+                            <span>OR Gate</span>
                         </div>
                     </div>
                 </div>
@@ -1089,13 +1560,16 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                         <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto">
                             <polygon points="0 0, 12 4, 0 8" fill="#4a9f6e"/>
                         </marker>
+                        <marker id="arrowhead-causal" markerWidth="14" markerHeight="10" refX="13" refY="5" orient="auto">
+                            <polygon points="0 0, 14 5, 0 10" fill="#e89547"/>
+                        </marker>
                     </defs>
                 </svg>
                 <!-- Elements will be created here -->
             </div>
 
             <div class="wb-shortcuts">
-                <kbd>V</kbd> Select <kbd>P</kbd> Post-it <kbd>C</kbd> Connect <kbd>Del</kbd> Delete <kbd>Space</kbd> Pan <kbd>Ctrl+Z</kbd> Undo
+                <kbd>V</kbd> Select <kbd>P</kbd> Post-it <kbd>C</kbd> Connect <kbd>I</kbd> If-Then <kbd>Del</kbd> Delete <kbd>Space</kbd> Pan <kbd>Ctrl+Z</kbd> Undo
             </div>
         </div>
 
@@ -1146,6 +1620,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 
 let currentTool = 'select';
 let currentColor = 'yellow';
+let connectorStyle = 'orthogonal';
 let selectedElement = null;
 let elements = [];
 let connections = [];
@@ -1158,6 +1633,7 @@ let elementIdCounter = 0;
 let isDragging = false;
 let didDrag = false;
 let dragOffset = { x: 0, y: 0 };
+let currentProjectId = null;
 
 // Undo/Redo history
 let history = [];
@@ -1244,19 +1720,31 @@ document.querySelectorAll('.wb-tool-btn[data-tool]').forEach(btn => {
         // Set cursor based on tool
         if (currentTool === 'pan') {
             canvasContainer.style.cursor = 'grab';
-        } else if (currentTool === 'connect') {
+        } else if (currentTool === 'connect' || currentTool === 'causal') {
             canvasContainer.style.cursor = 'crosshair';
         } else {
             canvasContainer.style.cursor = 'default';
         }
 
+        // Toggle causal mode class for styling
+        document.querySelector('.wb-container').classList.toggle('causal-mode', currentTool === 'causal');
+
         // Toggle connect mode class for showing connection points
         const container = document.querySelector('.wb-container');
-        if (currentTool === 'connect') {
+        if (currentTool === 'connect' || currentTool === 'causal') {
             container.classList.add('connect-mode');
         } else {
             container.classList.remove('connect-mode');
         }
+    });
+});
+
+// Connector style selection
+document.querySelectorAll('.wb-conn-style-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.wb-conn-style-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        connectorStyle = btn.dataset.connStyle;
     });
 });
 
@@ -1366,6 +1854,18 @@ function createElement(type, x, y, options = {}, skipHistory = false) {
             el.className += ' wb-process-shape cylinder';
             el.innerHTML = `<span contenteditable="true" style="position:relative;z-index:3;">${options.text || 'Database'}</span>`;
             elementData.text = options.text || 'Database';
+            break;
+
+        case 'gate-and':
+            el.className += ' wb-gate and-gate';
+            el.dataset.gateType = 'AND';
+            elementData.gateType = 'AND';
+            break;
+
+        case 'gate-or':
+            el.className += ' wb-gate or-gate';
+            el.dataset.gateType = 'OR';
+            elementData.gateType = 'OR';
             break;
 
         case 'fishbone':
@@ -1515,18 +2015,31 @@ function updateTempConnection(e) {
     const y = (e.clientY - rect.top - panY) / zoom;
 
     const from = connectionStart.startPoint;
+    const cursor = { x, y, dir: { x: 0, y: 0 } };
 
-    // Calculate a smooth curve to the cursor
-    const dx = x - from.x;
-    const dy = y - from.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const cpDist = Math.min(100, Math.max(30, dist * 0.4));
-
-    const cp1x = from.x + from.dir.x * cpDist;
-    const cp1y = from.y + from.dir.y * cpDist;
-
-    // Simple curve to cursor
-    const d = `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${x} ${y}, ${x} ${y}`;
+    let d;
+    if (connectorStyle === 'straight') {
+        d = calculateStraightPath(from, cursor);
+    } else if (connectorStyle === 'orthogonal') {
+        // For temp line, infer a direction toward the cursor
+        const dx = x - from.x;
+        const dy = y - from.y;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            cursor.dir = { x: dx > 0 ? -1 : 1, y: 0 };
+        } else {
+            cursor.dir = { x: 0, y: dy > 0 ? -1 : 1 };
+        }
+        d = calculateOrthogonalPath(from, cursor);
+    } else {
+        // Curved — simple bezier to cursor
+        const dx = x - from.x;
+        const dy = y - from.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const cpDist = Math.min(100, Math.max(30, dist * 0.4));
+        const cp1x = from.x + from.dir.x * cpDist;
+        const cp1y = from.y + from.dir.y * cpDist;
+        d = `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${x} ${y}, ${x} ${y}`;
+    }
     tempConnectionLine.setAttribute('d', d);
 }
 
@@ -1540,18 +2053,21 @@ function finishConnection(el, position) {
     }
 
     if (connectionStart.element !== el) {
+        // Determine connection type based on current tool
+        const connType = currentTool === 'causal' ? 'causal' : 'arrow';
         createConnection(
             connectionStart.element.dataset.id,
             connectionStart.position,
             el.dataset.id,
-            position
+            position,
+            { type: connType, style: connectorStyle }
         );
-        console.log('Created connection to', el.dataset.id, position);
+        console.log('Created', connType, connectorStyle, 'connection to', el.dataset.id, position);
     }
 
     isConnecting = false;
     connectionStart = null;
-    canvasContainer.style.cursor = currentTool === 'connect' ? 'crosshair' : 'default';
+    canvasContainer.style.cursor = (currentTool === 'connect' || currentTool === 'causal') ? 'crosshair' : 'default';
 }
 
 function cancelConnection() {
@@ -1561,7 +2077,7 @@ function cancelConnection() {
     }
     isConnecting = false;
     connectionStart = null;
-    canvasContainer.style.cursor = currentTool === 'connect' ? 'crosshair' : 'default';
+    canvasContainer.style.cursor = (currentTool === 'connect' || currentTool === 'causal') ? 'crosshair' : 'default';
 }
 
 function createConnection(fromId, fromPos, toId, toPos, options = {}, skipHistory = false) {
@@ -1577,8 +2093,8 @@ function createConnection(fromId, fromPos, toId, toPos, options = {}, skipHistor
 }
 
 function renderConnections() {
-    // Clear existing paths
-    connectionsSvg.querySelectorAll('path').forEach(p => p.remove());
+    // Clear existing paths and labels
+    connectionsSvg.querySelectorAll('path, text').forEach(p => p.remove());
 
     connections.forEach(conn => {
         const fromEl = document.querySelector(`[data-id="${conn.from.elementId}"]`);
@@ -1591,16 +2107,55 @@ function renderConnections() {
 
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 
-        // Calculate smooth bezier curve
-        const d = calculateCurvePath(fromPoint, toPoint, conn.from.position, conn.to.position);
+        // Calculate path based on connector style
+        const style = conn.style || 'orthogonal';
+        let d;
+        if (style === 'straight') {
+            d = calculateStraightPath(fromPoint, toPoint);
+        } else if (style === 'orthogonal') {
+            d = calculateOrthogonalPath(fromPoint, toPoint);
+        } else {
+            d = calculateCurvedPath(fromPoint, toPoint);
+        }
 
         path.setAttribute('d', d);
-        path.setAttribute('stroke', '#4a9f6e');
-        path.setAttribute('stroke-width', '2');
         path.setAttribute('fill', 'none');
-        path.setAttribute('marker-end', 'url(#arrowhead)');
         path.dataset.connectionId = conn.id;
 
+        // Style based on connection type
+        const isCausal = conn.type === 'causal';
+        if (isCausal) {
+            path.setAttribute('stroke', '#e89547');
+            path.setAttribute('stroke-width', '3');
+            path.setAttribute('marker-end', 'url(#arrowhead-causal)');
+            path.classList.add('wb-causal-connection');
+
+            // Add IF label near the start
+            const ifLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            ifLabel.setAttribute('x', fromPoint.x + fromPoint.dir.x * 20);
+            ifLabel.setAttribute('y', fromPoint.y + fromPoint.dir.y * 20);
+            ifLabel.setAttribute('text-anchor', 'middle');
+            ifLabel.setAttribute('dominant-baseline', 'middle');
+            ifLabel.classList.add('wb-connection-label', 'if-label');
+            ifLabel.textContent = 'IF';
+            connectionsSvg.appendChild(ifLabel);
+
+            // Add THEN label near the end
+            const thenLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            thenLabel.setAttribute('x', toPoint.x - toPoint.dir.x * 25);
+            thenLabel.setAttribute('y', toPoint.y - toPoint.dir.y * 25);
+            thenLabel.setAttribute('text-anchor', 'middle');
+            thenLabel.setAttribute('dominant-baseline', 'middle');
+            thenLabel.classList.add('wb-connection-label', 'then-label');
+            thenLabel.textContent = 'THEN';
+            connectionsSvg.appendChild(thenLabel);
+        } else {
+            path.setAttribute('stroke', '#4a9f6e');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('marker-end', 'url(#arrowhead)');
+        }
+
+        const originalStroke = isCausal ? '#e89547' : '#4a9f6e';
         path.addEventListener('click', () => {
             // Select connection for deletion
             path.setAttribute('stroke', '#e85747');
@@ -1610,7 +2165,7 @@ function renderConnections() {
                     connections = connections.filter(c => c.id !== conn.id);
                     renderConnections();
                 } else {
-                    path.setAttribute('stroke', '#4a9f6e');
+                    path.setAttribute('stroke', originalStroke);
                 }
             }, 100);
         });
@@ -1629,82 +2184,124 @@ function getConnectionPoint(el, position) {
     // Padding to keep arrows outside shape bounds
     const pad = 8;
 
+    // Check if this is a diamond shape (corners extend beyond bounding box)
+    const isDiamond = el.classList.contains('diamond');
+    // Diamond corners extend ~21% beyond the bounding box (sqrt(2)-1)/2 ≈ 0.207
+    const cornerExt = isDiamond ? 0.21 : 0;
+
     switch (position) {
-        case 'top': return { x: x + w/2, y: y - pad, dir: { x: 0, y: -1 } };
-        case 'bottom': return { x: x + w/2, y: y + h + pad, dir: { x: 0, y: 1 } };
-        case 'left': return { x: x - pad, y: y + h/2, dir: { x: -1, y: 0 } };
-        case 'right': return { x: x + w + pad, y: y + h/2, dir: { x: 1, y: 0 } };
+        case 'top': return { x: x + w/2, y: y - cornerExt * h - pad, dir: { x: 0, y: -1 } };
+        case 'bottom': return { x: x + w/2, y: y + h + cornerExt * h + pad, dir: { x: 0, y: 1 } };
+        case 'left': return { x: x - cornerExt * w - pad, y: y + h/2, dir: { x: -1, y: 0 } };
+        case 'right': return { x: x + w + cornerExt * w + pad, y: y + h/2, dir: { x: 1, y: 0 } };
         default: return { x: x + w/2, y: y + h/2, dir: { x: 0, y: 0 } };
     }
 }
 
-function calculateCurvePath(from, to, fromPos, toPos) {
+// ---------- Straight connector ----------
+function calculateStraightPath(from, to) {
+    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+}
+
+// ---------- Orthogonal (right-angle) connector ----------
+function calculateOrthogonalPath(from, to) {
+    const stub = 20; // minimum distance out from the port before turning
+
+    // Exit points: go out from the port in its direction
+    const ax = from.x + from.dir.x * stub;
+    const ay = from.y + from.dir.y * stub;
+    const bx = to.x + to.dir.x * stub;
+    const by = to.y + to.dir.y * stub;
+
+    const fromH = from.dir.x !== 0; // from port is horizontal
+    const toH = to.dir.x !== 0;     // to port is horizontal
+
+    let points;
+
+    if (fromH && toH) {
+        // Both horizontal — connect with a vertical bridge
+        const midX = (ax + bx) / 2;
+        points = [
+            { x: from.x, y: from.y },
+            { x: ax, y: ay },
+            { x: midX, y: ay },
+            { x: midX, y: by },
+            { x: bx, y: by },
+            { x: to.x, y: to.y }
+        ];
+    } else if (!fromH && !toH) {
+        // Both vertical — connect with a horizontal bridge
+        const midY = (ay + by) / 2;
+        points = [
+            { x: from.x, y: from.y },
+            { x: ax, y: ay },
+            { x: ax, y: midY },
+            { x: bx, y: midY },
+            { x: bx, y: by },
+            { x: to.x, y: to.y }
+        ];
+    } else {
+        // One horizontal, one vertical — single elbow
+        if (fromH) {
+            // from goes horizontal, to goes vertical → meet at (ax, by)
+            // But check if the elbow would backtrack; if so, add extra segment
+            const elbowX = bx;
+            const elbowY = ay;
+            points = [
+                { x: from.x, y: from.y },
+                { x: ax, y: ay },
+                { x: elbowX, y: elbowY },
+                { x: bx, y: by },
+                { x: to.x, y: to.y }
+            ];
+        } else {
+            // from goes vertical, to goes horizontal → meet at (bx, ay)
+            const elbowX = ax;
+            const elbowY = by;
+            points = [
+                { x: from.x, y: from.y },
+                { x: ax, y: ay },
+                { x: elbowX, y: elbowY },
+                { x: bx, y: by },
+                { x: to.x, y: to.y }
+            ];
+        }
+    }
+
+    // Remove duplicate consecutive points
+    const clean = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+        const prev = clean[clean.length - 1];
+        if (Math.abs(points[i].x - prev.x) > 0.5 || Math.abs(points[i].y - prev.y) > 0.5) {
+            clean.push(points[i]);
+        }
+    }
+
+    return 'M ' + clean.map(p => `${p.x} ${p.y}`).join(' L ');
+}
+
+// ---------- Curved (bezier) connector ----------
+function calculateCurvedPath(from, to) {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // For very short distances, just use straight line
-    if (dist < 30) {
+    if (dist < 20) {
         return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
     }
 
-    // Check if the "from" direction points toward the "to" point
-    const fromDotDelta = from.dir.x * dx + from.dir.y * dy;
-    const fromTowardTo = fromDotDelta > 0;
+    // Control point distance: proportional to distance, clamped
+    const cpDist = Math.min(120, Math.max(30, dist * 0.4));
 
-    // Check if the "to" direction points away from the "from" point
-    const toDotDelta = to.dir.x * dx + to.dir.y * dy;
-    const toAwayFromFrom = toDotDelta >= 0;
+    // cp1: go out from source in its port direction
+    const cp1x = from.x + from.dir.x * cpDist;
+    const cp1y = from.y + from.dir.y * cpDist;
 
-    let cp1x, cp1y, cp2x, cp2y;
-
-    if (fromTowardTo && toAwayFromFrom) {
-        // IDEAL: Natural flow - from points toward to, to points away
-        // Simple smooth curve
-        const cpDist = Math.min(100, Math.max(25, dist * 0.35));
-        cp1x = from.x + from.dir.x * cpDist;
-        cp1y = from.y + from.dir.y * cpDist;
-        cp2x = to.x - to.dir.x * cpDist;
-        cp2y = to.y - to.dir.y * cpDist;
-    } else if (!fromTowardTo && !toAwayFromFrom) {
-        // OPPOSITE: Both pointing "wrong" way - need to go around
-        // Route perpendicular first, then to target
-        const offset = Math.min(60, Math.max(30, dist * 0.4));
-
-        // Go out perpendicular to the main axis
-        if (Math.abs(dx) > Math.abs(dy)) {
-            // Mostly horizontal - go up or down first
-            const perpY = dy > 0 ? -offset : offset;
-            cp1x = from.x + from.dir.x * offset;
-            cp1y = from.y + perpY;
-            cp2x = to.x - to.dir.x * offset;
-            cp2y = to.y + perpY;
-        } else {
-            // Mostly vertical - go left or right first
-            const perpX = dx > 0 ? -offset : offset;
-            cp1x = from.x + perpX;
-            cp1y = from.y + from.dir.y * offset;
-            cp2x = to.x + perpX;
-            cp2y = to.y - to.dir.y * offset;
-        }
-    } else {
-        // MIXED: One pointing right way, one wrong - gentle adjustment
-        const cpDist = Math.min(60, Math.max(20, dist * 0.25));
-
-        // Extend from connection points but keep it minimal
-        cp1x = from.x + from.dir.x * cpDist;
-        cp1y = from.y + from.dir.y * cpDist;
-        cp2x = to.x - to.dir.x * cpDist;
-        cp2y = to.y - to.dir.y * cpDist;
-
-        // Pull control points toward the midpoint to prevent loops
-        const midX = (from.x + to.x) / 2;
-        const midY = (from.y + to.y) / 2;
-        cp1x = cp1x * 0.7 + midX * 0.3;
-        cp1y = cp1y * 0.7 + midY * 0.3;
-        cp2x = cp2x * 0.7 + midX * 0.3;
-        cp2y = cp2y * 0.7 + midY * 0.3;
-    }
+    // cp2: approach target from its port direction (to.dir points outward,
+    // so adding it pushes the control point AWAY from the target, which
+    // makes the curve arrive FROM that direction — exactly what we want)
+    const cp2x = to.x + to.dir.x * cpDist;
+    const cp2y = to.y + to.dir.y * cpDist;
 
     return `M ${from.x} ${from.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${to.x} ${to.y}`;
 }
@@ -2135,6 +2732,9 @@ document.addEventListener('keydown', (e) => {
             break;
         case 'c':
             document.querySelector('[data-tool="connect"]').click();
+            break;
+        case 'i':
+            document.querySelector('[data-tool="causal"]').click();
             break;
         case 't':
             document.querySelector('[data-tool="text"]').click();
@@ -2910,6 +3510,102 @@ function exportBoardJSON() {
     URL.revokeObjectURL(link.href);
 }
 
+// ============================================================================
+// Causal Relationship Export (If-Then → Hypotheses)
+// ============================================================================
+
+function getCausalRelationships() {
+    // Find all causal connections
+    const causalConns = connections.filter(c => c.type === 'causal');
+
+    // Build hypothesis candidates
+    return causalConns.map(conn => {
+        const fromEl = elements.find(e => e.id === conn.from.elementId);
+        const toEl = elements.find(e => e.id === conn.to.elementId);
+
+        if (!fromEl || !toEl) return null;
+
+        const condition = fromEl.text || fromEl.title || fromEl.effect || 'Unknown condition';
+        const effect = toEl.text || toEl.title || toEl.effect || 'Unknown effect';
+
+        // Check if connected through AND/OR gates
+        const isGate = fromEl.type === 'gate-and' || fromEl.type === 'gate-or';
+
+        return {
+            id: conn.id,
+            statement: `If ${condition}, then ${effect}`,
+            condition,
+            effect,
+            conditionElementId: fromEl.id,
+            effectElementId: toEl.id,
+            hasGate: isGate,
+            gateType: isGate ? fromEl.gateType : null
+        };
+    }).filter(Boolean);
+}
+
+async function exportCausalAsHypotheses() {
+    const causalRels = getCausalRelationships();
+
+    if (causalRels.length === 0) {
+        alert('No if-then relationships found. Use the If-Then tool (I) to create causal connections.');
+        return;
+    }
+
+    // Check if board is collaborative (has room code)
+    if (!roomCode) {
+        // Local-only mode - just show the data
+        const summary = causalRels.map((rel, i) => `${i + 1}. ${rel.statement}`).join('\n');
+        alert(`Found ${causalRels.length} hypothesis candidate(s):\n\n${summary}\n\n(Save board to a project to export to hypotheses)`);
+        console.log('Causal relationships (local):', causalRels);
+        return causalRels;
+    }
+
+    // Format for API
+    const hypotheses = causalRels.map(rel => ({
+        statement: rel.statement,
+        condition: rel.condition,
+        effect: rel.effect,
+        prior_probability: 0.5,
+    }));
+
+    // Show confirmation
+    const summary = hypotheses.map((h, i) => `${i + 1}. ${h.statement}`).join('\n');
+    if (!confirm(`Export ${hypotheses.length} hypothesis candidate(s) to project?\n\n${summary}`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/export-hypotheses/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ causal_relationships: hypotheses })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(`Error: ${data.error || 'Failed to export hypotheses'}`);
+            return;
+        }
+
+        // Show success
+        let message = `Exported to project "${data.project_title}":\n`;
+        message += `- ${data.created_count} new hypothesis(es) created\n`;
+        if (data.existing_count > 0) {
+            message += `- ${data.existing_count} already existed (skipped)`;
+        }
+        alert(message);
+
+        console.log('Export result:', data);
+        return data;
+
+    } catch (err) {
+        console.error('Export failed:', err);
+        alert('Failed to export hypotheses. Check console for details.');
+    }
+}
+
 function importBoardJSON(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -2958,10 +3654,488 @@ function importBoardJSON(event) {
 }
 
 // ============================================================================
+// COLLABORATION
+// ============================================================================
+
+let isCollaborative = false;
+let roomCode = null;
+let serverVersion = 0;
+let pollInterval = null;
+let votingActive = false;
+let votesPerUser = 3;
+let userVotes = [];
+let myColor = '#4a9f6e';
+let isOwner = false;
+let lastCursorUpdate = 0;
+
+// Check if we're in a room (URL has room code)
+function initCollaboration() {
+    const pathParts = window.location.pathname.split('/');
+    const roomIdx = pathParts.indexOf('whiteboard');
+    if (roomIdx >= 0 && pathParts[roomIdx + 1] && pathParts[roomIdx + 1].length >= 4) {
+        roomCode = pathParts[roomIdx + 1].toUpperCase();
+        loadBoardFromServer();
+    }
+}
+
+async function loadBoardFromServer() {
+    try {
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/`);
+        if (!response.ok) {
+            if (response.status === 404) {
+                alert('Board not found. It may have been deleted.');
+                window.location.href = '/app/whiteboard/';
+                return;
+            }
+            throw new Error('Failed to load board');
+        }
+
+        const data = await response.json();
+        isCollaborative = true;
+        serverVersion = data.version;
+        votingActive = data.voting_active;
+        votesPerUser = data.votes_per_user;
+        userVotes = data.user_votes || [];
+        myColor = data.my_color;
+        isOwner = data.is_owner;
+
+        // Set project from loaded board
+        if (data.project_id) {
+            currentProjectId = data.project_id;
+            document.getElementById('project-select').value = currentProjectId;
+            updateProjectLink(currentProjectId);
+        }
+
+        // Update UI
+        document.getElementById('collab-controls').style.display = 'flex';
+        document.getElementById('room-code-text').textContent = roomCode;
+        if (isOwner) {
+            document.getElementById('vote-toggle').style.display = 'block';
+        }
+
+        // Clear and load board
+        clearCanvas(true);
+        connections = data.connections || [];
+        zoom = data.zoom || 1;
+        panX = data.pan_x || 0;
+        panY = data.pan_y || 0;
+
+        updateCanvasTransform();
+        document.getElementById('zoom-display').textContent = `${Math.round(zoom * 100)}%`;
+
+        // Recreate elements
+        (data.elements || []).forEach(el => {
+            const domEl = createElement(el.type, el.x, el.y, el);
+            elementIdCounter = Math.max(elementIdCounter, parseInt(el.id.split('-')[1]) || 0);
+
+            // Add vote count if exists
+            const voteCount = (data.vote_counts && data.vote_counts[el.id]) || 0;
+            if (domEl) updateVoteDisplay(domEl, voteCount);
+        });
+
+        // Recreate connections
+        setTimeout(() => renderConnections(), 100);
+
+        // Update participants
+        updateParticipantsList(data.participants);
+
+        // Update voting UI
+        updateVotingUI();
+
+        // Start polling
+        startPolling();
+
+        showSyncStatus('synced', 'Connected');
+
+    } catch (err) {
+        console.error('Error loading board:', err);
+        showSyncStatus('error', 'Failed to connect');
+    }
+}
+
+function startPolling() {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(pollForUpdates, 2000);
+}
+
+async function pollForUpdates() {
+    if (!isCollaborative || !roomCode) return;
+
+    try {
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        // Check if we need to update
+        if (data.version > serverVersion) {
+            serverVersion = data.version;
+            mergeServerState(data);
+        }
+
+        // Always update participants and votes
+        updateParticipantsList(data.participants);
+        if (data.vote_counts) updateAllVoteCounts(data.vote_counts);
+        userVotes = data.user_votes || [];
+        votingActive = data.voting_active;
+        updateVotingUI();
+
+        showSyncStatus('synced', 'Synced');
+    } catch (err) {
+        showSyncStatus('error', 'Connection lost');
+    }
+}
+
+function mergeServerState(data) {
+    clearCanvas(false);
+    connections = data.connections || [];
+
+    (data.elements || []).forEach(el => {
+        const domEl = createElement(el.type, el.x, el.y, el);
+        elementIdCounter = Math.max(elementIdCounter, parseInt(el.id.split('-')[1]) || 0);
+    });
+
+    setTimeout(() => renderConnections(), 50);
+}
+
+async function saveBoardToServer() {
+    if (!isCollaborative || !roomCode) return;
+
+    showSyncStatus('syncing', 'Saving...');
+
+    try {
+        const payload = {
+            version: serverVersion,
+            elements: elements,
+            connections: connections,
+            zoom: zoom,
+            pan_x: panX,
+            pan_y: panY,
+        };
+        if (currentProjectId) {
+            payload.project_id = currentProjectId;
+        }
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/update/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (response.status === 409) {
+            const data = await response.json();
+            serverVersion = data.server_version;
+            mergeServerState(data);
+            showSyncStatus('synced', 'Merged');
+        } else if (response.ok) {
+            const data = await response.json();
+            serverVersion = data.version;
+            showSyncStatus('synced', 'Saved');
+        }
+    } catch (err) {
+        showSyncStatus('error', 'Save failed');
+    }
+}
+
+// Debounced save
+let saveTimeout = null;
+function debouncedSave() {
+    if (!isCollaborative) return;
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveBoardToServer, 500);
+}
+
+// Override saveState to also sync
+const originalSaveState = saveState;
+saveState = function() {
+    originalSaveState();
+    debouncedSave();
+};
+
+async function shareBoard() {
+    if (isCollaborative) {
+        copyRoomLink();
+        return;
+    }
+
+    const name = prompt('Board name:', 'Untitled Board');
+    if (!name) return;
+
+    try {
+        const payload = { name };
+        if (currentProjectId) {
+            payload.project_id = currentProjectId;
+        }
+        const response = await fetch('/api/whiteboard/boards/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) throw new Error('Failed to create board');
+
+        const data = await response.json();
+        roomCode = data.room_code;
+        isCollaborative = true;
+        isOwner = true;
+        serverVersion = 0;
+
+        await saveBoardToServer();
+
+        window.history.pushState({}, '', `/app/whiteboard/${roomCode}/`);
+        document.getElementById('collab-controls').style.display = 'flex';
+        document.getElementById('room-code-text').textContent = roomCode;
+        document.getElementById('vote-toggle').style.display = 'block';
+
+        startPolling();
+        copyRoomLink();
+        alert(`Board created! Link copied to clipboard.\n${window.location.href}`);
+
+    } catch (err) {
+        console.error('Error creating board:', err);
+        alert('Failed to create shared board.');
+    }
+}
+
+function copyRoomLink() {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+        const display = document.getElementById('room-code-text');
+        const original = display.textContent;
+        display.textContent = 'Copied!';
+        setTimeout(() => { display.textContent = original; }, 1500);
+    });
+}
+
+function updateParticipantsList(participants) {
+    const list = document.getElementById('participants-list');
+    if (!participants || participants.length === 0) {
+        list.innerHTML = '';
+        return;
+    }
+
+    list.innerHTML = participants.map(p => `
+        <div class="wb-participant" style="background:${p.color}" title="${p.username}${p.is_owner ? ' (owner)' : ''}">
+            ${p.username.charAt(0).toUpperCase()}
+        </div>
+    `).join('');
+}
+
+function showSyncStatus(status, text) {
+    let el = document.querySelector('.wb-sync-status');
+    if (!el) {
+        el = document.createElement('div');
+        el.className = 'wb-sync-status';
+        el.innerHTML = '<span class="wb-sync-dot"></span><span class="wb-sync-text"></span>';
+        document.body.appendChild(el);
+    }
+
+    el.className = 'wb-sync-status ' + status;
+    el.querySelector('.wb-sync-text').textContent = text;
+
+    if (status === 'synced') {
+        setTimeout(() => { el.style.opacity = '0.5'; }, 2000);
+    } else {
+        el.style.opacity = '1';
+    }
+}
+
+// ============================================================================
+// VOTING
+// ============================================================================
+
+async function toggleVoting() {
+    if (!isCollaborative || !isOwner) return;
+
+    const newState = !votingActive;
+    const clearVotes = newState && confirm('Start new voting round? This will clear existing votes.');
+
+    try {
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/voting/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                active: newState,
+                clear_votes: clearVotes,
+            }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            votingActive = data.voting_active;
+            votesPerUser = data.votes_per_user;
+            updateVotingUI();
+        }
+    } catch (err) {
+        console.error('Error toggling voting:', err);
+    }
+}
+
+function updateVotingUI() {
+    const btn = document.getElementById('vote-toggle');
+    const remaining = document.getElementById('votes-remaining');
+
+    if (votingActive) {
+        btn.classList.add('active');
+        remaining.style.display = 'block';
+        remaining.textContent = `${votesPerUser - userVotes.length} votes left`;
+
+        document.querySelectorAll('.wb-element').forEach(el => {
+            el.classList.add('voting-mode');
+            el.classList.toggle('voted', userVotes.includes(el.id));
+        });
+    } else {
+        btn.classList.remove('active');
+        remaining.style.display = 'none';
+        document.querySelectorAll('.wb-element').forEach(el => {
+            el.classList.remove('voting-mode', 'voted');
+        });
+    }
+}
+
+function updateVoteDisplay(element, count) {
+    if (!element) return;
+    let badge = element.querySelector('.wb-vote-count');
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'wb-vote-count';
+        element.appendChild(badge);
+    }
+    badge.textContent = count;
+    badge.classList.toggle('zero', count === 0);
+}
+
+function updateAllVoteCounts(voteCounts) {
+    document.querySelectorAll('.wb-element').forEach(el => {
+        const count = voteCounts[el.id] || 0;
+        updateVoteDisplay(el, count);
+    });
+}
+
+async function voteOnElement(elementId) {
+    if (!votingActive || !isCollaborative) return;
+
+    if (userVotes.includes(elementId)) {
+        // Remove vote
+        try {
+            const response = await fetch(`/api/whiteboard/boards/${roomCode}/vote/${elementId}/`, {
+                method: 'DELETE',
+            });
+            if (response.ok) {
+                const data = await response.json();
+                userVotes = userVotes.filter(id => id !== elementId);
+                updateVoteDisplay(document.getElementById(elementId), data.vote_count);
+                updateVotingUI();
+            }
+        } catch (err) {
+            console.error('Error removing vote:', err);
+        }
+    } else {
+        // Add vote
+        if (userVotes.length >= votesPerUser) {
+            alert('No votes remaining. Remove a vote first.');
+            return;
+        }
+        try {
+            const response = await fetch(`/api/whiteboard/boards/${roomCode}/vote/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ element_id: elementId }),
+            });
+            if (response.ok) {
+                const data = await response.json();
+                userVotes.push(elementId);
+                updateVoteDisplay(document.getElementById(elementId), data.vote_count);
+                updateVotingUI();
+            } else {
+                const err = await response.json();
+                alert(err.error || 'Failed to vote');
+            }
+        } catch (err) {
+            console.error('Error voting:', err);
+        }
+    }
+}
+
+// Voting click handler
+canvasContainer.addEventListener('click', (e) => {
+    if (!votingActive) return;
+    const element = e.target.closest('.wb-element');
+    if (element) {
+        e.preventDefault();
+        e.stopPropagation();
+        voteOnElement(element.id);
+    }
+}, true);
+
+// ============================================================================
+// Project Selector
+// ============================================================================
+
+async function setupProjectSelector() {
+    const select = document.getElementById('project-select');
+    const link = document.getElementById('project-link');
+
+    try {
+        const response = await fetch('/api/core/projects/', { credentials: 'include' });
+        if (!response.ok) return;
+        const projects = await response.json();
+
+        // Populate dropdown
+        projects.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.title;
+            select.appendChild(opt);
+        });
+
+        // Check for project param in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('project');
+        if (projectId) {
+            select.value = projectId;
+            currentProjectId = projectId;
+            updateProjectLink(projectId);
+        }
+    } catch (err) {
+        console.error('Failed to load projects:', err);
+    }
+
+    // Handle selection change
+    select.addEventListener('change', (e) => {
+        currentProjectId = e.target.value || null;
+        updateProjectLink(currentProjectId);
+        // Update URL without reload
+        const url = new URL(window.location);
+        if (currentProjectId) {
+            url.searchParams.set('project', currentProjectId);
+        } else {
+            url.searchParams.delete('project');
+        }
+        window.history.replaceState({}, '', url);
+        // Save to server if collaborative
+        if (isCollaborative && roomCode) {
+            saveBoardToServer();
+        }
+    });
+}
+
+function updateProjectLink(projectId) {
+    const link = document.getElementById('project-link');
+    if (projectId) {
+        link.href = '/app/projects/';
+        link.style.display = 'flex';
+    } else {
+        link.style.display = 'none';
+    }
+}
+
+// ============================================================================
 // Initialize
 // ============================================================================
 
+setupProjectSelector();
 loadBoardsList();
 saveState(); // Save initial empty state
+initCollaboration(); // Check for room code in URL
 </script>
 {% endblock %}

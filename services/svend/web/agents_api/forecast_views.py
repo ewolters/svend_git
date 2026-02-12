@@ -82,6 +82,65 @@ def simple_moving_average_forecast(prices, days=30, window=20):
     return forecast
 
 
+def holt_winters_forecast(prices, days=30, season_length=12, alpha=0.3, beta=0.1, gamma=0.3, seasonal="additive"):
+    """Holt-Winters triple exponential smoothing with additive or multiplicative seasonality."""
+    n = len(prices)
+    if n < season_length * 2:
+        # Fall back to simple exponential if not enough data for seasonality
+        return exponential_smoothing_forecast(prices, days, alpha)
+
+    # Initialize
+    if seasonal == "multiplicative":
+        # Multiplicative initialization
+        level = np.mean(prices[:season_length])
+        trend = (np.mean(prices[season_length:2*season_length]) - np.mean(prices[:season_length])) / season_length
+        seasonals = [prices[i] / np.mean(prices[:season_length]) for i in range(season_length)]
+    else:
+        # Additive initialization
+        level = np.mean(prices[:season_length])
+        trend = (np.mean(prices[season_length:2*season_length]) - np.mean(prices[:season_length])) / season_length
+        seasonals = [prices[i] - np.mean(prices[:season_length]) for i in range(season_length)]
+
+    fitted = []
+    for i in range(n):
+        s_idx = i % season_length
+        if seasonal == "multiplicative":
+            forecast_val = (level + trend) * seasonals[s_idx]
+            new_level = alpha * (prices[i] / seasonals[s_idx]) + (1 - alpha) * (level + trend)
+            new_trend = beta * (new_level - level) + (1 - beta) * trend
+            seasonals[s_idx] = gamma * (prices[i] / new_level) + (1 - gamma) * seasonals[s_idx]
+        else:
+            forecast_val = level + trend + seasonals[s_idx]
+            new_level = alpha * (prices[i] - seasonals[s_idx]) + (1 - alpha) * (level + trend)
+            new_trend = beta * (new_level - level) + (1 - beta) * trend
+            seasonals[s_idx] = gamma * (prices[i] - new_level) + (1 - gamma) * seasonals[s_idx]
+        level = new_level
+        trend = new_trend
+        fitted.append(forecast_val)
+
+    # Forecast
+    residuals = np.array(prices) - np.array(fitted)
+    rmse = np.sqrt(np.mean(residuals**2))
+
+    forecast_vals = []
+    for d in range(1, days + 1):
+        s_idx = (n + d - 1) % season_length
+        if seasonal == "multiplicative":
+            forecast_vals.append((level + trend * d) * seasonals[s_idx])
+        else:
+            forecast_vals.append(level + trend * d + seasonals[s_idx])
+
+    # Confidence bands widen with horizon
+    forecast = {
+        "days": list(range(1, days + 1)),
+        "median": forecast_vals,
+        "lower_5": [v - 1.65 * rmse * np.sqrt(d) for d, v in enumerate(forecast_vals, 1)],
+        "upper_95": [v + 1.65 * rmse * np.sqrt(d) for d, v in enumerate(forecast_vals, 1)],
+    }
+
+    return forecast
+
+
 def exponential_smoothing_forecast(prices, days=30, alpha=0.3):
     """Simple exponential smoothing forecast."""
     if len(prices) < 1:
@@ -203,8 +262,16 @@ def forecast(request):
             "Exponential Smoothing: Weights recent prices more heavily. "
             "Good for data with no clear trend."
         )
+    elif method == "holt_winters":
+        season_length = int(data.get("season_length", 12))
+        seasonal = data.get("seasonal", "additive")
+        forecast_data = holt_winters_forecast(prices, days, season_length=season_length, seasonal=seasonal)
+        method_description = (
+            f"Holt-Winters ({seasonal}): Triple exponential smoothing with trend and "
+            f"seasonality (period={season_length}). Best for data with repeating patterns."
+        )
     else:
-        return JsonResponse({"error": f"Unknown method: {method}. Use: random_walk, sma, exp_smooth"}, status=400)
+        return JsonResponse({"error": f"Unknown method: {method}. Use: random_walk, sma, exp_smooth, holt_winters"}, status=400)
 
     if not forecast_data:
         return JsonResponse({"error": "Insufficient data for forecast"}, status=400)

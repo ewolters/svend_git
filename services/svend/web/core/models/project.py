@@ -1,7 +1,15 @@
-"""Project model - the container for hypothesis-driven investigation.
+"""Project Charter model - structured for report assembly and logic.
 
-Consolidates workbench.Project and agents_api.Problem into a single,
-robust model that serves as the home for all decision science work.
+The project charter captures all Define-phase information in a structured way:
+- Problem Definition (5W2H): What, Where, When, Magnitude, Trend
+- Business Impact: Financial, Customer, Safety, Quality, Regulatory
+- Goal Statement: SMART format with metric, baseline, target
+- Scope: In/Out, Constraints, Assumptions
+- Team: Champion, Leader, Members
+- Timeline: Phase, Target, Milestones
+
+All fields are optional to allow incremental completion.
+Lists use JSONField for multiple entries (e.g., multiple "whats").
 """
 
 import uuid
@@ -10,15 +18,14 @@ from django.db import models
 
 
 class Project(models.Model):
-    """A project is a container for hypothesis-driven investigation.
+    """A project charter for hypothesis-driven investigation.
 
-    Projects contain:
-    - A problem/question being investigated
-    - Hypotheses about potential causes/explanations
-    - Evidence gathered from various sources
-    - Links to knowledge graph entities
-
-    Projects can be personal (user-owned) or shared (tenant-owned).
+    Structured to support:
+    - CAPA report generation
+    - 8D report generation
+    - A3 report generation
+    - AI-assisted problem analysis
+    - Field-level validation and logic
     """
 
     class Status(models.TextChoices):
@@ -28,7 +35,6 @@ class Project(models.Model):
         ABANDONED = "abandoned", "Abandoned"
 
     class Methodology(models.TextChoices):
-        """Problem-solving methodology being used."""
         NONE = "none", "General Investigation"
         DMAIC = "dmaic", "Six Sigma DMAIC"
         DOE = "doe", "Design of Experiments"
@@ -37,28 +43,27 @@ class Project(models.Model):
         SCIENTIFIC = "scientific", "Scientific Method"
 
     class Phase(models.TextChoices):
-        """Current phase of investigation."""
-        # General phases
-        DEFINE = "define", "Define Problem"
-        HYPOTHESIZE = "hypothesize", "Generate Hypotheses"
-        GATHER = "gather", "Gather Evidence"
-        ANALYZE = "analyze", "Analyze"
-        CONCLUDE = "conclude", "Conclude"
-
-        # DMAIC-specific
+        DEFINE = "define", "Define"
         MEASURE = "measure", "Measure"
+        ANALYZE = "analyze", "Analyze"
         IMPROVE = "improve", "Improve"
         CONTROL = "control", "Control"
 
+    class Trend(models.TextChoices):
+        INCREASING = "increasing", "Getting Worse"
+        STABLE = "stable", "Stable"
+        DECREASING = "decreasing", "Improving"
+        UNKNOWN = "unknown", "Unknown"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Ownership: user OR tenant
+    # Ownership
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="core_projects",  # Avoid clash with workbench.Project during migration
+        related_name="core_projects",
     )
     tenant = models.ForeignKey(
         "core.Tenant",
@@ -68,56 +73,179 @@ class Project(models.Model):
         related_name="core_projects",
     )
 
-    # Basic info
+    # =========================================================================
+    # HEADER
+    # =========================================================================
     title = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.ACTIVE,
     )
 
-    # The problem/question being investigated
-    problem_statement = models.TextField(
-        blank=True,
-        help_text="What are you trying to understand or solve?",
-    )
-    effect_description = models.TextField(
-        blank=True,
-        help_text="What effect or outcome are you observing?",
-    )
-    effect_magnitude = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="How big is the effect? (e.g., '40% increase', '$50k loss')",
-    )
-
-    # Context
-    domain = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="Domain area (e.g., 'manufacturing', 'SaaS', 'healthcare')",
-    )
-    stakeholders = models.JSONField(
+    # =========================================================================
+    # PROBLEM DEFINITION - 5W2H Style
+    # Each can have multiple entries (user adds as many as relevant)
+    # =========================================================================
+    problem_whats = models.JSONField(
         default=list,
         blank=True,
-        help_text="Who is affected or involved?",
+        help_text="What is happening? What is the defect/issue? [list of statements]",
+    )
+    problem_wheres = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Where is it occurring? Location, process step, product line [list]",
+    )
+    problem_whens = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="When does it happen? Time patterns, shifts, seasons [list]",
+    )
+    problem_magnitude = models.TextField(
+        blank=True,
+        help_text="How much? How often? Quantify the problem.",
+    )
+    problem_trend = models.CharField(
+        max_length=20,
+        choices=Trend.choices,
+        default=Trend.UNKNOWN,
+        help_text="Is the problem getting worse, stable, or improving?",
+    )
+    problem_since = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="When did this problem start? First observed date/event.",
+    )
+
+    # Free-form problem statement (can be auto-generated from above)
+    problem_statement = models.TextField(
+        blank=True,
+        help_text="Consolidated problem statement (can be generated from 5W2H fields)",
+    )
+
+    # =========================================================================
+    # BUSINESS IMPACT - Separate fields for CAPA/8D mapping
+    # =========================================================================
+    impact_financial = models.TextField(
+        blank=True,
+        help_text="Financial impact: cost, revenue loss, scrap, rework",
+    )
+    impact_customer = models.TextField(
+        blank=True,
+        help_text="Customer impact: complaints, returns, satisfaction, churn",
+    )
+    impact_safety = models.TextField(
+        blank=True,
+        help_text="Safety impact: injuries, near-misses, risk level",
+    )
+    impact_quality = models.TextField(
+        blank=True,
+        help_text="Quality impact: defect rates, yield, specs out of tolerance",
+    )
+    impact_regulatory = models.TextField(
+        blank=True,
+        help_text="Regulatory/compliance impact: violations, audit findings",
+    )
+    impact_delivery = models.TextField(
+        blank=True,
+        help_text="Delivery impact: on-time delivery, lead time, backlog",
+    )
+    impact_other = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Other impacts [list of {category, description}]",
+    )
+
+    # =========================================================================
+    # GOAL STATEMENT - SMART Format
+    # =========================================================================
+    goal_statement = models.TextField(
+        blank=True,
+        help_text="Full goal statement (can be generated from fields below)",
+    )
+    goal_metric = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="What metric are we improving? (e.g., 'First Pass Yield')",
+    )
+    goal_baseline = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Current baseline value (e.g., '87%')",
+    )
+    goal_target = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Target value (e.g., '95%')",
+    )
+    goal_unit = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Unit of measure (e.g., '%', 'ppm', 'hours')",
+    )
+    goal_deadline = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Target completion date",
+    )
+
+    # =========================================================================
+    # SCOPE
+    # =========================================================================
+    scope_in = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="What is IN scope [list of items]",
+    )
+    scope_out = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="What is OUT of scope [list of items]",
     )
     constraints = models.JSONField(
         default=list,
         blank=True,
-        help_text="Constraints on the investigation or solution",
+        help_text="Constraints and limitations [list]",
     )
-    available_data = models.TextField(
+    assumptions = models.JSONField(
+        default=list,
         blank=True,
-        help_text="What data do you have access to?",
-    )
-    can_experiment = models.BooleanField(
-        default=True,
-        help_text="Can you run controlled experiments?",
+        help_text="Assumptions being made [list]",
     )
 
-    # Methodology and phase tracking
+    # =========================================================================
+    # TEAM
+    # =========================================================================
+    champion_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Executive sponsor name",
+    )
+    champion_title = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Executive sponsor title",
+    )
+    leader_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Project leader name",
+    )
+    leader_title = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Project leader title",
+    )
+    team_members = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Team members [list of {name, role, department}]",
+    )
+
+    # =========================================================================
+    # METHODOLOGY & PHASE TRACKING
+    # =========================================================================
     methodology = models.CharField(
         max_length=20,
         choices=Methodology.choices,
@@ -131,27 +259,59 @@ class Project(models.Model):
     phase_history = models.JSONField(
         default=list,
         blank=True,
-        help_text="History of phase transitions [{phase, entered_at, notes}]",
+        help_text="Phase transitions [{phase, entered_at, notes}]",
     )
 
-    # Interview/onboarding state (for guided setup)
-    interview_state = models.JSONField(
+    # =========================================================================
+    # TIMELINE & MILESTONES
+    # =========================================================================
+    target_completion = models.DateField(
         null=True,
         blank=True,
-        help_text="Saved interview progress",
+        help_text="Target project completion date",
     )
-    interview_completed = models.BooleanField(default=False)
+    milestones = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Key milestones [{name, target_date, actual_date, status}]",
+    )
 
-    # Resolution
+    # =========================================================================
+    # RESOLUTION
+    # =========================================================================
     resolution_summary = models.TextField(
         blank=True,
-        help_text="What did we learn? What was the answer?",
+        help_text="What was the root cause? What did we learn?",
+    )
+    resolution_actions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Actions taken [{action, owner, due_date, status}]",
+    )
+    resolution_verification = models.TextField(
+        blank=True,
+        help_text="How was the fix verified? Evidence of effectiveness.",
     )
     resolution_confidence = models.FloatField(
         null=True,
         blank=True,
         help_text="Confidence in resolution (0.0 to 1.0)",
     )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    # =========================================================================
+    # CONTEXT & METADATA
+    # =========================================================================
+    domain = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Domain area (manufacturing, SaaS, healthcare, etc.)",
+    )
+    can_experiment = models.BooleanField(
+        default=True,
+        help_text="Can controlled experiments be run?",
+    )
+    tags = models.JSONField(default=list, blank=True)
 
     # Links to knowledge graph
     graph = models.ForeignKey(
@@ -160,23 +320,22 @@ class Project(models.Model):
         null=True,
         blank=True,
         related_name="projects",
-        help_text="Knowledge graph this project references",
     )
 
-    # Synara belief engine state (serialized CausalGraph + expansion signals)
+    # Synara belief engine state
     synara_state = models.JSONField(
         null=True,
         blank=True,
-        help_text="Persisted Synara belief engine state (graph, expansion signals, update history)",
+        help_text="Persisted Synara belief engine state",
     )
 
-    # Tags for organization
-    tags = models.JSONField(default=list, blank=True)
+    # Interview/onboarding state
+    interview_state = models.JSONField(null=True, blank=True)
+    interview_completed = models.BooleanField(default=False)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "core_project"
@@ -214,7 +373,42 @@ class Project(models.Model):
 
     @property
     def evidence_count(self) -> int:
+        from .hypothesis import Evidence
         return Evidence.objects.filter(hypothesis_links__hypothesis__project=self).distinct().count()
+
+    def generate_problem_statement(self) -> str:
+        """Generate a problem statement from 5W2H fields."""
+        parts = []
+
+        if self.problem_whats:
+            parts.append("What: " + "; ".join(self.problem_whats))
+        if self.problem_wheres:
+            parts.append("Where: " + "; ".join(self.problem_wheres))
+        if self.problem_whens:
+            parts.append("When: " + "; ".join(self.problem_whens))
+        if self.problem_magnitude:
+            parts.append(f"Magnitude: {self.problem_magnitude}")
+        if self.problem_trend != self.Trend.UNKNOWN:
+            parts.append(f"Trend: {self.get_problem_trend_display()}")
+
+        return "\n".join(parts)
+
+    def generate_goal_statement(self) -> str:
+        """Generate a SMART goal statement from goal fields."""
+        if not self.goal_metric:
+            return ""
+
+        parts = [f"Improve {self.goal_metric}"]
+        if self.goal_baseline and self.goal_target:
+            parts.append(f"from {self.goal_baseline} to {self.goal_target}")
+        elif self.goal_target:
+            parts.append(f"to {self.goal_target}")
+        if self.goal_unit:
+            parts.append(self.goal_unit)
+        if self.goal_deadline:
+            parts.append(f"by {self.goal_deadline.strftime('%Y-%m-%d')}")
+
+        return " ".join(parts)
 
     def advance_phase(self, new_phase: str, notes: str = ""):
         """Advance to a new phase, recording history."""
@@ -242,18 +436,8 @@ class Project(models.Model):
         ])
 
 
-# Import here to avoid circular import, but make Evidence available
-from .hypothesis import Evidence
-
-
 class Dataset(models.Model):
-    """A dataset attached to a project.
-
-    Datasets can be:
-    - Uploaded CSV/Excel files
-    - Results from experiments
-    - External data sources
-    """
+    """A dataset attached to a project."""
 
     class DataType(models.TextChoices):
         CSV = "csv", "CSV"
@@ -276,29 +460,11 @@ class Dataset(models.Model):
         default=DataType.CSV,
     )
 
-    # File storage
-    file = models.FileField(
-        upload_to="datasets/%Y/%m/",
-        null=True,
-        blank=True,
-    )
-
-    # Or inline data (for smaller datasets / experiment results)
-    data = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Inline data storage for smaller datasets",
-    )
-
-    # Schema information
-    columns = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Column definitions [{name, type, description}]",
-    )
+    file = models.FileField(upload_to="datasets/%Y/%m/", null=True, blank=True)
+    data = models.JSONField(null=True, blank=True)
+    columns = models.JSONField(default=list, blank=True)
     row_count = models.IntegerField(default=0)
 
-    # Link to experiment design (if this is experiment results)
     experiment_design = models.ForeignKey(
         "core.ExperimentDesign",
         on_delete=models.SET_NULL,
@@ -307,7 +473,6 @@ class Dataset(models.Model):
         related_name="result_datasets",
     )
 
-    # Metadata
     source = models.CharField(max_length=255, blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -327,11 +492,7 @@ class Dataset(models.Model):
 
 
 class ExperimentDesign(models.Model):
-    """A DOE design attached to a project.
-
-    Stores the planned experiment design and can be compared
-    against actual results for execution quality review.
-    """
+    """A DOE design attached to a project."""
 
     class DesignType(models.TextChoices):
         FULL_FACTORIAL = "full_factorial", "Full Factorial"
@@ -341,8 +502,6 @@ class ExperimentDesign(models.Model):
         PLACKETT_BURMAN = "plackett_burman", "Plackett-Burman"
         DEFINITIVE_SCREENING = "definitive_screening", "Definitive Screening"
         TAGUCHI = "taguchi", "Taguchi"
-        RCBD = "rcbd", "Randomized Block"
-        LATIN_SQUARE = "latin_square", "Latin Square"
         CUSTOM = "custom", "Custom"
 
     class Status(models.TextChoices):
@@ -371,42 +530,18 @@ class ExperimentDesign(models.Model):
         default=Status.PLANNED,
     )
 
-    # The full design specification
-    design_spec = models.JSONField(
-        help_text="Full design specification from DOE generator",
-    )
+    design_spec = models.JSONField(default=dict)
+    factors = models.JSONField(default=list)
+    responses = models.JSONField(default=list)
 
-    # Factor definitions
-    factors = models.JSONField(
-        default=list,
-        help_text="Factor definitions [{name, levels, units, categorical}]",
-    )
-
-    # Response variable(s)
-    responses = models.JSONField(
-        default=list,
-        help_text="Response variables [{name, units, goal}]",
-    )
-
-    # Design properties
     num_runs = models.IntegerField(default=0)
     num_replicates = models.IntegerField(default=1)
     num_center_points = models.IntegerField(default=0)
     resolution = models.IntegerField(null=True, blank=True)
 
-    # Execution review results
-    execution_review = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Results of design execution review",
-    )
-    execution_score = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Overall execution quality score (0-100)",
-    )
+    execution_review = models.JSONField(null=True, blank=True)
+    execution_score = models.FloatField(null=True, blank=True)
 
-    # Link to hypothesis being tested
     hypothesis = models.ForeignKey(
         "core.Hypothesis",
         on_delete=models.SET_NULL,
@@ -415,7 +550,6 @@ class ExperimentDesign(models.Model):
         related_name="experiment_designs",
     )
 
-    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)

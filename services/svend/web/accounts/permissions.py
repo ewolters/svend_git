@@ -36,10 +36,10 @@ def rate_limited(view_func):
 
     Tier limits (from constants.py):
     - FREE: 5 queries/day
-    - FOUNDER: 500 queries/day ($19/month, first 100 users)
-    - PRO: 500 queries/day ($29/month)
-    - TEAM: 1000 queries/day ($79/month)
-    - ENTERPRISE: 5000 queries/day ($199/month)
+    - FOUNDER: 50 queries/day ($19/month, first 100 users)
+    - PRO: 50 queries/day ($29/month)
+    - TEAM: 200 queries/day ($79/month)
+    - ENTERPRISE: 1000 queries/day ($199/month)
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):

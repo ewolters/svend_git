@@ -20,8 +20,4 @@ urlpatterns = [
     path("assessment/generate/", learn_views.generate_assessment, name="generate_assessment"),
     path("assessment/submit/", learn_views.submit_assessment, name="submit_assessment"),
     path("assessment/history/", learn_views.assessment_history, name="assessment_history"),
-
-    # Certificate
-    path("certificate/", learn_views.get_certificate, name="certificate"),
-    path("certificate/verify/<str:cert_id>/", learn_views.verify_certificate, name="verify_certificate"),
 ]

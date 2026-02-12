@@ -89,14 +89,6 @@ TIER_FEATURES = {
 }
 
 
-# Stripe price IDs (configure in env or settings)
-TIER_STRIPE_PRICES = {
-    Tier.FOUNDER: "price_founder_19",  # Replace with actual Stripe price ID
-    Tier.PRO: "price_pro_29",
-    Tier.TEAM: "price_team_79",
-    Tier.ENTERPRISE: "price_enterprise_199",
-}
-
 
 def get_daily_limit(tier: str) -> int:
     """Get daily query limit for a tier."""
@@ -127,3 +119,29 @@ def can_use_ml(tier: str) -> bool:
 def can_use_tools(tier: str) -> bool:
     """Check if tier has full tool access."""
     return has_feature(tier, "full_tools")
+
+
+def get_founder_availability() -> dict:
+    """Check how many founder slots are available.
+
+    Returns:
+        {
+            "total": 100,
+            "used": 42,
+            "remaining": 58,
+            "available": True
+        }
+    """
+    # Import here to avoid circular imports
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    used = User.objects.filter(tier=Tier.FOUNDER).count()
+    remaining = max(0, FOUNDER_SLOTS - used)
+
+    return {
+        "total": FOUNDER_SLOTS,
+        "used": used,
+        "remaining": remaining,
+        "available": remaining > 0,
+    }

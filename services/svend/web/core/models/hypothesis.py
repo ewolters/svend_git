@@ -1,10 +1,10 @@
 """Hypothesis and Evidence models for Bayesian reasoning.
 
-This is the core of Synara's belief tracking:
-- Hypotheses have prior and posterior probabilities
-- Evidence has likelihood ratios
-- EvidenceLink connects evidence to hypotheses with specific LRs
-- Bayesian updates: posterior odds = prior odds × likelihood ratio
+Hypothesis structure supports:
+- Structured If/Then/Because format for clear causal claims
+- Variable identification for linking to data
+- Test planning and success criteria
+- Bayesian probability tracking with likelihood ratios
 
 All probability updates use core.bayesian.BayesianUpdater.
 """
@@ -19,20 +19,30 @@ from core.bayesian import BayesianUpdater, get_updater
 class Hypothesis(models.Model):
     """A hypothesis about a potential cause or explanation.
 
-    Hypotheses are beliefs that can be updated based on evidence.
-    Synara uses Bayesian reasoning to update probabilities.
+    Structured format:
+    - If [independent variable/condition]...
+    - Then [dependent variable/outcome]...
+    - Because [mechanism/rationale]...
 
-    The key equation:
-        posterior_odds = prior_odds × likelihood_ratio
-        P(H|E) = P(E|H) × P(H) / P(E)
+    This structure enables:
+    - Clear testable predictions
+    - Variable mapping to data
+    - Logical validation
+    - Report generation
     """
 
     class Status(models.TextChoices):
-        ACTIVE = "active", "Active"  # Under investigation
-        CONFIRMED = "confirmed", "Confirmed"  # Strong evidence supports
-        REJECTED = "rejected", "Rejected"  # Strong evidence against
-        UNCERTAIN = "uncertain", "Uncertain"  # Not enough evidence
-        MERGED = "merged", "Merged"  # Combined with another hypothesis
+        ACTIVE = "active", "Active"
+        CONFIRMED = "confirmed", "Confirmed"
+        REJECTED = "rejected", "Rejected"
+        UNCERTAIN = "uncertain", "Uncertain"
+        MERGED = "merged", "Merged"
+
+    class Direction(models.TextChoices):
+        INCREASE = "increase", "Increase"
+        DECREASE = "decrease", "Decrease"
+        CHANGE = "change", "Change"
+        NO_CHANGE = "no_change", "No Change"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(
@@ -41,16 +51,86 @@ class Hypothesis(models.Model):
         related_name="hypotheses",
     )
 
-    # The hypothesis itself
+    # =========================================================================
+    # HYPOTHESIS STATEMENT - Structured Format
+    # =========================================================================
     statement = models.TextField(
-        help_text="The hypothesis statement (e.g., 'The UI change caused the sales drop')",
-    )
-    mechanism = models.TextField(
-        blank=True,
-        help_text="How would this cause the effect? The proposed mechanism.",
+        help_text="Full hypothesis statement (can be generated from structured fields)",
     )
 
-    # Probabilities (Bayesian)
+    # Structured components
+    if_clause = models.TextField(
+        blank=True,
+        help_text="IF [condition/change]... What is being changed or tested?",
+    )
+    then_clause = models.TextField(
+        blank=True,
+        help_text="THEN [expected outcome]... What do we expect to happen?",
+    )
+    because_clause = models.TextField(
+        blank=True,
+        help_text="BECAUSE [mechanism]... Why do we think this will happen?",
+    )
+
+    # =========================================================================
+    # VARIABLES - For linking to data and DSW
+    # =========================================================================
+    independent_variable = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="X variable - what we change or observe as cause",
+    )
+    independent_var_values = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Possible values or levels of X [list]",
+    )
+    dependent_variable = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Y variable - what we measure as effect",
+    )
+    dependent_var_unit = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Unit of measure for Y",
+    )
+    predicted_direction = models.CharField(
+        max_length=20,
+        choices=Direction.choices,
+        default=Direction.CHANGE,
+        help_text="Expected direction of change in Y",
+    )
+    predicted_magnitude = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Expected size of effect (e.g., '>10%', '~5 units')",
+    )
+
+    # =========================================================================
+    # RATIONALE & TESTING
+    # =========================================================================
+    rationale = models.TextField(
+        blank=True,
+        help_text="Why do we think this hypothesis might be true? Prior knowledge, observations.",
+    )
+    test_method = models.TextField(
+        blank=True,
+        help_text="How will we test this? Experiment design, analysis approach.",
+    )
+    success_criteria = models.TextField(
+        blank=True,
+        help_text="What evidence would confirm this? What would refute it?",
+    )
+    data_requirements = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Data needed to test [{variable, source, available}]",
+    )
+
+    # =========================================================================
+    # PROBABILITY TRACKING - Bayesian
+    # =========================================================================
     prior_probability = models.FloatField(
         default=0.5,
         help_text="Initial probability before evidence (0.0 to 1.0)",
@@ -65,13 +145,6 @@ class Hypothesis(models.Model):
         help_text="History of probability updates [{probability, evidence_id, timestamp}]",
     )
 
-    # Status
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.ACTIVE,
-    )
-
     # Thresholds for auto-status changes
     confirmation_threshold = models.FloatField(
         default=0.9,
@@ -82,10 +155,18 @@ class Hypothesis(models.Model):
         help_text="Probability below which hypothesis is rejected",
     )
 
-    # Testability
+    # =========================================================================
+    # STATUS & METADATA
+    # =========================================================================
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+    )
+
     is_testable = models.BooleanField(
         default=True,
-        help_text="Can this hypothesis be tested with evidence?",
+        help_text="Can this hypothesis be tested with available data/experiments?",
     )
     test_suggestions = models.JSONField(
         default=list,
@@ -98,7 +179,6 @@ class Hypothesis(models.Model):
         "core.Entity",
         blank=True,
         related_name="hypotheses",
-        help_text="Entities from knowledge graph related to this hypothesis",
     )
 
     # For merged hypotheses
@@ -110,7 +190,7 @@ class Hypothesis(models.Model):
         related_name="merged_from",
     )
 
-    # Metadata
+    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
@@ -131,7 +211,19 @@ class Hypothesis(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.statement[:50]}... ({self.current_probability:.0%})"
+        preview = self.statement[:50] if self.statement else self.if_clause[:50] if self.if_clause else "Untitled"
+        return f"{preview}... ({self.current_probability:.0%})"
+
+    def generate_statement(self) -> str:
+        """Generate full statement from structured fields."""
+        parts = []
+        if self.if_clause:
+            parts.append(f"If {self.if_clause}")
+        if self.then_clause:
+            parts.append(f"then {self.then_clause}")
+        if self.because_clause:
+            parts.append(f"because {self.because_clause}")
+        return ", ".join(parts) + "." if parts else ""
 
     @property
     def odds(self) -> float:
@@ -158,27 +250,19 @@ class Hypothesis(models.Model):
         return self.evidence_links.filter(likelihood_ratio__lt=1.0)
 
     def apply_evidence(self, evidence_link: "EvidenceLink") -> float:
-        """Apply a single piece of evidence using Bayes' rule.
-
-        Uses core.bayesian.BayesianUpdater for the actual math.
-        Returns the new probability.
-        """
+        """Apply a single piece of evidence using Bayes' rule."""
         from django.utils import timezone
 
         updater = get_updater()
-
-        # Get likelihood ratio and confidence
         lr = evidence_link.likelihood_ratio
         confidence = evidence_link.evidence.confidence
 
-        # Perform Bayesian update
         result = updater.update(
             prior=self.current_probability,
             likelihood_ratio=lr,
             confidence=confidence,
         )
 
-        # Record history
         self.probability_history.append({
             "probability": result.posterior_probability,
             "previous": result.prior_probability,
@@ -196,22 +280,16 @@ class Hypothesis(models.Model):
         return result.posterior_probability
 
     def recalculate_probability(self):
-        """Recalculate probability from all evidence links.
-
-        Uses core.bayesian.BayesianUpdater for the actual math.
-        Useful after evidence is added, removed, or modified.
-        """
+        """Recalculate probability from all evidence links."""
         from django.utils import timezone
 
         updater = get_updater()
 
-        # Gather all evidence as (lr, confidence) tuples
         evidence_items = [
             (link.likelihood_ratio, link.evidence.confidence)
             for link in self.evidence_links.all()
         ]
 
-        # Perform cumulative Bayesian update from prior
         result = updater.update_multiple(
             prior=self.prior_probability,
             evidence=evidence_items,
@@ -231,7 +309,7 @@ class Hypothesis(models.Model):
     def _check_status_thresholds(self):
         """Update status based on probability thresholds."""
         if self.status not in (self.Status.ACTIVE, self.Status.UNCERTAIN):
-            return  # Don't override manual status changes
+            return
 
         if self.current_probability >= self.confirmation_threshold:
             self.status = self.Status.CONFIRMED
@@ -244,14 +322,7 @@ class Hypothesis(models.Model):
 
 
 class Evidence(models.Model):
-    """A piece of evidence that can affect hypothesis probabilities.
-
-    Evidence has:
-    - A source (where it came from)
-    - Structured data for Synara to process
-    - Confidence in the evidence itself
-    - Links to hypotheses via EvidenceLink (with specific LRs)
-    """
+    """A piece of evidence that can affect hypothesis probabilities."""
 
     class SourceType(models.TextChoices):
         OBSERVATION = "observation", "Observation"
@@ -263,12 +334,21 @@ class Evidence(models.Model):
         CALCULATION = "calculation", "Calculation"
 
     class ResultType(models.TextChoices):
-        STATISTICAL = "statistical", "Statistical"  # Has p-value, CI, etc.
-        CATEGORICAL = "categorical", "Categorical"  # Yes/no, present/absent
-        QUANTITATIVE = "quantitative", "Quantitative"  # Numeric measurement
-        QUALITATIVE = "qualitative", "Qualitative"  # Descriptive
+        STATISTICAL = "statistical", "Statistical"
+        CATEGORICAL = "categorical", "Categorical"
+        QUANTITATIVE = "quantitative", "Quantitative"
+        QUALITATIVE = "qualitative", "Qualitative"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Link to project for easier querying
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.CASCADE,
+        related_name="evidence",
+        null=True,
+        blank=True,
+    )
 
     # Description
     summary = models.TextField(
@@ -288,24 +368,23 @@ class Evidence(models.Model):
     source_description = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Where this evidence came from (e.g., 'Coder simulation', 'DSW analysis')",
+        help_text="Where this evidence came from",
     )
 
-    # Result type and structured data
+    # Result type
     result_type = models.CharField(
         max_length=20,
         choices=ResultType.choices,
         default=ResultType.QUALITATIVE,
     )
 
-    # Confidence in this evidence (0.0 to 1.0)
-    # Lower confidence = LR moved toward 1 (neutral)
+    # Confidence (0.0 to 1.0)
     confidence = models.FloatField(
         default=0.8,
         help_text="How reliable is this evidence? (0.0 to 1.0)",
     )
 
-    # Statistical fields (for STATISTICAL result type)
+    # Statistical fields
     p_value = models.FloatField(null=True, blank=True)
     confidence_interval_low = models.FloatField(null=True, blank=True)
     confidence_interval_high = models.FloatField(null=True, blank=True)
@@ -318,26 +397,15 @@ class Evidence(models.Model):
     expected_value = models.FloatField(null=True, blank=True)
     unit = models.CharField(max_length=50, blank=True)
 
-    # Raw output (flexible storage for any structured data)
-    raw_output = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Raw structured output from analysis/simulation",
-    )
+    # Raw output storage
+    raw_output = models.JSONField(default=dict, blank=True)
 
     # Reproducibility
     is_reproducible = models.BooleanField(default=False)
-    code_reference = models.TextField(
-        blank=True,
-        help_text="Code that generated this evidence (for reproduction)",
-    )
-    data_reference = models.CharField(
-        max_length=500,
-        blank=True,
-        help_text="Reference to data used (file path, dataset ID)",
-    )
+    code_reference = models.TextField(blank=True)
+    data_reference = models.CharField(max_length=500, blank=True)
 
-    # Link to knowledge graph entity (if this evidence is about a specific entity)
+    # Link to knowledge graph
     related_entity = models.ForeignKey(
         "core.Entity",
         on_delete=models.SET_NULL,
@@ -371,21 +439,12 @@ class Evidence(models.Model):
 
 
 class EvidenceLink(models.Model):
-    """Links evidence to a hypothesis with a specific likelihood ratio.
+    """Links evidence to a hypothesis with a specific likelihood ratio."""
 
-    One piece of evidence can affect multiple hypotheses differently.
-    For example:
-    - "Sales dropped 40% after UI change" might have:
-      - LR = 5.0 for "UI caused drop" (supports)
-      - LR = 0.3 for "Seasonality caused drop" (opposes)
-
-    The likelihood ratio is:
-        LR = P(evidence | hypothesis true) / P(evidence | hypothesis false)
-
-    LR > 1: Evidence supports hypothesis
-    LR < 1: Evidence opposes hypothesis
-    LR = 1: Evidence is neutral
-    """
+    class Direction(models.TextChoices):
+        SUPPORTS = "supports", "Supports"
+        OPPOSES = "opposes", "Opposes"
+        NEUTRAL = "neutral", "Neutral"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     hypothesis = models.ForeignKey(
@@ -399,17 +458,11 @@ class EvidenceLink(models.Model):
         related_name="hypothesis_links",
     )
 
-    # The likelihood ratio for this specific hypothesis
+    # The likelihood ratio
     likelihood_ratio = models.FloatField(
         default=1.0,
         help_text="P(evidence|H true) / P(evidence|H false). >1 supports, <1 opposes",
     )
-
-    # Direction (derived from LR, but useful for queries)
-    class Direction(models.TextChoices):
-        SUPPORTS = "supports", "Supports"
-        OPPOSES = "opposes", "Opposes"
-        NEUTRAL = "neutral", "Neutral"
 
     direction = models.CharField(
         max_length=10,
@@ -417,25 +470,18 @@ class EvidenceLink(models.Model):
         default=Direction.NEUTRAL,
     )
 
-    # Explanation of why this LR was assigned
     reasoning = models.TextField(
         blank=True,
-        help_text="Why does this evidence support/oppose this hypothesis with this strength?",
+        help_text="Why does this evidence support/oppose with this strength?",
     )
 
-    # Was this link created automatically or manually?
     is_manual = models.BooleanField(
         default=True,
-        help_text="Was this link created by user (True) or inferred by system (False)?",
+        help_text="Created by user (True) or inferred by system (False)?",
     )
 
-    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
-    applied_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When this evidence was applied to update hypothesis probability",
-    )
+    applied_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "core_evidence_link"

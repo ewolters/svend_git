@@ -15,10 +15,6 @@
             <span class="tab-icon">🔍</span>
             <span class="tab-label">Researcher</span>
         </button>
-        <button class="agent-tab" data-agent="coder">
-            <span class="tab-icon">💻</span>
-            <span class="tab-label">Coder</span>
-        </button>
         <button class="agent-tab" data-agent="writer">
             <span class="tab-icon">📝</span>
             <span class="tab-label">Writer</span>
@@ -81,26 +77,6 @@
                             <option value="quick">Quick</option>
                             <option value="standard" selected>Standard</option>
                             <option value="thorough">Thorough</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Coder Form -->
-            <div class="agent-form" id="form-coder" style="display: none;">
-                <div class="form-group">
-                    <label>Code Request</label>
-                    <textarea id="coder-prompt" rows="4" placeholder="What code do you need?"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Language</label>
-                        <select id="coder-language">
-                            <option value="python">Python</option>
-                            <option value="javascript">JavaScript</option>
-                            <option value="typescript">TypeScript</option>
-                            <option value="rust">Rust</option>
-                            <option value="go">Go</option>
                         </select>
                     </div>
                 </div>
@@ -928,7 +904,6 @@ function switchAgent(agent) {
     // Update badge
     const names = {
         researcher: 'Researcher',
-        coder: 'Coder',
         writer: 'Writer',
         experimenter: 'Experimenter',
         eda: 'EDA',
@@ -978,13 +953,6 @@ async function runAgent() {
                     problem_id: problemId,
                     focus: document.getElementById('researcher-focus').value,
                     depth: document.getElementById('researcher-depth').value
-                };
-                break;
-            case 'coder':
-                data = {
-                    prompt: document.getElementById('coder-prompt').value,
-                    language: document.getElementById('coder-language').value,
-                    problem_id: problemId
                 };
                 break;
             case 'writer':
@@ -1085,9 +1053,6 @@ function showResult(agent, result) {
         case 'researcher':
             html = formatResearchResult(result);
             break;
-        case 'coder':
-            html = formatCoderResult(result);
-            break;
         case 'writer':
             html = formatWriterResult(result);
             break;
@@ -1134,26 +1099,6 @@ function formatResearchResult(result) {
         html += `<div class="result-section">
             <div class="result-label">Full Report</div>
             <div class="markdown-content">${renderMarkdown(result.markdown)}</div>
-        </div>`;
-    }
-
-    return html || `<pre>${JSON.stringify(result, null, 2)}</pre>`;
-}
-
-function formatCoderResult(result) {
-    let html = '';
-
-    if (result.code) {
-        html += `<div class="result-section">
-            <div class="result-label">Generated Code</div>
-            <div class="result-code">${escapeHtml(result.code)}</div>
-        </div>`;
-    }
-
-    if (result.qa_report) {
-        html += `<div class="result-section">
-            <div class="result-label">QA Report</div>
-            <div class="result-code">${escapeHtml(result.qa_report)}</div>
         </div>`;
     }
 

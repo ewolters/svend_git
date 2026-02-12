@@ -1,0 +1,2861 @@
+{% extends "base_app.html" %}
+
+{% block title %}Value Stream Map - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+    main {
+        padding: 0 !important;
+    }
+
+    main > .container {
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+
+    .vsm-container {
+        display: flex;
+        height: calc(100vh - 80px);
+        overflow: hidden;
+    }
+
+    /* Sidebar */
+    .vsm-sidebar {
+        width: 280px;
+        background: var(--bg-secondary);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .sidebar-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-header h2 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .vsm-project-row {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .vsm-project-select {
+        flex: 1;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        padding: 0.35rem 0.5rem;
+        font-size: 0.8rem;
+        color: var(--text-primary);
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .vsm-project-select:focus {
+        border-color: var(--accent-primary);
+        outline: none;
+    }
+
+    .vsm-project-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        color: var(--text-dim);
+        border-radius: 4px;
+        transition: all 0.15s;
+    }
+
+    .vsm-project-link:hover {
+        color: var(--accent-primary);
+        background: var(--bg-tertiary);
+    }
+
+    .sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+
+    .sidebar-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .sidebar-section h3 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-dim);
+        margin-bottom: 0.75rem;
+    }
+
+    /* Element palette */
+    .element-palette {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .palette-item {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.75rem;
+        cursor: grab;
+        transition: all 0.2s;
+        text-align: center;
+    }
+
+    .palette-item:hover {
+        border-color: var(--accent-primary);
+        background: var(--bg-hover);
+    }
+
+    .palette-item.dragging {
+        opacity: 0.5;
+    }
+
+    .palette-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .palette-label {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+    }
+
+    /* Metrics panel */
+    .metrics-panel {
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        padding: 1rem;
+    }
+
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .metric-label {
+        color: var(--text-dim);
+    }
+
+    .metric-value {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    .metric-value.good {
+        color: var(--success);
+    }
+
+    .metric-value.warning {
+        color: var(--warning);
+    }
+
+    /* Canvas area */
+    .vsm-canvas-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        background: var(--bg-primary);
+    }
+
+    .vsm-canvas {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    /* Toolbar */
+    .vsm-toolbar {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        background: var(--bg-secondary);
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        z-index: 10;
+    }
+
+    .toolbar-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-secondary);
+        padding: 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .toolbar-btn:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+    }
+
+    .toolbar-btn.active {
+        background: var(--accent-primary-dim);
+        border-color: var(--accent-primary-border);
+        color: var(--accent-primary);
+    }
+
+    .toolbar-divider {
+        width: 1px;
+        background: var(--border);
+        margin: 0 0.25rem;
+    }
+
+    /* Info panel (top right) */
+    .info-panel {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: var(--bg-secondary);
+        padding: 1rem;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        z-index: 10;
+        min-width: 200px;
+    }
+
+    .info-panel h4 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 0.5rem;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+
+    /* VSM Elements on canvas */
+    .vsm-element {
+        position: absolute;
+        cursor: move;
+        user-select: none;
+    }
+
+    /* Process Box */
+    .process-box {
+        width: 120px;
+        background: var(--bg-secondary);
+        border: 2px solid var(--accent-primary);
+        border-radius: 0;
+    }
+
+    .process-box .process-header {
+        background: var(--accent-primary);
+        color: white;
+        padding: 0.5rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .process-box .process-metrics {
+        padding: 0.5rem;
+        font-size: 0.7rem;
+    }
+
+    .process-box .process-metrics div {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.2rem;
+    }
+
+    .process-box .process-metrics .label {
+        color: var(--text-dim);
+    }
+
+    .process-box .process-metrics .value {
+        color: var(--text-primary);
+    }
+
+    /* Inventory Triangle */
+    .inventory-triangle {
+        width: 60px;
+        height: 60px;
+        position: relative;
+    }
+
+    .inventory-triangle::before {
+        content: '';
+        position: absolute;
+        width: 0;
+        height: 0;
+        border-left: 30px solid transparent;
+        border-right: 30px solid transparent;
+        border-bottom: 52px solid var(--warning);
+    }
+
+    .inventory-triangle .inv-text {
+        position: absolute;
+        bottom: 5px;
+        width: 100%;
+        text-align: center;
+        font-size: 0.7rem;
+        color: var(--bg-primary);
+        font-weight: 600;
+    }
+
+    /* Kaizen Burst */
+    .kaizen-burst {
+        width: 80px;
+        height: 80px;
+        background: var(--error);
+        clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 0.65rem;
+        color: white;
+        padding: 1.5rem;
+    }
+
+    /* Customer/Supplier boxes */
+    .entity-box {
+        width: 100px;
+        background: var(--bg-tertiary);
+        border: 2px solid var(--accent-blue);
+        border-radius: 4px;
+        padding: 0.75rem;
+        text-align: center;
+    }
+
+    .entity-box .entity-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .entity-box .entity-name {
+        font-size: 0.8rem;
+        color: var(--text-primary);
+    }
+
+    .entity-box .entity-info {
+        font-size: 0.65rem;
+        color: var(--text-dim);
+    }
+
+    /* Timeline */
+    .timeline-bar {
+        position: absolute;
+        bottom: 60px;
+        left: 100px;
+        right: 100px;
+        height: 60px;
+        border-top: 2px solid var(--border);
+    }
+
+    .timeline-segment {
+        position: absolute;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 0.7rem;
+    }
+
+    .timeline-segment .segment-value {
+        color: var(--text-primary);
+    }
+
+    .timeline-segment .segment-label {
+        color: var(--text-dim);
+    }
+
+    .timeline-segment.wait-time {
+        background: var(--warning);
+        opacity: 0.3;
+        height: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    .timeline-segment.cycle-time {
+        background: var(--success);
+        opacity: 0.3;
+        height: 30%;
+        margin-top: auto;
+    }
+
+    /* Flow arrows */
+    .flow-arrow {
+        position: absolute;
+        pointer-events: none;
+    }
+
+    .flow-arrow.material {
+        stroke: var(--accent-primary);
+        stroke-width: 3;
+    }
+
+    .flow-arrow.information {
+        stroke: var(--accent-blue);
+        stroke-width: 2;
+        stroke-dasharray: 5 5;
+    }
+
+    .flow-arrow.push {
+        stroke: var(--text-secondary);
+    }
+
+    .flow-arrow.pull {
+        stroke: var(--success);
+    }
+
+    /* Flow palette styles */
+    .flow-palette {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .flow-item {
+        flex: 1;
+        cursor: pointer;
+    }
+
+    .flow-item.active {
+        border-color: var(--accent-primary);
+        background: var(--accent-primary-dim);
+    }
+
+    .flow-source-highlight rect {
+        stroke: var(--accent-primary) !important;
+        stroke-width: 3 !important;
+        stroke-dasharray: 6 3;
+    }
+
+    .sidebar-hint {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        margin-top: 0.5rem;
+        font-style: italic;
+    }
+
+    /* Supermarket element */
+    .supermarket-element rect {
+        fill: var(--bg-tertiary);
+        stroke: #06b6d4;
+        stroke-width: 2;
+    }
+
+    /* FIFO lane element */
+    .fifo-element rect {
+        fill: var(--bg-tertiary);
+        stroke: #10b981;
+        stroke-width: 2;
+    }
+
+    /* Properties panel */
+    .properties-panel {
+        position: absolute;
+        bottom: 1rem;
+        right: 1rem;
+        width: 280px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1rem;
+        z-index: 10;
+        display: none;
+    }
+
+    .properties-panel.visible {
+        display: block;
+    }
+
+    .properties-panel h4 {
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    .property-group {
+        margin-bottom: 0.75rem;
+    }
+
+    .property-group label {
+        display: block;
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+    }
+
+    .property-group input {
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .prop-row {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .prop-row .property-group {
+        flex: 1;
+    }
+
+    /* Empty state */
+    .empty-state {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: var(--text-dim);
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    /* List view (for VSM selection) */
+    .vsm-list {
+        padding: 1rem;
+    }
+
+    .vsm-item {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .vsm-item:hover {
+        border-color: var(--accent-primary-border);
+    }
+
+    .vsm-item .vsm-title {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .vsm-item .vsm-meta {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+    }
+
+    .vsm-item .vsm-status {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 2px;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        margin-left: 0.5rem;
+    }
+
+    .vsm-item .vsm-status.current {
+        background: var(--accent-primary-dim);
+        color: var(--accent-primary);
+    }
+
+    .vsm-item .vsm-status.future {
+        background: rgba(58, 127, 143, 0.15);
+        color: var(--accent-blue);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vsm-container" id="vsm-app">
+    <!-- Sidebar -->
+    <div class="vsm-sidebar">
+        <div class="sidebar-header">
+            <div class="vsm-project-row">
+                <select id="project-select" class="vsm-project-select" title="Link to project">
+                    <option value="">No project</option>
+                </select>
+                <a href="#" id="project-link" class="vsm-project-link" style="display:none" title="Open project">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                </a>
+            </div>
+            <h2 id="vsm-name">Value Stream Map</h2>
+            <input type="text" id="vsm-name-input" placeholder="VSM Name" style="display:none;">
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Element Palette -->
+            <div class="sidebar-section">
+                <h3>Process & Entities</h3>
+                <div class="element-palette">
+                    <div class="palette-item" draggable="true" data-type="process">
+                        <div class="palette-icon">&#9633;</div>
+                        <div class="palette-label">Process</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="customer">
+                        <div class="palette-icon">&#128101;</div>
+                        <div class="palette-label">Customer</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="supplier">
+                        <div class="palette-icon">&#127981;</div>
+                        <div class="palette-label">Supplier</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="kaizen">
+                        <div class="palette-icon">&#9733;</div>
+                        <div class="palette-label">Kaizen</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="workcenter">
+                        <div class="palette-icon" style="color: var(--accent-primary);">&#9645;</div>
+                        <div class="palette-label">Work Center</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay Types -->
+            <div class="sidebar-section">
+                <h3>Delays & Buffers</h3>
+                <div class="element-palette">
+                    <div class="palette-item" draggable="true" data-type="inventory" data-delay="inventory">
+                        <div class="palette-icon" style="color: var(--warning);">&#9651;</div>
+                        <div class="palette-label">Inventory</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="inventory" data-delay="queue">
+                        <div class="palette-icon" style="color: #f59e0b;">&#8987;</div>
+                        <div class="palette-label">Queue</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="inventory" data-delay="transport">
+                        <div class="palette-icon" style="color: #8b5cf6;">&#128666;</div>
+                        <div class="palette-label">Transport</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="inventory" data-delay="batch">
+                        <div class="palette-icon" style="color: #ec4899;">&#128230;</div>
+                        <div class="palette-label">Batch Wait</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="supermarket">
+                        <div class="palette-icon" style="color: #06b6d4;">&#9782;</div>
+                        <div class="palette-label">Supermarket</div>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="fifo">
+                        <div class="palette-icon" style="color: #10b981;">&#8594;</div>
+                        <div class="palette-label">FIFO Lane</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Arrows -->
+            <div class="sidebar-section">
+                <h3>Material Flow</h3>
+                <div class="element-palette flow-palette">
+                    <div class="palette-item flow-item" data-flow="push" onclick="setFlowTool('push')" title="Push flow (striped arrow)">
+                        <div class="palette-icon">&#10140;</div>
+                        <div class="palette-label">Push</div>
+                    </div>
+                    <div class="palette-item flow-item" data-flow="pull" onclick="setFlowTool('pull')" title="Pull flow (with kanban signal)">
+                        <div class="palette-icon" style="color: var(--success);">&#10551;</div>
+                        <div class="palette-label">Pull</div>
+                    </div>
+                </div>
+                <p class="sidebar-hint" id="flow-hint">Select a flow type above, then click the source process box, then click the destination box.</p>
+            </div>
+
+            <!-- Metrics -->
+            <div class="sidebar-section">
+                <h3>Metrics</h3>
+                <div class="metrics-panel">
+                    <div class="metric-row">
+                        <span class="metric-label">Lead Time</span>
+                        <span class="metric-value" id="metric-lead-time">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Process Time</span>
+                        <span class="metric-value" id="metric-process-time">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">PCE</span>
+                        <span class="metric-value" id="metric-pce">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Takt Time</span>
+                        <span class="metric-value" id="metric-takt">-</span>
+                    </div>
+                </div>
+                <div class="takt-input-section" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
+                    <div style="display:flex; align-items:center; gap:0.25rem; margin-bottom:0.5rem;">
+                        <span style="font-size:0.75rem; font-weight:600; color:var(--text-primary);">Set Takt Time</span>
+                    </div>
+                    <div style="display:flex; gap:0.35rem; margin-bottom:0.4rem;">
+                        <input type="number" id="takt-direct" placeholder="sec" step="0.1"
+                               style="flex:1; background:var(--bg-tertiary); border:1px solid var(--border); padding:0.3rem 0.4rem; font-size:0.8rem; color:var(--text-primary); border-radius:4px; width:60px;">
+                        <button class="btn btn-sm" style="font-size:0.7rem; padding:0.3rem 0.5rem;" onclick="setTaktDirect()">Set</button>
+                    </div>
+                    <p style="font-size:0.65rem; color:var(--text-dim); margin-bottom:0.4rem;">— or calculate —</p>
+                    <div style="display:flex; gap:0.35rem; margin-bottom:0.3rem; align-items:end;">
+                        <div style="flex:1; display:flex; flex-direction:column;">
+                            <label style="font-size:0.65rem; color:var(--text-dim); white-space:nowrap;">Avail (sec/day)</label>
+                            <input type="number" id="takt-avail" placeholder="27000"
+                                   style="width:100%; background:var(--bg-tertiary); border:1px solid var(--border); padding:0.25rem 0.35rem; font-size:0.75rem; color:var(--text-primary); border-radius:4px;">
+                        </div>
+                        <div style="flex:1; display:flex; flex-direction:column;">
+                            <label style="font-size:0.65rem; color:var(--text-dim); white-space:nowrap;">Demand (u/day)</label>
+                            <input type="number" id="takt-demand" placeholder="460"
+                                   style="width:100%; background:var(--bg-tertiary); border:1px solid var(--border); padding:0.25rem 0.35rem; font-size:0.75rem; color:var(--text-primary); border-radius:4px;">
+                        </div>
+                    </div>
+                    <button class="btn btn-sm" style="font-size:0.7rem; padding:0.3rem 0.5rem; width:100%;" onclick="calculateTakt()">Calculate Takt</button>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="sidebar-section">
+                <h3>Actions</h3>
+                <button class="btn btn-primary" style="width:100%; margin-bottom:0.5rem;" onclick="createFutureState()">
+                    Create Future State
+                </button>
+                <button class="btn btn-secondary" style="width:100%; margin-bottom:0.5rem;" onclick="compareStates()">
+                    Compare States
+                </button>
+                <button class="btn btn-secondary" style="width:100%;" onclick="exportVSM()">
+                    Export
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="vsm-canvas-container" id="canvas-container">
+        <!-- Toolbar -->
+        <div class="vsm-toolbar">
+            <button class="toolbar-btn active" data-tool="select" title="Select (V)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
+                </svg>
+            </button>
+            <button class="toolbar-btn" data-tool="pan" title="Pan (Space)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3"></path>
+                </svg>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" data-tool="material-flow" title="Material Flow (M)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"></path>
+                </svg>
+            </button>
+            <button class="toolbar-btn" data-tool="info-flow" title="Info Flow (I)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3">
+                    <path d="M5 12h14M12 5l7 7-7 7"></path>
+                </svg>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" onclick="undoVSM()" title="Undo (Ctrl+Z)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 10h10a5 5 0 0 1 5 5v2"/>
+                    <polyline points="3 10 7 6"/>
+                    <polyline points="3 10 7 14"/>
+                </svg>
+            </button>
+            <button class="toolbar-btn" onclick="redoVSM()" title="Redo (Ctrl+Shift+Z)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10H11a5 5 0 0 0-5 5v2"/>
+                    <polyline points="21 10 17 6"/>
+                    <polyline points="21 10 17 14"/>
+                </svg>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" onclick="zoomIn()" title="Zoom In">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="M21 21l-4.35-4.35M11 8v6M8 11h6"></path>
+                </svg>
+            </button>
+            <button class="toolbar-btn" onclick="zoomOut()" title="Zoom Out">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="M21 21l-4.35-4.35M8 11h6"></path>
+                </svg>
+            </button>
+            <button class="toolbar-btn" onclick="resetView()" title="Reset View">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Canvas SVG -->
+        <svg class="vsm-canvas" id="vsm-canvas">
+            <!-- Grid pattern -->
+            <defs>
+                <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                    <path d="M 50 0 L 0 0 0 50" fill="none" stroke="var(--border)" stroke-width="0.5" opacity="0.5"/>
+                </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+
+            <!-- Elements will be rendered here -->
+            <g id="elements-layer"></g>
+            <g id="connections-layer"></g>
+        </svg>
+
+        <!-- Empty state -->
+        <div class="empty-state" id="empty-state">
+            <h3>Create Your Value Stream Map</h3>
+            <p>Drag elements from the sidebar to get started</p>
+            <button class="btn btn-primary" onclick="showNewVSMDialog()">New VSM</button>
+        </div>
+
+        <!-- Properties panel -->
+        <div class="properties-panel" id="properties-panel">
+            <h4 id="prop-panel-title">Process Properties</h4>
+            <div class="property-group">
+                <label>Name</label>
+                <input type="text" id="prop-name" placeholder="Process name">
+            </div>
+            <!-- Delay type (for inventory elements) -->
+            <div class="property-group" id="prop-delay-group" style="display:none;">
+                <label>Delay Type</label>
+                <select id="prop-delay-type">
+                    <option value="inventory">Inventory</option>
+                    <option value="queue">Queue Time</option>
+                    <option value="transport">Transport</option>
+                    <option value="batch">Batch Wait</option>
+                    <option value="supermarket">Supermarket</option>
+                </select>
+            </div>
+            <div class="property-group" id="prop-dos-group" style="display:none;">
+                <label>Days of Supply</label>
+                <input type="number" id="prop-dos" placeholder="2.5" step="0.1">
+            </div>
+            <div class="prop-row">
+                <div class="property-group">
+                    <label>C/T (sec)</label>
+                    <input type="number" id="prop-cycle-time" placeholder="45">
+                </div>
+                <div class="property-group">
+                    <label>C/O (sec)</label>
+                    <input type="number" id="prop-changeover" placeholder="600">
+                </div>
+            </div>
+            <div class="prop-row">
+                <div class="property-group">
+                    <label>Uptime (%)</label>
+                    <input type="number" id="prop-uptime" placeholder="95">
+                </div>
+                <div class="property-group">
+                    <label>Operators</label>
+                    <input type="number" id="prop-operators" placeholder="2">
+                </div>
+            </div>
+            <div class="prop-row">
+                <div class="property-group">
+                    <label>Batch Size</label>
+                    <input type="number" id="prop-batch" placeholder="100">
+                </div>
+                <div class="property-group">
+                    <label>Scrap (%)</label>
+                    <input type="number" id="prop-scrap" placeholder="2" step="0.1">
+                </div>
+            </div>
+            <div class="prop-row">
+                <div class="property-group">
+                    <label>Avail (sec/shift)</label>
+                    <input type="number" id="prop-available" placeholder="27000">
+                </div>
+                <div class="property-group">
+                    <label>Shifts</label>
+                    <input type="number" id="prop-shifts" placeholder="2">
+                </div>
+            </div>
+            <!-- Kaizen properties -->
+            <div class="property-group" id="prop-kaizen-text-group" style="display:none;">
+                <label>Description</label>
+                <input type="text" id="prop-kaizen-text" placeholder="Reduce changeover">
+            </div>
+            <div class="property-group" id="prop-kaizen-priority-group" style="display:none;">
+                <label>Priority</label>
+                <select id="prop-kaizen-priority">
+                    <option value="high">High (red)</option>
+                    <option value="medium">Medium (orange)</option>
+                </select>
+            </div>
+            <!-- Customer/Supplier properties -->
+            <div class="property-group" id="prop-entity-detail-group" style="display:none;">
+                <label id="prop-entity-detail-label">Demand</label>
+                <input type="text" id="prop-entity-detail" placeholder="460 units/day">
+            </div>
+            <!-- Work Center properties -->
+            <div id="prop-wc-group" style="display:none;">
+                <div class="property-group">
+                    <label>Width</label>
+                    <input type="number" id="prop-wc-width" placeholder="280" min="100">
+                </div>
+                <div class="property-group">
+                    <label>Height</label>
+                    <input type="number" id="prop-wc-height" placeholder="200" min="100">
+                </div>
+                <div class="property-group" id="prop-wc-info" style="margin-top:8px;">
+                    <label style="color:var(--accent-primary); font-size:11px;" id="prop-wc-effective-ct">Effective C/T: -</label>
+                    <label style="color:var(--text-dim); font-size:10px;" id="prop-wc-members">Members: none</label>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="saveProperties()">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- New VSM Dialog -->
+<div id="new-vsm-dialog" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#121a12; padding:2rem; border-radius:8px; width:400px; border:1px solid rgba(74,159,110,0.3); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <h3 style="margin-bottom:1rem;">New Value Stream Map</h3>
+        <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="new-vsm-name" placeholder="Production Line A">
+        </div>
+        <div class="form-group">
+            <label>Product Family</label>
+            <input type="text" id="new-vsm-product" placeholder="Widget Assembly">
+        </div>
+        <div class="form-group">
+            <label>Customer Demand</label>
+            <input type="text" id="new-vsm-demand" placeholder="460 units/day">
+        </div>
+        <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+            <button class="btn btn-secondary" style="flex:1;" onclick="hideNewVSMDialog()">Cancel</button>
+            <button class="btn btn-primary" style="flex:1;" onclick="createNewVSM()">Create</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// =============================================================================
+// VSM State
+// =============================================================================
+let currentVSM = null;
+let vsmId = null;
+let currentProjectId = null;
+let selectedElement = null;
+let selectedElementType = null;  // 'process', 'inventory', 'kaizen', etc.
+let currentTool = 'select';
+let currentFlowType = null;  // 'push' or 'pull' when drawing flow
+let flowSourceStep = null;   // First step when drawing connection
+let zoom = 1;
+let panX = 0;
+let panY = 0;
+let isPanning = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+
+// Undo/Redo history
+let vsmHistory = [];
+let vsmHistoryIndex = -1;
+const VSM_MAX_HISTORY = 50;
+
+// Extract VSM ID from URL if present
+const pathParts = window.location.pathname.split('/');
+if (pathParts.length > 3 && pathParts[2] === 'vsm' && pathParts[3]) {
+    vsmId = pathParts[3].replace('/', '');
+}
+
+// Check for project param in URL
+const urlParams = new URLSearchParams(window.location.search);
+const projectParam = urlParams.get('project');
+if (projectParam) {
+    currentProjectId = projectParam;
+}
+
+// =============================================================================
+// Project Selector
+// =============================================================================
+async function setupProjectSelector() {
+    const select = document.getElementById('project-select');
+    const link = document.getElementById('project-link');
+
+    try {
+        const response = await fetch('/api/core/projects/', { credentials: 'include' });
+        if (!response.ok) return;
+        const projects = await response.json();
+
+        // Populate dropdown
+        projects.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.title;
+            select.appendChild(opt);
+        });
+
+        // Set initial value from URL param or currentVSM.project
+        if (currentProjectId) {
+            select.value = currentProjectId;
+            updateProjectLink(currentProjectId);
+        }
+    } catch (err) {
+        console.error('Failed to load projects:', err);
+    }
+
+    // Handle selection change
+    select.addEventListener('change', (e) => {
+        currentProjectId = e.target.value || null;
+        updateProjectLink(currentProjectId);
+        // Update URL without reload
+        const url = new URL(window.location);
+        if (currentProjectId) {
+            url.searchParams.set('project', currentProjectId);
+        } else {
+            url.searchParams.delete('project');
+        }
+        window.history.replaceState({}, '', url);
+        // Save the project link
+        if (currentVSM && vsmId) {
+            saveVSM();
+        }
+    });
+}
+
+function updateProjectLink(projectId) {
+    const link = document.getElementById('project-link');
+    if (projectId) {
+        link.href = '/app/projects/';
+        link.style.display = 'flex';
+    } else {
+        link.style.display = 'none';
+    }
+}
+
+// =============================================================================
+// Initialization
+// =============================================================================
+document.addEventListener('DOMContentLoaded', async () => {
+    await setupProjectSelector();
+
+    if (vsmId) {
+        await loadVSM(vsmId);
+    } else {
+        // Show empty state or list
+        document.getElementById('empty-state').style.display = 'block';
+        await loadVSMList();
+    }
+
+    setupEventListeners();
+    setupDragAndDrop();
+});
+
+// =============================================================================
+// API Functions
+// =============================================================================
+async function loadVSM(id) {
+    try {
+        const response = await fetch(`/api/vsm/${id}/`, { credentials: 'include' });
+        if (!response.ok) throw new Error('VSM not found');
+        const data = await response.json();
+        currentVSM = data.vsm;
+
+        // Set project from loaded VSM
+        if (currentVSM.project_id) {
+            currentProjectId = currentVSM.project_id;
+            document.getElementById('project-select').value = currentProjectId;
+            updateProjectLink(currentProjectId);
+        }
+
+        renderVSM();
+        updateMetrics();
+        document.getElementById('empty-state').style.display = 'none';
+        // Seed undo history with initial state
+        vsmHistory = [];
+        vsmHistoryIndex = -1;
+        saveVSMState();
+    } catch (err) {
+        console.error('Load VSM error:', err);
+    }
+}
+
+async function loadVSMList() {
+    try {
+        const response = await fetch('/api/vsm/', { credentials: 'include' });
+        if (!response.ok) return;
+        const data = await response.json();
+
+        if (data.maps && data.maps.length > 0) {
+            // Show list
+            showVSMList(data.maps);
+        }
+    } catch (err) {
+        console.error('Load VSM list error:', err);
+    }
+}
+
+function saveVSMState() {
+    if (!currentVSM) return;
+    // Snapshot mutable arrays (deep copy)
+    const snapshot = JSON.parse(JSON.stringify({
+        process_steps: currentVSM.process_steps || [],
+        inventory: currentVSM.inventory || [],
+        kaizen_bursts: currentVSM.kaizen_bursts || [],
+        material_flow: currentVSM.material_flow || [],
+        information_flow: currentVSM.information_flow || [],
+        customers: currentVSM.customers || [],
+        suppliers: currentVSM.suppliers || [],
+        work_centers: currentVSM.work_centers || [],
+        customer_name: currentVSM.customer_name,
+        customer_demand: currentVSM.customer_demand,
+        supplier_name: currentVSM.supplier_name,
+        supply_frequency: currentVSM.supply_frequency,
+        takt_time: currentVSM.takt_time,
+    }));
+    // Truncate any redo states ahead of current index
+    vsmHistory = vsmHistory.slice(0, vsmHistoryIndex + 1);
+    vsmHistory.push(snapshot);
+    if (vsmHistory.length > VSM_MAX_HISTORY) vsmHistory.shift();
+    vsmHistoryIndex = vsmHistory.length - 1;
+}
+
+function undoVSM() {
+    if (vsmHistoryIndex <= 0 || !currentVSM) return;
+    vsmHistoryIndex--;
+    applyVSMSnapshot(vsmHistory[vsmHistoryIndex]);
+}
+
+function redoVSM() {
+    if (vsmHistoryIndex >= vsmHistory.length - 1 || !currentVSM) return;
+    vsmHistoryIndex++;
+    applyVSMSnapshot(vsmHistory[vsmHistoryIndex]);
+}
+
+function applyVSMSnapshot(snapshot) {
+    const restored = JSON.parse(JSON.stringify(snapshot));
+    Object.assign(currentVSM, restored);
+    renderVSM();
+    updateMetrics();
+    saveVSM();
+}
+
+async function saveVSM() {
+    if (!currentVSM || !vsmId) return;
+
+    try {
+        const payload = { ...currentVSM };
+        if (currentProjectId) {
+            payload.project_id = currentProjectId;
+        }
+        await fetch(`/api/vsm/${vsmId}/update/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+    } catch (err) {
+        console.error('Save VSM error:', err);
+    }
+}
+
+async function createNewVSM() {
+    const name = document.getElementById('new-vsm-name').value || 'Untitled VSM';
+    const productFamily = document.getElementById('new-vsm-product').value || '';
+    const customerDemand = document.getElementById('new-vsm-demand').value || '';
+
+    try {
+        const payload = {
+            name,
+            product_family: productFamily,
+            customer_demand: customerDemand
+        };
+        if (currentProjectId) {
+            payload.project_id = currentProjectId;
+        }
+        const response = await fetch('/api/vsm/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error('Failed to create VSM');
+        const data = await response.json();
+        window.location.href = `/app/vsm/${data.id}/`;
+    } catch (err) {
+        console.error('Create VSM error:', err);
+    }
+}
+
+// =============================================================================
+// Rendering
+// =============================================================================
+function renderVSM() {
+    if (!currentVSM) return;
+
+    document.getElementById('vsm-name').textContent = currentVSM.name;
+
+    const elementsLayer = document.getElementById('elements-layer');
+    const connectionsLayer = document.getElementById('connections-layer');
+    elementsLayer.innerHTML = '';
+    connectionsLayer.innerHTML = '';
+
+    // Render work centers FIRST (behind process steps)
+    (currentVSM.work_centers || []).forEach(wc => {
+        renderWorkCenter(wc, elementsLayer);
+    });
+
+    // Render process steps
+    (currentVSM.process_steps || []).forEach(step => {
+        renderProcessBox(step, elementsLayer);
+    });
+
+    // Render inventory
+    (currentVSM.inventory || []).forEach(inv => {
+        renderInventory(inv, elementsLayer);
+    });
+
+    // Render kaizen bursts
+    (currentVSM.kaizen_bursts || []).forEach(burst => {
+        renderKaizenBurst(burst, elementsLayer);
+    });
+
+    // Render customer/supplier
+    renderCustomerSupplier(elementsLayer);
+
+    // Render connections
+    renderConnections(connectionsLayer);
+
+    // Render lead time ladder
+    renderLeadTimeLadder(elementsLayer);
+}
+
+function renderProcessBox(step, layer) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'vsm-element process-element');
+    g.setAttribute('data-id', step.id);
+    g.setAttribute('transform', `translate(${step.x}, ${step.y})`);
+
+    // Box - taller to fit more metrics
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('width', '130');
+    rect.setAttribute('height', '140');
+    rect.setAttribute('fill', 'var(--bg-secondary)');
+    rect.setAttribute('stroke', 'var(--accent-primary)');
+    rect.setAttribute('stroke-width', '2');
+
+    // Header
+    const header = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    header.setAttribute('width', '130');
+    header.setAttribute('height', '25');
+    header.setAttribute('fill', 'var(--accent-primary)');
+
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    title.setAttribute('x', '65');
+    title.setAttribute('y', '17');
+    title.setAttribute('text-anchor', 'middle');
+    title.setAttribute('fill', 'white');
+    title.setAttribute('font-size', '11');
+    title.setAttribute('font-weight', '500');
+    title.textContent = step.name || 'Process';
+
+    g.appendChild(rect);
+    g.appendChild(header);
+    g.appendChild(title);
+
+    // Metrics - standard VSM data box format
+    const metrics = [
+        ['C/T', step.cycle_time ? formatTime(step.cycle_time) : '-'],
+        ['C/O', step.changeover_time ? formatTime(step.changeover_time) : '-'],
+        ['Uptime', step.uptime ? `${step.uptime}%` : '-'],
+        ['Batch', step.batch_size || '-'],
+        ['Scrap', step.scrap_rate ? `${step.scrap_rate}%` : '-'],
+        ['Ops', step.operators || '-'],
+        ['Shifts', step.shifts || '-'],
+    ];
+
+    metrics.forEach((m, i) => {
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', '8');
+        label.setAttribute('y', 40 + i * 14);
+        label.setAttribute('fill', 'var(--text-dim)');
+        label.setAttribute('font-size', '9');
+        label.textContent = m[0];
+
+        const value = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        value.setAttribute('x', '122');
+        value.setAttribute('y', 40 + i * 14);
+        value.setAttribute('text-anchor', 'end');
+        value.setAttribute('fill', 'var(--text-primary)');
+        value.setAttribute('font-size', '9');
+        value.setAttribute('font-weight', '500');
+        value.textContent = m[1];
+
+        g.appendChild(label);
+        g.appendChild(value);
+    });
+
+    // Work center membership indicator
+    if (step.work_center_id) {
+        const wcDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        wcDot.setAttribute('cx', '120');
+        wcDot.setAttribute('cy', '132');
+        wcDot.setAttribute('r', '4');
+        wcDot.setAttribute('fill', 'var(--accent-primary)');
+        wcDot.setAttribute('opacity', '0.5');
+        g.appendChild(wcDot);
+    }
+
+    // Make draggable and handle flow clicks
+    g.addEventListener('mousedown', (e) => startDragElement(e, step, 'process'));
+    g.addEventListener('dblclick', () => showProperties(step));
+
+    layer.appendChild(g);
+}
+
+function formatTime(seconds) {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${(seconds/60).toFixed(1)}m`;
+    return `${(seconds/3600).toFixed(1)}h`;
+}
+
+function renderWorkCenter(wc, layer) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'vsm-element workcenter-element');
+    g.setAttribute('data-id', wc.id);
+    g.setAttribute('transform', `translate(${wc.x}, ${wc.y})`);
+
+    // Dotted-line rectangle
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('width', wc.width || 280);
+    rect.setAttribute('height', wc.height || 200);
+    rect.setAttribute('fill', 'none');
+    rect.setAttribute('stroke', 'var(--accent-primary)');
+    rect.setAttribute('stroke-width', '2');
+    rect.setAttribute('stroke-dasharray', '8 4');
+    rect.setAttribute('rx', '6');
+    rect.setAttribute('opacity', '0.6');
+    g.appendChild(rect);
+
+    // Subtle fill to show containment
+    const fill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    fill.setAttribute('width', wc.width || 280);
+    fill.setAttribute('height', wc.height || 200);
+    fill.setAttribute('fill', 'var(--accent-primary)');
+    fill.setAttribute('opacity', '0.04');
+    fill.setAttribute('rx', '6');
+    g.appendChild(fill);
+
+    // Name label (top-left, inside the box)
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', '8');
+    label.setAttribute('y', '-6');
+    label.setAttribute('fill', 'var(--accent-primary)');
+    label.setAttribute('font-size', '11');
+    label.setAttribute('font-weight', '600');
+    label.setAttribute('opacity', '0.8');
+    label.textContent = wc.name || 'Work Center';
+    g.appendChild(label);
+
+    // Effective CT badge (top-right)
+    const effCT = getWorkCenterEffectiveCT(wc.id);
+    if (effCT > 0) {
+        const ctBadge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        ctBadge.setAttribute('x', (wc.width || 280) - 8);
+        ctBadge.setAttribute('y', '-6');
+        ctBadge.setAttribute('text-anchor', 'end');
+        ctBadge.setAttribute('fill', 'var(--text-dim)');
+        ctBadge.setAttribute('font-size', '10');
+        ctBadge.textContent = `Eff. C/T: ${formatTime(effCT)}`;
+        g.appendChild(ctBadge);
+    }
+
+    // Resize handle (bottom-right corner)
+    const handle = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    handle.setAttribute('x', (wc.width || 280) - 12);
+    handle.setAttribute('y', (wc.height || 200) - 12);
+    handle.setAttribute('width', '12');
+    handle.setAttribute('height', '12');
+    handle.setAttribute('fill', 'var(--accent-primary)');
+    handle.setAttribute('opacity', '0.3');
+    handle.setAttribute('rx', '2');
+    handle.setAttribute('cursor', 'nwse-resize');
+    handle.addEventListener('mousedown', (e) => startResizeWorkCenter(e, wc));
+    g.appendChild(handle);
+
+    // Drag on main rect, double-click for properties
+    g.addEventListener('mousedown', (e) => {
+        if (e.target === handle) return; // handled by resize
+        startDragElement(e, wc, 'workcenter');
+    });
+    g.addEventListener('dblclick', () => showWorkCenterProperties(wc));
+
+    layer.appendChild(g);
+}
+
+function getWorkCenterEffectiveCT(wcId) {
+    if (!currentVSM) return 0;
+    const members = (currentVSM.process_steps || []).filter(s => s.work_center_id === wcId);
+    if (members.length === 0) return 0;
+    const rateSum = members.reduce((sum, s) => {
+        const ct = s.cycle_time || 0;
+        return ct > 0 ? sum + (1.0 / ct) : sum;
+    }, 0);
+    return rateSum > 0 ? 1.0 / rateSum : 0;
+}
+
+function getWorkCenterMembers(wcId) {
+    if (!currentVSM) return [];
+    return (currentVSM.process_steps || []).filter(s => s.work_center_id === wcId);
+}
+
+function associateStepsToWorkCenters() {
+    if (!currentVSM) return;
+    const wcs = currentVSM.work_centers || [];
+    const steps = currentVSM.process_steps || [];
+    steps.forEach(step => {
+        const stepCX = step.x + 65; // center of 130px process box
+        const stepCY = step.y + 70; // center of 140px process box
+        let found = false;
+        for (const wc of wcs) {
+            if (stepCX >= wc.x && stepCX <= wc.x + (wc.width || 280) &&
+                stepCY >= wc.y && stepCY <= wc.y + (wc.height || 200)) {
+                step.work_center_id = wc.id;
+                found = true;
+                break;
+            }
+        }
+        if (!found && step.work_center_id) {
+            delete step.work_center_id;
+        }
+    });
+}
+
+let resizingWC = null;
+let resizeStartX = 0;
+let resizeStartY = 0;
+let resizeStartW = 0;
+let resizeStartH = 0;
+
+function startResizeWorkCenter(e, wc) {
+    e.stopPropagation();
+    e.preventDefault();
+    resizingWC = wc;
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    resizeStartW = wc.width || 280;
+    resizeStartH = wc.height || 200;
+    document.addEventListener('mousemove', resizeWorkCenterMove);
+    document.addEventListener('mouseup', resizeWorkCenterEnd);
+}
+
+function resizeWorkCenterMove(e) {
+    if (!resizingWC) return;
+    const dx = (e.clientX - resizeStartX) / zoom;
+    const dy = (e.clientY - resizeStartY) / zoom;
+    resizingWC.width = Math.max(160, resizeStartW + dx);
+    resizingWC.height = Math.max(100, resizeStartH + dy);
+    renderVSM();
+}
+
+function resizeWorkCenterEnd() {
+    if (!resizingWC) return;
+    associateStepsToWorkCenters();
+    renderVSM();
+    saveVSM();
+    resizingWC = null;
+    document.removeEventListener('mousemove', resizeWorkCenterMove);
+    document.removeEventListener('mouseup', resizeWorkCenterEnd);
+}
+
+function showWorkCenterProperties(wc) {
+    const panel = document.getElementById('properties-panel');
+    panel.classList.add('visible');
+    selectedElementType = 'workcenter';
+
+    document.getElementById('prop-panel-title').textContent = 'Work Center';
+    // Hide all non-relevant groups
+    document.getElementById('prop-delay-group').style.display = 'none';
+    document.getElementById('prop-dos-group').style.display = 'none';
+    document.getElementById('prop-kaizen-text-group').style.display = 'none';
+    document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-entity-detail-group').style.display = 'none';
+    document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
+    // Show WC fields
+    document.getElementById('prop-wc-group').style.display = 'block';
+    document.getElementById('prop-name').value = wc.name || 'Work Center';
+    document.getElementById('prop-wc-width').value = wc.width || 280;
+    document.getElementById('prop-wc-height').value = wc.height || 200;
+
+    // Show effective CT and members
+    const members = getWorkCenterMembers(wc.id);
+    const effCT = getWorkCenterEffectiveCT(wc.id);
+    document.getElementById('prop-wc-effective-ct').textContent =
+        members.length > 0 ? `Effective C/T: ${formatTime(effCT)} (${members.length} machine${members.length !== 1 ? 's' : ''})` : 'Effective C/T: -';
+    document.getElementById('prop-wc-members').textContent =
+        members.length > 0 ? 'Members: ' + members.map(m => m.name).join(', ') : 'Members: drag process steps inside';
+
+    selectedElement = wc;
+}
+
+function renderInventory(inv, layer) {
+    // Route to specialized renderers for special types
+    if (inv.is_supermarket || inv.delay_type === 'supermarket') {
+        renderSupermarket(inv, layer);
+        return;
+    }
+    if (inv.is_fifo || inv.delay_type === 'fifo') {
+        renderFIFO(inv, layer);
+        return;
+    }
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'vsm-element inventory-element');
+    g.setAttribute('data-id', inv.id);
+    g.setAttribute('transform', `translate(${inv.x}, ${inv.y})`);
+
+    // Color based on delay type
+    const delayColors = {
+        'inventory': 'var(--warning)',
+        'queue': '#f59e0b',
+        'transport': '#8b5cf6',
+        'batch': '#ec4899'
+    };
+    const color = delayColors[inv.delay_type] || delayColors['inventory'];
+
+    // Triangle
+    const triangle = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    triangle.setAttribute('points', '30,0 60,52 0,52');
+    triangle.setAttribute('fill', color);
+    triangle.setAttribute('opacity', '0.8');
+    g.appendChild(triangle);
+
+    // Icon overlay for special delay types
+    if (inv.delay_type && inv.delay_type !== 'inventory') {
+        const iconText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        iconText.setAttribute('x', '30');
+        iconText.setAttribute('y', '28');
+        iconText.setAttribute('text-anchor', 'middle');
+        iconText.setAttribute('fill', 'white');
+        iconText.setAttribute('font-size', '14');
+        const icons = {
+            'queue': '\u23F1',      // Stopwatch
+            'transport': '\uD83D\uDE9A', // Truck
+            'batch': '\uD83D\uDCE6'      // Package
+        };
+        iconText.textContent = icons[inv.delay_type] || '';
+        g.appendChild(iconText);
+    }
+
+    // Days of supply text
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', '30');
+    text.setAttribute('y', inv.delay_type && inv.delay_type !== 'inventory' ? '46' : '40');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('fill', 'var(--bg-primary)');
+    text.setAttribute('font-size', '10');
+    text.setAttribute('font-weight', '600');
+    text.textContent = inv.days_of_supply ? `${inv.days_of_supply}d` : inv.quantity || 'I';
+    g.appendChild(text);
+
+    // Type label below
+    if (inv.delay_type && inv.delay_type !== 'inventory') {
+        const typeLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        typeLabel.setAttribute('x', '30');
+        typeLabel.setAttribute('y', '65');
+        typeLabel.setAttribute('text-anchor', 'middle');
+        typeLabel.setAttribute('fill', color);
+        typeLabel.setAttribute('font-size', '8');
+        const labels = {
+            'queue': 'Queue',
+            'transport': 'Transport',
+            'batch': 'Batch'
+        };
+        typeLabel.textContent = labels[inv.delay_type] || '';
+        g.appendChild(typeLabel);
+    }
+
+    g.addEventListener('mousedown', (e) => startDragElement(e, inv, 'inventory'));
+    g.addEventListener('dblclick', () => showInventoryProperties(inv));
+
+    layer.appendChild(g);
+}
+
+function renderSupermarket(inv, layer) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'vsm-element supermarket-element');
+    g.setAttribute('data-id', inv.id);
+    g.setAttribute('transform', `translate(${inv.x}, ${inv.y})`);
+
+    // Supermarket icon (shelves pattern)
+    const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    box.setAttribute('width', '50');
+    box.setAttribute('height', '60');
+    box.setAttribute('fill', 'var(--bg-tertiary)');
+    box.setAttribute('stroke', '#06b6d4');
+    box.setAttribute('stroke-width', '2');
+    g.appendChild(box);
+
+    // Shelf lines
+    for (let i = 1; i <= 3; i++) {
+        const shelf = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        shelf.setAttribute('x1', '0');
+        shelf.setAttribute('y1', i * 15);
+        shelf.setAttribute('x2', '50');
+        shelf.setAttribute('y2', i * 15);
+        shelf.setAttribute('stroke', '#06b6d4');
+        shelf.setAttribute('stroke-width', '1');
+        g.appendChild(shelf);
+    }
+
+    // Label
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', '25');
+    label.setAttribute('y', '75');
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('fill', '#06b6d4');
+    label.setAttribute('font-size', '9');
+    label.textContent = 'Supermarket';
+    g.appendChild(label);
+
+    g.addEventListener('mousedown', (e) => startDragElement(e, inv, 'inventory'));
+    g.addEventListener('dblclick', () => showInventoryProperties(inv));
+
+    layer.appendChild(g);
+}
+
+function renderFIFO(inv, layer) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'vsm-element fifo-element');
+    g.setAttribute('data-id', inv.id);
+    g.setAttribute('transform', `translate(${inv.x}, ${inv.y})`);
+
+    // FIFO lane (horizontal rectangle with arrow)
+    const lane = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    lane.setAttribute('width', '80');
+    lane.setAttribute('height', '30');
+    lane.setAttribute('fill', 'var(--bg-tertiary)');
+    lane.setAttribute('stroke', '#10b981');
+    lane.setAttribute('stroke-width', '2');
+    g.appendChild(lane);
+
+    // FIFO text
+    const fifoText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    fifoText.setAttribute('x', '40');
+    fifoText.setAttribute('y', '20');
+    fifoText.setAttribute('text-anchor', 'middle');
+    fifoText.setAttribute('fill', '#10b981');
+    fifoText.setAttribute('font-size', '10');
+    fifoText.setAttribute('font-weight', '600');
+    fifoText.textContent = 'FIFO';
+    g.appendChild(fifoText);
+
+    // Arrow indicating direction
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    arrow.setAttribute('d', 'M65,15 L75,15 L70,8 M75,15 L70,22');
+    arrow.setAttribute('stroke', '#10b981');
+    arrow.setAttribute('stroke-width', '2');
+    arrow.setAttribute('fill', 'none');
+    g.appendChild(arrow);
+
+    // Max quantity label
+    if (inv.max_quantity) {
+        const maxLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        maxLabel.setAttribute('x', '40');
+        maxLabel.setAttribute('y', '45');
+        maxLabel.setAttribute('text-anchor', 'middle');
+        maxLabel.setAttribute('fill', 'var(--text-dim)');
+        maxLabel.setAttribute('font-size', '8');
+        maxLabel.textContent = `Max: ${inv.max_quantity}`;
+        g.appendChild(maxLabel);
+    }
+
+    g.addEventListener('mousedown', (e) => startDragElement(e, inv, 'inventory'));
+    g.addEventListener('dblclick', () => showInventoryProperties(inv));
+
+    layer.appendChild(g);
+}
+
+function renderKaizenBurst(burst, layer) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'vsm-element kaizen-element');
+    g.setAttribute('data-id', burst.id);
+    g.setAttribute('transform', `translate(${burst.x}, ${burst.y})`);
+
+    // Star burst
+    const star = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    const points = [];
+    const outerR = 40;
+    const innerR = 20;
+    for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i * Math.PI / 5) - Math.PI / 2;
+        points.push(`${40 + r * Math.cos(angle)},${40 + r * Math.sin(angle)}`);
+    }
+    star.setAttribute('points', points.join(' '));
+    star.setAttribute('fill', burst.priority === 'high' ? 'var(--error)' : 'var(--warning)');
+
+    // Text — dark fill for readability on orange/red background
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', '40');
+    text.setAttribute('y', '38');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('fill', '#1a1a2e');
+    text.setAttribute('font-size', '8');
+    text.setAttribute('font-weight', '600');
+
+    // Word-wrap into two lines if needed
+    const label = burst.text || '';
+    if (label.length > 12) {
+        const mid = label.lastIndexOf(' ', 12);
+        const split = mid > 0 ? mid : 12;
+        const tspan1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        tspan1.setAttribute('x', '40');
+        tspan1.setAttribute('dy', '-5');
+        tspan1.textContent = label.slice(0, split);
+        const tspan2 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        tspan2.setAttribute('x', '40');
+        tspan2.setAttribute('dy', '11');
+        tspan2.textContent = label.slice(split).trim().slice(0, 14);
+        text.appendChild(tspan1);
+        text.appendChild(tspan2);
+    } else {
+        text.textContent = label;
+    }
+
+    g.appendChild(star);
+    g.appendChild(text);
+
+    g.addEventListener('mousedown', (e) => startDragElement(e, burst, 'kaizen'));
+    g.addEventListener('dblclick', () => showKaizenProperties(burst));
+
+    layer.appendChild(g);
+}
+
+function renderCustomerSupplier(layer) {
+    if (!currentVSM) return;
+
+    // Migrate legacy single-field data into arrays on first load
+    if ((!currentVSM.customers || currentVSM.customers.length === 0) && currentVSM.customer_name) {
+        currentVSM.customers = [{
+            id: 'legacy-customer',
+            name: currentVSM.customer_name || 'Customer',
+            detail: currentVSM.customer_demand || '',
+            x: 850, y: 50
+        }];
+    }
+    if ((!currentVSM.suppliers || currentVSM.suppliers.length === 0) && currentVSM.supplier_name) {
+        currentVSM.suppliers = [{
+            id: 'legacy-supplier',
+            name: currentVSM.supplier_name || 'Supplier',
+            detail: currentVSM.supply_frequency || '',
+            x: 50, y: 50
+        }];
+    }
+
+    // Render all customers
+    (currentVSM.customers || []).forEach(ent => {
+        renderEntityBox(layer, ent, 'customer', '\uD83D\uDC65');
+    });
+
+    // Render all suppliers
+    (currentVSM.suppliers || []).forEach(ent => {
+        renderEntityBox(layer, ent, 'supplier', '\uD83C\uDFED');
+    });
+}
+
+function renderEntityBox(layer, ent, entityType, icon) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'vsm-element entity-element');
+    g.setAttribute('data-id', ent.id);
+    g.setAttribute('transform', `translate(${ent.x}, ${ent.y})`);
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('width', '100');
+    rect.setAttribute('height', '80');
+    rect.setAttribute('fill', 'var(--bg-tertiary)');
+    rect.setAttribute('stroke', 'var(--accent-blue)');
+    rect.setAttribute('stroke-width', '2');
+    rect.setAttribute('rx', '4');
+    rect.style.cursor = 'move';
+
+    const iconEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    iconEl.setAttribute('x', '50');
+    iconEl.setAttribute('y', '30');
+    iconEl.setAttribute('text-anchor', 'middle');
+    iconEl.setAttribute('font-size', '20');
+    iconEl.textContent = icon;
+
+    const nameEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    nameEl.setAttribute('x', '50');
+    nameEl.setAttribute('y', '52');
+    nameEl.setAttribute('text-anchor', 'middle');
+    nameEl.setAttribute('fill', 'var(--text-primary)');
+    nameEl.setAttribute('font-size', '11');
+    nameEl.setAttribute('font-weight', '600');
+    nameEl.textContent = ent.name || entityType;
+
+    const detailEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    detailEl.setAttribute('x', '50');
+    detailEl.setAttribute('y', '68');
+    detailEl.setAttribute('text-anchor', 'middle');
+    detailEl.setAttribute('fill', 'var(--text-dim)');
+    detailEl.setAttribute('font-size', '9');
+    detailEl.textContent = ent.detail || '';
+
+    g.appendChild(rect);
+    g.appendChild(iconEl);
+    g.appendChild(nameEl);
+    g.appendChild(detailEl);
+
+    // Drag to reposition
+    g.addEventListener('mousedown', (e) => {
+        if (currentTool !== 'select') return;
+        e.stopPropagation();
+        const startMouse = { x: e.clientX, y: e.clientY };
+        const startX = ent.x, startY = ent.y;
+
+        function onMove(ev) {
+            ent.x = startX + (ev.clientX - startMouse.x) / zoom;
+            ent.y = startY + (ev.clientY - startMouse.y) / zoom;
+            renderVSM();
+        }
+        function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            saveVSM();
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+
+    // Double-click to edit
+    g.addEventListener('dblclick', () => showEntityProperties(ent, entityType));
+
+    layer.appendChild(g);
+}
+
+function renderConnections(layer) {
+    if (!currentVSM) return;
+
+    // Add arrow markers to defs
+    const svg = document.getElementById('vsm-canvas');
+    let defs = svg.querySelector('defs');
+    if (!defs.querySelector('#arrow-push')) {
+        // Push arrow (striped, gray)
+        const pushMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        pushMarker.setAttribute('id', 'arrow-push');
+        pushMarker.setAttribute('markerWidth', '10');
+        pushMarker.setAttribute('markerHeight', '10');
+        pushMarker.setAttribute('refX', '9');
+        pushMarker.setAttribute('refY', '3');
+        pushMarker.setAttribute('orient', 'auto');
+        pushMarker.setAttribute('markerUnits', 'strokeWidth');
+        const pushPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pushPath.setAttribute('d', 'M0,0 L0,6 L9,3 z');
+        pushPath.setAttribute('fill', 'var(--text-secondary)');
+        pushMarker.appendChild(pushPath);
+        defs.appendChild(pushMarker);
+
+        // Pull arrow (solid, green)
+        const pullMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        pullMarker.setAttribute('id', 'arrow-pull');
+        pullMarker.setAttribute('markerWidth', '10');
+        pullMarker.setAttribute('markerHeight', '10');
+        pullMarker.setAttribute('refX', '9');
+        pullMarker.setAttribute('refY', '3');
+        pullMarker.setAttribute('orient', 'auto');
+        pullMarker.setAttribute('markerUnits', 'strokeWidth');
+        const pullPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pullPath.setAttribute('d', 'M0,0 L0,6 L9,3 z');
+        pullPath.setAttribute('fill', 'var(--success)');
+        pullMarker.appendChild(pullPath);
+        defs.appendChild(pullMarker);
+
+        // Kanban signal marker (for pull)
+        const kanbanMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        kanbanMarker.setAttribute('id', 'kanban-signal');
+        kanbanMarker.setAttribute('markerWidth', '12');
+        kanbanMarker.setAttribute('markerHeight', '12');
+        kanbanMarker.setAttribute('refX', '6');
+        kanbanMarker.setAttribute('refY', '6');
+        kanbanMarker.setAttribute('orient', 'auto');
+        const kanbanRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        kanbanRect.setAttribute('x', '2');
+        kanbanRect.setAttribute('y', '2');
+        kanbanRect.setAttribute('width', '8');
+        kanbanRect.setAttribute('height', '8');
+        kanbanRect.setAttribute('fill', 'var(--success)');
+        kanbanRect.setAttribute('stroke', 'white');
+        kanbanRect.setAttribute('stroke-width', '1');
+        kanbanMarker.appendChild(kanbanRect);
+        defs.appendChild(kanbanMarker);
+    }
+
+    // Material flow
+    (currentVSM.material_flow || []).forEach(conn => {
+        const fromStep = currentVSM.process_steps.find(s => s.id === conn.from_step_id);
+        const toStep = currentVSM.process_steps.find(s => s.id === conn.to_step_id);
+        if (!fromStep || !toStep) return;
+
+        const isPull = conn.type === 'pull';
+        const x1 = fromStep.x + 130;
+        const y1 = fromStep.y + 70;
+        const x2 = toStep.x;
+        const y2 = toStep.y + 70;
+
+        if (isPull) {
+            // Pull flow: solid green arrow with kanban signal above
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', 'var(--success)');
+            line.setAttribute('stroke-width', '3');
+            line.setAttribute('marker-end', 'url(#arrow-pull)');
+            layer.appendChild(line);
+
+            // Kanban signal (small square above the line midpoint)
+            const midX = (x1 + x2) / 2;
+            const midY = y1 - 15;
+            const signal = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            signal.setAttribute('x', midX - 6);
+            signal.setAttribute('y', midY - 6);
+            signal.setAttribute('width', '12');
+            signal.setAttribute('height', '12');
+            signal.setAttribute('fill', 'var(--success)');
+            signal.setAttribute('stroke', 'white');
+            signal.setAttribute('stroke-width', '1');
+            layer.appendChild(signal);
+
+            // "K" label on signal
+            const kLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            kLabel.setAttribute('x', midX);
+            kLabel.setAttribute('y', midY + 3);
+            kLabel.setAttribute('text-anchor', 'middle');
+            kLabel.setAttribute('fill', 'white');
+            kLabel.setAttribute('font-size', '8');
+            kLabel.setAttribute('font-weight', '600');
+            kLabel.textContent = 'K';
+            layer.appendChild(kLabel);
+        } else {
+            // Push flow: striped/dashed gray arrow
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', 'var(--text-secondary)');
+            line.setAttribute('stroke-width', '4');
+            line.setAttribute('stroke-dasharray', '10,5');
+            line.setAttribute('marker-end', 'url(#arrow-push)');
+            layer.appendChild(line);
+        }
+    });
+
+    // Information flow (dashed blue lines, typically upward)
+    (currentVSM.information_flow || []).forEach(conn => {
+        const fromStep = currentVSM.process_steps.find(s => s.id === conn.from_step_id);
+        const toStep = currentVSM.process_steps.find(s => s.id === conn.to_step_id);
+        if (!fromStep || !toStep) return;
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', fromStep.x + 65);
+        line.setAttribute('y1', fromStep.y);
+        line.setAttribute('x2', toStep.x + 65);
+        line.setAttribute('y2', toStep.y);
+        line.setAttribute('stroke', 'var(--accent-blue)');
+        line.setAttribute('stroke-width', '2');
+        line.setAttribute('stroke-dasharray', '5,5');
+        layer.appendChild(line);
+    });
+}
+
+function renderLeadTimeLadder(layer) {
+    if (!currentVSM) return;
+
+    const steps = currentVSM.process_steps || [];
+    const inventory = currentVSM.inventory || [];
+    if (steps.length === 0) return;
+
+    // Sort steps and inventory by x position
+    const sortedSteps = [...steps].sort((a, b) => a.x - b.x);
+    const sortedInventory = [...inventory].sort((a, b) => a.x - b.x);
+
+    // Find baseline Y (below all process boxes)
+    const wcs = currentVSM.work_centers || [];
+    const wcBottoms = wcs.length > 0 ? wcs.map(w => w.y + (w.height || 200)) : [0];
+    const maxY = Math.max(...steps.map(s => s.y + 140), ...inventory.map(i => i.y + 60), ...wcBottoms) + 60;
+    const baselineY = maxY + 30;
+    const segmentHeight = 25;
+    const minX = Math.min(...steps.map(s => s.x), ...inventory.map(i => i.x)) - 20;
+    const maxX = Math.max(...steps.map(s => s.x + 130)) + 20;
+
+    // Create ladder group
+    const ladderG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    ladderG.setAttribute('class', 'lead-time-ladder');
+
+    // Draw baseline
+    const baseline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    baseline.setAttribute('x1', minX);
+    baseline.setAttribute('y1', baselineY);
+    baseline.setAttribute('x2', maxX + 100);
+    baseline.setAttribute('y2', baselineY);
+    baseline.setAttribute('stroke', 'var(--text-dim)');
+    baseline.setAttribute('stroke-width', '2');
+    ladderG.appendChild(baseline);
+
+    let totalCT = 0;
+    let totalWait = 0;
+
+    // Draw wait time segments for each inventory item (aligned to inventory position)
+    sortedInventory.forEach(inv => {
+        const waitDays = inv.days_of_supply || 0;
+        if (waitDays > 0) {
+            totalWait += waitDays;
+            const invCenterX = inv.x + 30; // Center of inventory triangle
+            const segWidth = 50;
+
+            // Color based on delay type
+            const delayColors = {
+                'inventory': 'var(--warning)',
+                'queue': '#f59e0b',
+                'transport': '#8b5cf6',
+                'batch': '#ec4899',
+                'supermarket': '#06b6d4'
+            };
+            const color = delayColors[inv.delay_type] || delayColors['inventory'];
+
+            // Elevated rectangle (above baseline) - centered on inventory
+            const waitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            waitRect.setAttribute('x', invCenterX - segWidth/2);
+            waitRect.setAttribute('y', baselineY - segmentHeight);
+            waitRect.setAttribute('width', segWidth);
+            waitRect.setAttribute('height', segmentHeight);
+            waitRect.setAttribute('fill', color);
+            waitRect.setAttribute('opacity', '0.7');
+            ladderG.appendChild(waitRect);
+
+            // Wait time label
+            const waitLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            waitLabel.setAttribute('x', invCenterX);
+            waitLabel.setAttribute('y', baselineY - segmentHeight - 5);
+            waitLabel.setAttribute('text-anchor', 'middle');
+            waitLabel.setAttribute('fill', color);
+            waitLabel.setAttribute('font-size', '10');
+            waitLabel.setAttribute('font-weight', '500');
+            waitLabel.textContent = `${waitDays}d`;
+            ladderG.appendChild(waitLabel);
+        }
+    });
+
+    // Draw cycle time segments — work center members get one combined segment
+    const renderedWCs = new Set();
+    sortedSteps.forEach(step => {
+        const ct = step.cycle_time || 0;
+        if (ct <= 0) return;
+
+        if (step.work_center_id) {
+            // Render work center as one combined segment (only once)
+            if (renderedWCs.has(step.work_center_id)) return;
+            renderedWCs.add(step.work_center_id);
+
+            const wc = (currentVSM.work_centers || []).find(w => w.id === step.work_center_id);
+            const effCT = getWorkCenterEffectiveCT(step.work_center_id);
+            if (effCT <= 0) return;
+            totalCT += effCT;
+
+            const wcX = wc ? wc.x : step.x;
+            const segWidth = wc ? (wc.width || 280) : 130;
+
+            const ctRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            ctRect.setAttribute('x', wcX);
+            ctRect.setAttribute('y', baselineY);
+            ctRect.setAttribute('width', segWidth);
+            ctRect.setAttribute('height', segmentHeight);
+            ctRect.setAttribute('fill', 'var(--accent-primary)');
+            ctRect.setAttribute('opacity', '0.7');
+            ctRect.setAttribute('stroke', 'var(--accent-primary)');
+            ctRect.setAttribute('stroke-width', '1');
+            ctRect.setAttribute('stroke-dasharray', '4 2');
+            ladderG.appendChild(ctRect);
+
+            const ctLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            ctLabel.setAttribute('x', wcX + segWidth/2);
+            ctLabel.setAttribute('y', baselineY + segmentHeight + 12);
+            ctLabel.setAttribute('text-anchor', 'middle');
+            ctLabel.setAttribute('fill', 'var(--accent-primary)');
+            ctLabel.setAttribute('font-size', '10');
+            ctLabel.setAttribute('font-weight', '500');
+            ctLabel.textContent = `${formatTime(effCT)} (eff.)`;
+            ladderG.appendChild(ctLabel);
+        } else {
+            totalCT += ct;
+            const segWidth = 130;
+
+            // Depressed rectangle (below baseline)
+            const ctRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            ctRect.setAttribute('x', step.x);
+            ctRect.setAttribute('y', baselineY);
+            ctRect.setAttribute('width', segWidth);
+            ctRect.setAttribute('height', segmentHeight);
+            ctRect.setAttribute('fill', 'var(--accent-primary)');
+            ctRect.setAttribute('opacity', '0.7');
+            ladderG.appendChild(ctRect);
+
+            // Cycle time label
+            const ctLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            ctLabel.setAttribute('x', step.x + segWidth/2);
+            ctLabel.setAttribute('y', baselineY + segmentHeight + 12);
+            ctLabel.setAttribute('text-anchor', 'middle');
+            ctLabel.setAttribute('fill', 'var(--accent-primary)');
+            ctLabel.setAttribute('font-size', '10');
+            ctLabel.setAttribute('font-weight', '500');
+            ctLabel.textContent = formatTime(ct);
+            ladderG.appendChild(ctLabel);
+        }
+    });
+
+    // Draw totals box
+    const totalsX = maxX + 40;
+    const totalsG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    totalsG.setAttribute('transform', `translate(${totalsX}, ${baselineY - 40})`);
+
+    // Lead time (top - wait)
+    const ltLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    ltLabel.setAttribute('x', '0');
+    ltLabel.setAttribute('y', '0');
+    ltLabel.setAttribute('fill', 'var(--warning)');
+    ltLabel.setAttribute('font-size', '10');
+    ltLabel.textContent = 'Lead Time:';
+    totalsG.appendChild(ltLabel);
+
+    const ltValue = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    ltValue.setAttribute('x', '0');
+    ltValue.setAttribute('y', '14');
+    ltValue.setAttribute('fill', 'var(--warning)');
+    ltValue.setAttribute('font-size', '14');
+    ltValue.setAttribute('font-weight', '600');
+    const totalLT = totalWait + (totalCT / 86400);
+    ltValue.textContent = totalLT.toFixed(1) + ' days';
+    totalsG.appendChild(ltValue);
+
+    // Process time (bottom - value add)
+    const ptLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    ptLabel.setAttribute('x', '0');
+    ptLabel.setAttribute('y', '40');
+    ptLabel.setAttribute('fill', 'var(--accent-primary)');
+    ptLabel.setAttribute('font-size', '10');
+    ptLabel.textContent = 'Process Time:';
+    totalsG.appendChild(ptLabel);
+
+    const ptValue = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    ptValue.setAttribute('x', '0');
+    ptValue.setAttribute('y', '54');
+    ptValue.setAttribute('fill', 'var(--accent-primary)');
+    ptValue.setAttribute('font-size', '14');
+    ptValue.setAttribute('font-weight', '600');
+    ptValue.textContent = formatTime(totalCT);
+    totalsG.appendChild(ptValue);
+
+    // PCE
+    const pce = totalLT > 0 ? ((totalCT / 86400) / totalLT * 100) : 0;
+    const pceLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    pceLabel.setAttribute('x', '0');
+    pceLabel.setAttribute('y', '76');
+    pceLabel.setAttribute('fill', 'var(--text-dim)');
+    pceLabel.setAttribute('font-size', '10');
+    pceLabel.textContent = `PCE: ${pce.toFixed(1)}%`;
+    totalsG.appendChild(pceLabel);
+
+    ladderG.appendChild(totalsG);
+    layer.appendChild(ladderG);
+}
+
+// =============================================================================
+// Interaction
+// =============================================================================
+function setupEventListeners() {
+    // Tool buttons
+    document.querySelectorAll('.toolbar-btn[data-tool]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.toolbar-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTool = btn.dataset.tool;
+        });
+    });
+
+    // Canvas interactions
+    const canvas = document.getElementById('vsm-canvas');
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (currentTool === 'pan' || e.button === 1) {
+            isPanning = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            canvas.style.cursor = 'grabbing';
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (isPanning) {
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+            panX += dx;
+            panY += dy;
+            updateCanvasTransform();
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isPanning = false;
+        canvas.style.cursor = currentTool === 'pan' ? 'grab' : 'default';
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        zoom = Math.max(0.25, Math.min(4, zoom * delta));
+        updateCanvasTransform();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        // Ctrl+Z / Ctrl+Shift+Z for undo/redo
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undoVSM();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            redoVSM();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+            e.preventDefault();
+            redoVSM();
+            return;
+        }
+
+        switch(e.key.toLowerCase()) {
+            case 'v':
+                setTool('select');
+                break;
+            case 'm':
+                setTool('material-flow');
+                break;
+            case 'i':
+                setTool('info-flow');
+                break;
+            case 'delete':
+            case 'backspace':
+                deleteSelected();
+                break;
+        }
+    });
+}
+
+function setupDragAndDrop() {
+    const paletteItems = document.querySelectorAll('.palette-item[draggable="true"]');
+    const canvasContainer = document.getElementById('canvas-container');
+
+    paletteItems.forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('element-type', item.dataset.type);
+            e.dataTransfer.setData('delay-type', item.dataset.delay || '');
+            item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+        });
+    });
+
+    canvasContainer.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    canvasContainer.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('element-type');
+        const delayType = e.dataTransfer.getData('delay-type');
+        if (!type) return;
+
+        const rect = canvasContainer.getBoundingClientRect();
+        const x = (e.clientX - rect.left - panX) / zoom;
+        const y = (e.clientY - rect.top - panY) / zoom;
+
+        await addElement(type, x, y, delayType);
+    });
+}
+
+async function addElement(type, x, y, delayType = '') {
+    saveVSMState();
+    if (!vsmId) {
+        // Need to create VSM first
+        showNewVSMDialog();
+        return;
+    }
+
+    let endpoint = '';
+    let data = { x, y };
+
+    switch(type) {
+        case 'process':
+            endpoint = `/api/vsm/${vsmId}/process-step/`;
+            data.name = 'Process';
+            data.cycle_time = 30;
+            data.uptime = 95;
+            data.operators = 1;
+            break;
+        case 'inventory':
+            endpoint = `/api/vsm/${vsmId}/inventory/`;
+            data.days_of_supply = 1;
+            data.delay_type = delayType || 'inventory';
+            break;
+        case 'supermarket':
+            // Supermarket is a special inventory type
+            endpoint = `/api/vsm/${vsmId}/inventory/`;
+            data.days_of_supply = 0.5;
+            data.delay_type = 'supermarket';
+            data.is_supermarket = true;
+            break;
+        case 'fifo':
+            // FIFO lane is a buffer element stored as inventory
+            endpoint = `/api/vsm/${vsmId}/inventory/`;
+            data.days_of_supply = 0;
+            data.delay_type = 'fifo';
+            data.is_fifo = true;
+            data.max_quantity = 10;
+            break;
+        case 'kaizen':
+            endpoint = `/api/vsm/${vsmId}/kaizen/`;
+            data.text = 'Improvement';
+            data.priority = 'medium';
+            break;
+        case 'workcenter': {
+            // Stored client-side, saved via saveVSM()
+            saveVSMState();
+            if (!currentVSM.work_centers) currentVSM.work_centers = [];
+            currentVSM.work_centers.push({
+                id: 'wc-' + Math.random().toString(36).substr(2, 8),
+                name: 'Work Center',
+                x, y,
+                width: 280,
+                height: 200
+            });
+            associateStepsToWorkCenters();
+            renderVSM();
+            await saveVSM();
+            return;
+        }
+        case 'customer':
+        case 'supplier': {
+            // Stored client-side in customers/suppliers arrays, saved via saveVSM()
+            saveVSMState();
+            const arr = type === 'customer' ? 'customers' : 'suppliers';
+            if (!currentVSM[arr]) currentVSM[arr] = [];
+            currentVSM[arr].push({
+                id: Math.random().toString(36).substr(2, 8),
+                name: type === 'customer' ? 'Customer' : 'Supplier',
+                detail: '',
+                x, y
+            });
+            renderVSM();
+            await saveVSM();
+            return;
+        }
+        default:
+            return;
+    }
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) throw new Error('Failed to add element');
+        const result = await response.json();
+        currentVSM = result.vsm;
+        renderVSM();
+        updateMetrics();
+    } catch (err) {
+        console.error('Add element error:', err);
+    }
+}
+
+let dragElement = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+function startDragElement(e, element, elementType = 'process') {
+    e.stopPropagation();
+
+    // Handle flow tool clicks
+    if (currentTool === 'flow' && elementType === 'process') {
+        handleFlowClick(element);
+        return;
+    }
+
+    if (currentTool !== 'select') return;
+
+    dragElement = element;
+    selectedElementType = elementType;
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+
+    selectedElement = element;
+    document.addEventListener('mousemove', dragElementMove);
+    document.addEventListener('mouseup', dragElementEnd);
+}
+
+function dragElementMove(e) {
+    if (!dragElement) return;
+
+    const canvasRect = document.getElementById('canvas-container').getBoundingClientRect();
+    const x = (e.clientX - canvasRect.left - dragOffsetX - panX) / zoom;
+    const y = (e.clientY - canvasRect.top - dragOffsetY - panY) / zoom;
+
+    dragElement.x = x;
+    dragElement.y = y;
+    renderVSM();
+}
+
+function dragElementEnd() {
+    if (dragElement) {
+        associateStepsToWorkCenters();
+        renderVSM();
+        saveVSM();
+        dragElement = null;
+    }
+    document.removeEventListener('mousemove', dragElementMove);
+    document.removeEventListener('mouseup', dragElementEnd);
+}
+
+function showProperties(element) {
+    const panel = document.getElementById('properties-panel');
+    panel.classList.add('visible');
+    selectedElementType = 'process';
+
+    // Show process fields, hide all others
+    document.getElementById('prop-panel-title').textContent = 'Process Properties';
+    document.getElementById('prop-delay-group').style.display = 'none';
+    document.getElementById('prop-dos-group').style.display = 'none';
+    document.getElementById('prop-kaizen-text-group').style.display = 'none';
+    document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-entity-detail-group').style.display = 'none';
+    document.getElementById('prop-wc-group').style.display = 'none';
+    document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'flex');
+
+    document.getElementById('prop-name').value = element.name || '';
+    document.getElementById('prop-cycle-time').value = element.cycle_time || '';
+    document.getElementById('prop-changeover').value = element.changeover_time || '';
+    document.getElementById('prop-uptime').value = element.uptime || '';
+    document.getElementById('prop-operators').value = element.operators || '';
+    document.getElementById('prop-batch').value = element.batch_size || '';
+    document.getElementById('prop-scrap').value = element.scrap_rate || '';
+    document.getElementById('prop-available').value = element.available_time || '';
+    document.getElementById('prop-shifts').value = element.shifts || '';
+
+    selectedElement = element;
+}
+
+function showInventoryProperties(inv) {
+    const panel = document.getElementById('properties-panel');
+    panel.classList.add('visible');
+    selectedElementType = 'inventory';
+
+    // Show inventory fields, hide all others
+    document.getElementById('prop-panel-title').textContent = 'Delay/Buffer Properties';
+    document.getElementById('prop-delay-group').style.display = 'block';
+    document.getElementById('prop-dos-group').style.display = 'block';
+    document.getElementById('prop-kaizen-text-group').style.display = 'none';
+    document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-entity-detail-group').style.display = 'none';
+    document.getElementById('prop-wc-group').style.display = 'none';
+    document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
+
+    document.getElementById('prop-name').value = inv.name || '';
+    document.getElementById('prop-delay-type').value = inv.delay_type || 'inventory';
+    document.getElementById('prop-dos').value = inv.days_of_supply || '';
+
+    selectedElement = inv;
+}
+
+function showKaizenProperties(burst) {
+    const panel = document.getElementById('properties-panel');
+    panel.classList.add('visible');
+    selectedElementType = 'kaizen';
+
+    document.getElementById('prop-panel-title').textContent = 'Kaizen Burst';
+    // Hide all field groups
+    document.getElementById('prop-delay-group').style.display = 'none';
+    document.getElementById('prop-dos-group').style.display = 'none';
+    document.getElementById('prop-entity-detail-group').style.display = 'none';
+    document.getElementById('prop-wc-group').style.display = 'none';
+    document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
+    // Show kaizen fields
+    document.getElementById('prop-kaizen-text-group').style.display = 'block';
+    document.getElementById('prop-kaizen-priority-group').style.display = 'block';
+
+    document.getElementById('prop-name').value = burst.text || '';
+    document.getElementById('prop-kaizen-text').value = burst.text || '';
+    document.getElementById('prop-kaizen-priority').value = burst.priority || 'medium';
+
+    selectedElement = burst;
+}
+
+function showEntityProperties(entity, entityType) {
+    const panel = document.getElementById('properties-panel');
+    panel.classList.add('visible');
+    selectedElementType = entityType; // 'customer' or 'supplier'
+
+    const isCustomer = entityType === 'customer';
+    document.getElementById('prop-panel-title').textContent = isCustomer ? 'Customer' : 'Supplier';
+    // Hide all non-relevant groups
+    document.getElementById('prop-delay-group').style.display = 'none';
+    document.getElementById('prop-dos-group').style.display = 'none';
+    document.getElementById('prop-kaizen-text-group').style.display = 'none';
+    document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-wc-group').style.display = 'none';
+    document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
+    // Show entity detail field
+    document.getElementById('prop-entity-detail-group').style.display = 'block';
+    document.getElementById('prop-entity-detail-label').textContent = isCustomer ? 'Demand' : 'Supply Frequency';
+    document.getElementById('prop-name').value = entity.name || (isCustomer ? 'Customer' : 'Supplier');
+    document.getElementById('prop-entity-detail').value = entity.detail || '';
+
+    selectedElement = entity;
+}
+
+function saveProperties() {
+    if (!selectedElement || !currentVSM) return;
+    saveVSMState();
+
+    if (selectedElementType === 'workcenter') {
+        selectedElement.name = document.getElementById('prop-name').value;
+        selectedElement.width = parseInt(document.getElementById('prop-wc-width').value) || 280;
+        selectedElement.height = parseInt(document.getElementById('prop-wc-height').value) || 200;
+        associateStepsToWorkCenters();
+    } else if (selectedElementType === 'kaizen') {
+        selectedElement.text = document.getElementById('prop-kaizen-text').value;
+        selectedElement.priority = document.getElementById('prop-kaizen-priority').value;
+    } else if (selectedElementType === 'customer' || selectedElementType === 'supplier') {
+        selectedElement.name = document.getElementById('prop-name').value;
+        selectedElement.detail = document.getElementById('prop-entity-detail').value;
+    } else if (selectedElementType === 'inventory') {
+        // Save inventory properties
+        selectedElement.name = document.getElementById('prop-name').value;
+        selectedElement.delay_type = document.getElementById('prop-delay-type').value;
+        selectedElement.days_of_supply = parseFloat(document.getElementById('prop-dos').value) || 0;
+
+        // Update special flags based on delay type
+        selectedElement.is_supermarket = selectedElement.delay_type === 'supermarket';
+        selectedElement.is_fifo = selectedElement.delay_type === 'fifo';
+    } else {
+        // Save process properties
+        selectedElement.name = document.getElementById('prop-name').value;
+        selectedElement.cycle_time = parseFloat(document.getElementById('prop-cycle-time').value) || null;
+        selectedElement.changeover_time = parseFloat(document.getElementById('prop-changeover').value) || null;
+        selectedElement.uptime = parseFloat(document.getElementById('prop-uptime').value) || null;
+        selectedElement.operators = parseInt(document.getElementById('prop-operators').value) || null;
+        selectedElement.batch_size = parseInt(document.getElementById('prop-batch').value) || null;
+        selectedElement.scrap_rate = parseFloat(document.getElementById('prop-scrap').value) || null;
+        selectedElement.available_time = parseInt(document.getElementById('prop-available').value) || null;
+        selectedElement.shifts = parseInt(document.getElementById('prop-shifts').value) || null;
+    }
+
+    document.getElementById('properties-panel').classList.remove('visible');
+    renderVSM();
+    updateMetrics();
+    saveVSM();
+}
+
+function deleteSelected() {
+    if (!selectedElement || !currentVSM) return;
+    saveVSMState();
+
+    // Find and remove from appropriate array
+    const id = selectedElement.id;
+    currentVSM.process_steps = (currentVSM.process_steps || []).filter(s => s.id !== id);
+    currentVSM.inventory = (currentVSM.inventory || []).filter(i => i.id !== id);
+    currentVSM.kaizen_bursts = (currentVSM.kaizen_bursts || []).filter(k => k.id !== id);
+    currentVSM.customers = (currentVSM.customers || []).filter(c => c.id !== id);
+    currentVSM.suppliers = (currentVSM.suppliers || []).filter(s => s.id !== id);
+    currentVSM.work_centers = (currentVSM.work_centers || []).filter(w => w.id !== id);
+    // If a work center was deleted, clear work_center_id from its members
+    (currentVSM.process_steps || []).forEach(step => {
+        if (step.work_center_id === id) delete step.work_center_id;
+    });
+
+    selectedElement = null;
+    renderVSM();
+    updateMetrics();
+    saveVSM();
+}
+
+// =============================================================================
+// Metrics & Actions
+// =============================================================================
+function updateMetrics() {
+    if (!currentVSM) return;
+
+    // Calculate totals (work center aware — parallel machines use effective CT)
+    let totalCT = 0;
+    let totalWait = 0;
+
+    const wcSteps = {};
+    (currentVSM.process_steps || []).forEach(step => {
+        const ct = step.cycle_time || 0;
+        if (step.work_center_id) {
+            if (!wcSteps[step.work_center_id]) wcSteps[step.work_center_id] = [];
+            wcSteps[step.work_center_id].push(ct);
+        } else {
+            totalCT += ct;
+        }
+    });
+    // Add effective CT for each work center
+    Object.values(wcSteps).forEach(cts => {
+        const rateSum = cts.reduce((s, ct) => ct > 0 ? s + 1.0/ct : s, 0);
+        if (rateSum > 0) totalCT += 1.0 / rateSum;
+    });
+
+    (currentVSM.inventory || []).forEach(inv => {
+        totalWait += inv.days_of_supply || 0;
+    });
+
+    const leadTime = totalWait + (totalCT / 86400);
+    const pce = leadTime > 0 ? ((totalCT / 86400) / leadTime * 100) : 0;
+
+    document.getElementById('metric-lead-time').textContent = leadTime.toFixed(2) + ' days';
+    document.getElementById('metric-process-time').textContent = totalCT + ' sec';
+    document.getElementById('metric-pce').textContent = pce.toFixed(1) + '%';
+    document.getElementById('metric-takt').textContent = currentVSM.takt_time ? currentVSM.takt_time + ' sec' : '-';
+
+    // Pre-fill takt inputs if data exists
+    if (currentVSM.takt_time) {
+        document.getElementById('takt-direct').value = currentVSM.takt_time;
+    }
+}
+
+function setTaktDirect() {
+    const val = parseFloat(document.getElementById('takt-direct').value);
+    if (!val || val <= 0 || !currentVSM) return;
+    saveVSMState();
+    currentVSM.takt_time = Math.round(val * 10) / 10;
+    updateMetrics();
+    saveVSM();
+}
+
+function calculateTakt() {
+    const avail = parseFloat(document.getElementById('takt-avail').value);
+    const demand = parseFloat(document.getElementById('takt-demand').value);
+    if (!avail || !demand || demand <= 0 || !currentVSM) return;
+    saveVSMState();
+    const takt = Math.round((avail / demand) * 10) / 10;
+    currentVSM.takt_time = takt;
+    document.getElementById('takt-direct').value = takt;
+    updateMetrics();
+    saveVSM();
+}
+
+async function createFutureState() {
+    if (!vsmId) return;
+
+    try {
+        const response = await fetch(`/api/vsm/${vsmId}/future-state/`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to create future state');
+        const data = await response.json();
+        window.location.href = `/app/vsm/${data.future_state.id}/`;
+    } catch (err) {
+        console.error('Create future state error:', err);
+    }
+}
+
+async function compareStates() {
+    if (!vsmId) return;
+
+    try {
+        const response = await fetch(`/api/vsm/${vsmId}/compare/`, { credentials: 'include' });
+        const data = await response.json();
+
+        if (data.comparison) {
+            alert(`Comparison:\nLead Time: ${data.comparison.lead_time.improvement.toFixed(1)}% improvement\nPCE: ${data.comparison.pce.improvement.toFixed(1)}% improvement`);
+        } else {
+            alert('No future state found to compare.');
+        }
+    } catch (err) {
+        console.error('Compare error:', err);
+    }
+}
+
+function exportVSM() {
+    // TODO: PDF/image export
+    alert('Export coming soon');
+}
+
+// =============================================================================
+// View Controls
+// =============================================================================
+function updateCanvasTransform() {
+    const elementsLayer = document.getElementById('elements-layer');
+    const connectionsLayer = document.getElementById('connections-layer');
+    const transform = `translate(${panX}, ${panY}) scale(${zoom})`;
+    elementsLayer.setAttribute('transform', transform);
+    connectionsLayer.setAttribute('transform', transform);
+}
+
+function zoomIn() {
+    zoom = Math.min(4, zoom * 1.2);
+    updateCanvasTransform();
+}
+
+function zoomOut() {
+    zoom = Math.max(0.25, zoom * 0.8);
+    updateCanvasTransform();
+}
+
+function resetView() {
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+    updateCanvasTransform();
+}
+
+function setTool(tool) {
+    currentTool = tool;
+    currentFlowType = null;
+    flowSourceStep = null;
+    document.querySelectorAll('.toolbar-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.flow-item').forEach(f => f.classList.remove('active'));
+    const btn = document.querySelector(`.toolbar-btn[data-tool="${tool}"]`);
+    if (btn) btn.classList.add('active');
+}
+
+function setFlowTool(flowType) {
+    currentTool = 'flow';
+    currentFlowType = flowType;
+    flowSourceStep = null;
+    document.querySelectorAll('.toolbar-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.flow-item').forEach(f => f.classList.remove('active'));
+    const flowItem = document.querySelector(`.flow-item[data-flow="${flowType}"]`);
+    if (flowItem) flowItem.classList.add('active');
+    document.getElementById('flow-hint').textContent =
+        `${flowType.charAt(0).toUpperCase() + flowType.slice(1)} mode: click a source process box.`;
+}
+
+function handleFlowClick(step) {
+    if (currentTool !== 'flow' || !currentFlowType) return;
+
+    if (!flowSourceStep) {
+        // First click - select source
+        flowSourceStep = step;
+        document.getElementById('flow-hint').textContent =
+            `Source: "${step.name || 'Process'}". Now click the destination box.`;
+        // Highlight source element on canvas
+        const el = document.querySelector(`[data-id="${step.id}"]`);
+        if (el) el.classList.add('flow-source-highlight');
+    } else if (flowSourceStep.id !== step.id) {
+        // Second click - create connection
+        addMaterialFlow(flowSourceStep.id, step.id, currentFlowType);
+        // Remove highlight
+        document.querySelectorAll('.flow-source-highlight').forEach(
+            e => e.classList.remove('flow-source-highlight'));
+        flowSourceStep = null;
+        document.getElementById('flow-hint').textContent =
+            'Flow created! Click another source to add more, or switch tools.';
+    }
+}
+
+async function addMaterialFlow(fromId, toId, flowType) {
+    if (!currentVSM) return;
+    saveVSMState();
+
+    // Initialize material_flow if needed
+    if (!currentVSM.material_flow) {
+        currentVSM.material_flow = [];
+    }
+
+    // Add connection
+    currentVSM.material_flow.push({
+        id: Math.random().toString(36).substr(2, 8),
+        from_step_id: fromId,
+        to_step_id: toId,
+        type: flowType
+    });
+
+    renderVSM();
+    await saveVSM();
+}
+
+// =============================================================================
+// Dialogs
+// =============================================================================
+function showNewVSMDialog() {
+    document.getElementById('new-vsm-dialog').style.display = 'flex';
+}
+
+function hideNewVSMDialog() {
+    document.getElementById('new-vsm-dialog').style.display = 'none';
+}
+
+function showVSMList(maps) {
+    const container = document.getElementById('canvas-container');
+    const emptyState = document.getElementById('empty-state');
+
+    let html = '<div class="vsm-list"><h3 style="margin-bottom:1rem;">Your Value Stream Maps</h3>';
+    maps.forEach(m => {
+        html += `
+            <div class="vsm-item" onclick="window.location.href='/app/vsm/${m.id}/'">
+                <div class="vsm-title">${m.name}
+                    <span class="vsm-status ${m.status}">${m.status}</span>
+                </div>
+                <div class="vsm-meta">${m.product_family || 'No product family'} &middot; Updated ${new Date(m.updated_at).toLocaleDateString()}</div>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    emptyState.innerHTML = html + '<button class="btn btn-primary" style="margin:1rem;" onclick="showNewVSMDialog()">+ New VSM</button>';
+}
+</script>
+{% endblock %}

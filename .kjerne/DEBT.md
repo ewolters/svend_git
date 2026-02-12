@@ -28,13 +28,18 @@ Track technical debt here. Review weekly.
 
 ### Competitive Gaps (vs Minitab/JMP)
 
-[DSW] No mixed-effects / multi-level modeling | Added: 2026-02-06 | Priority: P3
 [DOE] No split-plot or mixture designs | Added: 2026-02-06 | Priority: P3
 [DOE] Single response optimization only — no multi-response | Added: 2026-02-06 | Priority: P3
-[SPC] No multivariate control charts | Added: 2026-02-06 | Priority: P3
-[FORECAST] Limited to random walk MC, SMA, exponential smoothing — no Prophet, TBATS, or seasonal methods | Added: 2026-02-06 | Priority: P3
+[DOE] No acceptance sampling for variable data (normal distribution plans) | Added: 2026-02-07 | Priority: P3
 
 ## Resolved
+
+[DSW] No mixed-effects / multi-level modeling | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending
+[FORECAST] Limited to random walk MC, SMA, exponential smoothing — no Prophet, TBATS, or seasonal methods | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending
+[SPC] No multivariate control charts | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending
+[DSW] No survival analysis (Cox proportional hazards, Kaplan-Meier) | Added: 2026-02-07 | Resolved: 2026-02-07 | Commit: pending
+[DSW] No discriminant analysis (LDA/QDA) | Added: 2026-02-07 | Resolved: 2026-02-07 | Commit: pending
+[DSW] No acceptance sampling plans | Added: 2026-02-07 | Resolved: 2026-02-07 | Commit: pending
 
 [REPO] svend.db tracked in git with user emails | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 9c9396e
 [REPO] .kjerne/snapshots/*.tar.gz binary files in git (4.3MB) | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 9c9396e

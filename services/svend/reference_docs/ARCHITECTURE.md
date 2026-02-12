@@ -221,6 +221,163 @@ Timeline: Day 1-5 event tracking
 
 ---
 
+## Tools → Methods → Knowledge Architecture
+
+### Core Insight
+
+Tools generate knowledge. Methods orchestrate and structure it. This separation enables:
+
+1. **Tools are reusable** across any method
+2. **Methods are composable** - users pick the structure that fits
+3. **Knowledge persists** independently of how it was created
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              PROJECT                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                         TOOLS (Generate Knowledge)                │   │
+│  ├──────────────────────────────┬───────────────────────────────────┤   │
+│  │  DSW                         │  Whiteboard                        │   │
+│  │  (Quantitative)              │  (Qualitative)                     │   │
+│  │  ───────────────             │  ─────────────                     │   │
+│  │  • Statistical analysis      │  • Brainstorming                   │   │
+│  │  • SPC / Capability          │  • Fishbone diagrams               │   │
+│  │  • DOE                       │  • Affinity mapping                │   │
+│  │  • Hypothesis testing        │  • Process mapping                 │   │
+│  │  • Regression                │  • If-then relationships           │   │
+│  │  • ML models                 │  • Causal chains                   │   │
+│  └──────────────────────────────┴───────────────────────────────────┘   │
+│                                  │                                       │
+│                                  ▼                                       │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                    KNOWLEDGE (Persistent Artifacts)               │   │
+│  ├──────────────────────────────────────────────────────────────────┤   │
+│  │  Hypotheses    Evidence      Conclusions    Summaries             │   │
+│  │  (with P())    (with LR)     (structured)   (LLM-generated)       │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                  │                                       │
+│                                  ▼                                       │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                    METHODS (Orchestrate & Structure)              │   │
+│  ├─────────────┬─────────────┬─────────────┬───────────┬────────────┤   │
+│  │    A3       │   DMAIC     │   5-Why     │    8D     │   Kaizen   │   │
+│  │  (1-page)   │  (phases)   │ (drill down)│ (report)  │  (event)   │   │
+│  └─────────────┴─────────────┴─────────────┴───────────┴────────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Tools
+
+Tools are knowledge generators. They produce structured output that becomes persistent knowledge.
+
+| Tool | Type | Outputs |
+|------|------|---------|
+| **DSW** | Quantitative | Statistical results, capability metrics, DOE effects, model predictions, p-values, effect sizes |
+| **Whiteboard** | Qualitative | Diagrams, relationships, groupings, causal chains, if-then statements, process flows |
+
+Tools don't care what method (if any) will consume their output. A capability study is the same whether it's part of DMAIC Measure phase or a standalone analysis.
+
+### Knowledge Artifacts
+
+Knowledge persists at the project level. Artifacts are typed and structured:
+
+| Artifact | Source | Contains |
+|----------|--------|----------|
+| **Hypothesis** | User, Whiteboard, DSW | Statement, prior probability, current probability, evidence links |
+| **Evidence** | DSW, Whiteboard, Manual | Source type, result, confidence, likelihood ratio per hypothesis |
+| **Conclusion** | LLM Summary, User | Structured finding with supporting evidence |
+| **Summary** | LLM (Qwen) | Natural language synthesis of tool session |
+
+### Methods
+
+Methods provide scaffolding and structure. They don't generate knowledge - they organize it.
+
+| Method | Structure | Pulls From |
+|--------|-----------|------------|
+| **A3** | Single-page sections (Background, Current State, Target, Analysis, Countermeasures, Plan) | DSW summaries → Analysis, Whiteboard fishbone → Root cause |
+| **DMAIC** | 5 phases with gates | Phase-specific tool outputs |
+| **5-Why** | Drill-down chain | Whiteboard relationships, DSW root cause analysis |
+| **8D** | 8 disciplines | All knowledge artifacts |
+| **Kaizen** | Current/Future state | Whiteboard process maps, DSW metrics |
+
+### Import/Export Flows
+
+Knowledge flows between tools and methods through structured import/export:
+
+```
+WHITEBOARD EXPORTS:
+├── If-then relationship  →  Hypothesis (with statement + implied prior)
+├── Fishbone branch       →  Hypothesis set (multiple causes)
+├── Affinity group        →  Summary (LLM synthesizes cluster)
+├── Process map           →  A3 Current State section
+└── Session               →  Summary (LLM synthesizes key findings)
+
+DSW EXPORTS:
+├── Statistical test      →  Evidence (p-value, effect size, direction)
+├── Capability study      →  Evidence + Summary
+├── DOE results           →  Evidence + Hypothesis updates (main effects)
+├── Regression model      →  Evidence + Conclusions (significant factors)
+└── Session               →  Summary (LLM synthesizes analysis)
+
+METHOD IMPORTS:
+├── A3.Analysis           ←  DSW summary, Whiteboard fishbone summary
+├── A3.Countermeasures    ←  Whiteboard brainstorm summary
+├── DMAIC.Measure         ←  DSW capability, MSA results
+├── DMAIC.Analyze         ←  DSW hypothesis tests, Whiteboard fishbone
+├── 5-Why.Chain           ←  Whiteboard causal chain
+└── 8D.Root_Cause         ←  All evidence supporting hypothesis
+```
+
+### LLM Summarization Layer
+
+Import/export requires an LLM to translate raw tool output into method-consumable summaries:
+
+```
+Tool Session (raw)
+       │
+       ▼
+┌──────────────────┐
+│  Qwen Summary    │  ← "Summarize this DSW session for A3 Analysis section"
+│  (context-aware) │  ← Knows target format, length constraints
+└──────────────────┘
+       │
+       ▼
+Structured Summary
+(ready for method import)
+```
+
+The summarizer understands:
+- **Source context**: What tool, what type of analysis
+- **Target context**: Which method, which section, what format expected
+- **Constraints**: Length limits (A3 is one page), required elements
+
+### Implementation Phases
+
+**Phase 1: Knowledge Persistence (Current)**
+- Hypotheses, Evidence, EvidenceLink models exist
+- Basic probability tracking works
+- No import/export yet
+
+**Phase 2: Tool → Knowledge Export**
+- DSW results create Evidence automatically
+- Whiteboard elements exportable to Hypotheses
+- LLM summarization for sessions
+
+**Phase 3: Method Import**
+- A3, DMAIC templates can pull knowledge artifacts
+- Smart suggestions ("You have 3 hypotheses that could go in Analysis")
+- One-click import with LLM formatting
+
+**Phase 4: Bi-directional Flow**
+- Methods can request specific tool analysis
+- "A3 Analysis needs capability data" → opens DSW with context
+- Cross-tool references preserved
+
+---
+
 ## AI Philosophy
 
 ### What AI Does

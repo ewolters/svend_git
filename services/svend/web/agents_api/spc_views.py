@@ -91,6 +91,12 @@ def control_chart(request):
                 return JsonResponse({"error": "c-chart requires defect counts as flat array"}, status=400)
             result = spc.c_chart([int(d) for d in data])
 
+        elif chart_type == "T-squared":
+            # Hotelling's T² for multivariate data
+            if not isinstance(data[0], list):
+                return JsonResponse({"error": "T-squared requires multivariate data (array of arrays, each row = [var1, var2, ...])"}, status=400)
+            result = spc.hotelling_t_squared_chart(data, usl=usl, lsl=lsl)
+
         else:
             return JsonResponse({"error": f"Unknown chart type: {chart_type}"}, status=400)
 
@@ -460,7 +466,10 @@ def analyze_uploaded(request):
             usl = body.get("usl")
             lsl = body.get("lsl")
 
-            if extracted["type"] == "subgroups":
+            if chart_type == "T-squared" and extracted["type"] == "subgroups":
+                # Multivariate: treat subgroups as rows of multi-variable observations
+                result = spc.hotelling_t_squared_chart(extracted["data"], usl=usl, lsl=lsl)
+            elif extracted["type"] == "subgroups":
                 if chart_type in ["X-bar R", "xbar_r"]:
                     result = spc.xbar_r_chart(extracted["data"], usl=usl, lsl=lsl)
                 else:
@@ -615,6 +624,14 @@ def chart_types(request):
                 "data_type": "attribute",
                 "subgroup_size": "constant",
                 "use_when": "Counting defects per unit (e.g., scratches per panel)",
+            },
+            {
+                "id": "T-squared",
+                "name": "Hotelling's T² (Multivariate)",
+                "description": "For multivariate continuous data (2+ characteristics per observation)",
+                "data_type": "continuous_multivariate",
+                "subgroup_size": "2+ variables",
+                "use_when": "Multiple interrelated measurements per sample (e.g., length & width, temp & pressure)",
             },
         ],
         "capability_indices": [

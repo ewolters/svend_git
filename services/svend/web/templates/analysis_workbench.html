@@ -3008,6 +3008,20 @@ const analysisMenus = {
             { id: 'paired_t', name: 'Paired t', desc: 'Paired t-test' },
             { id: 'anova', name: 'One-Way ANOVA', desc: 'Analysis of variance' },
             { id: 'anova2', name: 'Two-Way ANOVA', desc: 'Factorial ANOVA' },
+            { id: 'tukey_hsd', name: 'Tukey HSD', desc: 'Post-hoc pairwise comparisons' },
+            { id: 'games_howell', name: 'Games-Howell', desc: 'Post-hoc (unequal variances)' },
+            { id: 'dunnett', name: "Dunnett's Test", desc: 'Compare treatments to control' },
+            { id: 'dunn', name: "Dunn's Test", desc: 'Non-parametric post-hoc' },
+            { id: 'hotelling_t2', name: "Hotelling's T²", desc: 'Multivariate two-sample test' },
+            { id: 'manova', name: 'MANOVA', desc: 'Multivariate analysis of variance' },
+            { id: 'nested_anova', name: 'Nested ANOVA', desc: 'Mixed-effects / hierarchical' },
+            { id: 'kaplan_meier', name: 'Kaplan-Meier', desc: 'Survival curves with log-rank test' },
+            { id: 'cox_ph', name: 'Cox Proportional Hazards', desc: 'Survival regression with hazard ratios' },
+            { id: 'acceptance_sampling', name: 'Acceptance Sampling', desc: 'OC curves, AQL/LTPD, producer/consumer risk' },
+            { id: 'prop_1sample', name: '1-Proportion Z', desc: 'Test observed proportion vs hypothesized' },
+            { id: 'prop_2sample', name: '2-Proportion Z', desc: 'Compare proportions between groups' },
+            { id: 'fisher_exact', name: "Fisher's Exact", desc: 'Exact test for 2×2 tables' },
+            { id: 'poisson_1sample', name: 'Poisson Rate', desc: 'Test event rate vs hypothesized' },
             { id: 'regression', name: 'Regression', desc: 'OLS with full diagnostics' },
             { id: 'logistic', name: 'Logistic Regression', desc: 'Binary outcomes, odds ratios' },
             { id: 'correlation', name: 'Correlation', desc: 'Pearson, Spearman' },
@@ -3026,12 +3040,22 @@ const analysisMenus = {
             { id: 'main_effects', name: 'Main Effects Plot', desc: 'DOE factor effects' },
             { id: 'interaction', name: 'Interaction Plot', desc: 'Factor interactions' },
             { id: 'multi_vari', name: 'Multi-Vari Chart', desc: 'Variation sources' },
+            { id: 'power_z', name: '1-Sample Z Power', desc: 'Sample size for Z-test' },
+            { id: 'power_1prop', name: '1-Proportion Power', desc: 'Sample size for proportion test' },
+            { id: 'power_2prop', name: '2-Proportion Power', desc: 'Sample size for comparing proportions' },
+            { id: 'power_1variance', name: '1-Variance Power', desc: 'Sample size for variance test' },
+            { id: 'power_2variance', name: '2-Variance Power', desc: 'Sample size for F-test' },
+            { id: 'power_equivalence', name: 'Equivalence Power', desc: 'Sample size for TOST' },
+            { id: 'power_doe', name: 'DOE Factorial Power', desc: 'Replicates for 2^k design' },
+            { id: 'sample_size_ci', name: 'Sample Size (CI)', desc: 'n for target CI width' },
+            { id: 'sample_size_tolerance', name: 'Sample Size (Tolerance)', desc: 'n for tolerance interval' },
         ]
     },
     timeseries: {
         title: 'Time Series',
         items: [
             { id: 'arima', name: 'ARIMA', desc: 'Forecasting model' },
+            { id: 'sarima', name: 'SARIMA', desc: 'Seasonal forecasting' },
             { id: 'decomposition', name: 'Decomposition', desc: 'Trend, seasonal, residual' },
             { id: 'acf_pacf', name: 'ACF/PACF', desc: 'Autocorrelation plots' },
         ]
@@ -3046,7 +3070,12 @@ const analysisMenus = {
     msa: {
         title: 'Measurement Systems',
         items: [
-            { id: 'gage_rr', name: 'Gage R&R', desc: 'Repeatability & Reproducibility' },
+            { id: 'gage_rr', name: 'Gage R&R (Crossed)', desc: 'Repeatability & Reproducibility' },
+            { id: 'gage_rr_nested', name: 'Gage R&R (Nested)', desc: 'Destructive / non-crossed study' },
+            { id: 'gage_linearity_bias', name: 'Linearity & Bias', desc: 'Bias across measurement range' },
+            { id: 'gage_type1', name: 'Type 1 Gage Study', desc: 'Single part, Cg/Cgk indices' },
+            { id: 'attribute_gage', name: 'Attribute Gage', desc: 'Pass/Fail agreement vs reference' },
+            { id: 'attribute_agreement', name: 'Attribute Agreement', desc: 'Kappa / Fleiss Kappa' },
         ]
     },
     ml: {
@@ -3062,6 +3091,8 @@ const analysisMenus = {
             { id: 'gaussian_process', name: 'Gaussian Process', desc: 'Nonlinear + uncertainty bands' },
             { id: 'pls', name: 'PLS Regression', desc: 'Handles collinearity' },
             { id: 'sem', name: 'SEM / Path Analysis', desc: 'Causal paths + mediation' },
+            { id: 'regularized_regression', name: 'Ridge/LASSO/Elastic Net', desc: 'Regularized regression' },
+            { id: 'discriminant_analysis', name: 'Discriminant Analysis', desc: 'LDA/QDA classification' },
         ]
     },
     spc: {
@@ -3251,6 +3282,87 @@ function generateConfigForm(type, id) {
                 </div>
             `;
         }
+        if (['tukey_hsd', 'games_howell', 'dunn'].includes(id)) {
+            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Response (measurement):</label>
+                    <select id="cfg-response">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Factor (groups):</label>
+                    <select id="cfg-factor">${catCols || colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Confidence level:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+            `;
+        }
+        if (id === 'dunnett') {
+            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Response (measurement):</label>
+                    <select id="cfg-response">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Factor (groups):</label>
+                    <select id="cfg-factor">${catCols || colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Control group:</label>
+                    <select id="cfg-control">${catCols || colOptions}</select>
+                    <small style="color:#5a6a5a;">Select factor first, then pick the control level</small>
+                </div>
+                <div class="aw-form-group">
+                    <label>Confidence level:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+            `;
+        }
+        if (['hotelling_t2', 'manova'].includes(id)) {
+            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            const numericCols = columns.filter(c => c.dtype === 'numeric');
+            const checkboxes = numericCols.map(c => `
+                <label class="aw-checkbox-item">
+                    <input type="checkbox" name="responses" value="${c.name}">
+                    <span>${c.name}</span>
+                </label>
+            `).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Response variables (select 2+):</label>
+                    <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
+                        ${checkboxes || '<span style="color:#5a6a5a;">No numeric columns</span>'}
+                    </div>
+                    <div style="margin-top:6px;">
+                        <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('responses', true)">Select All</button>
+                        <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('responses', false)">Clear</button>
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Factor (groups):</label>
+                    <select id="cfg-factor">${catCols || colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Confidence level:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+            `;
+        }
         if (id === 'anova2') {
             const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
@@ -3265,6 +3377,32 @@ function generateConfigForm(type, id) {
                 <div class="aw-form-group">
                     <label>Factor B:</label>
                     <select id="cfg-factor_b">${catCols || colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Confidence level:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+            `;
+        }
+        if (id === 'nested_anova') {
+            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Response (measurement):</label>
+                    <select id="cfg-response">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Fixed factor (treatment):</label>
+                    <select id="cfg-fixed_factor">${catCols || colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Random factor (nesting):</label>
+                    <select id="cfg-random_factor">${catCols || colOptions}</select>
+                    <small style="color:#5a6a5a;">E.g., operators within machines, batches within suppliers</small>
                 </div>
                 <div class="aw-form-group">
                     <label>Confidence level:</label>
@@ -3852,6 +3990,47 @@ function generateConfigForm(type, id) {
                 </div>
             `;
         }
+        if (id === 'sarima') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variable:</label>
+                    <select id="cfg-var">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>p (AR):</label>
+                        <select id="cfg-p"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
+                    <div class="aw-form-group"><label>d (diff):</label>
+                        <select id="cfg-d"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option></select></div>
+                    <div class="aw-form-group"><label>q (MA):</label>
+                        <select id="cfg-q"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>P (Seasonal AR):</label>
+                        <select id="cfg-P"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option></select></div>
+                    <div class="aw-form-group"><label>D (Seasonal diff):</label>
+                        <select id="cfg-D"><option value="0">0</option><option value="1" selected>1</option></select></div>
+                    <div class="aw-form-group"><label>Q (Seasonal MA):</label>
+                        <select id="cfg-Q"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option></select></div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Seasonal period (m):</label>
+                    <select id="cfg-m">
+                        <option value="4">4 (Quarterly)</option>
+                        <option value="7">7 (Weekly)</option>
+                        <option value="12" selected>12 (Monthly)</option>
+                        <option value="24">24 (Bi-monthly)</option>
+                        <option value="52">52 (Weekly/Yearly)</option>
+                    </select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Forecast periods:</label>
+                    <input type="number" id="cfg-forecast" value="24" min="1" max="200">
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">SARIMA:</strong> (p,d,q) = non-seasonal, (P,D,Q)[m] = seasonal. Use Decomposition to identify seasonal period.
+                </div>
+            `;
+        }
         if (id === 'decomposition') {
             return `
                 <div class="aw-form-group">
@@ -3956,7 +4135,58 @@ function generateConfigForm(type, id) {
                     <select id="cfg-operator">${colOptions}</select>
                 </div>
                 <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
-                    <strong style="color:var(--aw-accent);">Gage R&R:</strong> &lt;10% excellent, 10-30% marginal, &gt;30% unacceptable.
+                    <strong style="color:var(--aw-accent);">Gage R&R (Crossed):</strong> &lt;10% excellent, 10-30% marginal, &gt;30% unacceptable.
+                </div>
+            `;
+        }
+        if (id === 'gage_rr_nested') {
+            return `
+                <div class="aw-form-group"><label>Measurement column:</label><select id="cfg-measurement">${numCols}</select></div>
+                <div class="aw-form-group"><label>Part ID column:</label><select id="cfg-part">${colOptions}</select></div>
+                <div class="aw-form-group"><label>Operator column:</label><select id="cfg-operator">${colOptions}</select></div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">Nested Gage R&R:</strong> For destructive testing where operators measure different parts.
+                </div>
+            `;
+        }
+        if (id === 'gage_linearity_bias') {
+            return `
+                <div class="aw-form-group"><label>Measurement column:</label><select id="cfg-measurement">${numCols}</select></div>
+                <div class="aw-form-group"><label>Reference column:</label><select id="cfg-reference">${numCols}</select></div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">Linearity & Bias:</strong> Tests if bias changes across the measurement range. Slope ≠ 0 indicates linearity problem.
+                </div>
+            `;
+        }
+        if (id === 'gage_type1') {
+            return `
+                <div class="aw-form-group"><label>Measurement column:</label><select id="cfg-measurement">${numCols}</select></div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Reference value:</label><input type="number" id="cfg-reference" value="0" step="any"></div>
+                    <div class="aw-form-group"><label>Tolerance (USL − LSL):</label><input type="number" id="cfg-tolerance" value="1.0" step="any" min="0.001"></div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Type 1 Gage Study:</strong> One part, one operator, repeated measurements. Cg ≥ 1.33 and Cgk ≥ 1.33 required.
+                </div>
+            `;
+        }
+        if (id === 'attribute_gage') {
+            return `
+                <div class="aw-form-group"><label>Appraiser result column (pass/fail):</label><select id="cfg-result">${colOptions}</select></div>
+                <div class="aw-form-group"><label>Reference (truth) column:</label><select id="cfg-reference">${colOptions}</select></div>
+                <div class="aw-form-group"><label>Appraiser column (optional):</label><select id="cfg-appraiser"><option value="">(none)</option>${colOptions}</select></div>
+                <div style="background:rgba(217,74,74,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#d94a4a;">Attribute Gage:</strong> Compares pass/fail calls against known reference. ≥90% agreement required.
+                </div>
+            `;
+        }
+        if (id === 'attribute_agreement') {
+            return `
+                <div class="aw-form-group"><label>Appraiser column:</label><select id="cfg-appraiser">${colOptions}</select></div>
+                <div class="aw-form-group"><label>Part/Item column:</label><select id="cfg-part">${colOptions}</select></div>
+                <div class="aw-form-group"><label>Rating column:</label><select id="cfg-rating">${colOptions}</select></div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">Attribute Agreement:</strong> Cohen's κ (2 raters) or Fleiss' κ (3+). κ > 0.6 = substantial agreement.
                 </div>
             `;
         }
@@ -4216,6 +4446,432 @@ function generateConfigForm(type, id) {
                 </div>
                 <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
                     <strong style="color:var(--aw-accent);">Collinearity Handler:</strong> PLS projects to latent space, avoiding multicollinearity issues common in process data.
+                </div>
+            `;
+        }
+        if (id === 'regularized_regression') {
+            const predChecks = columns.filter(c => c.dtype === 'numeric').map(c => `
+                <label class="aw-checkbox-item"><input type="checkbox" name="predictors" value="${c.name}"><span>${c.name}</span></label>
+            `).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Response:</label>
+                    <select id="cfg-response">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Predictors:</label>
+                    <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
+                        ${predChecks || '<span style="color:#5a6a5a;">No numeric columns</span>'}
+                    </div>
+                    <div style="margin-top:6px;">
+                        <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('predictors', true)">All</button>
+                        <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('predictors', false)">Clear</button>
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Method:</label>
+                    <select id="cfg-method">
+                        <option value="elastic_net">Elastic Net (Ridge + LASSO)</option>
+                        <option value="lasso">LASSO (feature selection)</option>
+                        <option value="ridge">Ridge (shrinkage only)</option>
+                    </select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Regularized Regression:</strong> Ridge shrinks coefficients, LASSO drops them to zero (feature selection), Elastic Net does both. Alpha selected by cross-validation.
+                </div>
+            `;
+        }
+        if (id === 'kaplan_meier') {
+            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Time variable (time to event):</label>
+                    <select id="cfg-time_col">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Event indicator (1=event, 0=censored):</label>
+                    <select id="cfg-event_col">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Group variable (optional):</label>
+                    <select id="cfg-group_col"><option value="">None (single curve)</option>${catCols || colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Confidence level:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Kaplan-Meier:</strong> Non-parametric survival curve. Event indicator: 1 = failure/death, 0 = censored/survived. Group variable enables log-rank test.
+                </div>
+            `;
+        }
+        if (id === 'cox_ph') {
+            const predChecks = columns.filter(c => c.dtype === 'numeric' || c.dtype === 'text').map(c => `
+                <label class="aw-checkbox-item"><input type="checkbox" name="covariates" value="${c.name}"><span>${c.name}</span></label>
+            `).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Time variable (time to event):</label>
+                    <select id="cfg-time_col">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Event indicator (1=event, 0=censored):</label>
+                    <select id="cfg-event_col">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Covariates:</label>
+                    <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
+                        ${predChecks || '<span style="color:#5a6a5a;">No columns available</span>'}
+                    </div>
+                    <div style="margin-top:6px;">
+                        <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('covariates', true)">All</button>
+                        <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('covariates', false)">Clear</button>
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Confidence level:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Cox PH:</strong> Semi-parametric survival regression. Estimates hazard ratios (HR &gt; 1 = higher risk). Categorical covariates are automatically dummy-coded.
+                </div>
+            `;
+        }
+        if (id === 'discriminant_analysis') {
+            const predChecks = columns.filter(c => c.dtype === 'numeric').map(c => `
+                <label class="aw-checkbox-item"><input type="checkbox" name="predictors" value="${c.name}"><span>${c.name}</span></label>
+            `).join('');
+            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Group variable (target):</label>
+                    <select id="cfg-response">${catCols || colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Predictors:</label>
+                    <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">
+                        ${predChecks || '<span style="color:#5a6a5a;">No numeric columns</span>'}
+                    </div>
+                    <div style="margin-top:6px;">
+                        <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('predictors', true)">All</button>
+                        <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('predictors', false)">Clear</button>
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Method:</label>
+                    <select id="cfg-method">
+                        <option value="lda">LDA (Linear Discriminant Analysis)</option>
+                        <option value="qda">QDA (Quadratic Discriminant Analysis)</option>
+                    </select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Discriminant Analysis:</strong> LDA assumes equal covariances (linear boundary), QDA allows class-specific covariances (curved boundary). Use LDA when groups have similar spread.
+                </div>
+            `;
+        }
+        if (id === 'acceptance_sampling') {
+            return `
+                <div class="aw-form-group">
+                    <label>Plan type:</label>
+                    <select id="cfg-plan_type">
+                        <option value="single">Single Sampling</option>
+                        <option value="double">Double Sampling</option>
+                    </select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Sample size (n):</label>
+                        <input type="number" id="cfg-sample_size" value="50" min="1" max="10000">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Accept number (Ac):</label>
+                        <input type="number" id="cfg-accept_number" value="2" min="0" max="100">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Lot size (N):</label>
+                        <input type="number" id="cfg-lot_size" value="1000" min="1" max="1000000">
+                    </div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>AQL (%):</label>
+                        <input type="number" id="cfg-aql" value="1" min="0.01" max="10" step="0.1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>LTPD (%):</label>
+                        <input type="number" id="cfg-ltpd" value="5" min="0.1" max="50" step="0.1">
+                    </div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Acceptance Sampling:</strong>
+                    AQL = max acceptable defect rate (producer's quality target).
+                    LTPD = worst tolerable defect rate (consumer's protection).
+                    OC curve shows P(accept) at each defect rate. No dataset required.
+                </div>
+            `;
+        }
+        if (id === 'prop_1sample') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variable (binary / categorical):</label>
+                    <select id="cfg-var">${allCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Event value (count as success):</label>
+                    <input type="text" id="cfg-event" placeholder="e.g. 1, Yes, Pass (blank = 1 for binary)">
+                </div>
+                <div class="aw-form-group">
+                    <label>Hypothesized proportion (p₀):</label>
+                    <input type="number" id="cfg-p0" value="0.5" min="0" max="1" step="0.01">
+                </div>
+                <div class="aw-form-group">
+                    <label>Alternative:</label>
+                    <select id="cfg-alternative">
+                        <option value="two-sided">Two-sided (p ≠ p₀)</option>
+                        <option value="greater">Greater (p > p₀)</option>
+                        <option value="less">Less (p < p₀)</option>
+                    </select>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">1-Proportion Z-Test:</strong>
+                    Tests whether an observed proportion differs from a target. Uses normal approximation with Wilson confidence interval.
+                </div>
+            `;
+        }
+        if (id === 'prop_2sample') {
+            return `
+                <div class="aw-form-group">
+                    <label>Variable (binary / categorical):</label>
+                    <select id="cfg-var">${allCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Group variable:</label>
+                    <select id="cfg-group_var">${allCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Event value (count as success):</label>
+                    <input type="text" id="cfg-event" placeholder="e.g. 1, Yes, Pass (blank = 1 for binary)">
+                </div>
+                <div class="aw-form-group">
+                    <label>Alternative:</label>
+                    <select id="cfg-alternative">
+                        <option value="two-sided">Two-sided (p₁ ≠ p₂)</option>
+                        <option value="greater">Greater (p₁ > p₂)</option>
+                        <option value="less">Less (p₁ < p₂)</option>
+                    </select>
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">2-Proportion Z-Test:</strong>
+                    Compares proportions between two groups using pooled Z-statistic. Group variable must have exactly 2 levels.
+                </div>
+            `;
+        }
+        if (id === 'fisher_exact') {
+            return `
+                <div class="aw-form-group">
+                    <label>Row variable:</label>
+                    <select id="cfg-var">${allCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Column variable:</label>
+                    <select id="cfg-var2">${allCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Alternative:</label>
+                    <select id="cfg-alternative">
+                        <option value="two-sided">Two-sided</option>
+                        <option value="greater">Greater</option>
+                        <option value="less">Less</option>
+                    </select>
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">Fisher's Exact Test:</strong>
+                    Exact test for 2×2 contingency tables. Preferred over chi-square when expected cell counts &lt; 5. Reports odds ratio with CI.
+                </div>
+            `;
+        }
+        if (id === 'poisson_1sample') {
+            return `
+                <div class="aw-form-group">
+                    <label>Count variable:</label>
+                    <select id="cfg-var">${numCols}</select>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>Hypothesized rate (λ₀):</label>
+                        <input type="number" id="cfg-rate0" value="1.0" min="0" step="0.1">
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Exposure (time/units):</label>
+                        <input type="number" id="cfg-exposure" value="1.0" min="0.001" step="0.1">
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Alternative:</label>
+                    <select id="cfg-alternative">
+                        <option value="two-sided">Two-sided (λ ≠ λ₀)</option>
+                        <option value="greater">Greater (λ > λ₀)</option>
+                        <option value="less">Less (λ < λ₀)</option>
+                    </select>
+                </div>
+                <div style="background:rgba(217,74,74,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#d94a4a;">Poisson Rate Test:</strong>
+                    Tests if an observed event count (summed over the variable) differs from a hypothesized rate × exposure. Uses exact Poisson test.
+                </div>
+            `;
+        }
+        if (id === 'power_z') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Difference (δ):</label><input type="number" id="cfg-delta" value="0.5" step="0.1"></div>
+                    <div class="aw-form-group"><label>Std Dev (σ):</label><input type="number" id="cfg-sigma" value="1.0" step="0.1"></div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Alpha:</label><input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0.001" max="0.5"></div>
+                    <div class="aw-form-group"><label>Power:</label><input type="number" id="cfg-power" value="0.80" step="0.05" min="0.1" max="0.99"></div>
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">1-Sample Z Power:</strong> Finds sample size to detect δ with given power. No dataset needed.
+                </div>
+            `;
+        }
+        if (id === 'power_1prop') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Null proportion (p₀):</label><input type="number" id="cfg-p0" value="0.5" step="0.01" min="0" max="1"></div>
+                    <div class="aw-form-group"><label>Alt proportion (pₐ):</label><input type="number" id="cfg-pa" value="0.65" step="0.01" min="0" max="1"></div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Alpha:</label><input type="number" id="cfg-alpha" value="0.05" step="0.01"></div>
+                    <div class="aw-form-group"><label>Power:</label><input type="number" id="cfg-power" value="0.80" step="0.05"></div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">1-Proportion Power:</strong> Sample size to detect p=pₐ vs p₀. No dataset needed.
+                </div>
+            `;
+        }
+        if (id === 'power_2prop') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Proportion 1 (p₁):</label><input type="number" id="cfg-p1" value="0.5" step="0.01"></div>
+                    <div class="aw-form-group"><label>Proportion 2 (p₂):</label><input type="number" id="cfg-p2" value="0.65" step="0.01"></div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Alpha:</label><input type="number" id="cfg-alpha" value="0.05" step="0.01"></div>
+                    <div class="aw-form-group"><label>Power:</label><input type="number" id="cfg-power" value="0.80" step="0.05"></div>
+                </div>
+                <div class="aw-form-group"><label>n₂/n₁ ratio:</label><input type="number" id="cfg-ratio" value="1.0" step="0.1" min="0.1"></div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">2-Proportion Power:</strong> Sample size per group to detect difference. No dataset needed.
+                </div>
+            `;
+        }
+        if (id === 'power_1variance') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Null σ₀:</label><input type="number" id="cfg-sigma0" value="1.0" step="0.1"></div>
+                    <div class="aw-form-group"><label>Alt σ₁:</label><input type="number" id="cfg-sigma1" value="1.5" step="0.1"></div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Alpha:</label><input type="number" id="cfg-alpha" value="0.05" step="0.01"></div>
+                    <div class="aw-form-group"><label>Power:</label><input type="number" id="cfg-power" value="0.80" step="0.05"></div>
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">1-Variance Power:</strong> Sample size to detect σ₁ vs σ₀ using chi-square test. No dataset needed.
+                </div>
+            `;
+        }
+        if (id === 'power_2variance') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Variance ratio (σ₁²/σ₂²):</label><input type="number" id="cfg-variance_ratio" value="2.0" step="0.1" min="0.1"></div>
+                    <div class="aw-form-group"><label>n₂/n₁ ratio:</label><input type="number" id="cfg-ratio" value="1.0" step="0.1" min="0.1"></div>
+                </div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Alpha:</label><input type="number" id="cfg-alpha" value="0.05" step="0.01"></div>
+                    <div class="aw-form-group"><label>Power:</label><input type="number" id="cfg-power" value="0.80" step="0.05"></div>
+                </div>
+                <div style="background:rgba(232,149,71,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#e89547;">2-Variance Power:</strong> Sample size per group to detect variance ratio using F-test. No dataset needed.
+                </div>
+            `;
+        }
+        if (id === 'power_equivalence') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>True difference (δ):</label><input type="number" id="cfg-delta" value="0.0" step="0.1"></div>
+                    <div class="aw-form-group"><label>Equiv margin (±):</label><input type="number" id="cfg-margin" value="0.5" step="0.1"></div>
+                </div>
+                <div class="aw-form-group"><label>Std Dev (σ):</label><input type="number" id="cfg-sigma" value="1.0" step="0.1"></div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Alpha:</label><input type="number" id="cfg-alpha" value="0.05" step="0.01"></div>
+                    <div class="aw-form-group"><label>Power:</label><input type="number" id="cfg-power" value="0.80" step="0.05"></div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Equivalence Power:</strong> Sample size for TOST to prove equivalence within ±margin. No dataset needed.
+                </div>
+            `;
+        }
+        if (id === 'power_doe') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Number of factors (k):</label><input type="number" id="cfg-factors" value="3" step="1" min="2" max="8"></div>
+                    <div class="aw-form-group"><label>Min effect (Δ):</label><input type="number" id="cfg-delta" value="1.0" step="0.1"></div>
+                </div>
+                <div class="aw-form-group"><label>Std Dev (σ):</label><input type="number" id="cfg-sigma" value="1.0" step="0.1"></div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Alpha:</label><input type="number" id="cfg-alpha" value="0.05" step="0.01"></div>
+                    <div class="aw-form-group"><label>Power:</label><input type="number" id="cfg-power" value="0.80" step="0.05"></div>
+                </div>
+                <div style="background:rgba(74,144,217,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#4a90d9;">DOE Factorial Power:</strong> Required replicates for 2^k full factorial design. No dataset needed.
+                </div>
+            `;
+        }
+        if (id === 'sample_size_ci') {
+            return `
+                <div class="aw-form-group">
+                    <label>Estimate type:</label>
+                    <select id="cfg-type">
+                        <option value="mean">Mean</option>
+                        <option value="proportion">Proportion</option>
+                    </select>
+                </div>
+                <div class="aw-form-group"><label>Target half-width (margin of error):</label><input type="number" id="cfg-half_width" value="0.5" step="0.1" min="0.001"></div>
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>σ (for mean):</label><input type="number" id="cfg-sigma" value="1.0" step="0.1"></div>
+                    <div class="aw-form-group"><label>p est (for proportion):</label><input type="number" id="cfg-p_est" value="0.5" step="0.01" min="0" max="1"></div>
+                </div>
+                <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:var(--aw-accent);">Sample Size for CI:</strong> How many observations to achieve a target confidence interval width. No dataset needed.
+                </div>
+            `;
+        }
+        if (id === 'sample_size_tolerance') {
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group"><label>Coverage (e.g. 0.99):</label><input type="number" id="cfg-coverage" value="0.99" step="0.01" min="0.5" max="0.999"></div>
+                    <div class="aw-form-group"><label>Confidence (e.g. 0.95):</label><input type="number" id="cfg-confidence" value="0.95" step="0.01" min="0.5" max="0.999"></div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Interval type:</label>
+                    <select id="cfg-type">
+                        <option value="two-sided">Two-sided</option>
+                        <option value="one-sided">One-sided</option>
+                    </select>
+                </div>
+                <div style="background:rgba(217,74,74,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                    <strong style="color:#d94a4a;">Tolerance Interval Size:</strong> Sample size so the tolerance k-factor converges. E.g. 99%/95% = 99% of population covered with 95% confidence. No dataset needed.
                 </div>
             `;
         }

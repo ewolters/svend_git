@@ -2,6 +2,8 @@
 
 import secrets
 import uuid
+from datetime import timedelta
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -20,7 +22,10 @@ class Subscription(models.Model):
         PAST_DUE = "past_due", "Past Due"
         CANCELED = "canceled", "Canceled"
         INCOMPLETE = "incomplete", "Incomplete"
+        INCOMPLETE_EXPIRED = "incomplete_expired", "Incomplete Expired"
         TRIALING = "trialing", "Trialing"
+        UNPAID = "unpaid", "Unpaid"
+        PAUSED = "paused", "Paused"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
@@ -208,7 +213,7 @@ class User(AbstractUser):
             self.queries_today = 0
             self.queries_reset_at = timezone.now().replace(
                 hour=0, minute=0, second=0, microsecond=0
-            ) + timezone.timedelta(days=1)
+            ) + timedelta(days=1)
             self.save(update_fields=["queries_today", "queries_reset_at"])
 
         return self.queries_today < self.daily_limit
@@ -216,7 +221,8 @@ class User(AbstractUser):
     def increment_queries(self):
         """Increment query count."""
         self.queries_today += 1
-        self.save(update_fields=["queries_today"])
+        self.total_queries += 1
+        self.save(update_fields=["queries_today", "total_queries"])
 
     def generate_verification_token(self) -> str:
         """Generate and save a new email verification token."""

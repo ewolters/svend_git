@@ -3,7 +3,7 @@
   "user_id": 2,
   "title": "Employee Turnover",
   "status": "active",
-  "last_updated": "2026-01-28T21:48:14.823195",
+  "last_updated": "2026-02-07T03:44:40.467301",
   "methodology": {
     "type": "none",
     "dmaic_phase": "",
@@ -26,65 +26,78 @@
   },
   "hypotheses": [
     {
-      "id": "de7a04ae",
+      "id": "80ecb42a",
       "cause": "Large local employer raised wages to $25/hour",
-      "status": "investigating",
-      "testable": true,
       "mechanism": "Employees leaving us to go to the competitor",
-      "created_at": "2026-01-28T21:46:36.464736",
       "probability": 0.67,
+      "testable": true,
       "evidence_for": [],
-      "evidence_against": []
+      "evidence_against": [],
+      "status": "active",
+      "created_at": "2026-02-07T02:31:06.947950+00:00"
     },
     {
-      "id": "fb4a3a92",
+      "id": "5088d18d",
       "cause": "Difficult onboarding process",
       "mechanism": "Employees are not feeling welcomed or supported during their first few months, leading to dissatisfaction and departure.",
       "probability": 0.4,
       "testable": true,
       "evidence_for": [],
       "evidence_against": [],
-      "status": "investigating",
-      "created_at": "2026-01-28T21:48:14.816434"
+      "status": "active",
+      "created_at": "2026-02-07T02:31:06.951376+00:00"
     },
     {
-      "id": "48efa5e9",
+      "id": "e37b5f18",
       "cause": "Inadequate training and development opportunities",
       "mechanism": "Employees feel unprepared for their roles and see limited potential for growth within the company, prompting them to seek better opportunities elsewhere.",
       "probability": 0.3,
       "testable": true,
       "evidence_for": [],
       "evidence_against": [],
-      "status": "investigating",
-      "created_at": "2026-01-28T21:48:14.819418"
+      "status": "active",
+      "created_at": "2026-02-07T02:31:06.954510+00:00"
     },
     {
-      "id": "91d25a8e",
+      "id": "26f97cf6",
       "cause": "Negative workplace culture",
       "mechanism": "The company has a toxic or stressful work environment that leads to high levels of burnout and job dissatisfaction among new hires.",
       "probability": 0.25,
       "testable": true,
       "evidence_for": [],
       "evidence_against": [],
-      "status": "investigating",
-      "created_at": "2026-01-28T21:48:14.820790"
+      "status": "active",
+      "created_at": "2026-02-07T02:31:06.957668+00:00"
     },
     {
-      "id": "fff1a6ce",
+      "id": "001ffccb",
       "cause": "Misalignment between job expectations and reality",
       "mechanism": "New employees find that their actual job responsibilities differ significantly from what they were promised during the hiring process, leading to frustration and resignation.",
       "probability": 0.2,
       "testable": true,
       "evidence_for": [],
       "evidence_against": [],
-      "status": "investigating",
-      "created_at": "2026-01-28T21:48:14.821992"
+      "status": "active",
+      "created_at": "2026-02-07T02:31:06.960955+00:00"
     }
   ],
   "evidence": [],
   "dead_ends": [],
   "understanding": {
-    "probable_causes": [],
+    "probable_causes": [
+      {
+        "cause": "Large local employer raised wages to $25/hour",
+        "probability": 0.67
+      },
+      {
+        "cause": "Difficult onboarding process",
+        "probability": 0.4
+      },
+      {
+        "cause": "Inadequate training and development opportunities",
+        "probability": 0.3
+      }
+    ],
     "key_uncertainties": [],
     "recommended_next_steps": []
   },

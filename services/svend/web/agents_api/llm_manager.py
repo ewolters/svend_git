@@ -127,6 +127,7 @@ class LLMManager:
         system: str = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        skip_rate_limit: bool = False,
         **kwargs,
     ) -> Optional[dict]:
         """Send a chat request using the appropriate Claude model for the user's tier.
@@ -137,12 +138,30 @@ class LLMManager:
             system: Optional system prompt
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature
+            skip_rate_limit: Skip rate limit check (for internal/system use only)
             **kwargs: Additional arguments passed to Anthropic API
 
         Returns:
-            dict with 'content' (str), 'model' (str), 'usage' (dict)
+            dict with 'content' (str), 'model' (str), 'usage' (dict), 'rate_limit' (dict)
+            or dict with 'error' and 'rate_limited' if rate limited
             or None if request fails
         """
+        # Check rate limit
+        if not skip_rate_limit:
+            try:
+                from .models import check_rate_limit, LLMUsage
+                allowed, remaining, limit = check_rate_limit(user)
+                if not allowed:
+                    logger.warning(f"Rate limit exceeded for user {user.id}: {limit} requests/day")
+                    return {
+                        "error": f"Daily limit of {limit} requests reached. Resets at midnight.",
+                        "rate_limited": True,
+                        "rate_limit": {"remaining": 0, "limit": limit},
+                    }
+            except Exception as e:
+                logger.error(f"Rate limit check failed: {e}")
+                # Continue anyway if rate limit check fails
+
         client = cls.get_anthropic()
         if not client:
             return None
@@ -162,12 +181,30 @@ class LLMManager:
 
             response = client.messages.create(**create_kwargs)
 
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
+            # Record usage
+            try:
+                from .models import LLMUsage, check_rate_limit
+                # Map full model name to short name
+                model_short = "haiku" if "haiku" in model else "sonnet" if "sonnet" in model else "opus"
+                LLMUsage.record_usage(user, model_short, input_tokens, output_tokens)
+                _, remaining, limit = check_rate_limit(user)
+            except Exception as e:
+                logger.error(f"Failed to record LLM usage: {e}")
+                remaining, limit = 0, 0
+
             return {
                 "content": response.content[0].text if response.content else "",
                 "model": model,
                 "usage": {
-                    "input_tokens": response.usage.input_tokens,
-                    "output_tokens": response.usage.output_tokens,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                },
+                "rate_limit": {
+                    "remaining": remaining,
+                    "limit": limit,
                 },
                 "stop_reason": response.stop_reason,
             }

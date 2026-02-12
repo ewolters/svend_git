@@ -40,8 +40,40 @@ class DSWResult(models.Model):
     data = models.TextField()  # JSON serialized result
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Optional project linking for A3/method import
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dsw_results",
+    )
+
+    # Human-readable title for the analysis
+    title = models.CharField(max_length=255, blank=True, help_text="e.g., 'Capability Study - Line A'")
+
     class Meta:
         ordering = ["-created_at"]
+
+    def get_summary(self):
+        """Return a brief summary of the result for import previews."""
+        import json
+        try:
+            data = json.loads(self.data)
+            # Try to extract key findings
+            summary_parts = []
+            if self.title:
+                summary_parts.append(self.title)
+            if 'analysis' in data:
+                summary_parts.append(f"Analysis: {data['analysis']}")
+            if 'summary' in data:
+                # Direct summary field
+                return data['summary']
+            if 'findings' in data and isinstance(data['findings'], list):
+                summary_parts.extend(data['findings'][:3])
+            return " | ".join(summary_parts) if summary_parts else self.result_type
+        except (json.JSONDecodeError, KeyError):
+            return self.title or self.result_type
 
 
 class TriageResult(models.Model):
@@ -794,3 +826,698 @@ class CacheEntry(models.Model):
         if self.expires_at is None:
             return False
         return timezone.now() > self.expires_at
+
+
+# =============================================================================
+# LLM Usage Tracking & Rate Limiting
+# =============================================================================
+
+class LLMUsage(models.Model):
+    """Track LLM API usage per user for rate limiting and cost control."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="llm_usage",
+    )
+    date = models.DateField(db_index=True)
+    model = models.CharField(max_length=50)  # haiku, sonnet, opus
+    request_count = models.IntegerField(default=0)
+    input_tokens = models.IntegerField(default=0)
+    output_tokens = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ("user", "date", "model")
+        indexes = [
+            models.Index(fields=["user", "date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.date} - {self.model}: {self.request_count} requests"
+
+    @classmethod
+    def get_daily_usage(cls, user, date=None):
+        """Get total requests for a user on a given date."""
+        from django.utils import timezone
+        if date is None:
+            date = timezone.now().date()
+        return cls.objects.filter(user=user, date=date).aggregate(
+            total_requests=models.Sum('request_count'),
+            total_input_tokens=models.Sum('input_tokens'),
+            total_output_tokens=models.Sum('output_tokens'),
+        )
+
+    @classmethod
+    def record_usage(cls, user, model, input_tokens=0, output_tokens=0):
+        """Record an LLM request. Returns updated usage."""
+        from django.utils import timezone
+        today = timezone.now().date()
+
+        usage, created = cls.objects.get_or_create(
+            user=user,
+            date=today,
+            model=model,
+            defaults={'request_count': 0, 'input_tokens': 0, 'output_tokens': 0}
+        )
+
+        usage.request_count += 1
+        usage.input_tokens += input_tokens
+        usage.output_tokens += output_tokens
+        usage.save()
+
+        return usage
+
+
+# Rate limits by tier (requests per day)
+LLM_RATE_LIMITS = {
+    "FREE": 10,
+    "FOUNDER": 50,
+    "PRO": 200,
+    "TEAM": 500,
+    "ENTERPRISE": 10000,  # Effectively unlimited
+}
+
+
+def check_rate_limit(user):
+    """Check if user is within their rate limit.
+
+    Returns:
+        (allowed: bool, remaining: int, limit: int)
+    """
+    from django.utils import timezone
+
+    tier = getattr(user, 'subscription_tier', 'FREE') or 'FREE'
+    limit = LLM_RATE_LIMITS.get(tier.upper(), LLM_RATE_LIMITS["FREE"])
+
+    usage = LLMUsage.get_daily_usage(user, timezone.now().date())
+    current = usage['total_requests'] or 0
+
+    return (current < limit, limit - current, limit)
+
+
+# =============================================================================
+# Whiteboard - Collaborative Boards
+# =============================================================================
+
+def generate_room_code():
+    """Generate a 6-character room code."""
+    import random
+    import string
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
+class Board(models.Model):
+    """Collaborative whiteboard for kaizen sessions."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    room_code = models.CharField(max_length=10, unique=True, default=generate_room_code, db_index=True)
+    name = models.CharField(max_length=255, default="Untitled Board")
+
+    # Owner/creator
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="owned_boards",
+    )
+
+    # Optional link to a project (for kaizen sessions tied to investigations)
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="boards",
+    )
+
+    # Board state as JSON
+    elements = models.JSONField(default=list)  # List of element objects
+    connections = models.JSONField(default=list)  # List of connection objects
+
+    # Canvas state
+    zoom = models.FloatField(default=1.0)
+    pan_x = models.FloatField(default=0.0)
+    pan_y = models.FloatField(default=0.0)
+
+    # Voting state
+    voting_active = models.BooleanField(default=False)
+    votes_per_user = models.IntegerField(default=3)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Version for conflict detection (incremented on each save)
+    version = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.name} ({self.room_code})"
+
+    def save(self, *args, **kwargs):
+        # Increment version on save
+        self.version += 1
+        super().save(*args, **kwargs)
+
+
+class BoardParticipant(models.Model):
+    """Track who's in a board session."""
+
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="participants")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="board_participations",
+    )
+
+    # Participant color for cursors/attribution
+    color = models.CharField(max_length=7, default="#4a9f6e")  # Hex color
+
+    # Last activity (for presence detection)
+    last_seen = models.DateTimeField(auto_now=True)
+
+    # Cursor position (for showing where others are)
+    cursor_x = models.FloatField(null=True, blank=True)
+    cursor_y = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("board", "user")
+
+    def __str__(self):
+        return f"{self.user.username} in {self.board.room_code}"
+
+
+class BoardVote(models.Model):
+    """Dot vote on a board element."""
+
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="votes")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="board_votes",
+    )
+    element_id = models.CharField(max_length=50)  # The element ID being voted on
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # One vote per user per element
+        unique_together = ("board", "user", "element_id")
+
+    def __str__(self):
+        return f"{self.user.username} voted on {self.element_id}"
+
+
+# =============================================================================
+# Methods - A3, DMAIC, 8D, etc.
+# =============================================================================
+
+class A3Report(models.Model):
+    """Toyota-style A3 problem-solving report.
+
+    A3 is a structured single-page format for problem solving:
+    - Forces concise thinking (fits on 11x17 paper)
+    - Follows PDCA logic flow
+    - Encourages visual management
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        IN_PROGRESS = "in_progress", "In Progress"
+        REVIEW = "review", "Under Review"
+        COMPLETE = "complete", "Complete"
+        ARCHIVED = "archived", "Archived"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Ownership
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="a3_reports",
+    )
+
+    # Link to project (A3 is always part of a project)
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.CASCADE,
+        related_name="a3_reports",
+    )
+
+    # Header
+    title = models.CharField(max_length=255, help_text="Problem/theme title")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+
+    # Left column (Plan)
+    background = models.TextField(
+        blank=True,
+        help_text="Why does this matter? Business context, impact."
+    )
+    current_condition = models.TextField(
+        blank=True,
+        help_text="What's happening now? Data, metrics, observations."
+    )
+    goal = models.TextField(
+        blank=True,
+        help_text="What are we trying to achieve? Target condition, metrics."
+    )
+    root_cause = models.TextField(
+        blank=True,
+        help_text="Why is this happening? 5-why, fishbone findings."
+    )
+
+    # Right column (Do/Check/Act)
+    countermeasures = models.TextField(
+        blank=True,
+        help_text="What will we do about it? Actions to address root causes."
+    )
+    implementation_plan = models.TextField(
+        blank=True,
+        help_text="Who, what, when? Action items with owners and dates."
+    )
+    follow_up = models.TextField(
+        blank=True,
+        help_text="How will we verify? Check dates, success metrics."
+    )
+
+    # Imported content references (for traceability)
+    imported_from = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="References to imported content: {section: [{source, id, summary}]}"
+    )
+
+    # Embedded diagrams (SVG snapshots from whiteboards)
+    embedded_diagrams = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Embedded SVG diagrams: {section: [{id, svg, board_name, room_code}]}"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "a3_reports"
+        ordering = ["-updated_at"]
+        verbose_name = "A3 Report"
+        verbose_name_plural = "A3 Reports"
+
+    def __str__(self):
+        return f"A3: {self.title} ({self.status})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id),
+            "title": self.title,
+            "status": self.status,
+            "background": self.background,
+            "current_condition": self.current_condition,
+            "goal": self.goal,
+            "root_cause": self.root_cause,
+            "countermeasures": self.countermeasures,
+            "implementation_plan": self.implementation_plan,
+            "follow_up": self.follow_up,
+            "imported_from": self.imported_from,
+            "embedded_diagrams": self.embedded_diagrams,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =============================================================================
+# Root Cause Analysis (RCA) - Special Cause Investigation
+# =============================================================================
+
+class RCASession(models.Model):
+    """Root Cause Analysis session for special cause investigation.
+
+    RCA is for SPECIAL CAUSE problems only - unique events that require
+    investigation of the causal chain (like NTSB investigations).
+
+    For COMMON CAUSE problems (systemic issues), use fishbone/C&E matrix
+    and Kaizen instead.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        IN_PROGRESS = "in_progress", "In Progress"
+        REVIEW = "review", "Under Review"
+        COMPLETE = "complete", "Complete"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Ownership
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="rca_sessions",
+    )
+
+    # Optional project link
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rca_sessions",
+    )
+
+    # Optional A3 link (if this RCA is embedded in an A3)
+    a3_report = models.ForeignKey(
+        A3Report,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rca_sessions",
+    )
+
+    # The incident/event being investigated
+    title = models.CharField(max_length=255, blank=True)
+    event = models.TextField(help_text="Description of the incident")
+
+    # Causal chain: [{claim, critique, accepted, error_labels}]
+    chain = models.JSONField(
+        default=list,
+        help_text="Causal chain steps with critiques"
+    )
+
+    # Conclusions
+    root_cause = models.TextField(blank=True, help_text="Stated root cause")
+    countermeasure = models.TextField(blank=True, help_text="Proposed countermeasure")
+    evaluation = models.TextField(blank=True, help_text="Final AI evaluation of the analysis")
+
+    # Status
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Embedding for similarity search (stored as bytes for portability)
+    embedding = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="Embedding vector for similarity search"
+    )
+
+    class Meta:
+        db_table = "rca_sessions"
+        ordering = ["-updated_at"]
+        verbose_name = "RCA Session"
+        verbose_name_plural = "RCA Sessions"
+
+    def __str__(self):
+        return f"RCA: {self.title or self.event[:50]} ({self.status})"
+
+    def generate_embedding(self):
+        """Generate and store embedding for this RCA session."""
+        from .embeddings import generate_rca_embedding
+        import numpy as np
+
+        embedding = generate_rca_embedding(
+            event=self.event,
+            chain=self.chain or [],
+            root_cause=self.root_cause,
+        )
+
+        if embedding is not None:
+            self.embedding = embedding.tobytes()
+            return True
+        return False
+
+    def get_embedding(self):
+        """Get embedding as numpy array."""
+        import numpy as np
+
+        if self.embedding is None:
+            return None
+
+        return np.frombuffer(self.embedding, dtype=np.float32)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id) if self.project_id else None,
+            "a3_report_id": str(self.a3_report_id) if self.a3_report_id else None,
+            "title": self.title,
+            "event": self.event,
+            "chain": self.chain,
+            "root_cause": self.root_cause,
+            "countermeasure": self.countermeasure,
+            "evaluation": self.evaluation,
+            "status": self.status,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =============================================================================
+# Value Stream Map (VSM)
+# =============================================================================
+
+class ValueStreamMap(models.Model):
+    """Value Stream Map for lean process analysis.
+
+    VSM visualizes material and information flow to identify waste.
+    Unlike a general whiteboard, VSM has structured elements:
+    - Process steps with cycle time, wait time, etc.
+    - Inventory triangles between steps
+    - Information flow (customer demand, scheduling)
+    - Timeline showing value-add vs non-value-add time
+    """
+
+    class Status(models.TextChoices):
+        CURRENT = "current", "Current State"
+        FUTURE = "future", "Future State"
+        ARCHIVED = "archived", "Archived"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="value_stream_maps",
+    )
+
+    # Optional link to project
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="value_stream_maps",
+    )
+
+    # Header
+    name = models.CharField(max_length=255, default="Untitled VSM")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.CURRENT)
+    product_family = models.CharField(max_length=255, blank=True, help_text="Product or service being mapped")
+
+    # Customer info (right side of VSM)
+    customer_name = models.CharField(max_length=255, blank=True, default="Customer")
+    customer_demand = models.CharField(max_length=100, blank=True, help_text="e.g., 460 units/day")
+    takt_time = models.FloatField(null=True, blank=True, help_text="Takt time in seconds")
+
+    # Supplier info (left side of VSM)
+    supplier_name = models.CharField(max_length=255, blank=True, default="Supplier")
+    supply_frequency = models.CharField(max_length=100, blank=True, help_text="e.g., Weekly")
+
+    # Multiple customers/suppliers as JSON arrays
+    # Each: {id, name, detail, x, y}
+    customers = models.JSONField(default=list, help_text="Customer entities on the map")
+    suppliers = models.JSONField(default=list, help_text="Supplier entities on the map")
+
+    # Process steps as JSON
+    # Each step: {id, name, x, y, cycle_time, changeover_time, uptime, operators, shifts, batch_size, ...}
+    process_steps = models.JSONField(default=list, help_text="Process boxes with metrics")
+
+    # Inventory between steps
+    # Each: {id, before_step_id, quantity, days_of_supply, x, y}
+    inventory = models.JSONField(default=list, help_text="Inventory triangles")
+
+    # Information flow
+    # Each: {id, from_id, to_id, type: 'electronic'|'manual'|'schedule', label}
+    information_flow = models.JSONField(default=list, help_text="Information arrows")
+
+    # Material flow connections
+    # Each: {id, from_step_id, to_step_id, type: 'push'|'pull'|'fifo'}
+    material_flow = models.JSONField(default=list, help_text="Material flow arrows")
+
+    # Timeline summary (calculated)
+    total_lead_time = models.FloatField(null=True, blank=True, help_text="Total lead time in days")
+    total_process_time = models.FloatField(null=True, blank=True, help_text="Total value-add time in seconds")
+    pce = models.FloatField(null=True, blank=True, help_text="Process Cycle Efficiency (%)")
+
+    # Kaizen bursts (improvement opportunities)
+    # Each: {id, x, y, text, priority}
+    kaizen_bursts = models.JSONField(default=list, help_text="Improvement opportunities")
+
+    # Work centers (grouped parallel machines)
+    # Each: {id, name, x, y, width, height}
+    # Process steps link via optional work_center_id field
+    work_centers = models.JSONField(default=list, help_text="Work center groupings")
+
+    # Canvas state
+    zoom = models.FloatField(default=1.0)
+    pan_x = models.FloatField(default=0.0)
+    pan_y = models.FloatField(default=0.0)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "value_stream_maps"
+        ordering = ["-updated_at"]
+        verbose_name = "Value Stream Map"
+        verbose_name_plural = "Value Stream Maps"
+
+    def __str__(self):
+        return f"VSM: {self.name} ({self.status})"
+
+    def calculate_metrics(self):
+        """Calculate total lead time, process time, and PCE.
+
+        For steps in work centers (parallel machines), uses effective cycle time:
+        effective_CT = 1 / sum(1/CT_i) for all machines in the work center.
+        """
+        total_ct = 0.0  # Cycle time in seconds
+        total_wait = 0.0  # Wait time in days
+
+        # Group steps by work center
+        wc_steps = {}  # work_center_id -> [cycle_times]
+        standalone_cts = []
+
+        for step in self.process_steps:
+            ct = step.get("cycle_time", 0) or 0
+            wc_id = step.get("work_center_id")
+            if wc_id:
+                wc_steps.setdefault(wc_id, []).append(ct)
+            else:
+                standalone_cts.append(ct)
+
+        # Standalone steps: sum cycle times directly
+        total_ct += sum(standalone_cts)
+
+        # Work center steps: effective CT = 1 / sum(1/CT_i)
+        for wc_id, cts in wc_steps.items():
+            rate_sum = sum(1.0 / ct for ct in cts if ct > 0)
+            if rate_sum > 0:
+                total_ct += 1.0 / rate_sum
+
+        for inv in self.inventory:
+            days = inv.get("days_of_supply", 0) or 0
+            total_wait += days
+
+        self.total_process_time = total_ct
+        self.total_lead_time = total_wait + (total_ct / 86400)  # Convert CT to days
+
+        if self.total_lead_time > 0:
+            self.pce = (total_ct / 86400 / self.total_lead_time) * 100
+        else:
+            self.pce = 0
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id) if self.project_id else None,
+            "name": self.name,
+            "status": self.status,
+            "product_family": self.product_family,
+            "customer_name": self.customer_name,
+            "customer_demand": self.customer_demand,
+            "takt_time": self.takt_time,
+            "supplier_name": self.supplier_name,
+            "supply_frequency": self.supply_frequency,
+            "customers": self.customers,
+            "suppliers": self.suppliers,
+            "process_steps": self.process_steps,
+            "inventory": self.inventory,
+            "information_flow": self.information_flow,
+            "material_flow": self.material_flow,
+            "total_lead_time": self.total_lead_time,
+            "total_process_time": self.total_process_time,
+            "pce": self.pce,
+            "kaizen_bursts": self.kaizen_bursts,
+            "work_centers": self.work_centers,
+            "zoom": self.zoom,
+            "pan_x": self.pan_x,
+            "pan_y": self.pan_y,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =============================================================================
+# Learning / Certification Models
+# =============================================================================
+
+
+class SectionProgress(models.Model):
+    """Tracks a user's completion of individual course sections."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="section_progress",
+    )
+    module_id = models.CharField(max_length=64)
+    section_id = models.CharField(max_length=64)
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    time_spent_seconds = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "learn_section_progress"
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "module_id", "section_id"],
+                name="unique_user_section",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "module_id"]),
+            models.Index(fields=["user", "completed"]),
+        ]
+
+    def __str__(self):
+        status = "done" if self.completed else "in progress"
+        return f"{self.user} — {self.module_id}/{self.section_id} ({status})"
+
+
+class AssessmentAttempt(models.Model):
+    """Records a single certification assessment attempt."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="assessment_attempts",
+    )
+    questions = models.JSONField(default=list)  # Full question set with answers
+    answers = models.JSONField(default=dict)  # User's submitted answers
+    score = models.FloatField(null=True, blank=True)
+    passed = models.BooleanField(default=False)
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "learn_assessment_attempt"
+        ordering = ["-started_at"]
+        indexes = [
+            models.Index(fields=["user", "-started_at"]),
+            models.Index(fields=["user", "passed"]),
+        ]
+
+    def __str__(self):
+        score_str = f"{self.score:.0%}" if self.score is not None else "pending"
+        return f"{self.user} — assessment {score_str}"
+
+

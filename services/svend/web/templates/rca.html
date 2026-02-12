@@ -1,0 +1,1776 @@
+{% extends "base_app.html" %}
+{% block title %}Root Cause Analysis - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ============================================================================
+   RCA CRITIQUE - Challenge your causal claims
+   ============================================================================ */
+
+body > main { padding: 0 !important; }
+body > main > .container { max-width: none !important; padding: 0 !important; }
+
+.rca-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+.rca-header {
+    margin-bottom: 40px;
+}
+
+.rca-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.rca-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+}
+
+.rca-header p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.rca-header-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.rca-header-actions .rca-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rca-header-actions .rca-btn svg {
+    flex-shrink: 0;
+}
+
+/* Mode Selector */
+.rca-mode-selector {
+    margin-bottom: 32px;
+    padding: 20px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.rca-mode-toggle {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.rca-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rca-mode-btn:hover {
+    border-color: var(--text-dim);
+    color: var(--text-primary);
+}
+
+.rca-mode-btn.active {
+    border-color: var(--accent);
+    background: rgba(74, 159, 110, 0.1);
+    color: var(--accent);
+}
+
+.rca-mode-btn svg {
+    opacity: 0.7;
+}
+
+.rca-mode-btn.active svg {
+    opacity: 1;
+}
+
+.rca-mode-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.rca-mode-hint strong {
+    color: var(--accent);
+}
+
+/* Common Cause Placeholder */
+.rca-common-placeholder {
+    padding: 80px 40px;
+    text-align: center;
+}
+
+.common-cause-message {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.common-cause-message svg {
+    color: var(--text-dim);
+    margin-bottom: 24px;
+}
+
+.common-cause-message h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.common-cause-message p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.common-cause-message .subtext {
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+/* Event Section */
+.rca-event {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 32px;
+}
+
+.rca-event label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.rca-event textarea {
+    width: 100%;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.rca-event textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.rca-event-hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 8px;
+}
+
+/* Chain Section */
+.rca-chain {
+    margin-bottom: 32px;
+}
+
+.rca-chain-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rca-chain-title::before {
+    content: "";
+    display: block;
+    width: 3px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 2px;
+}
+
+/* Visual Chain */
+.rca-chain-visual {
+    position: relative;
+    padding-left: 60px;
+}
+
+.rca-chain-start {
+    position: relative;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.15), rgba(231, 76, 60, 0.05));
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    margin-left: 32px;
+}
+
+.rca-chain-start::before {
+    content: "INCIDENT";
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    background: var(--bg-primary);
+    padding: 0 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #e74c3c;
+    letter-spacing: 1px;
+}
+
+.rca-chain-start-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+/* Chain Step */
+.rca-step {
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 24px;
+}
+
+.rca-step::before {
+    content: "";
+    position: absolute;
+    left: 11px;
+    top: -20px;
+    height: 20px;
+    width: 2px;
+    background: var(--border);
+}
+
+.rca-step::after {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: -6px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--border);
+}
+
+.rca-step:first-child::before,
+.rca-step:first-child::after {
+    display: none;
+}
+
+.rca-step-connector {
+    position: absolute;
+    left: 11px;
+    top: 28px;
+    bottom: -24px;
+    width: 2px;
+    background: var(--border);
+}
+
+.rca-step:last-child .rca-step-connector {
+    display: none;
+}
+
+.rca-step-number {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 1;
+}
+
+.rca-step.challenged .rca-step-number {
+    background: #f39c12;
+}
+
+.rca-step.accepted .rca-step-number {
+    background: #27ae60;
+}
+
+.rca-step.accepted::before,
+.rca-step.accepted::after {
+    border-color: #27ae60;
+    background: #27ae60;
+}
+
+.rca-step.accepted .rca-step-connector {
+    background: #27ae60;
+}
+
+.rca-claim {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.rca-claim-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.rca-claim-text {
+    font-size: 15px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.rca-claim-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+.rca-claim-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Critique Response */
+.rca-critique {
+    background: rgba(243, 156, 18, 0.1);
+    border: 1px solid rgba(243, 156, 18, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin-left: 0;
+}
+
+.rca-critique-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.rca-critique-icon {
+    width: 20px;
+    height: 20px;
+    color: #f39c12;
+}
+
+.rca-critique-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #f39c12;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rca-critique-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* Error type labels */
+.rca-error-label {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(231, 76, 60, 0.2);
+    border: 1px solid rgba(231, 76, 60, 0.4);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #e74c3c;
+    margin-right: 6px;
+    margin-bottom: 4px;
+}
+
+.rca-error-label.solid {
+    background: rgba(39, 174, 96, 0.2);
+    border-color: rgba(39, 174, 96, 0.4);
+    color: #27ae60;
+}
+
+/* Step Actions */
+.rca-step-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.rca-btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+}
+
+.rca-btn-primary {
+    background: var(--accent);
+    color: #fff;
+}
+
+.rca-btn-primary:hover {
+    background: #3d8759;
+}
+
+.rca-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.rca-btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.rca-btn-secondary:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.rca-btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+}
+
+.rca-btn-ghost:hover {
+    color: var(--text-primary);
+}
+
+/* Add Why Button */
+.rca-add-why {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-left: 32px;
+    font-size: 14px;
+}
+
+.rca-add-why:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.rca-add-why.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Root Cause Section */
+.rca-conclusion {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 40px;
+}
+
+.rca-conclusion-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rca-conclusion-title::before {
+    content: "";
+    display: block;
+    width: 3px;
+    height: 16px;
+    background: #e74c3c;
+    border-radius: 2px;
+}
+
+.rca-field {
+    margin-bottom: 20px;
+}
+
+.rca-field:last-child {
+    margin-bottom: 0;
+}
+
+.rca-field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+
+.rca-field input,
+.rca-field textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.rca-field textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.rca-field input:focus,
+.rca-field textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Evaluation Section */
+.rca-evaluation {
+    background: linear-gradient(135deg, rgba(74, 159, 110, 0.1), rgba(74, 159, 110, 0.05));
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 24px;
+}
+
+.rca-evaluation-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.rca-evaluation-header svg {
+    width: 24px;
+    height: 24px;
+    color: var(--accent);
+}
+
+.rca-evaluation-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.rca-evaluation-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+/* Loading State */
+.rca-loading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.rca-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.rca-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+}
+
+.rca-empty svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.rca-empty p {
+    font-size: 14px;
+    margin: 0;
+}
+
+/* Similar Incidents Section */
+.rca-similar {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.rca-similar-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rca-similar-header svg {
+    width: 16px;
+    height: 16px;
+    color: var(--accent);
+}
+
+.rca-similar-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rca-similar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.rca-similar-item:hover {
+    border-color: var(--accent);
+    background: rgba(74, 159, 110, 0.05);
+}
+
+.rca-similar-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.rca-similar-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.rca-similar-item-score {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.rca-similar-item-root {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.rca-similar-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+.rca-similar-empty {
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.modal-content {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-body label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.modal-body textarea {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 100px;
+}
+
+.modal-body textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rca-container">
+    <header class="rca-header">
+        <div class="rca-header-top">
+            <div>
+                <h1>Root Cause Analysis</h1>
+                <p>Build your causal chain. Each claim will be challenged before you can proceed.</p>
+            </div>
+            <div class="rca-header-actions">
+                <button class="rca-btn rca-btn-secondary" onclick="showSessionsModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    Load
+                </button>
+                <button class="rca-btn rca-btn-secondary" onclick="saveSession()" id="save-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Save
+                </button>
+                <button class="rca-btn rca-btn-primary" onclick="showLinkA3Modal()" id="link-a3-btn" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                    Link to A3
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mode Selector -->
+    <section class="rca-mode-selector">
+        <div class="rca-mode-toggle">
+            <button class="rca-mode-btn active" id="mode-special" onclick="setMode('special')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span>Special Cause</span>
+            </button>
+            <button class="rca-mode-btn" id="mode-common" onclick="setMode('common')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="2" x2="12" y2="6"/>
+                    <line x1="12" y1="18" x2="12" y2="22"/>
+                    <line x1="2" y1="12" x2="6" y2="12"/>
+                    <line x1="18" y1="12" x2="22" y2="12"/>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+                </svg>
+                <span>Common Cause</span>
+            </button>
+        </div>
+        <div class="rca-mode-hint" id="mode-hint">
+            <strong>Special Cause:</strong> Unique events requiring investigation of the causal failure chain. Like NTSB investigations - what specific sequence led to this incident?
+        </div>
+    </section>
+
+    <!-- Special Cause Content (RCA) -->
+    <div id="special-cause-content">
+        <!-- Event Description -->
+        <section class="rca-event">
+        <label>What happened?</label>
+        <textarea id="event-input" placeholder="Describe the incident, defect, or problem you're investigating..."></textarea>
+        <div class="rca-event-hint">Be specific. Include what, when, where, and observable impact.</div>
+
+        <!-- Similar Incidents (populated dynamically) -->
+        <div class="rca-similar" id="similar-section" style="display: none;">
+            <div class="rca-similar-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <span>Similar Past Incidents</span>
+            </div>
+            <div class="rca-similar-list" id="similar-list"></div>
+        </div>
+    </section>
+
+    <!-- Causal Chain -->
+    <section class="rca-chain">
+        <div class="rca-chain-title">Causal Chain (5 Whys)</div>
+        <div id="chain-container"></div>
+        <div class="rca-add-why disabled" id="add-why-btn" onclick="addWhy()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add next "Why"
+        </div>
+    </section>
+
+    <!-- Root Cause & Countermeasure -->
+    <section class="rca-conclusion" id="conclusion-section" style="display: none;">
+        <div class="rca-conclusion-title">Conclusion</div>
+        <div class="rca-field">
+            <label>Root Cause</label>
+            <textarea id="root-cause-input" placeholder="State the root cause based on your analysis..."></textarea>
+        </div>
+        <div class="rca-field">
+            <label>Countermeasure</label>
+            <textarea id="countermeasure-input" placeholder="What will you do to prevent recurrence?"></textarea>
+            <button class="rca-btn rca-btn-secondary" onclick="critiqueCountermeasure()" id="critique-cm-btn" style="margin-top: 12px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Challenge This Countermeasure
+            </button>
+            <div id="countermeasure-critique" style="margin-top: 12px;"></div>
+        </div>
+        <button class="rca-btn rca-btn-primary" onclick="evaluateChain()" id="evaluate-btn" style="margin-top: 12px;">
+            Evaluate Complete Analysis
+        </button>
+
+        <div id="evaluation-container"></div>
+    </section>
+    </div><!-- end special-cause-content -->
+
+    <!-- Common Cause Content (Fishbone/C&E) -->
+    <div id="common-cause-content" style="display: none;">
+        <section class="rca-common-placeholder">
+            <div class="common-cause-message">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="12" y1="2" x2="12" y2="6"/>
+                    <line x1="12" y1="18" x2="12" y2="22"/>
+                    <line x1="2" y1="12" x2="6" y2="12"/>
+                    <line x1="18" y1="12" x2="22" y2="12"/>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+                </svg>
+                <h2>Common Cause Analysis</h2>
+                <p>For systemic issues that occur repeatedly, use <strong>Fishbone Diagrams</strong> and <strong>Cause & Effect Matrices</strong>.</p>
+                <p class="subtext">Common cause problems aren't investigated - they're engineered out through process improvement (Kaizen).</p>
+                <a href="/app/whiteboard/" class="rca-btn rca-btn-primary" style="margin-top: 24px;">
+                    Open Whiteboard for Fishbone Diagram
+                </a>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- Why Modal -->
+<div class="modal" id="why-modal" style="display: none;">
+    <div class="modal-backdrop" onclick="closeWhyModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title" id="why-modal-title">Why #1</span>
+            <button class="modal-close" onclick="closeWhyModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <label>Why did this happen?</label>
+            <textarea id="why-input" placeholder="Enter your causal claim..."></textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="rca-btn rca-btn-secondary" onclick="closeWhyModal()">Cancel</button>
+            <button class="rca-btn rca-btn-primary" onclick="submitWhy()">Submit for Critique</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sessions List Modal -->
+<div class="modal" id="sessions-modal" style="display: none;">
+    <div class="modal-backdrop" onclick="closeSessionsModal()"></div>
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <span class="modal-title">Saved RCA Sessions</span>
+            <button class="modal-close" onclick="closeSessionsModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="sessions-list" style="max-height: 400px; overflow-y: auto;">
+            <div class="rca-loading"><div class="rca-spinner"></div>Loading sessions...</div>
+        </div>
+        <div class="modal-footer">
+            <button class="rca-btn rca-btn-secondary" onclick="closeSessionsModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Link to A3 Modal -->
+<div class="modal" id="link-a3-modal" style="display: none;">
+    <div class="modal-backdrop" onclick="closeLinkA3Modal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title">Link to A3 Report</span>
+            <button class="modal-close" onclick="closeLinkA3Modal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="rca-field">
+                <label>Select A3 Report</label>
+                <select id="a3-select" style="width: 100%; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary);">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="rca-field" style="margin-top: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="populate-root-cause" checked style="width: 18px; height: 18px;">
+                    <span>Populate A3 root cause section with RCA findings</span>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="rca-btn rca-btn-secondary" onclick="closeLinkA3Modal()">Cancel</button>
+            <button class="rca-btn rca-btn-primary" onclick="linkToA3()">Link to A3</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================================
+// RCA State
+// ============================================================================
+
+let chain = [];  // Array of {claim, critique, accepted}
+let currentStep = null;  // Step being edited
+let currentSessionId = null;  // Currently loaded session ID
+let currentMode = 'special';  // 'special' or 'common'
+
+// ============================================================================
+// Mode Switching
+// ============================================================================
+
+function setMode(mode) {
+    currentMode = mode;
+
+    // Update buttons
+    document.getElementById('mode-special').classList.toggle('active', mode === 'special');
+    document.getElementById('mode-common').classList.toggle('active', mode === 'common');
+
+    // Update hint text
+    const hint = document.getElementById('mode-hint');
+    if (mode === 'special') {
+        hint.innerHTML = '<strong>Special Cause:</strong> Unique events requiring investigation of the causal failure chain. Like NTSB investigations - what specific sequence led to this incident?';
+    } else {
+        hint.innerHTML = '<strong>Common Cause:</strong> Systemic issues that occur repeatedly. Address through process improvement (Kaizen), not investigation. Use Fishbone diagrams to identify contributing factors.';
+    }
+
+    // Show/hide content
+    document.getElementById('special-cause-content').style.display = mode === 'special' ? 'block' : 'none';
+    document.getElementById('common-cause-content').style.display = mode === 'common' ? 'block' : 'none';
+}
+
+// ============================================================================
+// Chain Rendering
+// ============================================================================
+
+function renderChain() {
+    const container = document.getElementById('chain-container');
+    const event = document.getElementById('event-input').value.trim();
+    const addBtn = document.getElementById('add-why-btn');
+    const conclusionSection = document.getElementById('conclusion-section');
+
+    if (!event) {
+        container.innerHTML = `
+            <div class="rca-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <p>Describe the incident above to begin your analysis</p>
+            </div>
+        `;
+        addBtn.classList.add('disabled');
+        conclusionSection.style.display = 'none';
+        return;
+    }
+
+    if (chain.length === 0) {
+        // Show just the event as starting point
+        container.innerHTML = `
+            <div class="rca-chain-visual">
+                <div class="rca-chain-start">
+                    <div class="rca-chain-start-text">${escapeHtml(event)}</div>
+                </div>
+            </div>
+        `;
+        addBtn.classList.remove('disabled');
+        conclusionSection.style.display = 'none';
+        return;
+    }
+
+    let html = '<div class="rca-chain-visual">';
+
+    // Event as starting point
+    html += `
+        <div class="rca-chain-start">
+            <div class="rca-chain-start-text">${escapeHtml(event)}</div>
+        </div>
+    `;
+
+    chain.forEach((step, i) => {
+        const statusClass = step.accepted ? 'accepted' : (step.critique ? 'challenged' : '');
+        html += `
+            <div class="rca-step ${statusClass}">
+                <div class="rca-step-connector"></div>
+                <div class="rca-step-number">${i + 1}</div>
+                <div class="rca-claim">
+                    <div class="rca-claim-label">Why #${i + 1}</div>
+                    <div class="rca-claim-text">${escapeHtml(step.claim)}</div>
+                </div>
+                ${step.critique ? `
+                    <div class="rca-critique">
+                        <div class="rca-critique-header">
+                            <svg class="rca-critique-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <span class="rca-critique-label">Challenge</span>
+                        </div>
+                        <div class="rca-critique-text">${formatCritique(step.critique)}</div>
+                    </div>
+                ` : ''}
+                ${!step.accepted && step.critique ? `
+                    <div class="rca-step-actions">
+                        <button class="rca-btn rca-btn-secondary" onclick="reviseStep(${i})">Revise claim</button>
+                        <button class="rca-btn rca-btn-ghost" onclick="acceptAndContinue(${i})">Accept critique & continue</button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+
+    html += '</div>'; // Close rca-chain-visual
+    container.innerHTML = html;
+
+    // Can add more if last step is accepted
+    const lastStep = chain[chain.length - 1];
+    if (lastStep && lastStep.accepted) {
+        addBtn.classList.remove('disabled');
+        conclusionSection.style.display = 'block';
+    } else {
+        addBtn.classList.add('disabled');
+        conclusionSection.style.display = chain.length >= 3 ? 'block' : 'none';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatCritique(text) {
+    // First escape HTML
+    let formatted = escapeHtml(text);
+
+    // Then convert [LABEL] patterns to styled spans
+    formatted = formatted.replace(/\[([A-Z][A-Z\s]+)\]/g, (match, label) => {
+        const trimmed = label.trim();
+        const isGood = trimmed === 'SOLID' || trimmed === 'SOLID FIX';
+        const className = isGood ? 'rca-error-label solid' : 'rca-error-label';
+        return `<span class="${className}">${label}</span>`;
+    });
+
+    return formatted;
+}
+
+// ============================================================================
+// Chain Interaction
+// ============================================================================
+
+function addWhy() {
+    const event = document.getElementById('event-input').value.trim();
+    if (!event) return;
+
+    // Check if we can add (no pending unaccepted steps)
+    const lastStep = chain[chain.length - 1];
+    if (lastStep && !lastStep.accepted) return;
+
+    // Show modal for input
+    openWhyModal();
+}
+
+function openWhyModal(existingClaim = '') {
+    const modal = document.getElementById('why-modal');
+    const title = document.getElementById('why-modal-title');
+    const input = document.getElementById('why-input');
+
+    title.textContent = `Why #${chain.length + 1}`;
+    input.value = existingClaim;
+    modal.style.display = 'flex';
+    input.focus();
+}
+
+function closeWhyModal() {
+    document.getElementById('why-modal').style.display = 'none';
+    document.getElementById('why-input').value = '';
+    reviseIndex = null;
+}
+
+async function getCritique(stepIndex) {
+    const event = document.getElementById('event-input').value.trim();
+    const step = chain[stepIndex];
+
+    // Build chain for context (all previous accepted steps)
+    const contextChain = chain.slice(0, stepIndex).map(s => ({
+        claim: s.claim,
+        response: s.critique
+    }));
+
+    // Show loading
+    const container = document.getElementById('chain-container');
+    const stepEl = container.children[stepIndex];
+    if (stepEl) {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'rca-loading';
+        loadingDiv.id = 'loading-critique';
+        loadingDiv.innerHTML = '<div class="rca-spinner"></div>Analyzing your claim...';
+        stepEl.appendChild(loadingDiv);
+    }
+
+    try {
+        const response = await fetch('/api/rca/critique/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event: event,
+                chain: contextChain,
+                current_claim: step.claim
+            })
+        });
+
+        // Check if response is OK before parsing
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('RCA API error:', response.status, text.substring(0, 500));
+            alert(`Error ${response.status}: ${response.statusText}`);
+            chain.pop();
+            renderChain();
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            alert('Error: ' + data.error);
+            chain.pop();
+        } else {
+            step.critique = data.critique;
+        }
+    } catch (err) {
+        console.error('RCA fetch error:', err);
+        alert('Failed to get critique: ' + err.message);
+        chain.pop();
+    }
+
+    renderChain();
+}
+
+let reviseIndex = null;
+
+function reviseStep(stepIndex) {
+    reviseIndex = stepIndex;
+    const step = chain[stepIndex];
+    openReviseModal(step.claim, stepIndex + 1);
+}
+
+function openReviseModal(existingClaim, stepNum) {
+    const modal = document.getElementById('why-modal');
+    const title = document.getElementById('why-modal-title');
+    const input = document.getElementById('why-input');
+
+    title.textContent = `Revise Why #${stepNum}`;
+    input.value = existingClaim;
+    modal.style.display = 'flex';
+    input.focus();
+}
+
+function submitWhy() {
+    const input = document.getElementById('why-input');
+    const claim = input.value.trim();
+
+    if (!claim) {
+        input.focus();
+        return;
+    }
+
+    closeWhyModal();
+
+    if (reviseIndex !== null) {
+        // Revising existing step
+        const step = chain[reviseIndex];
+        step.claim = claim;
+        step.critique = null;
+        step.accepted = false;
+
+        // Remove any steps after this one
+        chain = chain.slice(0, reviseIndex + 1);
+
+        renderChain();
+        getCritique(reviseIndex);
+        reviseIndex = null;
+    } else {
+        // Adding new step
+        const step = { claim: claim, critique: null, accepted: false };
+        chain.push(step);
+        renderChain();
+        getCritique(chain.length - 1);
+    }
+}
+
+function acceptAndContinue(stepIndex) {
+    chain[stepIndex].accepted = true;
+    renderChain();
+}
+
+// ============================================================================
+// Countermeasure Critique
+// ============================================================================
+
+async function critiqueCountermeasure() {
+    const event = document.getElementById('event-input').value.trim();
+    const rootCause = document.getElementById('root-cause-input').value.trim();
+    const countermeasure = document.getElementById('countermeasure-input').value.trim();
+
+    if (!rootCause) {
+        alert('Please state your root cause first.');
+        return;
+    }
+    if (!countermeasure) {
+        alert('Please enter a countermeasure to critique.');
+        return;
+    }
+
+    const btn = document.getElementById('critique-cm-btn');
+    const container = document.getElementById('countermeasure-critique');
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="rca-spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;"></div> Analyzing...';
+    container.innerHTML = '<div class="rca-loading"><div class="rca-spinner"></div>Stress-testing your countermeasure...</div>';
+
+    try {
+        const response = await fetch('/api/rca/critique-countermeasure/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event: event,
+                root_cause: rootCause,
+                countermeasure: countermeasure
+            })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Countermeasure critique error:', response.status, text);
+            container.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Error: ${response.statusText}</div></div>`;
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            container.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Error: ${escapeHtml(data.error)}</div></div>`;
+        } else {
+            container.innerHTML = `
+                <div class="rca-critique">
+                    <div class="rca-critique-header">
+                        <svg class="rca-critique-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                        <span class="rca-critique-label">Countermeasure Analysis</span>
+                    </div>
+                    <div class="rca-critique-text">${formatCritique(data.critique)}</div>
+                </div>
+            `;
+        }
+    } catch (err) {
+        console.error('Countermeasure critique fetch error:', err);
+        container.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Failed: ${escapeHtml(err.message)}</div></div>`;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Challenge This Countermeasure';
+}
+
+// ============================================================================
+// Final Evaluation
+// ============================================================================
+
+async function evaluateChain() {
+    const event = document.getElementById('event-input').value.trim();
+    const rootCause = document.getElementById('root-cause-input').value.trim();
+    const countermeasure = document.getElementById('countermeasure-input').value.trim();
+
+    if (!rootCause) {
+        alert('Please state your root cause before evaluating.');
+        return;
+    }
+
+    const evaluateBtn = document.getElementById('evaluate-btn');
+    const evalContainer = document.getElementById('evaluation-container');
+
+    evaluateBtn.disabled = true;
+    evaluateBtn.textContent = 'Evaluating...';
+    evalContainer.innerHTML = '<div class="rca-loading"><div class="rca-spinner"></div>Evaluating your complete analysis...</div>';
+
+    try {
+        const response = await fetch('/api/rca/evaluate/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event: event,
+                chain: chain.map(s => ({ claim: s.claim })),
+                proposed_root_cause: rootCause,
+                proposed_countermeasure: countermeasure
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            evalContainer.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Error: ${escapeHtml(data.error)}</div></div>`;
+        } else {
+            evalContainer.innerHTML = `
+                <div class="rca-evaluation">
+                    <div class="rca-evaluation-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <span class="rca-evaluation-title">Analysis Evaluation</span>
+                    </div>
+                    <div class="rca-evaluation-text">${formatCritique(data.evaluation)}</div>
+                </div>
+            `;
+        }
+    } catch (err) {
+        evalContainer.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Failed to evaluate: ${escapeHtml(err.message)}</div></div>`;
+    }
+
+    evaluateBtn.disabled = false;
+    evaluateBtn.textContent = 'Evaluate Complete Analysis';
+}
+
+// ============================================================================
+// Save / Load Sessions
+// ============================================================================
+
+async function saveSession() {
+    const event = document.getElementById('event-input').value.trim();
+    if (!event) {
+        alert('Please describe the incident before saving.');
+        return;
+    }
+
+    const rootCause = document.getElementById('root-cause-input').value.trim();
+    const countermeasure = document.getElementById('countermeasure-input').value.trim();
+
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<div class="rca-spinner" style="width:14px;height:14px;border-width:2px;"></div> Saving...';
+
+    try {
+        const url = currentSessionId
+            ? `/api/rca/sessions/${currentSessionId}/update/`
+            : '/api/rca/sessions/create/';
+        const method = currentSessionId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: event.substring(0, 100),
+                event: event,
+                chain: chain,
+                root_cause: rootCause,
+                countermeasure: countermeasure,
+                status: rootCause ? 'in_progress' : 'draft'
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Error saving: ' + data.error);
+        } else {
+            currentSessionId = data.session.id;
+            document.getElementById('link-a3-btn').style.display = 'flex';
+            saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Saved!';
+            setTimeout(() => {
+                saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
+            }, 2000);
+        }
+    } catch (err) {
+        alert('Failed to save: ' + err.message);
+    }
+
+    saveBtn.disabled = false;
+}
+
+async function showSessionsModal() {
+    document.getElementById('sessions-modal').style.display = 'flex';
+    const list = document.getElementById('sessions-list');
+    list.innerHTML = '<div class="rca-loading"><div class="rca-spinner"></div>Loading sessions...</div>';
+
+    try {
+        const response = await fetch('/api/rca/sessions/');
+        const data = await response.json();
+
+        if (!data.sessions || data.sessions.length === 0) {
+            list.innerHTML = '<div class="rca-empty" style="padding:40px;"><p>No saved sessions yet.</p></div>';
+            return;
+        }
+
+        list.innerHTML = data.sessions.map(s => `
+            <div class="session-item" onclick="loadSession('${s.id}')" style="padding: 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s;">
+                <div style="font-weight: 500; margin-bottom: 4px;">${escapeHtml(s.title || s.event.substring(0, 80))}</div>
+                <div style="font-size: 12px; color: var(--text-dim);">
+                    ${s.chain.length} steps &middot; ${s.status} &middot; ${formatDate(s.updated_at)}
+                </div>
+            </div>
+        `).join('');
+
+        // Add hover effect
+        list.querySelectorAll('.session-item').forEach(el => {
+            el.addEventListener('mouseenter', () => el.style.background = 'var(--bg-hover)');
+            el.addEventListener('mouseleave', () => el.style.background = 'transparent');
+        });
+
+    } catch (err) {
+        list.innerHTML = `<div class="rca-empty" style="padding:40px;"><p>Failed to load: ${err.message}</p></div>`;
+    }
+}
+
+function closeSessionsModal() {
+    document.getElementById('sessions-modal').style.display = 'none';
+}
+
+async function loadSession(sessionId) {
+    closeSessionsModal();
+
+    try {
+        const response = await fetch(`/api/rca/sessions/${sessionId}/`);
+        const data = await response.json();
+
+        if (data.error) {
+            alert('Error loading: ' + data.error);
+            return;
+        }
+
+        const session = data.session;
+        currentSessionId = session.id;
+
+        // Populate fields
+        document.getElementById('event-input').value = session.event;
+        chain = session.chain || [];
+        document.getElementById('root-cause-input').value = session.root_cause || '';
+        document.getElementById('countermeasure-input').value = session.countermeasure || '';
+
+        // Show link to A3 button
+        document.getElementById('link-a3-btn').style.display = 'flex';
+
+        renderChain();
+
+    } catch (err) {
+        alert('Failed to load: ' + err.message);
+    }
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now - date;
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
+    return date.toLocaleDateString();
+}
+
+// ============================================================================
+// Link to A3
+// ============================================================================
+
+async function showLinkA3Modal() {
+    if (!currentSessionId) {
+        alert('Please save the session first.');
+        return;
+    }
+
+    document.getElementById('link-a3-modal').style.display = 'flex';
+    const select = document.getElementById('a3-select');
+    select.innerHTML = '<option value="">Loading...</option>';
+
+    try {
+        const response = await fetch('/api/a3/reports/');
+        const data = await response.json();
+
+        if (!data.reports || data.reports.length === 0) {
+            select.innerHTML = '<option value="">No A3 reports found</option>';
+            return;
+        }
+
+        select.innerHTML = '<option value="">Select an A3 report...</option>' +
+            data.reports.map(r => `<option value="${r.id}">${escapeHtml(r.title)} (${r.status})</option>`).join('');
+
+    } catch (err) {
+        select.innerHTML = `<option value="">Error: ${err.message}</option>`;
+    }
+}
+
+function closeLinkA3Modal() {
+    document.getElementById('link-a3-modal').style.display = 'none';
+}
+
+async function linkToA3() {
+    const a3Id = document.getElementById('a3-select').value;
+    if (!a3Id) {
+        alert('Please select an A3 report.');
+        return;
+    }
+
+    const populateRootCause = document.getElementById('populate-root-cause').checked;
+
+    try {
+        const response = await fetch(`/api/rca/sessions/${currentSessionId}/link-a3/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                a3_report_id: a3Id,
+                populate_root_cause: populateRootCause
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            closeLinkA3Modal();
+            const msg = data.a3_updated
+                ? 'Linked to A3 and populated root cause section!'
+                : 'Linked to A3 report.';
+            alert(msg);
+        }
+    } catch (err) {
+        alert('Failed to link: ' + err.message);
+    }
+}
+
+// ============================================================================
+// Similar Incidents Search
+// ============================================================================
+
+let similarSearchTimeout = null;
+let lastSearchedEvent = '';
+
+async function searchSimilarIncidents(event) {
+    if (!event || event.length < 20) {
+        // Don't search for very short descriptions
+        hideSimilarSection();
+        return;
+    }
+
+    // Avoid duplicate searches for same text
+    if (event === lastSearchedEvent) {
+        return;
+    }
+    lastSearchedEvent = event;
+
+    const section = document.getElementById('similar-section');
+    const list = document.getElementById('similar-list');
+
+    // Show loading state
+    section.style.display = 'block';
+    list.innerHTML = '<div class="rca-similar-loading"><div class="rca-spinner" style="width:14px;height:14px;"></div>Searching for similar incidents...</div>';
+
+    try {
+        const response = await fetch('/api/rca/similar/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event: event,
+                top_k: 3,
+                threshold: 0.4
+            })
+        });
+
+        if (!response.ok) {
+            hideSimilarSection();
+            return;
+        }
+
+        const data = await response.json();
+
+        if (!data.similar || data.similar.length === 0) {
+            hideSimilarSection();
+            return;
+        }
+
+        // Render similar incidents
+        list.innerHTML = data.similar.map(s => `
+            <div class="rca-similar-item" onclick="loadSimilarSession('${s.id}')">
+                <div class="rca-similar-item-header">
+                    <div class="rca-similar-item-title">${escapeHtml(s.title)}</div>
+                    <div class="rca-similar-item-score">${Math.round(s.similarity * 100)}% match</div>
+                </div>
+                ${s.root_cause ? `<div class="rca-similar-item-root">Root cause: ${escapeHtml(s.root_cause)}</div>` : ''}
+            </div>
+        `).join('');
+
+    } catch (err) {
+        console.error('Similar search error:', err);
+        hideSimilarSection();
+    }
+}
+
+function hideSimilarSection() {
+    document.getElementById('similar-section').style.display = 'none';
+}
+
+function loadSimilarSession(sessionId) {
+    if (confirm('Load this session? Your current work will be replaced.')) {
+        loadSession(sessionId);
+    }
+}
+
+function debouncedSimilarSearch() {
+    clearTimeout(similarSearchTimeout);
+    const event = document.getElementById('event-input').value.trim();
+    similarSearchTimeout = setTimeout(() => {
+        searchSimilarIncidents(event);
+    }, 800);  // Wait 800ms after user stops typing
+}
+
+// ============================================================================
+// Init
+// ============================================================================
+
+document.getElementById('event-input').addEventListener('input', () => {
+    renderChain();
+    debouncedSimilarSearch();
+});
+
+// Modal keyboard support
+document.getElementById('why-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        submitWhy();
+    }
+    if (e.key === 'Escape') {
+        closeWhyModal();
+    }
+});
+renderChain();
+</script>
+{% endblock %}

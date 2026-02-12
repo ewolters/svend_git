@@ -40,6 +40,9 @@ from experimenter.stats import PowerAnalyzer, interpret_effect_size
 @gated
 def power_analysis(request):
     """
+    DEPRECATED: Use DSW power calculators instead (9 types via /api/dsw/analysis/).
+    This endpoint is kept for backwards compatibility with experimenter.html.
+
     Calculate statistical power and sample size.
 
     POST body:
@@ -884,7 +887,10 @@ def _find_optimal_settings(factors, coefficients, term_names, include_interactio
             coded_val = combo[i]
             levels = f["levels"]
             if len(levels) >= 2:
-                low, high = levels[0], levels[1]
+                try:
+                    low, high = float(levels[0]), float(levels[1])
+                except (ValueError, TypeError):
+                    continue
                 actual = (low + high) / 2 + coded_val * (high - low) / 2
                 settings[f["name"]] = round(actual, 4)
 
@@ -1230,8 +1236,8 @@ def contour_plot(request):
         # Convert to actual factor values for labels
         x_factor_data = factors[x_idx]
         y_factor_data = factors[y_idx]
-        x_low, x_high = x_factor_data["levels"][0], x_factor_data["levels"][1]
-        y_low, y_high = y_factor_data["levels"][0], y_factor_data["levels"][1]
+        x_low, x_high = float(x_factor_data["levels"][0]), float(x_factor_data["levels"][1])
+        y_low, y_high = float(y_factor_data["levels"][0]), float(y_factor_data["levels"][1])
 
         x_actual = [x_low + (x_high - x_low) * (v + 1) / 2 for v in x_grid]
         y_actual = [y_low + (y_high - y_low) * (v + 1) / 2 for v in y_grid]
@@ -1356,29 +1362,48 @@ def optimize_response(request):
                 "weight": resp_config.get("weight", 1),
             })
 
+        # Compute Y ranges for default bounds
+        all_Y = np.concatenate([np.array([r["response"] for r in rc.get("results", [])]) for rc in data.get("responses", [])])
+        y_min, y_max = float(all_Y.min()), float(all_Y.max())
+        y_range = y_max - y_min if y_max > y_min else 1.0
+
         # Desirability function
         def desirability(value, goal, lower, target, upper, weight=1):
+            # Apply sensible defaults for missing bounds
             if goal == "maximize":
+                if lower is None: lower = y_min - 0.1 * y_range
+                if target is None: target = y_max
                 if value <= lower:
                     return 0
                 elif value >= target:
                     return 1
+                elif target == lower:
+                    return 1
                 else:
                     return ((value - lower) / (target - lower)) ** weight
             elif goal == "minimize":
+                if upper is None: upper = y_max + 0.1 * y_range
+                if target is None: target = y_min
                 if value >= upper:
                     return 0
                 elif value <= target:
                     return 1
+                elif upper == target:
+                    return 1
                 else:
                     return ((upper - value) / (upper - target)) ** weight
             else:  # target
+                if lower is None: lower = y_min - 0.1 * y_range
+                if upper is None: upper = y_max + 0.1 * y_range
+                if target is None: target = (y_min + y_max) / 2
                 if value < lower or value > upper:
                     return 0
+                elif target == lower:
+                    return ((upper - value) / (upper - target)) ** weight if upper != target else 1
                 elif value <= target:
                     return ((value - lower) / (target - lower)) ** weight
                 else:
-                    return ((upper - value) / (upper - target)) ** weight
+                    return ((upper - value) / (upper - target)) ** weight if upper != target else 1
 
         # Grid search for optimal
         grid_points = 11
@@ -1427,7 +1452,10 @@ def optimize_response(request):
                 best_settings = {}
                 for i, f in enumerate(factors):
                     levels = f["levels"]
-                    low, high = levels[0], levels[1]
+                    try:
+                        low, high = float(levels[0]), float(levels[1])
+                    except (ValueError, TypeError):
+                        continue
                     actual = (low + high) / 2 + combo[i] * (high - low) / 2
                     best_settings[f["name"]] = round(actual, 4)
 

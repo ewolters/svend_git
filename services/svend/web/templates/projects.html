@@ -35,44 +35,247 @@
     </div>
 </div>
 
-<!-- Create Project Modal -->
+<!-- Create Project Modal (Charter Form) -->
 <div id="create-modal" class="modal" style="display: none;">
-    <div class="modal-content">
+    <div class="modal-content modal-lg">
         <div class="modal-header">
-            <h2>New Project</h2>
+            <h2>New Project Charter</h2>
             <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
 
         <form id="project-form" onsubmit="createProject(event)">
-            <div class="form-group">
-                <label for="project-title">Project Title</label>
-                <input type="text" id="project-title" placeholder="e.g., Q4 Defect Investigation" required>
+            <!-- Basic Info -->
+            <div class="charter-section">
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label for="project-title">Project Title *</label>
+                        <input type="text" id="project-title" placeholder="e.g., Q4 Defect Rate Reduction" required>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="project-domain">Domain</label>
+                        <select id="project-domain">
+                            <option value="">Select...</option>
+                            <option value="manufacturing">Manufacturing</option>
+                            <option value="software">Software/SaaS</option>
+                            <option value="healthcare">Healthcare</option>
+                            <option value="finance">Finance</option>
+                            <option value="retail">Retail</option>
+                            <option value="research">Research</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="project-hypothesis">Hypothesis</label>
-                <textarea id="project-hypothesis" rows="3"
-                    placeholder="What do you think is happening? e.g., 'High temperatures are causing increased defect rates'" required></textarea>
+            <!-- Problem Definition (5W2H) -->
+            <div class="charter-section collapsible">
+                <h3 class="section-toggle" onclick="toggleSection(this)">
+                    <span class="toggle-icon">▼</span> Problem Definition
+                </h3>
+                <div class="section-content">
+                    <div class="form-group">
+                        <label>What is happening? <small>(defect, issue, symptom)</small></label>
+                        <div id="problem-whats-list" class="multi-input-list"></div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('problem-whats')">+ Add What</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Where is it occurring? <small>(location, process step, product line)</small></label>
+                        <div id="problem-wheres-list" class="multi-input-list"></div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('problem-wheres')">+ Add Where</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>When does it happen? <small>(time patterns, shifts, seasons)</small></label>
+                        <div id="problem-whens-list" class="multi-input-list"></div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('problem-whens')">+ Add When</button>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label for="problem-magnitude">How much / How often?</label>
+                            <input type="text" id="problem-magnitude" placeholder="e.g., 15% defect rate, 3x per week">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="problem-trend">Trend</label>
+                            <select id="problem-trend">
+                                <option value="unknown">Unknown</option>
+                                <option value="increasing">Getting Worse</option>
+                                <option value="stable">Stable</option>
+                                <option value="decreasing">Improving</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="problem-since">Since when?</label>
+                            <input type="text" id="problem-since" placeholder="e.g., Jan 2026">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="problem-statement">Problem Statement <small>(auto-generated or custom)</small></label>
+                        <textarea id="problem-statement" rows="2" placeholder="Will be generated from fields above, or write your own..."></textarea>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="project-description">Description (optional)</label>
-                <textarea id="project-description" rows="2"
-                    placeholder="Additional context, scope, or background..."></textarea>
+            <!-- Business Impact -->
+            <div class="charter-section collapsible">
+                <h3 class="section-toggle" onclick="toggleSection(this)">
+                    <span class="toggle-icon">▶</span> Business Impact
+                </h3>
+                <div class="section-content" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="impact-financial">Financial Impact</label>
+                            <input type="text" id="impact-financial" placeholder="e.g., $50K/month scrap cost">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="impact-customer">Customer Impact</label>
+                            <input type="text" id="impact-customer" placeholder="e.g., 12 complaints this quarter">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="impact-quality">Quality Impact</label>
+                            <input type="text" id="impact-quality" placeholder="e.g., 15% yield loss">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="impact-delivery">Delivery Impact</label>
+                            <input type="text" id="impact-delivery" placeholder="e.g., 5 late shipments">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="impact-safety">Safety Impact</label>
+                            <input type="text" id="impact-safety" placeholder="e.g., 2 near-misses">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="impact-regulatory">Regulatory Impact</label>
+                            <input type="text" id="impact-regulatory" placeholder="e.g., audit finding">
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="project-domain">Domain</label>
-                <select id="project-domain">
-                    <option value="">Select domain...</option>
-                    <option value="manufacturing">Manufacturing</option>
-                    <option value="software">Software/SaaS</option>
-                    <option value="healthcare">Healthcare</option>
-                    <option value="finance">Finance</option>
-                    <option value="retail">Retail/E-commerce</option>
-                    <option value="research">Research</option>
-                    <option value="other">Other</option>
-                </select>
+            <!-- Goal Statement (SMART) -->
+            <div class="charter-section collapsible">
+                <h3 class="section-toggle" onclick="toggleSection(this)">
+                    <span class="toggle-icon">▶</span> Goal Statement
+                </h3>
+                <div class="section-content" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label for="goal-metric">Metric to Improve</label>
+                            <input type="text" id="goal-metric" placeholder="e.g., First Pass Yield">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="goal-unit">Unit</label>
+                            <input type="text" id="goal-unit" placeholder="e.g., %">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="goal-baseline">Current Baseline</label>
+                            <input type="text" id="goal-baseline" placeholder="e.g., 87%">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="goal-target">Target</label>
+                            <input type="text" id="goal-target" placeholder="e.g., 95%">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="goal-deadline">Deadline</label>
+                            <input type="date" id="goal-deadline">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="goal-statement">Goal Statement <small>(auto-generated or custom)</small></label>
+                        <textarea id="goal-statement" rows="2" placeholder="Will be generated from fields above..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scope -->
+            <div class="charter-section collapsible">
+                <h3 class="section-toggle" onclick="toggleSection(this)">
+                    <span class="toggle-icon">▶</span> Scope
+                </h3>
+                <div class="section-content" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label>In Scope</label>
+                            <div id="scope-in-list" class="multi-input-list"></div>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('scope-in')">+ Add</button>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label>Out of Scope</label>
+                            <div id="scope-out-list" class="multi-input-list"></div>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('scope-out')">+ Add</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Constraints</label>
+                        <div id="constraints-list" class="multi-input-list"></div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('constraints')">+ Add</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Assumptions</label>
+                        <div id="assumptions-list" class="multi-input-list"></div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="addListItem('assumptions')">+ Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team -->
+            <div class="charter-section collapsible">
+                <h3 class="section-toggle" onclick="toggleSection(this)">
+                    <span class="toggle-icon">▶</span> Team
+                </h3>
+                <div class="section-content" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="champion-name">Champion (Sponsor)</label>
+                            <input type="text" id="champion-name" placeholder="Name">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="champion-title">Title</label>
+                            <input type="text" id="champion-title" placeholder="Title">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="leader-name">Project Leader</label>
+                            <input type="text" id="leader-name" placeholder="Name">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="leader-title">Title</label>
+                            <input type="text" id="leader-title" placeholder="Title">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Team Members</label>
+                        <div id="team-members-list" class="multi-input-list"></div>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="addTeamMember()">+ Add Member</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="charter-section collapsible">
+                <h3 class="section-toggle" onclick="toggleSection(this)">
+                    <span class="toggle-icon">▶</span> Timeline
+                </h3>
+                <div class="section-content" style="display: none;">
+                    <div class="form-group">
+                        <label for="target-completion">Target Completion Date</label>
+                        <input type="date" id="target-completion">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="can-experiment" checked>
+                            Can run controlled experiments
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer">
@@ -152,6 +355,50 @@
             </div>
         </div>
 
+        <!-- DSW Analyses Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>DSW Analyses</h2>
+                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/dsw/?project=' + currentProject.id">+ New Analysis</button>
+            </div>
+            <div id="dsw-list" class="tool-list">
+                <p class="empty-text">No analyses yet. Run analyses in DSW to build evidence.</p>
+            </div>
+        </div>
+
+        <!-- Whiteboards Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Whiteboards</h2>
+                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/whiteboard/?project=' + currentProject.id">+ New Whiteboard</button>
+            </div>
+            <div id="whiteboards-list" class="tool-list">
+                <p class="empty-text">No whiteboards yet. Create one to visualize relationships.</p>
+            </div>
+        </div>
+
+        <!-- A3 Reports Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>A3 Reports</h2>
+                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/a3/?project=' + currentProject.id">+ New A3</button>
+            </div>
+            <div id="a3-list" class="tool-list">
+                <p class="empty-text">No A3 reports yet. Create one to structure problem-solving.</p>
+            </div>
+        </div>
+
+        <!-- VSM Maps Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Value Stream Maps</h2>
+                <button class="btn btn-primary btn-sm" onclick="window.location.href='/app/vsm/?project=' + currentProject.id">+ New VSM</button>
+            </div>
+            <div id="vsm-list" class="tool-list">
+                <p class="empty-text">No value stream maps yet. Create one to analyze process flow.</p>
+            </div>
+        </div>
+
         <!-- Knowledge Graph Section -->
         <div class="section">
             <div class="section-header">
@@ -179,8 +426,7 @@
     <div class="detail-header">
         <button class="btn btn-secondary btn-sm" onclick="backToProject()">&larr; Back to Project</button>
         <div class="detail-actions">
-            <button class="btn btn-primary btn-sm" onclick="openCoder()">Open in Coder</button>
-            <button class="btn btn-secondary btn-sm" onclick="editHypothesis()">Edit</button>
+            <button class="btn btn-primary btn-sm" onclick="editHypothesis()">Edit</button>
         </div>
     </div>
 
@@ -261,34 +507,109 @@
     </div>
 </div>
 
-<!-- Add Hypothesis Modal -->
+<!-- Add Hypothesis Modal (Structured If/Then/Because) -->
 <div id="hypothesis-modal" class="modal" style="display: none;">
-    <div class="modal-content">
+    <div class="modal-content modal-lg">
         <div class="modal-header">
             <h2>Add Hypothesis</h2>
             <button class="modal-close" onclick="closeHypothesisModal()">&times;</button>
         </div>
 
         <form id="hypothesis-form" onsubmit="addHypothesis(event)">
-            <div class="form-group">
-                <label for="hyp-statement-input">Statement</label>
-                <textarea id="hyp-statement-input" rows="2"
-                    placeholder="e.g., High temperature causes increased defect rates" required></textarea>
+            <!-- Structured Format -->
+            <div class="hypothesis-builder">
+                <div class="form-group">
+                    <label for="hyp-if"><span class="clause-label">IF</span> (condition/change)</label>
+                    <textarea id="hyp-if" rows="2" placeholder="e.g., ambient temperature exceeds 85°F during molding"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="hyp-then"><span class="clause-label">THEN</span> (expected outcome)</label>
+                    <textarea id="hyp-then" rows="2" placeholder="e.g., defect rate will increase above 5%"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="hyp-because"><span class="clause-label">BECAUSE</span> (mechanism)</label>
+                    <textarea id="hyp-because" rows="2" placeholder="e.g., thermal expansion causes dimensional variation"></textarea>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="hyp-mechanism-input">Mechanism (optional)</label>
-                <textarea id="hyp-mechanism-input" rows="2"
-                    placeholder="How does this cause produce the effect?"></textarea>
+            <!-- Variables -->
+            <div class="charter-section collapsible">
+                <h3 class="section-toggle" onclick="toggleSection(this)">
+                    <span class="toggle-icon">▶</span> Variables
+                </h3>
+                <div class="section-content" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="hyp-indep-var">Independent Variable (X)</label>
+                            <input type="text" id="hyp-indep-var" placeholder="e.g., Ambient Temperature">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="hyp-dep-var">Dependent Variable (Y)</label>
+                            <input type="text" id="hyp-dep-var" placeholder="e.g., Defect Rate">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="hyp-direction">Expected Direction</label>
+                            <select id="hyp-direction">
+                                <option value="change">Change</option>
+                                <option value="increase">Increase</option>
+                                <option value="decrease">Decrease</option>
+                                <option value="no_change">No Change</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="hyp-magnitude">Expected Magnitude</label>
+                            <input type="text" id="hyp-magnitude" placeholder="e.g., >10%, ~5 units">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="hyp-dep-unit">Unit of Y</label>
+                            <input type="text" id="hyp-dep-unit" placeholder="e.g., %, ppm">
+                        </div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Testing Plan -->
+            <div class="charter-section collapsible">
+                <h3 class="section-toggle" onclick="toggleSection(this)">
+                    <span class="toggle-icon">▶</span> Testing Plan
+                </h3>
+                <div class="section-content" style="display: none;">
+                    <div class="form-group">
+                        <label for="hyp-rationale">Rationale <small>(why do you think this might be true?)</small></label>
+                        <textarea id="hyp-rationale" rows="2" placeholder="Prior observations, domain knowledge..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="hyp-test-method">Test Method <small>(how will you test this?)</small></label>
+                        <textarea id="hyp-test-method" rows="2" placeholder="e.g., 2-factor DOE with temperature levels at 70°F and 90°F"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="hyp-success">Success Criteria <small>(what would confirm or refute?)</small></label>
+                        <textarea id="hyp-success" rows="2" placeholder="e.g., Confirmed if defect rate > 8% at high temp, refuted if < 3%"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prior Probability -->
             <div class="form-group">
                 <label for="hyp-prior">Prior Probability</label>
                 <div class="slider-row">
                     <input type="range" id="hyp-prior" min="0" max="1" step="0.05" value="0.5">
                     <span id="hyp-prior-value">50%</span>
                 </div>
-                <small class="form-hint">Your initial belief in this hypothesis before seeing evidence</small>
+                <small class="form-hint">Your initial belief before seeing evidence</small>
+            </div>
+
+            <!-- Generated Statement Preview -->
+            <div class="form-group">
+                <label>Generated Statement</label>
+                <div id="hyp-statement-preview" class="statement-preview">
+                    <em>Fill in the If/Then/Because fields above...</em>
+                </div>
+                <input type="hidden" id="hyp-statement-input">
             </div>
 
             <div class="modal-footer">
@@ -695,13 +1016,24 @@
 }
 
 .modal-content {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background-color: #121a12 !important;
+    border: 1px solid rgba(74, 159, 110, 0.3);
     border-radius: 8px;
     width: 90%;
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .modal-content {
+    background-color: #ffffff !important;
+    border-color: rgba(45, 122, 74, 0.25);
+}
+
+[data-theme="midnight"] .modal-content {
+    background-color: #12121f !important;
+    border-color: rgba(106, 127, 255, 0.3);
 }
 
 .modal-sm {
@@ -1089,7 +1421,7 @@
 
 /* Modal large variant */
 .modal-lg {
-    max-width: 800px;
+    max-width: 800px !important;
 }
 
 .dataset-detail-content {
@@ -1124,6 +1456,326 @@
     display: flex;
     gap: 0.5rem;
 }
+
+/* Tool Lists (DSW, Whiteboards, A3, VSM) */
+.tool-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.tool-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.875rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.tool-card:hover {
+    border-color: var(--accent-primary);
+}
+
+.tool-info {
+    flex: 1;
+}
+
+.tool-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.95rem;
+}
+
+.tool-info .meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.tool-arrow {
+    color: var(--text-dim);
+    font-size: 1.25rem;
+}
+
+.type-badge.current { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.type-badge.future { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+
+.status-badge.draft { background: rgba(100, 100, 100, 0.2); color: #888; }
+.status-badge.in_progress { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.status-badge.review { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+
+/* Charter Form Styles */
+.charter-section {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.charter-section:last-of-type {
+    border-bottom: none;
+}
+
+.charter-section.collapsible .section-toggle {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.5rem 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.charter-section.collapsible .section-toggle:hover {
+    color: var(--text-primary);
+}
+
+.toggle-icon {
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.form-row .form-group {
+    margin-bottom: 0;
+}
+
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+
+.multi-input-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.multi-input-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.multi-input-item input {
+    flex: 1;
+}
+
+.multi-input-item .remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 0.25rem;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.multi-input-item .remove-btn:hover {
+    color: #ef4444;
+}
+
+/* Team member inputs */
+.team-member-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.team-member-item input {
+    flex: 1;
+}
+
+.team-member-item select {
+    width: 120px;
+}
+
+/* Hypothesis builder */
+.hypothesis-builder {
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.clause-label {
+    display: inline-block;
+    background: var(--accent-primary);
+    color: white;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-right: 0.25rem;
+}
+
+.statement-preview {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.75rem;
+    font-style: italic;
+    color: var(--text-secondary);
+    min-height: 3rem;
+}
+
+/* Charter Detail View */
+.charter-display {
+    display: grid;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.charter-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.charter-card h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+}
+
+.charter-card .field-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.charter-card .field {
+    flex: 1;
+}
+
+.charter-card .field-label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 0.25rem;
+}
+
+.charter-card .field-value {
+    font-size: 0.9rem;
+}
+
+.charter-card .field-value.empty {
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+.charter-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.charter-list li {
+    padding: 0.25rem 0;
+    padding-left: 1rem;
+    position: relative;
+}
+
+.charter-list li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--accent-primary);
+}
+
+.impact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+}
+
+.impact-item {
+    background: var(--bg-secondary);
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+}
+
+.impact-item .label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+.impact-item .value {
+    font-size: 0.85rem;
+}
+
+.goal-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.goal-metric {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.goal-arrow {
+    font-size: 1.25rem;
+    color: var(--text-dim);
+}
+
+.goal-target {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #4a9f6e;
+}
+
+.goal-deadline {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.team-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.team-member {
+    background: var(--bg-secondary);
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.team-member .role {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+}
+
+/* Hypothesis clause display */
+.clause-row {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.clause-row:last-child {
+    margin-bottom: 0;
+}
 </style>
 
 <script>
@@ -1145,7 +1797,108 @@ document.addEventListener('DOMContentLoaded', () => {
         const lr = 1 + strength * 9; // Maps 0→1, 1→10
         document.getElementById('ev-strength-value').textContent = `LR: ${lr.toFixed(1)}`;
     });
+
+    // Hypothesis statement preview
+    ['hyp-if', 'hyp-then', 'hyp-because'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateHypothesisPreview);
+    });
 });
+
+// =============================================================================
+// Charter Form Helpers
+// =============================================================================
+
+function toggleSection(header) {
+    const content = header.nextElementSibling;
+    const icon = header.querySelector('.toggle-icon');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '▶';
+    }
+}
+
+function addListItem(listId) {
+    const list = document.getElementById(listId + '-list');
+    const item = document.createElement('div');
+    item.className = 'multi-input-item';
+    item.innerHTML = `
+        <input type="text" placeholder="Enter value...">
+        <button type="button" class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
+    `;
+    list.appendChild(item);
+    item.querySelector('input').focus();
+}
+
+function getListValues(listId) {
+    const list = document.getElementById(listId + '-list');
+    if (!list) return [];
+    return Array.from(list.querySelectorAll('input'))
+        .map(input => input.value.trim())
+        .filter(val => val !== '');
+}
+
+function addTeamMember() {
+    const list = document.getElementById('team-members-list');
+    const item = document.createElement('div');
+    item.className = 'team-member-item';
+    item.innerHTML = `
+        <input type="text" placeholder="Name">
+        <select>
+            <option value="member">Member</option>
+            <option value="sme">SME</option>
+            <option value="facilitator">Facilitator</option>
+            <option value="stakeholder">Stakeholder</option>
+        </select>
+        <input type="text" placeholder="Department" style="width: 120px;">
+        <button type="button" class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
+    `;
+    list.appendChild(item);
+    item.querySelector('input').focus();
+}
+
+function getTeamMembers() {
+    const list = document.getElementById('team-members-list');
+    if (!list) return [];
+    return Array.from(list.querySelectorAll('.team-member-item'))
+        .map(item => {
+            const inputs = item.querySelectorAll('input');
+            const select = item.querySelector('select');
+            return {
+                name: inputs[0]?.value.trim() || '',
+                role: select?.value || 'member',
+                department: inputs[1]?.value.trim() || ''
+            };
+        })
+        .filter(m => m.name !== '');
+}
+
+function updateHypothesisPreview() {
+    const ifClause = document.getElementById('hyp-if')?.value.trim() || '';
+    const thenClause = document.getElementById('hyp-then')?.value.trim() || '';
+    const becauseClause = document.getElementById('hyp-because')?.value.trim() || '';
+
+    const preview = document.getElementById('hyp-statement-preview');
+    const hidden = document.getElementById('hyp-statement-input');
+
+    if (!ifClause && !thenClause && !becauseClause) {
+        preview.innerHTML = '<em>Fill in the If/Then/Because fields above...</em>';
+        hidden.value = '';
+        return;
+    }
+
+    let statement = '';
+    if (ifClause) statement += `If ${ifClause}`;
+    if (thenClause) statement += `${statement ? ', then ' : 'Then '}${thenClause}`;
+    if (becauseClause) statement += `${statement ? ', because ' : 'Because '}${becauseClause}`;
+    statement += '.';
+
+    preview.textContent = statement;
+    hidden.value = statement;
+}
 
 // Close modals when clicking backdrop
 document.addEventListener('click', function(e) {
@@ -1253,16 +2006,70 @@ function showCreateModal() {
 function closeModal() {
     document.getElementById('create-modal').style.display = 'none';
     document.getElementById('project-form').reset();
+    // Clear multi-input lists
+    ['problem-whats', 'problem-wheres', 'problem-whens', 'scope-in', 'scope-out', 'constraints', 'assumptions', 'team-members'].forEach(id => {
+        const list = document.getElementById(id + '-list');
+        if (list) list.innerHTML = '';
+    });
+    // Collapse all sections
+    document.querySelectorAll('#create-modal .section-content').forEach((el, i) => {
+        if (i > 0) el.style.display = 'none';
+    });
+    document.querySelectorAll('#create-modal .toggle-icon').forEach((el, i) => {
+        el.textContent = i === 0 ? '▼' : '▶';
+    });
 }
 
 async function createProject(e) {
     e.preventDefault();
 
+    // Gather all charter fields
     const data = {
+        // Basic
         title: document.getElementById('project-title').value,
-        problem_statement: document.getElementById('project-hypothesis').value,
-        description: document.getElementById('project-description').value,
         domain: document.getElementById('project-domain').value,
+
+        // Problem Definition (5W2H)
+        problem_whats: getListValues('problem-whats'),
+        problem_wheres: getListValues('problem-wheres'),
+        problem_whens: getListValues('problem-whens'),
+        problem_magnitude: document.getElementById('problem-magnitude')?.value || '',
+        problem_trend: document.getElementById('problem-trend')?.value || 'unknown',
+        problem_since: document.getElementById('problem-since')?.value || '',
+        problem_statement: document.getElementById('problem-statement')?.value || '',
+
+        // Business Impact
+        impact_financial: document.getElementById('impact-financial')?.value || '',
+        impact_customer: document.getElementById('impact-customer')?.value || '',
+        impact_quality: document.getElementById('impact-quality')?.value || '',
+        impact_delivery: document.getElementById('impact-delivery')?.value || '',
+        impact_safety: document.getElementById('impact-safety')?.value || '',
+        impact_regulatory: document.getElementById('impact-regulatory')?.value || '',
+
+        // Goal Statement (SMART)
+        goal_metric: document.getElementById('goal-metric')?.value || '',
+        goal_unit: document.getElementById('goal-unit')?.value || '',
+        goal_baseline: document.getElementById('goal-baseline')?.value || '',
+        goal_target: document.getElementById('goal-target')?.value || '',
+        goal_deadline: document.getElementById('goal-deadline')?.value || null,
+        goal_statement: document.getElementById('goal-statement')?.value || '',
+
+        // Scope
+        scope_in: getListValues('scope-in'),
+        scope_out: getListValues('scope-out'),
+        constraints: getListValues('constraints'),
+        assumptions: getListValues('assumptions'),
+
+        // Team
+        champion_name: document.getElementById('champion-name')?.value || '',
+        champion_title: document.getElementById('champion-title')?.value || '',
+        leader_name: document.getElementById('leader-name')?.value || '',
+        leader_title: document.getElementById('leader-title')?.value || '',
+        team_members: getTeamMembers(),
+
+        // Timeline
+        target_completion: document.getElementById('target-completion')?.value || null,
+        can_experiment: document.getElementById('can-experiment')?.checked ?? true,
     };
 
     try {
@@ -1287,8 +2094,12 @@ async function createProject(e) {
 
 async function viewProject(id) {
     try {
-        const response = await fetch(`/api/core/projects/${id}/`, { credentials: 'include' });
-        currentProject = await response.json();
+        // Use hub endpoint to get project + all linked tools
+        const response = await fetch(`/api/core/projects/${id}/hub/`, { credentials: 'include' });
+        const hubData = await response.json();
+        currentProject = hubData.project;
+        currentProject._tools = hubData.tools;
+        currentProject._counts = hubData.counts;
         renderProjectDetail();
     } catch (err) {
         alert('Failed to load project: ' + err.message);
@@ -1305,8 +2116,9 @@ async function renderProjectDetail() {
     document.getElementById('detail-title').textContent = p.title;
     document.getElementById('detail-status').textContent = p.status;
     document.getElementById('detail-status').className = `status-badge ${p.status}`;
-    document.getElementById('detail-hypothesis').textContent = p.problem_statement || '';
-    document.getElementById('detail-description').textContent = p.description || '';
+
+    // Render charter display instead of basic hypothesis box
+    renderCharterDisplay(p);
 
     // Load hypotheses (already in project response from new API)
     renderHypothesesFromProject();
@@ -1314,6 +2126,9 @@ async function renderProjectDetail() {
     // Load datasets and experiment designs
     loadDatasets();
     loadExperimentDesigns();
+
+    // Render linked tools from hub API
+    renderLinkedTools();
 
     // Show methodology and phase
     const wbList = document.getElementById('workbenches-list');
@@ -1334,14 +2149,14 @@ async function renderProjectDetail() {
                 </div>
             </div>
             <div style="display: flex; gap: 0.5rem;">
-                <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/coder/?project=${p.id}'">Open in Coder</button>
                 <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/dsw/?project=${p.id}'">Open in DSW</button>
                 <button class="btn btn-secondary btn-sm" onclick="advancePhase()">Advance Phase</button>
             </div>
         </div>
     `;
 
-    // Knowledge Graph summary - use new API
+    // Knowledge Graph summary - use counts from hub API
+    const counts = currentProject._counts || {};
     const graphSummary = document.getElementById('graph-summary');
     graphSummary.innerHTML = `
         <div class="graph-stats">
@@ -1352,6 +2167,22 @@ async function renderProjectDetail() {
             <div class="stat">
                 <div class="stat-value" id="evidence-count-stat">-</div>
                 <div class="stat-label">Evidence Items</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">${counts.dsw_analyses || 0}</div>
+                <div class="stat-label">Analyses</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">${counts.whiteboards || 0}</div>
+                <div class="stat-label">Whiteboards</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">${counts.a3_reports || 0}</div>
+                <div class="stat-label">A3 Reports</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">${counts.vsm_maps || 0}</div>
+                <div class="stat-label">VSM Maps</div>
             </div>
         </div>
     `;
@@ -1439,6 +2270,201 @@ async function advancePhase() {
 }
 
 // =============================================================================
+// Charter Display
+// =============================================================================
+
+function renderCharterDisplay(p) {
+    const container = document.querySelector('.project-info');
+
+    // Build charter HTML
+    let html = `
+        <div class="project-header">
+            <h1 id="detail-title">${p.title}</h1>
+            <span class="status-badge ${p.status}" id="detail-status">${p.status}</span>
+        </div>
+        <div class="charter-display">
+    `;
+
+    // Problem Statement
+    if (p.problem_statement || (p.problem_whats && p.problem_whats.length)) {
+        html += `
+            <div class="charter-card">
+                <h3>Problem Statement</h3>
+                ${p.problem_statement ? `<p style="margin-bottom: 0.75rem;">${p.problem_statement}</p>` : ''}
+                <div class="field-row">
+        `;
+
+        if (p.problem_whats && p.problem_whats.length) {
+            html += `
+                <div class="field">
+                    <div class="field-label">What</div>
+                    <ul class="charter-list">${p.problem_whats.map(w => `<li>${w}</li>`).join('')}</ul>
+                </div>
+            `;
+        }
+        if (p.problem_wheres && p.problem_wheres.length) {
+            html += `
+                <div class="field">
+                    <div class="field-label">Where</div>
+                    <ul class="charter-list">${p.problem_wheres.map(w => `<li>${w}</li>`).join('')}</ul>
+                </div>
+            `;
+        }
+        if (p.problem_whens && p.problem_whens.length) {
+            html += `
+                <div class="field">
+                    <div class="field-label">When</div>
+                    <ul class="charter-list">${p.problem_whens.map(w => `<li>${w}</li>`).join('')}</ul>
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+
+        // Magnitude, trend, since
+        if (p.problem_magnitude || p.problem_trend !== 'unknown' || p.problem_since) {
+            html += `<div class="field-row" style="margin-top: 0.75rem;">`;
+            if (p.problem_magnitude) {
+                html += `<div class="field"><div class="field-label">Magnitude</div><div class="field-value">${p.problem_magnitude}</div></div>`;
+            }
+            if (p.problem_trend && p.problem_trend !== 'unknown') {
+                const trendLabels = {increasing: 'Getting Worse', stable: 'Stable', decreasing: 'Improving'};
+                html += `<div class="field"><div class="field-label">Trend</div><div class="field-value">${trendLabels[p.problem_trend] || p.problem_trend}</div></div>`;
+            }
+            if (p.problem_since) {
+                html += `<div class="field"><div class="field-label">Since</div><div class="field-value">${p.problem_since}</div></div>`;
+            }
+            html += `</div>`;
+        }
+
+        html += `</div>`;
+    }
+
+    // Business Impact
+    const impacts = [
+        {key: 'impact_financial', label: 'Financial'},
+        {key: 'impact_customer', label: 'Customer'},
+        {key: 'impact_quality', label: 'Quality'},
+        {key: 'impact_delivery', label: 'Delivery'},
+        {key: 'impact_safety', label: 'Safety'},
+        {key: 'impact_regulatory', label: 'Regulatory'}
+    ].filter(i => p[i.key]);
+
+    if (impacts.length > 0) {
+        html += `
+            <div class="charter-card">
+                <h3>Business Impact</h3>
+                <div class="impact-grid">
+                    ${impacts.map(i => `
+                        <div class="impact-item">
+                            <div class="label">${i.label}</div>
+                            <div class="value">${p[i.key]}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Goal Statement
+    if (p.goal_statement || p.goal_metric) {
+        html += `
+            <div class="charter-card">
+                <h3>Goal</h3>
+                ${p.goal_statement ? `<p style="margin-bottom: 0.75rem;">${p.goal_statement}</p>` : ''}
+                ${p.goal_metric ? `
+                    <div class="goal-display">
+                        <span class="goal-metric">${p.goal_baseline || '?'}</span>
+                        <span class="goal-arrow">→</span>
+                        <span class="goal-target">${p.goal_target || '?'}</span>
+                        <span class="goal-unit">${p.goal_unit || ''}</span>
+                        ${p.goal_deadline ? `<span class="goal-deadline">by ${new Date(p.goal_deadline).toLocaleDateString()}</span>` : ''}
+                    </div>
+                    <div style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.85rem;">
+                        Metric: ${p.goal_metric}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Scope
+    if ((p.scope_in && p.scope_in.length) || (p.scope_out && p.scope_out.length)) {
+        html += `
+            <div class="charter-card">
+                <h3>Scope</h3>
+                <div class="field-row">
+                    ${p.scope_in && p.scope_in.length ? `
+                        <div class="field">
+                            <div class="field-label">In Scope</div>
+                            <ul class="charter-list">${p.scope_in.map(s => `<li>${s}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                    ${p.scope_out && p.scope_out.length ? `
+                        <div class="field">
+                            <div class="field-label">Out of Scope</div>
+                            <ul class="charter-list">${p.scope_out.map(s => `<li>${s}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                </div>
+                ${p.constraints && p.constraints.length ? `
+                    <div class="field" style="margin-top: 0.75rem;">
+                        <div class="field-label">Constraints</div>
+                        <ul class="charter-list">${p.constraints.map(c => `<li>${c}</li>`).join('')}</ul>
+                    </div>
+                ` : ''}
+                ${p.assumptions && p.assumptions.length ? `
+                    <div class="field" style="margin-top: 0.75rem;">
+                        <div class="field-label">Assumptions</div>
+                        <ul class="charter-list">${p.assumptions.map(a => `<li>${a}</li>`).join('')}</ul>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Team
+    if (p.champion_name || p.leader_name || (p.team_members && p.team_members.length)) {
+        html += `
+            <div class="charter-card">
+                <h3>Team</h3>
+                <div class="field-row">
+                    ${p.champion_name ? `
+                        <div class="field">
+                            <div class="field-label">Champion</div>
+                            <div class="field-value">${p.champion_name}${p.champion_title ? ` <span style="color: var(--text-dim);">(${p.champion_title})</span>` : ''}</div>
+                        </div>
+                    ` : ''}
+                    ${p.leader_name ? `
+                        <div class="field">
+                            <div class="field-label">Project Leader</div>
+                            <div class="field-value">${p.leader_name}${p.leader_title ? ` <span style="color: var(--text-dim);">(${p.leader_title})</span>` : ''}</div>
+                        </div>
+                    ` : ''}
+                </div>
+                ${p.team_members && p.team_members.length ? `
+                    <div class="field" style="margin-top: 0.75rem;">
+                        <div class="field-label">Team Members</div>
+                        <div class="team-list">
+                            ${p.team_members.map(m => `
+                                <div class="team-member">
+                                    ${m.name}
+                                    ${m.role ? `<span class="role">${m.role}</span>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    html += `</div>`; // Close charter-display
+
+    container.innerHTML = html;
+}
+
+// =============================================================================
 // Hypotheses
 // =============================================================================
 
@@ -1488,14 +2514,59 @@ function closeHypothesisModal() {
     document.getElementById('hypothesis-modal').style.display = 'none';
     document.getElementById('hypothesis-form').reset();
     document.getElementById('hyp-prior-value').textContent = '50%';
+    document.getElementById('hyp-statement-preview').innerHTML = '<em>Fill in the If/Then/Because fields above...</em>';
+    // Collapse sections
+    document.querySelectorAll('#hypothesis-modal .section-content').forEach(el => {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('#hypothesis-modal .toggle-icon').forEach(el => {
+        el.textContent = '▶';
+    });
 }
 
 async function addHypothesis(e) {
     e.preventDefault();
 
+    // Generate statement from structured fields if not manually set
+    const ifClause = document.getElementById('hyp-if')?.value.trim() || '';
+    const thenClause = document.getElementById('hyp-then')?.value.trim() || '';
+    const becauseClause = document.getElementById('hyp-because')?.value.trim() || '';
+
+    let statement = document.getElementById('hyp-statement-input')?.value || '';
+    if (!statement && (ifClause || thenClause)) {
+        if (ifClause) statement += `If ${ifClause}`;
+        if (thenClause) statement += `${statement ? ', then ' : 'Then '}${thenClause}`;
+        if (becauseClause) statement += `${statement ? ', because ' : 'Because '}${becauseClause}`;
+        statement += '.';
+    }
+
+    if (!statement) {
+        alert('Please fill in at least the IF and THEN fields');
+        return;
+    }
+
     const data = {
-        statement: document.getElementById('hyp-statement-input').value,
-        mechanism: document.getElementById('hyp-mechanism-input').value,
+        // Statement (generated or manual)
+        statement: statement,
+
+        // Structured clauses
+        if_clause: ifClause,
+        then_clause: thenClause,
+        because_clause: becauseClause,
+
+        // Variables
+        independent_variable: document.getElementById('hyp-indep-var')?.value || '',
+        dependent_variable: document.getElementById('hyp-dep-var')?.value || '',
+        dependent_var_unit: document.getElementById('hyp-dep-unit')?.value || '',
+        predicted_direction: document.getElementById('hyp-direction')?.value || 'change',
+        predicted_magnitude: document.getElementById('hyp-magnitude')?.value || '',
+
+        // Testing
+        rationale: document.getElementById('hyp-rationale')?.value || '',
+        test_method: document.getElementById('hyp-test-method')?.value || '',
+        success_criteria: document.getElementById('hyp-success')?.value || '',
+
+        // Probability
         prior_probability: parseFloat(document.getElementById('hyp-prior').value),
     };
 
@@ -1544,13 +2615,68 @@ function renderHypothesisDetail() {
     document.getElementById('hyp-status').textContent = h.status;
     document.getElementById('hyp-status').className = `status-badge ${h.status}`;
 
+    // Build structured hypothesis display
     const mechBox = document.getElementById('mechanism-box');
-    if (h.mechanism) {
-        document.getElementById('hyp-mechanism').textContent = h.mechanism;
-        mechBox.style.display = 'block';
-    } else {
-        mechBox.style.display = 'none';
+    let structuredHtml = '';
+
+    // If/Then/Because structure
+    if (h.if_clause || h.then_clause || h.because_clause) {
+        structuredHtml += `<div class="hypothesis-structure" style="margin-bottom: 1rem;">`;
+        if (h.if_clause) {
+            structuredHtml += `<div class="clause-row"><span class="clause-label">IF</span> ${h.if_clause}</div>`;
+        }
+        if (h.then_clause) {
+            structuredHtml += `<div class="clause-row"><span class="clause-label">THEN</span> ${h.then_clause}</div>`;
+        }
+        if (h.because_clause) {
+            structuredHtml += `<div class="clause-row"><span class="clause-label">BECAUSE</span> ${h.because_clause}</div>`;
+        }
+        structuredHtml += `</div>`;
     }
+
+    // Variables
+    if (h.independent_variable || h.dependent_variable) {
+        structuredHtml += `
+            <div class="variables-display" style="display: flex; gap: 1.5rem; margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 6px;">
+                ${h.independent_variable ? `
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">X (Independent)</div>
+                        <div style="font-weight: 500;">${h.independent_variable}</div>
+                    </div>
+                ` : ''}
+                ${h.dependent_variable ? `
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Y (Dependent)</div>
+                        <div style="font-weight: 500;">${h.dependent_variable}${h.dependent_var_unit ? ` (${h.dependent_var_unit})` : ''}</div>
+                    </div>
+                ` : ''}
+                ${h.predicted_direction && h.predicted_direction !== 'change' ? `
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Expected</div>
+                        <div style="font-weight: 500;">${h.predicted_direction}${h.predicted_magnitude ? ` ${h.predicted_magnitude}` : ''}</div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Testing info
+    if (h.rationale || h.test_method || h.success_criteria) {
+        structuredHtml += `<div class="testing-info" style="margin-bottom: 1rem;">`;
+        if (h.rationale) {
+            structuredHtml += `<div style="margin-bottom: 0.5rem;"><span style="font-weight: 500;">Rationale:</span> ${h.rationale}</div>`;
+        }
+        if (h.test_method) {
+            structuredHtml += `<div style="margin-bottom: 0.5rem;"><span style="font-weight: 500;">Test Method:</span> ${h.test_method}</div>`;
+        }
+        if (h.success_criteria) {
+            structuredHtml += `<div><span style="font-weight: 500;">Success Criteria:</span> ${h.success_criteria}</div>`;
+        }
+        structuredHtml += `</div>`;
+    }
+
+    mechBox.innerHTML = structuredHtml || '<p style="color: var(--text-dim);">No structured details available.</p>';
+    mechBox.querySelector('label')?.remove(); // Remove old label
 
     // Add Bayesian probability evolution display
     const probEvolution = `
@@ -1609,14 +2735,13 @@ function renderHypothesisDetail() {
             `;
         }).join('');
     } else {
-        evList.innerHTML = '<p class="empty-text">No evidence yet. Run analyses in Coder or DSW to gather evidence.</p>';
+        evList.innerHTML = '<p class="empty-text">No evidence yet. Run analyses in DSW to gather evidence.</p>';
     }
 
     // Conversations - simplified for now
     const convList = document.getElementById('conversations-list');
     convList.innerHTML = `
         <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/coder/?project=${currentProject.id}&hypothesis=${h.id}'">Explore in Coder</button>
             <button class="btn btn-secondary btn-sm" onclick="window.location.href='/app/dsw/?project=${currentProject.id}'">Analyze in DSW</button>
         </div>
     `;
@@ -1627,10 +2752,6 @@ function backToProject() {
     document.getElementById('detail-view').style.display = 'block';
     currentHypothesis = null;
     loadHypotheses();
-}
-
-function openCoder() {
-    window.location.href = `/app/coder/?hypothesis=${currentProject.id}|${currentHypothesis.id}`;
 }
 
 function editHypothesis() {
@@ -2130,6 +3251,126 @@ function formatMetricName(key) {
         'sample_quality': 'Sample Quality'
     };
     return names[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// =============================================================================
+// Linked Tools (from Hub API)
+// =============================================================================
+
+function renderLinkedTools() {
+    const tools = currentProject._tools || {};
+
+    renderDSWAnalyses(tools.dsw_analyses || []);
+    renderWhiteboards(tools.whiteboards || []);
+    renderA3Reports(tools.a3_reports || []);
+    renderVSMMaps(tools.vsm_maps || []);
+}
+
+function renderDSWAnalyses(analyses) {
+    const list = document.getElementById('dsw-list');
+
+    if (analyses.length === 0) {
+        list.innerHTML = '<p class="empty-text">No analyses yet. Run analyses in DSW to build evidence.</p>';
+        return;
+    }
+
+    list.innerHTML = analyses.map(a => `
+        <div class="tool-card" onclick="window.location.href='/app/dsw/?result=${a.id}'">
+            <div class="tool-info">
+                <h4>${a.title || a.type || 'Analysis'}</h4>
+                <div class="meta">
+                    <span class="type-badge">${formatAnalysisType(a.type)}</span>
+                    ${a.summary ? `<span>${truncate(a.summary, 40)}</span>` : ''}
+                    <span>${formatDate(a.created_at)}</span>
+                </div>
+            </div>
+            <span class="tool-arrow">&rarr;</span>
+        </div>
+    `).join('');
+}
+
+function renderWhiteboards(boards) {
+    const list = document.getElementById('whiteboards-list');
+
+    if (boards.length === 0) {
+        list.innerHTML = '<p class="empty-text">No whiteboards yet. Create one to visualize relationships.</p>';
+        return;
+    }
+
+    list.innerHTML = boards.map(b => `
+        <div class="tool-card" onclick="window.location.href='/app/whiteboard/${b.room_code}/'">
+            <div class="tool-info">
+                <h4>${b.name || 'Untitled Whiteboard'}</h4>
+                <div class="meta">
+                    <span>${b.element_count || 0} elements</span>
+                    <span>${formatDate(b.updated_at)}</span>
+                </div>
+            </div>
+            <span class="tool-arrow">&rarr;</span>
+        </div>
+    `).join('');
+}
+
+function renderA3Reports(reports) {
+    const list = document.getElementById('a3-list');
+
+    if (reports.length === 0) {
+        list.innerHTML = '<p class="empty-text">No A3 reports yet. Create one to structure problem-solving.</p>';
+        return;
+    }
+
+    list.innerHTML = reports.map(r => `
+        <div class="tool-card" onclick="window.location.href='/app/a3/${r.id}/'">
+            <div class="tool-info">
+                <h4>${r.title || 'Untitled A3'}</h4>
+                <div class="meta">
+                    <span class="status-badge ${r.status || 'draft'}">${r.status || 'draft'}</span>
+                    <span>${formatDate(r.updated_at)}</span>
+                </div>
+            </div>
+            <span class="tool-arrow">&rarr;</span>
+        </div>
+    `).join('');
+}
+
+function renderVSMMaps(maps) {
+    const list = document.getElementById('vsm-list');
+
+    if (maps.length === 0) {
+        list.innerHTML = '<p class="empty-text">No value stream maps yet. Create one to analyze process flow.</p>';
+        return;
+    }
+
+    list.innerHTML = maps.map(m => `
+        <div class="tool-card" onclick="window.location.href='/app/vsm/${m.id}/'">
+            <div class="tool-info">
+                <h4>${m.name || 'Untitled VSM'}</h4>
+                <div class="meta">
+                    <span class="type-badge ${m.status || 'draft'}">${m.status || 'draft'}</span>
+                    <span>${m.process_count || 0} steps</span>
+                    ${m.lead_time ? `<span>Lead: ${formatDuration(m.lead_time)}</span>` : ''}
+                    ${m.pce ? `<span>PCE: ${(m.pce * 100).toFixed(1)}%</span>` : ''}
+                    <span>${formatDate(m.updated_at)}</span>
+                </div>
+            </div>
+            <span class="tool-arrow">&rarr;</span>
+        </div>
+    `).join('');
+}
+
+function formatAnalysisType(type) {
+    if (!type) return 'Analysis';
+    // Convert result_type like "descriptive_summary" to "Descriptive"
+    const first = type.split('_')[0];
+    return first.charAt(0).toUpperCase() + first.slice(1);
+}
+
+function formatDuration(seconds) {
+    if (!seconds) return '-';
+    if (seconds < 60) return `${seconds.toFixed(0)}s`;
+    if (seconds < 3600) return `${(seconds/60).toFixed(1)}m`;
+    if (seconds < 86400) return `${(seconds/3600).toFixed(1)}h`;
+    return `${(seconds/86400).toFixed(1)}d`;
 }
 </script>
 {% endblock %}

@@ -8,7 +8,7 @@ app_name = "agents_api"
 
 urlpatterns = [
     path("researcher/", views.researcher_agent, name="researcher"),
-    path("coder/", views.coder_agent, name="coder"),
+    # path("coder/", views.coder_agent, name="coder"),  # Disabled
     path("writer/", views.writer_agent, name="writer"),
     path("editor/", views.editor_agent, name="editor"),
     path("experimenter/", views.experimenter_agent, name="experimenter"),

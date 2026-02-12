@@ -178,7 +178,7 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="invite-group">
                     <label for="invite_code">Invite Code</label>
                     <input type="text" id="invite_code" name="invite_code" placeholder="XXXX-XXXX">
                     <p class="invite-note">Required during alpha. Ask for one or follow @svend_ai</p>
@@ -197,6 +197,40 @@
         const errorDiv = document.getElementById('error');
         const submitBtn = document.getElementById('submitBtn');
 
+        // Get params from URL
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Plan can come directly (?plan=founder) or from next URL
+        let plan = urlParams.get('plan') || '';
+        let nextUrl = urlParams.get('next') || '';
+
+        // If no direct plan, try to extract from next URL (for @login_required redirect flow)
+        if (!plan && nextUrl) {
+            const decodedNextUrl = decodeURIComponent(nextUrl);
+            if (decodedNextUrl.includes('/billing/checkout')) {
+                const nextParams = new URLSearchParams(decodedNextUrl.split('?')[1] || '');
+                plan = nextParams.get('plan') || '';
+            }
+        }
+
+        // Determine redirect after registration
+        const paidPlans = ['founder', 'pro', 'team', 'enterprise'];
+        const isPaidSignup = paidPlans.includes(plan);
+
+        // If paid plan signup, redirect to checkout after registration
+        // Otherwise use nextUrl or default to /app/
+        const redirectUrl = isPaidSignup
+            ? '/billing/checkout/?plan=' + plan
+            : (nextUrl ? decodeURIComponent(nextUrl) : '/app/');
+
+        // Hide invite code field for paid signups
+        if (isPaidSignup) {
+            const inviteGroup = document.getElementById('invite-group');
+            if (inviteGroup) {
+                inviteGroup.style.display = 'none';
+            }
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorDiv.classList.remove('show');
@@ -213,7 +247,8 @@
                         email: document.getElementById('email').value,
                         username: document.getElementById('username').value,
                         password: document.getElementById('password').value,
-                        invite_code: document.getElementById('invite_code').value,
+                        invite_code: document.getElementById('invite_code')?.value || '',
+                        plan: plan,
                     }),
                     credentials: 'include',
                 });
@@ -221,7 +256,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    window.location.href = '/app/';
+                    window.location.href = redirectUrl;
                 } else {
                     errorDiv.textContent = data.error || 'Registration failed';
                     errorDiv.classList.add('show');

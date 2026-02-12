@@ -35,6 +35,7 @@
                         <option value="X-bar R">X-bar R (Subgroup Means & Range)</option>
                         <option value="p">p-Chart (Proportion Defective)</option>
                         <option value="c">c-Chart (Defect Count)</option>
+                        <option value="T-squared">T² (Hotelling's - Multivariate)</option>
                     </select>
                     <small id="chart-help" class="help-text">For continuous data with sample size of 1</small>
                 </div>
@@ -451,6 +452,7 @@ function updateChartHelp() {
         'X-bar R': 'For continuous data with subgroups of 2-10 (enter one subgroup per line)',
         'p': 'For proportion defective (requires sample sizes)',
         'c': 'For counting defects per unit',
+        'T-squared': 'For multivariate data — enter columns separated by commas, one observation per line (e.g., 10.2, 5.1, 3.4)',
     };
 
     help.textContent = helpTexts[type] || '';
@@ -462,7 +464,12 @@ function parseData(text) {
     const lines = text.trim().split('\n');
     const chartType = document.getElementById('chart-type').value;
 
-    if (chartType === 'X-bar R') {
+    if (chartType === 'T-squared') {
+        // Parse as multivariate: each line is one observation with comma-separated variables
+        return lines.map(line =>
+            line.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v))
+        ).filter(row => row.length > 0);
+    } else if (chartType === 'X-bar R') {
         // Parse as subgroups
         return lines.map(line =>
             line.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v))

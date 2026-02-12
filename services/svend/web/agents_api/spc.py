@@ -1134,3 +1134,124 @@ def extract_spc_data(
             "data": flat_data,
             "n_points": len(flat_data),
         }
+
+
+def hotelling_t_squared_chart(
+    data: list[list[float]],
+    alpha: float = 0.05,
+    usl: Optional[float] = None,
+    lsl: Optional[float] = None,
+) -> ControlChartResult:
+    """
+    Hotelling's T² control chart for multivariate data.
+
+    Each row in `data` is one observation with p measured variables.
+    Computes the T² statistic for each observation and sets UCL based on F-distribution.
+
+    Args:
+        data: n × p matrix (list of lists), each inner list has p variable measurements
+        alpha: significance level for control limit (default 0.05)
+
+    Returns:
+        ControlChartResult with T² values, UCL, and out-of-control points
+    """
+    import numpy as np
+    from scipy import stats as scipy_stats
+
+    X = np.array(data, dtype=float)
+    n, p = X.shape
+
+    if n < p + 1:
+        raise ValueError(f"Need at least {p+1} observations for {p} variables, got {n}")
+
+    # Mean vector and covariance matrix
+    x_bar = X.mean(axis=0)
+    S = np.cov(X, rowvar=False, ddof=1)
+
+    # Handle singular covariance (add small ridge if needed)
+    try:
+        S_inv = np.linalg.inv(S)
+    except np.linalg.LinAlgError:
+        S_inv = np.linalg.pinv(S)
+
+    # T² statistic for each observation
+    t2_values = []
+    for i in range(n):
+        diff = X[i] - x_bar
+        t2_i = float(diff @ S_inv @ diff)
+        t2_values.append(t2_i)
+
+    # Phase I control limit (using beta distribution for individual T²)
+    # UCL = ((n-1)^2 / n) * Beta(alpha, p/2, (n-p-1)/2)
+    # Equivalent F-based: UCL = p*(n+1)*(n-1) / (n*(n-p)) * F(alpha, p, n-p)
+    if n > p:
+        f_crit = scipy_stats.f.ppf(1 - alpha, p, n - p)
+        ucl = p * (n + 1) * (n - 1) / (n * (n - p)) * f_crit
+    else:
+        ucl = max(t2_values) * 1.5  # Fallback if n <= p
+
+    # Out-of-control points
+    out_of_control = []
+    for i, t2 in enumerate(t2_values):
+        if t2 > ucl:
+            # Identify which variable(s) contribute most
+            diff = X[i] - x_bar
+            contributions = []
+            for j in range(p):
+                contrib = diff[j]**2 * S_inv[j, j]
+                contributions.append(contrib)
+            max_contrib_idx = int(np.argmax(contributions))
+            out_of_control.append({
+                "index": i,
+                "value": round(t2, 4),
+                "reason": f"T²={t2:.2f} > UCL={ucl:.2f} (largest contributor: var {max_contrib_idx + 1})"
+            })
+
+    in_control = len(out_of_control) == 0
+
+    # Summary
+    summary_parts = [
+        f"Hotelling's T² Control Chart",
+        f"{'='*50}",
+        f"Observations: {n}",
+        f"Variables: {p}",
+        f"UCL (α={alpha}): {ucl:.4f}",
+        f"Mean T²: {np.mean(t2_values):.4f}",
+        f"Max T²: {np.max(t2_values):.4f}",
+        f"",
+        f"Out of control: {len(out_of_control)} point(s)",
+        f"Process status: {'IN CONTROL' if in_control else 'OUT OF CONTROL'}",
+    ]
+
+    if out_of_control:
+        summary_parts.append("")
+        summary_parts.append("Out-of-control observations:")
+        for pt in out_of_control[:10]:
+            summary_parts.append(f"  Obs {pt['index'] + 1}: {pt['reason']}")
+
+    # Variable means and std devs
+    summary_parts.append("")
+    summary_parts.append("Variable Statistics:")
+    for j in range(p):
+        summary_parts.append(f"  Var {j + 1}: mean={x_bar[j]:.4f}, std={np.sqrt(S[j, j]):.4f}")
+
+    # Correlation matrix
+    if p <= 6:
+        corr = np.corrcoef(X, rowvar=False)
+        summary_parts.append("")
+        summary_parts.append("Correlation Matrix:")
+        header = "       " + "  ".join(f"V{j+1:5d}" for j in range(p))
+        summary_parts.append(header)
+        for i in range(p):
+            row = f"  V{i+1}  " + "  ".join(f"{corr[i,j]:6.3f}" for j in range(p))
+            summary_parts.append(row)
+
+    return ControlChartResult(
+        chart_type="T-squared",
+        data_points=t2_values,
+        limits=ControlLimits(ucl=ucl, cl=float(np.mean(t2_values)), lcl=0.0, usl=usl, lsl=lsl),
+        out_of_control=out_of_control,
+        run_violations=[],  # Standard run rules don't apply to T²
+        in_control=in_control,
+        summary="\n".join(summary_parts),
+    )

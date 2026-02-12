@@ -3,8 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Svend - Decision Science Workbench</title>
-    <meta name="description" content="Professional-grade decision science workbench. Minitab-level statistics, SPC, DOE, and AI assistance at 96% lower cost. From $19/month.">
+    <title>Svend - Statistical Analysis & SPC Software | Minitab Alternative</title>
+    <meta name="description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies. Minitab-level power at 96% lower cost. Used by quality engineers worldwide. From $19/month.">
+    <meta name="keywords" content="statistical analysis software, SPC software, control charts, Six Sigma tools, DOE software, capability analysis, Minitab alternative, quality engineering, process capability, Cpk calculator, statistical process control">
+    <meta name="author" content="Svend">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://svend.ai/">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://svend.ai/">
+    <meta property="og:title" content="Svend - Statistical Analysis & SPC Software">
+    <meta property="og:description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies at 96% lower cost than Minitab. From $19/month.">
+    <meta property="og:image" content="https://svend.ai/static/og-image.png">
+    <meta property="og:site_name" content="Svend">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://svend.ai/">
+    <meta name="twitter:title" content="Svend - Statistical Analysis & SPC Software">
+    <meta name="twitter:description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies at 96% lower cost than Minitab.">
+    <meta name="twitter:image" content="https://svend.ai/static/og-image.png">
+    <meta name="twitter:site" content="@svend_ai">
+
+    <!-- Structured Data - Organization -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Svend",
+        "url": "https://svend.ai",
+        "logo": "https://svend.ai/static/logo.png",
+        "sameAs": [
+            "https://twitter.com/svend_ai"
+        ],
+        "description": "Statistical analysis and decision science software for quality engineers."
+    }
+    </script>
+
+    <!-- Structured Data - Software -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Svend",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "Professional statistical analysis software with SPC control charts, DOE, capability studies, and AI-powered insights. A modern alternative to Minitab and JMP.",
+        "url": "https://svend.ai",
+        "offers": {
+            "@type": "AggregateOffer",
+            "lowPrice": "19",
+            "highPrice": "199",
+            "priceCurrency": "USD",
+            "offerCount": "4"
+        },
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "5"
+        },
+        "featureList": [
+            "Statistical Process Control (SPC)",
+            "Design of Experiments (DOE)",
+            "Capability Analysis (Cp, Cpk, Pp, Ppk)",
+            "Control Charts (X-bar R, I-MR, P, C, U)",
+            "Hypothesis Testing",
+            "Regression Analysis",
+            "ANOVA",
+            "Gage R&R",
+            "Reliability Analysis"
+        ]
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -858,8 +935,8 @@
                 <a href="/register/" class="pricing-btn pricing-btn-secondary">Start Free</a>
             </div>
 
-            <div class="pricing-card featured">
-                <div class="pricing-popular">Limited Time</div>
+            <div class="pricing-card featured" id="founder-card">
+                <div class="pricing-popular" id="founder-badge">Limited Time</div>
                 <h3 class="pricing-name">Founder</h3>
                 <p class="pricing-desc">Early adopter rate</p>
                 <div class="pricing-price">
@@ -873,7 +950,7 @@
                     <li>DOE & Power Analysis</li>
                     <li>Locked rate forever</li>
                 </ul>
-                <a href="/billing/checkout/?plan=founder" class="pricing-btn pricing-btn-primary">Get Founder Rate</a>
+                <a href="/register/?plan=founder" class="pricing-btn pricing-btn-primary" id="founder-btn">Get Founder Rate</a>
             </div>
 
             <div class="pricing-card">
@@ -1042,6 +1119,40 @@
                 }
             });
         });
+
+        // Check founder availability
+        async function checkFounderAvailability() {
+            try {
+                const response = await fetch('/billing/founder-availability/');
+                const data = await response.json();
+
+                const founderCard = document.getElementById('founder-card');
+                const founderBadge = document.getElementById('founder-badge');
+                const founderBtn = document.getElementById('founder-btn');
+
+                if (!data.available) {
+                    // Sold out - hide the founder card entirely
+                    if (founderCard) {
+                        founderCard.style.display = 'none';
+                    }
+                } else if (data.remaining <= 20) {
+                    // Low stock - show urgency
+                    if (founderBadge) {
+                        founderBadge.textContent = `Only ${data.remaining} left!`;
+                        founderBadge.style.background = '#e74c3c';
+                    }
+                } else {
+                    // Show remaining spots
+                    if (founderBadge) {
+                        founderBadge.textContent = `${data.remaining} of 100 left`;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to check founder availability:', err);
+            }
+        }
+
+        checkFounderAvailability();
     </script>
 </body>
 </html>

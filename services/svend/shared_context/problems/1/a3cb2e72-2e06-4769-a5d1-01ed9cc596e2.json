@@ -1,0 +1,65 @@
+{
+  "problem_id": "a3cb2e72-2e06-4769-a5d1-01ed9cc596e2",
+  "user_id": 1,
+  "title": "[TEST] Integration test \u2014 safe to delete",
+  "status": "active",
+  "last_updated": "2026-02-07T02:22:53.678665",
+  "methodology": {
+    "type": "none",
+    "dmaic_phase": "",
+    "phase_history": [],
+    "guidance": null
+  },
+  "effect": {
+    "description": "Testing evidence linking from DSW/Experimenter",
+    "magnitude": "",
+    "first_observed": "",
+    "confidence": "medium"
+  },
+  "context": {
+    "domain": "",
+    "stakeholders": [],
+    "constraints": [],
+    "prior_beliefs": [],
+    "can_experiment": true,
+    "available_data": ""
+  },
+  "hypotheses": [],
+  "evidence": [
+    {
+      "id": "798bb4a6",
+      "type": "data_analysis",
+      "source": "DSW (descriptive)",
+      "summary": "DSW descriptive: mean=10.34, std=0.57, n=8",
+      "weakens": [],
+      "supports": [],
+      "timestamp": "2026-02-07T02:22:53.329311"
+    },
+    {
+      "id": "06dd914a",
+      "type": "calculation",
+      "summary": "Power analysis: need n=64 for medium effect at 80% power",
+      "source": "Experimenter (Power Analysis)",
+      "supports": [],
+      "weakens": [],
+      "timestamp": "2026-02-07T02:22:53.671251"
+    }
+  ],
+  "dead_ends": [],
+  "understanding": {
+    "probable_causes": [],
+    "key_uncertainties": [],
+    "recommended_next_steps": []
+  },
+  "bias_warnings": [],
+  "interview": null,
+  "resolution": null,
+  "agent_context": {
+    "source": "problem_session",
+    "can_update": true,
+    "endpoints": {
+      "add_evidence": "/api/problems/a3cb2e72-2e06-4769-a5d1-01ed9cc596e2/evidence/",
+      "add_hypothesis": "/api/problems/a3cb2e72-2e06-4769-a5d1-01ed9cc596e2/hypotheses/"
+    }
+  }
+}

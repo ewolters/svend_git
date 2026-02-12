@@ -9,6 +9,7 @@ Handles:
 
 import logging
 from typing import Optional
+from urllib.parse import urlencode
 
 import stripe
 from django.conf import settings
@@ -19,6 +20,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib.auth.decorators import login_required
 
 from .models import User, Subscription
+from .constants import get_founder_availability
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +107,10 @@ def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription
     user = sub.user
     if sub.is_active:
         # Determine tier from price ID
-        tier = PRICE_TO_TIER.get(sub.stripe_price_id, User.Tier.PRO)
+        tier = PRICE_TO_TIER.get(sub.stripe_price_id)
+        if tier is None:
+            logger.warning(f"Unknown Stripe price ID: {sub.stripe_price_id} — defaulting to FREE")
+            tier = User.Tier.FREE
         user.tier = tier
         user.subscription_active = True
         user.subscription_ends_at = sub.current_period_end
@@ -144,11 +149,17 @@ def create_checkout_session(request: HttpRequest):
     if not price_id:
         return redirect("/app/settings/?error=invalid_plan")
 
+    # Enforce founder slot limit
+    if plan == "founder":
+        availability = get_founder_availability()
+        if not availability["available"]:
+            return redirect("/app/settings/?error=founder_sold_out")
+
     try:
         customer_id = get_or_create_stripe_customer(user)
 
-        # Build URLs
-        success_url = request.build_absolute_uri("/billing/success?session_id={CHECKOUT_SESSION_ID}")
+        # Build URLs (trailing slash to match URL pattern)
+        success_url = request.build_absolute_uri("/billing/success/?session_id={CHECKOUT_SESSION_ID}")
         cancel_url = request.build_absolute_uri("/app/settings/?checkout=cancelled")
 
         # Create checkout session
@@ -172,7 +183,7 @@ def create_checkout_session(request: HttpRequest):
 
     except stripe.error.StripeError as e:
         logger.error(f"Stripe error creating checkout: {e}")
-        return redirect(f"/app/settings/?error={str(e)[:50]}")
+        return redirect("/app/settings/?error=checkout_failed")
 
 
 @login_required
@@ -199,7 +210,7 @@ def create_portal_session(request: HttpRequest):
 
     except stripe.error.StripeError as e:
         logger.error(f"Stripe error creating portal: {e}")
-        return redirect(f"/app/settings/?error={str(e)[:50]}")
+        return redirect("/app/settings/?error=portal_failed")
 
 
 @login_required
@@ -210,18 +221,27 @@ def checkout_success(request: HttpRequest) -> HttpResponse:
     if session_id:
         try:
             session = stripe.checkout.Session.retrieve(session_id)
+
+            # Verify session belongs to logged-in user
+            if session.customer != request.user.stripe_customer_id:
+                logger.warning(
+                    f"Checkout session customer mismatch: session={session.customer} "
+                    f"user={request.user.stripe_customer_id}"
+                )
+                return redirect("/app/settings/?error=session_mismatch")
+
             if session.subscription:
                 sync_subscription_from_stripe(session.subscription)
         except stripe.error.StripeError as e:
             logger.error(f"Error retrieving checkout session: {e}")
 
-    return redirect("/?upgraded=true")
+    return redirect("/app/?upgraded=true")
 
 
 @login_required
 def checkout_cancel(request: HttpRequest) -> HttpResponse:
     """Handle cancelled checkout."""
-    return redirect("/?checkout=cancelled")
+    return redirect("/app/settings/?checkout=cancelled")
 
 
 @csrf_exempt
@@ -271,19 +291,27 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
             user = sub.user
             user.tier = User.Tier.FREE
             user.subscription_active = False
-            user.save(update_fields=["tier", "subscription_active"])
+            user.subscription_ends_at = None
+            user.save(update_fields=["tier", "subscription_active", "subscription_ends_at"])
 
         except Subscription.DoesNotExist:
             logger.warning(f"Subscription not found: {data['id']}")
 
     elif event_type == "invoice.payment_failed":
-        # Payment failed
+        # Payment failed — mark past due AND downgrade tier
         subscription_id = data.get("subscription")
         if subscription_id:
             try:
                 sub = Subscription.objects.get(stripe_subscription_id=subscription_id)
                 sub.status = Subscription.Status.PAST_DUE
                 sub.save(update_fields=["status"])
+
+                # Downgrade user to prevent free access on failed payment
+                user = sub.user
+                user.tier = User.Tier.FREE
+                user.subscription_active = False
+                user.save(update_fields=["tier", "subscription_active"])
+                logger.info(f"User {user.username} downgraded due to payment failure")
             except Subscription.DoesNotExist:
                 pass
 
@@ -318,3 +346,14 @@ def subscription_status(request: HttpRequest) -> JsonResponse:
         }
 
     return JsonResponse(data)
+
+
+@require_http_methods(["GET"])
+def founder_availability(request: HttpRequest) -> JsonResponse:
+    """Check if founder pricing is still available.
+
+    Public endpoint (no auth required) for landing page to check.
+    """
+    from .constants import get_founder_availability
+
+    return JsonResponse(get_founder_availability())

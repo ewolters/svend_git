@@ -1,0 +1,1005 @@
+{% extends "base_app.html" %}
+{% block title %}A3 Report - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+/* A3 Report Styling */
+.a3-container {
+    --a3-bg: var(--bg-secondary);
+    --a3-border: var(--border);
+    --a3-header: #2c5f2d;
+    --a3-text: var(--text-primary);
+    --a3-section-bg: var(--bg-card);
+    --a3-section-header-bg: var(--bg-tertiary);
+    --a3-input-focus: rgba(74, 159, 110, 0.1);
+
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* Light theme overrides for paper look */
+[data-theme="light"] .a3-container {
+    --a3-section-bg: #fff;
+    --a3-section-header-bg: #f5f5f5;
+    --a3-input-focus: #fffde7;
+}
+
+.a3-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.a3-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.a3-toolbar-group:not(:last-child) {
+    padding-right: 12px;
+    border-right: 1px solid var(--border);
+}
+
+.a3-btn {
+    padding: 8px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+}
+
+.a3-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.a3-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.a3-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.a3-status.draft { background: rgba(100, 100, 100, 0.2); color: var(--text-secondary); }
+.a3-status.in_progress { background: rgba(25, 118, 210, 0.2); color: #64b5f6; }
+.a3-status.review { background: rgba(245, 124, 0, 0.2); color: #ffb74d; }
+.a3-status.complete { background: rgba(56, 142, 60, 0.2); color: #81c784; }
+
+.a3-status-select {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none;
+}
+
+.a3-status-select:focus {
+    border-color: var(--accent);
+}
+
+.a3-status-select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+/* A3 Paper Layout */
+.a3-paper {
+    background: var(--a3-section-bg);
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+.a3-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--a3-header);
+    color: white;
+}
+
+.a3-title {
+    font-size: 20px;
+    font-weight: 600;
+    flex: 1;
+}
+
+.a3-title input {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: inherit;
+    font-weight: inherit;
+    width: 100%;
+    outline: none;
+}
+
+.a3-title input::placeholder {
+    color: rgba(255,255,255,0.6);
+}
+
+.a3-meta {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.a3-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(4, auto);
+}
+
+.a3-section {
+    border: 1px solid var(--a3-border);
+    margin: -1px 0 0 -1px;
+}
+
+.a3-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--a3-section-header-bg);
+    border-bottom: 1px solid var(--a3-border);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.a3-section-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.a3-section-btn {
+    padding: 2px 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--a3-border);
+    border-radius: 4px;
+    font-size: 10px;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.a3-section-btn:hover {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+.a3-section-content {
+    min-height: 120px;
+    padding: 12px;
+    background: var(--a3-section-bg);
+}
+
+.a3-section-content textarea {
+    width: 100%;
+    min-height: 100px;
+    border: none;
+    resize: vertical;
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: inherit;
+    outline: none;
+    background: transparent;
+    color: var(--text-primary);
+}
+
+.a3-section-content textarea::placeholder {
+    color: var(--text-dim);
+}
+
+.a3-section-content textarea:focus {
+    background: var(--a3-input-focus);
+}
+
+/* Follow-up spans full width */
+.a3-section.full-width {
+    grid-column: 1 / -1;
+}
+
+/* Embedded diagrams */
+.a3-diagram-container {
+    margin: 8px 0;
+    padding: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    position: relative;
+}
+
+.a3-diagram-container svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+.a3-diagram-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.a3-diagram-remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+}
+
+.a3-diagram-remove:hover {
+    color: #e74c3c;
+}
+
+@media print {
+    .a3-diagram-remove { display: none; }
+    .a3-diagram-container { background: white; border: 1px solid #ccc; }
+}
+
+/* Import Modal */
+.a3-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    display: none;
+}
+
+.a3-modal-overlay.active {
+    display: flex;
+}
+
+.a3-modal {
+    background-color: #121a12 !important;
+    border: 1px solid rgba(74, 159, 110, 0.3);
+    border-radius: 8px;
+    width: 500px;
+    max-height: 80vh;
+    overflow: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+[data-theme="light"] .a3-modal {
+    background-color: #ffffff !important;
+    border-color: rgba(45, 122, 74, 0.25);
+}
+
+[data-theme="midnight"] .a3-modal {
+    background-color: #12121f !important;
+    border-color: rgba(106, 127, 255, 0.3);
+}
+
+.a3-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.a3-modal-body {
+    padding: 20px;
+}
+
+.a3-modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.a3-import-item {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--bg-secondary);
+}
+
+.a3-import-item:hover {
+    border-color: var(--accent-primary);
+    background: rgba(74, 159, 110, 0.1);
+}
+
+.a3-import-item.selected {
+    border-color: var(--accent-primary);
+    background: rgba(74, 159, 110, 0.2);
+}
+
+.a3-import-item-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.a3-import-item-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+/* Project selector */
+.a3-project-selector {
+    margin-bottom: 20px;
+}
+
+.a3-project-selector select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+/* Ensure modal body text is readable */
+.a3-modal-body p {
+    color: var(--text-secondary);
+}
+
+/* Print styles */
+@media print {
+    .a3-toolbar, .a3-section-actions { display: none !important; }
+    .a3-paper { border: 1px solid #000; box-shadow: none; }
+    .a3-section-content textarea { border: none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="a3-container">
+    <!-- Toolbar -->
+    <div class="a3-toolbar">
+        <div class="a3-toolbar-group">
+            <a id="back-link" href="/app/projects/" class="a3-btn">Back to Projects</a>
+        </div>
+
+        <div class="a3-toolbar-group">
+            <select id="project-select" class="a3-btn" onchange="loadProject(this.value)">
+                <option value="">Select Project...</option>
+            </select>
+        </div>
+
+        <div class="a3-toolbar-group">
+            <select id="report-status-select" class="a3-status-select" onchange="updateStatus(this.value)">
+                <option value="draft">Draft</option>
+                <option value="in_progress">In Progress</option>
+                <option value="review">Review</option>
+                <option value="complete">Complete</option>
+            </select>
+        </div>
+
+        <div style="flex:1;"></div>
+
+        <div class="a3-toolbar-group">
+            <button class="a3-btn" onclick="autoPopulate()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2a10 10 0 1 0 10 10"/>
+                    <path d="M12 12l4-4"/>
+                    <path d="M16 4v4h-4"/>
+                </svg>
+                Auto-fill with AI
+            </button>
+            <button class="a3-btn" onclick="saveReport()">Save</button>
+            <button class="a3-btn primary" onclick="window.print()">Print / PDF</button>
+        </div>
+    </div>
+
+    <!-- A3 Paper -->
+    <div class="a3-paper">
+        <div class="a3-header">
+            <div class="a3-title">
+                <input type="text" id="a3-title" placeholder="Problem / Theme Title" value="">
+            </div>
+            <div class="a3-meta">
+                <span id="a3-date"></span>
+            </div>
+        </div>
+
+        <div class="a3-grid">
+            <!-- Row 1: Background | Current Condition -->
+            <div class="a3-section" data-section="background">
+                <div class="a3-section-header">
+                    <span>Background</span>
+                    <div class="a3-section-actions">
+                        <button class="a3-section-btn" onclick="openImport('background', 'project')">Import</button>
+                    </div>
+                </div>
+                <div class="a3-section-content">
+                    <textarea id="section-background" placeholder="Why does this matter? Business context, impact, stakeholders..."></textarea>
+                </div>
+            </div>
+
+            <div class="a3-section" data-section="current_condition">
+                <div class="a3-section-header">
+                    <span>Current Condition</span>
+                    <div class="a3-section-actions">
+                        <button class="a3-section-btn" onclick="openImport('current_condition', 'dsw')">DSW Analysis</button>
+                        <button class="a3-section-btn" onclick="openImport('current_condition', 'whiteboard')">Whiteboard</button>
+                        <button class="a3-section-btn" onclick="openEmbedDiagram('current_condition')">+ Diagram</button>
+                    </div>
+                </div>
+                <div class="a3-section-content">
+                    <div id="diagrams-current_condition" class="a3-diagrams-area"></div>
+                    <textarea id="section-current_condition" placeholder="What is happening now? Data, metrics, observations..."></textarea>
+                </div>
+            </div>
+
+            <!-- Row 2: Goal | Root Cause -->
+            <div class="a3-section" data-section="goal">
+                <div class="a3-section-header">
+                    <span>Goal / Target Condition</span>
+                    <div class="a3-section-actions">
+                    </div>
+                </div>
+                <div class="a3-section-content">
+                    <textarea id="section-goal" placeholder="What are we trying to achieve? Specific, measurable targets..."></textarea>
+                </div>
+            </div>
+
+            <div class="a3-section" data-section="root_cause">
+                <div class="a3-section-header">
+                    <span>Root Cause Analysis</span>
+                    <div class="a3-section-actions">
+                        <button class="a3-section-btn" onclick="openImport('root_cause', 'hypothesis')">Hypotheses</button>
+                        <button class="a3-section-btn" onclick="openImport('root_cause', 'whiteboard')">Whiteboard</button>
+                        <button class="a3-section-btn" onclick="openImport('root_cause', 'dsw')">DSW</button>
+                        <button class="a3-section-btn" onclick="openEmbedDiagram('root_cause')">+ Diagram</button>
+                    </div>
+                </div>
+                <div class="a3-section-content">
+                    <div id="diagrams-root_cause" class="a3-diagrams-area"></div>
+                    <textarea id="section-root_cause" placeholder="Why is this happening? 5-Why, fishbone, hypothesis findings..."></textarea>
+                </div>
+            </div>
+
+            <!-- Row 3: Countermeasures | Implementation -->
+            <div class="a3-section" data-section="countermeasures">
+                <div class="a3-section-header">
+                    <span>Countermeasures</span>
+                    <div class="a3-section-actions">
+                        <button class="a3-section-btn" onclick="openImport('countermeasures', 'whiteboard')">Whiteboard</button>
+                        <button class="a3-section-btn" onclick="openEmbedDiagram('countermeasures')">+ Diagram</button>
+                    </div>
+                </div>
+                <div class="a3-section-content">
+                    <div id="diagrams-countermeasures" class="a3-diagrams-area"></div>
+                    <textarea id="section-countermeasures" placeholder="What will we do? Actions to address each root cause..."></textarea>
+                </div>
+            </div>
+
+            <div class="a3-section" data-section="implementation_plan">
+                <div class="a3-section-header">
+                    <span>Implementation Plan</span>
+                    <div class="a3-section-actions">
+                    </div>
+                </div>
+                <div class="a3-section-content">
+                    <textarea id="section-implementation_plan" placeholder="Who, what, when? Action items with owners and due dates..."></textarea>
+                </div>
+            </div>
+
+            <!-- Row 4: Follow-up (full width) -->
+            <div class="a3-section full-width" data-section="follow_up">
+                <div class="a3-section-header">
+                    <span>Follow-up</span>
+                    <div class="a3-section-actions">
+                    </div>
+                </div>
+                <div class="a3-section-content">
+                    <textarea id="section-follow_up" placeholder="How will we verify? Check dates, success metrics, sustainment plan..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="a3-modal-overlay" id="import-modal">
+    <div class="a3-modal">
+        <div class="a3-modal-header">
+            Import to <span id="import-section-name"></span>
+        </div>
+        <div class="a3-modal-body" id="import-items">
+            <!-- Populated dynamically -->
+        </div>
+        <div class="a3-modal-footer">
+            <button class="a3-btn" onclick="closeImport()">Cancel</button>
+            <button class="a3-btn primary" onclick="doImport()">Import</button>
+        </div>
+    </div>
+</div>
+
+<!-- Embed Diagram Modal -->
+<div class="a3-modal-overlay" id="embed-modal">
+    <div class="a3-modal">
+        <div class="a3-modal-header">
+            Embed Diagram from Whiteboard
+        </div>
+        <div class="a3-modal-body" id="embed-items">
+            <!-- Populated dynamically -->
+        </div>
+        <div class="a3-modal-footer">
+            <button class="a3-btn" onclick="closeEmbed()">Cancel</button>
+            <button class="a3-btn primary" onclick="doEmbed()">Embed</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentReportId = null;
+let currentProjectId = null;
+let availableImports = { hypotheses: [], boards: [] };
+let importTarget = { section: null, type: null };
+let selectedImportId = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', async () => {
+    // Set today's date
+    document.getElementById('a3-date').textContent = new Date().toLocaleDateString();
+
+    // Check if editing existing report
+    const pathParts = window.location.pathname.split('/');
+    const reportIdx = pathParts.indexOf('a3');
+    if (reportIdx >= 0 && pathParts[reportIdx + 1] && pathParts[reportIdx + 1].length > 10) {
+        currentReportId = pathParts[reportIdx + 1];
+        await loadReport(currentReportId);
+    } else {
+        // Load projects for selector
+        await loadProjects();
+
+        // Check for project param in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('project');
+        if (projectId) {
+            document.getElementById('project-select').value = projectId;
+            await loadProject(projectId);
+        }
+    }
+
+    // Auto-save on change
+    document.querySelectorAll('.a3-section-content textarea').forEach(ta => {
+        ta.addEventListener('change', () => {
+            if (currentReportId) saveReport(true);
+        });
+    });
+});
+
+async function loadProjects() {
+    try {
+        const resp = await fetch('/api/core/projects/');
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        const select = document.getElementById('project-select');
+        select.innerHTML = '<option value="">Select Project...</option>';
+        (data.results || data).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.title;
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Failed to load projects:', e);
+    }
+}
+
+async function loadProject(projectId) {
+    if (!projectId) return;
+    currentProjectId = projectId;
+
+    // Create new A3 for this project
+    try {
+        const resp = await fetch('/api/a3/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: projectId,
+                title: 'New A3 Report'
+            })
+        });
+        const data = await resp.json();
+        if (data.id) {
+            currentReportId = data.id;
+            window.history.pushState({}, '', `/app/a3/${data.id}/`);
+            await loadReport(data.id);
+        }
+    } catch (e) {
+        console.error('Failed to create A3:', e);
+    }
+}
+
+async function loadReport(reportId) {
+    try {
+        const resp = await fetch(`/api/a3/${reportId}/`);
+        if (!resp.ok) {
+            alert('Report not found');
+            return;
+        }
+        const data = await resp.json();
+        const report = data.report;
+
+        // Populate fields
+        document.getElementById('a3-title').value = report.title || '';
+        document.getElementById('section-background').value = report.background || '';
+        document.getElementById('section-current_condition').value = report.current_condition || '';
+        document.getElementById('section-goal').value = report.goal || '';
+        document.getElementById('section-root_cause').value = report.root_cause || '';
+        document.getElementById('section-countermeasures').value = report.countermeasures || '';
+        document.getElementById('section-implementation_plan').value = report.implementation_plan || '';
+        document.getElementById('section-follow_up').value = report.follow_up || '';
+
+        // Update status dropdown
+        const statusSelect = document.getElementById('report-status-select');
+        statusSelect.value = report.status || 'draft';
+
+        // Render embedded diagrams
+        renderAllDiagrams(report.embedded_diagrams);
+
+        // Store available imports
+        availableImports = data.available_imports || { hypotheses: [], boards: [] };
+        currentProjectId = report.project_id;
+
+        // Update project selector
+        const select = document.getElementById('project-select');
+        if (data.project) {
+            select.innerHTML = `<option value="${data.project.id}">${data.project.title}</option>`;
+        }
+
+    } catch (e) {
+        console.error('Failed to load report:', e);
+    }
+}
+
+async function saveReport(quiet = false) {
+    if (!currentReportId) return;
+
+    const data = {
+        title: document.getElementById('a3-title').value,
+        background: document.getElementById('section-background').value,
+        current_condition: document.getElementById('section-current_condition').value,
+        goal: document.getElementById('section-goal').value,
+        root_cause: document.getElementById('section-root_cause').value,
+        countermeasures: document.getElementById('section-countermeasures').value,
+        implementation_plan: document.getElementById('section-implementation_plan').value,
+        follow_up: document.getElementById('section-follow_up').value,
+    };
+
+    try {
+        const resp = await fetch(`/api/a3/${currentReportId}/update/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (resp.ok && !quiet) {
+            alert('Saved!');
+        }
+    } catch (e) {
+        console.error('Save failed:', e);
+        if (!quiet) alert('Save failed');
+    }
+}
+
+async function updateStatus(newStatus) {
+    if (!currentReportId) return;
+
+    try {
+        const resp = await fetch(`/api/a3/${currentReportId}/update/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        if (!resp.ok) {
+            alert('Failed to update status');
+            // Reset to previous value
+            await loadReport(currentReportId);
+        }
+    } catch (e) {
+        console.error('Status update failed:', e);
+    }
+}
+
+function openImport(section, defaultType = 'hypothesis') {
+    importTarget = { section, type: defaultType };
+    selectedImportId = null;
+
+    document.getElementById('import-section-name').textContent = section.replace('_', ' ');
+
+    // Populate import items
+    const container = document.getElementById('import-items');
+    let items = [];
+
+    if (defaultType === 'hypothesis') {
+        items = availableImports.hypotheses || [];
+        container.innerHTML = items.length === 0
+            ? '<p>No hypotheses in this project yet.</p>'
+            : items.map(h => `
+                <div class="a3-import-item" data-id="${h.id}" onclick="selectImport('${h.id}', 'hypothesis')">
+                    <div class="a3-import-item-title">${h.statement}</div>
+                    <div class="a3-import-item-meta">P=${(h.probability * 100).toFixed(0)}% | ${h.status}</div>
+                </div>
+            `).join('');
+    } else if (defaultType === 'whiteboard') {
+        items = availableImports.boards || [];
+        container.innerHTML = items.length === 0
+            ? '<p>No whiteboards in this project yet.</p>'
+            : items.map(b => `
+                <div class="a3-import-item" data-id="${b.id}" onclick="selectImport('${b.id}', 'whiteboard')">
+                    <div class="a3-import-item-title">${b.name}</div>
+                    <div class="a3-import-item-meta">Room: ${b.room_code}</div>
+                </div>
+            `).join('');
+    } else if (defaultType === 'dsw') {
+        items = availableImports.dsw_results || [];
+        container.innerHTML = items.length === 0
+            ? '<p>No DSW analyses linked to this project yet.</p><p class="a3-import-item-meta">Run analyses in DSW and link them to this project.</p>'
+            : items.map(r => `
+                <div class="a3-import-item" data-id="${r.id}" onclick="selectImport('${r.id}', 'dsw')">
+                    <div class="a3-import-item-title">${r.title}</div>
+                    <div class="a3-import-item-meta">${r.type} | ${new Date(r.created).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+    } else if (defaultType === 'project') {
+        container.innerHTML = `
+            <div class="a3-import-item selected" data-id="project" onclick="selectImport('project', 'project')">
+                <div class="a3-import-item-title">Import Project Description</div>
+                <div class="a3-import-item-meta">Pull context from the project</div>
+            </div>
+        `;
+        selectedImportId = 'project';
+        importTarget.type = 'project';
+    }
+
+    document.getElementById('import-modal').classList.add('active');
+}
+
+function selectImport(id, type) {
+    selectedImportId = id;
+    importTarget.type = type;
+
+    document.querySelectorAll('.a3-import-item').forEach(el => {
+        el.classList.toggle('selected', el.dataset.id === id);
+    });
+}
+
+function closeImport() {
+    document.getElementById('import-modal').classList.remove('active');
+}
+
+// Diagram Embedding
+let embedTarget = { section: null };
+let selectedBoardCode = null;
+
+function openEmbedDiagram(section) {
+    embedTarget.section = section;
+    selectedBoardCode = null;
+
+    const boards = availableImports.boards || [];
+    const container = document.getElementById('embed-items');
+
+    if (boards.length === 0) {
+        container.innerHTML = '<p>No whiteboards in this project yet. Create a whiteboard first to embed diagrams.</p>';
+    } else {
+        container.innerHTML = boards.map(b => `
+            <div class="a3-import-item" data-code="${b.room_code}" onclick="selectBoard('${b.room_code}')">
+                <div class="a3-import-item-title">${b.name}</div>
+                <div class="a3-import-item-meta">Room: ${b.room_code}</div>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('embed-modal').classList.add('active');
+}
+
+function selectBoard(code) {
+    selectedBoardCode = code;
+    document.querySelectorAll('#embed-items .a3-import-item').forEach(el => {
+        el.classList.toggle('selected', el.dataset.code === code);
+    });
+}
+
+function closeEmbed() {
+    document.getElementById('embed-modal').classList.remove('active');
+}
+
+async function doEmbed() {
+    if (!selectedBoardCode || !currentReportId) {
+        closeEmbed();
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/a3/${currentReportId}/embed-diagram/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                section: embedTarget.section,
+                room_code: selectedBoardCode
+            })
+        });
+
+        const data = await resp.json();
+        if (data.success) {
+            // Add the diagram to the section
+            renderDiagram(embedTarget.section, data.diagram_id, data.svg, data.board_name);
+        } else {
+            alert(data.error || 'Embed failed');
+        }
+    } catch (e) {
+        console.error('Embed failed:', e);
+        alert('Embed failed');
+    }
+
+    closeEmbed();
+}
+
+function renderDiagram(section, id, svg, boardName) {
+    const container = document.getElementById(`diagrams-${section}`);
+    if (!container) return;
+
+    const div = document.createElement('div');
+    div.className = 'a3-diagram-container';
+    div.dataset.diagramId = id;
+    div.innerHTML = `
+        <div class="a3-diagram-label">
+            <span>${boardName}</span>
+            <button class="a3-diagram-remove" onclick="removeDiagram('${section}', '${id}')" title="Remove diagram">&times;</button>
+        </div>
+        ${svg}
+    `;
+    container.appendChild(div);
+}
+
+async function removeDiagram(section, diagramId) {
+    if (!confirm('Remove this diagram?')) return;
+
+    try {
+        const resp = await fetch(`/api/a3/${currentReportId}/diagram/${diagramId}/`, {
+            method: 'DELETE'
+        });
+
+        if (resp.ok) {
+            const container = document.getElementById(`diagrams-${section}`);
+            const el = container.querySelector(`[data-diagram-id="${diagramId}"]`);
+            if (el) el.remove();
+        }
+    } catch (e) {
+        console.error('Remove failed:', e);
+    }
+}
+
+function renderAllDiagrams(embeddedDiagrams) {
+    // Clear existing diagrams
+    document.querySelectorAll('.a3-diagrams-area').forEach(area => area.innerHTML = '');
+
+    if (!embeddedDiagrams) return;
+
+    for (const [section, diagrams] of Object.entries(embeddedDiagrams)) {
+        for (const d of diagrams) {
+            renderDiagram(section, d.id, d.svg, d.board_name);
+        }
+    }
+}
+
+async function doImport() {
+    if (!selectedImportId || !currentReportId) {
+        closeImport();
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/a3/${currentReportId}/import/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                section: importTarget.section,
+                source_type: importTarget.type,
+                source_id: selectedImportId,
+                append: true
+            })
+        });
+
+        const data = await resp.json();
+        if (data.success) {
+            // Update the section content
+            document.getElementById(`section-${importTarget.section}`).value = data.content;
+        } else {
+            alert(data.error || 'Import failed');
+        }
+    } catch (e) {
+        console.error('Import failed:', e);
+        alert('Import failed');
+    }
+
+    closeImport();
+}
+
+async function autoPopulate() {
+    if (!currentReportId) {
+        alert('Please save the report first');
+        return;
+    }
+
+    if (!confirm('This will use AI to auto-fill empty sections based on project data. Continue?')) {
+        return;
+    }
+
+    // Find empty sections
+    const sections = ['background', 'current_condition', 'goal', 'root_cause', 'countermeasures'];
+    const emptySections = sections.filter(s => !document.getElementById(`section-${s}`).value.trim());
+
+    if (emptySections.length === 0) {
+        alert('All sections already have content');
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/a3/${currentReportId}/auto-populate/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sections: emptySections })
+        });
+
+        const data = await resp.json();
+
+        if (data.rate_limited) {
+            alert(data.error);
+            return;
+        }
+
+        if (data.success) {
+            // Reload the report to get updated content
+            await loadReport(currentReportId);
+            alert(`Auto-filled ${data.populated_sections.length} section(s)`);
+        }
+    } catch (e) {
+        console.error('Auto-populate failed:', e);
+        alert('Auto-populate failed');
+    }
+}
+</script>
+{% endblock %}

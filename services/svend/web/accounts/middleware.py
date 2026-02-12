@@ -1,8 +1,12 @@
 """Subscription and access control middleware."""
 
+from datetime import timedelta
+
 from django.conf import settings
 from django.http import JsonResponse
 from django.utils import timezone
+
+from .constants import is_paid_tier
 
 
 class SubscriptionMiddleware:
@@ -26,14 +30,16 @@ class SubscriptionMiddleware:
         # Check subscription status
         request.subscription_active = (
             hasattr(user, "subscription") and user.subscription.is_active
-        ) or user.tier in ("beta", "pro")
+        ) or is_paid_tier(user.tier)
 
         # Check query limits
         request.can_query = user.can_query()
 
-        # Update last active
-        user.last_active_at = timezone.now()
-        user.save(update_fields=["last_active_at"])
+        # Update last active (throttled to avoid DB write on every request)
+        now = timezone.now()
+        if user.last_active_at is None or (now - user.last_active_at) > timedelta(minutes=5):
+            user.last_active_at = now
+            user.save(update_fields=["last_active_at"])
 
         return self.get_response(request)
 
@@ -115,17 +121,27 @@ class InviteRequiredMiddleware:
         if not is_registration:
             return self.get_response(request)
 
-        # Check for invite code in request (POST form, GET param, or JSON body)
-        invite_code = request.POST.get("invite_code") or request.GET.get("invite")
+        # Check for invite code and plan in request (normalize to uppercase)
+        invite_code = (request.POST.get("invite_code") or request.GET.get("invite") or "").strip().upper()
+        plan = (request.POST.get("plan") or request.GET.get("plan") or "").strip().lower()
 
         # Also check JSON body for API requests
-        if not invite_code and request.content_type == "application/json":
-            import json
+        import json
+        if request.content_type and request.content_type.startswith("application/json"):
             try:
-                body = json.loads(request.body)
-                invite_code = body.get("invite_code", "").strip().upper()
-            except (json.JSONDecodeError, AttributeError):
+                raw_body = request.body.decode('utf-8') if isinstance(request.body, bytes) else request.body
+                body = json.loads(raw_body)
+                if not invite_code and body.get("invite_code"):
+                    invite_code = body["invite_code"].strip().upper()
+                if not plan and body.get("plan"):
+                    plan = body["plan"].strip().lower()
+            except (json.JSONDecodeError, AttributeError, UnicodeDecodeError):
                 pass
+
+        # Paid plans bypass invite requirement (they're paying customers)
+        paid_plans = ["founder", "pro", "team", "enterprise"]
+        if plan in paid_plans:
+            return self.get_response(request)
 
         if not invite_code:
             return JsonResponse(

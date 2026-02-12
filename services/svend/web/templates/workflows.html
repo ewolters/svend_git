@@ -569,7 +569,6 @@ function addStep(type = 'researcher', config = {}) {
                         <option value="researcher" ${type === 'researcher' ? 'selected' : ''}>Researcher</option>
                         <option value="scrub" ${type === 'scrub' ? 'selected' : ''}>Scrub (Clean Data)</option>
                         <option value="analyst" ${type === 'analyst' ? 'selected' : ''}>Analyst (Train Model)</option>
-                        <option value="coder" ${type === 'coder' ? 'selected' : ''}>Coder</option>
                         <option value="writer" ${type === 'writer' ? 'selected' : ''}>Writer</option>
                         <option value="editor" ${type === 'editor' ? 'selected' : ''}>Editor</option>
                         <option value="eda" ${type === 'eda' ? 'selected' : ''}>EDA</option>
@@ -597,8 +596,6 @@ function getStepConfigHtml(type, config = {}) {
             return `<input type="text" class="step-columns" placeholder="Columns to clean (comma-separated, or leave blank for all)" value="${config.columns || ''}">`;
         case 'analyst':
             return `<input type="text" class="step-target" placeholder="Target column to predict" value="${config.target || ''}">`;
-        case 'coder':
-            return `<input type="text" class="step-prompt" placeholder="Code prompt" value="${config.prompt || ''}">`;
         case 'writer':
             return `
                 <select class="step-template">
@@ -644,9 +641,6 @@ function getStepsFromForm() {
         switch (type) {
             case 'researcher':
                 step.query = item.querySelector('.step-query')?.value || '';
-                break;
-            case 'coder':
-                step.prompt = item.querySelector('.step-prompt')?.value || '';
                 break;
             case 'writer':
                 step.template = item.querySelector('.step-template')?.value || 'general';
@@ -768,7 +762,6 @@ function renderWorkflowPanels(result) {
 
         const typeIcons = {
             researcher: '🔍',
-            coder: '💻',
             writer: '📝',
             editor: '✍️',
             eda: '📊'

@@ -13,6 +13,7 @@ urlpatterns = [
     path("billing/success/", billing.checkout_success, name="checkout_success"),
     path("billing/cancel/", billing.checkout_cancel, name="checkout_cancel"),
     path("billing/status/", billing.subscription_status, name="subscription_status"),
+    path("billing/founder-availability/", billing.founder_availability, name="founder_availability"),
 
     # Stripe webhook (no auth required, verified by signature)
     path("webhooks/stripe/", billing.stripe_webhook, name="stripe_webhook"),

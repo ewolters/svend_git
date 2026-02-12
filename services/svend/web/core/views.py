@@ -141,6 +141,89 @@ def project_recalculate(request, project_id):
     })
 
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def project_hub(request, project_id):
+    """Get all linked tools and artifacts for a project.
+
+    Returns:
+    - Project details
+    - Hypotheses
+    - Datasets
+    - Experiment designs
+    - DSW analyses
+    - Whiteboards
+    - A3 reports
+    - VSM maps
+    """
+    project = get_object_or_404(get_user_projects(request.user), id=project_id)
+
+    # Import models from agents_api
+    from agents_api.models import Board, DSWResult, A3Report, ValueStreamMap
+
+    # Get linked tools
+    boards = Board.objects.filter(project=project).order_by('-updated_at')[:20]
+    dsw_results = DSWResult.objects.filter(project=project).order_by('-created_at')[:20]
+    a3_reports = A3Report.objects.filter(project=project).order_by('-updated_at')[:10]
+    vsm_maps = ValueStreamMap.objects.filter(project=project).order_by('-updated_at')[:10]
+
+    return Response({
+        "project": ProjectDetailSerializer(project).data,
+        "tools": {
+            "whiteboards": [
+                {
+                    "id": str(b.id),
+                    "name": b.name,
+                    "room_code": b.room_code,
+                    "element_count": len(b.elements or []),
+                    "updated_at": b.updated_at.isoformat(),
+                }
+                for b in boards
+            ],
+            "dsw_analyses": [
+                {
+                    "id": r.id,
+                    "title": r.title or r.result_type,
+                    "type": r.result_type,
+                    "summary": r.get_summary(),
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in dsw_results
+            ],
+            "a3_reports": [
+                {
+                    "id": str(a.id),
+                    "title": a.title,
+                    "status": a.status,
+                    "updated_at": a.updated_at.isoformat(),
+                }
+                for a in a3_reports
+            ],
+            "vsm_maps": [
+                {
+                    "id": str(v.id),
+                    "name": v.name,
+                    "status": v.status,
+                    "process_count": len(v.process_steps or []),
+                    "lead_time": v.total_lead_time,
+                    "pce": v.pce,
+                    "updated_at": v.updated_at.isoformat(),
+                }
+                for v in vsm_maps
+            ],
+        },
+        "counts": {
+            "hypotheses": project.hypotheses.count(),
+            "datasets": project.datasets.count(),
+            "experiments": project.experiment_designs.count(),
+            "whiteboards": boards.count(),
+            "dsw_analyses": dsw_results.count(),
+            "a3_reports": a3_reports.count(),
+            "vsm_maps": vsm_maps.count(),
+        },
+    })
+
+
 # =============================================================================
 # Hypotheses
 # =============================================================================

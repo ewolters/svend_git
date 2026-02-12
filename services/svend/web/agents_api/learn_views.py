@@ -1,18 +1,9 @@
 """Learning module views.
 
-SVEND Analyst Certification - educational content on:
-- Bayesian thinking and hypothesis-driven investigation
-- Statistical analysis and DSW tools
-- Data cleaning and sampling
-- Evidence quality and experimental design
-
-Features:
-- LLM-generated assessment questions (prevents answer sharing)
-- Interactive testing with immediate feedback
-- Shareable certificate upon completion
+Interactive learning integrated with DSW — learn by doing.
+Guided exercises with sample data, inline analysis, progress tracking.
 """
 
-import hashlib
 import json
 import logging
 import uuid
@@ -26,7 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
 from .llm_manager import LLMManager
-from .learn_content import get_section_content, SECTION_CONTENT
+from .learn_content import get_section_content, SECTION_CONTENT, SHARED_DATASET
 
 logger = logging.getLogger(__name__)
 
@@ -581,17 +572,157 @@ COURSE_MODULES = {
                 "estimated_minutes": 55,
                 "hands_on": True,
             },
+            {
+                "id": "doe-hands-on",
+                "title": "Design of Experiments (DOE)",
+                "description": "Creating and analyzing experimental designs",
+                "topics": [
+                    "Full factorial, fractional, and screening designs",
+                    "Choosing the right design for your question",
+                    "Response surface methods for optimization",
+                    "Power analysis for DOE",
+                    "Analyzing effects and interactions",
+                    "Confirmation runs",
+                    "Hands-on: design and analyze an experiment",
+                ],
+                "interactive": True,
+                "estimated_minutes": 60,
+                "hands_on": True,
+            },
+            {
+                "id": "nonparametric-hands-on",
+                "title": "Nonparametric Tests in DSW",
+                "description": "Running and interpreting rank-based tests",
+                "topics": [
+                    "Mann-Whitney U test walkthrough",
+                    "Kruskal-Wallis with Dunn's post-hoc",
+                    "Wilcoxon signed-rank for paired data",
+                    "Friedman test for repeated measures",
+                    "Effect sizes for nonparametric tests",
+                    "Hands-on: compare groups with real data",
+                ],
+                "interactive": True,
+                "estimated_minutes": 45,
+                "hands_on": True,
+            },
+            {
+                "id": "time-series-hands-on",
+                "title": "Time Series in DSW",
+                "description": "Decomposition, ARIMA, and change detection",
+                "topics": [
+                    "Decomposition walkthrough",
+                    "ACF/PACF for model identification",
+                    "ARIMA and SARIMA modeling",
+                    "Change point detection",
+                    "Granger causality testing",
+                    "Multi-vari analysis for manufacturing",
+                    "Hands-on: forecast and detect changes",
+                ],
+                "interactive": True,
+                "estimated_minutes": 55,
+                "hands_on": True,
+            },
         ],
     },
 
     # =========================================================================
-    # MODULE 8: CASE STUDIES
+    # MODULE 8: ADVANCED METHODS
+    # =========================================================================
+    "advanced-methods": {
+        "id": "advanced-methods",
+        "title": "Advanced Methods",
+        "description": "Specialized techniques for complex real-world problems",
+        "order": 8,
+        "sections": [
+            {
+                "id": "nonparametric-tests",
+                "title": "Nonparametric Tests",
+                "description": "When assumptions fail, ranks prevail",
+                "topics": [
+                    "When to use nonparametric over parametric",
+                    "Mann-Whitney U: two independent groups",
+                    "Wilcoxon signed-rank: paired comparisons",
+                    "Kruskal-Wallis: three or more groups",
+                    "Friedman: repeated measures",
+                    "Post-hoc tests: Dunn's and Games-Howell",
+                    "Power considerations and effect sizes",
+                ],
+                "interactive": True,
+                "estimated_minutes": 45,
+            },
+            {
+                "id": "time-series-analysis",
+                "title": "Time Series Analysis",
+                "description": "Methods for data with temporal dependence",
+                "topics": [
+                    "Stationarity and why it matters",
+                    "ACF/PACF for model identification",
+                    "Decomposition: trend, seasonal, residual",
+                    "ARIMA and SARIMA models",
+                    "Change point detection",
+                    "Granger causality",
+                    "Multi-vari analysis",
+                ],
+                "interactive": True,
+                "estimated_minutes": 55,
+            },
+            {
+                "id": "survival-reliability",
+                "title": "Survival & Reliability Analysis",
+                "description": "Time-to-event data with censoring",
+                "topics": [
+                    "Censoring: why it matters and how to handle it",
+                    "Kaplan-Meier survival curves",
+                    "Log-rank test for group comparisons",
+                    "Weibull distribution and failure patterns",
+                    "Cox proportional hazards regression",
+                    "Warranty analysis and preventive maintenance",
+                ],
+                "interactive": True,
+                "estimated_minutes": 50,
+            },
+            {
+                "id": "ml-essentials",
+                "title": "Machine Learning Essentials",
+                "description": "Prediction, clustering, and anomaly detection",
+                "topics": [
+                    "When ML vs traditional statistics",
+                    "K-Means clustering and silhouette analysis",
+                    "PCA for dimensionality reduction",
+                    "Feature importance with Random Forest",
+                    "Anomaly detection with Isolation Forest",
+                    "Regularized regression (Ridge, Lasso, Elastic Net)",
+                    "Gaussian Process regression with uncertainty",
+                ],
+                "interactive": True,
+                "estimated_minutes": 55,
+            },
+            {
+                "id": "measurement-systems",
+                "title": "Measurement System Analysis",
+                "description": "Verifying your measurements before trusting your data",
+                "topics": [
+                    "Why measurement systems need evaluation",
+                    "Gage R&R: repeatability and reproducibility",
+                    "Acceptance criteria for measurement systems",
+                    "Acceptance sampling plans",
+                    "Bias and linearity studies",
+                    "The measurement system audit",
+                ],
+                "interactive": True,
+                "estimated_minutes": 40,
+            },
+        ],
+    },
+
+    # =========================================================================
+    # MODULE 9: CASE STUDIES
     # =========================================================================
     "case-studies": {
         "id": "case-studies",
         "title": "Case Studies",
         "description": "Apply everything you've learned to real scenarios",
-        "order": 8,
+        "order": 9,
         "sections": [
             {
                 "id": "case-clinical-trial",
@@ -661,13 +792,13 @@ COURSE_MODULES = {
     },
 
     # =========================================================================
-    # MODULE 9: CAPSTONE PROJECT
+    # MODULE 10: CAPSTONE PROJECT
     # =========================================================================
     "capstone": {
         "id": "capstone",
         "title": "Capstone Project",
         "description": "Demonstrate your skills with a comprehensive analysis",
-        "order": 9,
+        "order": 10,
         "sections": [
             {
                 "id": "capstone-overview",
@@ -702,82 +833,12 @@ COURSE_MODULES = {
         ],
     },
 
-    # =========================================================================
-    # MODULE 10: SYNARA & VERIFIED REASONING (Future)
-    # =========================================================================
-    "synara": {
-        "id": "synara",
-        "title": "Synara & Verified Reasoning",
-        "description": "Using AI-assisted reasoning with symbolic verification",
-        "order": 10,
-        "sections": [
-            {
-                "id": "reasoning-protocol",
-                "title": "The Reasoning Protocol",
-                "description": "How Synara structures reasoning",
-                "topics": [
-                    "OBSERVE → HYPOTHESIZE → TEST → UPDATE → CONCLUDE",
-                    "Why structured reasoning beats free-form",
-                    "Reading and validating reasoning traces",
-                    "When to trust vs verify",
-                ],
-                "interactive": True,
-                "estimated_minutes": 35,
-                "coming_soon": True,
-            },
-            {
-                "id": "symbolic-verification",
-                "title": "Symbolic Verification",
-                "description": "How verification prevents hallucination",
-                "topics": [
-                    "What symbolic verification means",
-                    "Contradiction detection",
-                    "Logical consistency checking",
-                    "Why this matters for high-stakes decisions",
-                ],
-                "interactive": True,
-                "estimated_minutes": 30,
-                "coming_soon": True,
-            },
-            {
-                "id": "human-ai-collaboration",
-                "title": "Human-AI Collaboration",
-                "description": "Best practices for working with Synara",
-                "topics": [
-                    "What AI reasoning is good at",
-                    "What still requires human judgment",
-                    "Effective prompting for reasoning tasks",
-                    "Interpreting and validating AI output",
-                ],
-                "interactive": True,
-                "estimated_minutes": 25,
-                "coming_soon": True,
-            },
-        ],
-    },
 }
 
-# Minimum passing score for certification
-PASSING_SCORE = 0.80  # 80% required to pass
-ASSESSMENT_QUESTIONS = 25  # More questions for comprehensive assessment
-ASSESSMENT_TIME_MINUTES = 45  # More time for harder questions
-
-# Certification levels
-CERTIFICATION_LEVELS = {
-    "analyst": {
-        "title": "SVEND Certified Analyst",
-        "description": "Demonstrates proficiency in rigorous analytical thinking and statistical methods",
-        "min_modules_completed": 6,  # Must complete 6 of first 8 modules
-        "passing_score": 0.80,
-    },
-    "senior_analyst": {
-        "title": "SVEND Senior Analyst",
-        "description": "Demonstrates mastery including causal inference and advanced methods",
-        "min_modules_completed": 8,  # Must complete 8 modules
-        "passing_score": 0.85,
-        "requires_capstone": True,
-    },
-}
+# Assessment settings
+PASSING_SCORE = 0.80
+ASSESSMENT_QUESTIONS = 25
+ASSESSMENT_TIME_MINUTES = 45
 
 
 # =============================================================================
@@ -867,8 +928,12 @@ def get_section(request, module_id: str, section_id: str):
 
     # Add rich content nested under rich_content key (for frontend)
     if rich_content:
+        section_data = rich_content.get("sample_data", {})
         response_data["rich_content"] = {
             "content": rich_content.get("content", ""),
+            "intro": rich_content.get("intro", ""),
+            "exercise": rich_content.get("exercise", {}),
+            "sample_data": section_data if section_data else SHARED_DATASET,
             "key_takeaways": rich_content.get("key_takeaways", []),
             "practice_questions": rich_content.get("practice_questions", []),
             "interactive": rich_content.get("interactive", {}),
@@ -1052,11 +1117,6 @@ def submit_assessment(request):
     # Update assessment history
     _record_assessment_attempt(request.user, score, passed)
 
-    # If passed, generate certificate
-    certificate_id = None
-    if passed:
-        certificate_id = _generate_certificate(request.user)
-
     return JsonResponse({
         "score": score,
         "correct": correct,
@@ -1064,7 +1124,6 @@ def submit_assessment(request):
         "passed": passed,
         "passing_score": PASSING_SCORE,
         "results": results,
-        "certificate_id": certificate_id,
     })
 
 
@@ -1077,111 +1136,96 @@ def assessment_history(request):
 
 
 # =============================================================================
-# Certificate
+# Helper Functions — backed by SectionProgress, AssessmentAttempt
 # =============================================================================
 
-@login_required
-@require_http_methods(["GET"])
-def get_certificate(request):
-    """Get user's certificate if they've passed."""
-    cert_data = _get_certificate_data(request.user)
-    if not cert_data:
-        return JsonResponse({"error": "No certificate found. Pass the assessment first."}, status=404)
+from .models import SectionProgress, AssessmentAttempt
 
-    return JsonResponse(cert_data)
-
-
-@require_http_methods(["GET"])
-def verify_certificate(request, cert_id: str):
-    """Public endpoint to verify a certificate is valid."""
-    cert_data = _verify_certificate(cert_id)
-    if not cert_data:
-        return JsonResponse({"valid": False, "error": "Certificate not found"}, status=404)
-
-    return JsonResponse({
-        "valid": True,
-        "holder_name": cert_data["holder_name"],
-        "issued_date": cert_data["issued_date"],
-        "certificate_id": cert_id,
-    })
-
-
-# =============================================================================
-# Helper Functions (would use database models in production)
-# =============================================================================
 
 def _get_user_progress(user) -> dict:
-    """Get user's course progress from their profile."""
-    # In production: CourseProgress.objects.filter(user=user)
-    # For now, use user profile JSON field or cache
-    try:
-        if hasattr(user, 'profile') and hasattr(user.profile, 'course_progress'):
-            return user.profile.course_progress or {}
-    except Exception:
-        pass
-    return {}
+    """Get user's course progress as {module_id: {section_id: {completed, completed_at}}}."""
+    rows = SectionProgress.objects.filter(user=user, completed=True)
+    progress = {}
+    for row in rows:
+        progress.setdefault(row.module_id, {})[row.section_id] = {
+            "completed": True,
+            "completed_at": row.completed_at.isoformat() if row.completed_at else None,
+        }
+    return progress
 
 
 def _mark_section_complete(user, module_id: str, section_id: str):
     """Mark a section as complete for a user."""
-    # In production: CourseProgress.objects.update_or_create(...)
-    # For now, would update user profile
+    SectionProgress.objects.update_or_create(
+        user=user,
+        module_id=module_id,
+        section_id=section_id,
+        defaults={
+            "completed": True,
+            "completed_at": timezone.now(),
+        },
+    )
     logger.info(f"User {user.id} completed {module_id}/{section_id}")
 
 
 def _get_assessment_data(user) -> dict:
     """Get user's assessment history."""
-    # In production: AssessmentAttempt.objects.filter(user=user)
+    attempts = AssessmentAttempt.objects.filter(user=user, score__isnull=False)
+    best = attempts.order_by("-score").first()
+
+    history = [
+        {
+            "id": str(a.id),
+            "score": a.score,
+            "passed": a.passed,
+            "date": a.started_at.isoformat(),
+        }
+        for a in attempts[:10]
+    ]
+
     return {
-        "attempts": 0,
-        "best_score": 0,
-        "certified": False,
-        "history": [],
+        "attempts": attempts.count(),
+        "best_score": best.score if best else 0,
+        "history": history,
     }
 
 
 def _store_assessment_session(user, assessment_id: str, questions: list):
     """Store assessment session for grading."""
-    # In production: cache or database
-    # For now, would use Django cache
+    AssessmentAttempt.objects.create(
+        id=assessment_id,
+        user=user,
+        questions=questions,
+    )
     logger.info(f"Stored assessment {assessment_id} for user {user.id}")
 
 
 def _get_assessment_session(user, assessment_id: str) -> Optional[dict]:
     """Retrieve assessment session."""
-    # In production: cache.get(f"assessment:{assessment_id}")
-    return None
+    try:
+        attempt = AssessmentAttempt.objects.get(id=assessment_id, user=user)
+        # Only return if not yet graded (score is null)
+        if attempt.score is not None:
+            return None
+        return {"questions": attempt.questions}
+    except AssessmentAttempt.DoesNotExist:
+        return None
 
 
 def _record_assessment_attempt(user, score: float, passed: bool):
-    """Record an assessment attempt."""
+    """Record score on the most recent pending assessment."""
+    attempt = (
+        AssessmentAttempt.objects
+        .filter(user=user, score__isnull=True)
+        .order_by("-started_at")
+        .first()
+    )
+    if attempt:
+        attempt.score = score
+        attempt.passed = passed
+        attempt.completed_at = timezone.now()
+        attempt.save(update_fields=["score", "passed", "completed_at"])
     logger.info(f"User {user.id} scored {score:.0%} on assessment (passed={passed})")
-
-
-def _generate_certificate(user) -> str:
-    """Generate a certificate for a passing user."""
-    # Generate unique certificate ID
-    cert_id = hashlib.sha256(
-        f"{user.id}:{user.email}:{timezone.now().isoformat()}".encode()
-    ).hexdigest()[:16].upper()
-
-    # Format: SVND-XXXX-XXXX-XXXX
-    cert_id = f"SVND-{cert_id[:4]}-{cert_id[4:8]}-{cert_id[8:12]}"
-
-    logger.info(f"Generated certificate {cert_id} for user {user.id}")
-    return cert_id
-
-
-def _get_certificate_data(user) -> Optional[dict]:
-    """Get certificate data for a user."""
-    # In production: Certificate.objects.filter(user=user).first()
-    return None
-
-
-def _verify_certificate(cert_id: str) -> Optional[dict]:
-    """Verify a certificate exists and is valid."""
-    # In production: Certificate.objects.filter(id=cert_id).first()
-    return None
 
 
 def _generate_assessment_questions(user) -> list:

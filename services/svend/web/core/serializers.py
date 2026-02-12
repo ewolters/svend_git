@@ -130,7 +130,16 @@ class HypothesisSerializer(serializers.ModelSerializer):
     class Meta:
         model = Hypothesis
         fields = [
-            "id", "statement", "mechanism",
+            "id", "statement",
+            # Structured If/Then/Because
+            "if_clause", "then_clause", "because_clause",
+            # Variables
+            "independent_variable", "independent_var_values",
+            "dependent_variable", "dependent_var_unit",
+            "predicted_direction", "predicted_magnitude",
+            # Rationale & Testing
+            "rationale", "test_method", "success_criteria", "data_requirements",
+            # Probability
             "prior_probability", "current_probability", "probability_history",
             "status", "confirmation_threshold", "rejection_threshold",
             "is_testable", "test_suggestions",
@@ -224,7 +233,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = [
-            "id", "title", "description", "status", "domain",
+            "id", "title", "problem_statement", "status", "domain",
             "methodology", "current_phase",
             "hypothesis_count", "evidence_count",
             "created_at", "updated_at",
@@ -242,14 +251,32 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = [
-            "id", "title", "description", "status",
-            "problem_statement", "effect_description", "effect_magnitude",
-            "domain", "stakeholders", "constraints", "available_data", "can_experiment",
-            "methodology", "current_phase", "phase_history",
+            "id", "title", "status", "domain",
+            # Problem Definition (5W2H)
+            "problem_statement",
+            "problem_whats", "problem_wheres", "problem_whens",
+            "problem_magnitude", "problem_trend", "problem_since",
+            # Business Impact
+            "impact_financial", "impact_customer", "impact_safety",
+            "impact_quality", "impact_regulatory", "impact_delivery", "impact_other",
+            # Goal Statement (SMART)
+            "goal_statement", "goal_metric", "goal_baseline", "goal_target", "goal_unit", "goal_deadline",
+            # Scope
+            "scope_in", "scope_out", "constraints", "assumptions",
+            # Team
+            "champion_name", "champion_title", "leader_name", "leader_title", "team_members",
+            # Timeline
+            "milestones", "target_completion",
+            # Methodology
+            "methodology", "current_phase", "phase_history", "can_experiment",
+            # Interview
             "interview_state", "interview_completed",
-            "resolution_summary", "resolution_confidence",
-            "tags", "hypothesis_count", "hypotheses",
-            "datasets", "dataset_count", "experiment_designs",
+            # Resolution
+            "resolution_summary", "resolution_actions", "resolution_verification", "resolution_confidence",
+            # Metadata
+            "tags", "synara_state",
+            # Related
+            "hypothesis_count", "hypotheses", "datasets", "dataset_count", "experiment_designs",
             "created_at", "updated_at", "resolved_at",
         ]
         read_only_fields = ["id", "phase_history", "created_at", "updated_at", "resolved_at"]
