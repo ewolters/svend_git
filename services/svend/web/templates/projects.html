@@ -1,15 +1,15 @@
 {% extends "base_app.html" %}
-{% block title %}Projects - SVEND{% endblock %}
+{% block title %}Studies - SVEND{% endblock %}
 
 {% block content %}
 <div class="projects-page">
     <!-- Header -->
     <div class="page-header">
         <div>
-            <h1>Projects</h1>
+            <h1>Studies</h1>
             <p class="subtitle">Track hypotheses. Gather evidence. Find answers.</p>
         </div>
-        <button class="btn btn-primary" onclick="showCreateModal()">+ New Project</button>
+        <button class="btn btn-primary" onclick="showCreateModal()">+ New Study</button>
     </div>
 
     <!-- Status Filter -->
@@ -23,15 +23,15 @@
     <div id="projects-list">
         <div class="loading" id="loading-projects">
             <div class="spinner"></div>
-            <span>Loading projects...</span>
+            <span>Loading studies...</span>
         </div>
     </div>
 
     <!-- Empty State -->
     <div id="empty-state" class="empty-state" style="display: none;">
-        <h3>No projects yet</h3>
+        <h3>No studies yet</h3>
         <p>Start by creating a hypothesis you want to investigate.</p>
-        <button class="btn btn-primary" onclick="showCreateModal()">Create Your First Project</button>
+        <button class="btn btn-primary" onclick="showCreateModal()">Create Your First Study</button>
     </div>
 </div>
 
@@ -39,7 +39,7 @@
 <div id="create-modal" class="modal" style="display: none;">
     <div class="modal-content modal-lg">
         <div class="modal-header">
-            <h2>New Project Charter</h2>
+            <h2>New Study Charter</h2>
             <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
 
@@ -48,7 +48,7 @@
             <div class="charter-section">
                 <div class="form-row">
                     <div class="form-group flex-2">
-                        <label for="project-title">Project Title *</label>
+                        <label for="project-title">Study Title *</label>
                         <input type="text" id="project-title" placeholder="e.g., Q4 Defect Rate Reduction" required>
                     </div>
                     <div class="form-group flex-1">
@@ -243,7 +243,7 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group flex-1">
-                            <label for="leader-name">Project Leader</label>
+                            <label for="leader-name">Study Lead</label>
                             <input type="text" id="leader-name" placeholder="Name">
                         </div>
                         <div class="form-group flex-1">
@@ -280,7 +280,7 @@
 
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Project</button>
+                <button type="submit" class="btn btn-primary">Create Study</button>
             </div>
         </form>
     </div>
@@ -289,7 +289,7 @@
 <!-- Project Detail View -->
 <div id="detail-view" class="detail-view" style="display: none;">
     <div class="detail-header">
-        <button class="btn btn-secondary btn-sm" onclick="backToList()">&larr; Back to Projects</button>
+        <button class="btn btn-secondary btn-sm" onclick="backToList()">&larr; Back to Studies</button>
         <div class="detail-actions">
             <button class="btn btn-secondary btn-sm" onclick="editProject()">Edit</button>
             <button class="btn btn-secondary btn-sm" onclick="archiveProject()">Archive</button>
@@ -299,7 +299,7 @@
     <div class="detail-content">
         <div class="project-info">
             <div class="project-header">
-                <h1 id="detail-title">Project Title</h1>
+                <h1 id="detail-title">Study Title</h1>
                 <span class="status-badge" id="detail-status">active</span>
             </div>
             <div class="hypothesis-box">
@@ -424,7 +424,7 @@
 <!-- Hypothesis Detail View -->
 <div id="hypothesis-view" class="detail-view" style="display: none;">
     <div class="detail-header">
-        <button class="btn btn-secondary btn-sm" onclick="backToProject()">&larr; Back to Project</button>
+        <button class="btn btn-secondary btn-sm" onclick="backToProject()">&larr; Back to Study</button>
         <div class="detail-actions">
             <button class="btn btn-primary btn-sm" onclick="editHypothesis()">Edit</button>
         </div>
@@ -2075,7 +2075,7 @@ async function createProject(e) {
             closeModal();
             viewProject(result.id);
         } else {
-            alert(result.error || 'Failed to create project');
+            alert(result.error || 'Failed to create study');
         }
     } catch (err) {
         alert('Error: ' + err.message);
@@ -2092,7 +2092,7 @@ async function viewProject(id) {
         currentProject._counts = hubData.counts;
         renderProjectDetail();
     } catch (err) {
-        alert('Failed to load project: ' + err.message);
+        alert('Failed to load study: ' + err.message);
     }
 }
 
@@ -2239,7 +2239,7 @@ function renderHypothesesFromProject() {
 }
 
 async function advancePhase() {
-    if (!confirm('Advance to the next phase? This will update the project status.')) return;
+    if (!confirm('Advance to the next phase? This will update the study status.')) return;
 
     try {
         const response = await fetch(`/api/core/projects/${currentProject.id}/advance-phase/`, {
@@ -2869,7 +2869,7 @@ function editProject() {
 }
 
 async function archiveProject() {
-    if (!confirm('Archive this project? You can restore it later.')) return;
+    if (!confirm('Archive this study? You can restore it later.')) return;
 
     try {
         const response = await fetch(`/api/core/projects/${currentProject.id}/`, {
@@ -2881,7 +2881,7 @@ async function archiveProject() {
             backToList();
         } else {
             const result = await response.json();
-            alert(result.error || 'Failed to archive project');
+            alert(result.error || 'Failed to archive study');
         }
     } catch (err) {
         alert('Error: ' + err.message);

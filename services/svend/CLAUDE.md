@@ -7,7 +7,7 @@ Svend is a tool-augmented reasoning system. A small language model trained from 
 - Call external tools (Python sandbox, SymPy, Z3) for verified computation
 - Verify its own work with a separate critic model
 
-Target: $5/month subscription, launching May 2026.
+Pricing: Free / Founder $19/mo / Pro $29/mo / Team $79/mo / Enterprise $199/mo. Live in production.
 
 ## Project Structure
 
@@ -101,10 +101,9 @@ python scripts/train_svend.py --model-size 13b --epochs 3
 
 ## Current Status
 
+- Live in production at svend.ai
 - Core infrastructure built
-- Landing page at site/index.html with email capture
 - Training pipeline ready for iteration
-- Target launch: May 2026
 
 ## Working Conventions
 

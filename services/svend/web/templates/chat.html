@@ -1346,6 +1346,7 @@
 
                     // Reload conversations
                     loadConversations();
+                    svendTrack('feature_use', {category: 'chat', action: 'send_message', label: currentMode});
                 } else {
                     messagesContainer.innerHTML += `
                         <div class="message message-assistant">

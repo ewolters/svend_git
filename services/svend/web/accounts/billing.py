@@ -43,6 +43,10 @@ TIER_TO_PRICE = {
     "enterprise": "price_1SvoEGDQfJOZ4D24trvit3VM",
 }
 
+# Enterprise seat add-on price ($129/month/seat)
+# Create this in Stripe dashboard → Products → Enterprise Seat → $129/month recurring
+SEAT_PRICE_ID = "price_1T04XYDQfJOZ4D24MhGxl8Lp"  # $129/month/seat
+
 
 # =============================================================================
 # Helper Functions
@@ -63,6 +67,111 @@ def get_or_create_stripe_customer(user: User) -> str:
     user.save(update_fields=["stripe_customer_id"])
 
     return customer.id
+
+
+def add_org_seat(tenant) -> int:
+    """Add a seat to the org's Stripe subscription.
+
+    Finds the org owner's subscription and adds/increments a seat line item.
+    Stripe prorates the charge to the current billing period.
+
+    Returns the new seat quantity, or raises stripe.error.StripeError on failure.
+    """
+    from core.models import Membership
+
+    if not SEAT_PRICE_ID:
+        # Seat billing not configured yet — allow invite but skip Stripe
+        tenant.max_members += 1
+        tenant.save(update_fields=["max_members"])
+        return tenant.max_members
+
+    # Find org owner's subscription
+    owner_membership = Membership.objects.filter(
+        tenant=tenant, role=Membership.Role.OWNER, is_active=True
+    ).select_related("user").first()
+
+    if not owner_membership:
+        raise stripe.error.StripeError("No owner found for this organization")
+
+    owner = owner_membership.user
+    if not hasattr(owner, "subscription") or not owner.subscription.is_active:
+        raise stripe.error.StripeError("Organization owner has no active subscription")
+
+    sub_id = owner.subscription.stripe_subscription_id
+
+    if tenant.stripe_seat_item_id:
+        # Increment existing seat item
+        item = stripe.SubscriptionItem.retrieve(tenant.stripe_seat_item_id)
+        new_qty = (item.quantity or 0) + 1
+        stripe.SubscriptionItem.modify(
+            tenant.stripe_seat_item_id,
+            quantity=new_qty,
+            proration_behavior="create_prorations",
+        )
+    else:
+        # Create new seat line item on the subscription
+        item = stripe.SubscriptionItem.create(
+            subscription=sub_id,
+            price=SEAT_PRICE_ID,
+            quantity=1,
+            proration_behavior="create_prorations",
+        )
+        new_qty = 1
+        tenant.stripe_seat_item_id = item.id
+
+    tenant.max_members += 1
+    tenant.save(update_fields=["max_members", "stripe_seat_item_id"])
+
+    logger.info(f"Seat added for {tenant.name}: now {new_qty} seats")
+    return new_qty
+
+
+def remove_org_seat(tenant) -> int:
+    """Remove a seat from the org's Stripe subscription.
+
+    Decrements the seat line item quantity. If last seat, removes the item.
+    Credit is applied to the next invoice.
+
+    Returns the new seat quantity.
+    """
+    if not SEAT_PRICE_ID or not tenant.stripe_seat_item_id:
+        # Seat billing not configured — just adjust the cap
+        tenant.max_members = max(1, tenant.max_members - 1)
+        tenant.save(update_fields=["max_members"])
+        return tenant.max_members
+
+    try:
+        item = stripe.SubscriptionItem.retrieve(tenant.stripe_seat_item_id)
+        current_qty = item.quantity or 1
+
+        if current_qty <= 1:
+            # Remove the item entirely
+            stripe.SubscriptionItem.delete(
+                tenant.stripe_seat_item_id,
+                proration_behavior="create_prorations",
+            )
+            tenant.stripe_seat_item_id = ""
+            new_qty = 0
+        else:
+            new_qty = current_qty - 1
+            stripe.SubscriptionItem.modify(
+                tenant.stripe_seat_item_id,
+                quantity=new_qty,
+                proration_behavior="create_prorations",
+            )
+
+        tenant.max_members = max(1, tenant.max_members - 1)
+        tenant.save(update_fields=["max_members", "stripe_seat_item_id"])
+
+        logger.info(f"Seat removed for {tenant.name}: now {new_qty} seats")
+        return new_qty
+
+    except stripe.error.StripeError as e:
+        logger.error(f"Failed to remove seat for {tenant.name}: {e}")
+        # Still adjust local cap even if Stripe fails
+        tenant.max_members = max(1, tenant.max_members - 1)
+        tenant.save(update_fields=["max_members"])
+        return tenant.max_members
 
 
 def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription]:
@@ -119,7 +228,39 @@ def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription
         user.subscription_active = False
     user.save(update_fields=["tier", "subscription_active", "subscription_ends_at"])
 
+    # Sync seat count from subscription items to tenant
+    if SEAT_PRICE_ID:
+        _sync_seat_count(stripe_sub, user)
+
     return sub
+
+
+def _sync_seat_count(stripe_sub, user):
+    """Sync seat line item quantity to tenant.max_members.
+
+    Called during subscription sync to handle seats modified via
+    Stripe dashboard or customer portal.
+    """
+    from core.models import Membership
+
+    membership = Membership.objects.filter(
+        user=user, role=Membership.Role.OWNER, is_active=True
+    ).select_related("tenant").first()
+
+    if not membership:
+        return
+
+    tenant = membership.tenant
+
+    for item in stripe_sub.get("items", {}).get("data", []):
+        if item["price"]["id"] == SEAT_PRICE_ID:
+            seat_qty = item.get("quantity", 0)
+            # max_members = base member (owner) + seat add-ons
+            tenant.max_members = 1 + seat_qty
+            tenant.stripe_seat_item_id = item["id"]
+            tenant.save(update_fields=["max_members", "stripe_seat_item_id"])
+            logger.info(f"Synced seat count for {tenant.name}: {seat_qty} seats → max_members={tenant.max_members}")
+            return
 
 
 # =============================================================================

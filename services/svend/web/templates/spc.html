@@ -527,6 +527,7 @@ async function createChart() {
         const result = await response.json();
         if (response.ok) {
             displayChartResults(result.chart);
+            svendTrack('feature_use', {category: 'spc', action: chartType});
         } else {
             alert(result.error || 'Failed to create chart');
         }

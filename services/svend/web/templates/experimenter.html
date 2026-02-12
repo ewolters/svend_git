@@ -11,7 +11,7 @@
         </div>
         <div class="header-controls">
             <select id="project-selector" onchange="onProjectChange(this.value)">
-                <option value="">No Project Linked</option>
+                <option value="">No Study Linked</option>
             </select>
             <button class="btn btn-secondary btn-sm" onclick="toggleChatModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-svg">
@@ -1558,6 +1558,50 @@ let selectedModel = 'claude';
 let currentComponent = 'design';
 let currentSubTab = 'create';
 
+// Persist DOE state across page refreshes
+function saveState() {
+    try {
+        if (currentDesign) sessionStorage.setItem('doe_design', JSON.stringify(currentDesign));
+        else sessionStorage.removeItem('doe_design');
+        if (currentAnalysis) sessionStorage.setItem('doe_analysis', JSON.stringify(currentAnalysis));
+        else sessionStorage.removeItem('doe_analysis');
+    } catch (e) { /* storage full or unavailable */ }
+}
+
+function saveResponses() {
+    try {
+        const vals = {};
+        document.querySelectorAll('.response-input').forEach(input => {
+            if (input.value) vals[input.dataset.runId] = input.value;
+        });
+        if (Object.keys(vals).length > 0) sessionStorage.setItem('doe_responses', JSON.stringify(vals));
+    } catch (e) { /* ignore */ }
+}
+
+function restoreState() {
+    try {
+        const d = sessionStorage.getItem('doe_design');
+        const a = sessionStorage.getItem('doe_analysis');
+        if (d) {
+            currentDesign = JSON.parse(d);
+            displayDesign({ design: currentDesign });
+            updateResultsPanel();
+            // Restore entered response values
+            const r = sessionStorage.getItem('doe_responses');
+            if (r) {
+                const vals = JSON.parse(r);
+                document.querySelectorAll('.response-input').forEach(input => {
+                    if (vals[input.dataset.runId]) input.value = vals[input.dataset.runId];
+                });
+            }
+        }
+        if (a) {
+            currentAnalysis = JSON.parse(a);
+            displayAnalysis(currentAnalysis);
+        }
+    } catch (e) { /* corrupt data, ignore */ }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     await loadDesignTypes();
@@ -1565,6 +1609,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadAvailableModels();
     addFactor();
     addFactor();
+
+    // Restore previous session state (design + analysis)
+    restoreState();
 
     // Check URL params
     const params = new URLSearchParams(window.location.search);
@@ -1592,7 +1639,9 @@ function showSubTab(component, tab) {
     container.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
 
     document.getElementById(component + '-' + tab).classList.add('active');
-    event.target.classList.add('active');
+    // Activate the matching sub-tab button (find by onclick text or fallback)
+    const tabBtn = container.querySelector(`.sub-tab[onclick*="'${tab}'"]`);
+    if (tabBtn) tabBtn.classList.add('active');
     currentSubTab = tab;
 }
 
@@ -1624,7 +1673,7 @@ async function loadProjects() {
         projects = data.projects || [];
 
         const select = document.getElementById('project-selector');
-        select.innerHTML = '<option value="">No Project Linked</option>' +
+        select.innerHTML = '<option value="">No Study Linked</option>' +
             projects.map(p => `<option value="${p.id}">${p.title}</option>`).join('');
     } catch (err) {
         console.error('Failed to load projects:', err);
@@ -1739,9 +1788,12 @@ async function generateDesign() {
 
         if (response.ok) {
             currentDesign = result.design;
+            currentAnalysis = null;
+            saveState();
             displayDesign(result);
             updateResultsPanel();
             updateContextBadge();
+            svendTrack('feature_use', {category: 'experimenter', action: selectedDesignType});
         } else {
             alert(result.error || 'Failed to generate design');
         }
@@ -1831,7 +1883,7 @@ function updateResultsPanel() {
         currentDesign.factors.forEach(f => {
             tableHtml += `<td class="center">${run.levels[f.name]}</td>`;
         });
-        tableHtml += `<td class="center"><input type="number" step="any" class="response-input" data-run-id="${run.run_id}"></td>`;
+        tableHtml += `<td class="center"><input type="number" step="any" class="response-input" data-run-id="${run.run_id}" onchange="saveResponses()"></td>`;
         tableHtml += '</tr>';
     });
     tableHtml += '</tbody></table>';
@@ -1974,6 +2026,7 @@ async function analyzeResults() {
 
         if (response.ok) {
             currentAnalysis = result;
+            saveState();
             displayAnalysis(result);
             showSubTab('analysis', 'anova');
             updateContextBadge();
@@ -1994,8 +2047,19 @@ function displayAnalysis(result) {
 
     // Model summary
     document.getElementById('r-squared').textContent = analysis.model_summary.r_squared + '%';
-    document.getElementById('r-squared-adj').textContent = analysis.model_summary.r_squared_adj + '%';
-    document.getElementById('model-s').textContent = analysis.model_summary.s;
+    document.getElementById('r-squared-adj').textContent = analysis.model_summary.r_squared_adj != null ? analysis.model_summary.r_squared_adj + '%' : 'N/A';
+    document.getElementById('model-s').textContent = analysis.model_summary.s || 'N/A';
+
+    // Saturated model warning
+    const satWarn = document.getElementById('saturated-warning');
+    if (satWarn) satWarn.remove();
+    if (analysis.model_summary.saturated) {
+        const warn = document.createElement('div');
+        warn.id = 'saturated-warning';
+        warn.style.cssText = 'background: rgba(255,180,0,0.1); border: 1px solid rgba(255,180,0,0.3); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-secondary);';
+        warn.innerHTML = '<strong>Saturated model</strong> — all degrees of freedom are used to estimate effects. P-values are not available. Add replicates or center points to enable significance testing.';
+        document.getElementById('anova-content').prepend(warn);
+    }
 
     // ANOVA table
     const anova = analysis.anova_table;
@@ -2014,7 +2078,7 @@ function displayAnalysis(result) {
                 <td class="right">${anova.ss[i]}</td>
                 <td class="right">${anova.ms[i] ?? '-'}</td>
                 <td class="right">${anova.f[i] ?? '-'}</td>
-                <td class="right ${anova.p[i] < 0.05 ? 'significant' : ''}">${anova.p[i] ?? '-'}</td>
+                <td class="right ${anova.p[i] != null && anova.p[i] < 0.05 ? 'significant' : ''}">${anova.p[i] ?? '-'}</td>
             </tr>
         `;
     }
@@ -2030,15 +2094,15 @@ function displayAnalysis(result) {
             <tbody>
     `;
     analysis.coefficients.forEach(c => {
-        const sigClass = c.significant ? 'significant' : 'not-significant';
+        const sigClass = c.significant === true ? 'significant' : (c.significant === false ? 'not-significant' : '');
         coefHtml += `
             <tr>
                 <td>${c.term}</td>
                 <td class="right">${c.effect ?? '-'}</td>
                 <td class="right">${c.coefficient}</td>
-                <td class="right">${c.se_coef}</td>
-                <td class="right">${c.t_value}</td>
-                <td class="right ${sigClass}">${c.p_value}</td>
+                <td class="right">${c.se_coef ?? '-'}</td>
+                <td class="right">${c.t_value ?? '-'}</td>
+                <td class="right ${sigClass}">${c.p_value ?? '-'}</td>
             </tr>
         `;
     });

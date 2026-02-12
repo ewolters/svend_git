@@ -82,6 +82,48 @@
     }
     </script>
 
+    <!-- Structured Data - FAQ -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "How does this compare to Minitab?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Same statistical rigor: ANOVA, DOE, SPC, capability studies, hypothesis tests. But Svend adds AI that helps you think - it detects assumptions, challenges reasoning, and drafts conclusions. And it's 96% cheaper ($228/year vs $1,500+/year)."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What does the AI actually do?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "The AI observes your workspace, detects patterns in your data, infers what you're assuming, and challenges your reasoning. It doesn't give you answers - it helps you arrive at structured responses by asking 'have you considered...' and 'your evidence shows X but you haven't tested Y.'"
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Is my data private?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. Your data stays on our servers (encrypted), never shared, never used for training. Export or delete anytime. Enterprise customers can run on-premises."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Can I cancel anytime?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Absolutely. No contracts, no commitments. Cancel with one click and keep access until the end of your billing period."
+                }
+            }
+        ]
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -199,16 +241,6 @@
             background: radial-gradient(ellipse at center top, rgba(74, 159, 110, 0.08) 0%, transparent 50%);
         }
 
-        .hero-badge {
-            padding: 0.4rem 1rem;
-            background: var(--accent-primary-dim);
-            border: 1px solid var(--accent-primary-border);
-            border-radius: 20px;
-            font-size: 0.8rem;
-            color: var(--accent-primary);
-            margin-bottom: 2rem;
-        }
-
         .hero-title {
             font-size: 3.5rem;
             font-weight: 300;
@@ -303,70 +335,175 @@
         }
 
         .demo-content {
-            padding: 2rem;
+            padding: 1.5rem 2rem 2rem;
+            position: relative;
+            min-height: 320px;
         }
 
-        .demo-user {
-            text-align: right;
-            margin-bottom: 1.5rem;
-        }
-
-        .demo-user-bubble {
-            display: inline-block;
-            padding: 0.75rem 1rem;
-            background: var(--bg-tertiary);
-            border-radius: 12px 12px 4px 12px;
-            font-size: 0.95rem;
-        }
-
-        .demo-assistant {
+        /* Showcase carousel */
+        .showcase-tabs {
             display: flex;
-            flex-direction: column;
-            gap: 1rem;
+            gap: 0;
+            margin-bottom: 1.25rem;
         }
-
-        .demo-step {
-            padding: 1rem;
-            background: rgba(74, 159, 110, 0.05);
-            border-left: 2px solid var(--accent-primary);
-            border-radius: 0 8px 8px 0;
-        }
-
-        .demo-step-label {
-            font-size: 0.7rem;
+        .showcase-tab {
+            flex: 1;
+            padding: 0.6rem 0.5rem;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-dim);
+            font-family: inherit;
+            font-size: 0.8rem;
             font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .showcase-tab.active {
             color: var(--accent-primary);
-            margin-bottom: 0.5rem;
+            border-bottom-color: var(--accent-primary);
         }
+        .showcase-panel {
+            display: none;
+            animation: showcaseFade 0.3s ease;
+        }
+        .showcase-panel.active { display: block; }
+        @keyframes showcaseFade { from { opacity: 0; } to { opacity: 1; } }
 
-        .demo-step-text {
-            font-size: 0.9rem;
+        /* Shared mockup styles */
+        .mock-stat-bar {
+            display: flex;
+            gap: 1.5rem;
+            padding: 0.6rem 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
+            flex-wrap: wrap;
         }
+        .mock-stat-bar strong { color: var(--text-primary); font-weight: 600; }
+        .mock-stat-accent { color: var(--accent-primary); font-weight: 600; }
 
-        .demo-answer {
-            padding: 1rem;
-            background: rgba(232, 197, 71, 0.08);
-            border: 1px solid rgba(232, 197, 71, 0.2);
+        /* Simulator mockup */
+        .sim-line {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            padding: 1.5rem 0;
+        }
+        .sim-station {
+            width: 80px;
+            padding: 12px 6px;
+            background: rgba(74, 159, 110, 0.1);
+            border: 1px solid rgba(74, 159, 110, 0.3);
+            border-radius: 8px;
+            text-align: center;
+            position: relative;
+        }
+        .sim-station.bottleneck {
+            background: rgba(232, 160, 71, 0.12);
+            border-color: rgba(232, 160, 71, 0.5);
+        }
+        .sim-station-name { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 4px; }
+        .sim-station-ct { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+        .sim-station.bottleneck .sim-station-ct { color: var(--accent-gold); }
+        .sim-station-util { font-size: 0.65rem; color: var(--text-dim); margin-top: 4px; }
+        .sim-arrow { color: var(--text-dim); font-size: 1.2rem; padding: 0 6px; }
+        .sim-wip {
+            position: absolute;
+            top: -10px;
+            right: -6px;
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            font-size: 0.6rem;
+            font-weight: 600;
+            padding: 1px 5px;
             border-radius: 8px;
         }
+        .sim-station.bottleneck .sim-wip { background: var(--accent-gold); }
+        .sim-bar-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 40px;
+            padding: 0 1rem;
+        }
+        .sim-bar {
+            flex: 1;
+            background: rgba(74, 159, 110, 0.3);
+            border-radius: 2px 2px 0 0;
+            min-width: 4px;
+        }
+        .sim-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            padding: 4px 1rem 0;
+        }
 
-        .demo-answer-label {
-            font-size: 0.7rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--accent-gold);
+        /* Cpk mockup */
+        .cpk-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 2px;
+            height: 140px;
+            padding: 0 2.5rem;
+            position: relative;
             margin-bottom: 0.5rem;
         }
-
-        .demo-answer-text {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.1rem;
-            color: var(--accent-gold);
+        .cpk-bar {
+            flex: 1;
+            border-radius: 2px 2px 0 0;
+            max-width: 18px;
+            transition: height 0.3s;
         }
+        .cpk-spec {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e85a5a;
+        }
+        .cpk-spec::after {
+            content: attr(data-label);
+            position: absolute;
+            top: -2px;
+            font-size: 0.6rem;
+            color: #e85a5a;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .cpk-spec.lsl { left: 8%; }
+        .cpk-spec.lsl::after { left: 4px; }
+        .cpk-spec.usl { right: 8%; }
+        .cpk-spec.usl::after { right: 4px; }
+        .cpk-target {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 1px;
+            border-left: 1px dashed rgba(74, 159, 110, 0.4);
+        }
+        .cpk-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 0 1rem;
+        }
+        .cpk-stat {
+            text-align: center;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+        .cpk-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 600; color: var(--accent-primary); }
+        .cpk-stat-lbl { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
 
         /* Features */
         .features {
@@ -415,8 +552,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
             margin-bottom: 1.5rem;
+        }
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            color: var(--accent-primary);
         }
 
         .feature-title {
@@ -797,6 +938,7 @@
             <a href="#tools" class="nav-link">Tools</a>
             <a href="#pricing" class="nav-link">Pricing</a>
             <a href="#faq" class="nav-link">FAQ</a>
+            <a href="/blog/" class="nav-link">Blog</a>
             <a href="/login/" class="nav-link">Login</a>
             <a href="/register/" class="nav-btn">Get Started</a>
         </div>
@@ -804,7 +946,6 @@
 
     <!-- Hero -->
     <section class="hero">
-        <div class="hero-badge">Alpha Access</div>
         <h1 class="hero-title">Minitab + AI at <strong>96% less</strong></h1>
         <p class="hero-subtitle">
             Professional-grade statistics, SPC, DOE, and process capability. AI that helps you think, not just compute. Structured responses, not just numbers.
@@ -822,22 +963,254 @@
                 <div class="demo-dot"></div>
             </div>
             <div class="demo-content">
-                <div class="demo-user">
-                    <div class="demo-user-bubble">Yield dropped 3% on Line 3. What's causing it?</div>
+                <div class="showcase-tabs">
+                    <button class="showcase-tab active" onclick="showShowcase(0)">Line Simulator</button>
+                    <button class="showcase-tab" onclick="showShowcase(1)">Cpk Study</button>
+                    <button class="showcase-tab" onclick="showShowcase(2)">Value Stream Map</button>
                 </div>
-                <div class="demo-assistant">
-                    <div class="demo-step">
-                        <div class="demo-step-label">SPC Analysis</div>
-                        <div class="demo-step-text">Running I-MR chart... Process in control (Cpk = 1.34). Shift detected at Jan 15.</div>
+
+                <!-- Panel 1: Live Simulator -->
+                <div class="showcase-panel active" id="showcase-0">
+                    <div class="mock-stat-bar">
+                        <span>Throughput: <strong id="sim-tput">0</strong> units/hr</span>
+                        <span>WIP: <strong id="sim-wip-total">0</strong></span>
+                        <span>Bottleneck: <span class="mock-stat-accent">Station 3</span></span>
+                        <span>Time: <strong id="sim-clock">00:00</strong></span>
                     </div>
-                    <div class="demo-step">
-                        <div class="demo-step-label">Root Cause</div>
-                        <div class="demo-step-text">Correlation found: Supplier change on Jan 14. Hypothesis probability: 0.78</div>
+                    <div class="sim-line" id="sim-line">
+                        <div class="sim-station" id="sim-s0">
+                            <div class="sim-wip" id="sim-w0">0</div>
+                            <div class="sim-station-name">Station 1</div>
+                            <div class="sim-station-ct">45s</div>
+                            <div class="sim-station-util" id="sim-u0">0%</div>
+                        </div>
+                        <div class="sim-arrow">&rarr;</div>
+                        <div class="sim-station" id="sim-s1">
+                            <div class="sim-wip" id="sim-w1">0</div>
+                            <div class="sim-station-name">Station 2</div>
+                            <div class="sim-station-ct">38s</div>
+                            <div class="sim-station-util" id="sim-u1">0%</div>
+                        </div>
+                        <div class="sim-arrow">&rarr;</div>
+                        <div class="sim-station bottleneck" id="sim-s2">
+                            <div class="sim-wip" id="sim-w2">0</div>
+                            <div class="sim-station-name">Station 3</div>
+                            <div class="sim-station-ct">62s</div>
+                            <div class="sim-station-util" id="sim-u2">0%</div>
+                        </div>
+                        <div class="sim-arrow">&rarr;</div>
+                        <div class="sim-station" id="sim-s3">
+                            <div class="sim-wip" id="sim-w3">0</div>
+                            <div class="sim-station-name">Station 4</div>
+                            <div class="sim-station-ct">41s</div>
+                            <div class="sim-station-util" id="sim-u3">0%</div>
+                        </div>
+                        <div class="sim-arrow">&rarr;</div>
+                        <div class="sim-station" id="sim-s4">
+                            <div class="sim-wip" id="sim-w4">0</div>
+                            <div class="sim-station-name">Station 5</div>
+                            <div class="sim-station-ct">35s</div>
+                            <div class="sim-station-util" id="sim-u4">0%</div>
+                        </div>
                     </div>
-                    <div class="demo-answer">
-                        <div class="demo-answer-label">Structured Response</div>
-                        <div class="demo-answer-text">Supplier change is probable root cause. DOE recommended to confirm.</div>
+                    <div class="sim-bar-row" id="sim-tput-bars"></div>
+                    <div class="sim-bar-label"><span>Throughput over time</span><span id="sim-bar-latest"></span></div>
+                </div>
+
+                <!-- Panel 2: Cpk Study -->
+                <div class="showcase-panel" id="showcase-1">
+                    <div class="mock-stat-bar">
+                        <span>Process: <strong>Bore Diameter</strong></span>
+                        <span>n = <strong>150</strong></span>
+                        <span>Target: <strong>25.000 mm</strong></span>
+                        <span>Spec: <strong>24.970 – 25.030</strong></span>
                     </div>
+                    <div class="cpk-chart">
+                        <div class="cpk-spec lsl" data-label="LSL" style="left:10%;"></div>
+                        <div class="cpk-target"></div>
+                        <div class="cpk-spec usl" data-label="USL" style="right:10%;"></div>
+                        <div class="cpk-bar" style="height:5%; background:rgba(74,159,110,0.2);"></div>
+                        <div class="cpk-bar" style="height:8%; background:rgba(74,159,110,0.25);"></div>
+                        <div class="cpk-bar" style="height:14%; background:rgba(74,159,110,0.3);"></div>
+                        <div class="cpk-bar" style="height:22%; background:rgba(74,159,110,0.35);"></div>
+                        <div class="cpk-bar" style="height:35%; background:rgba(74,159,110,0.4);"></div>
+                        <div class="cpk-bar" style="height:52%; background:rgba(74,159,110,0.5);"></div>
+                        <div class="cpk-bar" style="height:68%; background:rgba(74,159,110,0.55);"></div>
+                        <div class="cpk-bar" style="height:82%; background:rgba(74,159,110,0.65);"></div>
+                        <div class="cpk-bar" style="height:93%; background:rgba(74,159,110,0.75);"></div>
+                        <div class="cpk-bar" style="height:100%; background:rgba(74,159,110,0.85);"></div>
+                        <div class="cpk-bar" style="height:97%; background:rgba(74,159,110,0.8);"></div>
+                        <div class="cpk-bar" style="height:88%; background:rgba(74,159,110,0.7);"></div>
+                        <div class="cpk-bar" style="height:74%; background:rgba(74,159,110,0.6);"></div>
+                        <div class="cpk-bar" style="height:56%; background:rgba(74,159,110,0.5);"></div>
+                        <div class="cpk-bar" style="height:40%; background:rgba(74,159,110,0.4);"></div>
+                        <div class="cpk-bar" style="height:26%; background:rgba(74,159,110,0.35);"></div>
+                        <div class="cpk-bar" style="height:16%; background:rgba(74,159,110,0.3);"></div>
+                        <div class="cpk-bar" style="height:9%; background:rgba(74,159,110,0.25);"></div>
+                        <div class="cpk-bar" style="height:4%; background:rgba(74,159,110,0.2);"></div>
+                        <div class="cpk-bar" style="height:2%; background:rgba(74,159,110,0.15);"></div>
+                    </div>
+                    <div class="cpk-stats">
+                        <div class="cpk-stat"><div class="cpk-stat-val">1.34</div><div class="cpk-stat-lbl">Cpk</div></div>
+                        <div class="cpk-stat"><div class="cpk-stat-val">1.52</div><div class="cpk-stat-lbl">Cp</div></div>
+                        <div class="cpk-stat"><div class="cpk-stat-val">25.002</div><div class="cpk-stat-lbl">X&#772;</div></div>
+                        <div class="cpk-stat"><div class="cpk-stat-val">0.0065</div><div class="cpk-stat-lbl">&sigma;</div></div>
+                    </div>
+                </div>
+
+                <!-- Panel 3: VSM (matches actual tool rendering) -->
+                <div class="showcase-panel" id="showcase-2">
+                    <div class="mock-stat-bar">
+                        <span>Lead Time: <strong>23.5 days</strong></span>
+                        <span>Process Time: <strong>2.0 min</strong></span>
+                        <span>PCE: <span class="mock-stat-accent">0.006%</span></span>
+                    </div>
+                    <svg viewBox="0 0 1000 340" style="width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="vsm-push" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#9aaa9a"/>
+                            </marker>
+                        </defs>
+
+                        <!-- Info flow (dashed blue) -->
+                        <line x1="110" y1="25" x2="890" y2="25" stroke="#3a7f8f" stroke-width="1.5" stroke-dasharray="6 4"/>
+                        <text x="500" y="18" text-anchor="middle" fill="#3a7f8f" font-size="9" font-weight="500">Production Control</text>
+
+                        <!-- Supplier entity box (100x80) -->
+                        <g transform="translate(10, 15)">
+                            <rect width="100" height="80" fill="#121a12" stroke="#3a7f8f" stroke-width="2" rx="4"/>
+                            <text x="50" y="30" text-anchor="middle" font-size="20">&#127981;</text>
+                            <text x="50" y="52" text-anchor="middle" fill="#e8efe8" font-size="11" font-weight="600">Supplier</text>
+                            <text x="50" y="68" text-anchor="middle" fill="#7a8f7a" font-size="9">Weekly</text>
+                        </g>
+
+                        <!-- Customer entity box (100x80) -->
+                        <g transform="translate(890, 15)">
+                            <rect width="100" height="80" fill="#121a12" stroke="#3a7f8f" stroke-width="2" rx="4"/>
+                            <text x="50" y="30" text-anchor="middle" font-size="20">&#128101;</text>
+                            <text x="50" y="52" text-anchor="middle" fill="#e8efe8" font-size="11" font-weight="600">Customer</text>
+                            <text x="50" y="68" text-anchor="middle" fill="#7a8f7a" font-size="9">18,400/mo</text>
+                        </g>
+
+                        <!-- Material flow push arrows at y=140 (process box midpoint) -->
+                        <line x1="110" y1="140" x2="150" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
+                        <line x1="280" y1="140" x2="340" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
+                        <line x1="470" y1="140" x2="530" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
+                        <line x1="660" y1="140" x2="720" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
+                        <line x1="850" y1="140" x2="890" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
+
+                        <!-- Process 1: Stamp (130x140) -->
+                        <g transform="translate(150, 70)">
+                            <rect width="130" height="140" fill="#0d120d" stroke="#4a9f6e" stroke-width="2"/>
+                            <rect width="130" height="25" fill="#4a9f6e"/>
+                            <text x="65" y="17" text-anchor="middle" fill="white" font-size="11" font-weight="500">Stamp</text>
+                            <text x="8" y="40" fill="#7a8f7a" font-size="9">C/T</text><text x="122" y="40" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">12s</text>
+                            <text x="8" y="54" fill="#7a8f7a" font-size="9">C/O</text><text x="122" y="54" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">45m</text>
+                            <text x="8" y="68" fill="#7a8f7a" font-size="9">Uptime</text><text x="122" y="68" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">87%</text>
+                            <text x="8" y="82" fill="#7a8f7a" font-size="9">Batch</text><text x="122" y="82" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1000</text>
+                            <text x="8" y="96" fill="#7a8f7a" font-size="9">Scrap</text><text x="122" y="96" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2%</text>
+                            <text x="8" y="110" fill="#7a8f7a" font-size="9">Ops</text><text x="122" y="110" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
+                            <text x="8" y="124" fill="#7a8f7a" font-size="9">Shifts</text><text x="122" y="124" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
+                        </g>
+
+                        <!-- Inventory 1 (60x52 triangle between Stamp and Weld) -->
+                        <g transform="translate(280, 114)">
+                            <polygon points="30,0 60,52 0,52" fill="#e89547" opacity="0.8"/>
+                            <text x="30" y="40" text-anchor="middle" fill="#0a0f0a" font-size="10" font-weight="600">5d</text>
+                        </g>
+
+                        <!-- Process 2: Weld (130x140) -->
+                        <g transform="translate(340, 70)">
+                            <rect width="130" height="140" fill="#0d120d" stroke="#4a9f6e" stroke-width="2"/>
+                            <rect width="130" height="25" fill="#4a9f6e"/>
+                            <text x="65" y="17" text-anchor="middle" fill="white" font-size="11" font-weight="500">Weld</text>
+                            <text x="8" y="40" fill="#7a8f7a" font-size="9">C/T</text><text x="122" y="40" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">38s</text>
+                            <text x="8" y="54" fill="#7a8f7a" font-size="9">C/O</text><text x="122" y="54" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">20m</text>
+                            <text x="8" y="68" fill="#7a8f7a" font-size="9">Uptime</text><text x="122" y="68" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">92%</text>
+                            <text x="8" y="82" fill="#7a8f7a" font-size="9">Batch</text><text x="122" y="82" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
+                            <text x="8" y="96" fill="#7a8f7a" font-size="9">Scrap</text><text x="122" y="96" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1%</text>
+                            <text x="8" y="110" fill="#7a8f7a" font-size="9">Ops</text><text x="122" y="110" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
+                            <text x="8" y="124" fill="#7a8f7a" font-size="9">Shifts</text><text x="122" y="124" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
+                        </g>
+
+                        <!-- Inventory 2 (60x52 triangle between Weld and Paint) -->
+                        <g transform="translate(470, 114)">
+                            <polygon points="30,0 60,52 0,52" fill="#e89547" opacity="0.8"/>
+                            <text x="30" y="40" text-anchor="middle" fill="#0a0f0a" font-size="10" font-weight="600">8d</text>
+                        </g>
+
+                        <!-- Process 3: Paint (130x140) -->
+                        <g transform="translate(530, 70)">
+                            <rect width="130" height="140" fill="#0d120d" stroke="#4a9f6e" stroke-width="2"/>
+                            <rect width="130" height="25" fill="#4a9f6e"/>
+                            <text x="65" y="17" text-anchor="middle" fill="white" font-size="11" font-weight="500">Paint</text>
+                            <text x="8" y="40" fill="#7a8f7a" font-size="9">C/T</text><text x="122" y="40" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">8s</text>
+                            <text x="8" y="54" fill="#7a8f7a" font-size="9">C/O</text><text x="122" y="54" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">60m</text>
+                            <text x="8" y="68" fill="#7a8f7a" font-size="9">Uptime</text><text x="122" y="68" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">78%</text>
+                            <text x="8" y="82" fill="#7a8f7a" font-size="9">Batch</text><text x="122" y="82" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">100</text>
+                            <text x="8" y="96" fill="#7a8f7a" font-size="9">Scrap</text><text x="122" y="96" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">3%</text>
+                            <text x="8" y="110" fill="#7a8f7a" font-size="9">Ops</text><text x="122" y="110" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
+                            <text x="8" y="124" fill="#7a8f7a" font-size="9">Shifts</text><text x="122" y="124" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
+                        </g>
+
+                        <!-- Inventory 3 (60x52 triangle between Paint and Assemble) -->
+                        <g transform="translate(660, 114)">
+                            <polygon points="30,0 60,52 0,52" fill="#e89547" opacity="0.8"/>
+                            <text x="30" y="40" text-anchor="middle" fill="#0a0f0a" font-size="10" font-weight="600">7.5d</text>
+                        </g>
+
+                        <!-- Process 4: Assemble (130x140) -->
+                        <g transform="translate(720, 70)">
+                            <rect width="130" height="140" fill="#0d120d" stroke="#4a9f6e" stroke-width="2"/>
+                            <rect width="130" height="25" fill="#4a9f6e"/>
+                            <text x="65" y="17" text-anchor="middle" fill="white" font-size="11" font-weight="500">Assemble</text>
+                            <text x="8" y="40" fill="#7a8f7a" font-size="9">C/T</text><text x="122" y="40" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">62s</text>
+                            <text x="8" y="54" fill="#7a8f7a" font-size="9">C/O</text><text x="122" y="54" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">10m</text>
+                            <text x="8" y="68" fill="#7a8f7a" font-size="9">Uptime</text><text x="122" y="68" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">95%</text>
+                            <text x="8" y="82" fill="#7a8f7a" font-size="9">Batch</text><text x="122" y="82" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
+                            <text x="8" y="96" fill="#7a8f7a" font-size="9">Scrap</text><text x="122" y="96" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">0.5%</text>
+                            <text x="8" y="110" fill="#7a8f7a" font-size="9">Ops</text><text x="122" y="110" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
+                            <text x="8" y="124" fill="#7a8f7a" font-size="9">Shifts</text><text x="122" y="124" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
+                        </g>
+
+                        <!-- Kaizen burst on Assemble (bottleneck — highest C/T) -->
+                        <g transform="translate(810, 52)">
+                            <polygon points="15,0 19,10 30,10 21,17 24,28 15,21 6,28 9,17 0,10 11,10" fill="#e85a5a" opacity="0.9"/>
+                            <text x="15" y="18" text-anchor="middle" fill="white" font-size="6" font-weight="600">C/T!</text>
+                        </g>
+
+                        <!-- Lead time ladder -->
+                        <!-- Baseline -->
+                        <line x1="140" y1="248" x2="860" y2="248" stroke="#7a8f7a" stroke-width="2"/>
+
+                        <!-- Wait segments (above baseline, height 25, centered on inventory) -->
+                        <rect x="285" y="223" width="50" height="25" fill="#e89547" opacity="0.7"/>
+                        <text x="310" y="218" text-anchor="middle" fill="#e89547" font-size="10" font-weight="500">5d</text>
+
+                        <rect x="475" y="223" width="50" height="25" fill="#e89547" opacity="0.7"/>
+                        <text x="500" y="218" text-anchor="middle" fill="#e89547" font-size="10" font-weight="500">8d</text>
+
+                        <rect x="665" y="223" width="50" height="25" fill="#e89547" opacity="0.7"/>
+                        <text x="690" y="218" text-anchor="middle" fill="#e89547" font-size="10" font-weight="500">7.5d</text>
+
+                        <!-- Cycle time segments (below baseline, height 25, aligned to process boxes) -->
+                        <rect x="150" y="248" width="130" height="25" fill="#4a9f6e" opacity="0.7"/>
+                        <text x="215" y="285" text-anchor="middle" fill="#4a9f6e" font-size="10" font-weight="500">12s</text>
+
+                        <rect x="340" y="248" width="130" height="25" fill="#4a9f6e" opacity="0.7"/>
+                        <text x="405" y="285" text-anchor="middle" fill="#4a9f6e" font-size="10" font-weight="500">38s</text>
+
+                        <rect x="530" y="248" width="130" height="25" fill="#4a9f6e" opacity="0.7"/>
+                        <text x="595" y="285" text-anchor="middle" fill="#4a9f6e" font-size="10" font-weight="500">8s</text>
+
+                        <rect x="720" y="248" width="130" height="25" fill="#4a9f6e" opacity="0.7"/>
+                        <text x="785" y="285" text-anchor="middle" fill="#4a9f6e" font-size="10" font-weight="500">62s</text>
+
+                        <!-- Totals -->
+                        <text x="150" y="318" fill="#7a8f7a" font-size="10">Lead Time: <tspan fill="#e8efe8" font-weight="600">23.5 days</tspan></text>
+                        <text x="380" y="318" fill="#7a8f7a" font-size="10">VA Time: <tspan fill="#4a9f6e" font-weight="600">120s</tspan></text>
+                        <text x="570" y="318" fill="#7a8f7a" font-size="10">PCE: <tspan fill="#4a9f6e" font-weight="600">0.006%</tspan></text>
+                    </svg>
                 </div>
             </div>
         </div>
@@ -850,34 +1223,34 @@
 
         <div class="features-grid">
             <div class="feature-card">
-                <div class="feature-icon">&#128202;</div>
+                <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></div>
                 <h3 class="feature-title">Statistics</h3>
                 <p class="feature-desc">ANOVA, regression, hypothesis tests, correlation. Normality tests, post-hoc comparisons, full diagnostics.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">&#128300;</div>
+                <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
                 <h3 class="feature-title">DOE</h3>
                 <p class="feature-desc">Full factorial, fractional factorial, Plackett-Burman, CCD, Box-Behnken. Power analysis built in.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">&#128200;</div>
-                <h3 class="feature-title">Control Charts</h3>
+                <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                <h3 class="feature-title">SPC</h3>
                 <p class="feature-desc">I-MR, X-bar-R, X-bar-S, p, np, c, u charts. Cp, Cpk, Pp, Ppk capability. Western Electric rules.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">&#129302;</div>
-                <h3 class="feature-title">ML Models</h3>
-                <p class="feature-desc">Classification, regression, clustering. Auto model selection, cross-validation, feature importance.</p>
+                <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg></div>
+                <h3 class="feature-title">Visual Tools</h3>
+                <p class="feature-desc">Collaborative whiteboards, value stream mapping with current/future state, and interactive process visualization.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">&#128218;</div>
-                <h3 class="feature-title">Research</h3>
-                <p class="feature-desc">Literature search, base rates, domain knowledge. AI finds relevant prior art and suggests what you're missing.</p>
+                <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg></div>
+                <h3 class="feature-title">Problem Solving</h3>
+                <p class="feature-desc">A3 reports, root cause analysis, and 30+ operations calculators for OEE, takt time, Kanban sizing, and more.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">&#128196;</div>
-                <h3 class="feature-title">Reports</h3>
-                <p class="feature-desc">8D, A3, DMAIC, Control Plan. AI drafts documentation from your artifacts. Export to PDF, Word, Excel.</p>
+                <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg></div>
+                <h3 class="feature-title">Hoshin Kanri</h3>
+                <p class="feature-desc">CI project tracking with bowler charts, savings calculations, kaizen charters, and Gantt planning.</p>
             </div>
         </div>
     </section>
@@ -886,28 +1259,28 @@
     <section class="tools" id="tools">
         <div class="tools-inner">
             <h2 class="section-title">How it works</h2>
-            <p class="section-subtitle">One unified workspace. AI observes and assists.</p>
+            <p class="section-subtitle">Upload data. Run analyses. Solve problems. Track improvement.</p>
 
             <div class="tools-grid">
                 <div class="tool-card">
-                    <span class="tool-badge tool-badge--python">Workbench</span>
-                    <h3 class="tool-name">Unified Workspace</h3>
-                    <p class="tool-desc">All tools in one place. Artifacts on a canvas. AI watches and challenges.</p>
+                    <span class="tool-badge tool-badge--python">Analyze</span>
+                    <h3 class="tool-name">64+ Statistical Tests</h3>
+                    <p class="tool-desc">DOE, SPC, hypothesis testing, regression, capability analysis. The full Minitab toolkit at a fraction of the cost.</p>
                 </div>
                 <div class="tool-card">
-                    <span class="tool-badge tool-badge--sympy">Triage</span>
-                    <h3 class="tool-name">Data Cleaning</h3>
-                    <p class="tool-desc">Outlier detection, missing data, bias checks. Quality report included.</p>
+                    <span class="tool-badge tool-badge--sympy">Visualize</span>
+                    <h3 class="tool-name">Whiteboard &amp; VSM</h3>
+                    <p class="tool-desc">Collaborative whiteboards, value stream maps, and control charts. See your process, find the waste.</p>
                 </div>
                 <div class="tool-card">
-                    <span class="tool-badge tool-badge--z3">Forge</span>
-                    <h3 class="tool-name">Synthetic Data</h3>
-                    <p class="tool-desc">Generate realistic datasets from schema or plain English intent.</p>
+                    <span class="tool-badge tool-badge--z3">Solve</span>
+                    <h3 class="tool-name">A3, RCA &amp; Calculators</h3>
+                    <p class="tool-desc">Structured problem-solving with A3 reports, root cause analysis, and 30+ operations calculators.</p>
                 </div>
                 <div class="tool-card">
-                    <span class="tool-badge tool-badge--verify">Templates</span>
-                    <h3 class="tool-name">DMAIC, Kaizen, 8D</h3>
-                    <p class="tool-desc">Structured hypothesis testing. Phase gates and required artifacts.</p>
+                    <span class="tool-badge tool-badge--verify">Improve</span>
+                    <h3 class="tool-name">Hoshin &amp; Projects</h3>
+                    <p class="tool-desc">Track CI projects from hypothesis to results. Hoshin Kanri bowler charts, savings calculations, and Gantt planning.</p>
                 </div>
             </div>
         </div>
@@ -1153,6 +1526,129 @@
         }
 
         checkFounderAvailability();
+
+        // =====================================================================
+        // Showcase tabs + auto-rotation
+        // =====================================================================
+        let showcaseIdx = 0;
+        let showcaseTimer = null;
+
+        function showShowcase(idx) {
+            showcaseIdx = idx;
+            document.querySelectorAll('.showcase-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+            document.querySelectorAll('.showcase-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+            // Reset auto-rotation timer
+            clearInterval(showcaseTimer);
+            showcaseTimer = setInterval(() => showShowcase((showcaseIdx + 1) % 3), 12000);
+        }
+        showcaseTimer = setInterval(() => showShowcase((showcaseIdx + 1) % 3), 12000);
+
+        // =====================================================================
+        // Live Line Simulator
+        // =====================================================================
+        (function() {
+            const CT = [45, 38, 62, 41, 35]; // cycle times in seconds
+            const N = CT.length;
+            const wip = [0, 0, 0, 0, 0];
+            const busy = [0, 0, 0, 0, 0]; // time remaining on current part
+            const processed = [0, 0, 0, 0, 0];
+            let simTime = 0;
+            let completed = 0;
+            const tputHistory = [];
+            let arrivalCounter = 0;
+
+            // Variation: ±15%
+            function ct(i) {
+                return CT[i] * (0.85 + Math.random() * 0.3);
+            }
+
+            function tick() {
+                simTime++;
+
+                // Arrival at station 0 every ~40s (slightly faster than bottleneck)
+                arrivalCounter++;
+                if (arrivalCounter >= 38 + Math.floor(Math.random() * 6)) {
+                    wip[0]++;
+                    arrivalCounter = 0;
+                }
+
+                // Process each station
+                for (let i = 0; i < N; i++) {
+                    if (busy[i] > 0) {
+                        busy[i]--;
+                        if (busy[i] === 0) {
+                            // Part done — move to next station or complete
+                            processed[i]++;
+                            if (i < N - 1) {
+                                wip[i + 1]++;
+                            } else {
+                                completed++;
+                            }
+                        }
+                    }
+
+                    // Start new part if idle and WIP available
+                    if (busy[i] === 0 && wip[i] > 0) {
+                        wip[i]--;
+                        busy[i] = Math.round(ct(i));
+                    }
+                }
+
+                // Update display every 2 sim-seconds
+                if (simTime % 2 === 0) updateDisplay();
+
+                // Throughput snapshot every 60 sim-seconds
+                if (simTime % 60 === 0) {
+                    const rate = Math.round(completed * 3600 / simTime);
+                    tputHistory.push(rate);
+                    if (tputHistory.length > 30) tputHistory.shift();
+                    renderBars();
+                }
+            }
+
+            function updateDisplay() {
+                const totalWip = wip.reduce((a, b) => a + b, 0) + busy.filter(b => b > 0).length;
+                document.getElementById('sim-wip-total').textContent = totalWip;
+                document.getElementById('sim-tput').textContent = simTime > 0 ? Math.round(completed * 3600 / simTime) : 0;
+
+                const mins = Math.floor(simTime / 60);
+                const secs = simTime % 60;
+                document.getElementById('sim-clock').textContent =
+                    String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+
+                for (let i = 0; i < N; i++) {
+                    const w = wip[i] + (busy[i] > 0 ? 1 : 0);
+                    document.getElementById('sim-w' + i).textContent = w;
+                    const util = simTime > 0 ? Math.round(processed[i] * CT[i] / simTime * 100) : 0;
+                    document.getElementById('sim-u' + i).textContent = Math.min(util, 99) + '%';
+
+                    // Pulse effect on active stations
+                    const el = document.getElementById('sim-s' + i);
+                    if (busy[i] > 0) {
+                        el.style.boxShadow = i === 2
+                            ? '0 0 12px rgba(232,197,71,0.2)'
+                            : '0 0 12px rgba(74,159,110,0.15)';
+                    } else {
+                        el.style.boxShadow = 'none';
+                    }
+                }
+            }
+
+            function renderBars() {
+                const container = document.getElementById('sim-tput-bars');
+                if (!tputHistory.length) return;
+                const max = Math.max(...tputHistory, 1);
+                container.innerHTML = tputHistory.map(v => {
+                    const h = Math.round(v / max * 100);
+                    return `<div class="sim-bar" style="height:${h}%"></div>`;
+                }).join('');
+                const latest = tputHistory[tputHistory.length - 1];
+                document.getElementById('sim-bar-latest').textContent = latest + ' uph';
+            }
+
+            // Run at 20x speed: 20 sim-seconds per real second → tick every 50ms
+            setInterval(tick, 50);
+        })();
     </script>
 </body>
 </html>

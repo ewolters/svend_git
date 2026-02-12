@@ -210,7 +210,7 @@ def summarize_project(request):
 
         project = Project.objects.get(id=project_id, user=request.user)
     except Project.DoesNotExist:
-        return JsonResponse({"error": "Project not found"}, status=404)
+        return JsonResponse({"error": "Study not found"}, status=404)
 
     # Gather context
     context_parts = [f"Project: {project.title}"]

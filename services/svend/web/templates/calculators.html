@@ -235,6 +235,15 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     box-shadow: 0 0 0 3px rgba(74, 159, 110, 0.1);
 }
 
+select, .calc-input select {
+    color-scheme: dark;
+}
+
+select option {
+    background: #1a1f1a;
+    color: #e8efe8;
+}
+
 .calc-input .input-hint {
     font-size: 11px;
     color: var(--text-dim);
@@ -484,6 +493,20 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     color: var(--text-primary);
     margin-top: 4px;
 }
+
+/* Next Steps / Cross-link Cards */
+.calc-next-steps { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.calc-next-step {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: var(--bg-secondary);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text-secondary); font-size: 12px;
+    cursor: pointer; transition: all 0.15s; flex: 1; min-width: 200px;
+}
+.calc-next-step:hover { border-color: var(--accent); color: var(--accent); background: rgba(74,159,110,0.05); }
+.calc-next-step svg { width: 16px; height: 16px; min-width: 16px; opacity: 0.6; }
+.calc-next-step-title { font-weight: 600; font-size: 12px; }
+.calc-next-step-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 
 /* Derivation / Show Work Section */
 .calc-derivation {
@@ -1224,6 +1247,8 @@ input[type="number"] {
                         </button>
                     </div>
 
+                    <div id="takt-chart" style="height: 280px; margin-top: 16px;"></div>
+
                     <div class="calc-derivation" id="takt-derivation">
                         <div class="calc-derivation-header" onclick="toggleDerivation('takt-derivation')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1234,6 +1259,7 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+                <div id="takt-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- RTO (Staffing) -->
@@ -1748,7 +1774,11 @@ input[type="number"] {
                             <span class="input-hint">% buffer</span>
                         </div>
                         <div class="calc-input">
-                            <label>Container Size</label>
+                            <label>Container Size
+                                <button class="calc-link-btn" data-link-from="eoq" onclick="SvendOps.pull('eoq', 'kanban-container')" title="Pull from EOQ calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                </button>
+                            </label>
                             <input type="number" id="kanban-container" value="25" oninput="calcKanban()">
                             <span class="input-hint">units per container</span>
                         </div>
@@ -1783,6 +1813,37 @@ input[type="number"] {
                     </div>
                 </div>
 
+                <div id="kanban-visual" style="padding: 20px 0; display: none;"></div>
+
+                <button class="calc-monte-toggle" onclick="toggleKanbanMonteCarlo(this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                    Run Monte Carlo Simulation
+                </button>
+                <div class="calc-monte-results" id="kanban-monte-results">
+                    <div class="calc-monte-summary">
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">Mean Cards</div>
+                            <div class="calc-monte-stat-value" id="kanban-monte-mean">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">5th %ile</div>
+                            <div class="calc-monte-stat-value" id="kanban-monte-p5">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">95th %ile</div>
+                            <div class="calc-monte-stat-value" id="kanban-monte-p95">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">Std Dev</div>
+                            <div class="calc-monte-stat-value" id="kanban-monte-std">-</div>
+                        </div>
+                    </div>
+                    <div id="kanban-monte-chart" style="height: 250px;"></div>
+                    <p style="font-size: 11px; color: var(--text-dim); margin-top: 12px; text-align: center;">
+                        Varies demand ±10%, lead time ±15%, safety factor ±10%
+                    </p>
+                </div>
+
                 <div class="calc-derivation" id="kanban-derivation">
                     <div class="calc-derivation-header" onclick="toggleDerivation('kanban-derivation')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1810,7 +1871,16 @@ input[type="number"] {
                             <span class="input-hint">SKUs in rotation</span>
                         </div>
                         <div class="calc-input">
-                            <label>Changeover Time</label>
+                            <label>Changeover Time
+                                <button class="calc-link-btn" data-link-from="changeoverInternal"
+                                        onclick="SvendOps.pull('changeoverInternal', 'epei-changeover')"
+                                        title="Pull from SMED calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                    </svg>
+                                </button>
+                            </label>
                             <input type="number" id="epei-changeover" value="15" oninput="calcEPEI()">
                             <span class="input-hint">minutes per changeover</span>
                         </div>
@@ -1855,6 +1925,7 @@ input[type="number"] {
                         <!-- Populated by JS -->
                     </div>
                 </div>
+                <div id="epei-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- Safety Stock -->
@@ -1939,6 +2010,35 @@ input[type="number"] {
                     <div id="safety-chart" style="height: 350px;"></div>
                 </div>
 
+                <button class="calc-monte-toggle" onclick="toggleSafetyMonteCarlo(this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                    Run Monte Carlo Simulation
+                </button>
+                <div class="calc-monte-results" id="safety-monte-results">
+                    <div class="calc-monte-summary">
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">Mean SS</div>
+                            <div class="calc-monte-stat-value" id="safety-monte-mean">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">5th %ile</div>
+                            <div class="calc-monte-stat-value" id="safety-monte-p5">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">95th %ile</div>
+                            <div class="calc-monte-stat-value" id="safety-monte-p95">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">Std Dev</div>
+                            <div class="calc-monte-stat-value" id="safety-monte-std">-</div>
+                        </div>
+                    </div>
+                    <div id="safety-monte-chart" style="height: 250px;"></div>
+                    <p style="font-size: 11px; color: var(--text-dim); margin-top: 12px; text-align: center;">
+                        Varies demand ±10%, demand σ ±15%, lead time ±10%, lead time σ ±15%
+                    </p>
+                </div>
+
                 <div class="calc-derivation" id="safety-derivation">
                     <div class="calc-derivation-header" onclick="toggleDerivation('safety-derivation')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1948,6 +2048,7 @@ input[type="number"] {
                         <!-- Populated by JS -->
                     </div>
                 </div>
+                <div id="safety-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- EOQ -->
@@ -2174,6 +2275,7 @@ input[type="number"] {
                         <!-- Populated by JS -->
                     </div>
                 </div>
+                <div id="oee-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- Bottleneck -->
@@ -2229,7 +2331,11 @@ input[type="number"] {
                             <span class="input-hint">units in system</span>
                         </div>
                         <div class="calc-input" id="littles-thr-group">
-                            <label>Throughput (TH)</label>
+                            <label>Throughput (TH)
+                                <button class="calc-link-btn" data-link-from="bottleneckThroughput" onclick="SvendOps.pull('bottleneckThroughput', 'littles-thr')" title="Pull from Bottleneck calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                </button>
+                            </label>
                             <input type="number" id="littles-thr" value="10" oninput="calcLittles()">
                             <span class="input-hint">units per hour</span>
                         </div>
@@ -2261,6 +2367,8 @@ input[type="number"] {
                     </div>
                 </div>
 
+                <div id="littles-chart" style="height: 250px; margin-top: 16px;"></div>
+
                 <div class="calc-derivation" id="littles-derivation">
                     <div class="calc-derivation-header" onclick="toggleDerivation('littles-derivation')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2283,7 +2391,16 @@ input[type="number"] {
                             <span class="input-hint">customers per hour</span>
                         </div>
                         <div class="calc-input">
-                            <label>Service Rate (μ)</label>
+                            <label>Service Rate (μ)
+                                <button class="calc-link-btn" data-link-from="bottleneckThroughput"
+                                        onclick="SvendOps.pull('bottleneckThroughput', 'queue-mu')"
+                                        title="Pull from Bottleneck calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                    </svg>
+                                </button>
+                            </label>
                             <input type="number" id="queue-mu" value="3" step="0.1" oninput="calcQueue()">
                             <span class="input-hint">customers per hour per server</span>
                         </div>
@@ -3137,6 +3254,7 @@ input[type="number"] {
                         <!-- Populated by JS -->
                     </div>
                 </div>
+                <div id="rty-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- DPMO / Sigma -->
@@ -3210,6 +3328,8 @@ input[type="number"] {
                     </div>
                 </div>
 
+                <div id="dpmo-chart" style="height: 280px; margin-top: 16px;"></div>
+
                 <div class="calc-derivation" id="dpmo-derivation">
                     <div class="calc-derivation-header" onclick="toggleDerivation('dpmo-derivation')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -3219,6 +3339,7 @@ input[type="number"] {
                         <!-- Populated by JS -->
                     </div>
                 </div>
+                <div id="dpmo-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- Inventory Turns -->
@@ -3232,7 +3353,11 @@ input[type="number"] {
                             <span class="input-hint">$ per year</span>
                         </div>
                         <div class="calc-input">
-                            <label>Average Inventory Value</label>
+                            <label>Average Inventory Value
+                                <button class="calc-link-btn" data-link-from="kanbanInventory" onclick="SvendOps.pull('kanbanInventory', 'turns-inv')" title="Pull from Kanban calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                </button>
+                            </label>
                             <input type="number" id="turns-inv" value="500000" oninput="calcTurns()">
                             <span class="input-hint">$</span>
                         </div>
@@ -3266,6 +3391,8 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+
+                <div id="turns-chart" style="height: 280px; margin-top: 16px;"></div>
 
                 <div class="calc-derivation" id="turns-derivation">
                     <div class="calc-derivation-header" onclick="toggleDerivation('turns-derivation')">
@@ -3527,6 +3654,7 @@ input[type="number"] {
                         <!-- Populated by JS -->
                     </div>
                 </div>
+                <div id="smed-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- Changeover Matrix -->
@@ -3679,6 +3807,35 @@ input[type="number"] {
                     <div id="cpk-chart" style="height: 350px;"></div>
                 </div>
 
+                <button class="calc-monte-toggle" onclick="toggleCpkMonteCarlo(this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M8 17v-3"/></svg>
+                    Run Monte Carlo Simulation
+                </button>
+                <div class="calc-monte-results" id="cpk-monte-results">
+                    <div class="calc-monte-summary">
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">Mean Cpk</div>
+                            <div class="calc-monte-stat-value" id="cpk-monte-mean">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">5th %ile</div>
+                            <div class="calc-monte-stat-value" id="cpk-monte-p5">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">95th %ile</div>
+                            <div class="calc-monte-stat-value" id="cpk-monte-p95">-</div>
+                        </div>
+                        <div class="calc-monte-stat">
+                            <div class="calc-monte-stat-label">Std Dev</div>
+                            <div class="calc-monte-stat-value" id="cpk-monte-std">-</div>
+                        </div>
+                    </div>
+                    <div id="cpk-monte-chart" style="height: 250px;"></div>
+                    <p style="font-size: 11px; color: var(--text-dim); margin-top: 12px; text-align: center;">
+                        Varies process mean ±5%, process σ ±10%; spec limits held fixed
+                    </p>
+                </div>
+
                 <div class="calc-derivation" id="cpk-derivation">
                     <div class="calc-derivation-header" onclick="toggleDerivation('cpk-derivation')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -3688,6 +3845,7 @@ input[type="number"] {
                         <!-- Populated by JS -->
                     </div>
                 </div>
+                <div id="cpk-next-steps" class="calc-next-steps" style="display:none"></div>
             </div>
 
             <!-- Sample Size -->
@@ -3810,7 +3968,11 @@ input[type="number"] {
                             <span class="input-hint">breakdowns, jams</span>
                         </div>
                         <div class="calc-input">
-                            <label>Changeover</label>
+                            <label>Changeover
+                                <button class="calc-link-btn" data-link-from="changeoverInternal" onclick="SvendOps.pull('changeoverInternal', 'lineeff-changeover')" title="Pull from SMED calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                </button>
+                            </label>
                             <input type="number" id="lineeff-changeover" value="20" oninput="calcLineEff()">
                         </div>
                         <div class="calc-input">
@@ -4069,7 +4231,11 @@ input[type="number"] {
                             <span class="input-hint">minutes</span>
                         </div>
                         <div class="calc-input">
-                            <label>Pitch Interval</label>
+                            <label>Pitch Interval
+                                <button class="calc-link-btn" data-link-from="pitch" onclick="SvendOps.pull('pitch', 'heijunka-pitch')" title="Pull from Pitch calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                </button>
+                            </label>
                             <input type="number" id="heijunka-pitch" value="20" oninput="calcHeijunka()">
                             <span class="input-hint">minutes</span>
                         </div>
@@ -4135,7 +4301,7 @@ input[type="number"] {
                             <button onclick="loadSampleJobs()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Load Sample
                             </button>
-                            <button onclick="pullJobsFromLineSim()" class="calc-link-btn" style="padding: 6px 12px; font-size: 12px;">
+                            <button onclick="pullJobsFromLineSim()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Pull from Line Sim
                             </button>
                         </div>
@@ -4224,7 +4390,7 @@ input[type="number"] {
                         <button onclick="runSequenceOptimizer()" style="padding: 10px 20px; background: var(--accent); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; flex: 1;">
                             Optimize Sequence
                         </button>
-                        <button onclick="pullFromSequencer()" class="calc-link-btn" style="padding: 10px 16px; font-size: 12px;">
+                        <button onclick="pullFromSequencer()" style="padding: 10px 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                             Pull from Sequencer
                         </button>
                     </div>
@@ -4300,7 +4466,7 @@ input[type="number"] {
                             <button onclick="loadSampleWorkOrders()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Load Sample
                             </button>
-                            <button onclick="pullFromSequencerToCapacity()" class="calc-link-btn" style="padding: 6px 12px; font-size: 12px;">
+                            <button onclick="pullFromSequencerToCapacity()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Pull from Sequencer
                             </button>
                         </div>
@@ -4352,7 +4518,7 @@ input[type="number"] {
                 <div class="calc-section">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                         <div class="calc-section-title" style="margin: 0;">Product Mix</div>
-                        <button onclick="pullFromHeijunka()" class="calc-link-btn" style="padding: 6px 12px; font-size: 12px;">
+                        <button onclick="pullFromHeijunka()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                             Pull from Heijunka
                         </button>
                     </div>
@@ -4451,7 +4617,7 @@ input[type="number"] {
                             <button onclick="loadSampleDDSOrders()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Load Sample
                             </button>
-                            <button onclick="pullFromSequencerToDDS()" class="calc-link-btn" style="padding: 6px 12px; font-size: 12px;">
+                            <button onclick="pullFromSequencerToDDS()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Pull from Sequencer
                             </button>
                         </div>
@@ -5345,6 +5511,39 @@ const SvendOps = {
     }
 };
 
+/**
+ * Render "Next Steps" cross-link cards after a calculation completes.
+ * @param {string} containerId  - ID of the container div (e.g. 'takt-next-steps')
+ * @param {Array<{title:string, desc:string, calcId:string, pullKey?:string, pullTarget?:string}>} steps
+ */
+function renderNextSteps(containerId, steps) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
+    container.innerHTML = steps.map(s => {
+        const pull = s.pullKey && s.pullTarget
+            ? `SvendOps.pull('${s.pullKey}','${s.pullTarget}');`
+            : '';
+        return `<div class="calc-next-step" onclick="${pull}navigateToCalc('${s.calcId}')">
+            ${chevron}
+            <div>
+                <div class="calc-next-step-title">${s.title}</div>
+                <div class="calc-next-step-desc">${s.desc}</div>
+            </div>
+        </div>`;
+    }).join('');
+    container.style.display = 'flex';
+}
+
+/**
+ * Navigate to a calculator by ID — works without event context.
+ * Clicks the correct nav button to trigger showCalc properly.
+ */
+function navigateToCalc(calcId) {
+    const btn = document.querySelector(`.ops-nav-item[onclick*="'${calcId}'"]`);
+    if (btn) { btn.click(); btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
 // ============================================================================
 // Custom Stepper Widget
 // ============================================================================
@@ -5988,6 +6187,41 @@ function calcTakt() {
             you must complete one unit every <strong>${taktMin.toFixed(1)} minutes</strong> (${Math.round(taktSec)} seconds).
         </div>
     `;
+
+    // Takt gauge chart
+    const gaugeMax = Math.max(taktMin * 2, 10);
+    Plotly.newPlot('takt-chart', [{
+        type: 'indicator', mode: 'gauge+number',
+        value: taktMin,
+        number: { suffix: ' min', font: { size: 28, color: '#e0e0e0' } },
+        gauge: {
+            axis: { range: [0, gaugeMax], tickfont: { color: '#9aaa9a' } },
+            bar: { color: '#4a9f6e' },
+            bgcolor: 'rgba(255,255,255,0.05)',
+            steps: [
+                { range: [0, 1], color: 'rgba(231,76,60,0.25)' },
+                { range: [1, 5], color: 'rgba(74,159,110,0.25)' },
+                { range: [5, gaugeMax], color: 'rgba(243,156,18,0.25)' }
+            ],
+            threshold: { line: { color: '#e74c3c', width: 2 }, value: taktMin }
+        }
+    }], {
+        margin: { t: 30, b: 10, l: 30, r: 30 },
+        paper_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        annotations: [
+            { x: 0.17, y: 0.28, text: '<1 min: high-speed risk', showarrow: false, font: { size: 10, color: '#e74c3c' } },
+            { x: 0.5, y: -0.05, text: '1-5 min: optimal', showarrow: false, font: { size: 10, color: '#4a9f6e' } },
+            { x: 0.83, y: 0.28, text: '>5 min: batch risk', showarrow: false, font: { size: 10, color: '#f39c12' } }
+        ]
+    }, { responsive: true, displayModeBar: false });
+
+    renderNextSteps('takt-next-steps', [
+        { title: 'Staff the Line', desc: 'Calculate operators needed at this takt', calcId: 'rto' },
+        { title: 'Balance Stations', desc: 'Build a Yamazumi chart to balance work', calcId: 'yamazumi' },
+        { title: 'Set Pitch', desc: 'Calculate pitch interval from takt', calcId: 'pitch' },
+        { title: 'Simulate Flow', desc: 'Run a line simulation at this rate', calcId: 'linesim' },
+    ]);
 }
 
 // ============================================================================
@@ -6035,6 +6269,10 @@ function calcRTO() {
             = (${rto.toFixed(2)} ÷ ${staff}) × 100 = <strong>${efficiency.toFixed(1)}%</strong>
         </div>
     `;
+
+    // Publish to shared state
+    SvendOps.publish('rtoStaff', staff, 'people', 'RTO');
+    SvendOps.publish('lineEfficiency', efficiency, '%', 'RTO');
 }
 
 // ============================================================================
@@ -6616,6 +6854,11 @@ function startLineSim() {
         document.getElementById('ls-throughput').innerHTML = `${throughputPerHour.toFixed(1)}<span class="calc-result-unit">/hr</span>`;
         document.getElementById('ls-total-wip').textContent = totalWip;
         document.getElementById('ls-efficiency').innerHTML = `${efficiency.toFixed(1)}<span class="calc-result-unit">%</span>`;
+
+        // Publish live sim values
+        SvendOps.publish('simThroughput', parseFloat(throughputPerHour.toFixed(1)), 'units/hr', 'Line Sim');
+        SvendOps.publish('simWIP', totalWip, 'units', 'Line Sim');
+        SvendOps.publish('simEfficiency', parseFloat(efficiency.toFixed(1)), '%', 'Line Sim');
 
         // Update visual
         updateLineVisual(maxWip);
@@ -7606,6 +7849,73 @@ function calcKanban() {
             Total inventory in the loop: <strong>${Math.round(total)} units</strong> across ${cards} containers of ${container} units each.
         </div>
     `;
+
+    // Publish to shared state
+    SvendOps.publish('kanbanCards', cards, 'cards', 'Kanban');
+    SvendOps.publish('kanbanInventory', Math.round(total), 'units', 'Kanban');
+
+    // Kanban pipeline visual
+    const baseCards = Math.ceil(base / container);
+    const safetyCards = cards - baseCards;
+    const baseTokens = Array(Math.min(baseCards, 12)).fill('<span style="display:inline-block;width:18px;height:24px;background:#4a9f6e;border-radius:3px;margin:2px;"></span>').join('');
+    const safetyTokens = Array(Math.min(safetyCards, 6)).fill('<span style="display:inline-block;width:18px;height:24px;background:#f39c12;border-radius:3px;margin:2px;"></span>').join('');
+    const vis = document.getElementById('kanban-visual');
+    vis.innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
+            <div style="text-align:center;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9aaa9a" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Supplier</div>
+            </div>
+            <div style="font-size:20px;color:var(--text-dim);">→</div>
+            <div style="text-align:center;padding:8px 12px;min-width:80px;">
+                <div style="display:flex;flex-wrap:wrap;justify-content:center;max-width:240px;">${baseTokens}${safetyTokens}</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">
+                    <span style="color:#4a9f6e;">${baseCards} base</span> + <span style="color:#f39c12;">${safetyCards} safety</span> = ${cards} cards
+                </div>
+                <div style="font-size:10px;color:var(--text-dim);">${cards} × ${container} = ${Math.round(total)} units in loop</div>
+            </div>
+            <div style="font-size:20px;color:var(--text-dim);">→</div>
+            <div style="text-align:center;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9aaa9a" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Customer</div>
+            </div>
+        </div>`;
+    vis.style.display = 'block';
+}
+
+function toggleKanbanMonteCarlo(btn) {
+    btn.classList.toggle('active');
+    const results = document.getElementById('kanban-monte-results');
+    results.classList.toggle('visible');
+    if (btn.classList.contains('active')) { runKanbanMonteCarlo(); }
+}
+
+function runKanbanMonteCarlo() {
+    const demand = parseFloat(document.getElementById('kanban-demand').value) || 0;
+    const lead = parseFloat(document.getElementById('kanban-lead').value) || 0;
+    const safetyPct = parseFloat(document.getElementById('kanban-safety').value) || 0;
+    const container = parseFloat(document.getElementById('kanban-container').value) || 1;
+
+    const calcCards = (d, l, sf) => {
+        const base = d * l;
+        const safety = base * (sf / 100);
+        return Math.ceil((base + safety) / container);
+    };
+
+    const inputs = [
+        { value: demand, cv: 0.1 },
+        { value: lead, cv: 0.15 },
+        { value: safetyPct, cv: 0.1 }
+    ];
+
+    const sim = MonteCarlo.simulate(calcCards, inputs, 2000);
+
+    document.getElementById('kanban-monte-mean').textContent = sim.mean.toFixed(1);
+    document.getElementById('kanban-monte-p5').textContent = Math.round(sim.p5);
+    document.getElementById('kanban-monte-p95').textContent = Math.round(sim.p95);
+    document.getElementById('kanban-monte-std').textContent = `±${sim.std.toFixed(1)}`;
+
+    MonteCarlo.renderHistogram('kanban-monte-chart', sim, 'Kanban Cards Distribution (2000 runs)', 'cards');
 }
 
 // ============================================================================
@@ -7649,6 +7959,14 @@ function calcEPEI() {
             With ${parts} parts and ${changeover} min per changeover, you can run <strong>Every Part Every ${epei.toFixed(1)} days</strong> within the ${targetPct}% time budget.
         </div>
     `;
+
+    // Publish to shared state
+    SvendOps.publish('epei', epei, 'days', 'EPEI');
+
+    renderNextSteps('epei-next-steps', [
+        { title: 'Build Heijunka Box', desc: 'Create a level schedule from EPEI', calcId: 'heijunka' },
+        { title: 'Run SMED Event', desc: 'Reduce changeover to shorten EPEI', calcId: 'smed' },
+    ]);
 }
 
 // ============================================================================
@@ -7782,6 +8100,51 @@ function calcSafety() {
             ROP = ${Math.round(meanDemand)} + ${Math.round(safety)} = <strong>${Math.round(rop)} units</strong>
         </div>
     `;
+
+    // Publish to shared state
+    SvendOps.publish('safetyStock', Math.round(safety), 'units', 'Safety Stock');
+    SvendOps.publish('rop', Math.round(rop), 'units', 'Safety Stock');
+
+    renderNextSteps('safety-next-steps', [
+        { title: 'Size Kanbans', desc: 'Calculate kanban cards including safety stock', calcId: 'kanban' },
+        { title: 'Set Reorder Qty', desc: 'Find optimal order quantity with EOQ', calcId: 'eoq' },
+        { title: 'Check Turns', desc: 'Evaluate inventory turns performance', calcId: 'turns' },
+    ]);
+}
+
+function toggleSafetyMonteCarlo(btn) {
+    btn.classList.toggle('active');
+    const results = document.getElementById('safety-monte-results');
+    results.classList.toggle('visible');
+    if (btn.classList.contains('active')) { runSafetyMonteCarlo(); }
+}
+
+function runSafetyMonteCarlo() {
+    const demand = parseFloat(document.getElementById('safety-demand').value) || 0;
+    const demandStd = parseFloat(document.getElementById('safety-demand-std').value) || 0;
+    const lead = parseFloat(document.getElementById('safety-lead').value) || 0;
+    const leadStd = parseFloat(document.getElementById('safety-lead-std').value) || 0;
+    const z = parseFloat(document.getElementById('safety-service').value) || 1.65;
+
+    const calcSS = (d, ds, l, ls) => {
+        return z * Math.sqrt(l * ds * ds + d * d * ls * ls);
+    };
+
+    const inputs = [
+        { value: demand, cv: 0.1 },
+        { value: demandStd, cv: 0.15 },
+        { value: lead, cv: 0.1 },
+        { value: leadStd, cv: 0.15 }
+    ];
+
+    const sim = MonteCarlo.simulate(calcSS, inputs, 2000);
+
+    document.getElementById('safety-monte-mean').textContent = Math.round(sim.mean);
+    document.getElementById('safety-monte-p5').textContent = Math.round(sim.p5);
+    document.getElementById('safety-monte-p95').textContent = Math.round(sim.p95);
+    document.getElementById('safety-monte-std').textContent = `±${Math.round(sim.std)}`;
+
+    MonteCarlo.renderHistogram('safety-monte-chart', sim, 'Safety Stock Distribution (2000 runs)', 'units');
 }
 
 // ============================================================================
@@ -7912,6 +8275,9 @@ function calcEOQ() {
             ✓ Costs are balanced at the optimal point
         </div>
     `;
+
+    // Publish to shared state
+    SvendOps.publish('eoq', Math.round(eoq), 'units', 'EOQ');
 }
 
 function toggleEOQMonteCarlo(btn) {
@@ -8044,6 +8410,16 @@ function calcOEE() {
             font: { size: 32, color: oee >= 85 ? '#27ae60' : oee >= 65 ? '#f39c12' : '#e74c3c' }
         }]
     }, { responsive: true, displayModeBar: false });
+
+    // Publish to shared state
+    SvendOps.publish('oee', oee, '%', 'OEE');
+    SvendOps.publish('oeeAvailability', parseFloat((availability * 100).toFixed(1)), '%', 'OEE');
+
+    renderNextSteps('oee-next-steps', [
+        { title: 'Bottleneck Analysis', desc: 'Find the constraint driving downtime', calcId: 'bottleneck' },
+        { title: 'SMED', desc: 'Reduce changeover to improve availability', calcId: 'smed' },
+        { title: 'Line Efficiency', desc: 'Check labor utilization on this line', calcId: 'lineeff' },
+    ]);
 }
 
 // ============================================================================
@@ -8116,6 +8492,10 @@ function renderBottleneck() {
     document.getElementById('bottleneck-name').textContent = constraint.name;
     document.getElementById('bottleneck-ct').textContent = `${constraint.time} sec`;
     document.getElementById('bottleneck-throughput').textContent = `${(3600 / constraint.time).toFixed(1)} units/hr`;
+
+    // Publish to shared state
+    SvendOps.publish('bottleneckCT', constraint.time, 'sec', 'Bottleneck');
+    SvendOps.publish('bottleneckThroughput', parseFloat((3600 / constraint.time).toFixed(1)), 'units/hr', 'Bottleneck');
 }
 
 // ============================================================================
@@ -8184,6 +8564,34 @@ function calcLittles() {
             Little's Law (L = λW) is a fundamental relationship that holds for <em>any</em> stable system, regardless of arrival distribution or service pattern.
         </div>`;
     document.getElementById('littles-derivation-body').innerHTML = derivation;
+
+    // Publish to shared state
+    SvendOps.publish('littlesResult', parseFloat(result.toFixed(1)), unit, "Little's Law");
+
+    // Little's Law bar chart — show all 3 variables
+    const actualWip = solve === 'wip' ? result : wip;
+    const actualThr = solve === 'throughput' ? result : thr;
+    const actualLt = solve === 'leadtime' ? result : lt;
+    Plotly.newPlot('littles-chart', [{
+        x: ['WIP (L)', 'Throughput (λ)', 'Lead Time (W)'],
+        y: [actualWip, actualThr, actualLt],
+        type: 'bar',
+        marker: { color: ['#3498db', '#27ae60', '#f39c12'] },
+        text: [`${actualWip.toFixed(1)} units`, `${actualThr.toFixed(1)} /hr`, `${actualLt.toFixed(1)} hrs`],
+        textposition: 'outside',
+        textfont: { size: 12, color: '#a0a0a0' }
+    }], {
+        margin: { t: 40, b: 40, l: 50, r: 20 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        yaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
+        xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
+        annotations: [{
+            x: 0.5, y: 1.12, xref: 'paper', yref: 'paper',
+            text: `L = λ × W → ${actualWip.toFixed(1)} = ${actualThr.toFixed(1)} × ${actualLt.toFixed(1)}`,
+            showarrow: false, font: { size: 12, color: '#e0e0e0' }
+        }]
+    }, { responsive: true, displayModeBar: false });
 }
 
 // ============================================================================
@@ -9460,6 +9868,8 @@ function calcPitch() {
             The water spider visits every <strong>${pitchMin.toFixed(1)} minutes</strong> to collect a container of ${pack} units, making <strong>${Math.round(perShift)} pickups per 8-hour shift</strong>.
         </div>
     `;
+
+    SvendOps.publish('pitch', parseFloat(pitchMin.toFixed(1)), 'min', 'Pitch');
 }
 
 // ============================================================================
@@ -9556,6 +9966,14 @@ function calcRTY() {
         yaxis: { title: 'Cumulative Yield (%)', range: [0, 110], gridcolor: 'rgba(255,255,255,0.1)' },
         xaxis: { gridcolor: 'rgba(255,255,255,0.1)' }
     }, { responsive: true, displayModeBar: false });
+
+    renderNextSteps('rty-next-steps', [
+        { title: 'Cycle Time Analysis', desc: 'Find where rework adds hidden cycle time', calcId: 'cycletime' },
+        { title: 'Run FMEA', desc: 'Prioritize failure modes in low-yield steps', calcId: 'fmea' },
+        { title: 'Check DPMO', desc: 'Convert yield to sigma level', calcId: 'dpmo' },
+    ]);
+
+    SvendOps.publish('rty', parseFloat(rty.toFixed(1)), '%', 'RTY');
 }
 
 // ============================================================================
@@ -9647,6 +10065,43 @@ function calcDPMO() {
             = <strong>${yield_.toFixed(4)}%</strong>
         </div>`;
     document.getElementById('dpmo-derivation-body').innerHTML = dpmoDerivation;
+
+    // Publish to shared state
+    SvendOps.publish('sigma', parseFloat(sigma.toFixed(2)), 'σ', 'DPMO/Sigma');
+    SvendOps.publish('dpmo', Math.round(dpmo), 'DPMO', 'DPMO/Sigma');
+
+    // Sigma gauge chart
+    Plotly.newPlot('dpmo-chart', [{
+        type: 'indicator', mode: 'gauge+number',
+        value: sigma,
+        number: { suffix: 'σ', font: { size: 28, color: '#e0e0e0' } },
+        gauge: {
+            axis: { range: [0, 6], dtick: 1, tickfont: { color: '#9aaa9a' } },
+            bar: { color: sigma >= 4.5 ? '#27ae60' : sigma >= 3 ? '#f39c12' : '#e74c3c' },
+            bgcolor: 'rgba(255,255,255,0.05)',
+            steps: [
+                { range: [0, 2], color: 'rgba(231,76,60,0.25)' },
+                { range: [2, 3], color: 'rgba(243,156,18,0.2)' },
+                { range: [3, 4.5], color: 'rgba(243,156,18,0.15)' },
+                { range: [4.5, 6], color: 'rgba(39,174,96,0.25)' }
+            ],
+            threshold: { line: { color: '#27ae60', width: 3 }, value: 4.5 }
+        }
+    }], {
+        margin: { t: 30, b: 10, l: 30, r: 30 },
+        paper_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        annotations: [
+            { x: 0.25, y: -0.05, text: 'Typical: 3σ', showarrow: false, font: { size: 10, color: '#f39c12' } },
+            { x: 0.75, y: -0.05, text: 'World Class: 6σ', showarrow: false, font: { size: 10, color: '#27ae60' } }
+        ]
+    }, { responsive: true, displayModeBar: false });
+
+    renderNextSteps('dpmo-next-steps', [
+        { title: 'RTY Analysis', desc: 'Calculate rolled throughput yield', calcId: 'rty' },
+        { title: 'Cpk Check', desc: 'Evaluate process capability index', calcId: 'cpk' },
+        { title: 'Cost of Quality', desc: 'Estimate cost impact of defects', calcId: 'coq' },
+    ]);
 }
 
 // ============================================================================
@@ -9683,6 +10138,35 @@ function calcTurns() {
             = 52 ÷ ${turns.toFixed(1)} = <strong>${woh.toFixed(1)} weeks</strong>
         </div>
     `;
+
+    // Turns gauge chart
+    const turnsMax = Math.max(turns * 2, 24);
+    Plotly.newPlot('turns-chart', [{
+        type: 'indicator', mode: 'gauge+number',
+        value: turns,
+        number: { suffix: '/yr', font: { size: 28, color: '#e0e0e0' } },
+        gauge: {
+            axis: { range: [0, turnsMax], tickfont: { color: '#9aaa9a' } },
+            bar: { color: turns >= 12 ? '#27ae60' : turns >= 6 ? '#f39c12' : '#e74c3c' },
+            bgcolor: 'rgba(255,255,255,0.05)',
+            steps: [
+                { range: [0, 4], color: 'rgba(231,76,60,0.25)' },
+                { range: [4, 8], color: 'rgba(243,156,18,0.2)' },
+                { range: [8, 12], color: 'rgba(243,156,18,0.15)' },
+                { range: [12, turnsMax], color: 'rgba(39,174,96,0.25)' }
+            ]
+        }
+    }], {
+        margin: { t: 30, b: 10, l: 30, r: 30 },
+        paper_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        annotations: [
+            { x: 0.5, y: -0.05, text: 'Mfg avg: 6-8 | Retail: 8-12 | World class: 20+', showarrow: false, font: { size: 10, color: '#9aaa9a' } }
+        ]
+    }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('turns', parseFloat(turns.toFixed(1)), '/yr', 'Inv Turns');
+    SvendOps.publish('daysOnHand', parseFloat(doh.toFixed(1)), 'days', 'Inv Turns');
 }
 
 // ============================================================================
@@ -9759,6 +10243,9 @@ function calcCOQ() {
         paper_bgcolor: 'transparent',
         showlegend: false
     }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('coqTotal', total, '$', 'COQ');
+    SvendOps.publish('coqFailure', failure, '$', 'COQ');
 }
 
 // ============================================================================
@@ -9940,6 +10427,14 @@ function calcSMED() {
         },
         showlegend: false
     }, { responsive: true, displayModeBar: false });
+
+    // Publish to shared state
+    SvendOps.publish('changeoverInternal', internal, 'min', 'SMED');
+
+    renderNextSteps('smed-next-steps', [
+        { title: 'Update EPEI', desc: 'Recalculate schedule interval with new C/O', calcId: 'epei', pullKey: 'changeoverInternal', pullTarget: 'epei-changeover' },
+        { title: 'Simulate Impact', desc: 'Model the changeover reduction in line sim', calcId: 'linesim' },
+    ]);
 }
 
 // SMED Baseline capture for before/after comparison
@@ -10840,6 +11335,16 @@ function calcCpk() {
         xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
         yaxis: { showticklabels: false, gridcolor: 'rgba(255,255,255,0.1)' }
     }, { responsive: true, displayModeBar: false });
+
+    // Publish to shared state
+    SvendOps.publish('cpk', parseFloat(cpk.toFixed(2)), '', 'Cpk');
+    SvendOps.publish('cp', parseFloat(cp.toFixed(2)), '', 'Cpk');
+
+    renderNextSteps('cpk-next-steps', [
+        { title: 'Sigma Level', desc: 'Convert capability to sigma score', calcId: 'dpmo' },
+        { title: 'FMEA', desc: 'Assess failure risk for this process', calcId: 'fmea' },
+        { title: 'Sample Size', desc: 'Plan the sample needed to confirm capability', calcId: 'samplesize' },
+    ]);
 }
 
 function normalCDF(z) {
@@ -10849,6 +11354,40 @@ function normalCDF(z) {
     const t = 1.0 / (1.0 + p * z);
     const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-z * z);
     return 0.5 * (1.0 + sign * y);
+}
+
+function toggleCpkMonteCarlo(btn) {
+    btn.classList.toggle('active');
+    const results = document.getElementById('cpk-monte-results');
+    results.classList.toggle('visible');
+    if (btn.classList.contains('active')) { runCpkMonteCarlo(); }
+}
+
+function runCpkMonteCarlo() {
+    const mean = parseFloat(document.getElementById('cpk-mean').value) || 0;
+    const std = parseFloat(document.getElementById('cpk-std').value) || 0.01;
+    const usl = parseFloat(document.getElementById('cpk-usl').value) || 0;
+    const lsl = parseFloat(document.getElementById('cpk-lsl').value) || 0;
+
+    const calcCpkValue = (m, s) => {
+        const cpu = (usl - m) / (3 * s);
+        const cpl = (m - lsl) / (3 * s);
+        return Math.min(cpu, cpl);
+    };
+
+    const inputs = [
+        { value: mean, cv: 0.05 },
+        { value: std, cv: 0.10 }
+    ];
+
+    const sim = MonteCarlo.simulate(calcCpkValue, inputs, 2000);
+
+    document.getElementById('cpk-monte-mean').textContent = sim.mean.toFixed(2);
+    document.getElementById('cpk-monte-p5').textContent = sim.p5.toFixed(2);
+    document.getElementById('cpk-monte-p95').textContent = sim.p95.toFixed(2);
+    document.getElementById('cpk-monte-std').textContent = `±${sim.std.toFixed(2)}`;
+
+    MonteCarlo.renderHistogram('cpk-monte-chart', sim, 'Cpk Distribution (2000 runs)', '');
 }
 
 // ============================================================================
@@ -11002,6 +11541,9 @@ function calcLineEff() {
         xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
         showlegend: false
     }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('lineEffCalc', parseFloat(efficiency.toFixed(1)), '%', 'Line Eff');
+    SvendOps.publish('lineEffActualRate', parseFloat(actualRate.toFixed(0)), '/hr', 'Line Eff');
 }
 
 // ============================================================================
@@ -11077,6 +11619,8 @@ function calcOLE() {
         annotations: [{ text: `<b>${ole.toFixed(0)}%</b>`, showarrow: false,
             font: { size: 24, color: ole >= 85 ? '#27ae60' : ole >= 65 ? '#f39c12' : '#e74c3c' } }]
     }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('ole', parseFloat(ole.toFixed(1)), '%', 'OLE');
 }
 
 // ============================================================================
@@ -11175,6 +11719,9 @@ function calcCycle() {
         margin: { t: 20, b: 20, l: 20, r: 20 },
         paper_bgcolor: 'transparent', showlegend: false
     }, { responsive: true, displayModeBar: false });
+
+    SvendOps.publish('cycleTimeTotal', total, 'sec', 'Cycle Time');
+    SvendOps.publish('cycleTimeVA', va, 'sec', 'Cycle Time');
 }
 
 // ============================================================================

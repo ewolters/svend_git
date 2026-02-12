@@ -32,6 +32,10 @@ class Tenant(models.Model):
 
     # Billing
     stripe_customer_id = models.CharField(max_length=255, blank=True, db_index=True)
+    stripe_seat_item_id = models.CharField(
+        max_length=255, blank=True,
+        help_text="Stripe subscription item ID for the seat line item (si_xxx)",
+    )
 
     # Settings
     settings = models.JSONField(default=dict, blank=True)

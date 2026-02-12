@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog — Svend | Statistical Analysis & Decision Science</title>
+    <meta name="description" content="Insights on statistical analysis, SPC, DOE, quality engineering, and decision science. Learn from practical guides and industry expertise.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://svend.ai/blog/">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://svend.ai/blog/">
+    <meta property="og:title" content="Blog — Svend">
+    <meta property="og:description" content="Insights on statistical analysis, SPC, DOE, quality engineering, and decision science.">
+    <meta property="og:image" content="https://svend.ai/static/og-image.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0a0f0a;
+            --bg-secondary: #0d120d;
+            --bg-card: #0f150f;
+            --accent-primary: #4a9f6e;
+            --accent-primary-dim: rgba(74, 159, 110, 0.15);
+            --accent-primary-border: rgba(74, 159, 110, 0.3);
+            --text-primary: #e8efe8;
+            --text-secondary: #9aaa9a;
+            --text-dim: #7a8f7a;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Nav */
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .nav .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 24px; align-items: center; }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text-primary); }
+        .nav-btn {
+            background: var(--accent-primary) !important;
+            color: var(--bg-primary) !important;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        /* Header */
+        .blog-header {
+            text-align: center;
+            padding: 60px 20px 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .blog-header h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .blog-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Posts grid */
+        .posts {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .post-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(74, 159, 110, 0.15);
+            border-radius: 8px;
+            padding: 28px 32px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .post-card:hover {
+            border-color: var(--accent-primary-border);
+            transform: translateY(-2px);
+        }
+        .post-card a {
+            text-decoration: none;
+            color: inherit;
+        }
+        .post-card h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        .post-card .meta {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+        .post-card .excerpt {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-dim);
+            font-size: 1rem;
+        }
+
+        /* Footer */
+        .blog-footer {
+            text-align: center;
+            padding: 40px 20px;
+            border-top: 1px solid rgba(74, 159, 110, 0.1);
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+        .blog-footer a { color: var(--accent-primary); text-decoration: none; }
+
+        @media (max-width: 768px) {
+            .nav { padding: 16px 20px; }
+            .blog-header h1 { font-size: 1.8rem; }
+            .post-card { padding: 20px 24px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="logo">SVEND</a>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/blog/" style="color:var(--text-primary);font-weight:500;">Blog</a>
+            <a href="/login/">Login</a>
+            <a href="/register/" class="nav-btn">Get Started</a>
+        </div>
+    </nav>
+
+    <div class="blog-header">
+        <h1>Blog</h1>
+        <p>Practical guides on statistical analysis, SPC, DOE, and quality engineering.</p>
+    </div>
+
+    <div class="posts">
+        {% for post in posts %}
+        <article class="post-card">
+            <a href="/blog/{{ post.slug }}/">
+                <h2>{{ post.title }}</h2>
+                <div class="meta">{{ post.published_at|date:"F j, Y" }}</div>
+                {% if post.meta_description %}
+                <p class="excerpt">{{ post.meta_description }}</p>
+                {% endif %}
+            </a>
+        </article>
+        {% empty %}
+        <div class="empty-state">
+            <p>No posts yet. Check back soon for insights on statistical analysis and quality engineering.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <footer class="blog-footer">
+        <a href="/">Svend</a> &middot; Statistical Analysis & Decision Science &middot; <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a>
+    </footer>
+</body>
+</html>

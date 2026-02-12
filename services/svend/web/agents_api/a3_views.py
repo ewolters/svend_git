@@ -61,7 +61,7 @@ def create_a3_report(request):
     try:
         project = Project.objects.get(id=project_id, user=request.user)
     except Project.DoesNotExist:
-        return JsonResponse({"error": "Project not found"}, status=404)
+        return JsonResponse({"error": "Study not found"}, status=404)
 
     title = data.get("title", "Untitled A3")
 
@@ -249,7 +249,7 @@ def import_to_a3(request, report_id):
 
     elif source_type == "project":
         # Import project description
-        content = f"**Project:** {report.project.title}\n\n{report.project.description or ''}"
+        content = f"**Study:** {report.project.title}\n\n{report.project.description or ''}"
         import_ref["summary"] = report.project.title
 
     elif source_type == "dsw":

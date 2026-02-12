@@ -13,6 +13,8 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <!-- Chart.js for visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- SmilesDrawer for chemical structures -->
     <script src="https://unpkg.com/smiles-drawer@2.1.5/dist/smiles-drawer.min.js"></script>
     <script>
@@ -787,7 +789,7 @@
                     <span class="logo-text">SVEND</span>
                 </a>
                 <nav>
-                    <a href="/app/projects/">Projects</a>
+                    <a href="/app/projects/">Studies</a>
                     <div class="nav-dropdown">
                         <span class="nav-dropdown-trigger">Analysis</span>
                         <div class="nav-dropdown-menu">
@@ -993,6 +995,40 @@
         }
 
         checkAuth();
+    </script>
+
+    <!-- Event Tracking -->
+    <script>
+    (function() {
+        const SK = 'svend_sid';
+        if (!sessionStorage.getItem(SK)) sessionStorage.setItem(SK, crypto.randomUUID());
+
+        window.svendTrack = function(eventType, data) {
+            data = data || {};
+            fetch('/api/events/', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    event_type: eventType,
+                    category: data.category || '',
+                    action: data.action || '',
+                    label: data.label || '',
+                    page: window.location.pathname,
+                    session_id: sessionStorage.getItem(SK),
+                    metadata: data.metadata || null,
+                }),
+            }).catch(function(){});
+        };
+
+        window.addEventListener('svendUserReady', function() {
+            svendTrack('page_view', {category: document.title});
+            if (!sessionStorage.getItem('svend_sl')) {
+                svendTrack('session_start');
+                sessionStorage.setItem('svend_sl', '1');
+            }
+        });
+    })();
     </script>
 
     <!-- SVEND Visualization Module -->

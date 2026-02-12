@@ -183,6 +183,9 @@ class User(AbstractUser):
     # Halloween/seasonal (for your mockup!)
     current_theme = models.CharField(max_length=50, blank=True)  # "halloween", "winter", etc.
 
+    # Onboarding
+    onboarding_completed_at = models.DateTimeField(null=True, blank=True)
+
     # Email verification
     email_verified = models.BooleanField(default=False)
     email_verification_token = models.CharField(max_length=64, blank=True, db_index=True)

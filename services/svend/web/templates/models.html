@@ -351,6 +351,7 @@
             if (response.ok) {
                 document.getElementById('predictions-output').textContent = JSON.stringify(data.predictions, null, 2);
                 document.getElementById('inference-results').style.display = 'block';
+                svendTrack('feature_use', {category: 'models', action: 'inference'});
             } else {
                 alert('Error: ' + (data.error || 'Inference failed'));
             }

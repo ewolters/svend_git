@@ -4042,6 +4042,7 @@ async function completeSection() {
         });
 
         if (response.ok) {
+            svendTrack('feature_use', {category: 'learn', action: 'complete_section', label: currentSection.id});
             const btn = document.getElementById('complete-section-btn');
             btn.textContent = 'Completed!';
             btn.disabled = true;

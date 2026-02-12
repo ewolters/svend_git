@@ -13,10 +13,10 @@
                 </svg>
             </button>
             <div class="wb-project-selector">
-                <select class="wb-project-select" id="project-select" title="Link to project">
-                    <option value="">No project</option>
+                <select class="wb-project-select" id="project-select" title="Link to study">
+                    <option value="">No study</option>
                 </select>
-                <a href="#" class="wb-project-link" id="project-link" style="display:none" title="Open project">
+                <a href="#" class="wb-project-link" id="project-link" style="display:none" title="Open study">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                         <polyline points="15 3 21 3 21 9"/>
@@ -3795,6 +3795,7 @@ async function runStatsAnalysis(analysisType, analysisId, config, outputTitle) {
         showLoading(false);
         if (data.error) { alert(data.error); return; }
         renderStatsOutput(data, outputTitle);
+        svendTrack('feature_use', {category: 'dsw', action: analysisId, label: outputTitle});
     } catch (err) { showLoading(false); alert('Analysis failed: ' + err.message); }
 }
 

@@ -1,6 +1,6 @@
 # SVEND Agents
 
-Multi-agent service with documented outputs. $5/month.
+Multi-agent service with documented outputs. From $19/month.
 
 **Philosophy:** The LLM executes tasks. The tools provide value. Deterministic outputs you can trust.
 
@@ -725,9 +725,9 @@ Optional:
 
 ---
 
-## Alpha Notes
+## Production Notes
 
-This is an alpha release. Working features:
+Working features:
 - [x] All 6 agents functional
 - [x] Real search APIs (arXiv, Semantic Scholar, Brave)
 - [x] Custom templates and voice matching

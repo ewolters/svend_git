@@ -385,12 +385,12 @@
     <!-- Toolbar -->
     <div class="a3-toolbar">
         <div class="a3-toolbar-group">
-            <a id="back-link" href="/app/projects/" class="a3-btn">Back to Projects</a>
+            <a id="back-link" href="/app/projects/" class="a3-btn">Back to Studies</a>
         </div>
 
         <div class="a3-toolbar-group">
             <select id="project-select" class="a3-btn" onchange="loadProject(this.value)">
-                <option value="">Select Project...</option>
+                <option value="">Select Study...</option>
             </select>
         </div>
 
@@ -606,7 +606,7 @@ async function loadProjects() {
         const data = await resp.json();
 
         const select = document.getElementById('project-select');
-        select.innerHTML = '<option value="">Select Project...</option>';
+        select.innerHTML = '<option value="">Select Study...</option>';
         (data.results || data).forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
@@ -705,8 +705,9 @@ async function saveReport(quiet = false) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        if (resp.ok && !quiet) {
-            alert('Saved!');
+        if (resp.ok) {
+            svendTrack('feature_use', {category: 'a3', action: 'save_report'});
+            if (!quiet) alert('Saved!');
         }
     } catch (e) {
         console.error('Save failed:', e);

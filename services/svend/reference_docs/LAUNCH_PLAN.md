@@ -119,9 +119,11 @@ DM for access.
 ### Pricing
 | Tier | Price | Limit |
 |------|-------|-------|
-| Free | $0 | 5 queries/day |
-| Student | $5/mo | Unlimited |
-| Annual | $40/yr | Unlimited (save 33%) |
+| Free | $0 | 5 analyses/day |
+| Founder | $19/mo | Unlimited |
+| Pro | $29/mo | Unlimited + API |
+| Team | $79/mo | 5 seats |
+| Enterprise | $199/mo | 5000 analyses/day |
 
 ### Marketing Channels
 | Channel | Effort | Expected Reach |
@@ -265,10 +267,10 @@ Cost: ~$100-200/mo
 ## Timeline Summary
 
 ```
-Week 0     : Model trained ← YOU ARE HERE
+Week 0     : Model trained
 Week 1-2   : Alpha (friends testing)
-Week 3-6   : Private beta (100-500 users, $2/mo)
-Week 7-12  : Public launch ($5/mo)
+Week 3-6   : Private beta
+Feb 2026   : Public launch (from $19/mo) ← DONE
 Month 6-12 : Scale to 4000 users
 ```
 

@@ -376,7 +376,7 @@ Project (uuid)
 ## Production Environment
 
 - **This machine is production.** Do not restructure, rename, or move files without explicit approval.
-- **Database:** SQLite (on this machine)
+- **Database:** PostgreSQL (on this machine)
 - **Server:** Gunicorn behind Cloudflare Tunnel
 - **Git is the safety net.** Always commit before making changes.
 - **All changes logged** in `log.md` at the root.
@@ -390,7 +390,7 @@ Project (uuid)
 
 1. Check gunicorn logs: `journalctl -u gunicorn` or process output
 2. If Django import error: fix the import, reload gunicorn (`kill -HUP`)
-3. If data issue: check SQLite directly
+3. If data issue: check PostgreSQL (`psql -h 127.0.0.1 -U svend -d svend`)
 4. Document the incident in `log.md`
 5. If severe: `git stash` or `git checkout` to revert
 

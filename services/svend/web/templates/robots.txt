@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /blog/
+Allow: /privacy/
+Allow: /terms/
+
+Disallow: /app/
+Disallow: /api/
+Disallow: /admin/
+Disallow: /login/
+Disallow: /register/
+Disallow: /internal/
+
+Sitemap: https://svend.ai/sitemap.xml

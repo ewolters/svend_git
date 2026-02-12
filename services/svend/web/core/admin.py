@@ -1,5 +1,47 @@
 from django.contrib import admin
-from .models import Project, Hypothesis, Evidence, EvidenceLink, Dataset, ExperimentDesign
+from .models import (
+    Tenant, Membership, OrgInvitation,
+    Project, Hypothesis, Evidence, EvidenceLink, Dataset, ExperimentDesign,
+)
+
+
+class MembershipInline(admin.TabularInline):
+    model = Membership
+    extra = 0
+    fields = ['user', 'role', 'is_active', 'joined_at']
+    readonly_fields = ['joined_at']
+
+
+class OrgInvitationInline(admin.TabularInline):
+    model = OrgInvitation
+    extra = 0
+    fields = ['email', 'role', 'status', 'invited_by', 'created_at', 'expires_at']
+    readonly_fields = ['token', 'created_at']
+
+
+@admin.register(Tenant)
+class TenantAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'plan', 'member_count', 'max_members', 'is_active', 'created_at']
+    list_filter = ['plan', 'is_active']
+    search_fields = ['name', 'slug']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    inlines = [MembershipInline, OrgInvitationInline]
+
+
+@admin.register(Membership)
+class MembershipAdmin(admin.ModelAdmin):
+    list_display = ['user', 'tenant', 'role', 'is_active', 'joined_at']
+    list_filter = ['role', 'is_active']
+    search_fields = ['user__email', 'tenant__name']
+    readonly_fields = ['id', 'invited_at']
+
+
+@admin.register(OrgInvitation)
+class OrgInvitationAdmin(admin.ModelAdmin):
+    list_display = ['email', 'tenant', 'role', 'status', 'invited_by', 'created_at', 'expires_at']
+    list_filter = ['status', 'role']
+    search_fields = ['email', 'tenant__name']
+    readonly_fields = ['id', 'token', 'created_at']
 
 
 @admin.register(Project)

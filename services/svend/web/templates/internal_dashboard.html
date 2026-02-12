@@ -303,6 +303,10 @@
     <button onclick="switchTab('performance')">Performance</button>
     <button onclick="switchTab('business')">Business</button>
     <button onclick="switchTab('insights')">AI Insights</button>
+    <button onclick="switchTab('activity')">Activity</button>
+    <button onclick="switchTab('email')">Email</button>
+    <button onclick="switchTab('content')">Content</button>
+    <button onclick="switchTab('onboarding')">Onboarding</button>
 </div>
 
 <!-- Tab: Users -->
@@ -382,6 +386,210 @@
             <button onclick="sendInsight()" id="insights-send">Analyze</button>
         </div>
         <div id="insights-output" class="insights-response" style="display:none;"></div>
+    </div>
+</div>
+
+<!-- Tab: Activity -->
+<div class="tab-content" id="tab-activity">
+    <div class="chart-grid">
+        <div class="chart-card full-width"><h3>Daily Active Sessions</h3><canvas id="chart-sessions"></canvas></div>
+        <div class="chart-card"><h3>Page Popularity</h3><canvas id="chart-pages"></canvas></div>
+        <div class="chart-card"><h3>Feature Usage</h3><canvas id="chart-feature-use"></canvas></div>
+        <div class="chart-card full-width"><h3>Feature Use Over Time</h3><canvas id="chart-daily-features"></canvas></div>
+        <div class="chart-card full-width">
+            <h3>Totals</h3>
+            <div class="stat-row" style="border-top:none;padding-top:0;justify-content:center;">
+                <div class="stat-item"><div class="stat-val" id="stat-total-events">—</div><div class="stat-lbl">Events</div></div>
+                <div class="stat-item"><div class="stat-val" id="stat-total-pageviews">—</div><div class="stat-lbl">Page Views</div></div>
+                <div class="stat-item"><div class="stat-val" id="stat-total-features">—</div><div class="stat-lbl">Feature Uses</div></div>
+                <div class="stat-item"><div class="stat-val" id="stat-total-sessions">—</div><div class="stat-lbl">Sessions</div></div>
+            </div>
+        </div>
+        <div class="chart-card full-width">
+            <h3>Recent User Journeys</h3>
+            <div id="activity-journeys" style="font-size:0.85rem;color:var(--text-secondary);max-height:400px;overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Email -->
+<div class="tab-content" id="tab-email">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <!-- Left: Compose -->
+        <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                <h3 style="margin:0;">Compose</h3>
+                <span id="email-draft-id" style="font-size:0.75rem;color:var(--text-dim);"></span>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:12px;">
+                <div style="flex:1;">
+                    <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">To</label>
+                    <select id="email-to" style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+                        <option value="all" style="color:#e8efe8;background:#121a12;">All customers</option>
+                        <option value="tier:free" style="color:#e8efe8;background:#121a12;">Free tier</option>
+                        <option value="tier:founder" style="color:#e8efe8;background:#121a12;">Founders</option>
+                        <option value="tier:pro" style="color:#e8efe8;background:#121a12;">Pro</option>
+                        <option value="tier:team" style="color:#e8efe8;background:#121a12;">Team</option>
+                        <option value="tier:enterprise" style="color:#e8efe8;background:#121a12;">Enterprise</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Or custom address</label>
+                    <input id="email-custom-to" type="email" placeholder="someone@example.com" style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+                </div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Subject</label>
+                <input id="email-subject" type="text" placeholder="Email subject..." style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Body (Markdown — supports &#123;&#123;firstname&#125;&#125;, &#123;&#123;name&#125;&#125;, &#123;&#123;email&#125;&#125;, &#123;&#123;tier&#125;&#125;)</label>
+                <textarea id="email-body" rows="14" placeholder="Write your email in markdown..." oninput="updateEmailPreview()" style="width:100%;padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button onclick="confirmSendEmail(false)" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Send</button>
+                <button onclick="confirmSendEmail(true)" style="padding:8px 20px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;">Test (to me)</button>
+                <button onclick="saveEmailDraft()" style="padding:8px 16px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.85rem;">Save Draft</button>
+                <button onclick="resetEmailForm()" style="padding:8px 16px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);cursor:pointer;font-size:0.85rem;">New</button>
+                <span id="email-status" style="font-size:0.85rem;"></span>
+            </div>
+            <!-- Saved Drafts -->
+            <div style="margin-top:16px;">
+                <h4 style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;">Saved Drafts</h4>
+                <div id="email-drafts-list" style="max-height:200px;overflow-y:auto;font-size:0.85rem;color:var(--text-dim);">No drafts.</div>
+            </div>
+        </div>
+        <!-- Right: Branded preview -->
+        <div>
+            <h3 style="margin-bottom:1rem;">Preview</h3>
+            <div id="email-preview" style="background:#f4f7f4;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+                <div style="background:#1a2a1a;padding:16px 24px;">
+                    <span style="color:#4a9f6e;font-size:16px;font-weight:600;letter-spacing:1px;">SVEND</span>
+                </div>
+                <div id="email-preview-body" style="padding:24px;color:#1a1a1a;font-size:13px;line-height:1.7;background:#ffffff;min-height:200px;">
+                    <span style="color:#999;">Your email preview will appear here...</span>
+                </div>
+                <div style="padding:12px 24px;border-top:1px solid #e8efe8;color:#7a8f7a;font-size:11px;">
+                    SVEND &middot; Decision Science Workbench &middot; svend.ai
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Campaign History -->
+    <div style="margin-top:24px;">
+        <h3 style="margin-bottom:12px;">Campaign History</h3>
+        <div id="email-campaigns" style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);text-align:left;">
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;">Date</th>
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;">Subject</th>
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;">To</th>
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Sent</th>
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Opened</th>
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Clicked</th>
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Open Rate</th>
+                    </tr>
+                </thead>
+                <tbody id="campaigns-tbody">
+                    <tr><td colspan="7" style="padding:16px;color:var(--text-dim);text-align:center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Content -->
+<div class="tab-content" id="tab-content">
+    <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;min-height:500px;">
+        <!-- Left: Post list + AI generator -->
+        <div>
+            <button onclick="newPost()" style="width:100%;padding:8px;margin-bottom:12px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">+ New Post</button>
+            <div style="margin-bottom:16px;">
+                <input id="gen-topic" placeholder="Topic for AI draft..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
+                <input id="gen-keywords" placeholder="SEO keywords..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
+                <button onclick="generateDraft()" id="gen-btn" style="width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.85rem;">Generate Draft</button>
+            </div>
+            <div id="post-list" style="max-height:400px;overflow-y:auto;"></div>
+        </div>
+        <!-- Right: Editor -->
+        <div id="editor-panel" style="display:none;">
+            <input id="ed-title" placeholder="Post title" style="width:100%;padding:10px;margin-bottom:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:1.1rem;font-weight:500;">
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                <input id="ed-slug" placeholder="slug" style="flex:1;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                <input id="ed-meta" placeholder="Meta description (160 chars)" maxlength="160" style="flex:2;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+                <textarea id="ed-body" rows="20" placeholder="Markdown body..." style="width:100%;padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;" oninput="updatePreview()"></textarea>
+                <div id="ed-preview" style="padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;overflow-y:auto;max-height:500px;font-size:0.85rem;color:var(--text-secondary);"></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button onclick="savePost()" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Save</button>
+                <button onclick="publishPost()" id="pub-btn" style="padding:8px 20px;background:transparent;border:1px solid var(--accent-primary);border-radius:6px;color:var(--accent-primary);cursor:pointer;">Publish</button>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <input id="ed-schedule" type="datetime-local" style="padding:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.8rem;">
+                    <button onclick="schedulePost()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">Schedule</button>
+                </div>
+                <button onclick="insertChart()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">+ Chart</button>
+                <span style="flex:1;"></span>
+                <button onclick="deletePost()" style="padding:6px 12px;background:transparent;border:1px solid rgba(232,90,90,0.3);border-radius:6px;color:#e85a5a;cursor:pointer;font-size:0.8rem;">Delete</button>
+                <span id="ed-status" style="font-size:0.8rem;color:var(--text-dim);"></span>
+            </div>
+        </div>
+    </div>
+    <!-- Blog Analytics -->
+    <div class="chart-grid" style="margin-top:24px;">
+        <div class="chart-card full-width" style="padding-bottom:0;">
+            <div class="stat-row" style="border-top:none;padding-top:0;justify-content:center;">
+                <div class="stat-item"><div class="stat-val" id="stat-blog-views">—</div><div class="stat-lbl">Views</div></div>
+                <div class="stat-item"><div class="stat-val" id="stat-blog-unique">—</div><div class="stat-lbl">Unique Visitors</div></div>
+                <div class="stat-item"><div class="stat-val" id="stat-blog-bots">—</div><div class="stat-lbl">Bot Hits</div></div>
+            </div>
+        </div>
+        <div class="chart-card full-width"><h3>Views Over Time</h3><canvas id="chart-blog-views"></canvas></div>
+        <div class="chart-card"><h3>Top Posts</h3><canvas id="chart-blog-top"></canvas></div>
+        <div class="chart-card"><h3>Traffic Sources</h3><canvas id="chart-blog-referrers"></canvas></div>
+    </div>
+</div>
+
+<!-- Tab: Onboarding -->
+<div class="tab-content" id="tab-onboarding">
+    <div class="chart-grid">
+        <div class="chart-card full-width">
+            <h3>Onboarding Funnel</h3>
+            <canvas id="chart-onb-funnel"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Completion Rate</h3>
+            <div id="onb-completion-rate" style="font-size:3rem;font-weight:600;text-align:center;padding:2rem 0;color:var(--accent);">--</div>
+            <div style="text-align:center;color:var(--text-secondary);font-size:0.85rem;">of registered users completed onboarding</div>
+        </div>
+        <div class="chart-card"><h3>Learning Paths</h3><canvas id="chart-onb-paths"></canvas></div>
+        <div class="chart-card"><h3>Primary Goals</h3><canvas id="chart-onb-goals"></canvas></div>
+        <div class="chart-card"><h3>Experience Level</h3><canvas id="chart-onb-experience"></canvas></div>
+        <div class="chart-card"><h3>Industries (Onboarding)</h3><canvas id="chart-onb-industry"></canvas></div>
+        <div class="chart-card"><h3>Roles (Onboarding)</h3><canvas id="chart-onb-roles"></canvas></div>
+        <div class="chart-card"><h3>Tools Currently Used</h3><canvas id="chart-onb-tools"></canvas></div>
+        <div class="chart-card"><h3>Avg Confidence</h3>
+            <div id="onb-confidence" style="font-size:2.5rem;font-weight:600;text-align:center;padding:1.5rem 0;color:var(--accent);">--</div>
+            <div style="text-align:center;color:var(--text-secondary);font-size:0.8rem;">out of 5</div>
+        </div>
+        <div class="chart-card"><h3>Avg Urgency</h3>
+            <div id="onb-urgency" style="font-size:2.5rem;font-weight:600;text-align:center;padding:1.5rem 0;color:var(--accent);">--</div>
+            <div style="text-align:center;color:var(--text-secondary);font-size:0.8rem;">out of 5</div>
+        </div>
+        <div class="chart-card full-width">
+            <h3>Email Drip Stats</h3>
+            <canvas id="chart-onb-emails"></canvas>
+        </div>
+        <div class="chart-card full-width">
+            <h3>Completions Over Time</h3>
+            <canvas id="chart-onb-completions"></canvas>
+        </div>
+        <div class="chart-card full-width">
+            <h3>Biggest Challenges (Recent)</h3>
+            <div id="onb-challenges" style="font-size:0.85rem;color:var(--text-secondary);max-height:300px;overflow-y:auto;"></div>
+        </div>
     </div>
 </div>
 
@@ -841,6 +1049,10 @@ const loaders = {
     performance: loadPerformance,
     business: loadBusiness,
     insights: () => {},  // No auto-load
+    activity: loadActivity,
+    email: loadEmail,
+    content: loadContent,
+    onboarding: loadOnboarding,
 };
 
 function switchTab(tab) {
@@ -872,6 +1084,650 @@ function setDays(d) {
 
     loadKPIs();
     switchTab(activeTab);
+}
+
+// =========================================================================
+// Tab: Activity
+// =========================================================================
+async function loadActivity() {
+    const data = await apiFetch('activity');
+
+    // Totals
+    document.getElementById('stat-total-events').textContent = (data.totals.events || 0).toLocaleString();
+    document.getElementById('stat-total-pageviews').textContent = (data.totals.page_views || 0).toLocaleString();
+    document.getElementById('stat-total-features').textContent = (data.totals.feature_uses || 0).toLocaleString();
+    document.getElementById('stat-total-sessions').textContent = (data.totals.unique_sessions || 0).toLocaleString();
+
+    // Daily sessions
+    if (data.daily_sessions.length) {
+        makeChart('chart-sessions', {
+            type: 'line',
+            data: {
+                labels: data.daily_sessions.map(d => d.date),
+                datasets: [{ label: 'Sessions', data: data.daily_sessions.map(d => d.count), borderColor: cc(0), backgroundColor: cca(0, 0.15), fill: true, tension: 0.3 }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Page popularity
+    if (data.page_views.length) {
+        makeChart('chart-pages', {
+            type: 'bar',
+            data: {
+                labels: data.page_views.map(p => p.page || '(unknown)'),
+                datasets: [{ data: data.page_views.map(p => p.count), backgroundColor: data.page_views.map((_, i) => cc(i)) }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Feature usage
+    if (data.feature_use.length) {
+        makeChart('chart-feature-use', {
+            type: 'bar',
+            data: {
+                labels: data.feature_use.map(f => `${f.category}/${f.action}`),
+                datasets: [{ data: data.feature_use.map(f => f.count), backgroundColor: data.feature_use.map((_, i) => cc(i)) }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Daily features
+    if (data.daily_features.length) {
+        makeChart('chart-daily-features', {
+            type: 'line',
+            data: {
+                labels: data.daily_features.map(d => d.date),
+                datasets: [{ label: 'Feature Uses', data: data.daily_features.map(d => d.count), borderColor: cc(1), backgroundColor: cca(1, 0.15), fill: true, tension: 0.3 }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Journeys
+    const jDiv = document.getElementById('activity-journeys');
+    if (data.journeys.length) {
+        jDiv.innerHTML = data.journeys.map(j => {
+            const evts = j.events.map(e =>
+                `<span style="display:inline-block;padding:2px 6px;margin:2px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;font-size:0.75rem;">${e.category || e.type}${e.action ? ':' + e.action : ''}</span>`
+            ).join('');
+            return `<div style="margin-bottom:12px;"><strong>${j.username}</strong><br>${evts}</div>`;
+        }).join('');
+    } else {
+        jDiv.innerHTML = '<p style="opacity:0.5;">No activity yet.</p>';
+    }
+}
+
+// =========================================================================
+// Tab: Email
+// =========================================================================
+function updateEmailPreview() {
+    const body = document.getElementById('email-body').value;
+    const previewBody = document.getElementById('email-preview-body');
+    if (!body.trim()) {
+        previewBody.innerHTML = '<span style="color:#999;">Your email preview will appear here...</span>';
+        return;
+    }
+    // Render markdown to HTML
+    let html;
+    if (typeof marked !== 'undefined') {
+        html = marked.parse(body);
+    } else {
+        html = body
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:#4a9f6e;">$1</a>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+        html = '<p>' + html + '</p>';
+    }
+    // Show personalization placeholders as sample values
+    html = html
+        .replace(/\{\{name\}\}/g, '<strong>Alex</strong>')
+        .replace(/\{\{firstname\}\}/g, '<strong>Alex</strong>')
+        .replace(/\{\{email\}\}/g, 'alex@example.com')
+        .replace(/\{\{tier\}\}/g, 'free');
+    previewBody.innerHTML = html;
+}
+
+function confirmSendEmail(testMode) {
+    if (testMode) {
+        sendEmail(true);
+        return;
+    }
+    const to = document.getElementById('email-custom-to').value.trim() || document.getElementById('email-to').value;
+    const label = to.includes('@') ? to : to === 'all' ? 'ALL customers' : to.replace('tier:', '') + ' tier users';
+    if (!confirm(`Send this email to ${label}?`)) return;
+    sendEmail(false);
+}
+
+async function sendEmail(testMode) {
+    const customTo = document.getElementById('email-custom-to').value.trim();
+    const to = customTo || document.getElementById('email-to').value;
+    const subject = document.getElementById('email-subject').value.trim();
+    const body = document.getElementById('email-body').value.trim();
+    const statusEl = document.getElementById('email-status');
+
+    if (!subject || !body) {
+        statusEl.style.display = 'inline';
+        statusEl.style.color = 'var(--error)';
+        statusEl.textContent = 'Subject and body are required.';
+        return;
+    }
+
+    statusEl.style.display = 'inline';
+    statusEl.style.color = 'var(--text-dim)';
+    statusEl.textContent = 'Sending...';
+
+    try {
+        const resp = await fetch('/api/internal/send-email/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ to, subject, body, test: testMode }),
+            credentials: 'include',
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            statusEl.style.color = 'var(--accent-primary)';
+            statusEl.textContent = `Sent: ${data.sent}, Failed: ${data.failed || 0}`;
+            loadEmailCampaigns();
+        } else {
+            statusEl.style.color = 'var(--error)';
+            statusEl.textContent = data.error || 'Send failed.';
+        }
+    } catch (e) {
+        statusEl.style.color = 'var(--error)';
+        statusEl.textContent = 'Connection error.';
+    }
+}
+
+let currentDraftId = null;
+
+async function saveEmailDraft() {
+    const statusEl = document.getElementById('email-status');
+    const payload = {
+        id: currentDraftId,
+        to: document.getElementById('email-to').value,
+        custom_to: document.getElementById('email-custom-to').value,
+        subject: document.getElementById('email-subject').value,
+        body: document.getElementById('email-body').value,
+    };
+    try {
+        const resp = await fetch('/api/internal/email-draft/save/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify(payload),
+            credentials: 'include',
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            currentDraftId = data.id;
+            document.getElementById('email-draft-id').textContent = 'Draft: ' + data.id;
+            statusEl.style.display = 'inline';
+            statusEl.style.color = 'var(--accent-primary)';
+            statusEl.textContent = 'Draft saved.';
+            loadEmailDrafts();
+        }
+    } catch (e) {
+        statusEl.style.display = 'inline';
+        statusEl.style.color = 'var(--error)';
+        statusEl.textContent = 'Save failed.';
+    }
+}
+
+function resetEmailForm() {
+    currentDraftId = null;
+    document.getElementById('email-to').value = 'all';
+    document.getElementById('email-custom-to').value = '';
+    document.getElementById('email-subject').value = '';
+    document.getElementById('email-body').value = '';
+    document.getElementById('email-status').style.display = 'none';
+    document.getElementById('email-draft-id').textContent = '';
+    updateEmailPreview();
+}
+
+function loadDraftIntoForm(draft) {
+    currentDraftId = draft.id;
+    document.getElementById('email-to').value = draft.to || 'all';
+    document.getElementById('email-custom-to').value = draft.custom_to || '';
+    document.getElementById('email-subject').value = draft.subject || '';
+    document.getElementById('email-body').value = draft.body || '';
+    document.getElementById('email-draft-id').textContent = 'Draft: ' + draft.id;
+    document.getElementById('email-status').style.display = 'none';
+    updateEmailPreview();
+}
+
+async function deleteDraft(draftId) {
+    await fetch('/api/internal/email-draft/?id=' + draftId, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCSRF() },
+        credentials: 'include',
+    });
+    if (currentDraftId === draftId) resetEmailForm();
+    loadEmailDrafts();
+}
+
+async function loadEmailDrafts() {
+    try {
+        const resp = await fetch('/api/internal/email-draft/', { credentials: 'include' });
+        const data = await resp.json();
+        const el = document.getElementById('email-drafts-list');
+        const drafts = data.drafts || [];
+        if (!drafts.length) {
+            el.innerHTML = '<span style="color:var(--text-dim);">No drafts.</span>';
+            return;
+        }
+        el.innerHTML = drafts.map(d => {
+            const title = d.subject || '(no subject)';
+            const date = d.updated_at ? new Date(d.updated_at).toLocaleDateString() : '';
+            const active = d.id === currentDraftId ? 'border-color:var(--accent-primary);' : '';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:8px;margin-bottom:4px;border:1px solid var(--border);border-radius:6px;cursor:pointer;${active}" onclick="loadDraftIntoForm(${JSON.stringify(d).replace(/"/g, '&quot;')})">
+                <div style="flex:1;overflow:hidden;">
+                    <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-primary);">${title}</div>
+                    <div style="font-size:0.75rem;color:var(--text-dim);">${d.to || 'all'} &middot; ${date}</div>
+                </div>
+                <button onclick="event.stopPropagation();deleteDraft('${d.id}')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.8rem;padding:4px;" title="Delete draft">&times;</button>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('Drafts load failed:', e);
+    }
+}
+
+async function loadEmailCampaigns() {
+    try {
+        const resp = await fetch('/api/internal/email-campaigns/?days=' + selectedDays, { credentials: 'include' });
+        const data = await resp.json();
+        const tbody = document.getElementById('campaigns-tbody');
+        if (!data.campaigns || !data.campaigns.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;color:var(--text-dim);text-align:center;">No campaigns sent yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.campaigns.map(c => {
+            const date = new Date(c.created_at).toLocaleDateString();
+            const target = c.is_test ? 'Test' : c.target;
+            return `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:8px;color:var(--text-secondary);">${date}</td>
+                <td style="padding:8px;color:var(--text-primary);">${c.subject}</td>
+                <td style="padding:8px;color:var(--text-secondary);">${target}</td>
+                <td style="padding:8px;text-align:center;">${c.sent}</td>
+                <td style="padding:8px;text-align:center;color:var(--accent-primary);">${c.opened}</td>
+                <td style="padding:8px;text-align:center;color:${cc(2)};">${c.clicked}</td>
+                <td style="padding:8px;text-align:center;">${c.open_rate}%</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.error('Campaigns load failed:', e);
+    }
+}
+
+async function loadEmail() {
+    await Promise.all([loadEmailDrafts(), loadEmailCampaigns()]);
+}
+
+// =========================================================================
+// Tab: Content (Blog Management)
+// =========================================================================
+let currentPostId = null;
+
+async function loadContent() {
+    const resp = await fetch('/api/internal/blog/', { credentials: 'include' });
+    const data = await resp.json();
+    renderPostList(data.posts);
+    loadBlogAnalytics();
+}
+
+async function loadBlogAnalytics() {
+    const resp = await fetch(`/api/internal/blog/analytics/?days=${selectedDays}`, { credentials: 'include' });
+    const data = await resp.json();
+
+    // Totals
+    document.getElementById('stat-blog-views').textContent = (data.totals.views || 0).toLocaleString();
+    document.getElementById('stat-blog-unique').textContent = (data.totals.unique_visitors || 0).toLocaleString();
+    document.getElementById('stat-blog-bots').textContent = (data.totals.bot_hits || 0).toLocaleString();
+
+    // Views over time (line chart — total + unique)
+    if (data.daily_views.length) {
+        makeChart('chart-blog-views', {
+            type: 'line',
+            data: {
+                labels: data.daily_views.map(d => d.date),
+                datasets: [
+                    { label: 'Total Views', data: data.daily_views.map(d => d.total), borderColor: cc(0), backgroundColor: cca(0, 0.15), fill: true, tension: 0.3 },
+                    { label: 'Unique Visitors', data: data.daily_views.map(d => d.unique), borderColor: cc(1), backgroundColor: cca(1, 0.1), fill: true, tension: 0.3 },
+                ]
+            }
+        });
+    }
+
+    // Top posts (horizontal bar)
+    if (data.top_posts.length) {
+        makeChart('chart-blog-top', {
+            type: 'bar',
+            data: {
+                labels: data.top_posts.map(p => p.title.length > 30 ? p.title.slice(0, 30) + '…' : p.title),
+                datasets: [
+                    { label: 'Views', data: data.top_posts.map(p => p.views), backgroundColor: cc(0) },
+                    { label: 'Unique', data: data.top_posts.map(p => p.unique), backgroundColor: cc(1) },
+                ]
+            },
+            options: { indexAxis: 'y' }
+        });
+    }
+
+    // Traffic sources (combined: direct + referrer domains)
+    if (data.referrers.length) {
+        makeChart('chart-blog-referrers', {
+            type: 'bar',
+            data: {
+                labels: data.referrers.map(r => r.domain),
+                datasets: [{ data: data.referrers.map(r => r.count), backgroundColor: data.referrers.map((_, i) => cc(i)) }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+}
+
+function statusBadge(status, scheduled_at) {
+    const colors = { draft: 'var(--text-dim)', published: 'var(--accent-primary)', scheduled: '#e8a94a' };
+    let label = status;
+    if (status === 'scheduled' && scheduled_at) label = 'scheduled ' + new Date(scheduled_at).toLocaleDateString();
+    return `<span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:${colors[status] || 'var(--text-dim)'}22;color:${colors[status] || 'var(--text-dim)'};">${label}</span>`;
+}
+
+function renderPostList(posts) {
+    const el = document.getElementById('post-list');
+    el.innerHTML = posts.map(p =>
+        `<div onclick="loadPost('${p.id}')" style="padding:8px;margin-bottom:4px;border:1px solid var(--border);border-radius:6px;cursor:pointer;${currentPostId === p.id ? 'border-color:var(--accent-primary);' : ''}">
+            <div style="font-size:0.85rem;font-weight:500;margin-bottom:2px;">${p.title || 'Untitled'}</div>
+            ${statusBadge(p.status, p.scheduled_at)}
+        </div>`
+    ).join('');
+}
+
+async function loadPost(id) {
+    currentPostId = id;
+    const resp = await fetch(`/api/internal/blog/${id}/`, { credentials: 'include' });
+    const post = await resp.json();
+    document.getElementById('ed-title').value = post.title || '';
+    document.getElementById('ed-slug').value = post.slug || '';
+    document.getElementById('ed-meta').value = post.meta_description || '';
+    document.getElementById('ed-body').value = post.body || '';
+    document.getElementById('ed-status').textContent = post.status;
+    document.getElementById('editor-panel').style.display = 'block';
+    updatePreview();
+    loadContent();
+}
+
+function newPost() {
+    currentPostId = null;
+    document.getElementById('ed-title').value = '';
+    document.getElementById('ed-slug').value = '';
+    document.getElementById('ed-meta').value = '';
+    document.getElementById('ed-body').value = '';
+    document.getElementById('ed-status').textContent = 'new';
+    document.getElementById('editor-panel').style.display = 'block';
+    updatePreview();
+}
+
+async function savePost() {
+    const payload = {
+        id: currentPostId,
+        title: document.getElementById('ed-title').value,
+        slug: document.getElementById('ed-slug').value,
+        meta_description: document.getElementById('ed-meta').value,
+        body: document.getElementById('ed-body').value,
+    };
+    const resp = await fetch('/api/internal/blog/save/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        currentPostId = data.id;
+        document.getElementById('ed-slug').value = data.slug;
+        document.getElementById('ed-status').textContent = 'saved';
+        loadContent();
+    }
+}
+
+async function publishPost() {
+    if (!currentPostId) return;
+    const resp = await fetch(`/api/internal/blog/${currentPostId}/publish/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'publish' }),
+        credentials: 'include',
+    });
+    if (resp.ok) { document.getElementById('ed-status').textContent = 'published'; loadContent(); }
+}
+
+async function schedulePost() {
+    if (!currentPostId) return;
+    const dt = document.getElementById('ed-schedule').value;
+    if (!dt) return;
+    const resp = await fetch(`/api/internal/blog/${currentPostId}/publish/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'schedule', scheduled_at: dt }),
+        credentials: 'include',
+    });
+    if (resp.ok) { document.getElementById('ed-status').textContent = 'scheduled'; loadContent(); }
+}
+
+async function deletePost() {
+    if (!currentPostId || !confirm('Delete this post?')) return;
+    await fetch(`/api/internal/blog/${currentPostId}/delete/`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCSRF() },
+        credentials: 'include',
+    });
+    currentPostId = null;
+    document.getElementById('editor-panel').style.display = 'none';
+    loadContent();
+}
+
+async function generateDraft() {
+    const topic = document.getElementById('gen-topic').value.trim();
+    const keywords = document.getElementById('gen-keywords').value.trim();
+    if (!topic) return;
+    const btn = document.getElementById('gen-btn');
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/internal/blog/generate/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ topic, keywords }),
+            credentials: 'include',
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            newPost();
+            document.getElementById('ed-title').value = data.title || topic;
+            document.getElementById('ed-meta').value = data.meta_description || '';
+            document.getElementById('ed-body').value = data.body || '';
+            updatePreview();
+        }
+    } finally {
+        btn.textContent = 'Generate Draft';
+        btn.disabled = false;
+    }
+}
+
+function insertChart() {
+    const ta = document.getElementById('ed-body');
+    const template = '\n```chart\n{\n  "type": "bar",\n  "caption": "Chart title",\n  "data": {\n    "labels": ["A", "B", "C"],\n    "datasets": [{"label": "Values", "data": [10, 20, 30]}]\n  }\n}\n```\n';
+    const pos = ta.selectionStart;
+    ta.value = ta.value.slice(0, pos) + template + ta.value.slice(pos);
+    updatePreview();
+}
+
+function updatePreview() {
+    const body = document.getElementById('ed-body').value;
+    const preview = document.getElementById('ed-preview');
+    if (typeof marked !== 'undefined') {
+        preview.innerHTML = marked.parse(body || '');
+    } else {
+        preview.textContent = body;
+    }
+}
+
+// =========================================================================
+// Tab: Onboarding
+// =========================================================================
+async function loadOnboarding() {
+    const data = await apiFetch('onboarding');
+
+    // Completion rate
+    document.getElementById('onb-completion-rate').textContent = data.completion_rate + '%';
+
+    // Confidence & urgency
+    document.getElementById('onb-confidence').textContent = data.averages.confidence || '--';
+    document.getElementById('onb-urgency').textContent = data.averages.urgency || '--';
+
+    // Funnel (horizontal bar)
+    const funnel = data.funnel;
+    makeChart('chart-onb-funnel', {
+        type: 'bar',
+        data: {
+            labels: ['Registered', 'Onboarded', 'Verified', 'First Query', 'Paid'],
+            datasets: [{
+                data: [funnel.registered, funnel.onboarded, funnel.verified, funnel.queried, funnel.paid],
+                backgroundColor: [cc(0), cc(1), cc(2), cc(3), cc(4)],
+            }]
+        },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+    });
+
+    // Learning paths (doughnut)
+    const paths = data.distributions.learning_path;
+    if (Object.keys(paths).length) {
+        makeChart('chart-onb-paths', {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(paths),
+                datasets: [{ data: Object.values(paths), backgroundColor: Object.keys(paths).map((_, i) => cc(i)) }]
+            }
+        });
+    }
+
+    // Goals
+    const goals = data.distributions.goal;
+    if (Object.keys(goals).length) {
+        makeChart('chart-onb-goals', {
+            type: 'bar',
+            data: {
+                labels: Object.keys(goals),
+                datasets: [{ data: Object.values(goals), backgroundColor: Object.keys(goals).map((_, i) => cc(i)) }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Experience
+    const exp = data.distributions.experience;
+    if (Object.keys(exp).length) {
+        makeChart('chart-onb-experience', {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(exp),
+                datasets: [{ data: Object.values(exp), backgroundColor: Object.keys(exp).map((_, i) => cc(i)) }]
+            }
+        });
+    }
+
+    // Industry
+    const ind = data.distributions.industry;
+    if (Object.keys(ind).length) {
+        makeChart('chart-onb-industry', {
+            type: 'bar',
+            data: {
+                labels: Object.keys(ind),
+                datasets: [{ data: Object.values(ind), backgroundColor: Object.keys(ind).map((_, i) => cc(i)) }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Roles
+    const roles = data.distributions.role;
+    if (Object.keys(roles).length) {
+        makeChart('chart-onb-roles', {
+            type: 'bar',
+            data: {
+                labels: Object.keys(roles),
+                datasets: [{ data: Object.values(roles), backgroundColor: Object.keys(roles).map((_, i) => cc(i)) }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Tools
+    const tools = data.distributions.tools;
+    if (Object.keys(tools).length) {
+        makeChart('chart-onb-tools', {
+            type: 'bar',
+            data: {
+                labels: Object.keys(tools),
+                datasets: [{ data: Object.values(tools), backgroundColor: Object.keys(tools).map((_, i) => cc(i)) }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Email stats (stacked bar)
+    const es = data.email_stats;
+    const emailKeys = Object.keys(es);
+    makeChart('chart-onb-emails', {
+        type: 'bar',
+        data: {
+            labels: emailKeys.map(k => k.replace('_', ' ')),
+            datasets: [
+                { label: 'Sent', data: emailKeys.map(k => es[k].sent), backgroundColor: cc(0) },
+                { label: 'Pending', data: emailKeys.map(k => es[k].pending), backgroundColor: cc(2) },
+                { label: 'Failed', data: emailKeys.map(k => es[k].failed), backgroundColor: '#e85a5a' },
+            ]
+        },
+        options: { scales: { x: { stacked: true }, y: { stacked: true } } }
+    });
+
+    // Completions over time
+    const comp = data.completions_over_time;
+    if (comp.length) {
+        makeChart('chart-onb-completions', {
+            type: 'line',
+            data: {
+                labels: comp.map(c => c.date),
+                datasets: [{
+                    label: 'Completions',
+                    data: comp.map(c => c.count),
+                    borderColor: cc(0),
+                    backgroundColor: cca(0, 0.15),
+                    fill: true,
+                    tension: 0.3,
+                }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    }
+
+    // Challenges
+    const challengesDiv = document.getElementById('onb-challenges');
+    if (data.challenges.length) {
+        challengesDiv.innerHTML = data.challenges.map((c, i) =>
+            `<div style="padding:8px 0;${i > 0 ? 'border-top:1px solid var(--border);' : ''}">${c}</div>`
+        ).join('');
+    } else {
+        challengesDiv.innerHTML = '<p style="padding:1rem;opacity:0.5;">No challenges reported yet.</p>';
+    }
 }
 
 // =========================================================================

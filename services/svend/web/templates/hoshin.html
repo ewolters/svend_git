@@ -356,6 +356,7 @@
 {% endblock %}
 
 {% block content %}
+{% verbatim %}
 <div class="hoshin-app">
     <!-- Header -->
     <div class="hoshin-header">
@@ -794,16 +795,9 @@
 
         <div class="formula-editor" style="margin-top:24px;">
             <h3 style="margin:0 0 12px;font-size:14px;color:var(--text-primary);">Formula Tester</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">Test custom formulas with sample values. Available variables: <code>baseline</code>, <code>actual</code>, <code>volume</code>, <code>sales</code>, <code>rate</code>, <code>variance</code></p>
-            <input class="formula-input" id="lib-formula" placeholder="e.g. (baseline - actual) * volume * rate" value="(baseline - actual) * volume * rate">
-            <div class="formula-test-grid">
-                <div><label>Baseline</label><input id="lib-baseline" type="number" value="20" step="any"></div>
-                <div><label>Actual</label><input id="lib-actual" type="number" value="15" step="any"></div>
-                <div><label>Volume</label><input id="lib-volume" type="number" value="10000" step="any"></div>
-                <div><label>Sales ($)</label><input id="lib-sales" type="number" value="0" step="any"></div>
-                <div><label>Rate ($/unit)</label><input id="lib-rate" type="number" value="0.25" step="any"></div>
-                <div><label>Variance (auto)</label><input id="lib-variance" disabled style="background:var(--bg-tertiary);"></div>
-            </div>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">Try a formula below. Use <code style="color:#a78bfa;">{{field_name}}</code> to create named inputs — they appear automatically as you type.</p>
+            <input class="formula-input" id="lib-formula" placeholder="e.g. ({{scrap_before}} - {{scrap_after}}) * {{units}} * {{cost}}" value="({{scrap_before}} - {{scrap_after}}) * {{units}} * {{cost}}" oninput="updateFormulaFields()">
+            <div class="formula-test-grid" id="lib-fields-grid"></div>
             <div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
                 <button class="btn-h primary" onclick="testFormula()">Test Formula</button>
                 <div class="formula-result" id="lib-result" style="flex:1;">Enter a formula and click Test</div>
@@ -930,9 +924,11 @@
         </div>
     </div>
 </div>
+{% endverbatim %}
 {% endblock %}
 
 {% block scripts %}
+{% verbatim %}
 <script>
 // ════════════════════════════════════════════════════════════════
 // DATA LAYER
@@ -1975,14 +1971,29 @@ function openMonthlyEditDetail(month) {
     const entry = (p.monthly_actuals || []).find(e => e.month === month) || {};
     document.getElementById('monthly-modal-title').textContent = `${MONTHS[month-1]} Data — ${p.project_title}`;
 
-    const isCustom = p.calculation_method === 'custom';
-    document.getElementById('monthly-form-body').innerHTML = `
-        <div class="hoshin-form" style="max-width:100%;">
+    const method = p.calculation_method || '';
+    const customFields = (method === 'custom' && p.custom_formula) ? extractFormulaFields(p.custom_formula) : [];
+    const customVars = entry.custom_vars || {};
+
+    let fieldsHtml = '';
+    if (customFields.length > 0) {
+        fieldsHtml = customFields.map(f => {
+            const label = f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const val = customVars[f] != null ? customVars[f] : '';
+            return `<div><label>${label}</label><input id="md-cf-${f}" type="number" step="any" value="${val}" class="md-custom-field" data-field="${f}"></div>`;
+        }).join('');
+    } else {
+        fieldsHtml = `
             <div><label>Baseline</label><input id="md-baseline" type="number" step="any" value="${entry.baseline || ''}"></div>
             <div><label>Actual</label><input id="md-actual" type="number" step="any" value="${entry.actual || ''}"></div>
             <div><label>Volume</label><input id="md-volume" type="number" step="any" value="${entry.volume || ''}"></div>
             <div><label>Cost/Unit</label><input id="md-cost" type="number" step="any" value="${entry.cost_per_unit || ''}"></div>
-            ${p.calculation_method === 'claims' ? `<div><label>Sales ($)</label><input id="md-sales" type="number" step="any" value="${entry.sales || ''}"></div>` : ''}
+            ${method === 'claims' ? `<div><label>Sales ($)</label><input id="md-sales" type="number" step="any" value="${entry.sales || ''}"></div>` : ''}`;
+    }
+
+    document.getElementById('monthly-form-body').innerHTML = `
+        <div class="hoshin-form" style="max-width:100%;">
+            ${fieldsHtml}
             <div class="full" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
                 <button class="btn-h secondary" onclick="closeModal('monthly-modal')">Cancel</button>
                 <button class="btn-h primary" onclick="saveMonthlyDataDetail(${month})">Save</button>
@@ -1992,12 +2003,26 @@ function openMonthlyEditDetail(month) {
 }
 
 async function saveMonthlyDataDetail(month) {
-    const body = {
-        baseline: parseFloat(document.getElementById('md-baseline').value) || 0,
-        actual: parseFloat(document.getElementById('md-actual').value) || 0,
-        volume: parseFloat(document.getElementById('md-volume').value) || 0,
-        cost_per_unit: parseFloat(document.getElementById('md-cost').value) || 0,
-    };
+    const p = currentDetailProject;
+    const method = p.calculation_method || '';
+    const customFields = (method === 'custom' && p.custom_formula) ? extractFormulaFields(p.custom_formula) : [];
+
+    const body = {};
+    if (customFields.length > 0) {
+        const custom_vars = {};
+        customFields.forEach(f => {
+            const el = document.getElementById(`md-cf-${f}`);
+            custom_vars[f] = el ? parseFloat(el.value) || 0 : 0;
+        });
+        body.custom_vars = custom_vars;
+        body.baseline = 0;
+        body.actual = 0;
+    } else {
+        body.baseline = parseFloat(document.getElementById('md-baseline').value) || 0;
+        body.actual = parseFloat(document.getElementById('md-actual').value) || 0;
+        body.volume = parseFloat(document.getElementById('md-volume').value) || 0;
+        body.cost_per_unit = parseFloat(document.getElementById('md-cost').value) || 0;
+    }
     const salesEl = document.getElementById('md-sales');
     if (salesEl) body.sales = parseFloat(salesEl.value) || 0;
 
@@ -2456,15 +2481,29 @@ function loadMonthData() {
     const p = currentDetailProject;
     const entry = (p.monthly_actuals || []).find(e => e.month === month) || {};
     const method = p.calculation_method || 'direct';
+    const customFields = (method === 'custom' && p.custom_formula) ? extractFormulaFields(p.custom_formula) : [];
+    const customVars = entry.custom_vars || {};
 
-    let formHtml = `<div class="hoshin-form" style="max-width:100%;">
+    let formHtml = `<div class="hoshin-form" style="max-width:100%;">`;
+
+    if (customFields.length > 0) {
+        // Custom {{field}} mode — show extracted fields as inputs
+        formHtml += customFields.map(f => {
+            const label = f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const val = customVars[f] != null ? customVars[f] : '';
+            return `<div><label>${label}</label><input id="cm-cf-${f}" type="number" step="any" value="${val}" class="cm-custom-field" data-field="${f}"></div>`;
+        }).join('');
+    } else {
+        // Standard fields
+        formHtml += `
         <div><label>Baseline Value</label><input id="cm-baseline" type="number" step="any" value="${entry.baseline || ''}"></div>
         <div><label>Actual Value</label><input id="cm-actual" type="number" step="any" value="${entry.actual || ''}"></div>
         <div><label>Volume</label><input id="cm-volume" type="number" step="any" value="${entry.volume || ''}"></div>
         <div><label>Cost/Unit ($)</label><input id="cm-cost" type="number" step="any" value="${entry.cost_per_unit || ''}"></div>`;
 
-    if (method === 'claims') {
-        formHtml += `<div><label>Sales ($)</label><input id="cm-sales" type="number" step="any" value="${entry.sales || ''}"></div>`;
+        if (method === 'claims') {
+            formHtml += `<div><label>Sales ($)</label><input id="cm-sales" type="number" step="any" value="${entry.sales || ''}"></div>`;
+        }
     }
 
     if (entry.savings != null) {
@@ -2479,12 +2518,27 @@ function loadMonthData() {
 }
 
 async function saveCalcMonth(month) {
-    const body = {
-        baseline: parseFloat(document.getElementById('cm-baseline').value) || 0,
-        actual: parseFloat(document.getElementById('cm-actual').value) || 0,
-        volume: parseFloat(document.getElementById('cm-volume').value) || 0,
-        cost_per_unit: parseFloat(document.getElementById('cm-cost').value) || 0,
-    };
+    const p = currentDetailProject;
+    const method = p.calculation_method || 'direct';
+    const customFields = (method === 'custom' && p.custom_formula) ? extractFormulaFields(p.custom_formula) : [];
+
+    const body = {};
+    if (customFields.length > 0) {
+        // Send custom {{field}} values
+        const custom_vars = {};
+        customFields.forEach(f => {
+            const el = document.getElementById(`cm-cf-${f}`);
+            custom_vars[f] = el ? parseFloat(el.value) || 0 : 0;
+        });
+        body.custom_vars = custom_vars;
+        body.baseline = 0;
+        body.actual = 0;
+    } else {
+        body.baseline = parseFloat(document.getElementById('cm-baseline').value) || 0;
+        body.actual = parseFloat(document.getElementById('cm-actual').value) || 0;
+        body.volume = parseFloat(document.getElementById('cm-volume').value) || 0;
+        body.cost_per_unit = parseFloat(document.getElementById('cm-cost').value) || 0;
+    }
     const salesEl = document.getElementById('cm-sales');
     if (salesEl) body.sales = parseFloat(salesEl.value) || 0;
 
@@ -2503,14 +2557,17 @@ function renderFormulaReference(p) {
 
     let html = '';
     if (method === 'custom' && p.custom_formula) {
+        const customFields = extractFormulaFields(p.custom_formula);
+        const fieldsHint = customFields.length > 0
+            ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${customFields.map(f => `<span style="padding:3px 8px;background:rgba(167,139,250,0.1);border-radius:4px;font-size:11px;color:#a78bfa;font-family:'JetBrains Mono',monospace;">{{${f}}}</span>`).join('')}</div>`
+            : `<p style="font-size:11px;color:var(--text-dim);margin:0 0 8px;">Tip: use <code style="color:#a78bfa;">{{field_name}}</code> to create named input fields</p>`;
         html = `
             <div style="margin-bottom:12px;">
                 <label style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:4px;">Custom Formula</label>
                 <input class="formula-input" id="calc-custom-formula" value="${p.custom_formula}" style="margin-bottom:4px;">
                 <input style="width:100%;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;" id="calc-custom-desc" placeholder="Description" value="${p.custom_formula_desc || ''}">
             </div>
-            <p style="font-size:11px;color:var(--text-dim);">Variables: <code>baseline</code>, <code>actual</code>, <code>volume</code>, <code>sales</code>, <code>rate</code>, <code>variance</code></p>
-            <p style="font-size:11px;color:var(--text-dim);">Functions: <code>abs()</code>, <code>min()</code>, <code>max()</code>, <code>round()</code>, <code>sqrt()</code>, <code>pow()</code></p>
+            ${fieldsHint}
             <div style="display:flex;gap:8px;margin-top:8px;">
                 <button class="btn-h primary small" onclick="saveCustomFormula()">Save Formula</button>
                 <button class="btn-h secondary small" onclick="testFormulaInline()">Test</button>
@@ -2550,18 +2607,28 @@ async function saveCustomFormula() {
 
 async function testFormulaInline() {
     const formula = document.getElementById('calc-custom-formula').value;
+    const fields = extractFormulaFields(formula);
+
+    // Build test variables: custom fields get sample value 100, legacy gets standard samples
+    const variables = {};
+    if (fields.length > 0) {
+        fields.forEach(f => { variables[f] = 100; });
+    } else {
+        Object.assign(variables, {baseline: 100, actual: 80, volume: 10000, sales: 500000, rate: 0.25});
+    }
+
     const result = await api('/test-formula/', {
         method: 'POST',
-        body: JSON.stringify({
-            formula: formula,
-            variables: {baseline: 100, actual: 80, volume: 10000, sales: 500000, rate: 0.25}
-        })
+        body: JSON.stringify({ formula, variables })
     });
 
     const el = document.getElementById('calc-formula-test-result');
+    const varsDesc = Object.entries(result.variables_used || variables)
+        .filter(([k]) => fields.length > 0 ? fields.includes(k) : true)
+        .map(([k, v]) => `${k}=${v}`).join(', ');
     if (result.success) {
         el.innerHTML = `<div class="formula-result positive" style="text-align:left;">Result: <strong>$${result.result.toLocaleString()}</strong>
-            <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">(baseline=100, actual=80, volume=10000, rate=0.25)</span></div>`;
+            <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">(${varsDesc})</span></div>`;
     } else {
         el.innerHTML = `<div class="formula-result negative" style="text-align:left;">Error: ${result.error}</div>`;
     }
@@ -2581,7 +2648,7 @@ function renderCalcLibrary() {
         material: '#4a9f6e', labor: '#3a7f8f', quality: '#e89547', other: '#aaa',
     };
 
-    const cards = calcMethods.map(m => `
+    const cards = calcMethods.filter(m => m.code !== 'custom').map(m => `
         <div class="calc-method-card">
             <div class="calc-method-header" onclick="this.nextElementSibling.classList.toggle('open')">
                 <div>
@@ -2611,46 +2678,87 @@ function renderCalcLibrary() {
                 <span style="color:var(--text-dim);font-size:18px;">&#x25BE;</span>
             </div>
             <div class="calc-method-body">
-                <div class="formula">(user-defined formula)</div>
-                <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px;">
-                    Define your own savings formula using arithmetic operators and built-in variables.
-                    Set <code>calculation_method</code> to "custom" on a project and define the formula.
+                <p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px;">
+                    Write your own savings formula when the built-in methods don't fit. Wrap variable names in double curly braces and they become input fields automatically.
                 </p>
-                <div class="variables">
-                    <span class="var-tag">baseline</span>
-                    <span class="var-tag">actual</span>
-                    <span class="var-tag">volume</span>
-                    <span class="var-tag">sales</span>
-                    <span class="var-tag">rate</span>
-                    <span class="var-tag">variance</span>
+                <div style="background:var(--bg-tertiary);border-radius:6px;padding:10px 14px;margin-bottom:10px;">
+                    <p style="font-size:11px;color:var(--text-dim);margin:0 0 6px;text-transform:uppercase;letter-spacing:0.5px;">How it works</p>
+                    <ol style="font-size:12px;color:var(--text-secondary);margin:0;padding-left:18px;line-height:1.6;">
+                        <li>Set a project's calculation method to <strong>Custom Formula</strong></li>
+                        <li>Enter a formula using <code style="color:#a78bfa;">{{field_name}}</code> for each variable</li>
+                        <li>When you enter monthly data, each <code style="color:#a78bfa;">{{field}}</code> appears as a labeled input</li>
+                    </ol>
                 </div>
-                <p style="font-size:11px;color:var(--text-dim);margin:8px 0 0;">
-                    Safe functions: <code>abs()</code>, <code>min()</code>, <code>max()</code>, <code>round()</code>, <code>sqrt()</code>, <code>pow()</code>
+                <div style="background:var(--bg-secondary);border-left:3px solid #a78bfa;border-radius:0 6px 6px 0;padding:8px 12px;margin-bottom:6px;">
+                    <p style="font-size:11px;color:var(--text-dim);margin:0 0 4px;">Example formula</p>
+                    <code style="font-size:13px;color:#a78bfa;">({{scrap_before}} - {{scrap_after}}) * {{units}} * {{cost_per_unit}}</code>
+                    <p style="font-size:11px;color:var(--text-dim);margin:4px 0 0;">Creates inputs: Scrap Before, Scrap After, Units, Cost Per Unit</p>
+                </div>
+                <p style="font-size:11px;color:var(--text-dim);margin:0;">
+                    Supports <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>**</code> and functions: <code>abs</code>, <code>min</code>, <code>max</code>, <code>round</code>, <code>sqrt</code>, <code>pow</code>
                 </p>
             </div>
         </div>`;
 
     document.getElementById('calc-library-list').innerHTML = cards + customCard;
+
+    // Render dynamic fields for the default formula in the tester
+    updateFormulaFields();
+}
+
+function extractFormulaFields(formula) {
+    const matches = formula.match(/\{\{(\w+)\}\}/g) || [];
+    return [...new Set(matches.map(m => m.replace(/\{\{|\}\}/g, '')))];
+}
+
+function updateFormulaFields() {
+    const formula = document.getElementById('lib-formula').value;
+    const fields = extractFormulaFields(formula);
+    const grid = document.getElementById('lib-fields-grid');
+
+    if (fields.length > 0) {
+        // Custom {{field}} mode — show extracted fields
+        grid.innerHTML = fields.map(f => {
+            const label = f.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            return `<div><label>${label}</label><input id="lib-cf-${f}" type="number" value="0" step="any" class="lib-custom-field" data-field="${f}"></div>`;
+        }).join('');
+    } else {
+        // Legacy mode — show built-in variable inputs
+        grid.innerHTML = `
+            <div><label>Baseline</label><input id="lib-baseline" type="number" value="20" step="any"></div>
+            <div><label>Actual</label><input id="lib-actual" type="number" value="15" step="any"></div>
+            <div><label>Volume</label><input id="lib-volume" type="number" value="10000" step="any"></div>
+            <div><label>Sales ($)</label><input id="lib-sales" type="number" value="0" step="any"></div>
+            <div><label>Rate ($/unit)</label><input id="lib-rate" type="number" value="0.25" step="any"></div>
+            <div><label>Variance (auto)</label><input id="lib-variance" disabled style="background:var(--bg-tertiary);"></div>`;
+    }
 }
 
 async function testFormula() {
     const formula = document.getElementById('lib-formula').value;
-    const baseline = parseFloat(document.getElementById('lib-baseline').value) || 0;
-    const actual = parseFloat(document.getElementById('lib-actual').value) || 0;
-    document.getElementById('lib-variance').value = (baseline - actual).toFixed(4);
+    const fields = extractFormulaFields(formula);
+
+    const variables = {};
+    if (fields.length > 0) {
+        // Gather values from dynamic custom field inputs
+        fields.forEach(f => {
+            const el = document.getElementById(`lib-cf-${f}`);
+            variables[f] = el ? parseFloat(el.value) || 0 : 0;
+        });
+    } else {
+        // Gather values from legacy built-in inputs
+        variables.baseline = parseFloat(document.getElementById('lib-baseline').value) || 0;
+        variables.actual = parseFloat(document.getElementById('lib-actual').value) || 0;
+        variables.volume = parseFloat(document.getElementById('lib-volume').value) || 0;
+        variables.sales = parseFloat(document.getElementById('lib-sales').value) || 0;
+        variables.rate = parseFloat(document.getElementById('lib-rate').value) || 0;
+        const varEl = document.getElementById('lib-variance');
+        if (varEl) varEl.value = (variables.baseline - variables.actual).toFixed(4);
+    }
 
     const result = await api('/test-formula/', {
         method: 'POST',
-        body: JSON.stringify({
-            formula: formula,
-            variables: {
-                baseline: baseline,
-                actual: actual,
-                volume: parseFloat(document.getElementById('lib-volume').value) || 0,
-                sales: parseFloat(document.getElementById('lib-sales').value) || 0,
-                rate: parseFloat(document.getElementById('lib-rate').value) || 0,
-            }
-        })
+        body: JSON.stringify({ formula, variables })
     });
 
     const el = document.getElementById('lib-result');
@@ -2728,4 +2836,5 @@ async function init() {
 
 init();
 </script>
+{% endverbatim %}
 {% endblock %}

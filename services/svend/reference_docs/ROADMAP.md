@@ -262,7 +262,7 @@ src/tools/
 ## Notes
 
 - Landing page: svend.ai
-- Target launch: May 2026
+- Launched February 2026, live in production
 - Core principle: **Make bullshit structurally impossible, domain by domain**
 
 ## Quick Commands

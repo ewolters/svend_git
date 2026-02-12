@@ -1294,6 +1294,14 @@ def org_remove_member(request, membership_id):
 
     target.is_active = False
     target.save()
+
+    # Remove a seat from the Stripe subscription
+    from accounts.billing import remove_org_seat
+    try:
+        remove_org_seat(request.org_tenant)
+    except Exception as e:
+        logger.warning(f"Failed to remove seat from billing: {e}")
+
     return Response({"success": True})
 
 
@@ -1320,21 +1328,6 @@ def org_invite(request):
 
     tenant = request.org_tenant
 
-    # Check seat limit
-    current_seats = tenant.member_count
-    pending_invites = OrgInvitation.objects.filter(
-        tenant=tenant, status=OrgInvitation.Status.PENDING
-    ).count()
-    if (current_seats + pending_invites) >= tenant.max_members:
-        return Response({
-            "error": "Seat limit reached",
-            "max_members": tenant.max_members,
-            "current": current_seats,
-            "pending": pending_invites,
-            "message": f"Your organization has {tenant.max_members} seats. "
-                       "Contact support to add more seats ($129/seat).",
-        }, status=400)
-
     # Check if already a member
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -1355,6 +1348,19 @@ def org_invite(request):
             "invite_id": str(existing_invite.id),
         }, status=400)
 
+    # Auto-expand: add a seat to the Stripe subscription (prorated charge)
+    import stripe
+    from accounts.billing import add_org_seat
+    try:
+        seat_qty = add_org_seat(tenant)
+    except stripe.error.StripeError as e:
+        logger.error(f"Seat billing failed for {tenant.name}: {e}")
+        return Response({
+            "error": "Payment failed — could not add seat",
+            "detail": str(e),
+            "message": "Please check the organization owner's payment method.",
+        }, status=402)
+
     invitation = OrgInvitation.objects.create(
         tenant=tenant,
         email=email,
@@ -1362,10 +1368,10 @@ def org_invite(request):
         invited_by=request.user,
     )
 
-    # TODO: Send invitation email with accept link
-    # For now, return the token so the admin can share it manually
     return Response({
         "success": True,
+        "seat_added": True,
+        "seat_count": seat_qty,
         "invitation": {
             "id": str(invitation.id),
             "email": invitation.email,
@@ -1417,6 +1423,14 @@ def org_cancel_invitation(request, invitation_id):
 
     invitation.status = OrgInvitation.Status.CANCELLED
     invitation.save()
+
+    # Release the seat from the Stripe subscription
+    from accounts.billing import remove_org_seat
+    try:
+        remove_org_seat(request.org_tenant)
+    except Exception as e:
+        logger.warning(f"Failed to remove seat from billing: {e}")
+
     return Response({"success": True})
 
 

@@ -1441,6 +1441,7 @@ async function evaluateChain() {
         if (data.error) {
             evalContainer.innerHTML = `<div class="rca-critique"><div class="rca-critique-text">Error: ${escapeHtml(data.error)}</div></div>`;
         } else {
+            svendTrack('feature_use', {category: 'rca', action: 'evaluate'});
             evalContainer.innerHTML = `
                 <div class="rca-evaluation">
                     <div class="rca-evaluation-header">

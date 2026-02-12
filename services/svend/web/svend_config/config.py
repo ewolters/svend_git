@@ -26,11 +26,10 @@ class Settings(BaseSettings):
     debug: bool = True
     secret_key: str = "change-me-in-production"
 
-    # Database (SQLite for dev, Postgres for prod)
-    # Postgres: postgresql://user:pass@localhost:5432/svend
+    # Database — PostgreSQL
     database_url: str = Field(
-        default="sqlite:///./db.sqlite3",
-        description="Database connection string",
+        default="postgresql://svend:svend_db_2026@127.0.0.1/svend",
+        description="PostgreSQL connection string",
     )
 
     # Stripe billing
@@ -44,7 +43,7 @@ class Settings(BaseSettings):
     )
     stripe_price_id_pro: str = Field(
         default="",
-        description="Stripe Price ID for Pro tier ($5/month)",
+        description="Stripe Price ID for Pro tier ($29/month)",
     )
 
     # Kjerne pipeline

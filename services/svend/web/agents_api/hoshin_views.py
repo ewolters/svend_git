@@ -26,6 +26,8 @@ from .hoshin_calculations import (
     calculate_savings,
     aggregate_monthly_savings,
     evaluate_custom_formula,
+    extract_formula_fields,
+    normalize_formula,
 )
 from core.models.project import Project
 from core.models.tenant import Tenant, Membership
@@ -395,6 +397,13 @@ def update_monthly_actual(request, hoshin_id, month):
         if field in data:
             entry[field] = float(data[field]) if data[field] is not None else None
 
+    # Store custom {{field}} variables
+    if "custom_vars" in data and isinstance(data["custom_vars"], dict):
+        entry["custom_vars"] = {
+            k: float(v) if v is not None else None
+            for k, v in data["custom_vars"].items()
+        }
+
     # Calculate savings if we have the data
     baseline = entry.get("baseline")
     actual = entry.get("actual")
@@ -406,6 +415,10 @@ def update_monthly_actual(request, hoshin_id, month):
         if hoshin.calculation_method == "custom" and hoshin.custom_formula:
             extra_kwargs["formula"] = hoshin.custom_formula
             extra_kwargs["sales"] = entry.get("sales", 0) or 0
+            # Pass any custom {{field}} variables stored on the entry
+            custom_vars = entry.get("custom_vars", {})
+            if custom_vars:
+                extra_kwargs["custom_vars"] = custom_vars
         result = calculate_savings(
             hoshin.calculation_method, baseline, actual,
             volume or 1, cost or 1, **extra_kwargs,
@@ -768,36 +781,47 @@ def list_calculation_methods(request):
 def test_formula(request):
     """Test a custom formula with sample variables.
 
+    Supports {{fieldname}} syntax — brackets are stripped before evaluation.
+
     Request body: {"formula": "...", "variables": {"baseline": 10, ...}}
-    Returns: {"result": float, "variables_used": {...}}
+    Returns: {"result": float, "variables_used": {...}, "fields": [...]}
     """
     data = json.loads(request.body)
     formula = data.get("formula", "").strip()
     if not formula:
         return JsonResponse({"error": "Formula is required"}, status=400)
 
+    # Extract {{field}} names so the frontend knows what inputs to show
+    fields = extract_formula_fields(formula)
+
     variables = data.get("variables", {})
-    # Ensure all standard variables have defaults
+    # Ensure all provided variables are floats
+    for k in list(variables.keys()):
+        try:
+            variables[k] = float(variables[k])
+        except (ValueError, TypeError):
+            variables[k] = 0
+
+    # Add defaults for legacy built-in names if not already provided
     defaults = {"baseline": 0, "actual": 0, "volume": 1, "sales": 0, "rate": 1, "variance": 0}
     for k, v in defaults.items():
         if k not in variables:
             variables[k] = v
-        else:
-            try:
-                variables[k] = float(variables[k])
-            except (ValueError, TypeError):
-                variables[k] = v
 
     # Auto-compute variance if not explicitly set
     if "variance" not in data.get("variables", {}):
         variables["variance"] = variables["baseline"] - variables["actual"]
 
+    # Strip {{}} for evaluation
+    eval_formula = normalize_formula(formula)
+
     try:
-        result = evaluate_custom_formula(formula, variables)
+        result = evaluate_custom_formula(eval_formula, variables)
         return JsonResponse({
             "success": True,
             "result": round(float(result), 4),
             "variables_used": variables,
+            "fields": fields,
         })
     except (ValueError, TypeError, ZeroDivisionError) as e:
-        return JsonResponse({"error": str(e)}, status=400)
+        return JsonResponse({"error": str(e), "fields": fields}, status=400)

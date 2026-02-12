@@ -292,6 +292,7 @@
             }
 
             displayResults(data);
+            svendTrack('feature_use', {category: 'forecast', action: method, label: symbol});
 
         } catch (err) {
             document.getElementById('error').textContent = err.message;

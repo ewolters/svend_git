@@ -378,3 +378,53 @@ class TrainingCandidate(models.Model):
                 "candidate_id": str(self.id),
             }
         }
+
+
+class EventLog(models.Model):
+    """Lightweight event tracking for product analytics.
+
+    Captures page views, feature usage, milestones, and errors
+    to understand user behavior and improve the product.
+    """
+
+    class EventType(models.TextChoices):
+        PAGE_VIEW = "page_view", "Page View"
+        FEATURE_USE = "feature_use", "Feature Use"
+        MILESTONE = "milestone", "Milestone"
+        ERROR = "error", "Error"
+        SESSION_START = "session_start", "Session Start"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="events",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    # Event classification
+    event_type = models.CharField(max_length=20, choices=EventType.choices, db_index=True)
+    category = models.CharField(max_length=50, blank=True, db_index=True)
+    action = models.CharField(max_length=100, blank=True)
+    label = models.CharField(max_length=200, blank=True)
+
+    # Context
+    page = models.CharField(max_length=200, blank=True)
+    session_id = models.CharField(max_length=64, blank=True, db_index=True)
+
+    # Flexible metadata
+    metadata = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        db_table = "event_logs"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["event_type", "created_at"]),
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["session_id", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type}: {self.category}/{self.action}"

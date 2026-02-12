@@ -7,7 +7,7 @@ Kjerne is the monorepo for **Svend** — a hypothesis-driven decision science pl
 - **DSW (Decision Science Workbench)** — statistical analysis, DOE, SPC, Bayesian reasoning
 - **Whiteboard** — visual knowledge graph for causal reasoning
 
-Target: $5/month subscription, launching May 2026. Competing against Minitab ($1,851/yr) and JMP ($1,320-$8,400/yr).
+Pricing: Free / Founder $19/mo / Pro $29/mo / Team $79/mo / Enterprise $199/mo. Live in production. Competing against Minitab ($1,851/yr) and JMP ($1,320-$8,400/yr).
 
 ## Critical Context
 
@@ -178,7 +178,7 @@ add_finding_to_problem(user, problem_id, summary, evidence_type, source, support
 
 - **Gunicorn** behind **Cloudflare Tunnel**
 - Static files served by Django (collectstatic)
-- SQLite database (production — on this machine)
+- PostgreSQL database (production — on this machine)
 
 ## Working Conventions
 

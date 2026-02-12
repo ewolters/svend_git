@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from accounts.constants import (
     TIER_FEATURES, Tier, Industry, Role, ExperienceLevel, OrganizationSize,
 )
-from chat.models import Conversation, Message, SharedConversation, TraceLog, TrainingCandidate
+from chat.models import Conversation, EventLog, Message, SharedConversation, TraceLog, TrainingCandidate
 from inference import process_query
 from inference.flywheel import get_flywheel, FlywheelResult
 
@@ -772,6 +772,7 @@ def me(request):
         "subscription_active": hasattr(user, 'subscription') and user.subscription.is_active,
         "preferences": user.preferences or {},
         "current_theme": user.current_theme,
+        "onboarding_completed": user.onboarding_completed_at is not None,
         "features": TIER_FEATURES.get(user.tier, TIER_FEATURES[Tier.FREE]),
     })
 
@@ -1192,3 +1193,236 @@ def export_pdf(request):
             {"error": f"PDF generation failed: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+# ---------------------------------------------------------------------------
+# Event Tracking
+# ---------------------------------------------------------------------------
+
+VALID_EVENT_TYPES = {c[0] for c in EventLog.EventType.choices}
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def track_event(request):
+    """Lightweight event tracking — accepts single or batch events."""
+    data = request.data
+    events = data if isinstance(data, list) else [data]
+
+    objs = []
+    for evt in events[:20]:  # cap per request
+        et = evt.get("event_type", "page_view")
+        if et not in VALID_EVENT_TYPES:
+            continue
+        objs.append(EventLog(
+            user=request.user,
+            event_type=et,
+            category=evt.get("category", "")[:50],
+            action=evt.get("action", "")[:100],
+            label=evt.get("label", "")[:200],
+            page=evt.get("page", "")[:200],
+            session_id=evt.get("session_id", "")[:64],
+            metadata=evt.get("metadata"),
+        ))
+
+    if objs:
+        EventLog.objects.bulk_create(objs)
+
+    return Response({"tracked": len(objs)})
+
+
+# ---------------------------------------------------------------------------
+# Email tracking (public — hit by email clients, no auth)
+# ---------------------------------------------------------------------------
+
+# 1x1 transparent GIF
+TRACKING_PIXEL = b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b'
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def email_track_open(request, recipient_id):
+    """Track email open via 1x1 pixel."""
+    from django.http import HttpResponse
+    from api.models import EmailRecipient
+
+    try:
+        rcpt = EmailRecipient.objects.get(id=recipient_id)
+        if not rcpt.opened_at:
+            from django.utils import timezone as tz
+            rcpt.opened_at = tz.now()
+            rcpt.save(update_fields=["opened_at"])
+    except EmailRecipient.DoesNotExist:
+        pass
+
+    return HttpResponse(TRACKING_PIXEL, content_type="image/gif")
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def email_track_click(request, recipient_id):
+    """Track email link click and redirect."""
+    from django.http import HttpResponseRedirect
+    from api.models import EmailRecipient
+
+    url = request.GET.get("url", "https://svend.ai")
+
+    try:
+        rcpt = EmailRecipient.objects.get(id=recipient_id)
+        if not rcpt.clicked_at:
+            from django.utils import timezone as tz
+            rcpt.clicked_at = tz.now()
+            rcpt.save(update_fields=["clicked_at"])
+            # Also mark as opened if not already
+            if not rcpt.opened_at:
+                rcpt.opened_at = tz.now()
+                rcpt.save(update_fields=["opened_at"])
+    except EmailRecipient.DoesNotExist:
+        pass
+
+    return HttpResponseRedirect(url)
+
+
+# ---------------------------------------------------------------------------
+# Onboarding
+# ---------------------------------------------------------------------------
+
+ONBOARDING_GOALS = [
+    ("spc", "Monitor process quality (SPC)"),
+    ("analysis", "Analyze data & run statistical tests"),
+    ("doe", "Design experiments (DOE)"),
+    ("reporting", "Create reports for management"),
+    ("learning", "Learn statistics / quality methods"),
+    ("replace_tool", "Replace Minitab / JMP / Excel"),
+]
+
+TOOLS_OPTIONS = [
+    "minitab", "jmp", "excel", "r", "python", "spss", "stata", "none",
+]
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def onboarding_status(request):
+    """Return onboarding survey options and current completion status."""
+    user = request.user
+    survey = None
+    try:
+        from api.models import OnboardingSurvey
+        survey = OnboardingSurvey.objects.get(user=user)
+    except Exception:
+        pass
+
+    return Response({
+        "completed": user.onboarding_completed_at is not None,
+        "survey": {
+            "industry": survey.industry if survey else "",
+            "role": survey.role if survey else "",
+            "experience_level": survey.experience_level if survey else "",
+            "organization_size": survey.organization_size if survey else "",
+            "primary_goal": survey.primary_goal if survey else "",
+            "tools_used": survey.tools_used if survey else [],
+            "confidence_stats": survey.confidence_stats if survey else 3,
+            "urgency": survey.urgency if survey else 3,
+            "biggest_challenge": survey.biggest_challenge if survey else "",
+        } if survey else None,
+        "options": {
+            "industries": [{"value": c[0], "label": c[1]} for c in Industry.choices],
+            "roles": [{"value": c[0], "label": c[1]} for c in Role.choices],
+            "experience_levels": [{"value": c[0], "label": c[1]} for c in ExperienceLevel.choices],
+            "organization_sizes": [{"value": c[0], "label": c[1]} for c in OrganizationSize.choices],
+            "goals": [{"value": g[0], "label": g[1]} for g in ONBOARDING_GOALS],
+            "tools": TOOLS_OPTIONS,
+        },
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def onboarding_complete(request):
+    """Save onboarding survey and trigger welcome email drip."""
+    from django.utils import timezone as tz
+    from api.models import OnboardingSurvey, OnboardingEmail
+
+    user = request.user
+    data = request.data
+
+    # Validate required fields
+    industry = data.get("industry", "")
+    role = data.get("role", "")
+    experience_level = data.get("experience_level", "")
+
+    if not industry or not role or not experience_level:
+        return Response(
+            {"error": "Industry, role, and experience level are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Create or update survey
+    survey, created = OnboardingSurvey.objects.update_or_create(
+        user=user,
+        defaults={
+            "industry": industry,
+            "role": role,
+            "experience_level": experience_level,
+            "organization_size": data.get("organization_size", ""),
+            "primary_goal": data.get("primary_goal", ""),
+            "tools_used": data.get("tools_used", []),
+            "confidence_stats": int(data.get("confidence_stats", 3)),
+            "urgency": int(data.get("urgency", 3)),
+            "biggest_challenge": data.get("biggest_challenge", ""),
+        },
+    )
+
+    # Compute and save learning path
+    survey.learning_path = survey.compute_learning_path()
+    survey.save(update_fields=["learning_path"])
+
+    # Sync demographics to User profile
+    user.industry = industry
+    user.role = role
+    user.experience_level = experience_level
+    if data.get("organization_size"):
+        user.organization_size = data["organization_size"]
+    user.onboarding_completed_at = tz.now()
+    user.save(update_fields=[
+        "industry", "role", "experience_level", "organization_size",
+        "onboarding_completed_at",
+    ])
+
+    # Schedule drip emails via Tempora
+    now = tz.now()
+    drip_schedule = [
+        ("welcome", now),                                      # Immediate
+        ("getting_started", now + tz.timedelta(hours=1)),       # 1 hour
+        ("tips", now + tz.timedelta(hours=24)),                 # 24 hours
+        ("learning_path", now + tz.timedelta(days=3)),          # 3 days
+        ("checkin", now + tz.timedelta(days=7)),                # 7 days
+    ]
+
+    for email_key, scheduled_for in drip_schedule:
+        OnboardingEmail.objects.get_or_create(
+            user=user,
+            email_key=email_key,
+            defaults={"scheduled_for": scheduled_for},
+        )
+
+    # Fire welcome email immediately via Tempora
+    try:
+        from tempora.scheduler import schedule_task
+        schedule_task(
+            name=f"onboarding_welcome_{user.id}",
+            func="api.send_onboarding_email",
+            args={"user_id": str(user.id), "email_key": "welcome"},
+            delay_seconds=5,
+            priority=1,
+            queue="core",
+        )
+    except Exception as e:
+        logger.warning(f"Failed to schedule welcome email: {e}")
+
+    return Response({
+        "status": "completed",
+        "learning_path": survey.learning_path,
+        "message": "Welcome aboard! Check your email for your personalized getting started guide.",
+    })

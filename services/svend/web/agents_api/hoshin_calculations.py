@@ -10,6 +10,7 @@ for the Svend platform's VSM integration.
 import ast
 import math
 import operator
+import re
 
 
 # ---------------------------------------------------------------------------
@@ -76,9 +77,9 @@ CALCULATION_METHODS = {
     "custom": {
         "name": "Custom Formula",
         "category": "custom",
-        "description": "User-defined formula using baseline, actual, volume, sales, rate, variance",
+        "description": "User-defined formula with custom {{field}} variables",
         "formula": "(user-defined)",
-        "variables": ["baseline", "actual", "volume", "sales", "rate", "variance"],
+        "variables": [],
     },
 }
 
@@ -206,12 +207,28 @@ def _direct(baseline, actual, volume=1.0, cost_per_unit=1.0, **kw):
     }
 
 
+def extract_formula_fields(formula):
+    """Extract {{fieldname}} placeholders from a formula string.
+
+    Returns a list of unique field names in order of first appearance.
+    E.g. "{{scrap_before}} - {{scrap_after}}" → ["scrap_before", "scrap_after"]
+    """
+    return list(dict.fromkeys(re.findall(r"\{\{(\w+)\}\}", formula)))
+
+
+def normalize_formula(formula):
+    """Strip {{}} brackets from field names so the AST evaluator sees bare names."""
+    return re.sub(r"\{\{(\w+)\}\}", r"\1", formula)
+
+
 def _custom(baseline, actual, volume=1.0, cost_per_unit=1.0, **kw):
     formula = kw.get("formula", "")
-    sales = kw.get("sales", 0)
     if not formula:
         return _direct(baseline, actual, volume, cost_per_unit)
 
+    # Build variables from {{field}} values passed via kwargs,
+    # plus legacy built-in names for backward compatibility.
+    sales = kw.get("sales", 0)
     variables = {
         "baseline": float(baseline),
         "actual": float(actual),
@@ -220,8 +237,18 @@ def _custom(baseline, actual, volume=1.0, cost_per_unit=1.0, **kw):
         "sales": float(sales),
         "variance": float(baseline) - float(actual),
     }
+
+    # Merge any extra variables passed via "custom_vars" dict
+    custom_vars = kw.get("custom_vars", {})
+    for k, v in custom_vars.items():
+        try:
+            variables[k] = float(v)
+        except (ValueError, TypeError):
+            pass
+
+    eval_formula = normalize_formula(formula)
     try:
-        savings = evaluate_custom_formula(formula, variables)
+        savings = evaluate_custom_formula(eval_formula, variables)
     except (ValueError, TypeError, ZeroDivisionError) as e:
         return {
             "method": "custom",

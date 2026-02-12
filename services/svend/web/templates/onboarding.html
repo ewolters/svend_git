@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Svend</title>
+    <meta name="robots" content="noindex">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0a0f0a;
+            --bg-secondary: #0d120d;
+            --bg-card: #121a12;
+            --accent: #4a9f6e;
+            --accent-hover: #5ab87e;
+            --accent-dim: rgba(74,159,110,0.15);
+            --text-primary: #e8efe8;
+            --text-secondary: #9aaa9a;
+            --text-dim: #7a8f7a;
+            --border: rgba(255,255,255,0.1);
+            --error: #e85a5a;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 560px;
+            padding: 2rem;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 300;
+            letter-spacing: 0.3em;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        .welcome-text {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Progress bar */
+        .progress {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 2rem;
+        }
+        .progress-dot {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--border);
+            transition: background 0.3s;
+        }
+        .progress-dot.active {
+            background: var(--accent);
+        }
+        .progress-dot.done {
+            background: var(--accent);
+            opacity: 0.6;
+        }
+
+        /* Card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            min-height: 380px;
+            display: flex;
+            flex-direction: column;
+        }
+        .step { display: none; flex-direction: column; flex: 1; }
+        .step.active { display: flex; }
+
+        .step-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        .step-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Form controls */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        select, input, textarea {
+            width: 100%;
+            padding: 0.7rem 0.85rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+        select:focus, input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        select { cursor: pointer; }
+        select option { background: var(--bg-card); }
+        textarea { resize: vertical; min-height: 60px; }
+
+        /* Chip selector (for tools, goals) */
+        .chip-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .chip {
+            padding: 0.45rem 0.85rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .chip:hover { border-color: var(--accent); color: var(--text-primary); }
+        .chip.selected {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Slider */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .slider-row input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: var(--border);
+            border: none;
+            border-radius: 3px;
+            outline: none;
+            padding: 0;
+        }
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+        .slider-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            min-width: 60px;
+        }
+        .slider-label:last-child { text-align: right; }
+        .slider-value {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: auto;
+            padding-top: 1.5rem;
+        }
+        .btn {
+            flex: 1;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { border-color: var(--text-dim); color: var(--text-primary); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .skip-link {
+            display: block;
+            text-align: center;
+            margin-top: 1rem;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .skip-link:hover { color: var(--text-secondary); }
+
+        .error-msg {
+            background: rgba(232,90,90,0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 0.6rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .error-msg.show { display: block; }
+
+        /* Completion screen */
+        .completion {
+            text-align: center;
+            padding: 2rem 0;
+        }
+        .completion-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 1.5rem;
+        }
+        .completion h2 { margin-bottom: 0.5rem; }
+        .completion p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .path-badge {
+            display: inline-block;
+            background: var(--accent-dim);
+            color: var(--accent);
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">SVEND</div>
+        <p class="welcome-text">Let's personalize your experience</p>
+
+        <div class="progress">
+            <div class="progress-dot active" id="prog-0"></div>
+            <div class="progress-dot" id="prog-1"></div>
+            <div class="progress-dot" id="prog-2"></div>
+            <div class="progress-dot" id="prog-3"></div>
+        </div>
+
+        <div class="card">
+            <div id="error" class="error-msg"></div>
+
+            <!-- Step 0: About You -->
+            <div class="step active" id="step-0">
+                <div class="step-title">About you</div>
+                <div class="step-subtitle">Helps us tailor your experience</div>
+
+                <div class="form-group">
+                    <label>Industry</label>
+                    <select id="industry">
+                        <option value="">Select your industry...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="role">
+                        <option value="">Select your role...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Experience with statistics</label>
+                    <select id="experience_level">
+                        <option value="">Select your level...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Organization size</label>
+                    <select id="organization_size">
+                        <option value="">Select size...</option>
+                    </select>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+                </div>
+            </div>
+
+            <!-- Step 1: Goals -->
+            <div class="step" id="step-1">
+                <div class="step-title">What brings you here?</div>
+                <div class="step-subtitle">Select your primary goal</div>
+
+                <div class="form-group">
+                    <label>Primary goal</label>
+                    <div class="chip-grid" id="goals-grid"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tools you currently use</label>
+                    <div class="chip-grid" id="tools-grid"></div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Self-assessment -->
+            <div class="step" id="step-2">
+                <div class="step-title">Quick self-assessment</div>
+                <div class="step-subtitle">No wrong answers here</div>
+
+                <div class="form-group">
+                    <label>How confident do you feel running statistical analyses?</label>
+                    <div class="slider-row">
+                        <span class="slider-label">Not at all</span>
+                        <input type="range" id="confidence_stats" min="1" max="5" value="3"
+                               oninput="document.getElementById('conf-val').textContent=this.value">
+                        <span class="slider-value" id="conf-val">3</span>
+                        <span class="slider-label">Very confident</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>How quickly do you need results?</label>
+                    <div class="slider-row">
+                        <span class="slider-label">Just exploring</span>
+                        <input type="range" id="urgency" min="1" max="5" value="3"
+                               oninput="document.getElementById('urg-val').textContent=this.value">
+                        <span class="slider-value" id="urg-val">3</span>
+                        <span class="slider-label">Need it now</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Biggest challenge with statistics at work (optional)</label>
+                    <textarea id="biggest_challenge" placeholder="e.g., Choosing the right test, interpreting results, presenting findings..."></textarea>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+                    <button class="btn btn-primary" onclick="submitSurvey()">Finish Setup</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Completion -->
+            <div class="step" id="step-3">
+                <div class="completion">
+                    <div class="completion-icon">&#10003;</div>
+                    <h2>You're all set!</h2>
+                    <div class="path-badge" id="path-badge"></div>
+                    <p id="completion-msg">We've personalized your experience and queued up some helpful emails. Check your inbox.</p>
+                    <button class="btn btn-primary" onclick="window.location.href='/app/'" style="max-width:240px;margin:0 auto;">
+                        Go to Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <a class="skip-link" id="skip-link" onclick="skipOnboarding()">Skip for now</a>
+    </div>
+
+    <script>
+    let currentStep = 0;
+    const totalSteps = 4;
+    let options = {};
+    let selectedGoal = '';
+    let selectedTools = [];
+
+    // Load options from API
+    async function init() {
+        try {
+            const resp = await fetch('/api/auth/onboarding/', { credentials: 'include' });
+            if (resp.status === 403 || resp.status === 401) {
+                window.location.href = '/login/?next=/app/onboarding/';
+                return;
+            }
+            const data = await resp.json();
+
+            // If already completed, redirect to app
+            if (data.completed) {
+                window.location.href = '/app/';
+                return;
+            }
+
+            options = data.options;
+            populateSelects();
+            populateChips();
+        } catch (e) {
+            console.error('Failed to load onboarding options:', e);
+        }
+    }
+
+    function populateSelects() {
+        fillSelect('industry', options.industries);
+        fillSelect('role', options.roles);
+        fillSelect('experience_level', options.experience_levels);
+        fillSelect('organization_size', options.organization_sizes);
+    }
+
+    function fillSelect(id, items) {
+        const el = document.getElementById(id);
+        items.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.value;
+            opt.textContent = item.label;
+            el.appendChild(opt);
+        });
+    }
+
+    function populateChips() {
+        const goalsGrid = document.getElementById('goals-grid');
+        options.goals.forEach(g => {
+            const chip = document.createElement('div');
+            chip.className = 'chip';
+            chip.textContent = g.label;
+            chip.dataset.value = g.value;
+            chip.onclick = () => {
+                // Single select for goals
+                goalsGrid.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+                chip.classList.add('selected');
+                selectedGoal = g.value;
+            };
+            goalsGrid.appendChild(chip);
+        });
+
+        const toolsGrid = document.getElementById('tools-grid');
+        const toolLabels = {
+            'minitab': 'Minitab', 'jmp': 'JMP', 'excel': 'Excel',
+            'r': 'R', 'python': 'Python', 'spss': 'SPSS',
+            'stata': 'Stata', 'none': 'None yet'
+        };
+        options.tools.forEach(t => {
+            const chip = document.createElement('div');
+            chip.className = 'chip';
+            chip.textContent = toolLabels[t] || t;
+            chip.dataset.value = t;
+            chip.onclick = () => {
+                if (t === 'none') {
+                    // Deselect all others
+                    toolsGrid.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+                    chip.classList.add('selected');
+                    selectedTools = ['none'];
+                } else {
+                    // Deselect "none" if selected
+                    toolsGrid.querySelector('[data-value="none"]')?.classList.remove('selected');
+                    chip.classList.toggle('selected');
+                    selectedTools = [...toolsGrid.querySelectorAll('.chip.selected')]
+                        .map(c => c.dataset.value)
+                        .filter(v => v !== 'none');
+                }
+            };
+            toolsGrid.appendChild(chip);
+        });
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('error');
+        el.textContent = msg;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 4000);
+    }
+
+    function updateProgress() {
+        for (let i = 0; i < totalSteps; i++) {
+            const dot = document.getElementById(`prog-${i}`);
+            dot.className = 'progress-dot';
+            if (i === currentStep) dot.classList.add('active');
+            else if (i < currentStep) dot.classList.add('done');
+        }
+    }
+
+    function showStep(n) {
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+        document.getElementById(`step-${n}`).classList.add('active');
+        currentStep = n;
+        updateProgress();
+
+        // Hide skip link on completion
+        document.getElementById('skip-link').style.display = n === 3 ? 'none' : '';
+    }
+
+    function nextStep() {
+        // Validate current step
+        if (currentStep === 0) {
+            const industry = document.getElementById('industry').value;
+            const role = document.getElementById('role').value;
+            const exp = document.getElementById('experience_level').value;
+            if (!industry || !role || !exp) {
+                showError('Please fill in industry, role, and experience level.');
+                return;
+            }
+        }
+        showStep(currentStep + 1);
+    }
+
+    function prevStep() {
+        if (currentStep > 0) showStep(currentStep - 1);
+    }
+
+    async function submitSurvey() {
+        const btn = document.querySelector('#step-2 .btn-primary');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        const payload = {
+            industry: document.getElementById('industry').value,
+            role: document.getElementById('role').value,
+            experience_level: document.getElementById('experience_level').value,
+            organization_size: document.getElementById('organization_size').value,
+            primary_goal: selectedGoal,
+            tools_used: selectedTools,
+            confidence_stats: parseInt(document.getElementById('confidence_stats').value),
+            urgency: parseInt(document.getElementById('urgency').value),
+            biggest_challenge: document.getElementById('biggest_challenge').value.trim(),
+        };
+
+        try {
+            const resp = await fetch('/api/auth/onboarding/complete/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                credentials: 'include',
+            });
+
+            const data = await resp.json();
+
+            if (resp.ok) {
+                // Show completion
+                const pathLabels = {
+                    'quality_engineer': 'Quality Engineering Track',
+                    'manager': 'Management & Reporting Track',
+                    'researcher': 'Research & Advanced Stats Track',
+                    'analyst': 'Data Analysis Track',
+                    'student': 'Learning Track',
+                    'beginner': 'Guided Getting Started Track',
+                };
+                document.getElementById('path-badge').textContent =
+                    pathLabels[data.learning_path] || 'Personalized Track';
+                showStep(3);
+            } else {
+                showError(data.error || 'Something went wrong. Please try again.');
+            }
+        } catch (e) {
+            showError('Connection error. Please try again.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Finish Setup';
+        }
+    }
+
+    function skipOnboarding() {
+        window.location.href = '/app/';
+    }
+
+    // Cookie helper for CSRF
+    function getCookie(name) {
+        const cookies = document.cookie.split(';');
+        for (let c of cookies) {
+            c = c.trim();
+            if (c.startsWith(name + '=')) return decodeURIComponent(c.substring(name.length + 1));
+        }
+        return null;
+    }
+
+    // Add CSRF token to fetch
+    const origFetch = window.fetch;
+    window.fetch = function(url, opts = {}) {
+        if (opts.method && opts.method !== 'GET') {
+            opts.headers = opts.headers || {};
+            if (!opts.headers['X-CSRFToken']) {
+                opts.headers['X-CSRFToken'] = getCookie('csrftoken');
+            }
+        }
+        return origFetch.call(this, url, opts);
+    };
+
+    init();
+    </script>
+</body>
+</html>

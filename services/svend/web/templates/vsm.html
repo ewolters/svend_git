@@ -599,10 +599,10 @@
     <div class="vsm-sidebar">
         <div class="sidebar-header">
             <div class="vsm-project-row">
-                <select id="project-select" class="vsm-project-select" title="Link to project">
-                    <option value="">No project</option>
+                <select id="project-select" class="vsm-project-select" title="Link to study">
+                    <option value="">No study</option>
                 </select>
-                <a href="#" id="project-link" class="vsm-project-link" style="display:none" title="Open project">
+                <a href="#" id="project-link" class="vsm-project-link" style="display:none" title="Open study">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                         <polyline points="15 3 21 3 21 9"/>
@@ -1262,6 +1262,7 @@ async function createNewVSM() {
 
         if (!response.ok) throw new Error('Failed to create VSM');
         const data = await response.json();
+        svendTrack('feature_use', {category: 'vsm', action: 'create'});
         window.location.href = `/app/vsm/${data.id}/`;
     } catch (err) {
         console.error('Create VSM error:', err);

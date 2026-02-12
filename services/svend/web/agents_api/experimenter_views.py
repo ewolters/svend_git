@@ -27,6 +27,29 @@ from .models import Problem
 
 logger = logging.getLogger(__name__)
 
+
+def _sanitize(obj):
+    """Convert numpy types to Python natives for JSON serialization."""
+    import numpy as np
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_sanitize(v) for v in obj]
+    elif isinstance(obj, (np.bool_,)):
+        return bool(obj)
+    elif isinstance(obj, (np.integer,)):
+        return int(obj)
+    elif isinstance(obj, (np.floating,)):
+        v = float(obj)
+        if np.isnan(v) or np.isinf(v):
+            return None
+        return v
+    elif isinstance(obj, float):
+        if obj != obj or obj == float('inf') or obj == float('-inf'):
+            return None
+        return obj
+    return obj
+
 # Add experimenter agent to path
 sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
 
@@ -499,6 +522,7 @@ def analyze_results(request):
                 term_names.append(f"{f['name']}²")
 
         p = X.shape[1]  # Number of parameters
+        saturated = (n <= p)  # No residual DF — can estimate effects but not significance
 
         # Fit model using least squares
         try:
@@ -513,8 +537,8 @@ def analyze_results(request):
         residuals = Y - Y_pred
 
         # Sum of squares
-        SS_total = np.sum((Y - np.mean(Y)) ** 2)
-        SS_residual = np.sum(residuals ** 2)
+        SS_total = float(np.sum((Y - np.mean(Y)) ** 2))
+        SS_residual = float(np.sum(residuals ** 2))
         SS_regression = SS_total - SS_residual
 
         # Degrees of freedom
@@ -527,16 +551,16 @@ def analyze_results(request):
         MS_residual = SS_residual / df_residual if df_residual > 0 else 0
 
         # F-statistic and p-value for overall model
-        if MS_residual > 0:
+        if df_residual > 0 and MS_residual > 0:
             F_stat = MS_regression / MS_residual
-            p_value_model = 1 - stats.f.cdf(F_stat, df_regression, df_residual)
+            p_value_model = float(1 - stats.f.cdf(F_stat, df_regression, df_residual))
         else:
-            F_stat = float('inf')
-            p_value_model = 0
+            F_stat = None  # Cannot test — saturated model
+            p_value_model = None
 
         # R-squared
         R_squared = 1 - (SS_residual / SS_total) if SS_total > 0 else 0
-        R_squared_adj = 1 - ((1 - R_squared) * df_total / df_residual) if df_residual > 0 else 0
+        R_squared_adj = 1 - ((1 - R_squared) * df_total / df_residual) if df_residual > 0 else None
 
         # Standard error of coefficients
         if MS_residual > 0 and df_residual > 0:
@@ -552,12 +576,12 @@ def analyze_results(request):
         t_stats = []
         p_values = []
         for i, (coef, se) in enumerate(zip(coefficients, se_coefficients)):
-            if se > 0:
-                t = coef / se
-                pval = 2 * (1 - stats.t.cdf(abs(t), df_residual))
+            if se > 0 and df_residual > 0:
+                t = float(coef / se)
+                pval = float(2 * (1 - stats.t.cdf(abs(t), df_residual)))
             else:
-                t = float('inf') if coef != 0 else 0
-                pval = 0
+                t = None  # Cannot compute without error estimate
+                pval = None
             t_stats.append(t)
             p_values.append(pval)
 
@@ -566,16 +590,16 @@ def analyze_results(request):
             "source": ["Regression", "Residual Error", "Total"],
             "df": [df_regression, df_residual, df_total],
             "ss": [round(SS_regression, 4), round(SS_residual, 4), round(SS_total, 4)],
-            "ms": [round(MS_regression, 4), round(MS_residual, 4), None],
-            "f": [round(F_stat, 4) if F_stat != float('inf') else "∞", None, None],
-            "p": [round(p_value_model, 6), None, None],
+            "ms": [round(MS_regression, 4), round(MS_residual, 4) if df_residual > 0 else None, None],
+            "f": [round(F_stat, 4) if F_stat is not None else None, None, None],
+            "p": [round(p_value_model, 6) if p_value_model is not None else None, None, None],
         }
 
         # Coefficient table
         coefficient_table = []
         for i, name in enumerate(term_names):
-            coef = coefficients[i]
-            se = se_coefficients[i]
+            coef = float(coefficients[i])
+            se = float(se_coefficients[i])
             t = t_stats[i]
             pval = p_values[i]
 
@@ -587,10 +611,10 @@ def analyze_results(request):
                 "effect": round(effect, 4) if i > 0 else None,
                 "coefficient": round(coef, 4),
                 "se_coef": round(se, 4),
-                "t_value": round(t, 3) if t != float('inf') else "∞",
-                "p_value": round(pval, 6),
-                "significant": pval < alpha,
-                "vif": None,  # Could calculate if needed
+                "t_value": round(t, 3) if t is not None else None,
+                "p_value": round(pval, 6) if pval is not None else None,
+                "significant": bool(pval < alpha) if pval is not None else None,
+                "vif": None,
             })
 
         # Separate main effects and interactions
@@ -618,7 +642,7 @@ def analyze_results(request):
             main_effects_plot.append({
                 "factor": factor_name,
                 "levels": list(level_means.keys()),
-                "means": [round(m, 4) for m in level_means.values()],
+                "means": [round(float(m), 4) for m in level_means.values()],
                 "effect": main_effects[i]["effect"] if i < len(main_effects) else None,
             })
 
@@ -642,18 +666,19 @@ def analyze_results(request):
                         if level_responses:
                             series["points"].append({
                                 "x": level2,
-                                "y": round(np.mean(level_responses), 4)
+                                "y": round(float(np.mean(level_responses)), 4)
                             })
                     plot_data["data"].append(series)
                 interaction_plots.append(plot_data)
 
         # Pareto chart data (standardized effects)
         pareto_data = []
-        t_critical = stats.t.ppf(1 - alpha/2, df_residual) if df_residual > 0 else 1.96
+        t_critical = float(stats.t.ppf(1 - alpha/2, df_residual)) if df_residual > 0 else None
         for entry in coefficient_table[1:]:  # Skip constant
+            t_val = entry["t_value"]
             pareto_data.append({
                 "term": entry["term"],
-                "standardized_effect": abs(entry["t_value"]) if entry["t_value"] != "∞" else 100,
+                "standardized_effect": abs(t_val) if t_val is not None else abs(entry["effect"] or 0),
                 "significant": entry["significant"],
             })
         pareto_data.sort(key=lambda x: x["standardized_effect"], reverse=True)
@@ -661,32 +686,32 @@ def analyze_results(request):
         # Normal probability plot of residuals
         sorted_residuals = np.sort(residuals)
         n_res = len(sorted_residuals)
-        theoretical_quantiles = [stats.norm.ppf((i + 0.5) / n_res) for i in range(n_res)]
+        theoretical_quantiles = [float(stats.norm.ppf((i + 0.5) / n_res)) for i in range(n_res)]
         normal_plot = {
             "theoretical": [round(q, 4) for q in theoretical_quantiles],
-            "residuals": [round(r, 4) for r in sorted_residuals],
+            "residuals": [round(float(r), 4) for r in sorted_residuals],
             "anderson_darling": None,
         }
 
         # Anderson-Darling test for normality
-        if n_res >= 8:
+        if n_res >= 8 and not saturated:
             ad_stat, ad_critical, ad_sig = stats.anderson(residuals, dist='norm')
             normal_plot["anderson_darling"] = {
-                "statistic": round(ad_stat, 4),
-                "critical_5pct": round(ad_critical[2], 4),
-                "normal": ad_stat < ad_critical[2],
+                "statistic": round(float(ad_stat), 4),
+                "critical_5pct": round(float(ad_critical[2]), 4),
+                "normal": bool(ad_stat < ad_critical[2]),
             }
 
         # Residuals vs fitted
         residual_vs_fitted = {
-            "fitted": [round(f, 4) for f in Y_pred],
-            "residuals": [round(r, 4) for r in residuals],
+            "fitted": [round(float(f), 4) for f in Y_pred],
+            "residuals": [round(float(r), 4) for r in residuals],
         }
 
         # Residuals vs order
         residual_vs_order = {
             "order": run_order,
-            "residuals": [round(r, 4) for r in residuals],
+            "residuals": [round(float(r), 4) for r in residuals],
         }
 
         # Lack of fit test (if replicates exist)
@@ -717,20 +742,20 @@ def analyze_results(request):
                 p_lof = 1 - stats.f.cdf(F_lof, df_lack_of_fit, df_pure_error)
 
                 lack_of_fit = {
-                    "ss_lack_of_fit": round(SS_lack_of_fit, 4),
-                    "ss_pure_error": round(SS_pure_error, 4),
-                    "df_lack_of_fit": df_lack_of_fit,
-                    "df_pure_error": df_pure_error,
-                    "f_value": round(F_lof, 4),
-                    "p_value": round(p_lof, 6),
-                    "significant": p_lof < alpha,
+                    "ss_lack_of_fit": round(float(SS_lack_of_fit), 4),
+                    "ss_pure_error": round(float(SS_pure_error), 4),
+                    "df_lack_of_fit": int(df_lack_of_fit),
+                    "df_pure_error": int(df_pure_error),
+                    "f_value": round(float(F_lof), 4),
+                    "p_value": round(float(p_lof), 6),
+                    "significant": bool(p_lof < alpha),
                     "interpretation": "Model may be inadequate" if p_lof < alpha else "No significant lack of fit",
                 }
 
         # Model equation
-        equation_parts = [f"{coefficients[0]:.4f}"]
+        equation_parts = [f"{float(coefficients[0]):.4f}"]
         for i, name in enumerate(term_names[1:], 1):
-            coef = coefficients[i]
+            coef = float(coefficients[i])
             sign = "+" if coef >= 0 else "-"
             equation_parts.append(f"{sign} {abs(coef):.4f}·{name}")
         model_equation = f"{response_name} = " + " ".join(equation_parts)
@@ -740,30 +765,31 @@ def analyze_results(request):
 
         # Overall summary statistics
         overall = {
-            "mean": round(np.mean(Y), 4),
-            "std": round(np.std(Y, ddof=1), 4),
-            "min": round(np.min(Y), 4),
-            "max": round(np.max(Y), 4),
+            "mean": round(float(np.mean(Y)), 4),
+            "std": round(float(np.std(Y, ddof=1)), 4),
+            "min": round(float(np.min(Y)), 4),
+            "max": round(float(np.max(Y)), 4),
             "n": n,
         }
 
         # Model summary
         model_summary = {
-            "s": round(np.sqrt(MS_residual), 4) if MS_residual > 0 else 0,
+            "s": round(float(np.sqrt(MS_residual)), 4) if MS_residual > 0 else 0,
             "r_squared": round(R_squared * 100, 2),
-            "r_squared_adj": round(R_squared_adj * 100, 2),
+            "r_squared_adj": round(R_squared_adj * 100, 2) if R_squared_adj is not None else None,
             "r_squared_pred": None,  # Would need PRESS statistic
+            "saturated": saturated,
         }
 
         # Significant factors summary
         significant_factors = [
             entry["term"] for entry in coefficient_table[1:]
-            if entry["significant"]
+            if entry["significant"] is True
         ]
 
         # Generate interpretation
         interpretation = _generate_interpretation(
-            coefficient_table, R_squared, lack_of_fit, response_name, alpha
+            coefficient_table, R_squared, lack_of_fit, response_name, alpha, saturated
         )
 
         response_data = {
@@ -782,17 +808,17 @@ def analyze_results(request):
                 "main_effects": main_effects_plot,
                 "interactions": interaction_plots,
                 "pareto": pareto_data,
-                "pareto_reference": round(t_critical, 3),
+                "pareto_reference": round(t_critical, 3) if t_critical is not None else None,
                 "normal_probability": normal_plot,
                 "residual_vs_fitted": residual_vs_fitted,
                 "residual_vs_order": residual_vs_order,
             },
             "diagnostics": {
                 "lack_of_fit": lack_of_fit,
-                "residual_std": round(np.std(residuals, ddof=1), 4) if len(residuals) > 1 else 0,
-                "durbin_watson": round(_durbin_watson(residuals), 4),
+                "residual_std": round(float(np.std(residuals, ddof=1)), 4) if len(residuals) > 1 else 0,
+                "durbin_watson": round(float(_durbin_watson(residuals)), 4),
             },
-            "optimization": optimization,
+            "optimization": _sanitize(optimization),
             "interpretation": interpretation,
         }
 
@@ -805,7 +831,7 @@ def analyze_results(request):
 
                 for factor_name in significant_factors[:3]:  # Top 3
                     effect_entry = next((e for e in coefficient_table if e["term"] == factor_name), None)
-                    if effect_entry:
+                    if effect_entry and effect_entry["p_value"] is not None:
                         evidence = problem.add_evidence(
                             summary=f"DOE: {factor_name} significantly affects {response_name} "
                                    f"(p={effect_entry['p_value']:.4f})",
@@ -819,7 +845,7 @@ def analyze_results(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse(response_data)
+        return JsonResponse(_sanitize(response_data))
 
     except Exception as e:
         logger.exception("Results analysis failed")
@@ -906,22 +932,30 @@ def _find_optimal_settings(factors, coefficients, term_names, include_interactio
     }
 
 
-def _generate_interpretation(coefficient_table, R_squared, lack_of_fit, response_name, alpha):
+def _generate_interpretation(coefficient_table, R_squared, lack_of_fit, response_name, alpha, saturated=False):
     """Generate human-readable interpretation."""
     interpretation = []
 
-    # Model fit
-    if R_squared > 0.9:
-        interpretation.append(f"Excellent model fit (R² = {R_squared*100:.1f}%) - the model explains most of the variation in {response_name}.")
-    elif R_squared > 0.7:
-        interpretation.append(f"Good model fit (R² = {R_squared*100:.1f}%) - the model captures the major effects.")
-    elif R_squared > 0.5:
-        interpretation.append(f"Moderate model fit (R² = {R_squared*100:.1f}%) - some unexplained variation remains.")
-    else:
-        interpretation.append(f"Weak model fit (R² = {R_squared*100:.1f}%) - consider additional factors or transformations.")
+    if saturated:
+        interpretation.append(
+            "Saturated model (no residual degrees of freedom). "
+            "Effects are estimated but p-values cannot be calculated. "
+            "Add replicates or center points, or remove interaction terms, to enable significance testing."
+        )
 
-    # Significant effects
-    significant = [e for e in coefficient_table[1:] if e["significant"]]
+    # Model fit
+    if not saturated:
+        if R_squared > 0.9:
+            interpretation.append(f"Excellent model fit (R² = {R_squared*100:.1f}%) - the model explains most of the variation in {response_name}.")
+        elif R_squared > 0.7:
+            interpretation.append(f"Good model fit (R² = {R_squared*100:.1f}%) - the model captures the major effects.")
+        elif R_squared > 0.5:
+            interpretation.append(f"Moderate model fit (R² = {R_squared*100:.1f}%) - some unexplained variation remains.")
+        else:
+            interpretation.append(f"Weak model fit (R² = {R_squared*100:.1f}%) - consider additional factors or transformations.")
+
+    # Significant effects (only when p-values are available)
+    significant = [e for e in coefficient_table[1:] if e["significant"] is True]
     if significant:
         sig_names = [e["term"] for e in significant[:3]]
         interpretation.append(f"Significant effects: {', '.join(sig_names)}.")
@@ -932,6 +966,13 @@ def _generate_interpretation(coefficient_table, R_squared, lack_of_fit, response
                 interpretation.append(f"Increasing {e['term']} increases {response_name}.")
             elif e["effect"] and e["effect"] < 0:
                 interpretation.append(f"Increasing {e['term']} decreases {response_name}.")
+    elif saturated:
+        # Show largest effects even without p-values
+        effects = [(e["term"], abs(e["effect"])) for e in coefficient_table[1:] if e["effect"]]
+        effects.sort(key=lambda x: x[1], reverse=True)
+        if effects:
+            top = [f"{name} (effect={val:.2f})" for name, val in effects[:3]]
+            interpretation.append(f"Largest effects: {', '.join(top)}.")
     else:
         interpretation.append("No factors show statistically significant effects at the current sample size.")
 

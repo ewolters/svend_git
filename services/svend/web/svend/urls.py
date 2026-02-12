@@ -4,10 +4,52 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
+from django.contrib.sitemaps import Sitemap
+from django.contrib.sitemaps.views import sitemap
 from django.urls import path, include
 from django.views.generic import TemplateView
 
+from api.blog_views import blog_list, blog_detail
 from api.internal_views import dashboard_view
+from api.models import BlogPost
+
+
+# ---------------------------------------------------------------------------
+# Sitemaps
+# ---------------------------------------------------------------------------
+
+class StaticSitemap(Sitemap):
+    changefreq = "weekly"
+    priority = 0.8
+    protocol = "https"
+
+    def items(self):
+        return ["/", "/blog/", "/privacy/", "/terms/"]
+
+    def location(self, item):
+        return item
+
+
+class BlogSitemap(Sitemap):
+    changefreq = "weekly"
+    priority = 0.7
+    protocol = "https"
+
+    def items(self):
+        return BlogPost.objects.filter(status=BlogPost.Status.PUBLISHED)
+
+    def lastmod(self, obj):
+        return obj.updated_at
+
+    def location(self, obj):
+        return f"/blog/{obj.slug}/"
+
+
+sitemaps = {
+    "static": StaticSitemap,
+    "blog": BlogSitemap,
+}
+
 
 urlpatterns = [
     path("", TemplateView.as_view(template_name="landing.html"), name="home"),
@@ -27,6 +69,7 @@ urlpatterns = [
     path("app/whiteboard/<str:room_code>/", TemplateView.as_view(template_name="whiteboard.html"), name="whiteboard_room"),
     path("app/vsm/", TemplateView.as_view(template_name="vsm.html"), name="vsm"),
     path("app/vsm/<uuid:vsm_id>/", TemplateView.as_view(template_name="vsm.html"), name="vsm_edit"),
+    path("app/onboarding/", TemplateView.as_view(template_name="onboarding.html"), name="onboarding"),
     path("app/settings/", TemplateView.as_view(template_name="settings.html"), name="settings"),
     path("app/models/", TemplateView.as_view(template_name="models.html"), name="models"),
     path("app/forecast/", TemplateView.as_view(template_name="forecast.html"), name="forecast"),
@@ -43,6 +86,14 @@ urlpatterns = [
     path("app/rca/", TemplateView.as_view(template_name="rca.html"), name="rca"),
     path("app/learn/", TemplateView.as_view(template_name="learn.html"), name="learn"),
     path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
+    # Blog (public, no auth)
+    path("blog/", blog_list, name="blog_list"),
+    path("blog/<slug:slug>/", blog_detail, name="blog_detail"),
+
+    # SEO
+    path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
+    path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="django.contrib.sitemaps.views.sitemap"),
+
     path("internal/dashboard/", dashboard_view, name="internal-dashboard"),
     path("admin/", admin.site.urls),
     path("api/", include("api.urls")),

@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sitemaps",
     # Third-party
     "rest_framework",
     "corsheaders",
@@ -76,22 +77,11 @@ TEMPLATES = [
 WSGI_APPLICATION = "svend.wsgi.application"
 ASGI_APPLICATION = "svend.asgi.application"
 
-# Database
-if config.database_url.startswith("sqlite"):
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-            # Force fresh connections to avoid stale reads with multiple workers
-            "CONN_MAX_AGE": 0,
-        }
-    }
-else:
-    # PostgreSQL for production
-    import dj_database_url
-    DATABASES = {
-        "default": dj_database_url.parse(config.database_url)
-    }
+# Database — PostgreSQL only
+import dj_database_url
+DATABASES = {
+    "default": dj_database_url.parse(config.database_url)
+}
 
 # Auth
 AUTH_USER_MODEL = "accounts.User"

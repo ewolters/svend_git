@@ -66,7 +66,7 @@ def create_vsm(request):
         try:
             project = Project.objects.get(id=project_id, user=request.user)
         except Project.DoesNotExist:
-            return JsonResponse({"error": "Project not found"}, status=404)
+            return JsonResponse({"error": "Study not found"}, status=404)
 
     vsm = ValueStreamMap.objects.create(
         owner=request.user,

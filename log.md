@@ -15,18 +15,250 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
-### 2026-02-12 — Multi-tenancy org management
+### 2026-02-12 — Remove alpha access badge, update docs to reflect live production status
 
-**Debt item:** N/A (Enterprise feature — org member management)
+**Debt item:** N/A
 **Files changed:**
-- `core/models/tenant.py` — Added `OrgInvitation` model (email, tenant FK, role, UUID token, status [pending/accepted/expired/cancelled], expires_at with 7-day default)
+- `templates/landing.html` — Removed "Alpha Access" hero badge and its CSS
+- `CLAUDE.md` — "launching May 2026" → "live in production"
+- `services/svend/CLAUDE.md` — Updated status from "Target launch: May 2026" to "Live in production at svend.ai"
+- `services/svend/agents/agents/CLAUDE.md` — "Alpha Notes / alpha release" → "Production Notes"
+- `services/svend/reference_docs/CLAUDE.md` — "launching May 2026" → "live in production"
+- `services/svend/reference_docs/ROADMAP.md` — "Target launch: May 2026" → "Launched February 2026, live in production"
+**Verification:** Visit svend.ai — no alpha badge on hero. Grep for "alpha" in CLAUDE.md files returns no hits.
+**Commit:** pending
+
+---
+
+### 2026-02-12 — Hoshin: remove duplicate custom card + add {{fieldname}} extraction for custom formulas
+
+**Debt item:** N/A (feature)
+**Files changed:**
+- `agents_api/hoshin_calculations.py` — Added `extract_formula_fields()` and `normalize_formula()`. Updated `_custom()` to merge arbitrary `custom_vars` dict into eval variables and strip `{{}}` before AST evaluation.
+- `agents_api/hoshin_views.py` — Updated `test_formula` to return extracted fields and handle `{{}}` syntax. Updated `update_monthly_actual` to accept and store `custom_vars` dict on monthly entries, passed through to calculation.
+- `templates/hoshin.html` — Removed duplicate custom card from calc library (filtered `custom` from API-sourced cards, kept purple hardcoded card). Updated purple card to document `{{fieldname}}` syntax. Formula tester dynamically generates inputs from `{{}}` fields. Monthly data entry (both calc tab and overview modal) shows custom field inputs when formula uses `{{}}` syntax. Added `extractFormulaFields()` and `updateFormulaFields()` JS helpers.
+**Verification:** Open Hoshin > Calc Library: only one custom card (purple, dashed border). Create a project with custom formula using `{{field}}` syntax — monthly data entry should show named inputs instead of baseline/actual/volume/cost. Formula tester should auto-generate inputs when typing `{{fields}}`.
+**Commit:** pending
+
+---
+
+### 2026-02-12 — Landing page: replace chat demo with live simulator, Cpk study, and VSM showcases
+
+**Debt item:** N/A (marketing)
+**Files changed:**
+- `templates/landing.html` — Removed chat bubble demo. Added 3-panel showcase carousel: (1) live line simulator with animated WIP flow, throughput tracking, bottleneck highlighting, and utilization; (2) static Cpk study with histogram, spec limits, and capability stats; (3) inline SVG VSM matching actual VSM tool rendering (process boxes with green headers, yellow inventory triangles, blue entity boxes, material flow arrows, info flow dashed line, kaizen burst, lead time ladder). Auto-rotates every 12s. Cleaned up dead CSS from old HTML-based VSM approach. All pure HTML/CSS/JS in Svend colors.
+**Verification:** Visit svend.ai — simulator should be running live, tabs switch between Simulator/Cpk/VSM. VSM panel should show proper SVG with process boxes, arrows, and timeline matching the real tool.
+**Commit:** pending
+
+---
+
+### 2026-02-12 — DOE ANOVA audit: fix JSON serialization + saturated model handling + session persistence
+
+**Debt item:** N/A (bug fix)
+**Files changed:**
+- `agents_api/experimenter_views.py` — Fixed 3 critical bugs in `analyze_results()`:
+  1. **numpy.bool_ not JSON serializable**: scipy returns numpy types that Django's JsonResponse can't serialize. Added `_sanitize()` helper, wrapped all response data. Cast all numpy types to Python natives.
+  2. **Saturated model crash**: 2-factor full factorial with interactions (n=p=4) produced `float('inf')` t-stats and `nan` p-values → invalid JSON (`Infinity`/`NaN`). Now returns `null` for untestable values with `saturated: true` flag. Added interpretation explaining why p-values are unavailable and recommending replicates/center points.
+  3. **Anderson-Darling skipped for saturated**: Residuals are all ~0 in saturated models, skip AD normality test.
+- `templates/experimenter.html` — Fixed 3 issues:
+  1. **Session persistence**: Added `saveState()`/`restoreState()` using `sessionStorage`. Design, analysis, and entered response values survive page refresh. Previously, any page refresh lost `currentDesign` and showed "Generate a design first".
+  2. **showSubTab crash**: `event.target.classList.add('active')` used implicit `event` which doesn't exist when called programmatically. Now finds button by `onclick` attribute.
+  3. **Saturated model UI**: Shows warning banner when model is saturated. Coefficient table displays "-" for null p-values/t-values instead of "undefined".
+**Verification:** Create 2-factor full factorial design, enter responses, click Analyze → ANOVA table renders with null p-values and saturated warning. Refresh page → design and data persist.
+**Commit:** pending
+
+---
+
+### 2026-02-12 — Email campaign tracking: sent/opened/clicked traceability + draft save/reset
+
+**Debt item:** N/A (email feature)
+**Files changed:**
+- `api/models.py` — Added `EmailCampaign` (subject, body, target, sent_by) and `EmailRecipient` (campaign FK, user FK, email, sent_at, opened_at, clicked_at, failed) models
+- `api/internal_views.py` — Rewrote `api_send_email` to create campaign records with tracking pixel and link rewriting; added `api_save_email_draft`, `api_get_email_draft`, `api_email_campaigns` endpoints
+- `api/views.py` — Added `email_track_open` (1x1 GIF pixel) and `email_track_click` (redirect with timestamp) public endpoints
+- `api/urls.py` — Added routes: email-draft/save/, email-draft/, email-campaigns/, email/open/<id>/, email/click/<id>/
+- `templates/internal_dashboard.html` — Added darker dropdown text, Save Draft/Reset buttons, Campaign History table with sent/opened/clicked/open-rate columns, JS functions (saveEmailDraft, resetEmailForm, loadEmailDraft, loadEmailCampaigns, loadEmail)
+- `api/migrations/0005_add_email_campaign_tracking.py` — Migration for email_campaigns and email_recipients tables
+**Verification:** Email tab loads saved drafts, Save/Reset buttons work, sending creates campaign records, Campaign History table shows sent/opened/clicked stats
+**Commit:** pending
+
+---
+
+### 2026-02-12 — Blog analytics: view tracking with referrer/source data + dashboard charts
+
+**Debt item:** N/A (analytics feature)
+**Files changed:**
+- `api/models.py` — Added `BlogView` model (post FK, referrer, referrer_domain, ip_hash, user_agent, is_bot)
+- `api/blog_views.py` — Added `_record_view()` to log each blog detail page hit with referrer, hashed IP, bot detection
+- `api/internal_views.py` — Added `api_blog_analytics` endpoint: daily views, top posts, referrer domains, traffic source split
+- `api/urls.py` — Added `/api/internal/blog/analytics/` route
+- `templates/internal_dashboard.html` — Added blog analytics section to Content tab: totals, views-over-time line chart, top posts bar, traffic sources doughnut, referrer domains bar
+- `api/migrations/0004_blog_view_analytics.py` — Migration for `blog_views` table
+**Verification:** Visit a blog post, then check Content tab in internal dashboard — analytics charts should appear
+**Commit:** pending
+
+---
+
+### 2026-02-12 — Onboarding system with survey, personalized email drip, and dashboard analytics
+
+**Debt item:** N/A (growth feature)
+**Files changed:**
+- `accounts/models.py` — Added `onboarding_completed_at` DateTimeField to User model
+- `api/models.py` — Created `OnboardingSurvey` (demographics, goals, self-assessment, learning path) and `OnboardingEmail` (drip email tracking) models
+- `api/views.py` — Added `onboarding_status` (GET) and `onboarding_complete` (POST) endpoints; added `onboarding_completed` to `me()` response
+- `api/tasks.py` — Added 5 personalized email builders (welcome, getting_started, tips, learning_path, checkin) with content tailored by survey responses (goal, confidence level, learning path); added `send_onboarding_email` and `process_onboarding_drip` Tempora tasks
+- `api/apps.py` — Registered `process_onboarding_drip` recurring schedule (every 10 minutes via Tempora)
+- `api/urls.py` — Added onboarding API routes and internal onboarding analytics route
+- `api/internal_views.py` — Added `api_onboarding` endpoint (funnel, survey distributions, email stats, challenges, completion over time)
+- `templates/onboarding.html` — New multi-step survey page (4 steps: About You, Goals, Self-Assessment, Completion) with progress bar, chip selectors, slider inputs, learning path assignment
+- `templates/register.html` — Updated redirect to `/app/onboarding/` for new free signups
+- `templates/internal_dashboard.html` — Added Onboarding tab with funnel chart, learning path distribution, goal/experience/industry/role/tools charts, email stats, completion timeline, challenges feed
+- `svend/urls.py` — Added `/app/onboarding/` route
+- `accounts/migrations/0007_add_onboarding_completed_at.py` — Applied
+- `api/migrations/0003_add_onboarding_models.py` — Applied
+**Verification:**
+1. New signup → redirected to `/app/onboarding/` → 4-step survey → completion screen → `/app/`
+2. Survey syncs demographics to User profile + computes learning path
+3. Welcome email fires immediately via Tempora; drip emails at 1h, 24h, 3d, 7d
+4. Email content personalized by goal, confidence level, and learning path
+5. Internal dashboard Onboarding tab shows funnel, distributions, email stats
+6. `python manage.py check` — clean
+
+---
+
+### 2026-02-12 — Blog charts + scheduled publishing
+
+**Debt item:** N/A (content feature)
+**Files changed:**
+- `api/models.py` — Added `scheduled_at` DateTimeField and `SCHEDULED` status to BlogPost
+- `api/migrations/0002_blogpost_scheduled_at.py` — Applied
+- `api/tasks.py` — **CREATED** Tempora task `api.publish_scheduled_posts` — checks for due scheduled posts every 15min and publishes them
+- `api/apps.py` — Added `ready()` hook to register Tempora tasks and create recurring schedule (idempotent)
+- `api/management/commands/publish_scheduled.py` — **CREATED** Fallback management command for manual publish
+- `api/internal_views.py` — Updated blog endpoints: list returns `scheduled_at`/`scheduled` counts, get returns `scheduled_at`, publish supports `action: "schedule"` with datetime
+- `templates/internal_dashboard.html` — Content tab: added datetime picker + Schedule/Unschedule button, "Insert Chart" button for markdown editor, status badges show scheduled date
+- `templates/blog_detail.html` — Added Chart.js + custom marked.js renderer: ` ```chart ` fenced code blocks render as interactive Chart.js charts with dark theme, auto-colored datasets, and optional captions
+- `templates/base_app.html` — Added marked.js CDN for dashboard markdown preview
+**Verification:** Content tab → write post with ` ```chart ` block → preview renders chart. Schedule for future date → status shows "scheduled". Tempora publishes it when due.
+
+---
+
+### 2026-02-12 — Blog + SEO + Content Generator
+
+**Debt item:** N/A (marketing/SEO feature)
+**Files changed:**
+- `api/models.py` — **CREATED** BlogPost model (title, slug, body markdown, meta_description, status draft/published, author FK, timestamps). Auto-slug generation with uniqueness.
+- `api/blog_views.py` — **CREATED** Public blog views: `blog_list` (all published posts) and `blog_detail` (single post by slug). No auth required.
+- `api/internal_views.py` — Added 6 blog management endpoints: `api_blog_list`, `api_blog_get`, `api_blog_save`, `api_blog_publish`, `api_blog_delete`, `api_blog_generate`. Generate endpoint uses Anthropic API to create SEO-optimized drafts with meta descriptions.
+- `api/urls.py` — Added 6 blog management API routes under `/api/internal/blog/`.
+- `api/migrations/0001_blogpost.py` — BlogPost migration, applied.
+- `svend/urls.py` — Added `/blog/`, `/blog/<slug>/`, `/robots.txt`, `/sitemap.xml` routes. Added Django sitemaps (StaticSitemap + BlogSitemap).
+- `svend/settings.py` — Added `django.contrib.sitemaps` to INSTALLED_APPS.
+- `templates/blog_list.html` — **CREATED** Public blog listing with SEO meta tags, OG tags, Svend branding.
+- `templates/blog_detail.html` — **CREATED** Blog post detail with Article schema (JSON-LD), OG article tags, client-side markdown rendering (marked.js), CTA box.
+- `templates/landing.html` — Added "Blog" link to nav bar.
+- `templates/robots.txt` — Serves at /robots.txt (Allow /, /blog/; Disallow /app/, /api/, /admin/, /login/, /register/, /internal/; Sitemap reference).
+- `templates/internal_dashboard.html` — Added "Content" tab (8th tab). Two-column layout: left has AI draft generator + post list, right has full markdown editor with live preview. Generate/save/publish/unpublish/delete workflow.
+- `templates/base_app.html` — Added marked.js CDN for markdown preview.
+**Verification:** Visit /blog/ (public, no auth). Visit /robots.txt and /sitemap.xml. Internal dashboard Content tab → generate, edit, save, publish a post → appears on /blog/.
+
+---
+
+### 2026-02-12 — Email composer in internal dashboard
+
+**Debt item:** N/A (staff-only feature)
+**Files changed:**
+- `api/internal_views.py` — Added `api_send_email` POST endpoint + inline HTML email template with Svend branding. Supports: custom email, tier-based, all customers, and test mode. Markdown body → HTML via `markdown` lib. Per-user personalization with `{{name}}`, `{{email}}`, `{{tier}}`. Staff excluded from recipients.
+- `api/urls.py` — Added `/api/internal/send-email/` route
+- `templates/internal_dashboard.html` — Added Email tab (7th tab). Compose + live preview layout. "Send Test to Me" for proofing, "Send" with confirmation for bulk.
+**Verification:** Email tab → write markdown, see preview. Test sends to your inbox from hello@svend.ai.
+
+---
+
+### 2026-02-12 — Staff exclusion from analytics + event tracking
+
+**Files changed:**
+- `api/internal_views.py` — Added `_customers()` and `_staff_ids()` helpers. All dashboard queries now exclude `is_staff=True`. Added `api_activity()` endpoint.
+- `chat/models.py` — Added `EventLog` model. `chat/migrations/0004_eventlog.py` applied.
+- `api/views.py` — Added `track_event()` POST endpoint at `/api/events/`
+- `templates/base_app.html` — Added `svendTrack()` JS function, auto page_view + session_start
+- 10 templates instrumented: workbench_new, spc, forecast, a3, experimenter, learn, rca, vsm, models, chat
+- `templates/internal_dashboard.html` — Added Activity tab with page popularity, feature heatmap, daily sessions, user journeys
+**Verification:** Browse any page → events recorded. Dashboard Activity tab shows customer-only data. Staff invisible in all analytics.
+
+---
+
+### 2026-02-12 — Calculator charts + Monte Carlo (Batches 3-5)
+
+**Files changed:**
+- `services/svend/web/templates/calculators.html` — Batch 3: Added Plotly gauge charts to Takt (zone-colored: red/green/yellow), DPMO (sigma 0-6 range), Inventory Turns (benchmark zones). Batch 4: Added Kanban pipeline visual (HTML/CSS supplier→cards→customer flow diagram), Little's Law bar chart (3 bars with L=λW annotation). Batch 5: Added Monte Carlo simulations to Safety Stock (varies demand/σ/LT/σLT), Kanban (varies demand/LT/safety%), Cpk (varies mean/σ, fixed specs). Each MC includes toggle button, 4-stat summary, histogram.
+**Verification:** All 3 gauges render with correct zones. Kanban shows colored card tokens. Little's bars update with solve mode. MC toggles open/close correctly, histograms render 2000 runs.
+
+---
+
+### 2026-02-12 — Calculator cross-links: pull buttons + next steps (Batch 2)
+
+**Files changed:**
+- `services/svend/web/templates/calculators.html` — Added 2 pull buttons (EPEI←SMED changeover, Queue←Bottleneck throughput); added 8 "Next Steps" card containers (Takt, OEE, Safety Stock, Cpk, DPMO, SMED, EPEI, RTY) with `renderNextSteps()` calls wiring 24 cross-calculator navigation links; fixed `navigateToCalc()` to use correct `.ops-nav-item` selector.
+**Verification:** After calculating any of the 8 calculators, clickable Next Steps cards appear below the derivation. Clicking navigates to the linked calculator.
+
+---
+
+### 2026-02-12 — Calculator cross-link infrastructure (Batch 1)
+
+**Files changed:**
+- `services/svend/web/templates/calculators.html` — Added `.calc-next-steps`/`.calc-next-step` CSS classes; `renderNextSteps()` and `navigateToCalc()` helper functions; `SvendOps.publish()` calls to 11 calculators (RTO, Kanban, EPEI, Safety Stock, EOQ, OEE, Bottleneck, Little's Law, DPMO, SMED, Cpk) publishing 18 new keys to shared state.
+**Verification:** Page loads without console errors. After running any calculator, `SvendOps.values` contains the published keys.
+
+---
+
+### 2026-02-12 — Event tracking system for product analytics
+
+**Debt item:** N/A (new feature — product improvement infrastructure)
+**Files changed:**
+- `chat/models.py` — Added `EventLog` model (event_type, category, action, label, page, session_id, metadata). 3 composite indexes for query performance
+- `chat/migrations/0004_eventlog.py` — Migration applied
+- `api/views.py` — Added `track_event()` POST endpoint at `/api/events/`. Supports batch (up to 20). Validates event_type against choices. Uses `bulk_create`
+- `api/urls.py` — Added event tracking route + activity internal route
+- `templates/base_app.html` — Added `svendTrack()` global JS function. Auto-logs `page_view` on every page load and `session_start` once per browser session. Uses `sessionStorage` for session ID (crypto.randomUUID). Fire-and-forget (non-blocking)
+- `templates/workbench_new.html` — Added tracking: `dsw` / analysis type
+- `templates/spc.html` — Added tracking: `spc` / chart type
+- `templates/forecast.html` — Added tracking: `forecast` / method + symbol
+- `templates/a3.html` — Added tracking: `a3` / save_report
+- `templates/experimenter.html` — Added tracking: `experimenter` / design type
+- `templates/learn.html` — Added tracking: `learn` / complete_section
+- `templates/rca.html` — Added tracking: `rca` / evaluate
+- `templates/vsm.html` — Added tracking: `vsm` / create
+- `templates/models.html` — Added tracking: `models` / inference
+- `templates/chat.html` — Added tracking: `chat` / send_message + mode
+- `api/internal_views.py` — Added `api_activity()` endpoint: page popularity, feature heatmap, daily sessions, user journeys, feature use over time
+- `templates/internal_dashboard.html` — Added Activity tab (6th tab) with KPI cards (events/pageviews/feature uses/sessions), 4 charts, user journey timeline with color-coded event tags
+**Verification:** Browse any page → EventLog records created. Visit `/internal/dashboard/` → Activity tab shows page popularity, feature heatmap, session counts, user journeys. `svendTrack('feature_use', {category:'test'})` in console creates a record.
+
+---
+
+### 2026-02-12 — Calculator cross-link infrastructure (Batch 1)
+
+**Files changed:**
+- `services/svend/web/templates/calculators.html` — Added `.calc-next-steps`/`.calc-next-step` CSS classes; `renderNextSteps()` and `navigateToCalc()` helper functions; `SvendOps.publish()` calls to 11 calculators (RTO, Kanban, EPEI, Safety Stock, EOQ, OEE, Bottleneck, Little's Law, DPMO, SMED, Cpk) publishing 18 new keys to shared state.
+**Verification:** Page loads without console errors. After running any calculator, `SvendOps.values` contains the published keys.
+
+---
+
+### 2026-02-12 — Multi-tenancy org management + auto-expand seat billing
+
+**Debt item:** N/A (Enterprise feature — org member management + Stripe seat billing)
+**Files changed:**
+- `core/models/tenant.py` — Added `OrgInvitation` model (email, tenant FK, role, UUID token, status [pending/accepted/expired/cancelled], expires_at 7-day default). Added `stripe_seat_item_id` to Tenant for Stripe subscription item tracking.
 - `core/models/__init__.py` — Export `OrgInvitation`
-- `core/migrations/0005_org_invitation.py` — Migration for new model
+- `core/migrations/0005_org_invitation.py` — OrgInvitation model
+- `core/migrations/0006_tenant_stripe_seat_item.py` — stripe_seat_item_id field
 - `accounts/permissions.py` — Added `@require_org_admin` decorator (checks Membership.can_admin, NOT Django is_staff)
-- `core/views.py` — Added 8 org management endpoints: org_info, org_members, org_change_role, org_remove_member, org_invite, org_invitations, org_cancel_invitation, org_accept_invitation. Seat limit enforced. Owner-only guards for admin/owner role assignment.
-- `core/urls.py` — Added 8 URL patterns under `org/` prefix
-- `templates/settings.html` — Added Account/Organization tab system with seat bar, members table, invite form, pending invitations
-**Verification:** `python manage.py check` passes. Team/Enterprise user sees Organization tab in settings. Seats at $129/seat.
+- `accounts/billing.py` — Added `SEAT_PRICE_ID` placeholder, `add_org_seat(tenant)` (auto-adds seat line item to owner's Stripe subscription with proration), `remove_org_seat(tenant)` (decrements/removes seat item), `_sync_seat_count()` (syncs Stripe seat quantity → tenant.max_members on webhook). Graceful fallback when SEAT_PRICE_ID not yet configured.
+- `core/views.py` — 8 org management endpoints. `org_invite` calls `add_org_seat` (auto-expand, returns 402 on payment failure). `org_remove_member` and `org_cancel_invitation` call `remove_org_seat`.
+- `core/urls.py` — 8 URL patterns under `org/` prefix
+- `templates/settings.html` — Account/Organization tab system. Seat bar, members table with role change/remove, invite form (shows prorated charge messaging), pending invitations with cancel. Handles 402 payment errors. No separate "purchase seat" button — seats auto-expand on invite like Slack/GitHub.
+**Verification:** `python manage.py check` passes. Set SEAT_PRICE_ID after creating $129/month/seat product in Stripe dashboard.
 
 ---
 

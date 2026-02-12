@@ -207,7 +207,7 @@
                     <p class="seat-label"><span id="seat-used">0</span> / <span id="seat-max">10</span> seats used</p>
                 </div>
                 <p class="help-text" id="seat-pending-text" style="display:none;"></p>
-                <button class="btn btn-secondary" id="purchase-seat-btn" style="display:none;" onclick="purchaseSeat()">Purchase Additional Seat ($129)</button>
+                <p class="help-text">Seats are added automatically when you invite members ($129/seat/month, prorated).</p>
             </section>
 
             <!-- Members List -->
@@ -248,7 +248,7 @@
                         <button type="submit" class="btn btn-primary" style="align-self:flex-end;">Send Invite</button>
                     </div>
                 </form>
-                <p class="help-text">The invite link will be valid for 7 days. A seat must be available.</p>
+                <p class="help-text">Sending an invite adds a seat ($129/month, prorated). The link is valid for 7 days.</p>
             </section>
 
             <!-- Pending Invitations -->
@@ -872,10 +872,7 @@
             fill.className = 'seat-bar-fill' +
                 (pct >= 100 ? ' at-limit' : pct >= 80 ? ' near-limit' : '');
 
-            // Show purchase button when near or at limit
-            if (pct >= 80) {
-                document.getElementById('purchase-seat-btn').style.display = '';
-            }
+            // No purchase button needed — seats auto-expand on invite
 
             // Members table
             const tbody = document.getElementById('members-tbody');
@@ -960,9 +957,17 @@
                 body: JSON.stringify({ email, role }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || data.message);
+            if (!res.ok) {
+                if (res.status === 402) {
+                    throw new Error(data.message || 'Payment failed — check payment method');
+                }
+                throw new Error(data.error || data.message);
+            }
 
-            showToast(`Invitation sent to ${email}`);
+            const msg = data.seat_added
+                ? `Invitation sent to ${email} — seat added ($129/mo prorated)`
+                : `Invitation sent to ${email}`;
+            showToast(msg);
             document.getElementById('invite-email').value = '';
             loadOrgInvitations();
             loadOrgMembers(); // Refresh seat count
@@ -1025,12 +1030,6 @@
         } catch (err) {
             showToast(err.message, 'error');
         }
-    }
-
-    function purchaseSeat() {
-        // Redirect to Stripe checkout for seat purchase
-        // For now, direct to billing page with seat param
-        window.location.href = '/billing/checkout/?plan=seat';
     }
 
     // Load data on page load

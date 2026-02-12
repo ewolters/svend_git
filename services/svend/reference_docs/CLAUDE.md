@@ -7,7 +7,7 @@ Svend is a tool-augmented reasoning system. A small language model trained from 
 - Call external tools (Python sandbox, SymPy, Z3) for verified computation
 - Verify its own work with a separate critic model
 
-Target: $5/month subscription, launching May 2026.
+Pricing: Free / Founder $19/mo / Pro $29/mo / Team $79/mo / Enterprise $199/mo. Live in production.
 
 ## Project Structure
 

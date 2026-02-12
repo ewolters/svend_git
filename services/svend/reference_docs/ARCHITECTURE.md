@@ -11,7 +11,7 @@
 
 **SVEND** is a professional-grade decision science workbench. It competes with Minitab on statistical rigor while adding structured reasoning and AI assistance at 96% lower cost.
 
-**One-liner:** Minitab + reasoning + AI at $5/month.
+**One-liner:** Minitab + reasoning + AI from $19/month.
 
 **Core insight:** Engineers don't just need statistics. They need to arrive at structured responses to inquiries - whether diagnosing a problem, planning an experiment, or validating a process.
 
@@ -509,34 +509,36 @@ Key properties:
 
 | Tier | Price | Features |
 |------|-------|----------|
-| **Individual** | $5/month | Full workbench, all tools, local models |
-| **Team** (future) | $15/month | Shared workbenches, comments, dashboards |
-| **Enterprise** (future) | Custom | SSO, audit trails, on-prem, API access |
+| **Free** | $0/month | 5 analyses/day, core tools |
+| **Founder** | $19/month | Unlimited analyses, all tools, priority support |
+| **Pro** | $29/month | Everything in Founder + API access, exports |
+| **Team** | $79/month | Shared workbenches, 5 seats, collaboration |
+| **Enterprise** | $199/month | SSO, audit trails, AI assistant, 5000 analyses/day |
 
 ### Market Position
 
 ```
 Minitab:  $1,500/year  →  Legacy UI, no AI, license hell
 JMP:      $1,800/year  →  Powerful but expensive
-SVEND:    $60/year     →  Modern UI, AI-assisted, runs anywhere
+SVEND:    $228/year    →  Modern UI, AI-assisted, runs anywhere
 
 "Everything you use Minitab for, at 96% less, with AI that helps you think."
 ```
 
 ### Target
 
-6,000 users × $5/month = **$30,000 MRR** = $360K/year
+6,000 users × $19/month = **$114,000 MRR** = $1.37M/year
 
 ### Growth Path
 
 ```
 NOW                         +6 MONTHS                    +12 MONTHS
 ────────────────────────────────────────────────────────────────────
-Individual workbench        Team features                Enterprise
-Local execution             Email updates                SSO/SAML
-DMAIC/Kaizen templates      Shared workbenches           Audit trails
-Full statistical suite      Comments/mentions            On-prem option
-$5/month                    $15/month team               Custom pricing
+Full statistical suite      Team collaboration           Enterprise
+Free + Founder + Pro tiers  Shared workbenches           SSO/SAML
+AI-assisted analysis        Comments/mentions            Audit trails
+DMAIC/Kaizen templates      Dashboard sharing            On-prem option
+From $19/month              $79/month team               $199/month enterprise
 ```
 
 ### Channels
