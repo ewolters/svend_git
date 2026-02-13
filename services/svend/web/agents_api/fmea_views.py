@@ -13,7 +13,7 @@ from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import gated_paid
-from .models import FMEA, FMEARow
+from .models import ActionItem, FMEA, FMEARow
 from core.models import Project, Hypothesis, Evidence, EvidenceLink
 
 logger = logging.getLogger(__name__)
@@ -133,8 +133,13 @@ def get_fmea(request, fmea_id):
             .values("id", "statement", "current_probability", "status")[:20]
         )
 
+    # Action items linked to any row in this FMEA
+    row_ids = list(fmea.rows.values_list("id", flat=True))
+    action_items = ActionItem.objects.filter(source_type="fmea", source_id__in=row_ids) if row_ids else []
+
     return JsonResponse({
         "fmea": fmea.to_dict(),
+        "action_items": [i.to_dict() for i in action_items],
         "project": {
             "id": str(fmea.project.id),
             "title": fmea.project.title,
@@ -664,3 +669,53 @@ def _compute_likelihood_ratio(severity, occurrence):
         # Map 1-20 → 1.1-1.5
         lr = 1.1 + 0.4 * (so - 1) / 19
     return round(lr, 2)
+
+
+# ── Action Items ──────────────────────────────────────────────────────
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["GET"])
+def list_fmea_actions(request, fmea_id):
+    """List all action items linked to any row in this FMEA."""
+    fmea = get_object_or_404(FMEA, id=fmea_id, user=request.user)
+    row_ids = list(fmea.rows.values_list("id", flat=True))
+    items = ActionItem.objects.filter(source_type="fmea", source_id__in=row_ids)
+    return JsonResponse({"action_items": [i.to_dict() for i in items]})
+
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["POST"])
+def promote_fmea_action(request, fmea_id, row_id):
+    """Promote an FMEA row's recommended action to a tracked ActionItem."""
+    fmea = get_object_or_404(FMEA, id=fmea_id, user=request.user)
+    row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
+
+    if not fmea.project:
+        return JsonResponse({"error": "FMEA must be linked to a project first"}, status=400)
+
+    # Check if already promoted
+    existing = ActionItem.objects.filter(source_type="fmea", source_id=row.id).first()
+    if existing:
+        return JsonResponse({"action_item": existing.to_dict()})
+
+    data = {}
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        pass
+
+    title = data.get("title", "").strip() or row.recommended_action[:255] or f"FMEA action: {row.failure_mode}"
+
+    item = ActionItem.objects.create(
+        project=fmea.project,
+        title=title,
+        description=data.get("description", f"From FMEA row: {row.process_step} — {row.failure_mode}\nRPN: {row.rpn}"),
+        owner_name=data.get("owner_name", row.action_owner),
+        status="not_started",
+        due_date=data.get("due_date"),
+        source_type="fmea",
+        source_id=row.id,
+    )
+    return JsonResponse({"success": True, "action_item": item.to_dict()}, status=201)

@@ -499,6 +499,95 @@
 }
 
 .fmea-create-form textarea { min-height: 60px; resize: vertical; }
+
+/* ============ ACTION TRACKING ============ */
+
+.fmea-track-btn {
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.fmea-track-btn:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.fmea-tracked-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(46, 204, 113, 0.15);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    border-radius: 4px;
+    color: #2ecc71;
+    white-space: nowrap;
+}
+
+.fmea-action-items-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 20px;
+}
+
+.fmea-action-items-panel h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.fmea-action-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.fmea-action-item:last-child { margin-bottom: 0; }
+
+.fmea-action-item .action-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fmea-action-item .action-owner {
+    color: var(--text-dim);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.fmea-action-item select {
+    padding: 2px 6px;
+    font-size: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+}
+
+.fmea-action-empty {
+    text-align: center;
+    padding: 16px;
+    color: var(--text-dim);
+    font-size: 13px;
+}
 </style>
 {% endblock %}
 
@@ -582,6 +671,12 @@
                 <div id="pareto-chart"></div>
             </div>
         </div>
+
+        <!-- Action Items Panel -->
+        <div class="fmea-action-items-panel" id="fmea-action-items" style="display:none;">
+            <h3>Action Items</h3>
+            <div id="fmea-action-items-list"></div>
+        </div>
     </div>
 </div>
 
@@ -644,6 +739,7 @@ let currentFmea = null;
 let currentRows = [];
 let availableHypotheses = [];
 let projects = [];
+let currentActionItems = [];
 let linkingRowId = null;
 let saveTimer = null;
 
@@ -738,6 +834,7 @@ async function loadFmea(id) {
     const data = await resp.json();
     currentFmea = data.fmea;
     currentRows = currentFmea.rows || [];
+    currentActionItems = data.action_items || [];
     availableHypotheses = data.available_hypotheses || [];
 
     document.getElementById('fmea-title').value = currentFmea.title;
@@ -747,6 +844,7 @@ async function loadFmea(id) {
     document.getElementById('fmea-project').value = currentFmea.project_id || '';
 
     renderTable();
+    renderFmeaActionItems(currentActionItems);
     refreshSummary();
 }
 
@@ -771,7 +869,13 @@ function renderTable() {
             <td><textarea data-field="current_controls" onchange="saveRow('${r.id}', this)">${esc(r.current_controls)}</textarea></td>
             <td><input type="number" min="1" max="10" class="score-input" value="${r.detection}" data-field="detection" onchange="saveRow('${r.id}', this)"></td>
             <td><span class="rpn-cell ${rpnClass(r.rpn)}">${r.rpn}</span></td>
-            <td><textarea data-field="recommended_action" onchange="saveRow('${r.id}', this)">${esc(r.recommended_action)}</textarea></td>
+            <td>
+                <textarea data-field="recommended_action" onchange="saveRow('${r.id}', this)">${esc(r.recommended_action)}</textarea>
+                ${r.recommended_action ? (isRowTracked(r.id)
+                    ? '<span class="fmea-tracked-badge">Tracked</span>'
+                    : `<button class="fmea-track-btn" onclick="promoteFmeaAction('${currentFmea.id}', '${r.id}')">Track</button>`
+                ) : ''}
+            </td>
             <td><input value="${esc(r.action_owner)}" data-field="action_owner" onchange="saveRow('${r.id}', this)"></td>
             <td>
                 <select data-field="action_status" onchange="saveRow('${r.id}', this)">
@@ -1071,6 +1175,82 @@ async function refreshSummary() {
             margin: {t: 10, r: 50, b: 80, l: 50},
         }, {responsive: true, displayModeBar: false});
     }
+}
+
+// ====== ACTION ITEMS ======
+
+function isRowTracked(rowId) {
+    return currentActionItems.some(a => a.source_id === rowId);
+}
+
+async function promoteFmeaAction(fmeaId, rowId) {
+    const resp = await fetch(API + fmeaId + '/rows/' + rowId + '/promote-action/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({}),
+    });
+
+    if (!resp.ok) {
+        const err = await resp.json();
+        alert(err.error || 'Failed to promote action');
+        return;
+    }
+
+    const data = await resp.json();
+    const item = data.action_item;
+
+    // Avoid duplicates in local state
+    if (!currentActionItems.find(a => a.id === item.id)) {
+        currentActionItems.push(item);
+    }
+
+    renderTable();
+    renderFmeaActionItems(currentActionItems);
+    showToast('Action item tracked');
+}
+
+function renderFmeaActionItems(items) {
+    const panel = document.getElementById('fmea-action-items');
+    const list = document.getElementById('fmea-action-items-list');
+
+    if (!items || items.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = '';
+    list.innerHTML = items.map(a => `
+        <div class="fmea-action-item" data-action-id="${a.id}">
+            <span class="action-title" title="${esc(a.title)}">${esc(a.title)}</span>
+            ${a.owner_name ? `<span class="action-owner">${esc(a.owner_name)}</span>` : ''}
+            <select onchange="updateActionStatus('${a.id}', this.value)">
+                <option value="not_started" ${a.status==='not_started'?'selected':''}>Not Started</option>
+                <option value="in_progress" ${a.status==='in_progress'?'selected':''}>In Progress</option>
+                <option value="completed" ${a.status==='completed'?'selected':''}>Completed</option>
+                <option value="blocked" ${a.status==='blocked'?'selected':''}>Blocked</option>
+            </select>
+        </div>
+    `).join('');
+}
+
+async function updateActionStatus(actionId, newStatus) {
+    const resp = await fetch('/api/actions/' + actionId + '/update/', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: newStatus}),
+    });
+
+    if (!resp.ok) {
+        const err = await resp.json();
+        alert(err.error || 'Failed to update action');
+        return;
+    }
+
+    const data = await resp.json();
+    const idx = currentActionItems.findIndex(a => a.id === actionId);
+    if (idx >= 0) currentActionItems[idx] = data.action_item;
 }
 
 // ====== HELPERS ======

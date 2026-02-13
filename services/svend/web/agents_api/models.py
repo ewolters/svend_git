@@ -2088,6 +2088,14 @@ class ActionItem(models.Model):
         related_name="dependents",
     )
     sort_order = models.IntegerField(default=0)
+    source_type = models.CharField(
+        max_length=20, blank=True, default="",
+        help_text="Origin: hoshin, a3, rca, fmea, report, or blank for manual",
+    )
+    source_id = models.UUIDField(
+        null=True, blank=True,
+        help_text="ID of the source object (A3Report, RCASession, FMEARow, etc.)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -2112,6 +2120,8 @@ class ActionItem(models.Model):
             "progress": self.progress,
             "depends_on_id": str(self.depends_on_id) if self.depends_on_id else None,
             "sort_order": self.sort_order,
+            "source_type": self.source_type,
+            "source_id": str(self.source_id) if self.source_id else None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
-from .models import RCASession
+from .models import ActionItem, RCASession
 
 
 # The soul of RCA critique - a skeptical, experienced investigator
@@ -459,7 +459,11 @@ def get_session(request, session_id):
     """Get a single RCA session."""
     try:
         session = RCASession.objects.get(id=session_id, owner=request.user)
-        return JsonResponse({"session": session.to_dict()})
+        action_items = ActionItem.objects.filter(source_type="rca", source_id=session.id)
+        return JsonResponse({
+            "session": session.to_dict(),
+            "action_items": [i.to_dict() for i in action_items],
+        })
     except RCASession.DoesNotExist:
         return JsonResponse({"error": "Session not found"}, status=404)
 
@@ -692,3 +696,46 @@ def reindex_embeddings(request):
         "failed": failed,
         "total": sessions.count(),
     })
+
+
+# ── Action Items ──────────────────────────────────────────────────────
+
+from django.shortcuts import get_object_or_404
+
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["GET"])
+def list_rca_actions(request, session_id):
+    """List action items linked to an RCA session."""
+    session = get_object_or_404(RCASession, id=session_id, owner=request.user)
+    items = ActionItem.objects.filter(source_type="rca", source_id=session.id)
+    return JsonResponse({"action_items": [i.to_dict() for i in items]})
+
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["POST"])
+def create_rca_action(request, session_id):
+    """Create a tracked action item from an RCA session."""
+    session = get_object_or_404(RCASession, id=session_id, owner=request.user)
+
+    if not session.project:
+        return JsonResponse({"error": "RCA session must be linked to a project first"}, status=400)
+
+    data = json.loads(request.body)
+    title = data.get("title", "").strip()
+    if not title:
+        return JsonResponse({"error": "Title is required"}, status=400)
+
+    item = ActionItem.objects.create(
+        project=session.project,
+        title=title,
+        description=data.get("description", ""),
+        owner_name=data.get("owner_name", ""),
+        status=data.get("status", "not_started"),
+        due_date=data.get("due_date"),
+        source_type="rca",
+        source_id=session.id,
+    )
+    return JsonResponse({"success": True, "action_item": item.to_dict()}, status=201)

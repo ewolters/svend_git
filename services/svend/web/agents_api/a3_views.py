@@ -13,7 +13,7 @@ from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import gated_paid
-from .models import A3Report, Board, DSWResult
+from .models import A3Report, ActionItem, Board, DSWResult
 from core.models import Project, Hypothesis
 
 logger = logging.getLogger(__name__)
@@ -105,8 +105,12 @@ def get_a3_report(request, report_id):
         project=project
     ).order_by('-created_at')[:20]
 
+    # Action items linked to this A3
+    action_items = ActionItem.objects.filter(source_type="a3", source_id=report.id)
+
     return JsonResponse({
         "report": report.to_dict(),
+        "action_items": [i.to_dict() for i in action_items],
         "project": {
             "id": str(project.id),
             "title": project.title,
@@ -534,3 +538,40 @@ def remove_diagram(request, report_id, diagram_id):
     report.save()
 
     return JsonResponse({"success": True})
+
+
+# ── Action Items ──────────────────────────────────────────────────────
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["GET"])
+def list_a3_actions(request, report_id):
+    """List action items linked to an A3 report."""
+    report = get_object_or_404(A3Report, id=report_id, user=request.user)
+    items = ActionItem.objects.filter(source_type="a3", source_id=report.id)
+    return JsonResponse({"action_items": [i.to_dict() for i in items]})
+
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["POST"])
+def create_a3_action(request, report_id):
+    """Create a tracked action item from an A3 report."""
+    report = get_object_or_404(A3Report, id=report_id, user=request.user)
+    data = json.loads(request.body)
+
+    title = data.get("title", "").strip()
+    if not title:
+        return JsonResponse({"error": "Title is required"}, status=400)
+
+    item = ActionItem.objects.create(
+        project=report.project,
+        title=title,
+        description=data.get("description", ""),
+        owner_name=data.get("owner_name", ""),
+        status=data.get("status", "not_started"),
+        due_date=data.get("due_date"),
+        source_type="a3",
+        source_id=report.id,
+    )
+    return JsonResponse({"success": True, "action_item": item.to_dict()}, status=201)

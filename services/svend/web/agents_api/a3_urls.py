@@ -13,4 +13,8 @@ urlpatterns = [
     path("<uuid:report_id>/auto-populate/", a3_views.auto_populate_a3, name="a3_auto_populate"),
     path("<uuid:report_id>/embed-diagram/", a3_views.embed_diagram, name="a3_embed_diagram"),
     path("<uuid:report_id>/diagram/<str:diagram_id>/", a3_views.remove_diagram, name="a3_remove_diagram"),
+
+    # Action items
+    path("<uuid:report_id>/actions/", a3_views.list_a3_actions, name="a3_actions"),
+    path("<uuid:report_id>/actions/create/", a3_views.create_a3_action, name="a3_create_action"),
 ]

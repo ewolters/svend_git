@@ -1054,6 +1054,10 @@ input[type="number"] {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="3"/><circle cx="19" cy="12" r="3"/><path d="M8 12h8"/><path d="M13 9l3 3-3 3"/></svg>
                     <span>Multi-Stage</span>
                 </div>
+                <div class="ops-nav-item" onclick="showCalc('erlang')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    <span>Erlang C Staffing</span>
+                </div>
             </div>
             <div class="ops-nav-group">
                 <div class="ops-nav-group-title">Quality</div>
@@ -1110,6 +1114,10 @@ input[type="number"] {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
                     <span>FMEA Monte Carlo</span>
                 </div>
+                <div class="ops-nav-item" onclick="showCalc('riskmatrix')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                    <span>Risk Matrix</span>
+                </div>
             </div>
             <div class="ops-nav-group">
                 <div class="ops-nav-group-title">Line Performance</div>
@@ -1124,6 +1132,10 @@ input[type="number"] {
                 <div class="ops-nav-item" onclick="showCalc('cycletime')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     <span>Cycle Time Study</span>
+                </div>
+                <div class="ops-nav-item" onclick="showCalc('mtbf')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M16 3l2 2M8 3L6 5"/></svg>
+                    <span>MTBF / MTTR</span>
                 </div>
             </div>
             <div class="ops-nav-group">
@@ -5482,6 +5494,240 @@ input[type="number"] {
                 </div>
             </div>
 
+            <!-- MTBF / MTTR + Availability -->
+            <div class="calc-layout" id="layout-mtbf">
+                <div class="calc-section">
+                    <div class="calc-section-title">Mode</div>
+                    <div class="calc-inputs" style="max-width: 320px;">
+                        <div class="calc-input">
+                            <select id="mtbf-mode" onchange="updateMTBFMode()">
+                                <option value="events">From Failure Events</option>
+                                <option value="direct">Enter MTBF / MTTR Directly</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-section" id="mtbf-events-section">
+                    <div class="calc-section-title">Failure Log</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Total Operating Time</label>
+                            <input type="number" id="mtbf-total-time" value="8760" oninput="calcMTBF()">
+                            <span class="input-hint">hours (e.g. 8760 = 1 year)</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Number of Failures</label>
+                            <input type="number" id="mtbf-failures" value="12" oninput="calcMTBF()">
+                        </div>
+                        <div class="calc-input">
+                            <label>Total Downtime</label>
+                            <input type="number" id="mtbf-downtime" value="48" oninput="calcMTBF()">
+                            <span class="input-hint">hours (sum of all repair times)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-section" id="mtbf-direct-section" style="display:none;">
+                    <div class="calc-section-title">Inputs</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>MTBF</label>
+                            <input type="number" id="mtbf-direct-mtbf" value="730" oninput="calcMTBFDirect()">
+                            <span class="input-hint">hours</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>MTTR</label>
+                            <input type="number" id="mtbf-direct-mttr" value="4" oninput="calcMTBFDirect()">
+                            <span class="input-hint">hours</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-section">
+                    <div class="calc-section-title">Results</div>
+                    <div class="calc-results">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">Availability</div>
+                            <div class="calc-result-value" id="mtbf-availability">99.45<span class="calc-result-unit">%</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">MTBF</div>
+                            <div class="calc-result-value" id="mtbf-result">726<span class="calc-result-unit">hrs</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">MTTR</div>
+                            <div class="calc-result-value" id="mttr-result">4.0<span class="calc-result-unit">hrs</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Failure Rate (λ)</div>
+                            <div class="calc-result-value" id="mtbf-lambda">0.00138<span class="calc-result-unit">/hr</span></div>
+                        </div>
+                    </div>
+                    <div class="calc-breakdown">
+                        <div class="calc-breakdown-row">
+                            <span>Availability Formula</span>
+                            <span>A = MTBF / (MTBF + MTTR)</span>
+                        </div>
+                        <div class="calc-breakdown-row">
+                            <span>Uptime Nines</span>
+                            <span id="mtbf-nines">Two nines (99.45%)</span>
+                        </div>
+                        <div class="calc-breakdown-row">
+                            <span>Annual Downtime</span>
+                            <span id="mtbf-annual-downtime">48.0 hrs/year</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-chart">
+                    <div class="calc-chart-title">Availability vs MTTR Sensitivity</div>
+                    <div id="mtbf-chart" style="height: 350px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="mtbf-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('mtbf-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="mtbf-derivation-body"></div>
+                </div>
+                <div id="mtbf-next-steps" class="calc-next-steps" style="display:none"></div>
+            </div>
+
+            <!-- Erlang C Staffing -->
+            <div class="calc-layout" id="layout-erlang">
+                <div class="calc-section">
+                    <div class="calc-section-title">Demand</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Arrival Rate</label>
+                            <input type="number" id="erlang-arrivals" value="30" step="0.1" oninput="calcErlang()">
+                            <span class="input-hint">arrivals per hour (patients, calls, tickets)</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Avg Service Time</label>
+                            <input type="number" id="erlang-service" value="10" step="0.1" oninput="calcErlang()">
+                            <span class="input-hint">minutes per service</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-section">
+                    <div class="calc-section-title">Service Target</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Target Answer Time</label>
+                            <input type="number" id="erlang-target-time" value="60" oninput="calcErlang()">
+                            <span class="input-hint">seconds</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Target Service Level</label>
+                            <input type="number" id="erlang-target-sl" value="80" step="1" oninput="calcErlang()">
+                            <span class="input-hint">% answered within target time</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-section">
+                    <div class="calc-section-title">Results</div>
+                    <div class="calc-results">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">Agents Required</div>
+                            <div class="calc-result-value" id="erlang-agents">7</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Traffic Intensity</div>
+                            <div class="calc-result-value" id="erlang-intensity">5.00<span class="calc-result-unit">Erlangs</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Service Level</div>
+                            <div class="calc-result-value" id="erlang-sl">84.2<span class="calc-result-unit">%</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Avg Wait Time</div>
+                            <div class="calc-result-value" id="erlang-wait">22<span class="calc-result-unit">sec</span></div>
+                        </div>
+                    </div>
+                    <div class="calc-breakdown">
+                        <div class="calc-breakdown-row">
+                            <span>P(Wait > 0)</span>
+                            <span id="erlang-pw">Probability of waiting: —</span>
+                        </div>
+                        <div class="calc-breakdown-row">
+                            <span>Occupancy</span>
+                            <span id="erlang-occ">Agent utilization: —</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-chart">
+                    <div class="calc-chart-title">Service Level vs Staffing</div>
+                    <div id="erlang-chart" style="height: 350px;"></div>
+                </div>
+
+                <div class="calc-derivation" id="erlang-derivation">
+                    <div class="calc-derivation-header" onclick="toggleDerivation('erlang-derivation')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        Show Derivation
+                    </div>
+                    <div class="calc-derivation-body" id="erlang-derivation-body"></div>
+                </div>
+                <div id="erlang-next-steps" class="calc-next-steps" style="display:none"></div>
+            </div>
+
+            <!-- Risk Matrix -->
+            <div class="calc-layout" id="layout-riskmatrix">
+                <div class="calc-section">
+                    <div class="calc-section-title">Risk Items</div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                            <thead>
+                                <tr style="color:var(--text-dim); font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    <th style="text-align:left; padding:8px;">Risk Description</th>
+                                    <th style="text-align:center; padding:8px; width:140px;">Likelihood (1-5)</th>
+                                    <th style="text-align:center; padding:8px; width:140px;">Severity (1-5)</th>
+                                    <th style="text-align:center; padding:8px; width:80px;">Score</th>
+                                    <th style="padding:8px; width:40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="risk-tbody">
+                            </tbody>
+                        </table>
+                        <button onclick="riskAddRow()" style="margin-top:8px;padding:6px 16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:13px;">+ Add Risk</button>
+                    </div>
+                </div>
+
+                <div class="calc-section">
+                    <div class="calc-section-title">Results</div>
+                    <div class="calc-results">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">Total Risks</div>
+                            <div class="calc-result-value" id="risk-total">0</div>
+                        </div>
+                        <div class="calc-result-card" style="border-left:3px solid #e74c3c;">
+                            <div class="calc-result-label">Critical / High</div>
+                            <div class="calc-result-value" id="risk-high">0</div>
+                        </div>
+                        <div class="calc-result-card" style="border-left:3px solid #f39c12;">
+                            <div class="calc-result-label">Medium</div>
+                            <div class="calc-result-value" id="risk-med">0</div>
+                        </div>
+                        <div class="calc-result-card" style="border-left:3px solid #27ae60;">
+                            <div class="calc-result-label">Low</div>
+                            <div class="calc-result-value" id="risk-low">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-chart">
+                    <div class="calc-chart-title">5 x 5 Risk Heat Map</div>
+                    <div id="risk-heatmap" style="height: 400px;"></div>
+                </div>
+
+                <div id="risk-next-steps" class="calc-next-steps" style="display:none"></div>
+            </div>
+
         </div>
     </main>
 </div>
@@ -5510,6 +5756,7 @@ const calcMeta = {
     'queue-sim': { title: 'Live Queue Simulator', desc: 'Watch queues form in real-time with Monte Carlo variability' },
     'queue-compare': { title: 'A/B Scenario Compare', desc: 'Run two simulations side-by-side — current vs proposed, see the difference live' },
     'queue-tandem': { title: 'Multi-Stage Queue', desc: 'Tandem queues — patient flows through triage → doctor → checkout, manufacturing lines' },
+    'erlang': { title: 'Erlang C Staffing', desc: 'Calculate optimal staffing for call centers, ERs, help desks, and service operations' },
     pitch: { title: 'Pitch', desc: 'Takt × pack-out quantity for paced material withdrawal' },
     pfa: { title: 'Product Flow Analysis', desc: 'TIPS observation — follow the product through Transport, Inspect, Process, Storage' },
     wfa: { title: 'Workflow Analysis', desc: 'Therblig-based task breakdown — VA, required NVA, and unnecessary waste' },
@@ -5522,9 +5769,11 @@ const calcMeta = {
     fmea: { title: 'FMEA / RPN', desc: 'Failure Mode & Effects Analysis — Severity × Occurrence × Detection' },
     cpk: { title: 'Cp / Cpk Calculator', desc: 'Quick process capability check against spec limits' },
     samplesize: { title: 'Sample Size', desc: 'Calculate required sample size for studies and audits' },
+    'riskmatrix': { title: 'Risk Matrix', desc: '5x5 likelihood x severity risk assessment heat map — projects, safety, IT, compliance' },
     lineeff: { title: 'Line Efficiency', desc: 'Theoretical vs actual rate, losses by category' },
     ole: { title: 'OLE (Overall Labor Effectiveness)', desc: 'Availability × Performance × Quality for labor' },
     cycletime: { title: 'Cycle Time Study', desc: 'VA / NVA / Wait breakdown with visualization' },
+    'mtbf': { title: 'MTBF / MTTR + Availability', desc: 'Mean time between failures, mean time to repair, and system availability with uptime nines' },
     beforeafter: { title: 'Before / After', desc: 'Compare metrics pre and post improvement' },
     heijunka: { title: 'Heijunka (Leveling)', desc: 'Production mix smoothing and sequencing' },
     // Scheduling
@@ -16787,5 +17036,376 @@ function probitLoadExample() {
     probitRenderTable();
     probitUpdate();
 }
+
+// ============================================================================
+// MTBF / MTTR + Availability
+// ============================================================================
+
+function updateMTBFMode() {
+    const mode = document.getElementById('mtbf-mode').value;
+    document.getElementById('mtbf-events-section').style.display = mode === 'events' ? '' : 'none';
+    document.getElementById('mtbf-direct-section').style.display = mode === 'direct' ? '' : 'none';
+    if (mode === 'events') calcMTBF(); else calcMTBFDirect();
+}
+
+function calcMTBF() {
+    const totalTime = parseFloat(document.getElementById('mtbf-total-time').value) || 0;
+    const failures = parseFloat(document.getElementById('mtbf-failures').value) || 0;
+    const downtime = parseFloat(document.getElementById('mtbf-downtime').value) || 0;
+
+    if (failures <= 0 || totalTime <= 0) return;
+
+    const uptime = totalTime - downtime;
+    const mtbf = uptime / failures;
+    const mttr = downtime / failures;
+    _renderMTBF(mtbf, mttr, totalTime, failures, downtime);
+}
+
+function calcMTBFDirect() {
+    const mtbf = parseFloat(document.getElementById('mtbf-direct-mtbf').value) || 0;
+    const mttr = parseFloat(document.getElementById('mtbf-direct-mttr').value) || 0;
+    if (mtbf <= 0) return;
+    _renderMTBF(mtbf, mttr, null, null, null);
+}
+
+function _renderMTBF(mtbf, mttr, totalTime, failures, downtime) {
+    const availability = mtbf / (mtbf + mttr) * 100;
+    const lambda = 1 / mtbf;
+    const annualDowntime = (1 - availability / 100) * 8760;
+
+    // Nines
+    let nines;
+    if (availability >= 99.999) nines = 'Five nines';
+    else if (availability >= 99.99) nines = 'Four nines';
+    else if (availability >= 99.9) nines = 'Three nines';
+    else if (availability >= 99) nines = 'Two nines';
+    else if (availability >= 90) nines = 'One nine';
+    else nines = 'Below one nine';
+
+    document.getElementById('mtbf-availability').innerHTML = `${availability.toFixed(2)}<span class="calc-result-unit">%</span>`;
+    document.getElementById('mtbf-result').innerHTML = `${mtbf.toFixed(1)}<span class="calc-result-unit">hrs</span>`;
+    document.getElementById('mttr-result').innerHTML = `${mttr.toFixed(1)}<span class="calc-result-unit">hrs</span>`;
+    document.getElementById('mtbf-lambda').innerHTML = `${lambda.toFixed(5)}<span class="calc-result-unit">/hr</span>`;
+    document.getElementById('mtbf-nines').textContent = `${nines} (${availability.toFixed(3)}%)`;
+    document.getElementById('mtbf-annual-downtime').textContent = `${annualDowntime.toFixed(1)} hrs/year (${(annualDowntime / 24).toFixed(1)} days)`;
+
+    // Publish
+    SvendOps.publish('mtbf', mtbf, 'hrs', 'MTBF/MTTR');
+    SvendOps.publish('mttr', mttr, 'hrs', 'MTBF/MTTR');
+    SvendOps.publish('availability', availability, '%', 'MTBF/MTTR');
+
+    // Derivation
+    let html = '';
+    if (totalTime !== null) {
+        html += `<div class="step"><div class="step-num">Step 1: MTBF</div>
+            <span class="formula">MTBF = (Total Time − Downtime) / Failures</span><br>
+            = (${totalTime} − ${downtime}) / ${failures} = <strong>${mtbf.toFixed(1)} hrs</strong></div>`;
+        html += `<div class="step"><div class="step-num">Step 2: MTTR</div>
+            <span class="formula">MTTR = Total Downtime / Failures</span><br>
+            = ${downtime} / ${failures} = <strong>${mttr.toFixed(1)} hrs</strong></div>`;
+    }
+    html += `<div class="step"><div class="step-num">Step ${totalTime !== null ? 3 : 1}: Availability</div>
+        <span class="formula">A = MTBF / (MTBF + MTTR)</span><br>
+        = ${mtbf.toFixed(1)} / (${mtbf.toFixed(1)} + ${mttr.toFixed(1)}) = <strong>${availability.toFixed(3)}%</strong></div>`;
+    html += `<div class="step"><div class="step-num">Step ${totalTime !== null ? 4 : 2}: Failure Rate</div>
+        <span class="formula">λ = 1 / MTBF</span><br>
+        = 1 / ${mtbf.toFixed(1)} = <strong>${lambda.toFixed(5)} per hour</strong></div>`;
+    document.getElementById('mtbf-derivation-body').innerHTML = html;
+
+    // Sensitivity chart: vary MTTR from 0.5x to 3x, show availability
+    const mttrValues = [];
+    const availValues = [];
+    for (let m = Math.max(0.1, mttr * 0.2); m <= mttr * 4; m += mttr * 0.1) {
+        mttrValues.push(m);
+        availValues.push(mtbf / (mtbf + m) * 100);
+    }
+
+    Plotly.newPlot('mtbf-chart', [{
+        x: mttrValues, y: availValues,
+        type: 'scatter', mode: 'lines',
+        line: { color: '#4a9f6e', width: 2 },
+        name: 'Availability',
+    }, {
+        x: [mttr], y: [availability],
+        type: 'scatter', mode: 'markers',
+        marker: { color: '#e74c3c', size: 10 },
+        name: 'Current',
+    }], {
+        xaxis: { title: 'MTTR (hours)', color: '#9aaa9a', gridcolor: 'rgba(255,255,255,0.05)' },
+        yaxis: { title: 'Availability (%)', color: '#9aaa9a', gridcolor: 'rgba(255,255,255,0.05)', range: [Math.min(...availValues) - 1, 100] },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' }, margin: { t: 10, r: 20, b: 50, l: 60 },
+        showlegend: false,
+    }, { responsive: true, displayModeBar: false });
+
+    // Next steps
+    renderNextSteps('mtbf-next-steps', [
+        { title: 'OEE Analysis', desc: 'Feed availability into Overall Equipment Effectiveness', calcId: 'oee' },
+        { title: 'Risk Matrix', desc: 'Assess risk of failure modes', calcId: 'riskmatrix' },
+    ]);
+}
+
+// ============================================================================
+// Erlang C Staffing Calculator
+// ============================================================================
+
+function _factorial(n) {
+    if (n <= 1) return 1;
+    let r = 1;
+    for (let i = 2; i <= n; i++) r *= i;
+    return r;
+}
+
+function _erlangC(agents, traffic) {
+    // P(wait) using Erlang C formula
+    if (agents <= traffic) return 1; // unstable
+    const c = agents;
+    const A = traffic;
+
+    // Numerator: (A^c / c!) * (c / (c - A))
+    let num = Math.pow(A, c) / _factorial(c) * (c / (c - A));
+
+    // Denominator: sum_{k=0}^{c-1} A^k/k! + numerator term
+    let denom = 0;
+    for (let k = 0; k < c; k++) {
+        denom += Math.pow(A, k) / _factorial(k);
+    }
+    denom += num;
+
+    return num / denom;
+}
+
+function calcErlang() {
+    const arrivals = parseFloat(document.getElementById('erlang-arrivals').value) || 0;
+    const serviceMin = parseFloat(document.getElementById('erlang-service').value) || 0;
+    const targetTimeSec = parseFloat(document.getElementById('erlang-target-time').value) || 60;
+    const targetSL = parseFloat(document.getElementById('erlang-target-sl').value) || 80;
+
+    if (arrivals <= 0 || serviceMin <= 0) return;
+
+    const serviceHrs = serviceMin / 60;
+    const traffic = arrivals * serviceHrs; // Erlangs
+
+    // Find minimum agents to meet SL target
+    let agents = Math.ceil(traffic) + 1;
+    let sl = 0, pw = 1, avgWait = Infinity;
+    const targetTimeHrs = targetTimeSec / 3600;
+
+    for (let c = Math.ceil(traffic) + 1; c <= traffic + 50; c++) {
+        pw = _erlangC(c, traffic);
+        sl = (1 - pw * Math.exp(-(c - traffic) * targetTimeHrs / serviceHrs)) * 100;
+        avgWait = pw / (c - traffic) * serviceHrs * 3600; // seconds
+
+        if (sl >= targetSL) {
+            agents = c;
+            break;
+        }
+        agents = c;
+    }
+
+    const occupancy = traffic / agents * 100;
+
+    document.getElementById('erlang-agents').textContent = agents;
+    document.getElementById('erlang-intensity').innerHTML = `${traffic.toFixed(2)}<span class="calc-result-unit">Erlangs</span>`;
+    document.getElementById('erlang-sl').innerHTML = `${sl.toFixed(1)}<span class="calc-result-unit">%</span>`;
+    document.getElementById('erlang-wait').innerHTML = `${avgWait.toFixed(0)}<span class="calc-result-unit">sec</span>`;
+    document.getElementById('erlang-pw').textContent = `Probability of waiting: ${(pw * 100).toFixed(1)}%`;
+    document.getElementById('erlang-occ').textContent = `Agent utilization: ${occupancy.toFixed(1)}%`;
+
+    // Publish
+    SvendOps.publish('erlang_agents', agents, 'agents', 'Erlang C');
+    SvendOps.publish('erlang_sl', sl, '%', 'Erlang C');
+
+    // Derivation
+    document.getElementById('erlang-derivation-body').innerHTML = `
+        <div class="step"><div class="step-num">Step 1: Traffic Intensity</div>
+            <span class="formula">A = λ × S</span> (arrival rate × avg service time)<br>
+            = ${arrivals} arrivals/hr × ${serviceMin} min / 60 = <strong>${traffic.toFixed(2)} Erlangs</strong></div>
+        <div class="step"><div class="step-num">Step 2: Minimum Servers</div>
+            Need c > A → c > ${traffic.toFixed(2)} → minimum ${Math.ceil(traffic) + 1} agents</div>
+        <div class="step"><div class="step-num">Step 3: Erlang C</div>
+            <span class="formula">P(wait) = [A^c/c! × c/(c−A)] / [Σ(A^k/k!) + A^c/c! × c/(c−A)]</span><br>
+            With ${agents} agents: P(wait) = <strong>${(pw * 100).toFixed(1)}%</strong></div>
+        <div class="step"><div class="step-num">Step 4: Service Level</div>
+            <span class="formula">SL = 1 − P(wait) × e^(−(c−A) × t/S)</span><br>
+            = 1 − ${(pw).toFixed(3)} × e^(−(${agents}−${traffic.toFixed(2)}) × ${targetTimeSec}s / ${(serviceMin * 60).toFixed(0)}s)<br>
+            = <strong>${sl.toFixed(1)}% answered within ${targetTimeSec}s</strong></div>
+        <div class="step"><div class="step-num">Step 5: Average Wait</div>
+            <span class="formula">W_q = P(wait) / (c − A) × S</span><br>
+            = <strong>${avgWait.toFixed(1)} seconds</strong></div>`;
+
+    // Chart: SL vs number of agents
+    const chartAgents = [], chartSL = [], chartWait = [];
+    for (let c = Math.ceil(traffic) + 1; c <= agents + 6; c++) {
+        const pw_ = _erlangC(c, traffic);
+        const sl_ = (1 - pw_ * Math.exp(-(c - traffic) * targetTimeHrs / serviceHrs)) * 100;
+        const w_ = pw_ / (c - traffic) * serviceHrs * 3600;
+        chartAgents.push(c);
+        chartSL.push(sl_);
+        chartWait.push(w_);
+    }
+
+    Plotly.newPlot('erlang-chart', [{
+        x: chartAgents, y: chartSL,
+        type: 'bar',
+        marker: { color: chartAgents.map(c => c === agents ? '#4a9f6e' : 'rgba(74,159,110,0.3)') },
+        name: 'Service Level',
+        text: chartSL.map(s => s.toFixed(1) + '%'),
+        textposition: 'outside',
+        textfont: { color: '#9aaa9a', size: 11 },
+    }], {
+        xaxis: { title: 'Number of Agents', color: '#9aaa9a', gridcolor: 'rgba(255,255,255,0.05)', dtick: 1 },
+        yaxis: { title: 'Service Level (%)', color: '#9aaa9a', gridcolor: 'rgba(255,255,255,0.05)', range: [0, 105] },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' }, margin: { t: 10, r: 20, b: 50, l: 60 },
+        shapes: [{ type: 'line', x0: chartAgents[0] - 0.5, x1: chartAgents[chartAgents.length - 1] + 0.5, y0: targetSL, y1: targetSL, line: { color: '#e74c3c', width: 1, dash: 'dash' } }],
+        annotations: [{ x: chartAgents[chartAgents.length - 1], y: targetSL, text: `Target ${targetSL}%`, showarrow: false, font: { color: '#e74c3c', size: 10 }, yshift: 10 }],
+    }, { responsive: true, displayModeBar: false });
+
+    // Next steps
+    renderNextSteps('erlang-next-steps', [
+        { title: 'Queue Simulator', desc: 'See the queue in action with Monte Carlo variability', calcId: 'queue-sim' },
+        { title: 'Cost of Quality', desc: 'Quantify the cost of wait times and abandonment', calcId: 'coq' },
+    ]);
+}
+
+// ============================================================================
+// Risk Matrix (5x5)
+// ============================================================================
+
+let riskRows = [
+    { desc: 'Equipment failure during production', likelihood: 3, severity: 4 },
+    { desc: 'Key supplier delivery delay', likelihood: 2, severity: 3 },
+    { desc: 'Data breach / security incident', likelihood: 1, severity: 5 },
+];
+
+function riskAddRow() {
+    riskRows.push({ desc: '', likelihood: 1, severity: 1 });
+    riskRenderTable();
+}
+
+function riskDeleteRow(i) {
+    riskRows.splice(i, 1);
+    riskRenderTable();
+    riskUpdate();
+}
+
+function riskRenderTable() {
+    const tbody = document.getElementById('risk-tbody');
+    tbody.innerHTML = riskRows.map((r, i) => `<tr style="border-top:1px solid var(--border);">
+        <td style="padding:6px 8px;"><input type="text" value="${r.desc}" onchange="riskRows[${i}].desc=this.value"
+            style="width:100%;padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:13px;" placeholder="Describe the risk..."></td>
+        <td style="padding:6px 8px;text-align:center;"><select onchange="riskRows[${i}].likelihood=parseInt(this.value);riskUpdate()"
+            style="padding:6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:13px;">
+            ${[1,2,3,4,5].map(v => `<option value="${v}" ${r.likelihood===v?'selected':''}>${v} - ${['Rare','Unlikely','Possible','Likely','Almost Certain'][v-1]}</option>`).join('')}
+            </select></td>
+        <td style="padding:6px 8px;text-align:center;"><select onchange="riskRows[${i}].severity=parseInt(this.value);riskUpdate()"
+            style="padding:6px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:13px;">
+            ${[1,2,3,4,5].map(v => `<option value="${v}" ${r.severity===v?'selected':''}>${v} - ${['Negligible','Minor','Moderate','Major','Catastrophic'][v-1]}</option>`).join('')}
+            </select></td>
+        <td style="padding:6px 8px;text-align:center;font-weight:600;color:${riskColor(r.likelihood * r.severity)};">${r.likelihood * r.severity}</td>
+        <td style="padding:6px 4px;text-align:center;"><button onclick="riskDeleteRow(${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;padding:2px 6px;">&times;</button></td>
+    </tr>`).join('');
+}
+
+function riskColor(score) {
+    if (score >= 15) return '#e74c3c';
+    if (score >= 10) return '#e67e22';
+    if (score >= 5) return '#f39c12';
+    return '#27ae60';
+}
+
+function riskLevel(score) {
+    if (score >= 15) return 'Critical';
+    if (score >= 10) return 'High';
+    if (score >= 5) return 'Medium';
+    return 'Low';
+}
+
+function riskUpdate() {
+    const total = riskRows.length;
+    let high = 0, med = 0, low = 0;
+    riskRows.forEach(r => {
+        const s = r.likelihood * r.severity;
+        if (s >= 10) high++;
+        else if (s >= 5) med++;
+        else low++;
+    });
+
+    document.getElementById('risk-total').textContent = total;
+    document.getElementById('risk-high').textContent = high;
+    document.getElementById('risk-med').textContent = med;
+    document.getElementById('risk-low').textContent = low;
+
+    // Build 5x5 heat map
+    // z[severity][likelihood] = count of risks at that cell
+    const z = Array.from({length: 5}, () => Array(5).fill(0));
+    const annotations = [];
+    const riskLabels = Array.from({length: 5}, () => Array(5).fill(''));
+
+    riskRows.forEach(r => {
+        z[r.severity - 1][r.likelihood - 1]++;
+        if (riskLabels[r.severity - 1][r.likelihood - 1]) {
+            riskLabels[r.severity - 1][r.likelihood - 1] += '<br>' + r.desc.substring(0, 20);
+        } else {
+            riskLabels[r.severity - 1][r.likelihood - 1] = r.desc.substring(0, 20);
+        }
+    });
+
+    // Background risk scores (likelihood * severity)
+    const bgZ = Array.from({length: 5}, (_, si) =>
+        Array.from({length: 5}, (_, li) => (li + 1) * (si + 1))
+    );
+
+    const likelihoodLabels = ['1-Rare', '2-Unlikely', '3-Possible', '4-Likely', '5-Almost Certain'];
+    const severityLabels = ['1-Negligible', '2-Minor', '3-Moderate', '4-Major', '5-Catastrophic'];
+
+    // Custom colorscale: green -> yellow -> orange -> red
+    const colorscale = [
+        [0, '#1a3a1a'], [0.16, '#27ae60'], [0.36, '#f1c40f'],
+        [0.6, '#e67e22'], [0.84, '#e74c3c'], [1, '#8b0000'],
+    ];
+
+    // Annotation text: risk score + count
+    for (let si = 0; si < 5; si++) {
+        for (let li = 0; li < 5; li++) {
+            const score = (li + 1) * (si + 1);
+            const count = z[si][li];
+            let text = `<b>${score}</b>`;
+            if (count > 0) text += `<br><span style="font-size:10px">${count} risk${count > 1 ? 's' : ''}</span>`;
+            annotations.push({
+                x: li, y: si, text: text,
+                showarrow: false, font: { color: 'white', size: 12 },
+            });
+        }
+    }
+
+    Plotly.newPlot('risk-heatmap', [{
+        z: bgZ, type: 'heatmap',
+        x: likelihoodLabels, y: severityLabels,
+        colorscale: colorscale, showscale: false,
+        hovertemplate: 'Likelihood: %{x}<br>Severity: %{y}<br>Score: %{z}<extra></extra>',
+    }], {
+        annotations: annotations,
+        xaxis: { title: 'Likelihood', color: '#9aaa9a', side: 'bottom' },
+        yaxis: { title: 'Severity', color: '#9aaa9a' },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' }, margin: { t: 10, r: 20, b: 60, l: 120 },
+    }, { responsive: true, displayModeBar: false });
+
+    // Next steps
+    renderNextSteps('risk-next-steps', [
+        { title: 'FMEA / RPN', desc: 'Deeper analysis with detection ratings', calcId: 'fmea' },
+        { title: 'MTBF / MTTR', desc: 'Quantify failure frequency and repair time', calcId: 'mtbf' },
+    ]);
+}
+
+// Init new calculators on page load
+document.addEventListener('DOMContentLoaded', () => {
+    calcMTBF();
+    calcErlang();
+    riskRenderTable();
+    riskUpdate();
+});
 </script>
 {% endblock %}

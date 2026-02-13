@@ -831,6 +831,175 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     padding: 16px 24px;
     border-top: 1px solid var(--border);
 }
+
+/* Action Items Section */
+.rca-actions {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 24px;
+}
+
+.rca-actions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.rca-actions-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rca-actions-title::before {
+    content: "";
+    display: block;
+    width: 3px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 2px;
+}
+
+.rca-action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rca-action-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.rca-action-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.rca-action-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.rca-action-item-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.rca-action-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+}
+
+.rca-action-status:hover {
+    opacity: 0.8;
+}
+
+.rca-action-status.not_started {
+    background: rgba(150, 150, 150, 0.2);
+    color: #999;
+}
+
+.rca-action-status.in_progress {
+    background: rgba(52, 152, 219, 0.2);
+    color: #3498db;
+}
+
+.rca-action-status.completed {
+    background: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+}
+
+.rca-action-status.blocked {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+.rca-action-delete {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.rca-action-item:hover .rca-action-delete {
+    opacity: 1;
+}
+
+.rca-action-delete:hover {
+    color: #e74c3c;
+}
+
+/* Inline add form */
+.rca-action-add-form {
+    display: none;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 8px;
+}
+
+.rca-action-add-form.visible {
+    display: block;
+}
+
+.rca-action-add-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.rca-action-add-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.rca-action-add-row input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.rca-action-add-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.rca-actions-empty {
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 12px 0;
+}
 </style>
 {% endblock %}
 
@@ -941,6 +1110,31 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
         </button>
 
         <div id="evaluation-container"></div>
+    </section>
+
+    <!-- Action Items -->
+    <section class="rca-actions" id="action-items-section" style="display: none;">
+        <div class="rca-actions-header">
+            <div class="rca-actions-title">Action Items</div>
+            <button class="rca-btn rca-btn-secondary" onclick="toggleActionForm()" id="add-action-btn" style="padding: 6px 14px; font-size: 12px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add
+            </button>
+        </div>
+        <div class="rca-action-list" id="rca-action-items"></div>
+        <div class="rca-action-add-form" id="action-add-form">
+            <div class="rca-action-add-row">
+                <input type="text" id="action-title-input" placeholder="Action item title">
+            </div>
+            <div class="rca-action-add-row">
+                <input type="text" id="action-owner-input" placeholder="Owner">
+                <input type="date" id="action-due-input">
+            </div>
+            <div class="rca-action-add-btns">
+                <button class="rca-btn rca-btn-secondary" onclick="toggleActionForm()" style="padding: 6px 14px; font-size: 12px;">Cancel</button>
+                <button class="rca-btn rca-btn-primary" onclick="addRcaActionItem(currentSessionId)" style="padding: 6px 14px; font-size: 12px;">Save</button>
+            </div>
+        </div>
     </section>
     </div><!-- end special-cause-content -->
 
@@ -1506,6 +1700,7 @@ async function saveSession() {
         } else {
             currentSessionId = data.session.id;
             document.getElementById('link-a3-btn').style.display = 'flex';
+            document.getElementById('action-items-section').style.display = 'block';
             saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Saved!';
             setTimeout(() => {
                 saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
@@ -1581,6 +1776,9 @@ async function loadSession(sessionId) {
         document.getElementById('link-a3-btn').style.display = 'flex';
 
         renderChain();
+
+        // Render action items from API response
+        renderRcaActionItems(data.action_items || []);
 
     } catch (err) {
         alert('Failed to load: ' + err.message);
@@ -1665,6 +1863,170 @@ async function linkToA3() {
         }
     } catch (err) {
         alert('Failed to link: ' + err.message);
+    }
+}
+
+// ============================================================================
+// Action Items
+// ============================================================================
+
+let rcaActionItems = [];
+
+function getCSRFToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+function toggleActionForm() {
+    const form = document.getElementById('action-add-form');
+    form.classList.toggle('visible');
+    if (form.classList.contains('visible')) {
+        document.getElementById('action-title-input').focus();
+    }
+}
+
+function renderRcaActionItems(items) {
+    rcaActionItems = items || [];
+    const container = document.getElementById('rca-action-items');
+    const section = document.getElementById('action-items-section');
+
+    // Show section when a session is loaded
+    if (currentSessionId) {
+        section.style.display = 'block';
+    }
+
+    if (!rcaActionItems.length) {
+        container.innerHTML = '<div class="rca-actions-empty">No action items yet. Add one to track follow-up work.</div>';
+        return;
+    }
+
+    const statusLabels = {
+        not_started: 'Not Started',
+        in_progress: 'In Progress',
+        completed: 'Completed',
+        blocked: 'Blocked',
+    };
+
+    container.innerHTML = rcaActionItems.map(item => `
+        <div class="rca-action-item" data-id="${item.id}">
+            <div class="rca-action-item-body">
+                <div class="rca-action-item-title">${escapeHtml(item.title)}</div>
+                <div class="rca-action-item-meta">
+                    ${item.owner_name ? escapeHtml(item.owner_name) : '<em>Unassigned</em>'}
+                    ${item.due_date ? ' &middot; Due ' + item.due_date : ''}
+                </div>
+            </div>
+            <span class="rca-action-status ${item.status}" onclick="cycleActionStatus('${item.id}', '${item.status}')" title="Click to change status">
+                ${statusLabels[item.status] || item.status}
+            </span>
+            <button class="rca-action-delete" onclick="deleteActionItem('${item.id}')" title="Delete">&times;</button>
+        </div>
+    `).join('');
+}
+
+function cycleActionStatus(actionId, currentStatus) {
+    const cycle = { not_started: 'in_progress', in_progress: 'completed', completed: 'not_started' };
+    const newStatus = cycle[currentStatus] || 'not_started';
+    updateActionStatus(actionId, newStatus);
+}
+
+async function addRcaActionItem(sessionId) {
+    if (!sessionId) {
+        alert('Please save the session first.');
+        return;
+    }
+
+    const title = document.getElementById('action-title-input').value.trim();
+    if (!title) {
+        document.getElementById('action-title-input').focus();
+        return;
+    }
+
+    const owner = document.getElementById('action-owner-input').value.trim();
+    const dueDate = document.getElementById('action-due-input').value || null;
+
+    try {
+        const response = await fetch(`/api/rca/sessions/${sessionId}/actions/create/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                title: title,
+                owner_name: owner,
+                due_date: dueDate,
+            }),
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+
+        // Add to list and re-render
+        rcaActionItems.push(data.action_item);
+        renderRcaActionItems(rcaActionItems);
+
+        // Clear and hide form
+        document.getElementById('action-title-input').value = '';
+        document.getElementById('action-owner-input').value = '';
+        document.getElementById('action-due-input').value = '';
+        toggleActionForm();
+    } catch (err) {
+        alert('Failed to create action item: ' + err.message);
+    }
+}
+
+async function updateActionStatus(actionId, newStatus) {
+    try {
+        const response = await fetch(`/api/actions/${actionId}/update/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({ status: newStatus }),
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+
+        // Update in local list
+        const idx = rcaActionItems.findIndex(i => i.id === actionId);
+        if (idx !== -1) {
+            rcaActionItems[idx] = data.action_item;
+        }
+        renderRcaActionItems(rcaActionItems);
+    } catch (err) {
+        alert('Failed to update action: ' + err.message);
+    }
+}
+
+async function deleteActionItem(actionId) {
+    if (!confirm('Delete this action item?')) return;
+
+    try {
+        const response = await fetch(`/api/actions/${actionId}/delete/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+            },
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            rcaActionItems = rcaActionItems.filter(i => i.id !== actionId);
+            renderRcaActionItems(rcaActionItems);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Failed to delete action item: ' + err.message);
     }
 }
 

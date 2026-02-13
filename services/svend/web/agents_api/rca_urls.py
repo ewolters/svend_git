@@ -20,4 +20,8 @@ urlpatterns = [
     # Similarity search
     path("similar/", rca_views.find_similar, name="rca_similar"),
     path("reindex/", rca_views.reindex_embeddings, name="rca_reindex"),
+
+    # Action items
+    path("sessions/<uuid:session_id>/actions/", rca_views.list_rca_actions, name="rca_actions"),
+    path("sessions/<uuid:session_id>/actions/create/", rca_views.create_rca_action, name="rca_create_action"),
 ]

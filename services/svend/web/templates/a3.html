@@ -371,11 +371,162 @@
     color: var(--text-secondary);
 }
 
+/* Action Items */
+.a3-action-items-panel {
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-card);
+}
+
+.a3-action-items-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    border-radius: 6px 6px 0 0;
+}
+
+.a3-action-items-header span {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-primary);
+}
+
+.a3-action-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.a3-action-list:empty::after {
+    content: 'No action items yet.';
+    display: block;
+    padding: 16px;
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+}
+
+.a3-action-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+
+.a3-action-item:last-child {
+    border-bottom: none;
+}
+
+.a3-action-title {
+    flex: 1;
+    color: var(--text-primary);
+}
+
+.a3-action-owner {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.a3-action-due {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.a3-action-status {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.a3-action-status.not_started { background: rgba(100, 100, 100, 0.2); color: var(--text-secondary); }
+.a3-action-status.in_progress { background: rgba(25, 118, 210, 0.2); color: #64b5f6; }
+.a3-action-status.completed { background: rgba(56, 142, 60, 0.2); color: #81c784; }
+.a3-action-status.blocked { background: rgba(211, 47, 47, 0.2); color: #ef5350; }
+
+.a3-action-delete {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.a3-action-delete:hover {
+    color: #e74c3c;
+}
+
+/* Inline add form */
+.a3-action-add-form {
+    display: none;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    gap: 8px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.a3-action-add-form.visible {
+    display: flex;
+}
+
+.a3-action-add-form label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 3px;
+}
+
+.a3-action-add-form input {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    outline: none;
+}
+
+.a3-action-add-form input:focus {
+    border-color: var(--accent);
+}
+
+.a3-action-add-form .field-title { flex: 2; min-width: 140px; }
+.a3-action-add-form .field-owner { flex: 1; min-width: 100px; }
+.a3-action-add-form .field-due { flex: 0 0 auto; }
+
+.a3-action-add-form .form-buttons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
 /* Print styles */
 @media print {
     .a3-toolbar, .a3-section-actions { display: none !important; }
     .a3-paper { border: 1px solid #000; box-shadow: none; }
     .a3-section-content textarea { border: none; }
+    .a3-action-add-form, .a3-action-delete { display: none !important; }
+    .a3-action-items-header button { display: none !important; }
 }
 </style>
 {% endblock %}
@@ -526,6 +677,33 @@
             </div>
         </div>
     </div>
+
+    <!-- Action Items Panel -->
+    <div class="a3-action-items-panel" id="a3-action-items-panel" style="display:none;">
+        <div class="a3-action-items-header">
+            <span>Action Items</span>
+            <button class="a3-section-btn" onclick="toggleActionForm()">+ Add</button>
+        </div>
+        <ul class="a3-action-list" id="a3-action-items"></ul>
+        <div class="a3-action-add-form" id="a3-action-add-form">
+            <div class="field-title">
+                <label>Title</label>
+                <input type="text" id="action-title" placeholder="Action item..." style="width:100%;">
+            </div>
+            <div class="field-owner">
+                <label>Owner</label>
+                <input type="text" id="action-owner" placeholder="Owner name" style="width:100%;">
+            </div>
+            <div class="field-due">
+                <label>Due date</label>
+                <input type="date" id="action-due">
+            </div>
+            <div class="form-buttons">
+                <button class="a3-btn primary" onclick="addA3ActionItem(currentReportId)">Save</button>
+                <button class="a3-btn" onclick="toggleActionForm()">Cancel</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Import Modal -->
@@ -563,6 +741,12 @@
 <script>
 let currentReportId = null;
 let currentProjectId = null;
+let currentActionItems = [];
+
+function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+}
 let availableImports = { hypotheses: [], boards: [] };
 let importTarget = { section: null, type: null };
 let selectedImportId = null;
@@ -679,6 +863,9 @@ async function loadReport(reportId) {
         if (data.project) {
             select.innerHTML = `<option value="${data.project.id}">${data.project.title}</option>`;
         }
+
+        // Render action items
+        renderA3ActionItems(data.action_items || []);
 
     } catch (e) {
         console.error('Failed to load report:', e);
@@ -990,6 +1177,165 @@ async function autoPopulate() {
     } catch (e) {
         console.error('Auto-populate failed:', e);
         alert('Auto-populate failed');
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+// ACTION ITEMS
+// ────────────────────────────────────────────────────────────────
+
+const STATUS_CYCLE = ['not_started', 'in_progress', 'completed'];
+const STATUS_LABELS = {
+    not_started: 'Not Started',
+    in_progress: 'In Progress',
+    completed: 'Completed',
+    blocked: 'Blocked',
+    cancelled: 'Cancelled',
+};
+
+function renderA3ActionItems(items) {
+    currentActionItems = items || [];
+    const panel = document.getElementById('a3-action-items-panel');
+    const list = document.getElementById('a3-action-items');
+
+    // Show the panel whenever we have a report loaded
+    if (currentReportId) {
+        panel.style.display = '';
+    }
+
+    list.innerHTML = '';
+
+    currentActionItems.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'a3-action-item';
+        li.dataset.id = item.id;
+
+        const statusClass = item.status || 'not_started';
+        const statusLabel = STATUS_LABELS[item.status] || item.status;
+        const dueDateStr = item.due_date || '';
+        const ownerStr = item.owner_name || '';
+
+        li.innerHTML = `
+            <span class="a3-action-title">${escapeHtml(item.title)}</span>
+            ${ownerStr ? `<span class="a3-action-owner">${escapeHtml(ownerStr)}</span>` : ''}
+            <span class="a3-action-status ${statusClass}" onclick="cycleActionStatus('${item.id}', '${item.status}')" title="Click to change status">${statusLabel}</span>
+            ${dueDateStr ? `<span class="a3-action-due">${dueDateStr}</span>` : ''}
+            <button class="a3-action-delete" onclick="deleteActionItem('${item.id}')" title="Delete">&times;</button>
+        `;
+
+        list.appendChild(li);
+    });
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function toggleActionForm() {
+    const form = document.getElementById('a3-action-add-form');
+    form.classList.toggle('visible');
+    if (form.classList.contains('visible')) {
+        document.getElementById('action-title').focus();
+    } else {
+        // Clear inputs
+        document.getElementById('action-title').value = '';
+        document.getElementById('action-owner').value = '';
+        document.getElementById('action-due').value = '';
+    }
+}
+
+async function addA3ActionItem(reportId) {
+    if (!reportId) return;
+
+    const title = document.getElementById('action-title').value.trim();
+    if (!title) {
+        alert('Title is required');
+        return;
+    }
+
+    const owner = document.getElementById('action-owner').value.trim();
+    const due = document.getElementById('action-due').value || null;
+
+    try {
+        const resp = await fetch(`/api/a3/${reportId}/actions/create/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({
+                title: title,
+                owner_name: owner,
+                due_date: due,
+            }),
+        });
+
+        const data = await resp.json();
+        if (data.success && data.action_item) {
+            currentActionItems.push(data.action_item);
+            renderA3ActionItems(currentActionItems);
+            toggleActionForm();
+        } else {
+            alert(data.error || 'Failed to add action item');
+        }
+    } catch (e) {
+        console.error('Add action item failed:', e);
+        alert('Failed to add action item');
+    }
+}
+
+async function updateActionStatus(actionId, newStatus) {
+    try {
+        const resp = await fetch(`/api/actions/${actionId}/update/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ status: newStatus }),
+        });
+
+        const data = await resp.json();
+        if (data.success || data.action_item) {
+            // Update local state
+            const item = currentActionItems.find(i => i.id === actionId);
+            if (item) item.status = newStatus;
+            renderA3ActionItems(currentActionItems);
+        } else {
+            alert(data.error || 'Failed to update status');
+        }
+    } catch (e) {
+        console.error('Update action status failed:', e);
+    }
+}
+
+function cycleActionStatus(actionId, currentStatus) {
+    const idx = STATUS_CYCLE.indexOf(currentStatus);
+    const nextStatus = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+    updateActionStatus(actionId, nextStatus);
+}
+
+async function deleteActionItem(actionId) {
+    if (!confirm('Delete this action item?')) return;
+
+    try {
+        const resp = await fetch(`/api/actions/${actionId}/delete/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+        });
+
+        if (resp.ok) {
+            currentActionItems = currentActionItems.filter(i => i.id !== actionId);
+            renderA3ActionItems(currentActionItems);
+        } else {
+            alert('Failed to delete action item');
+        }
+    } catch (e) {
+        console.error('Delete action item failed:', e);
     }
 }
 </script>

@@ -23,4 +23,8 @@ urlpatterns = [
 
     # Summary
     path("<uuid:fmea_id>/summary/", views.rpn_summary, name="fmea_rpn_summary"),
+
+    # Action items
+    path("<uuid:fmea_id>/actions/", views.list_fmea_actions, name="fmea_actions"),
+    path("<uuid:fmea_id>/rows/<uuid:row_id>/promote-action/", views.promote_fmea_action, name="fmea_promote_action"),
 ]

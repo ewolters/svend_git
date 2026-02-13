@@ -121,6 +121,7 @@ urlpatterns = [
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
+    path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),
     path("chat/", include("chat.urls")),

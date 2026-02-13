@@ -685,6 +685,8 @@ def create_action_item(request, hoshin_id):
         due_date=data.get("due_date"),
         progress=int(data.get("progress", 0)),
         sort_order=int(data.get("sort_order", 0)),
+        source_type="hoshin",
+        source_id=hoshin.id,
     )
 
     if data.get("depends_on_id"):

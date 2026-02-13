@@ -15,6 +15,38 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-13 — Unified Action Items: connect A3, RCA, FMEA to ActionItem model
+
+**Files changed:**
+- `agents_api/models.py` — Added `source_type` (CharField, max_length=20) and `source_id` (UUIDField, nullable) to ActionItem. Updated `to_dict()` to include both fields. Allows tracking where each action item originated (hoshin, a3, rca, fmea, report).
+- `agents_api/migrations/0027_action_item_source.py` — Migration for the two new fields.
+- `agents_api/a3_views.py` — Added `list_a3_actions` (GET) and `create_a3_action` (POST) endpoints. Updated `get_a3_report` to include `action_items` in response.
+- `agents_api/a3_urls.py` — Added routes for `<report_id>/actions/` and `<report_id>/actions/create/`.
+- `agents_api/rca_views.py` — Added `list_rca_actions` (GET) and `create_rca_action` (POST) endpoints. Updated `get_session` to include `action_items` in response.
+- `agents_api/rca_urls.py` — Added routes for `sessions/<session_id>/actions/` and `sessions/<session_id>/actions/create/`.
+- `agents_api/fmea_views.py` — Added `list_fmea_actions` (GET) and `promote_fmea_action` (POST, idempotent) endpoints. Updated `get_fmea` to include `action_items` in response.
+- `agents_api/fmea_urls.py` — Added routes for `<fmea_id>/actions/` and `<fmea_id>/rows/<row_id>/promote-action/`.
+- `agents_api/hoshin_views.py` — Updated `create_action_item` to set `source_type="hoshin"` and `source_id=hoshin.id`.
+- `agents_api/action_views.py` (new) — Shared `update_action_item` (PUT/PATCH) and `delete_action_item` (DELETE) views. Auth: project__user must match request.user.
+- `agents_api/action_urls.py` (new) — Routes for `<action_id>/update/` and `<action_id>/delete/`.
+- `svend/urls.py` — Mounted `api/actions/` → `agents_api.action_urls`.
+- `templates/a3.html` — Added Action Items panel below A3 paper with add form, status cycling (click to cycle not_started→in_progress→completed), delete, CSS styling.
+- `templates/rca.html` — Added Action Items section below countermeasure field with add form, status cycling, delete, CSS styling.
+- `templates/fmea.html` — Added "Track" button on FMEA rows (promotes recommended_action to ActionItem), "Tracked" badge for already-promoted rows, action items summary panel with status dropdown.
+- `templates/hoshin.html` — Added Source column to action items table with color-coded badges (hoshin=green, a3=blue, rca=yellow, fmea=purple, report=pink).
+**Verification:** `python3 manage.py check` passes. Migration 0027 applied. Create action items from A3/RCA/FMEA → they appear in the respective tool AND on the Hoshin dashboard with source badges.
+
+---
+
+### 2026-02-12 — Operations Workbench: search bar + 3 new calculators
+
+**Files changed:**
+- `services/svend/web/templates/calculators.html` — Added reactive search bar to left sidebar nav (filters by name, description, and ID). Added three new calculators: MTBF/MTTR + Availability (Reliability group), Erlang C Staffing (Service & Staffing group), Risk Matrix 5x5 (Risk group). Each calculator includes full derivation, SvendOps data bus publishing, and nextSteps linking.
+
+**Verification:** Navigate to Operations (Methods → Operations in top navbar). Search bar should filter calculators as you type. New calculators appear in Reliability, Service & Staffing, and Risk nav groups at bottom of sidebar.
+
+---
+
 ### 2026-02-13 — Codebase cleanup: deduplicate agents, remove dead code, consolidate sys.path
 
 **Files removed (git rm):**

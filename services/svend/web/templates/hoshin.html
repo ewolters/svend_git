@@ -304,6 +304,12 @@
 .action-status.in_progress { background: rgba(74,159,110,0.2); color: #4a9f6e; }
 .action-status.completed { background: rgba(74,159,110,0.35); color: #a8e6cf; }
 .action-status.blocked { background: rgba(207,111,111,0.2); color: #cf6f6f; }
+.action-source { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.action-source.hoshin { background: rgba(74,159,110,0.15); color: #4a9f6e; }
+.action-source.a3 { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.action-source.rca { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.action-source.fmea { background: rgba(168,85,247,0.15); color: #c084fc; }
+.action-source.report { background: rgba(236,72,153,0.15); color: #f472b6; }
 
 /* Baseline grid */
 .baseline-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 16px; }
@@ -758,7 +764,7 @@
                         </div>
                         <table class="action-table">
                             <thead><tr>
-                                <th>#</th><th>Title</th><th>Owner</th><th>Start</th><th>End</th>
+                                <th>#</th><th>Title</th><th>Source</th><th>Owner</th><th>Start</th><th>End</th>
                                 <th>Status</th><th>Progress</th><th width="80"></th>
                             </tr></thead>
                             <tbody id="action-table-body"></tbody>
@@ -2351,6 +2357,7 @@ function renderActionItemsTable() {
         <tr>
             <td>${i + 1}</td>
             <td><strong>${a.title}</strong>${a.description ? `<br><small style="color:var(--text-dim);">${a.description.substring(0, 50)}</small>` : ''}</td>
+            <td>${a.source_type ? `<span class="action-source ${a.source_type}">${a.source_type}</span>` : ''}</td>
             <td>${a.owner_name || '—'}</td>
             <td>${a.start_date || '—'}</td>
             <td>${a.end_date || '—'}</td>
@@ -2366,7 +2373,7 @@ function renderActionItemsTable() {
                 <button class="btn-h small danger" onclick="deleteAction('${a.id}')" style="margin-left:4px;">&#x2715;</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:30px;">No action items.</td></tr>';
+    `).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:30px;">No action items.</td></tr>';
 }
 
 function openActionModal(prefill) {
