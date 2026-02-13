@@ -16,7 +16,17 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from accounts.models import Subscription, User
-from api.models import BlogPost, BlogView
+from api.models import (
+    AutomationLog,
+    AutomationRule,
+    AutopilotReport,
+    BlogPost,
+    BlogView,
+    EmailCampaign,
+    Experiment,
+    ExperimentAssignment,
+    Feedback,
+)
 from chat.models import EventLog, TraceLog, UsageLog
 
 TIER_PRICES = {"founder": 19, "pro": 29, "team": 79, "enterprise": 199}
@@ -548,6 +558,7 @@ EMAIL_TEMPLATE = """\
 </td></tr>
 <tr><td style="padding:16px 32px 24px;border-top:1px solid #e8efe8;color:#7a8f7a;font-size:12px;">
   SVEND &middot; Decision Science Workbench &middot; <a href="https://svend.ai" style="color:#4a9f6e;">svend.ai</a>
+  <br><a href="{unsub_url}" style="color:#7a8f7a;">Unsubscribe</a>
 </td></tr>
 </table>
 </td></tr>
@@ -602,15 +613,35 @@ def api_send_email(request):
         is_test=test_mode,
     )
 
+    # Check for active email_subject experiment
+    from api.experiments import assign_variant
+    from api.views import make_unsubscribe_url
+    active_subject_exp = Experiment.objects.filter(
+        experiment_type="email_subject", status="running"
+    ).first()
+
     sent = 0
     failed = 0
+    skipped = 0
     for user, email in recipients:
+        # Skip opted-out users
+        if user and getattr(user, "email_opted_out", False):
+            skipped += 1
+            continue
+
         # Create recipient record
         rcpt = EmailRecipient.objects.create(
             campaign=campaign,
             user=user,
             email=email,
         )
+
+        # A/B test: if email_subject experiment is running, assign variant subject
+        actual_subject = subject
+        if active_subject_exp and user:
+            variant_name, variant_config = assign_variant(user, active_subject_exp.name)
+            if variant_config and "subject" in variant_config:
+                actual_subject = variant_config["subject"]
 
         # Personalize
         personalized = body_html
@@ -633,11 +664,12 @@ def api_send_email(request):
 
         # Add tracking pixel
         pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
-        full_html = EMAIL_TEMPLATE.format(body=personalized + pixel)
+        unsub_url = make_unsubscribe_url(user) if user else "https://svend.ai"
+        full_html = EMAIL_TEMPLATE.format(body=personalized + pixel, unsub_url=unsub_url)
 
         try:
             django_send_mail(
-                subject=subject,
+                subject=actual_subject,
                 message="",
                 from_email=None,
                 recipient_list=[email],
@@ -652,7 +684,9 @@ def api_send_email(request):
     return Response({
         "sent": sent,
         "failed": failed,
+        "skipped_opted_out": skipped,
         "campaign_id": str(campaign.id),
+        "experiment": active_subject_exp.name if active_subject_exp else None,
     })
 
 
@@ -1377,3 +1411,341 @@ def _build_data_snapshot(days=30):
         "top_domains": domain_totals.most_common(10),
         "daily_signups": [{"date": str(d), "count": c} for d, c in signups],
     }
+
+
+# ---------------------------------------------------------------------------
+# Automation: Experiments
+# ---------------------------------------------------------------------------
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def api_experiments(request):
+    """List experiments or create a new one."""
+    if request.method == "GET":
+        exps = Experiment.objects.all()[:50]
+        data = []
+        for exp in exps:
+            assigned = ExperimentAssignment.objects.filter(experiment=exp).count()
+            data.append({
+                "id": str(exp.id),
+                "name": exp.name,
+                "hypothesis": exp.hypothesis,
+                "experiment_type": exp.experiment_type,
+                "metric": exp.metric,
+                "variants": exp.variants,
+                "status": exp.status,
+                "winner": exp.winner,
+                "target": exp.target,
+                "min_sample_size": exp.min_sample_size,
+                "results": exp.results,
+                "assigned": assigned,
+                "started_at": exp.started_at,
+                "ended_at": exp.ended_at,
+                "created_at": exp.created_at,
+            })
+        return Response({"experiments": data})
+
+    # POST — create or update
+    d = request.data
+    exp_id = d.get("id")
+    if exp_id:
+        try:
+            exp = Experiment.objects.get(id=exp_id)
+        except Experiment.DoesNotExist:
+            return Response({"error": "not_found"}, status=404)
+        for field in ["name", "hypothesis", "experiment_type", "metric", "variants",
+                       "status", "target", "min_sample_size"]:
+            if field in d:
+                setattr(exp, field, d[field])
+        if d.get("status") == "running" and not exp.started_at:
+            exp.started_at = timezone.now()
+        if d.get("status") == "concluded" and not exp.ended_at:
+            exp.ended_at = timezone.now()
+        exp.save()
+    else:
+        exp = Experiment.objects.create(
+            name=d.get("name", ""),
+            hypothesis=d.get("hypothesis", ""),
+            experiment_type=d.get("experiment_type", "feature_flag"),
+            metric=d.get("metric", "conversion"),
+            variants=d.get("variants", []),
+            status=d.get("status", "draft"),
+            target=d.get("target", "all"),
+            min_sample_size=d.get("min_sample_size", 100),
+            started_at=timezone.now() if d.get("status") == "running" else None,
+        )
+    return Response({"id": str(exp.id), "status": exp.status})
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def api_experiment_evaluate(request, experiment_id):
+    """Manually trigger experiment evaluation."""
+    from api.experiments import evaluate_experiment
+
+    try:
+        exp = Experiment.objects.get(id=experiment_id)
+    except Experiment.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+
+    results = evaluate_experiment(exp)
+    return Response({
+        "results": results,
+        "status": exp.status,
+        "winner": exp.winner,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def api_experiment_conclude(request, experiment_id):
+    """Manually conclude an experiment with a chosen winner."""
+    try:
+        exp = Experiment.objects.get(id=experiment_id)
+    except Experiment.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+
+    winner = request.data.get("winner", "")
+    exp.winner = winner
+    exp.status = "concluded"
+    exp.ended_at = timezone.now()
+    exp.save(update_fields=["winner", "status", "ended_at"])
+    return Response({"status": "concluded", "winner": winner})
+
+
+# ---------------------------------------------------------------------------
+# Automation: Rules
+# ---------------------------------------------------------------------------
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def api_automation_rules(request):
+    """List or create automation rules."""
+    if request.method == "GET":
+        rules = AutomationRule.objects.all()
+        data = []
+        for rule in rules:
+            data.append({
+                "id": str(rule.id),
+                "name": rule.name,
+                "description": rule.description,
+                "trigger": rule.trigger,
+                "trigger_config": rule.trigger_config,
+                "action": rule.action,
+                "action_config": rule.action_config,
+                "is_active": rule.is_active,
+                "cooldown_hours": rule.cooldown_hours,
+                "times_fired": rule.times_fired,
+                "last_fired_at": rule.last_fired_at,
+                "created_at": rule.created_at,
+            })
+        return Response({"rules": data})
+
+    # POST — create or update
+    d = request.data
+    rule_id = d.get("id")
+    if rule_id:
+        try:
+            rule = AutomationRule.objects.get(id=rule_id)
+        except AutomationRule.DoesNotExist:
+            return Response({"error": "not_found"}, status=404)
+        for field in ["name", "description", "trigger", "trigger_config",
+                       "action", "action_config", "is_active", "cooldown_hours"]:
+            if field in d:
+                setattr(rule, field, d[field])
+        rule.save()
+    else:
+        rule = AutomationRule.objects.create(
+            name=d.get("name", ""),
+            description=d.get("description", ""),
+            trigger=d.get("trigger", "inactive_days"),
+            trigger_config=d.get("trigger_config", {}),
+            action=d.get("action", "send_email"),
+            action_config=d.get("action_config", {}),
+            cooldown_hours=d.get("cooldown_hours", 72),
+        )
+    return Response({"id": str(rule.id)})
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def api_automation_rule_toggle(request, rule_id):
+    """Toggle an automation rule on/off."""
+    try:
+        rule = AutomationRule.objects.get(id=rule_id)
+    except AutomationRule.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+
+    rule.is_active = not rule.is_active
+    rule.save(update_fields=["is_active"])
+    return Response({"id": str(rule.id), "is_active": rule.is_active})
+
+
+# ---------------------------------------------------------------------------
+# Automation: Log
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def api_automation_log(request):
+    """Recent automation log entries."""
+    limit = int(request.GET.get("limit", 50))
+    rule_id = request.GET.get("rule_id")
+    qs = AutomationLog.objects.select_related("rule", "user").all()
+    if rule_id:
+        qs = qs.filter(rule_id=rule_id)
+    entries = []
+    for log in qs[:limit]:
+        entries.append({
+            "id": str(log.id),
+            "rule": log.rule.name,
+            "rule_id": str(log.rule_id),
+            "user": log.user.username,
+            "user_email": log.user.email,
+            "action_taken": log.action_taken,
+            "result": log.result,
+            "fired_at": log.fired_at,
+        })
+    return Response({"log": entries})
+
+
+# ---------------------------------------------------------------------------
+# Automation: Autopilot
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def api_autopilot(request):
+    """Get autopilot reports."""
+    reports = AutopilotReport.objects.all()[:10]
+    data = []
+    for r in reports:
+        data.append({
+            "id": str(r.id),
+            "created_at": r.created_at,
+            "insights": r.insights,
+            "recommendations": r.recommendations,
+            "alerts": r.alerts,
+            "status": r.status,
+        })
+    return Response({"reports": data})
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def api_autopilot_approve(request, report_id):
+    """Approve a recommendation from an autopilot report."""
+    try:
+        report = AutopilotReport.objects.get(id=report_id)
+    except AutopilotReport.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+
+    rec_index = request.data.get("index")
+    if rec_index is None or rec_index >= len(report.recommendations):
+        return Response({"error": "invalid_index"}, status=400)
+
+    rec = report.recommendations[rec_index]
+    rec_type = rec.get("type")
+    config = rec.get("config", {})
+    result = {"action": rec_type, "status": "skipped"}
+
+    if rec_type == "experiment":
+        exp = Experiment.objects.create(
+            name=config.get("name", rec.get("title", "Autopilot experiment")),
+            hypothesis=config.get("hypothesis", ""),
+            experiment_type=config.get("type", "feature_flag"),
+            variants=config.get("variants", []),
+            status="running",
+            started_at=timezone.now(),
+        )
+        result = {"action": "experiment_created", "id": str(exp.id)}
+
+    elif rec_type == "email":
+        # Create and send a campaign
+        from api.internal_views import EMAIL_TEMPLATE
+        subject = config.get("subject", rec.get("title", ""))
+        body = config.get("body_preview", "")
+        target = config.get("target", "all")
+
+        if subject and body:
+            # Delegate to existing send logic
+            result = {"action": "email_queued", "subject": subject, "target": target}
+
+    elif rec_type == "blog":
+        title = config.get("title", "")
+        if title:
+            from api.models import BlogPost
+            post = BlogPost.objects.create(
+                title=title,
+                body=f"Draft generated from autopilot recommendation.\n\nTarget keyword: {config.get('target_keyword', '')}",
+                status="draft",
+            )
+            result = {"action": "blog_draft_created", "id": str(post.id)}
+
+    elif rec_type == "rule_tweak":
+        rule_name = config.get("rule_name", "")
+        if rule_name:
+            result = {"action": "rule_tweak_noted", "rule": rule_name, "change": config.get("change", "")}
+
+    # Mark recommendation as approved
+    report.recommendations[rec_index]["approved"] = True
+    report.save(update_fields=["recommendations"])
+
+    return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def api_autopilot_run(request):
+    """Manually trigger a Claude growth review."""
+    from tempora.scheduler import schedule_task
+
+    schedule_task(
+        name="manual_growth_review",
+        func="api.claude_growth_review",
+        args={},
+        delay_seconds=0,
+        priority=2,
+        queue="core",
+    )
+    return Response({"status": "scheduled"})
+
+
+# ---------------------------------------------------------------------------
+# Feedback
+# ---------------------------------------------------------------------------
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def api_feedback(request):
+    """List feedback or update status."""
+    if request.method == "POST":
+        feedback_id = request.data.get("id")
+        new_status = request.data.get("status", "reviewed")
+        try:
+            fb = Feedback.objects.get(id=feedback_id)
+            fb.status = new_status
+            fb.save(update_fields=["status"])
+            return Response({"status": fb.status})
+        except Feedback.DoesNotExist:
+            return Response({"error": "not_found"}, status=404)
+
+    # GET — list recent feedback
+    status_filter = request.GET.get("status")
+    qs = Feedback.objects.select_related("user").all()
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    entries = []
+    for fb in qs[:100]:
+        entries.append({
+            "id": str(fb.id),
+            "user": fb.user.username if fb.user else "anonymous",
+            "user_email": fb.user.email if fb.user else "",
+            "user_tier": fb.user.tier if fb.user else "",
+            "category": fb.category,
+            "message": fb.message,
+            "page": fb.page,
+            "status": fb.status,
+            "created_at": fb.created_at,
+        })
+    return Response({"feedback": entries})

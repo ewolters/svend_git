@@ -346,6 +346,40 @@
 .formula-result { margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 6px;
     font-family: 'JetBrains Mono', monospace; font-size: 14px; text-align: center; }
 
+/* Calendar */
+.cal-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cal-table th { padding: 8px 4px; text-align: center; color: var(--text-secondary); font-weight: 500; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.cal-table th:first-child { text-align: left; padding-left: 12px; min-width: 200px; }
+.cal-table td { padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: center; }
+.cal-table td:first-child { text-align: left; padding-left: 12px; }
+.cal-table tr.site-row { background: var(--bg-secondary); }
+.cal-table tr.site-row td { font-weight: 600; border-bottom: 1px solid var(--border); padding: 10px 4px; }
+.cal-table tr.project-row { cursor: pointer; }
+.cal-table tr.project-row:hover td { background: var(--bg-hover); }
+.cal-bar { position: relative; height: 18px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; min-width: 40px; }
+.cal-bar-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px; transition: width 0.3s; }
+.cal-bar-label { position: relative; z-index: 1; font-size: 9px; line-height: 18px; color: var(--text-primary);
+    text-align: center; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.cal-green .cal-bar-fill { background: rgba(74,159,110,0.5); }
+.cal-yellow .cal-bar-fill { background: rgba(232,149,71,0.4); }
+.cal-red .cal-bar-fill { background: rgba(207,111,111,0.4); }
+.cal-empty .cal-bar-fill { background: transparent; }
+.cal-ytd { font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+/* Site members */
+.site-members { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+.site-members h4 { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px; }
+.member-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.member-row .member-name { flex: 1; color: var(--text-primary); }
+.member-row .member-role { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(74,159,110,0.15); color: #4a9f6e; }
+.member-row .member-remove { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.member-row .member-remove:hover { color: var(--error); }
+.add-member-row { display: flex; gap: 6px; margin-top: 8px; }
+.add-member-row select, .add-member-row button { font-size: 11px; padding: 4px 8px; background: var(--bg-tertiary);
+    border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); }
+.add-member-row button { cursor: pointer; background: var(--accent); border-color: var(--accent); color: #fff; }
+
 @media (max-width: 900px) {
     .project-detail { grid-template-columns: 1fr; }
     .baseline-grid { grid-template-columns: repeat(3, 1fr); }
@@ -374,6 +408,7 @@
     <div class="hoshin-tabs" id="main-tabs">
         <a class="hoshin-tab active" href="#/dashboard">Dashboard</a>
         <a class="hoshin-tab" href="#/projects">Projects</a>
+        <a class="hoshin-tab" href="#/calendar">Calendar</a>
         <a class="hoshin-tab" href="#/sites">Sites</a>
         <a class="hoshin-tab" href="#/calc-library">Calculations</a>
     </div>
@@ -544,6 +579,19 @@
                 <tfoot id="proj-footer"></tfoot>
             </table>
         </div>
+    </div>
+
+    <!-- ============ CALENDAR ============ -->
+    <div id="tab-calendar" class="hoshin-panel">
+        <div class="section-header">
+            <h2>Hoshin Calendar</h2>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <select id="cal-filter-site" class="filter-select" style="padding:5px 10px; font-size:12px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                    <option value="">All Sites</option>
+                </select>
+            </div>
+        </div>
+        <div class="calendar-wrap" id="calendar-container" style="overflow-x:auto;"></div>
     </div>
 
     <!-- ============ SITES ============ -->
@@ -1011,6 +1059,10 @@ function navigate(hash) {
         document.getElementById('tab-projects').classList.add('active');
         document.querySelector('#main-tabs [href="#/projects"]').classList.add('active');
         renderProjectsTable();
+    } else if (route === 'calendar') {
+        document.getElementById('tab-calendar').classList.add('active');
+        document.querySelector('#main-tabs [href="#/calendar"]').classList.add('active');
+        renderCalendar();
     } else if (route === 'sites') {
         document.getElementById('tab-sites').classList.add('active');
         document.querySelector('#main-tabs [href="#/sites"]').classList.add('active');
@@ -1582,28 +1634,37 @@ function renderSitesGrid() {
         const pct = st.target > 0 ? Math.round(st.ytd / st.target * 100) : 0;
         const pc = pctColor(pct);
 
-        return `<div class="site-card" onclick="filterBySite('${s.id}')">
-            <div class="site-name">${s.name}</div>
-            ${s.code ? `<div class="site-code">${s.code}</div>` : ''}
-            <div class="site-meta">
-                ${s.business_unit ? `<span>${s.business_unit}</span>` : ''}
-                ${s.ci_leader ? `<span>CI: ${s.ci_leader}</span>` : ''}
-                ${s.plant_manager ? `<span>PM: ${s.plant_manager}</span>` : ''}
+        return `<div class="site-card" data-site-id="${s.id}">
+            <div onclick="filterBySite('${s.id}')" style="cursor:pointer;">
+                <div class="site-name">${s.name}</div>
+                ${s.code ? `<div class="site-code">${s.code}</div>` : ''}
+                <div class="site-meta">
+                    ${s.business_unit ? `<span>${s.business_unit}</span>` : ''}
+                    ${s.ci_leader ? `<span>CI: ${s.ci_leader}</span>` : ''}
+                    ${s.plant_manager ? `<span>PM: ${s.plant_manager}</span>` : ''}
+                </div>
+                <div class="site-stats">
+                    <div class="stat"><strong>${st.count}</strong> projects</div>
+                    <div class="stat">Target: <strong>${fmt$(st.target)}</strong></div>
+                    <div class="stat">YTD: <strong class="${st.ytd >= 0 ? 'positive' : 'negative'}">${fmt$(st.ytd)}</strong></div>
+                </div>
+                <div class="site-progress"><div class="fill" style="width:${Math.min(100, Math.abs(pct))}%;background:var(--${pc === 'green' ? 'accent' : pc === 'yellow' ? 'warning' : 'error'});"></div></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                    <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);">${pct}% achieved</span>
+                    ${isOrgAdmin ? `<button class="btn-h small danger" onclick="event.stopPropagation();deleteSite('${s.id}')">Delete</button>` : ''}
+                </div>
             </div>
-            <div class="site-stats">
-                <div class="stat"><strong>${st.count}</strong> projects</div>
-                <div class="stat">Target: <strong>${fmt$(st.target)}</strong></div>
-                <div class="stat">YTD: <strong class="${st.ytd >= 0 ? 'positive' : 'negative'}">${fmt$(st.ytd)}</strong></div>
-            </div>
-            <div class="site-progress"><div class="fill" style="width:${Math.min(100, Math.abs(pct))}%;background:var(--${pc === 'green' ? 'accent' : pc === 'yellow' ? 'warning' : 'error'});"></div></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-                <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);">${pct}% achieved</span>
-                <button class="btn-h small danger" onclick="event.stopPropagation();deleteSite('${s.id}')">Delete</button>
-            </div>
+            <div class="site-members-container"></div>
         </div>`;
     }).join('');
 
     document.getElementById('sites-grid').innerHTML = cards;
+
+    // Load members for each site card
+    sitesCache.forEach(s => {
+        const container = document.querySelector(`[data-site-id="${s.id}"] .site-members-container`);
+        if (container) renderSiteMembers(s.id, container);
+    });
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2775,6 +2836,7 @@ async function testFormula() {
 async function loadSites() {
     const data = await api('/sites/');
     sitesCache = data.sites || [];
+    isOrgAdmin = data.is_org_admin || false;
 }
 
 async function loadAllProjects() {
@@ -2800,6 +2862,166 @@ function populateSiteFilters() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// CALENDAR
+// ════════════════════════════════════════════════════════════════
+const MONTH_LABELS = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+
+function calBarClass(pct) {
+    if (pct === 0) return 'cal-empty';
+    if (pct >= 80) return 'cal-green';
+    if (pct >= 50) return 'cal-yellow';
+    return 'cal-red';
+}
+
+function calBarCell(m) {
+    const cls = calBarClass(m.pct);
+    const w = Math.min(m.pct, 150);
+    const label = m.actual ? fmt$(m.actual) : '';
+    return `<td><div class="cal-bar ${cls}"><div class="cal-bar-fill" style="width:${w}%"></div><div class="cal-bar-label">${label}</div></div></td>`;
+}
+
+async function renderCalendar() {
+    const siteFilter = document.getElementById('cal-filter-site').value;
+    let url = `/api/hoshin/calendar/?fiscal_year=${selectedFY}`;
+    if (siteFilter) url += `&site_id=${siteFilter}`;
+    const data = await api(url);
+    if (!data || !data.sites) return;
+
+    const container = document.getElementById('calendar-container');
+
+    if (data.sites.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:60px; color:var(--text-dim);">No projects found for this fiscal year.</div>';
+        return;
+    }
+
+    let html = '<table class="cal-table"><thead><tr><th>Project</th>';
+    MONTH_LABELS.forEach(l => html += `<th>${l}</th>`);
+    html += '<th>YTD</th></tr></thead><tbody>';
+
+    for (const site of data.sites) {
+        // Site header row
+        html += `<tr class="site-row"><td colspan="1" style="font-size:13px;">${site.site_name}</td>`;
+        for (const m of site.months) {
+            const cls = calBarClass(m.pct);
+            const w = Math.min(m.pct, 150);
+            html += `<td><div class="cal-bar ${cls}" style="height:22px;"><div class="cal-bar-fill" style="width:${w}%"></div><div class="cal-bar-label">${m.actual ? fmt$(m.actual) : ''}</div></div></td>`;
+        }
+        const sitePct = site.target ? Math.round(site.ytd / site.target * 100) : 0;
+        const siteColor = sitePct >= 80 ? 'positive' : sitePct >= 50 ? 'warning-color' : 'negative';
+        html += `<td class="cal-ytd ${siteColor}">${fmt$(site.ytd)} <span style="font-size:9px; opacity:0.7;">(${sitePct}%)</span></td></tr>`;
+
+        // Project rows
+        for (const p of site.projects) {
+            html += `<tr class="project-row" onclick="location.hash='#/project/${p.id}'" title="${p.title}"><td style="padding-left:24px;">`;
+            html += `<span class="class-badge class-${p.class}" style="margin-right:6px;">${p.class}</span>`;
+            html += `<span class="status-pill status-${p.status}" style="margin-right:6px;">${p.status}</span>`;
+            html += `${p.title.length > 30 ? p.title.slice(0, 30) + '...' : p.title}</td>`;
+            for (const m of p.months) {
+                html += calBarCell(m);
+            }
+            const pPct = p.target ? Math.round(p.ytd / p.target * 100) : 0;
+            const pColor = pPct >= 80 ? 'positive' : pPct >= 50 ? 'warning-color' : 'negative';
+            html += `<td class="cal-ytd ${pColor}">${fmt$(p.ytd)}</td></tr>`;
+        }
+    }
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function populateCalendarSiteFilter() {
+    const sel = document.getElementById('cal-filter-site');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">All Sites</option>' + sitesCache.map(s =>
+        `<option value="${s.id}">${s.name}</option>`).join('');
+    sel.onchange = renderCalendar;
+}
+
+// ════════════════════════════════════════════════════════════════
+// SITE MEMBERS
+// ════════════════════════════════════════════════════════════════
+let orgMembersCache = [];
+let isOrgAdmin = false;
+
+async function loadOrgMembers() {
+    try {
+        const data = await api('/core/org/members/');
+        orgMembersCache = data.members || [];
+    } catch (e) {
+        orgMembersCache = [];
+    }
+}
+
+async function renderSiteMembers(siteId, containerEl) {
+    if (!isOrgAdmin) {
+        // Check if site admin for this specific site
+        const data = await api(`/hoshin/sites/${siteId}/members/`);
+        // If we can fetch members, we have at least read access — render read-only
+        if (!data || !data.members) { containerEl.innerHTML = ''; return; }
+        let html = '<div class="site-members"><h4>Site Members</h4>';
+        for (const m of data.members) {
+            html += `<div class="member-row"><span class="member-name">${m.display_name || m.username}</span><span class="member-role">${m.role}</span></div>`;
+        }
+        html += '</div>';
+        containerEl.innerHTML = html;
+        return;
+    }
+
+    const data = await api(`/hoshin/sites/${siteId}/members/`);
+    if (!data) { containerEl.innerHTML = ''; return; }
+    const members = data.members || [];
+
+    let html = '<div class="site-members"><h4>Site Members</h4>';
+
+    for (const m of members) {
+        html += `<div class="member-row">
+            <span class="member-name">${m.display_name || m.username}</span>
+            <span class="member-role">${m.role}</span>
+            <button class="member-remove" title="Remove" onclick="revokeSiteAccess('${siteId}','${m.id}',this)">&times;</button>
+        </div>`;
+    }
+
+    // Add member form
+    const assignedIds = new Set(members.map(m => m.user_id));
+    const available = orgMembersCache.filter(m => !assignedIds.has(m.user_id));
+    if (available.length > 0) {
+        html += `<div class="add-member-row">
+            <select id="add-member-${siteId}">
+                ${available.map(m => `<option value="${m.user_id}">${m.display_name || m.email}</option>`).join('')}
+            </select>
+            <select id="add-role-${siteId}">
+                <option value="member">Member</option>
+                <option value="viewer">Viewer</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button onclick="grantSiteAccess('${siteId}')">Add</button>
+        </div>`;
+    }
+
+    html += '</div>';
+    containerEl.innerHTML = html;
+}
+
+async function grantSiteAccess(siteId) {
+    const userId = document.getElementById(`add-member-${siteId}`).value;
+    const role = document.getElementById(`add-role-${siteId}`).value;
+    await api(`/hoshin/sites/${siteId}/members/grant/`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: userId, role }),
+    });
+    // Re-render the site card's members
+    const card = document.querySelector(`[data-site-id="${siteId}"] .site-members-container`);
+    if (card) renderSiteMembers(siteId, card);
+}
+
+async function revokeSiteAccess(siteId, accessId, btn) {
+    if (!confirm('Remove this member from the site?')) return;
+    await api(`/hoshin/sites/${siteId}/members/${accessId}/revoke/`, { method: 'DELETE' });
+    const card = document.querySelector(`[data-site-id="${siteId}"] .site-members-container`);
+    if (card) renderSiteMembers(siteId, card);
+}
+
+// ════════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════════
 async function init() {
@@ -2807,9 +3029,11 @@ async function init() {
 
     // Load data in parallel
     await Promise.all([loadSites(), api('/calculation-methods/')
-        .then(data => calcMethods = data.methods || [])]);
+        .then(data => calcMethods = data.methods || []),
+        loadOrgMembers()]);
 
     populateSiteFilters();
+    populateCalendarSiteFilter();
     await loadAllProjects();
 
     // Setup filter listeners

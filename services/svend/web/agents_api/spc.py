@@ -1255,3 +1255,407 @@ def hotelling_t_squared_chart(
         in_control=in_control,
         summary="\n".join(summary_parts),
     )
+
+
+# =============================================================================
+# Gage R&R (Measurement System Analysis)
+# =============================================================================
+
+@dataclass
+class GageRRResult:
+    """Gage R&R (Crossed) study results."""
+    # Variance components
+    var_repeatability: float
+    var_reproducibility: float
+    var_operator: float
+    var_interaction: float
+    var_grr: float
+    var_part: float
+    var_total: float
+
+    # Percentage metrics
+    pct_contribution: dict  # {source: %}
+    pct_study_var: dict     # {source: %}
+    pct_tolerance: dict     # {source: %} (empty if no tolerance)
+
+    # Key metrics
+    ndc: int                # Number of distinct categories
+    grr_percent: float      # %Study Var for GRR (headline number)
+    assessment: str         # Acceptable / Marginal / Unacceptable
+
+    # ANOVA table
+    anova_table: list       # [{source, df, ss, ms, f, p}, ...]
+    interaction_significant: bool
+    interaction_pooled: bool
+
+    # Study info
+    n_parts: int
+    n_operators: int
+    n_replicates: int
+    n_total: int
+    tolerance: Optional[float]
+
+    # Plot data (Plotly JSON)
+    plots: dict
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def gage_rr_crossed(
+    parts: list,
+    operators: list,
+    measurements: list[float],
+    tolerance: Optional[float] = None,
+    alpha_interaction: float = 0.25,
+    study_var_k: float = 6.0,
+) -> GageRRResult:
+    """
+    Perform a crossed Gage R&R study using the ANOVA method.
+
+    Args:
+        parts: Part identifier for each measurement.
+        operators: Operator identifier for each measurement.
+        measurements: Measurement values.
+        tolerance: Specification tolerance (USL - LSL). If provided, %Tolerance is computed.
+        alpha_interaction: Significance level for interaction test. If p > alpha,
+                          interaction is pooled into repeatability. Default 0.25.
+        study_var_k: Multiplier for study variation (6.0 = 99.73%). Default 6.0.
+
+    Returns:
+        GageRRResult with variance components, ANOVA table, assessment, and plots.
+    """
+    import numpy as np
+    from scipy import stats as scipy_stats
+
+    n = len(measurements)
+    if n != len(parts) or n != len(operators):
+        raise ValueError("parts, operators, and measurements must have the same length")
+    if n < 4:
+        raise ValueError("Need at least 4 measurements")
+
+    # Identify unique parts and operators
+    unique_parts = sorted(set(parts), key=lambda x: str(x))
+    unique_operators = sorted(set(operators), key=lambda x: str(x))
+    p_count = len(unique_parts)
+    o_count = len(unique_operators)
+
+    if p_count < 2:
+        raise ValueError("Need at least 2 parts")
+    if o_count < 2:
+        raise ValueError("Need at least 2 operators")
+
+    # Build cell structure: cells[part_idx][operator_idx] = [measurements]
+    part_idx = {v: i for i, v in enumerate(unique_parts)}
+    op_idx = {v: i for i, v in enumerate(unique_operators)}
+
+    cells = [[[] for _ in range(o_count)] for _ in range(p_count)]
+    for i in range(n):
+        pi = part_idx[parts[i]]
+        oi = op_idx[operators[i]]
+        cells[pi][oi].append(measurements[i])
+
+    # Check balanced design
+    replicate_counts = set()
+    for pi_list in cells:
+        for cell_list in pi_list:
+            if len(cell_list) == 0:
+                raise ValueError("Unbalanced design: some part-operator combinations have no measurements")
+            replicate_counts.add(len(cell_list))
+
+    if len(replicate_counts) > 1:
+        raise ValueError(f"Unbalanced design: replicate counts vary ({replicate_counts}). Gage R&R requires a balanced design.")
+
+    r_count = replicate_counts.pop()
+    if r_count < 2:
+        raise ValueError("Need at least 2 replicates per part-operator combination")
+
+    # Convert to numpy array: shape (p, o, r)
+    data_array = np.array(cells, dtype=float)
+
+    # Grand mean
+    grand_mean = float(data_array.mean())
+
+    # Marginal means
+    part_means = data_array.mean(axis=(1, 2))   # (p,)
+    op_means = data_array.mean(axis=(0, 2))     # (o,)
+    cell_means = data_array.mean(axis=2)        # (p, o)
+
+    # Sum of Squares
+    ss_total = float(np.sum((data_array - grand_mean) ** 2))
+    ss_part = float(o_count * r_count * np.sum((part_means - grand_mean) ** 2))
+    ss_operator = float(p_count * r_count * np.sum((op_means - grand_mean) ** 2))
+    ss_interaction = float(r_count * np.sum(
+        (cell_means - part_means[:, None] - op_means[None, :] + grand_mean) ** 2
+    ))
+    ss_error = ss_total - ss_part - ss_operator - ss_interaction
+
+    # Degrees of freedom
+    df_part = p_count - 1
+    df_operator = o_count - 1
+    df_interaction = df_part * df_operator
+    df_error = p_count * o_count * (r_count - 1)
+    df_total = n - 1
+
+    # Mean Squares
+    ms_part = ss_part / df_part if df_part > 0 else 0.0
+    ms_operator = ss_operator / df_operator if df_operator > 0 else 0.0
+    ms_interaction = ss_interaction / df_interaction if df_interaction > 0 else 0.0
+    ms_error = ss_error / df_error if df_error > 0 else 0.0
+
+    # F-test for interaction
+    if df_interaction > 0 and ms_error > 0:
+        f_interaction = ms_interaction / ms_error
+        p_interaction = float(1 - scipy_stats.f.cdf(f_interaction, df_interaction, df_error))
+    else:
+        f_interaction = 0.0
+        p_interaction = 1.0
+
+    interaction_significant = p_interaction <= alpha_interaction
+    interaction_pooled = not interaction_significant
+
+    if interaction_pooled:
+        # Pool interaction into error
+        ss_error_pooled = ss_interaction + ss_error
+        df_error_pooled = df_interaction + df_error
+        ms_error_pooled = ss_error_pooled / df_error_pooled if df_error_pooled > 0 else 0.0
+
+        # F-tests against pooled error
+        f_part = ms_part / ms_error_pooled if ms_error_pooled > 0 else 0.0
+        p_part = float(1 - scipy_stats.f.cdf(f_part, df_part, df_error_pooled)) if ms_error_pooled > 0 else 1.0
+        f_operator = ms_operator / ms_error_pooled if ms_error_pooled > 0 else 0.0
+        p_operator = float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_error_pooled)) if ms_error_pooled > 0 else 1.0
+
+        # Variance components (EMS method)
+        var_repeatability = ms_error_pooled
+        var_interaction = 0.0
+        var_operator = max(0.0, (ms_operator - ms_error_pooled) / (p_count * r_count))
+        var_part = max(0.0, (ms_part - ms_error_pooled) / (o_count * r_count))
+    else:
+        # Keep interaction term — test Part and Operator against interaction MS
+        f_part = ms_part / ms_interaction if ms_interaction > 0 else 0.0
+        p_part = float(1 - scipy_stats.f.cdf(f_part, df_part, df_interaction)) if ms_interaction > 0 else 1.0
+        f_operator = ms_operator / ms_interaction if ms_interaction > 0 else 0.0
+        p_operator = float(1 - scipy_stats.f.cdf(f_operator, df_operator, df_interaction)) if ms_interaction > 0 else 1.0
+
+        # Variance components (EMS method)
+        var_repeatability = ms_error
+        var_interaction = max(0.0, (ms_interaction - ms_error) / r_count)
+        var_operator = max(0.0, (ms_operator - ms_interaction) / (p_count * r_count))
+        var_part = max(0.0, (ms_part - ms_interaction) / (o_count * r_count))
+
+    var_reproducibility = var_operator + var_interaction
+    var_grr = var_repeatability + var_reproducibility
+    var_total = var_grr + var_part
+    if var_total <= 0:
+        var_total = 1e-10
+
+    # Percentage Contribution (variance-based)
+    pct_contribution = {
+        "GRR": var_grr / var_total * 100,
+        "Repeatability": var_repeatability / var_total * 100,
+        "Reproducibility": var_reproducibility / var_total * 100,
+        "Operator": var_operator / var_total * 100,
+        "Operator x Part": var_interaction / var_total * 100,
+        "Part-to-Part": var_part / var_total * 100,
+        "Total": 100.0,
+    }
+
+    # %Study Variation (std dev-based)
+    sigma_total = math.sqrt(var_total)
+    pct_study_var = {}
+    for source, var in [("GRR", var_grr), ("Repeatability", var_repeatability),
+                        ("Reproducibility", var_reproducibility), ("Operator", var_operator),
+                        ("Operator x Part", var_interaction), ("Part-to-Part", var_part),
+                        ("Total", var_total)]:
+        pct_study_var[source] = math.sqrt(var) / sigma_total * 100 if sigma_total > 0 else 0.0
+
+    # %Tolerance
+    pct_tolerance = {}
+    if tolerance and tolerance > 0:
+        for source, var in [("GRR", var_grr), ("Repeatability", var_repeatability),
+                            ("Reproducibility", var_reproducibility), ("Operator", var_operator),
+                            ("Operator x Part", var_interaction), ("Part-to-Part", var_part),
+                            ("Total", var_total)]:
+            pct_tolerance[source] = (study_var_k * math.sqrt(var)) / tolerance * 100
+
+    # Number of Distinct Categories
+    sigma_grr = math.sqrt(var_grr) if var_grr > 0 else 1e-10
+    sigma_part = math.sqrt(var_part)
+    ndc = max(1, int(1.41 * sigma_part / sigma_grr))
+
+    # Assessment based on %StudyVar for GRR
+    grr_pct = pct_study_var["GRR"]
+    if grr_pct < 10:
+        assessment = "Acceptable"
+    elif grr_pct <= 30:
+        assessment = "Marginal"
+    else:
+        assessment = "Unacceptable"
+
+    # Build ANOVA table
+    anova_table = [
+        {"source": "Part", "df": df_part, "ss": round(ss_part, 6),
+         "ms": round(ms_part, 6), "f": round(f_part, 4), "p": round(p_part, 4)},
+        {"source": "Operator", "df": df_operator, "ss": round(ss_operator, 6),
+         "ms": round(ms_operator, 6), "f": round(f_operator, 4), "p": round(p_operator, 4)},
+        {"source": "Part x Operator", "df": df_interaction, "ss": round(ss_interaction, 6),
+         "ms": round(ms_interaction, 6), "f": round(f_interaction, 4), "p": round(p_interaction, 4)},
+    ]
+
+    if interaction_pooled:
+        anova_table.append({
+            "source": "Repeatability", "df": df_interaction + df_error,
+            "ss": round(ss_interaction + ss_error, 6),
+            "ms": round(ms_error_pooled, 6), "f": None, "p": None,
+            "note": "Interaction pooled",
+        })
+    else:
+        anova_table.append({
+            "source": "Repeatability", "df": df_error,
+            "ss": round(ss_error, 6), "ms": round(ms_error, 6),
+            "f": None, "p": None,
+        })
+
+    anova_table.append({
+        "source": "Total", "df": df_total, "ss": round(ss_total, 6),
+        "ms": None, "f": None, "p": None,
+    })
+
+    # Generate Plotly charts
+    plots = _generate_grr_plots(
+        data_array, unique_parts, unique_operators,
+        pct_contribution, cell_means,
+    )
+
+    return GageRRResult(
+        var_repeatability=round(var_repeatability, 8),
+        var_reproducibility=round(var_reproducibility, 8),
+        var_operator=round(var_operator, 8),
+        var_interaction=round(var_interaction, 8),
+        var_grr=round(var_grr, 8),
+        var_part=round(var_part, 8),
+        var_total=round(var_total, 8),
+        pct_contribution={k: round(v, 2) for k, v in pct_contribution.items()},
+        pct_study_var={k: round(v, 2) for k, v in pct_study_var.items()},
+        pct_tolerance={k: round(v, 2) for k, v in pct_tolerance.items()},
+        ndc=ndc,
+        grr_percent=round(grr_pct, 2),
+        assessment=assessment,
+        anova_table=anova_table,
+        interaction_significant=interaction_significant,
+        interaction_pooled=interaction_pooled,
+        n_parts=p_count,
+        n_operators=o_count,
+        n_replicates=r_count,
+        n_total=n,
+        tolerance=tolerance,
+        plots=plots,
+    )
+
+
+def _generate_grr_plots(data_array, unique_parts, unique_operators,
+                        pct_contribution, cell_means):
+    """Generate the 4 Plotly charts for Gage R&R."""
+    p, o, r = data_array.shape
+    part_labels = [str(x) for x in unique_parts]
+    op_labels = [str(x) for x in unique_operators]
+
+    # 1. Variance Components Bar Chart
+    sources = ["GRR", "Repeatability", "Reproducibility", "Part-to-Part"]
+    vals = [pct_contribution.get(s, 0) for s in sources]
+
+    components_chart = {
+        "traces": [{
+            "type": "bar",
+            "x": sources,
+            "y": vals,
+            "marker": {"color": ["#e74c3c", "#e67e22", "#f39c12", "#27ae60"]},
+            "text": [f"{v:.1f}%" for v in vals],
+            "textposition": "outside",
+        }],
+        "layout": {
+            "title": "% Contribution to Total Variation",
+            "yaxis": {"title": "% Contribution", "range": [0, max(vals) * 1.2 if vals else 100]},
+            "margin": {"t": 40, "b": 60},
+        },
+    }
+
+    # 2. Measurement by Part (box plot)
+    by_part_traces = []
+    for pi in range(p):
+        by_part_traces.append({
+            "type": "box",
+            "y": data_array[pi, :, :].flatten().tolist(),
+            "name": part_labels[pi],
+            "boxpoints": "all",
+            "jitter": 0.3,
+            "pointpos": -1.8,
+            "marker": {"size": 4},
+        })
+
+    by_part_chart = {
+        "traces": by_part_traces,
+        "layout": {
+            "title": "Measurement by Part",
+            "yaxis": {"title": "Measurement"},
+            "xaxis": {"title": "Part"},
+            "showlegend": False,
+            "margin": {"t": 40, "b": 60},
+        },
+    }
+
+    # 3. Measurement by Operator (box plot)
+    by_op_traces = []
+    for oi in range(o):
+        by_op_traces.append({
+            "type": "box",
+            "y": data_array[:, oi, :].flatten().tolist(),
+            "name": op_labels[oi],
+            "boxpoints": "all",
+            "jitter": 0.3,
+            "pointpos": -1.8,
+            "marker": {"size": 4},
+        })
+
+    by_operator_chart = {
+        "traces": by_op_traces,
+        "layout": {
+            "title": "Measurement by Operator",
+            "yaxis": {"title": "Measurement"},
+            "xaxis": {"title": "Operator"},
+            "showlegend": False,
+            "margin": {"t": 40, "b": 60},
+        },
+    }
+
+    # 4. Part x Operator Interaction
+    colors = ["#3498db", "#e74c3c", "#2ecc71", "#9b59b6", "#e67e22", "#1abc9c"]
+    interaction_traces = []
+    for oi in range(o):
+        interaction_traces.append({
+            "type": "scatter",
+            "mode": "lines+markers",
+            "x": part_labels,
+            "y": cell_means[:, oi].tolist(),
+            "name": op_labels[oi],
+            "line": {"color": colors[oi % len(colors)]},
+            "marker": {"size": 8},
+        })
+
+    interaction_chart = {
+        "traces": interaction_traces,
+        "layout": {
+            "title": "Part x Operator Interaction",
+            "yaxis": {"title": "Mean Measurement"},
+            "xaxis": {"title": "Part"},
+            "margin": {"t": 40, "b": 60},
+        },
+    }
+
+    return {
+        "components": components_chart,
+        "by_part": by_part_chart,
+        "by_operator": by_operator_chart,
+        "interaction": interaction_chart,
+    }

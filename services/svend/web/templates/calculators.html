@@ -372,36 +372,52 @@ select option {
     height: 18px;
 }
 
-/* Link Button — Pull from Shared State */
-.calc-link-btn {
+/* Pull Button — Standardized Cross-Calculator Integration */
+.calc-pull-btn {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
+    gap: 4px;
+    padding: 2px 8px;
     background: transparent;
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-dim);
     cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
     transition: all 0.15s;
-    margin-left: 8px;
+    margin-left: 6px;
     opacity: 0.5;
+    white-space: nowrap;
+    vertical-align: middle;
 }
-
-.calc-link-btn:hover {
+.calc-pull-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
     opacity: 1;
 }
-
-.calc-link-btn.has-link {
+.calc-pull-btn.has-link {
     border-color: var(--accent);
     color: var(--accent);
     opacity: 1;
     animation: pulse-link 2s infinite;
 }
+.calc-pull-btn svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+/* Standalone Pull Button (for complex data transfers between calculators) */
+.calc-pull-btn.standalone {
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-left: 0;
+    margin-bottom: 12px;
+    background: var(--bg-secondary);
+    opacity: 0.7;
+}
+.calc-pull-btn.standalone:hover { opacity: 1; }
 
 @keyframes pulse-link {
     0%, 100% { box-shadow: 0 0 0 0 rgba(74, 159, 110, 0.4); }
@@ -418,10 +434,6 @@ select option {
     to { opacity: 1; transform: translateY(0); }
 }
 
-.calc-link-btn svg {
-    width: 14px;
-    height: 14px;
-}
 
 /* Monte Carlo Toggle */
 .calc-monte-toggle {
@@ -1279,8 +1291,9 @@ input[type="number"] {
                         </div>
                         <div class="calc-input">
                             <label>Takt Time
-                                <button class="calc-link-btn" data-link-from="takt" onclick="SvendOps.pull('takt', 'rto-takt')" title="Pull from Takt Time calculator">
+                                <button class="calc-pull-btn" data-link-from="takt" onclick="SvendOps.pull('takt', 'rto-takt')" title="Pull from Takt Time calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Takt
                                 </button>
                             </label>
                             <input type="number" id="rto-takt" value="60" oninput="calcRTO()">
@@ -1348,8 +1361,9 @@ input[type="number"] {
                     <div class="calc-inputs" style="max-width: 300px;">
                         <div class="calc-input">
                             <label>Takt Time
-                                <button class="calc-link-btn" data-link-from="takt" onclick="SvendOps.pull('takt', 'yama-takt'); renderYamazumi();" title="Pull from Takt Time calculator">
+                                <button class="calc-pull-btn" data-link-from="takt" onclick="SvendOps.pull('takt', 'yama-takt'); renderYamazumi();" title="Pull from Takt Time calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Takt
                                 </button>
                             </label>
                             <input type="number" id="yama-takt" value="60" oninput="renderYamazumi()">
@@ -1410,8 +1424,9 @@ input[type="number"] {
                     <div class="calc-inputs" style="max-width: 600px;">
                         <div class="calc-input">
                             <label>Takt Time
-                                <button class="calc-link-btn" data-link-from="takt" onclick="SvendOps.pull('takt', 'ls-takt'); updateLineSimParams();" title="Pull from Takt Time calculator">
+                                <button class="calc-pull-btn" data-link-from="takt" onclick="SvendOps.pull('takt', 'ls-takt'); updateLineSimParams();" title="Pull from Takt Time calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Takt
                                 </button>
                             </label>
                             <input type="number" id="ls-takt" value="60" oninput="updateLineSimParams()">
@@ -1478,7 +1493,12 @@ input[type="number"] {
                         <div>
                             <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 12px; font-size: 13px;">Changeover Settings</div>
                             <div class="calc-input" style="margin-bottom: 12px;">
-                                <label>Changeover Time (between products)</label>
+                                <label>Changeover Time (between products)
+                                    <button class="calc-pull-btn" data-link-from="changeoverInternal" onclick="SvendOps.pull('changeoverInternal', 'ls-changeover-time')" title="Pull from SMED calculator">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                        ← SMED
+                                    </button>
+                                </label>
                                 <input type="number" id="ls-changeover-time" value="120" min="0" style="padding: 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); width: 100px;">
                                 <span class="input-hint">seconds (applies to all stations)</span>
                             </div>
@@ -1775,8 +1795,9 @@ input[type="number"] {
                         </div>
                         <div class="calc-input">
                             <label>Container Size
-                                <button class="calc-link-btn" data-link-from="eoq" onclick="SvendOps.pull('eoq', 'kanban-container')" title="Pull from EOQ calculator">
+                                <button class="calc-pull-btn" data-link-from="eoq" onclick="SvendOps.pull('eoq', 'kanban-container')" title="Pull from EOQ calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← EOQ
                                 </button>
                             </label>
                             <input type="number" id="kanban-container" value="25" oninput="calcKanban()">
@@ -1872,13 +1893,11 @@ input[type="number"] {
                         </div>
                         <div class="calc-input">
                             <label>Changeover Time
-                                <button class="calc-link-btn" data-link-from="changeoverInternal"
+                                <button class="calc-pull-btn" data-link-from="changeoverInternal"
                                         onclick="SvendOps.pull('changeoverInternal', 'epei-changeover')"
                                         title="Pull from SMED calculator">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                                    </svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← SMED
                                 </button>
                             </label>
                             <input type="number" id="epei-changeover" value="15" oninput="calcEPEI()">
@@ -2174,7 +2193,12 @@ input[type="number"] {
                             <span class="input-hint">minutes (unplanned stops)</span>
                         </div>
                         <div class="calc-input">
-                            <label>Ideal Cycle Time</label>
+                            <label>Ideal Cycle Time
+                                <button class="calc-pull-btn" data-link-from="bottleneckCT" onclick="SvendOps.pull('bottleneckCT', 'oee-ideal')" title="Pull from Bottleneck calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Bottleneck
+                                </button>
+                            </label>
                             <input type="number" id="oee-ideal" value="30" oninput="calcOEE()">
                             <span class="input-hint">seconds per unit</span>
                         </div>
@@ -2332,8 +2356,9 @@ input[type="number"] {
                         </div>
                         <div class="calc-input" id="littles-thr-group">
                             <label>Throughput (TH)
-                                <button class="calc-link-btn" data-link-from="bottleneckThroughput" onclick="SvendOps.pull('bottleneckThroughput', 'littles-thr')" title="Pull from Bottleneck calculator">
+                                <button class="calc-pull-btn" data-link-from="bottleneckThroughput" onclick="SvendOps.pull('bottleneckThroughput', 'littles-thr')" title="Pull from Bottleneck calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Bottleneck
                                 </button>
                             </label>
                             <input type="number" id="littles-thr" value="10" oninput="calcLittles()">
@@ -2392,13 +2417,11 @@ input[type="number"] {
                         </div>
                         <div class="calc-input">
                             <label>Service Rate (μ)
-                                <button class="calc-link-btn" data-link-from="bottleneckThroughput"
+                                <button class="calc-pull-btn" data-link-from="bottleneckThroughput"
                                         onclick="SvendOps.pull('bottleneckThroughput', 'queue-mu')"
                                         title="Pull from Bottleneck calculator">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                                    </svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Bottleneck
                                 </button>
                             </label>
                             <input type="number" id="queue-mu" value="3" step="0.1" oninput="calcQueue()">
@@ -2614,7 +2637,12 @@ input[type="number"] {
                             <span class="input-hint">parallel servers</span>
                         </div>
                         <div class="calc-input">
-                            <label>Service Rate (μ)</label>
+                            <label>Service Rate (μ)
+                                <button class="calc-pull-btn" data-link-from="bottleneckThroughput" onclick="SvendOps.pull('bottleneckThroughput', 'qp-mu')" title="Pull from Bottleneck calculator">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Bottleneck
+                                </button>
+                            </label>
                             <input type="number" id="qp-mu" value="4" step="0.1" oninput="calcQueuePriority()">
                             <span class="input-hint">per server per hour</span>
                         </div>
@@ -3020,8 +3048,9 @@ input[type="number"] {
                     <div class="calc-inputs">
                         <div class="calc-input">
                             <label>Takt Time
-                                <button class="calc-link-btn" data-link-from="takt" onclick="SvendOps.pull('takt', 'pitch-takt')" title="Pull from Takt Time calculator">
+                                <button class="calc-pull-btn" data-link-from="takt" onclick="SvendOps.pull('takt', 'pitch-takt')" title="Pull from Takt Time calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Takt
                                 </button>
                             </label>
                             <input type="number" id="pitch-takt" value="60" oninput="calcPitch()">
@@ -3354,8 +3383,9 @@ input[type="number"] {
                         </div>
                         <div class="calc-input">
                             <label>Average Inventory Value
-                                <button class="calc-link-btn" data-link-from="kanbanInventory" onclick="SvendOps.pull('kanbanInventory', 'turns-inv')" title="Pull from Kanban calculator">
+                                <button class="calc-pull-btn" data-link-from="kanbanInventory" onclick="SvendOps.pull('kanbanInventory', 'turns-inv')" title="Pull from Kanban calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Kanban
                                 </button>
                             </label>
                             <input type="number" id="turns-inv" value="500000" oninput="calcTurns()">
@@ -3969,8 +3999,9 @@ input[type="number"] {
                         </div>
                         <div class="calc-input">
                             <label>Changeover
-                                <button class="calc-link-btn" data-link-from="changeoverInternal" onclick="SvendOps.pull('changeoverInternal', 'lineeff-changeover')" title="Pull from SMED calculator">
+                                <button class="calc-pull-btn" data-link-from="changeoverInternal" onclick="SvendOps.pull('changeoverInternal', 'lineeff-changeover')" title="Pull from SMED calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← SMED
                                 </button>
                             </label>
                             <input type="number" id="lineeff-changeover" value="20" oninput="calcLineEff()">
@@ -4232,8 +4263,9 @@ input[type="number"] {
                         </div>
                         <div class="calc-input">
                             <label>Pitch Interval
-                                <button class="calc-link-btn" data-link-from="pitch" onclick="SvendOps.pull('pitch', 'heijunka-pitch')" title="Pull from Pitch calculator">
+                                <button class="calc-pull-btn" data-link-from="pitch" onclick="SvendOps.pull('pitch', 'heijunka-pitch')" title="Pull from Pitch calculator">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    ← Pitch
                                 </button>
                             </label>
                             <input type="number" id="heijunka-pitch" value="20" oninput="calcHeijunka()">
@@ -4301,8 +4333,9 @@ input[type="number"] {
                             <button onclick="loadSampleJobs()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Load Sample
                             </button>
-                            <button onclick="pullJobsFromLineSim()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
-                                Pull from Line Sim
+                            <button class="calc-pull-btn standalone" onclick="pullJobsFromLineSim()" title="Pull orders from Line Simulator">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                ← Line Sim
                             </button>
                         </div>
                     </div>
@@ -4390,8 +4423,9 @@ input[type="number"] {
                         <button onclick="runSequenceOptimizer()" style="padding: 10px 20px; background: var(--accent); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; flex: 1;">
                             Optimize Sequence
                         </button>
-                        <button onclick="pullFromSequencer()" style="padding: 10px 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
-                            Pull from Sequencer
+                        <button class="calc-pull-btn standalone" onclick="pullFromSequencer()" title="Pull jobs from Job Sequencer">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            ← Sequencer
                         </button>
                     </div>
                 </div>
@@ -4466,8 +4500,9 @@ input[type="number"] {
                             <button onclick="loadSampleWorkOrders()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Load Sample
                             </button>
-                            <button onclick="pullFromSequencerToCapacity()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
-                                Pull from Sequencer
+                            <button class="calc-pull-btn standalone" onclick="pullFromSequencerToCapacity()" title="Pull jobs from Job Sequencer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                ← Sequencer
                             </button>
                         </div>
                     </div>
@@ -4518,8 +4553,9 @@ input[type="number"] {
                 <div class="calc-section">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                         <div class="calc-section-title" style="margin: 0;">Product Mix</div>
-                        <button onclick="pullFromHeijunka()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
-                            Pull from Heijunka
+                        <button class="calc-pull-btn standalone" onclick="pullFromHeijunka()" title="Pull product mix from Heijunka">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            ← Heijunka
                         </button>
                     </div>
                     <div id="mixed-products" class="yamazumi-stations"></div>
@@ -4617,8 +4653,9 @@ input[type="number"] {
                             <button onclick="loadSampleDDSOrders()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Load Sample
                             </button>
-                            <button onclick="pullFromSequencerToDDS()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
-                                Pull from Sequencer
+                            <button class="calc-pull-btn standalone" onclick="pullFromSequencerToDDS()" title="Pull jobs from Job Sequencer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                ← Sequencer
                             </button>
                         </div>
                     </div>
@@ -5501,12 +5538,19 @@ const SvendOps = {
         });
     },
 
-    // Pull a value into an input field
+    // Pull a value into an input field with visual feedback
     pull(key, targetId) {
         const val = this.get(key);
         if (val !== null) {
-            document.getElementById(targetId).value = val;
-            document.getElementById(targetId).dispatchEvent(new Event('input'));
+            const el = document.getElementById(targetId);
+            el.value = val;
+            el.dispatchEvent(new Event('input'));
+            // Flash green highlight on target input
+            el.style.transition = 'box-shadow 0.2s';
+            el.style.boxShadow = '0 0 0 2px rgba(74, 159, 110, 0.5)';
+            setTimeout(() => { el.style.boxShadow = ''; }, 1200);
+        } else {
+            showToast('No data available yet — run the source calculator first');
         }
     }
 };

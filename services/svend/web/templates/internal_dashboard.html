@@ -307,6 +307,7 @@
     <button onclick="switchTab('email')">Email</button>
     <button onclick="switchTab('content')">Content</button>
     <button onclick="switchTab('onboarding')">Onboarding</button>
+    <button onclick="switchTab('automation')">Automation</button>
 </div>
 
 <!-- Tab: Users -->
@@ -589,6 +590,142 @@
         <div class="chart-card full-width">
             <h3>Biggest Challenges (Recent)</h3>
             <div id="onb-challenges" style="font-size:0.85rem;color:var(--text-secondary);max-height:300px;overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Automation Tab -->
+<div class="tab-content" id="tab-automation">
+    <div class="chart-grid">
+        <!-- Experiments Section -->
+        <div class="chart-card full-width">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h3>Experiments</h3>
+                <button onclick="showExperimentForm()" style="background:var(--accent);color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-size:0.8rem;">+ New Experiment</button>
+            </div>
+            <div id="experiment-form" style="display:none;margin:1rem 0;padding:1rem;border:1px solid var(--border);border-radius:8px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                    <input id="exp-name" placeholder="Experiment name" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    <select id="exp-type" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                        <option value="email_subject">Email Subject</option>
+                        <option value="email_body">Email Body</option>
+                        <option value="onboarding_flow">Onboarding Flow</option>
+                        <option value="feature_flag">Feature Flag</option>
+                    </select>
+                </div>
+                <textarea id="exp-hypothesis" placeholder="Hypothesis" rows="2" style="width:100%;margin:0.5rem 0;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);resize:vertical;"></textarea>
+                <div id="exp-variants" style="margin:0.5rem 0;">
+                    <div style="display:flex;gap:0.5rem;margin-bottom:0.3rem;">
+                        <input class="exp-variant-name" placeholder="Variant A name" value="Control" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                        <input class="exp-variant-config" placeholder='Config JSON (optional)' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    </div>
+                    <div style="display:flex;gap:0.5rem;">
+                        <input class="exp-variant-name" placeholder="Variant B name" value="Treatment" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                        <input class="exp-variant-config" placeholder='Config JSON, e.g. {"subject":"New subject"}' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <select id="exp-status" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                        <option value="draft">Draft</option>
+                        <option value="running">Running</option>
+                    </select>
+                    <input id="exp-min-sample" type="number" value="100" placeholder="Min sample" style="width:100px;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    <span style="color:var(--text-secondary);font-size:0.75rem;">min sample/variant</span>
+                    <div style="flex:1;"></div>
+                    <button onclick="saveExperiment()" style="background:var(--accent);color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;">Save</button>
+                    <button onclick="document.getElementById('experiment-form').style.display='none'" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">Cancel</button>
+                </div>
+            </div>
+            <table id="experiments-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);color:var(--text-secondary);">
+                        <th style="text-align:left;padding:0.5rem 0.3rem;">Name</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Variants</th>
+                        <th>Assigned</th>
+                        <th>Significance</th>
+                        <th>Winner</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Rules Section -->
+        <div class="chart-card full-width">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h3>Automation Rules</h3>
+            </div>
+            <table id="rules-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);color:var(--text-secondary);">
+                        <th style="text-align:left;padding:0.5rem 0.3rem;">Rule</th>
+                        <th>Trigger</th>
+                        <th>Action</th>
+                        <th>Cooldown</th>
+                        <th>Fired</th>
+                        <th>Last Fired</th>
+                        <th>Active</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Autopilot Section -->
+        <div class="chart-card full-width">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h3>Claude Autopilot</h3>
+                <button onclick="runAutopilot()" style="background:var(--accent);color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-size:0.8rem;">Run Growth Review</button>
+            </div>
+            <div id="autopilot-content" style="margin-top:0.5rem;">
+                <div style="color:var(--text-secondary);font-size:0.85rem;">No reports yet. Click "Run Growth Review" to generate the first one.</div>
+            </div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="chart-card full-width">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h3>User Feedback</h3>
+                <select id="feedback-filter" onchange="loadFeedback()" style="padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:0.75rem;">
+                    <option value="">All</option>
+                    <option value="new">New</option>
+                    <option value="reviewed">Reviewed</option>
+                    <option value="resolved">Resolved</option>
+                </select>
+            </div>
+            <table id="feedback-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);color:var(--text-secondary);">
+                        <th style="text-align:left;padding:0.5rem 0.3rem;">Time</th>
+                        <th>User</th>
+                        <th>Category</th>
+                        <th style="text-align:left;">Message</th>
+                        <th>Page</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Automation Log -->
+        <div class="chart-card full-width">
+            <h3>Automation Log</h3>
+            <table id="automation-log-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);color:var(--text-secondary);">
+                        <th style="text-align:left;padding:0.5rem 0.3rem;">Time</th>
+                        <th>Rule</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -1053,6 +1190,7 @@ const loaders = {
     email: loadEmail,
     content: loadContent,
     onboarding: loadOnboarding,
+    automation: loadAutomation,
 };
 
 function switchTab(tab) {
@@ -1728,6 +1866,265 @@ async function loadOnboarding() {
     } else {
         challengesDiv.innerHTML = '<p style="padding:1rem;opacity:0.5;">No challenges reported yet.</p>';
     }
+}
+
+// =========================================================================
+// Automation Tab
+// =========================================================================
+async function loadAutomation() {
+    await Promise.all([loadExperiments(), loadRules(), loadAutopilot(), loadFeedback(), loadAutomationLog()]);
+}
+
+async function loadExperiments() {
+    const r = await fetch('/api/internal/experiments/', { credentials: 'include' });
+    const data = await r.json();
+    const tbody = document.querySelector('#experiments-table tbody');
+    if (!data.experiments || data.experiments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:1rem;color:var(--text-secondary);text-align:center;">No experiments yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.experiments.map(e => {
+        const variants = (e.variants || []).map(v => {
+            const r = (e.results || {})[v.name];
+            if (r) return `${v.name}: ${r.rate}% (${r.converted}/${r.total})`;
+            return v.name;
+        }).join('<br>');
+        const sig = e.results && e.results._significant !== undefined
+            ? (e.results._significant ? `<span style="color:#4a9f6e;">p=${e.results._p_value}</span>` : `p=${e.results._p_value || '—'}`)
+            : '—';
+        const statusColor = e.status === 'running' ? '#4a9f6e' : e.status === 'concluded' ? '#6b7280' : '#f59e0b';
+        const actions = e.status === 'running'
+            ? `<button onclick="evaluateExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">Evaluate</button>
+               <button onclick="concludeExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">Conclude</button>`
+            : '—';
+        return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.4rem 0.3rem;font-weight:500;">${e.name}</td>
+            <td style="text-align:center;">${e.experiment_type}</td>
+            <td style="text-align:center;"><span style="color:${statusColor};font-weight:500;">${e.status}</span></td>
+            <td style="font-size:0.75rem;">${variants}</td>
+            <td style="text-align:center;">${e.assigned}</td>
+            <td style="text-align:center;">${sig}</td>
+            <td style="text-align:center;font-weight:500;">${e.winner || '—'}</td>
+            <td style="text-align:center;">${actions}</td>
+        </tr>`;
+    }).join('');
+}
+
+function showExperimentForm() {
+    document.getElementById('experiment-form').style.display = 'block';
+}
+
+async function saveExperiment() {
+    const names = document.querySelectorAll('.exp-variant-name');
+    const configs = document.querySelectorAll('.exp-variant-config');
+    const variants = [];
+    names.forEach((n, i) => {
+        if (n.value.trim()) {
+            let config = {};
+            try { config = JSON.parse(configs[i].value || '{}'); } catch(e) {}
+            variants.push({ name: n.value.trim(), weight: 50, config });
+        }
+    });
+    const body = {
+        name: document.getElementById('exp-name').value,
+        hypothesis: document.getElementById('exp-hypothesis').value,
+        experiment_type: document.getElementById('exp-type').value,
+        status: document.getElementById('exp-status').value,
+        min_sample_size: parseInt(document.getElementById('exp-min-sample').value) || 100,
+        variants,
+    };
+    await fetch('/api/internal/experiments/', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(body),
+    });
+    document.getElementById('experiment-form').style.display = 'none';
+    loadExperiments();
+}
+
+async function evaluateExperiment(id) {
+    const r = await fetch(`/api/internal/experiments/${id}/evaluate/`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+    });
+    const data = await r.json();
+    if (data.winner) alert(`Winner: ${data.winner}`);
+    loadExperiments();
+}
+
+async function concludeExperiment(id) {
+    const winner = prompt('Enter winning variant name:');
+    if (!winner) return;
+    await fetch(`/api/internal/experiments/${id}/conclude/`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ winner }),
+    });
+    loadExperiments();
+}
+
+async function loadRules() {
+    const r = await fetch('/api/internal/automation/rules/', { credentials: 'include' });
+    const data = await r.json();
+    const tbody = document.querySelector('#rules-table tbody');
+    if (!data.rules || data.rules.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="padding:1rem;color:var(--text-secondary);text-align:center;">No rules.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.rules.map(rule => {
+        const triggerDesc = rule.trigger.replace(/_/g, ' ');
+        const configStr = Object.entries(rule.trigger_config || {}).map(([k,v]) => `${k}=${v}`).join(', ');
+        const lastFired = rule.last_fired_at ? new Date(rule.last_fired_at).toLocaleDateString() : 'Never';
+        const cooldown = rule.cooldown_hours > 0 ? `${rule.cooldown_hours}h` : 'Once';
+        return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.4rem 0.3rem;font-weight:500;">${rule.name}</td>
+            <td style="text-align:center;font-size:0.75rem;">${triggerDesc}${configStr ? '<br><span style="color:var(--text-secondary);">'+configStr+'</span>' : ''}</td>
+            <td style="text-align:center;font-size:0.75rem;">${rule.action.replace(/_/g, ' ')}</td>
+            <td style="text-align:center;">${cooldown}</td>
+            <td style="text-align:center;">${rule.times_fired}</td>
+            <td style="text-align:center;font-size:0.75rem;">${lastFired}</td>
+            <td style="text-align:center;">
+                <button onclick="toggleRule('${rule.id}')" style="font-size:0.7rem;padding:0.2rem 0.6rem;border:none;border-radius:4px;cursor:pointer;${rule.is_active ? 'background:#4a9f6e;color:#fff;' : 'background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);'}">${rule.is_active ? 'ON' : 'OFF'}</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function toggleRule(id) {
+    await fetch(`/api/internal/automation/rules/${id}/toggle/`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+    });
+    loadRules();
+}
+
+async function loadAutopilot() {
+    const r = await fetch('/api/internal/autopilot/', { credentials: 'include' });
+    const data = await r.json();
+    const container = document.getElementById('autopilot-content');
+    if (!data.reports || data.reports.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;padding:1rem;">No reports yet. Click "Run Growth Review" to generate the first one.</div>';
+        return;
+    }
+    const report = data.reports[0];
+    const date = new Date(report.created_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    let html = `<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.5rem;">Report from ${date}</div>`;
+
+    // Alerts
+    if (report.alerts && report.alerts.length) {
+        html += '<div style="margin-bottom:1rem;">';
+        report.alerts.forEach(a => {
+            html += `<div style="background:#f59e0b22;border:1px solid #f59e0b44;border-radius:6px;padding:0.5rem 0.8rem;margin-bottom:0.3rem;font-size:0.8rem;color:#f59e0b;">⚠ ${a}</div>`;
+        });
+        html += '</div>';
+    }
+
+    // Insights
+    if (report.insights && report.insights.length) {
+        html += '<div style="margin-bottom:1rem;"><strong style="font-size:0.85rem;">Insights</strong><ul style="margin:0.3rem 0;padding-left:1.2rem;">';
+        report.insights.forEach(i => { html += `<li style="font-size:0.8rem;margin-bottom:0.2rem;">${i}</li>`; });
+        html += '</ul></div>';
+    }
+
+    // Recommendations
+    if (report.recommendations && report.recommendations.length) {
+        html += '<div><strong style="font-size:0.85rem;">Recommendations</strong>';
+        report.recommendations.forEach((rec, idx) => {
+            const priorityColor = rec.priority === 'high' ? '#ef4444' : rec.priority === 'medium' ? '#f59e0b' : '#6b7280';
+            const approved = rec.approved ? ' (Approved)' : '';
+            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.8rem;margin:0.4rem 0;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <span style="font-size:0.7rem;background:${priorityColor}22;color:${priorityColor};padding:0.1rem 0.4rem;border-radius:3px;margin-right:0.4rem;">${rec.priority}</span>
+                    <span style="font-size:0.7rem;background:var(--surface);padding:0.1rem 0.4rem;border-radius:3px;margin-right:0.4rem;">${rec.type}</span>
+                    <strong style="font-size:0.8rem;">${rec.title || ''}${approved}</strong>
+                    <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.2rem;">${rec.reason || ''}</div>
+                </div>
+                ${!rec.approved ? `<button onclick="approveRecommendation('${report.id}', ${idx})" style="background:var(--accent);color:#fff;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer;font-size:0.7rem;white-space:nowrap;">Approve</button>` : '<span style="color:#4a9f6e;font-size:0.75rem;">✓</span>'}
+            </div>`;
+        });
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+async function approveRecommendation(reportId, index) {
+    const r = await fetch(`/api/internal/autopilot/${reportId}/approve/`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ index }),
+    });
+    const data = await r.json();
+    alert(`Action: ${data.action || data.status || 'done'}`);
+    loadAutopilot();
+}
+
+async function runAutopilot() {
+    await fetch('/api/internal/autopilot/run/', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+    });
+    alert('Growth review scheduled. Check back in a few minutes.');
+}
+
+async function loadFeedback() {
+    const filter = document.getElementById('feedback-filter')?.value || '';
+    const url = '/api/internal/feedback/' + (filter ? `?status=${filter}` : '');
+    const r = await fetch(url, { credentials: 'include' });
+    const data = await r.json();
+    const tbody = document.querySelector('#feedback-table tbody');
+    if (!data.feedback || data.feedback.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:1rem;color:var(--text-secondary);text-align:center;">No feedback yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.feedback.map(fb => {
+        const time = new Date(fb.created_at).toLocaleString();
+        const catColor = fb.category === 'bug' ? '#ef4444' : fb.category === 'feature' ? '#4a9f6e' : fb.category === 'question' ? '#4a9faf' : '#6b7280';
+        const statusOpts = ['new', 'reviewed', 'resolved'].map(s =>
+            `<option value="${s}" ${fb.status === s ? 'selected' : ''}>${s}</option>`
+        ).join('');
+        return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.4rem 0.3rem;font-size:0.75rem;">${time}</td>
+            <td style="font-size:0.8rem;">${fb.user}<br><span style="color:var(--text-secondary);font-size:0.7rem;">${fb.user_tier}</span></td>
+            <td style="text-align:center;"><span style="color:${catColor};font-size:0.75rem;font-weight:500;">${fb.category}</span></td>
+            <td style="font-size:0.8rem;max-width:300px;word-break:break-word;">${fb.message}</td>
+            <td style="font-size:0.7rem;color:var(--text-secondary);">${fb.page}</td>
+            <td style="text-align:center;">
+                <select onchange="updateFeedbackStatus('${fb.id}', this.value)" style="font-size:0.7rem;padding:0.15rem 0.3rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text);">
+                    ${statusOpts}
+                </select>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function updateFeedbackStatus(id, status) {
+    await fetch('/api/internal/feedback/', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ id, status }),
+    });
+}
+
+async function loadAutomationLog() {
+    const r = await fetch('/api/internal/automation/log/?limit=30', { credentials: 'include' });
+    const data = await r.json();
+    const tbody = document.querySelector('#automation-log-table tbody');
+    if (!data.log || data.log.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:1rem;color:var(--text-secondary);text-align:center;">No automation events yet.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = data.log.map(entry => {
+        const time = new Date(entry.fired_at).toLocaleString();
+        const resultColor = entry.result === 'success' ? '#4a9f6e' : entry.result === 'failed' ? '#ef4444' : '#6b7280';
+        return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.4rem 0.3rem;font-size:0.75rem;">${time}</td>
+            <td style="font-size:0.8rem;">${entry.rule}</td>
+            <td style="font-size:0.8rem;">${entry.user}</td>
+            <td style="font-size:0.75rem;color:var(--text-secondary);">${entry.action_taken}</td>
+            <td style="text-align:center;"><span style="color:${resultColor};font-weight:500;font-size:0.75rem;">${entry.result}</span></td>
+        </tr>`;
+    }).join('');
 }
 
 // =========================================================================

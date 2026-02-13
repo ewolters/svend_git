@@ -809,10 +809,10 @@
                         <span class="nav-dropdown-trigger">Methods</span>
                         <div class="nav-dropdown-menu">
                             <a href="/app/a3/">A3</a>
+                            <a href="/app/report/">Reports (CAPA/8D)</a>
+                            <a href="/app/fmea/">FMEA</a>
                             <a href="/app/rca/">Root Cause</a>
                             <a href="/app/calculators/">Operations</a>
-                            <a href="#" class="disabled">DMAIC</a>
-                            <a href="#" class="disabled">8D</a>
                         </div>
                     </div>
                     <div class="nav-dropdown" id="nav-hoshin-dropdown" style="display:none;">
@@ -1476,6 +1476,148 @@
     window.SvendPDF = SvendPDF;
     window.SvendViz = SvendViz;
     </script>
+    <!-- Feedback Widget -->
+    <style>
+        .feedback-btn {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 1.5rem;
+            background: var(--accent-primary);
+            color: #fff;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 9000;
+            transition: transform 0.2s;
+        }
+        .feedback-btn:hover { transform: scale(1.1); }
+        .feedback-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9998;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 1.5rem;
+        }
+        .feedback-overlay.active { display: flex; }
+        .feedback-modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            width: 360px;
+            max-width: 90vw;
+        }
+        .feedback-modal h3 {
+            margin-bottom: 0.75rem;
+            text-transform: none;
+            letter-spacing: normal;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+        .feedback-categories {
+            display: flex;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+        }
+        .feedback-categories button {
+            padding: 0.3rem 0.7rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .feedback-categories button.active {
+            border-color: var(--accent-primary-border);
+            background: var(--accent-primary-dim);
+            color: var(--accent-primary);
+        }
+        .feedback-modal textarea {
+            min-height: 80px;
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+        }
+        .feedback-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        .feedback-actions button {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+    <button class="feedback-btn" onclick="openFeedback()" title="Send feedback">?</button>
+    <div class="feedback-overlay" id="feedback-overlay">
+        <div class="feedback-modal">
+            <h3>Send Feedback</h3>
+            <div class="feedback-categories">
+                <button class="active" data-cat="other">General</button>
+                <button data-cat="bug">Bug</button>
+                <button data-cat="feature">Feature Request</button>
+                <button data-cat="question">Question</button>
+            </div>
+            <textarea id="feedback-message" placeholder="What's on your mind?"></textarea>
+            <div class="feedback-actions">
+                <button onclick="closeFeedback()" style="background:var(--bg-tertiary);color:var(--text-secondary);">Cancel</button>
+                <button onclick="submitFeedback()" style="background:var(--accent-primary);color:#fff;">Send</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    let feedbackCategory = 'other';
+    document.querySelectorAll('.feedback-categories button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.feedback-categories button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            feedbackCategory = btn.dataset.cat;
+        });
+    });
+    function openFeedback() { document.getElementById('feedback-overlay').classList.add('active'); }
+    function closeFeedback() {
+        document.getElementById('feedback-overlay').classList.remove('active');
+        document.getElementById('feedback-message').value = '';
+    }
+    async function submitFeedback() {
+        const msg = document.getElementById('feedback-message').value.trim();
+        if (!msg) return;
+        try {
+            const r = await fetch('/api/feedback/', {
+                method: 'POST', credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message: msg, category: feedbackCategory, page: window.location.pathname }),
+            });
+            if (r.ok) {
+                document.getElementById('feedback-message').value = '';
+                closeFeedback();
+                // Brief confirmation
+                const btn = document.querySelector('.feedback-btn');
+                btn.textContent = '\u2713';
+                btn.style.background = 'var(--success)';
+                setTimeout(() => { btn.textContent = '?'; btn.style.background = ''; }, 2000);
+            }
+        } catch(e) { console.error('Feedback error:', e); }
+    }
+    document.getElementById('feedback-overlay').addEventListener('click', function(e) {
+        if (e.target === this) closeFeedback();
+    });
+    </script>
+
     <!-- Upgrade Modal -->
     <div class="upgrade-overlay" id="upgrade-overlay">
         <div class="upgrade-modal">

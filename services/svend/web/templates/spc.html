@@ -19,6 +19,7 @@
     <div class="tabs">
         <button class="tab-btn active" onclick="showTab('control-charts')">Control Charts</button>
         <button class="tab-btn" onclick="showTab('capability')">Process Capability</button>
+        <button class="tab-btn" onclick="showTab('gage-rr')">Gage R&R</button>
         <button class="tab-btn" onclick="showTab('reference')">Reference</button>
     </div>
 
@@ -128,6 +129,54 @@ For X-bar R: Enter subgroups, one per line:
                 <div id="cap-results" class="results-area">
                     <p class="empty-text">Enter data and specs to calculate process capability</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gage R&R Tab -->
+    <div id="gage-rr-tab" class="tab-content">
+        <div class="two-column">
+            <div class="panel">
+                <h3>Gage R&R Study (Crossed)</h3>
+                <p class="help-text" style="margin-bottom:1rem;">Measures repeatability and reproducibility of your measurement system. Paste data in 3-column format: Part, Operator, Measurement — one row per reading.</p>
+
+                <div class="form-group">
+                    <label>Study Data</label>
+                    <textarea id="grr-data" rows="12" placeholder="Part, Operator, Measurement
+1, A, 3.29
+1, A, 3.41
+1, B, 3.34
+1, B, 3.50
+2, A, 2.44
+2, A, 2.32
+2, B, 2.48
+2, B, 2.50
+..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Tolerance (USL - LSL)</label>
+                    <input type="number" id="grr-tolerance" step="any" placeholder="Optional — enables %Tolerance metrics">
+                </div>
+
+                <button class="btn btn-primary" onclick="runGageRR()">Run Gage R&R Study</button>
+            </div>
+
+            <div class="panel">
+                <h3>Results</h3>
+                <div id="grr-results" class="results-area">
+                    <p class="empty-text">Paste measurement data and click "Run Gage R&R Study"</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts (full width below) -->
+        <div id="grr-charts-section" style="display:none; margin-top:1.5rem;">
+            <div class="grr-charts-grid">
+                <div class="panel"><div id="grr-chart-components" style="height:320px;"></div></div>
+                <div class="panel"><div id="grr-chart-interaction" style="height:320px;"></div></div>
+                <div class="panel"><div id="grr-chart-by-part" style="height:320px;"></div></div>
+                <div class="panel"><div id="grr-chart-by-operator" style="height:320px;"></div></div>
             </div>
         </div>
     </div>
@@ -411,6 +460,93 @@ For X-bar R: Enter subgroups, one per line:
     font-weight: 500;
 }
 
+/* Gage R&R */
+.grr-charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.grr-assessment {
+    display: inline-block;
+    padding: 0.35rem 1rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+.grr-assessment.acceptable {
+    background: rgba(74, 159, 110, 0.2);
+    color: #4a9f6e;
+}
+
+.grr-assessment.marginal {
+    background: rgba(232, 197, 71, 0.2);
+    color: #e8c547;
+}
+
+.grr-assessment.unacceptable {
+    background: var(--error-dim);
+    color: var(--error);
+}
+
+.grr-key-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.grr-metric {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.grr-metric .value {
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+}
+
+.grr-metric .label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.grr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.grr-table th, .grr-table td {
+    padding: 0.5rem 0.6rem;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+}
+
+.grr-table th {
+    text-align: right;
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
+.grr-table th:first-child, .grr-table td:first-child {
+    text-align: left;
+}
+
+.grr-table caption {
+    text-align: left;
+    font-weight: 600;
+    padding: 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
 @media (max-width: 768px) {
     .two-column {
         grid-template-columns: 1fr;
@@ -422,6 +558,12 @@ For X-bar R: Enter subgroups, one per line:
         grid-template-columns: repeat(2, 1fr);
     }
     .reference-grid {
+        grid-template-columns: 1fr;
+    }
+    .grr-charts-grid {
+        grid-template-columns: 1fr;
+    }
+    .grr-key-metrics {
         grid-template-columns: 1fr;
     }
 }
@@ -842,6 +984,167 @@ async function loadProblems() {
     }
 }
 
+// =========================================================================
+// Gage R&R
+// =========================================================================
+
+function parseGRRData(text) {
+    const lines = text.trim().split('\n');
+    const parts = [], operators = [], measurements = [];
+
+    for (const line of lines) {
+        const cols = line.split(',').map(s => s.trim());
+        if (cols.length < 3) continue;
+        const val = parseFloat(cols[2]);
+        if (isNaN(val)) continue;  // skip header or bad rows
+        parts.push(cols[0]);
+        operators.push(cols[1]);
+        measurements.push(val);
+    }
+
+    return { parts, operators, measurements };
+}
+
+async function runGageRR() {
+    const dataText = document.getElementById('grr-data').value;
+    const toleranceVal = document.getElementById('grr-tolerance').value;
+    const problemId = document.getElementById('problem-selector').value;
+
+    if (!dataText.trim()) {
+        alert('Please enter measurement data');
+        return;
+    }
+
+    const { parts, operators, measurements } = parseGRRData(dataText);
+    if (measurements.length < 4) {
+        alert('Need at least 4 valid data rows (Part, Operator, Measurement)');
+        return;
+    }
+
+    const body = { parts, operators, measurements };
+    if (toleranceVal) body.tolerance = parseFloat(toleranceVal);
+    if (problemId) body.problem_id = problemId;
+
+    document.getElementById('grr-results').innerHTML = '<p class="empty-text">Running analysis...</p>';
+
+    try {
+        const response = await fetch('/api/spc/gage-rr/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            displayGRRResults(result.gage_rr);
+            svendTrack('feature_use', {category: 'spc', action: 'gage_rr'});
+        } else {
+            document.getElementById('grr-results').innerHTML =
+                `<p class="empty-text" style="color:var(--error);">${result.error || 'Analysis failed'}</p>`;
+        }
+    } catch (err) {
+        document.getElementById('grr-results').innerHTML =
+            `<p class="empty-text" style="color:var(--error);">Error: ${err.message}</p>`;
+    }
+}
+
+function displayGRRResults(grr) {
+    const container = document.getElementById('grr-results');
+    const assessmentClass = grr.assessment.toLowerCase();
+
+    // Key metrics
+    let html = `
+        <div class="grr-assessment ${assessmentClass}">${grr.assessment} — ${grr.grr_percent}% Study Variation</div>
+        <div class="grr-key-metrics">
+            <div class="grr-metric">
+                <div class="value">${grr.grr_percent}%</div>
+                <div class="label">%GRR (Study Var)</div>
+            </div>
+            <div class="grr-metric">
+                <div class="value">${grr.ndc}</div>
+                <div class="label">Distinct Categories</div>
+            </div>
+            <div class="grr-metric">
+                <div class="value">${grr.n_parts}p × ${grr.n_operators}o × ${grr.n_replicates}r</div>
+                <div class="label">Study Design</div>
+            </div>
+        </div>
+    `;
+
+    // ANOVA table
+    html += `<table class="grr-table"><caption>ANOVA Table</caption>
+        <thead><tr><th>Source</th><th>DF</th><th>SS</th><th>MS</th><th>F</th><th>P</th></tr></thead><tbody>`;
+    for (const row of grr.anova_table) {
+        html += `<tr>
+            <td>${row.source}${row.note ? ' *' : ''}</td>
+            <td>${row.df}</td>
+            <td>${row.ss != null ? row.ss.toFixed(4) : ''}</td>
+            <td>${row.ms != null ? row.ms.toFixed(4) : ''}</td>
+            <td>${row.f != null ? row.f.toFixed(3) : ''}</td>
+            <td>${row.p != null ? row.p.toFixed(4) : ''}</td>
+        </tr>`;
+    }
+    html += '</tbody></table>';
+    if (grr.interaction_pooled) {
+        html += `<p class="help-text">* Interaction not significant (p > 0.25) — pooled into Repeatability</p>`;
+    }
+
+    // Variance components table
+    const sources = ['GRR', 'Repeatability', 'Reproducibility', 'Operator', 'Operator x Part', 'Part-to-Part', 'Total'];
+    const variances = {
+        'GRR': grr.var_grr, 'Repeatability': grr.var_repeatability,
+        'Reproducibility': grr.var_reproducibility, 'Operator': grr.var_operator,
+        'Operator x Part': grr.var_interaction, 'Part-to-Part': grr.var_part, 'Total': grr.var_total,
+    };
+
+    html += `<table class="grr-table"><caption>Variance Components</caption>
+        <thead><tr><th>Source</th><th>Variance</th><th>% Contribution</th><th>% Study Var</th>`;
+    if (grr.pct_tolerance && Object.keys(grr.pct_tolerance).length > 0) {
+        html += '<th>% Tolerance</th>';
+    }
+    html += '</tr></thead><tbody>';
+
+    for (const src of sources) {
+        const indent = ['Repeatability', 'Reproducibility', 'Operator', 'Operator x Part'].includes(src) ? '&nbsp;&nbsp;' : '';
+        html += `<tr>
+            <td>${indent}${src}</td>
+            <td>${(variances[src] || 0).toFixed(6)}</td>
+            <td>${(grr.pct_contribution[src] || 0).toFixed(1)}%</td>
+            <td>${(grr.pct_study_var[src] || 0).toFixed(1)}%</td>`;
+        if (grr.pct_tolerance && Object.keys(grr.pct_tolerance).length > 0) {
+            html += `<td>${(grr.pct_tolerance[src] || 0).toFixed(1)}%</td>`;
+        }
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+
+    container.innerHTML = html;
+
+    // Charts
+    const chartsSection = document.getElementById('grr-charts-section');
+    chartsSection.style.display = 'block';
+
+    const plotlyLayout = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#c5c5c5', size: 12 },
+        margin: { t: 40, b: 50, l: 60, r: 20 },
+        xaxis: { gridcolor: 'rgba(255,255,255,0.08)' },
+        yaxis: { gridcolor: 'rgba(255,255,255,0.08)' },
+    };
+
+    const plotlyConfig = { responsive: true, displayModeBar: false };
+
+    for (const [key, chartDef] of Object.entries(grr.plots)) {
+        const divId = 'grr-chart-' + key.replace('_', '-');
+        const el = document.getElementById(divId);
+        if (!el) continue;
+        const layout = { ...plotlyLayout, ...chartDef.layout };
+        Plotly.newPlot(el, chartDef.traces, layout, plotlyConfig);
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     loadReferenceData();
@@ -849,4 +1152,5 @@ document.addEventListener('DOMContentLoaded', function() {
     updateChartHelp();
 });
 </script>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 {% endblock %}

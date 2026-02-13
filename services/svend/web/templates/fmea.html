@@ -1,0 +1,1098 @@
+{% extends "base_app.html" %}
+{% block title %}FMEA - SVEND{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+.fmea-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* ============ LIST VIEW ============ */
+
+.fmea-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.fmea-list-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.fmea-btn {
+    padding: 8px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+}
+
+.fmea-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.fmea-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.fmea-btn.danger {
+    color: #e74c3c;
+    border-color: #e74c3c;
+}
+
+.fmea-btn.danger:hover {
+    background: #e74c3c;
+    color: white;
+}
+
+.fmea-btn.small {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.fmea-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+}
+
+.fmea-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    color: inherit;
+}
+
+.fmea-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.fmea-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.fmea-card-title {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.fmea-card-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.fmea-card-type.process { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
+.fmea-card-type.design { background: rgba(52, 152, 219, 0.15); color: #3498db; }
+.fmea-card-type.system { background: rgba(155, 89, 182, 0.15); color: #9b59b6; }
+
+.fmea-card-meta {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+}
+
+.fmea-card-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.fmea-card-stats span { display: flex; align-items: center; gap: 4px; }
+
+.fmea-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+}
+
+.fmea-empty h3 { margin: 0 0 8px; color: var(--text-secondary); }
+
+/* ============ EDITOR VIEW ============ */
+
+.fmea-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.fmea-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fmea-toolbar-group:not(:last-child) {
+    padding-right: 12px;
+    border-right: 1px solid var(--border);
+}
+
+.fmea-toolbar .back-link {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.fmea-toolbar .back-link:hover { color: var(--accent); }
+
+.fmea-title-input {
+    font-size: 16px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--text-primary);
+    padding: 2px 0;
+    min-width: 200px;
+}
+
+.fmea-title-input:hover, .fmea-title-input:focus {
+    border-bottom-color: var(--accent);
+    outline: none;
+}
+
+.fmea-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.fmea-project-select {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+}
+
+.fmea-spacer { flex: 1; }
+
+/* ============ TABLE ============ */
+
+.fmea-table-wrapper {
+    overflow-x: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.fmea-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.fmea-table th {
+    background: var(--bg-tertiary);
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.fmea-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.fmea-table tr:last-child td { border-bottom: none; }
+
+.fmea-table tr:hover { background: var(--bg-hover); }
+
+.fmea-table input,
+.fmea-table textarea,
+.fmea-table select {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--text-primary);
+    padding: 4px 6px;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.fmea-table input:hover, .fmea-table textarea:hover,
+.fmea-table input:focus, .fmea-table textarea:focus {
+    border-color: var(--border);
+    outline: none;
+}
+
+.fmea-table input:focus, .fmea-table textarea:focus {
+    border-color: var(--accent);
+}
+
+.fmea-table textarea {
+    min-height: 40px;
+    resize: vertical;
+}
+
+.fmea-table .score-input {
+    width: 45px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.fmea-table .rpn-cell {
+    font-weight: 700;
+    text-align: center;
+    padding: 6px 10px;
+    border-radius: 4px;
+    min-width: 50px;
+}
+
+.rpn-low { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
+.rpn-medium { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
+.rpn-high { background: rgba(243, 156, 18, 0.15); color: #f39c12; }
+.rpn-critical { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+
+.fmea-row-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.fmea-row-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.fmea-row-btn:hover { background: var(--bg-hover); color: var(--accent); }
+.fmea-row-btn.delete:hover { color: #e74c3c; }
+
+/* Revised scores column */
+.revised-group {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+}
+
+.revised-group input {
+    width: 32px;
+    text-align: center;
+    font-size: 11px;
+    padding: 2px;
+}
+
+.revised-group .sep { color: var(--text-dim); font-size: 10px; }
+
+/* ============ PANELS ============ */
+
+.fmea-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+    .fmea-panels { grid-template-columns: 1fr; }
+}
+
+.fmea-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.fmea-panel h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.fmea-risk-buckets {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.fmea-bucket {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    border-radius: 8px;
+}
+
+.fmea-bucket .count { font-size: 24px; font-weight: 700; }
+.fmea-bucket .label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+.bucket-critical { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
+.bucket-high { background: rgba(243, 156, 18, 0.1); color: #f39c12; }
+.bucket-medium { background: rgba(241, 196, 15, 0.1); color: #f1c40f; }
+.bucket-low { background: rgba(46, 204, 113, 0.1); color: #2ecc71; }
+
+#pareto-chart { width: 100%; height: 300px; }
+
+/* ============ MODAL (matches DSW pattern) ============ */
+
+.fmea-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.fmea-modal-overlay.active { display: flex; }
+
+.fmea-modal-backdrop {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+}
+
+.fmea-modal {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 500px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.fmea-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.fmea-modal-header h3 { margin: 0; font-weight: 500; font-size: 1.1rem; }
+
+.fmea-modal-body {
+    padding: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.fmea-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.fmea-modal-close { background: transparent; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; }
+.fmea-modal-close:hover { color: var(--text-primary); }
+
+.fmea-modal .hypothesis-item {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.fmea-modal .hypothesis-item:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.fmea-modal .hypothesis-item .statement {
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.fmea-modal .hypothesis-item .prob {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.fmea-modal .close-btn {
+    float: right;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 18px;
+}
+
+/* Create modal */
+.fmea-create-form label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    margin-top: 12px;
+}
+
+.fmea-create-form input,
+.fmea-create-form select,
+.fmea-create-form textarea {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.fmea-create-form textarea { min-height: 60px; resize: vertical; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fmea-container" id="fmea-app">
+    <!-- List View -->
+    <div id="fmea-list-view" style="display:none;">
+        <div class="fmea-list-header">
+            <h1>FMEA Studies</h1>
+            <button class="fmea-btn primary" onclick="showCreateModal()">+ New FMEA</button>
+        </div>
+        <div id="fmea-cards" class="fmea-cards"></div>
+    </div>
+
+    <!-- Editor View -->
+    <div id="fmea-editor-view" style="display:none;">
+        <div class="fmea-toolbar">
+            <div class="fmea-toolbar-group">
+                <a href="/app/fmea/" class="back-link">&larr; All FMEAs</a>
+            </div>
+            <div class="fmea-toolbar-group">
+                <input type="text" class="fmea-title-input" id="fmea-title" placeholder="FMEA Title" onchange="saveMeta()">
+            </div>
+            <div class="fmea-toolbar-group">
+                <select class="fmea-status" id="fmea-status" onchange="saveMeta()">
+                    <option value="draft">Draft</option>
+                    <option value="active">Active</option>
+                    <option value="review">Under Review</option>
+                    <option value="complete">Complete</option>
+                </select>
+            </div>
+            <div class="fmea-toolbar-group">
+                <select class="fmea-project-select" id="fmea-project" onchange="saveMeta()">
+                    <option value="">No study linked</option>
+                </select>
+            </div>
+            <div class="fmea-spacer"></div>
+            <div class="fmea-toolbar-group">
+                <button class="fmea-btn small" onclick="addRow()">+ Add Row</button>
+                <button class="fmea-btn small" onclick="refreshSummary()">Summary</button>
+                <button class="fmea-btn small danger" onclick="confirmDeleteFmea()">Delete</button>
+            </div>
+        </div>
+
+        <!-- FMEA Table -->
+        <div class="fmea-table-wrapper">
+            <table class="fmea-table">
+                <thead>
+                    <tr>
+                        <th style="width:30px">#</th>
+                        <th style="min-width:100px">Process Step</th>
+                        <th style="min-width:130px">Failure Mode</th>
+                        <th style="min-width:120px">Effect</th>
+                        <th style="width:45px">S</th>
+                        <th style="min-width:100px">Cause</th>
+                        <th style="width:45px">O</th>
+                        <th style="min-width:100px">Controls</th>
+                        <th style="width:45px">D</th>
+                        <th style="width:60px">RPN</th>
+                        <th style="min-width:120px">Action</th>
+                        <th style="width:80px">Owner</th>
+                        <th style="width:90px">Status</th>
+                        <th style="width:100px">Revised S/O/D</th>
+                        <th style="width:60px">New RPN</th>
+                        <th style="width:70px"></th>
+                    </tr>
+                </thead>
+                <tbody id="fmea-tbody"></tbody>
+            </table>
+        </div>
+
+        <!-- Summary Panels -->
+        <div class="fmea-panels" id="fmea-panels" style="display:none;">
+            <div class="fmea-panel">
+                <h3>Risk Distribution</h3>
+                <div class="fmea-risk-buckets" id="risk-buckets"></div>
+                <div style="font-size:13px;color:var(--text-dim);" id="summary-stats"></div>
+            </div>
+            <div class="fmea-panel">
+                <h3>RPN Pareto</h3>
+                <div id="pareto-chart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Modal -->
+<div class="fmea-modal-overlay" id="create-modal">
+    <div class="fmea-modal-backdrop" onclick="hideCreateModal()"></div>
+    <div class="fmea-modal">
+        <div class="fmea-modal-header">
+            <h3>New FMEA</h3>
+            <button class="fmea-modal-close" onclick="hideCreateModal()">&times;</button>
+        </div>
+        <div class="fmea-modal-body">
+            <div class="fmea-create-form">
+                <label>Title</label>
+                <input type="text" id="create-title" placeholder="e.g. Process FMEA — Widget Assembly">
+                <label>Type</label>
+                <select id="create-type">
+                    <option value="process">Process FMEA</option>
+                    <option value="design">Design FMEA</option>
+                    <option value="system">System FMEA</option>
+                </select>
+                <label>Description (optional)</label>
+                <textarea id="create-desc" placeholder="Brief scope or purpose"></textarea>
+                <label>Study (optional)</label>
+                <select id="create-project">
+                    <option value="">None</option>
+                </select>
+            </div>
+        </div>
+        <div class="fmea-modal-footer">
+            <button class="fmea-btn" onclick="hideCreateModal()">Cancel</button>
+            <button class="fmea-btn primary" onclick="createFmea()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hypothesis Link Modal -->
+<div class="fmea-modal-overlay" id="link-modal">
+    <div class="fmea-modal-backdrop" onclick="hideLinkModal()"></div>
+    <div class="fmea-modal">
+        <div class="fmea-modal-header">
+            <h3>Link to Hypothesis</h3>
+            <button class="fmea-modal-close" onclick="hideLinkModal()">&times;</button>
+        </div>
+        <div class="fmea-modal-body">
+            <p style="font-size:13px;color:var(--text-dim);margin:0 0 12px;">
+                Linking creates evidence from this failure mode and updates hypothesis probability.
+            </p>
+            <div id="hypothesis-list"></div>
+            <div id="no-hypotheses" style="display:none;padding:20px;text-align:center;color:var(--text-dim);">
+                No hypotheses found. Link a study with hypotheses first.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '/api/fmea/';
+let currentFmea = null;
+let currentRows = [];
+let availableHypotheses = [];
+let projects = [];
+let linkingRowId = null;
+let saveTimer = null;
+
+// ====== INIT ======
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Load projects for dropdowns
+    try {
+        const resp = await fetch('/api/core/projects/', {credentials: 'include'});
+        if (resp.ok) {
+            const data = await resp.json();
+            projects = data.projects || [];
+        }
+    } catch(e) {}
+
+    populateProjectDropdowns();
+
+    // Route: /app/fmea/<id>/ or /app/fmea/
+    const path = window.location.pathname;
+    const match = path.match(/\/app\/fmea\/([0-9a-f-]+)\//);
+    if (match) {
+        await loadFmea(match[1]);
+    } else {
+        await loadList();
+    }
+});
+
+function populateProjectDropdowns() {
+    ['create-project', 'fmea-project'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const val = sel.value;
+        sel.innerHTML = '<option value="">None</option>';
+        projects.forEach(p => {
+            sel.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+        });
+        sel.value = val;
+    });
+}
+
+// ====== LIST VIEW ======
+
+async function loadList() {
+    document.getElementById('fmea-list-view').style.display = '';
+    document.getElementById('fmea-editor-view').style.display = 'none';
+
+    const resp = await fetch(API, {credentials: 'include'});
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const fmeas = data.fmeas || [];
+
+    const container = document.getElementById('fmea-cards');
+    if (fmeas.length === 0) {
+        container.innerHTML = `
+            <div class="fmea-empty" style="grid-column:1/-1;">
+                <h3>No FMEA studies yet</h3>
+                <p>Create your first Failure Mode and Effects Analysis</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = fmeas.map(f => `
+        <a href="/app/fmea/${f.id}/" class="fmea-card">
+            <div class="fmea-card-header">
+                <div class="fmea-card-title">${esc(f.title)}</div>
+                <span class="fmea-card-type ${f.fmea_type}">${f.fmea_type}</span>
+            </div>
+            <div class="fmea-card-meta">
+                ${f.project_title ? esc(f.project_title) + ' &middot; ' : ''}${f.status}
+            </div>
+            <div class="fmea-card-stats">
+                <span>${f.row_count} failure modes</span>
+                <span>Max RPN: <strong class="${rpnClass(f.max_rpn)}">${f.max_rpn}</strong></span>
+            </div>
+        </a>
+    `).join('');
+}
+
+// ====== EDITOR VIEW ======
+
+async function loadFmea(id) {
+    document.getElementById('fmea-list-view').style.display = 'none';
+    document.getElementById('fmea-editor-view').style.display = '';
+
+    const resp = await fetch(API + id + '/', {credentials: 'include'});
+    if (!resp.ok) {
+        alert('FMEA not found');
+        window.location.href = '/app/fmea/';
+        return;
+    }
+
+    const data = await resp.json();
+    currentFmea = data.fmea;
+    currentRows = currentFmea.rows || [];
+    availableHypotheses = data.available_hypotheses || [];
+
+    document.getElementById('fmea-title').value = currentFmea.title;
+    document.getElementById('fmea-status').value = currentFmea.status;
+
+    populateProjectDropdowns();
+    document.getElementById('fmea-project').value = currentFmea.project_id || '';
+
+    renderTable();
+    refreshSummary();
+}
+
+function renderTable() {
+    const tbody = document.getElementById('fmea-tbody');
+    if (currentRows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="16" style="text-align:center;padding:40px;color:var(--text-dim);">
+            No failure modes yet. Click "+ Add Row" to start.
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = currentRows.map((r, i) => `
+        <tr data-id="${r.id}">
+            <td style="color:var(--text-dim);text-align:center;">${i+1}</td>
+            <td><input value="${esc(r.process_step)}" data-field="process_step" onchange="saveRow('${r.id}', this)"></td>
+            <td><input value="${esc(r.failure_mode)}" data-field="failure_mode" onchange="saveRow('${r.id}', this)"></td>
+            <td><textarea data-field="effect" onchange="saveRow('${r.id}', this)">${esc(r.effect)}</textarea></td>
+            <td><input type="number" min="1" max="10" class="score-input" value="${r.severity}" data-field="severity" onchange="saveRow('${r.id}', this)"></td>
+            <td><textarea data-field="cause" onchange="saveRow('${r.id}', this)">${esc(r.cause)}</textarea></td>
+            <td><input type="number" min="1" max="10" class="score-input" value="${r.occurrence}" data-field="occurrence" onchange="saveRow('${r.id}', this)"></td>
+            <td><textarea data-field="current_controls" onchange="saveRow('${r.id}', this)">${esc(r.current_controls)}</textarea></td>
+            <td><input type="number" min="1" max="10" class="score-input" value="${r.detection}" data-field="detection" onchange="saveRow('${r.id}', this)"></td>
+            <td><span class="rpn-cell ${rpnClass(r.rpn)}">${r.rpn}</span></td>
+            <td><textarea data-field="recommended_action" onchange="saveRow('${r.id}', this)">${esc(r.recommended_action)}</textarea></td>
+            <td><input value="${esc(r.action_owner)}" data-field="action_owner" onchange="saveRow('${r.id}', this)"></td>
+            <td>
+                <select data-field="action_status" onchange="saveRow('${r.id}', this)">
+                    <option value="not_started" ${r.action_status==='not_started'?'selected':''}>Not Started</option>
+                    <option value="in_progress" ${r.action_status==='in_progress'?'selected':''}>In Progress</option>
+                    <option value="complete" ${r.action_status==='complete'?'selected':''}>Complete</option>
+                </select>
+            </td>
+            <td>
+                <div class="revised-group">
+                    <input type="number" min="1" max="10" value="${r.revised_severity||''}" placeholder="S"
+                        data-field="revised_severity" onchange="saveRevision('${r.id}')">
+                    <span class="sep">/</span>
+                    <input type="number" min="1" max="10" value="${r.revised_occurrence||''}" placeholder="O"
+                        data-field="revised_occurrence" onchange="saveRevision('${r.id}')">
+                    <span class="sep">/</span>
+                    <input type="number" min="1" max="10" value="${r.revised_detection||''}" placeholder="D"
+                        data-field="revised_detection" onchange="saveRevision('${r.id}')">
+                </div>
+            </td>
+            <td>
+                ${r.revised_rpn ? `<span class="rpn-cell ${rpnClass(r.revised_rpn)}">${r.revised_rpn}</span>` : '<span style="color:var(--text-dim);">—</span>'}
+            </td>
+            <td>
+                <div class="fmea-row-actions">
+                    <button class="fmea-row-btn" title="Link to hypothesis" onclick="showLinkModal('${r.id}')">
+                        ${r.hypothesis_id ? '<span style="color:var(--accent);">&#9679;</span>' : '&#9675;'}
+                    </button>
+                    <button class="fmea-row-btn delete" title="Delete row" onclick="deleteRow('${r.id}')">&#10005;</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ====== ROW OPERATIONS ======
+
+async function addRow() {
+    const resp = await fetch(API + currentFmea.id + '/rows/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({failure_mode: 'New failure mode'}),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    currentRows.push(data.row);
+    renderTable();
+}
+
+async function saveRow(rowId, el) {
+    const field = el.dataset.field;
+    const value = el.type === 'number' ? parseInt(el.value) || 1 : el.value;
+
+    const resp = await fetch(API + currentFmea.id + '/rows/' + rowId + '/', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({[field]: value}),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+
+    // Update local state
+    const idx = currentRows.findIndex(r => r.id === rowId);
+    if (idx >= 0) currentRows[idx] = data.row;
+    renderTable();
+}
+
+async function saveRevision(rowId) {
+    const tr = document.querySelector(`tr[data-id="${rowId}"]`);
+    const rs = tr.querySelector('[data-field="revised_severity"]').value;
+    const ro = tr.querySelector('[data-field="revised_occurrence"]').value;
+    const rd = tr.querySelector('[data-field="revised_detection"]').value;
+
+    if (!rs && !ro && !rd) return;
+    if (!rs || !ro || !rd) return; // wait until all 3 filled
+
+    const resp = await fetch(API + currentFmea.id + '/rows/' + rowId + '/revise/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            revised_severity: parseInt(rs),
+            revised_occurrence: parseInt(ro),
+            revised_detection: parseInt(rd),
+        }),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+
+    const idx = currentRows.findIndex(r => r.id === rowId);
+    if (idx >= 0) currentRows[idx] = data.row;
+    renderTable();
+
+    if (data.hypothesis_probability !== undefined) {
+        showToast(`Hypothesis updated: ${(data.hypothesis_probability * 100).toFixed(0)}%`);
+    }
+}
+
+async function deleteRow(rowId) {
+    if (!confirm('Delete this failure mode?')) return;
+
+    await fetch(API + currentFmea.id + '/rows/' + rowId + '/delete/', {
+        method: 'DELETE',
+        credentials: 'include',
+    });
+    currentRows = currentRows.filter(r => r.id !== rowId);
+    renderTable();
+}
+
+// ====== META ======
+
+async function saveMeta() {
+    if (!currentFmea) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+        await fetch(API + currentFmea.id + '/update/', {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                title: document.getElementById('fmea-title').value,
+                status: document.getElementById('fmea-status').value,
+                project_id: document.getElementById('fmea-project').value || null,
+            }),
+        });
+    }, 500);
+}
+
+// ====== CREATE ======
+
+function showCreateModal() { document.getElementById('create-modal').classList.add('active'); }
+function hideCreateModal() { document.getElementById('create-modal').classList.remove('active'); }
+
+async function createFmea() {
+    const title = document.getElementById('create-title').value.trim();
+    if (!title) { alert('Title required'); return; }
+
+    const resp = await fetch(API + 'create/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            title,
+            fmea_type: document.getElementById('create-type').value,
+            description: document.getElementById('create-desc').value,
+            project_id: document.getElementById('create-project').value || undefined,
+        }),
+    });
+
+    if (!resp.ok) {
+        const err = await resp.json();
+        alert(err.error || 'Failed to create FMEA');
+        return;
+    }
+
+    const data = await resp.json();
+    hideCreateModal();
+    window.location.href = `/app/fmea/${data.id}/`;
+}
+
+async function confirmDeleteFmea() {
+    if (!confirm('Delete this entire FMEA? This cannot be undone.')) return;
+    await fetch(API + currentFmea.id + '/delete/', {
+        method: 'DELETE',
+        credentials: 'include',
+    });
+    window.location.href = '/app/fmea/';
+}
+
+// ====== HYPOTHESIS LINKING ======
+
+function showLinkModal(rowId) {
+    linkingRowId = rowId;
+    const list = document.getElementById('hypothesis-list');
+    const noH = document.getElementById('no-hypotheses');
+
+    if (availableHypotheses.length === 0) {
+        list.style.display = 'none';
+        noH.style.display = '';
+    } else {
+        noH.style.display = 'none';
+        list.style.display = '';
+        list.innerHTML = availableHypotheses.map(h => `
+            <div class="hypothesis-item" onclick="linkHypothesis('${h.id}')">
+                <div class="statement">${esc(h.statement)}</div>
+                <div class="prob">${h.status} &middot; P = ${(h.probability * 100).toFixed(0)}%</div>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('link-modal').classList.add('active');
+}
+
+function hideLinkModal() {
+    linkingRowId = null;
+    document.getElementById('link-modal').classList.remove('active');
+}
+
+async function linkHypothesis(hypothesisId) {
+    if (!linkingRowId) return;
+
+    const resp = await fetch(API + currentFmea.id + '/rows/' + linkingRowId + '/link/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({hypothesis_id: hypothesisId}),
+    });
+
+    if (!resp.ok) {
+        const err = await resp.json();
+        alert(err.error || 'Failed to link');
+        return;
+    }
+
+    const data = await resp.json();
+    const idx = currentRows.findIndex(r => r.id === linkingRowId);
+    if (idx >= 0) currentRows[idx] = data.row;
+
+    hideLinkModal();
+    renderTable();
+    showToast(`Linked! Hypothesis P = ${(data.hypothesis_probability * 100).toFixed(0)}% (LR=${data.likelihood_ratio})`);
+}
+
+// ====== SUMMARY ======
+
+async function refreshSummary() {
+    if (!currentFmea || currentRows.length === 0) {
+        document.getElementById('fmea-panels').style.display = 'none';
+        return;
+    }
+
+    const resp = await fetch(API + currentFmea.id + '/summary/', {credentials: 'include'});
+    if (!resp.ok) return;
+    const data = await resp.json();
+
+    document.getElementById('fmea-panels').style.display = '';
+
+    // Risk buckets
+    const b = data.risk_buckets || {};
+    document.getElementById('risk-buckets').innerHTML = `
+        <div class="fmea-bucket bucket-critical"><div class="count">${b.critical||0}</div><div class="label">Critical (&gt;200)</div></div>
+        <div class="fmea-bucket bucket-high"><div class="count">${b.high||0}</div><div class="label">High (100-200)</div></div>
+        <div class="fmea-bucket bucket-medium"><div class="count">${b.medium||0}</div><div class="label">Medium (50-100)</div></div>
+        <div class="fmea-bucket bucket-low"><div class="count">${b.low||0}</div><div class="label">Low (&lt;50)</div></div>
+    `;
+
+    const rev = data.revision_summary || {};
+    let statsHtml = `<strong>${data.total_rows}</strong> failure modes &middot; Total RPN: <strong>${data.total_rpn}</strong> &middot; Avg: <strong>${data.avg_rpn?.toFixed(0)}</strong>`;
+    if (rev.revised_count > 0) {
+        statsHtml += `<br>Revised: ${rev.revised_count} rows &middot; RPN reduction: <strong>${rev.total_reduction}</strong> (${rev.reduction_pct?.toFixed(0)}%)`;
+    }
+    document.getElementById('summary-stats').innerHTML = statsHtml;
+
+    // Pareto chart
+    const pareto = data.pareto || [];
+    if (pareto.length > 0) {
+        const labels = pareto.map(p => p.failure_mode.length > 25 ? p.failure_mode.slice(0, 22) + '...' : p.failure_mode);
+        const rpns = pareto.map(p => p.rpn);
+        const cumPct = pareto.map(p => p.cumulative_pct);
+        const colors = rpns.map(r => r > 200 ? '#e74c3c' : r > 100 ? '#f39c12' : r > 50 ? '#f1c40f' : '#2ecc71');
+
+        const revisedRpns = pareto.map(p => p.revised_rpn);
+        const hasRevised = revisedRpns.some(r => r !== null);
+
+        const traces = [
+            {
+                x: labels, y: rpns, type: 'bar', name: 'RPN',
+                marker: {color: colors},
+            },
+            {
+                x: labels, y: cumPct, type: 'scatter', mode: 'lines+markers',
+                name: 'Cumulative %', yaxis: 'y2',
+                line: {color: '#3498db', width: 2},
+                marker: {size: 5},
+            },
+        ];
+
+        if (hasRevised) {
+            traces.push({
+                x: labels,
+                y: revisedRpns.map(r => r === null ? 0 : r),
+                type: 'bar', name: 'Revised RPN',
+                marker: {color: 'rgba(46, 204, 113, 0.6)'},
+            });
+        }
+
+        Plotly.newPlot('pareto-chart', traces, {
+            barmode: hasRevised ? 'group' : 'stack',
+            yaxis: {title: 'RPN', gridcolor: 'rgba(255,255,255,0.05)'},
+            yaxis2: {title: 'Cumulative %', overlaying: 'y', side: 'right', range: [0, 105]},
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: {color: '#ccc', size: 11},
+            legend: {orientation: 'h', y: -0.2},
+            margin: {t: 10, r: 50, b: 80, l: 50},
+        }, {responsive: true, displayModeBar: false});
+    }
+}
+
+// ====== HELPERS ======
+
+function rpnClass(rpn) {
+    if (rpn > 200) return 'rpn-critical';
+    if (rpn > 100) return 'rpn-high';
+    if (rpn > 50) return 'rpn-medium';
+    return 'rpn-low';
+}
+
+function esc(s) {
+    if (!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:var(--accent);color:white;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity 0.3s;';
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+</script>
+{% endblock %}

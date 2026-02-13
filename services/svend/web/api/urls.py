@@ -65,6 +65,10 @@ urlpatterns = [
     # Email tracking (public — hit by email clients)
     path("email/open/<uuid:recipient_id>/", views.email_track_open, name="email_track_open"),
     path("email/click/<uuid:recipient_id>/", views.email_track_click, name="email_track_click"),
+    path("email/unsubscribe/", views.email_unsubscribe, name="email_unsubscribe"),
+
+    # Feedback
+    path("feedback/", views.submit_feedback, name="submit_feedback"),
 
     # Blog management (staff-only)
     path("internal/blog/", internal_views.api_blog_list, name="internal_blog_list"),
@@ -74,4 +78,24 @@ urlpatterns = [
     path("internal/blog/<uuid:post_id>/publish/", internal_views.api_blog_publish, name="internal_blog_publish"),
     path("internal/blog/<uuid:post_id>/delete/", internal_views.api_blog_delete, name="internal_blog_delete"),
     path("internal/blog/analytics/", internal_views.api_blog_analytics, name="internal_blog_analytics"),
+
+    # Automation: Experiments
+    path("internal/experiments/", internal_views.api_experiments, name="internal_experiments"),
+    path("internal/experiments/<uuid:experiment_id>/evaluate/", internal_views.api_experiment_evaluate, name="internal_experiment_evaluate"),
+    path("internal/experiments/<uuid:experiment_id>/conclude/", internal_views.api_experiment_conclude, name="internal_experiment_conclude"),
+
+    # Automation: Rules
+    path("internal/automation/rules/", internal_views.api_automation_rules, name="internal_automation_rules"),
+    path("internal/automation/rules/<uuid:rule_id>/toggle/", internal_views.api_automation_rule_toggle, name="internal_automation_rule_toggle"),
+
+    # Automation: Log
+    path("internal/automation/log/", internal_views.api_automation_log, name="internal_automation_log"),
+
+    # Automation: Autopilot
+    path("internal/autopilot/", internal_views.api_autopilot, name="internal_autopilot"),
+    path("internal/autopilot/<uuid:report_id>/approve/", internal_views.api_autopilot_approve, name="internal_autopilot_approve"),
+    path("internal/autopilot/run/", internal_views.api_autopilot_run, name="internal_autopilot_run"),
+
+    # Feedback (staff)
+    path("internal/feedback/", internal_views.api_feedback, name="internal_feedback"),
 ]

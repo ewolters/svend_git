@@ -1283,6 +1283,75 @@ def email_track_click(request, recipient_id):
     return HttpResponseRedirect(url)
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def email_unsubscribe(request):
+    """Unsubscribe from marketing/automation emails via signed token."""
+    from django.core.signing import BadSignature, Signer
+    from django.http import HttpResponse
+    from accounts.models import User
+
+    token = request.GET.get("token", "")
+    if not token:
+        return HttpResponse("Missing token.", status=400, content_type="text/plain")
+
+    signer = Signer(salt="email-unsubscribe")
+    try:
+        user_id = signer.unsign(token)
+    except BadSignature:
+        return HttpResponse("Invalid or expired link.", status=400, content_type="text/plain")
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return HttpResponse("User not found.", status=404, content_type="text/plain")
+
+    user.email_opted_out = True
+    user.save(update_fields=["email_opted_out"])
+
+    html = """<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>body{margin:0;padding:60px 20px;background:#f4f7f4;font-family:'Inter',-apple-system,sans-serif;text-align:center;}
+.card{max-width:500px;margin:0 auto;background:#fff;border-radius:8px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+h2{color:#1a2a1a;margin:0 0 12px;}p{color:#5a6a5a;line-height:1.6;}
+a{color:#4a9f6e;}</style></head><body><div class="card">
+<h2>Unsubscribed</h2>
+<p>You've been unsubscribed from Svend marketing emails. You'll still receive transactional emails (password resets, billing).</p>
+<p>Changed your mind? <a href="https://svend.ai/app/settings/">Manage preferences</a></p>
+</div></body></html>"""
+    return HttpResponse(html, content_type="text/html")
+
+
+def make_unsubscribe_url(user):
+    """Generate a signed unsubscribe URL for a user."""
+    from django.core.signing import Signer
+    signer = Signer(salt="email-unsubscribe")
+    token = signer.sign(str(user.id))
+    return f"https://svend.ai/api/email/unsubscribe/?token={token}"
+
+
+# ---------------------------------------------------------------------------
+# Feedback
+# ---------------------------------------------------------------------------
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def submit_feedback(request):
+    """Submit in-app feedback."""
+    from api.models import Feedback
+
+    message = request.data.get("message", "").strip()
+    if not message:
+        return Response({"error": "Message is required."}, status=400)
+
+    Feedback.objects.create(
+        user=request.user,
+        category=request.data.get("category", "other"),
+        message=message,
+        page=request.data.get("page", ""),
+    )
+    return Response({"status": "submitted"})
+
+
 # ---------------------------------------------------------------------------
 # Onboarding
 # ---------------------------------------------------------------------------

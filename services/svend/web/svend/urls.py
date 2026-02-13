@@ -82,9 +82,13 @@ urlpatterns = [
     # path("app/coder/", TemplateView.as_view(template_name="coder.html"), name="coder"),  # Temporarily disabled
     path("app/a3/", TemplateView.as_view(template_name="a3.html"), name="a3"),
     path("app/a3/<uuid:report_id>/", TemplateView.as_view(template_name="a3.html"), name="a3_edit"),
+    path("app/report/", TemplateView.as_view(template_name="report.html"), name="report"),
+    path("app/report/<uuid:report_id>/", TemplateView.as_view(template_name="report.html"), name="report_edit"),
     path("app/calculators/", TemplateView.as_view(template_name="calculators.html"), name="calculators"),
     path("app/rca/", TemplateView.as_view(template_name="rca.html"), name="rca"),
     path("app/learn/", TemplateView.as_view(template_name="learn.html"), name="learn"),
+    path("app/fmea/", TemplateView.as_view(template_name="fmea.html"), name="fmea"),
+    path("app/fmea/<uuid:fmea_id>/", TemplateView.as_view(template_name="fmea.html"), name="fmea_edit"),
     path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
     # Blog (public, no auth)
     path("blog/", blog_list, name="blog_list"),
@@ -111,9 +115,11 @@ urlpatterns = [
     path("api/whiteboard/", include("agents_api.whiteboard_urls")),  # Collaborative whiteboards
     path("api/guide/", include("agents_api.guide_urls")),  # AI guide (rate-limited)
     path("api/a3/", include("agents_api.a3_urls")),  # A3 problem-solving reports
+    path("api/reports/", include("agents_api.report_urls")),  # CAPA, 8D reports
     path("api/vsm/", include("agents_api.vsm_urls")),  # Value Stream Mapping
     path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
+    path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),

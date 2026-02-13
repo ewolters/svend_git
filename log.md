@@ -15,6 +15,116 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-13 — Remove stale reasoning engine code and docs
+
+**Files removed:**
+- `services/svend/server/` (5 files) — Standalone FastAPI reasoning API server, never imported by Django
+- `services/svend/models/` (6 files) — Custom transformer architecture and training code (RoPE, GQA, SwiGLU, distillation)
+- `services/svend/pipeline/` (5 files) — Training pipeline orchestration (runner, config, checkpoints, validation)
+- `services/svend/evaluation/` (8 files) — Evaluation harness and benchmarking (adversarial, scaling diagnostics)
+- `services/svend/inference_tools/` (24 files) — Tool-calling infrastructure for reasoning models (35 domain solvers)
+- `services/svend/README.md` — Described "training custom reasoning models from scratch"
+- 10 stale reference docs: CLAUDE.md, PIPELINE_GUIDE.md, experiment_001_reasoning.md, RETRAINING_STRATEGY.md, SAFETY_EVAL_GUIDE.md, TOOL_SPEC_V0.md, TOOL_TRACE_GENERATION.md, TRAINING_STRATEGY.md, BETA_DEPLOYMENT.md, SVEND_PRODUCTION_PLAN.md, README.md
+**Kept:** `core/reasoning.py` (CodeReasoner used by agents), `agents/agents/CLAUDE.md` (current agent docs), reference_docs/ARCHITECTURE.md, SYNARA_WHITEPAPER.md, DATA_SOURCES.md, POLICIES.md, ROADMAP.md, LAUNCH_PLAN.md
+**Verification:** `grep -r "from.*server\|from.*pipeline\|from.*inference_tools\|from.*evaluation.harness" services/svend/web/` returns nothing — zero production imports.
+
+---
+
+### 2026-02-13 — Hoshin Kanri: site access control, isolation fixes, calendar view
+
+**Files changed:**
+- `agents_api/models.py` — Added `SiteAccess` model (viewer/member/admin roles per site). Standalone join table between User and Site with `granted_by` tracking and unique constraint on (site, user).
+- `agents_api/migrations/0026_site_access.py` — Migration for SiteAccess table (`hoshin_site_access`).
+- `agents_api/hoshin_views.py` — Major changes:
+  - Added 4 access helpers: `_get_accessible_sites()`, `_check_site_read()`, `_check_site_write()`, `_is_site_admin()`
+  - **Security fix:** `update_action_item` and `delete_action_item` now authorize via query (tenant in filter) instead of load-then-check
+  - **Security fix:** `create_from_proposals` validates VSM tenant ownership before use
+  - Applied site access filtering to all 12+ views — org admins see all sites, others only see sites they have SiteAccess entries for
+  - Added 3 site member management endpoints: `list_site_members`, `grant_site_access`, `revoke_site_access`
+  - Added `hoshin_calendar_view` endpoint — returns projects grouped by site with monthly target/actual/pct data
+- `agents_api/hoshin_urls.py` — Added routes for site member management (`/members/`, `/members/grant/`, `/members/<id>/revoke/`) and calendar (`/calendar/`)
+- `templates/hoshin.html` — Added Calendar tab (projects-by-month grid with color-coded performance bars), site member management UI on Sites tab (add/remove members, role assignment), CSS for both features
+**Verification:** Django system check passes. Migration 0026 applied. Navigate to Hoshin → Calendar tab shows project grid. Sites tab shows member management for admins. Non-admin users only see sites they're assigned to.
+
+---
+
+### 2026-02-12 — Update CLAUDE.md, delete stale services/svend/CLAUDE.md
+
+**Files changed:**
+- `CLAUDE.md` — Full rewrite. Added: all 9 Django apps to architecture tree, 25-row API surface table (was 10), multi-tenancy section, KnowledgeGraph model, frontend section, new libraries (WhiteNoise, Stripe). Updated: dual-write Phase 2 status, researcher agent re-enabled, coder still disabled. Added pointer to ARCHITECTURE.md.
+- `services/svend/CLAUDE.md` — **Deleted.** Described a stale custom transformer training project (reasoning-lab/) that no longer matches the product. The root CLAUDE.md is now the single source of truth.
+**Verification:** Read CLAUDE.md, confirm architecture tree lists all apps (core, agents_api, api, chat, workbench, forge, files, tempora, accounts). Confirm services/svend/CLAUDE.md no longer exists.
+
+---
+
+### 2026-02-12 — Remove duplicate email feedback from settings
+
+**Files changed:**
+- `templates/settings.html` — Removed email feedback section (HTML + CSS). The global "?" button in base_app.html is the single feedback path now.
+**Verification:** Visit /settings, confirm no "Send Feedback" / email section. Confirm "?" button still works on all pages.
+
+---
+
+### 2026-02-12 — Unsubscribe + In-App Feedback System
+
+**Files changed:**
+- `accounts/models.py` — Added `email_opted_out` field
+- `accounts/migrations/0008_email_opt_out.py` — Migration
+- `api/models.py` — Added `Feedback` model (category, message, page, status)
+- `api/migrations/0007_feedback.py` — Migration
+- `api/views.py` — `email_unsubscribe` endpoint (signed token), `make_unsubscribe_url()`, `submit_feedback` endpoint
+- `api/internal_views.py` — EMAIL_TEMPLATE footer now includes unsubscribe link, `api_send_email` skips opted-out users, `api_feedback` staff endpoint
+- `api/tasks.py` — All email senders check `email_opted_out`, all automation queries filter `email_opted_out=False`, feedback fed into Claude autopilot data
+- `api/urls.py` — Routes for unsubscribe, feedback (public + staff)
+- `templates/base_app.html` — Floating feedback button + modal on all app pages
+- `templates/internal_dashboard.html` — Feedback section in Automation tab with status management
+
+**Verification:**
+- Every email footer has "Unsubscribe" link with signed token
+- Clicking unsubscribe shows confirmation page and sets `email_opted_out=True`
+- Opted-out users are skipped by manual sends, onboarding drip, and automation rules
+- Feedback button appears on all app pages (bottom-right "?")
+- Feedback shows in dashboard Automation tab with category, message, status dropdown
+- Claude autopilot weekly review includes user feedback in its data
+
+---
+
+### 2026-02-12 — Solo Founder Growth Engine: A/B Testing, Automation & Claude Autopilot
+
+**Files changed:**
+- `services/svend/web/api/models.py` — Added 5 models: Experiment, ExperimentAssignment, AutomationRule, AutomationLog, AutopilotReport
+- `services/svend/web/api/migrations/0006_automation_framework.py` — Migration for new models
+- `services/svend/web/api/experiments.py` — New file: experiment engine (assign_variant, record_conversion, evaluate_experiment, get_variant)
+- `services/svend/web/api/tasks.py` — 7 lifecycle email templates + 3 Tempora tasks (process_automations every 30min, evaluate_experiments daily, claude_growth_review weekly)
+- `services/svend/web/api/apps.py` — Register 3 new schedules + seed 7 default automation rules
+- `services/svend/web/api/internal_views.py` — 8 new endpoints (experiments CRUD, rules list/toggle, automation log, autopilot reports/approve/run) + email A/B test integration
+- `services/svend/web/api/urls.py` — 9 new routes for automation endpoints
+- `services/svend/web/templates/internal_dashboard.html` — Automation tab with 4 sections: Experiments, Rules, Autopilot, Log
+
+**Verification:**
+- Dashboard Automation tab shows 7 seeded rules with on/off toggles
+- New Experiment form creates experiments, evaluate/conclude buttons work
+- Rules can be toggled on/off
+- Claude Autopilot "Run Growth Review" schedules a Tempora task
+- Automation log shows fired events
+
+---
+
+### 2026-02-12 — Standardize calculator integration buttons
+
+**Files changed:** `services/svend/web/templates/calculators.html`
+**What:** Unified two inconsistent pull button styles into one standard `.calc-pull-btn` class:
+- Replaced 11 icon-only `.calc-link-btn` buttons (24×24, hard to discover) with labeled buttons showing source: "← Takt", "← SMED", "← Bottleneck", etc.
+- Replaced 5 inline-styled text buttons ("Pull from Line Sim", etc.) with `.calc-pull-btn.standalone` class
+- Added visual feedback: green flash on target input when data is pulled (via `SvendOps.pull()`)
+- Added toast notification when pull fails (no data available)
+- Added 3 new pull buttons: OEE ideal CT ← Bottleneck, Queue Priority μ ← Bottleneck, Line Sim changeover ← SMED
+- Kept `.calc-dsw-pull` unchanged (separate system for DSW external data)
+**Total:** 19 pull buttons, all using consistent `.calc-pull-btn` class
+**Verify:** Load any calculator with pull buttons — should show "← Source" text labels, green pulse when data available
+
+---
+
 ### 2026-02-12 — Remove alpha access badge, update docs to reflect live production status
 
 **Debt item:** N/A

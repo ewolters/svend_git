@@ -1,0 +1,937 @@
+{% extends "base_app.html" %}
+{% block title %}Report - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+.report-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.report-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.report-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.report-toolbar-group:not(:last-child) {
+    padding-right: 12px;
+    border-right: 1px solid var(--border);
+}
+
+.report-btn {
+    padding: 8px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+}
+
+.report-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.report-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.report-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    cursor: pointer;
+}
+
+.report-header {
+    margin-bottom: 1.5rem;
+}
+
+.report-header input {
+    font-size: 1.5rem;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--text-primary);
+    width: 100%;
+    padding: 4px 0;
+}
+
+.report-header input:hover,
+.report-header input:focus {
+    border-bottom-color: var(--accent);
+    outline: none;
+}
+
+.report-type-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.report-type-badge.capa {
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+}
+
+.report-type-badge.eight-d {
+    background: rgba(52, 152, 219, 0.15);
+    color: #3498db;
+}
+
+/* Section styling */
+.report-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.report-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+}
+
+.report-section-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.report-section-header .actions {
+    display: flex;
+    gap: 6px;
+}
+
+.report-section-header .action-btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.report-section-header .action-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.report-section-body {
+    padding: 12px 16px;
+}
+
+.report-section-body textarea {
+    width: 100%;
+    min-height: 120px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    padding: 10px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.report-section-body textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: rgba(74, 159, 110, 0.03);
+}
+
+.section-help {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    font-style: italic;
+}
+
+/* Embedded diagrams */
+.embedded-diagrams {
+    margin-top: 8px;
+}
+
+.embedded-diagram {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.embedded-diagram svg {
+    width: 100%;
+    max-height: 300px;
+}
+
+.embedded-diagram .diagram-label {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    background: var(--bg-tertiary);
+}
+
+.embedded-diagram .remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    background: rgba(0,0,0,0.75);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+/* Import modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-overlay-backdrop {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+}
+
+.modal {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    min-width: 400px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal h3 {
+    margin: 0 0 16px 0;
+}
+
+.modal .import-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.modal .import-item {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.modal .import-item:hover {
+    border-color: var(--accent);
+    background: rgba(74, 159, 110, 0.05);
+}
+
+.modal .import-item .title {
+    font-weight: 500;
+}
+
+.modal .import-item .meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+/* List view (no report selected) */
+.report-list {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.report-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.report-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.report-card:hover {
+    border-color: var(--accent);
+}
+
+.report-card .info h4 {
+    margin: 0 0 4px 0;
+}
+
+.report-card .info .meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.autosave-indicator {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-left: auto;
+    padding: 0 12px;
+}
+
+@media print {
+    .report-toolbar, .report-section-header .actions { display: none; }
+    .report-section { break-inside: avoid; }
+    .report-section-body textarea {
+        border: none;
+        min-height: auto;
+        height: auto;
+        resize: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .report-container { padding: 10px; }
+    .report-toolbar { flex-direction: column; align-items: flex-start; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container" id="report-app">
+    <!-- List view (shown when no report is selected) -->
+    <div id="list-view" class="report-list">
+        <div class="report-list-header">
+            <h1>Reports</h1>
+            <button class="report-btn primary" onclick="showCreateModal()">+ New Report</button>
+        </div>
+        <div id="reports-list">
+            <p style="color:var(--text-dim); text-align:center; padding:2rem;">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Editor view (shown when a report is open) -->
+    <div id="editor-view" style="display:none;">
+        <!-- Toolbar -->
+        <div class="report-toolbar">
+            <div class="report-toolbar-group">
+                <button class="report-btn" onclick="goBack()">&larr; Back</button>
+            </div>
+            <div class="report-toolbar-group">
+                <select id="report-status" class="report-status" onchange="updateStatus()"></select>
+            </div>
+            <div class="report-toolbar-group">
+                <button class="report-btn" onclick="autoPopulate()">Auto-Fill Empty</button>
+                <button class="report-btn" onclick="window.print()">Print</button>
+            </div>
+            <span class="autosave-indicator" id="save-indicator"></span>
+        </div>
+
+        <!-- Header -->
+        <div class="report-header">
+            <span class="report-type-badge" id="type-badge"></span>
+            <input type="text" id="report-title" placeholder="Report title" onchange="saveField('title', this.value)">
+        </div>
+
+        <!-- Dynamic sections (generated by JS) -->
+        <div id="sections-container"></div>
+    </div>
+
+    <!-- Create modal -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal-overlay-backdrop" onclick="hideCreateModal()"></div>
+        <div class="modal">
+            <h3>New Report</h3>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; margin-bottom:4px; font-size:0.85rem; color:var(--text-dim);">Report Type</label>
+                <select id="create-type" style="width:100%;">
+                    <option value="">Select type...</option>
+                </select>
+            </div>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; margin-bottom:4px; font-size:0.85rem; color:var(--text-dim);">Study</label>
+                <select id="create-project" style="width:100%;">
+                    <option value="">Select study...</option>
+                </select>
+            </div>
+            <div style="margin-bottom:1rem;">
+                <label style="display:block; margin-bottom:4px; font-size:0.85rem; color:var(--text-dim);">Title (optional)</label>
+                <input type="text" id="create-title" placeholder="Auto-generated if blank" style="width:100%;">
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button class="report-btn" onclick="hideCreateModal()">Cancel</button>
+                <button class="report-btn primary" onclick="createReport()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import modal -->
+    <div class="modal-overlay" id="import-modal">
+        <div class="modal-overlay-backdrop" onclick="hideImportModal()"></div>
+        <div class="modal">
+            <h3>Import Content</h3>
+            <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:12px;">
+                Importing to: <strong id="import-section-label"></strong>
+            </p>
+            <div id="import-sources-tabs" style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;"></div>
+            <div id="import-list" class="import-list"></div>
+            <div style="margin-top:12px; display:flex; justify-content:flex-end;">
+                <button class="report-btn" onclick="hideImportModal()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentReport = null;
+let typeDef = null;
+let availableImports = {};
+let reportTypes = {};
+let projects = [];
+let autoSaveTimer = null;
+
+// =========================================================================
+// Navigation
+// =========================================================================
+
+function getReportIdFromURL() {
+    const m = window.location.pathname.match(/\/app\/report\/([0-9a-f-]+)/);
+    return m ? m[1] : null;
+}
+
+async function init() {
+    // Load report types for create modal
+    try {
+        const resp = await fetch('/api/reports/types/', { credentials: 'include' });
+        if (resp.ok) {
+            const data = await resp.json();
+            reportTypes = data.report_types;
+            const sel = document.getElementById('create-type');
+            for (const [key, rt] of Object.entries(reportTypes)) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = rt.name;
+                sel.appendChild(opt);
+            }
+        }
+    } catch (e) { console.error(e); }
+
+    // Load projects
+    try {
+        const resp = await fetch('/api/core/projects/', { credentials: 'include' });
+        if (resp.ok) {
+            const data = await resp.json();
+            projects = data.projects || [];
+            const sel = document.getElementById('create-project');
+            for (const p of projects) {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.title;
+                sel.appendChild(opt);
+            }
+        }
+    } catch (e) { console.error(e); }
+
+    const reportId = getReportIdFromURL();
+    if (reportId) {
+        await loadReport(reportId);
+    } else {
+        await loadReportList();
+    }
+}
+
+function goBack() {
+    window.history.pushState({}, '', '/app/report/');
+    document.getElementById('editor-view').style.display = 'none';
+    document.getElementById('list-view').style.display = 'block';
+    loadReportList();
+}
+
+// =========================================================================
+// List view
+// =========================================================================
+
+async function loadReportList() {
+    const container = document.getElementById('reports-list');
+    try {
+        const resp = await fetch('/api/reports/', { credentials: 'include' });
+        const data = await resp.json();
+        const reports = data.reports || [];
+
+        if (reports.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-dim); text-align:center; padding:2rem;">No reports yet. Create one to get started.</p>';
+            return;
+        }
+
+        container.innerHTML = reports.map(r => `
+            <div class="report-card" onclick="openReport('${r.id}')">
+                <div class="info">
+                    <h4>${r.title}</h4>
+                    <div class="meta">${r.type_name} &middot; ${r.status} &middot; ${new Date(r.updated_at).toLocaleDateString()}</div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        container.innerHTML = `<p style="color:var(--error);">Failed to load reports</p>`;
+    }
+}
+
+function openReport(id) {
+    window.history.pushState({}, '', `/app/report/${id}/`);
+    loadReport(id);
+}
+
+// =========================================================================
+// Editor
+// =========================================================================
+
+async function loadReport(id) {
+    try {
+        const resp = await fetch(`/api/reports/${id}/`, { credentials: 'include' });
+        if (!resp.ok) { alert('Report not found'); goBack(); return; }
+
+        const data = await resp.json();
+        currentReport = data.report;
+        typeDef = data.type_definition;
+        availableImports = data.available_imports;
+
+        renderEditor();
+        document.getElementById('list-view').style.display = 'none';
+        document.getElementById('editor-view').style.display = 'block';
+    } catch (e) {
+        console.error(e);
+        alert('Failed to load report');
+    }
+}
+
+function renderEditor() {
+    // Type badge
+    const badge = document.getElementById('type-badge');
+    badge.textContent = typeDef.name || currentReport.report_type.toUpperCase();
+    badge.className = 'report-type-badge ' + (currentReport.report_type === '8d' ? 'eight-d' : currentReport.report_type);
+
+    // Title
+    document.getElementById('report-title').value = currentReport.title;
+
+    // Status dropdown
+    const statusSel = document.getElementById('report-status');
+    const statuses = ['draft', 'in_progress', 'review', 'complete', 'archived'];
+    statusSel.innerHTML = statuses.map(s =>
+        `<option value="${s}" ${s === currentReport.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`
+    ).join('');
+
+    // Sections
+    const container = document.getElementById('sections-container');
+    const sections = typeDef.sections || [];
+    const sectionData = currentReport.sections || {};
+    const diagrams = currentReport.embedded_diagrams || {};
+
+    container.innerHTML = sections.map(sec => {
+        const content = sectionData[sec.key] || '';
+        const secDiagrams = diagrams[sec.key] || [];
+        const importSources = sec.import_sources || [];
+
+        let actionsHtml = '';
+        if (importSources.length > 0) {
+            actionsHtml += `<button class="action-btn" onclick="event.stopPropagation(); showImportModal('${sec.key}')">Import</button>`;
+        }
+        actionsHtml += `<button class="action-btn" onclick="event.stopPropagation(); showEmbedModal('${sec.key}')">Embed</button>`;
+
+        let diagramsHtml = '';
+        if (secDiagrams.length > 0) {
+            diagramsHtml = '<div class="embedded-diagrams">' + secDiagrams.map(d => `
+                <div class="embedded-diagram">
+                    ${d.svg}
+                    <div class="diagram-label">${d.board_name}</div>
+                    <button class="remove-btn" onclick="removeDiagram('${d.id}')">&times;</button>
+                </div>
+            `).join('') + '</div>';
+        }
+
+        return `
+            <div class="report-section" id="section-${sec.key}">
+                <div class="report-section-header">
+                    <h3>${sec.label}</h3>
+                    <div class="actions">${actionsHtml}</div>
+                </div>
+                <div class="report-section-body">
+                    ${sec.help ? `<div class="section-help">${sec.help}</div>` : ''}
+                    <textarea
+                        id="textarea-${sec.key}"
+                        placeholder="Enter ${sec.label.toLowerCase()}..."
+                        oninput="scheduleSave('${sec.key}', this.value)"
+                    >${content}</textarea>
+                    ${diagramsHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// =========================================================================
+// Auto-save
+// =========================================================================
+
+function scheduleSave(sectionKey, value) {
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    document.getElementById('save-indicator').textContent = 'Unsaved...';
+    autoSaveTimer = setTimeout(() => saveSection(sectionKey, value), 1000);
+}
+
+async function saveSection(sectionKey, value) {
+    if (!currentReport) return;
+    try {
+        const resp = await fetch(`/api/reports/${currentReport.id}/update/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ sections: { [sectionKey]: value } }),
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            currentReport = data.report;
+            document.getElementById('save-indicator').textContent = 'Saved';
+            setTimeout(() => {
+                const el = document.getElementById('save-indicator');
+                if (el.textContent === 'Saved') el.textContent = '';
+            }, 2000);
+        }
+    } catch (e) {
+        document.getElementById('save-indicator').textContent = 'Save failed';
+    }
+}
+
+async function saveField(field, value) {
+    if (!currentReport) return;
+    try {
+        await fetch(`/api/reports/${currentReport.id}/update/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ [field]: value }),
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function updateStatus() {
+    const status = document.getElementById('report-status').value;
+    await saveField('status', status);
+}
+
+// =========================================================================
+// Auto-populate
+// =========================================================================
+
+async function autoPopulate() {
+    if (!currentReport) return;
+    const btn = event.target;
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+
+    try {
+        const resp = await fetch(`/api/reports/${currentReport.id}/auto-populate/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({}),
+        });
+
+        const data = await resp.json();
+        if (resp.ok) {
+            currentReport = data.report;
+            renderEditor();
+        } else {
+            alert(data.error || 'Auto-populate failed');
+            if (data.partial_results) {
+                currentReport.sections = { ...currentReport.sections, ...data.partial_results };
+                renderEditor();
+            }
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally {
+        btn.textContent = 'Auto-Fill Empty';
+        btn.disabled = false;
+    }
+}
+
+// =========================================================================
+// Import
+// =========================================================================
+
+let importTargetSection = null;
+
+function showImportModal(sectionKey) {
+    importTargetSection = sectionKey;
+    const secDef = (typeDef.sections || []).find(s => s.key === sectionKey);
+    document.getElementById('import-section-label').textContent = secDef ? secDef.label : sectionKey;
+
+    const sources = secDef ? (secDef.import_sources || []) : [];
+    const tabsContainer = document.getElementById('import-sources-tabs');
+    tabsContainer.innerHTML = sources.map(src => `
+        <button class="report-btn" onclick="loadImportSource('${src}')" style="font-size:0.8rem;">${src}</button>
+    `).join('');
+
+    document.getElementById('import-list').innerHTML = '<p style="color:var(--text-dim);">Select a source above</p>';
+    document.getElementById('import-modal').classList.add('active');
+}
+
+function hideImportModal() {
+    document.getElementById('import-modal').classList.remove('active');
+    importTargetSection = null;
+}
+
+function loadImportSource(sourceType) {
+    const container = document.getElementById('import-list');
+    let items = [];
+
+    if (sourceType === 'hypothesis') {
+        items = (availableImports.hypotheses || []).map(h => ({
+            id: h.id, title: h.statement,
+            meta: `${(h.probability * 100).toFixed(0)}% — ${h.status}`,
+            sourceType: 'hypothesis',
+        }));
+    } else if (sourceType === 'whiteboard') {
+        items = (availableImports.boards || []).map(b => ({
+            id: b.id, title: b.name,
+            meta: b.room_code,
+            sourceType: 'whiteboard',
+        }));
+    } else if (sourceType === 'dsw') {
+        items = (availableImports.dsw_results || []).map(d => ({
+            id: d.id, title: d.title || d.type,
+            meta: d.summary,
+            sourceType: 'dsw',
+        }));
+    } else if (sourceType === 'project') {
+        items = [{
+            id: currentReport.project_id,
+            title: 'Study description',
+            meta: 'Import study title and description',
+            sourceType: 'project',
+        }];
+    } else if (sourceType === 'rca') {
+        items = (availableImports.rca_sessions || []).map(r => ({
+            id: r.id, title: r.title || 'RCA Session',
+            meta: r.root_cause || r.event.substring(0, 80),
+            sourceType: 'rca',
+        }));
+    }
+
+    if (items.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-dim);">No items available</p>';
+        return;
+    }
+
+    container.innerHTML = items.map(item => `
+        <div class="import-item" onclick="doImport('${item.sourceType}', '${item.id}')">
+            <div class="title">${item.title}</div>
+            <div class="meta">${item.meta}</div>
+        </div>
+    `).join('');
+}
+
+async function doImport(sourceType, sourceId) {
+    if (!importTargetSection || !currentReport) return;
+
+    try {
+        const resp = await fetch(`/api/reports/${currentReport.id}/import/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                section: importTargetSection,
+                source_type: sourceType,
+                source_id: sourceId,
+                append: true,
+            }),
+        });
+
+        const data = await resp.json();
+        if (resp.ok) {
+            currentReport = data.report;
+            const textarea = document.getElementById(`textarea-${importTargetSection}`);
+            if (textarea) textarea.value = data.content;
+            hideImportModal();
+        } else {
+            alert(data.error || 'Import failed');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// =========================================================================
+// Embed diagram
+// =========================================================================
+
+function showEmbedModal(sectionKey) {
+    const code = prompt('Enter whiteboard room code:');
+    if (!code) return;
+
+    embedDiagram(sectionKey, code.trim());
+}
+
+async function embedDiagram(sectionKey, roomCode) {
+    if (!currentReport) return;
+
+    try {
+        const resp = await fetch(`/api/reports/${currentReport.id}/embed-diagram/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ section: sectionKey, room_code: roomCode }),
+        });
+
+        const data = await resp.json();
+        if (resp.ok) {
+            // Reload to show embedded diagram
+            await loadReport(currentReport.id);
+        } else {
+            alert(data.error || 'Embed failed');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function removeDiagram(diagramId) {
+    if (!currentReport || !confirm('Remove this diagram?')) return;
+
+    try {
+        await fetch(`/api/reports/${currentReport.id}/diagram/${diagramId}/`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+        await loadReport(currentReport.id);
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// =========================================================================
+// Create
+// =========================================================================
+
+function showCreateModal() {
+    document.getElementById('create-modal').classList.add('active');
+}
+
+function hideCreateModal() {
+    document.getElementById('create-modal').classList.remove('active');
+}
+
+async function createReport() {
+    const reportType = document.getElementById('create-type').value;
+    const projectId = document.getElementById('create-project').value;
+    const title = document.getElementById('create-title').value;
+
+    if (!reportType || !projectId) {
+        alert('Please select a report type and study');
+        return;
+    }
+
+    try {
+        const body = { report_type: reportType, project_id: projectId };
+        if (title) body.title = title;
+
+        const resp = await fetch('/api/reports/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+
+        const data = await resp.json();
+        if (resp.ok) {
+            hideCreateModal();
+            openReport(data.id);
+        } else {
+            alert(data.error || 'Failed to create report');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.remove('active');
+        }
+    });
+});
+
+// Handle browser back/forward
+window.addEventListener('popstate', function() {
+    const id = getReportIdFromURL();
+    if (id) {
+        loadReport(id);
+    } else {
+        document.getElementById('editor-view').style.display = 'none';
+        document.getElementById('list-view').style.display = 'block';
+        loadReportList();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+{% endblock %}

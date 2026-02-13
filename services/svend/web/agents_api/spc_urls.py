@@ -14,6 +14,9 @@ urlpatterns = [
     path("chart/recommend/", views.recommend_chart, name="spc_recommend_chart"),
     path("chart/types/", views.chart_types, name="spc_chart_types"),
 
+    # Gage R&R / MSA
+    path("gage-rr/", views.gage_rr, name="spc_gage_rr"),
+
     # Process Capability
     path("capability/", views.capability_study, name="spc_capability"),
 

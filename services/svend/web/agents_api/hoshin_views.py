@@ -20,7 +20,7 @@ from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import require_feature
-from .models import Site, HoshinProject, ActionItem, ValueStreamMap
+from .models import Site, SiteAccess, HoshinProject, ActionItem, ValueStreamMap
 from .hoshin_calculations import (
     CALCULATION_METHODS,
     calculate_savings,
@@ -57,6 +57,65 @@ def _require_tenant(user):
     return tenant, None
 
 
+def _get_accessible_sites(user, tenant):
+    """Return (queryset_of_sites, is_org_admin).
+
+    Org owners/admins: all tenant sites.
+    Others: only sites with a SiteAccess entry.
+    """
+    membership = Membership.objects.filter(
+        user=user, tenant=tenant, is_active=True,
+    ).first()
+    if not membership:
+        return Site.objects.none(), False
+
+    if membership.can_admin:
+        return Site.objects.filter(tenant=tenant), True
+
+    accessible_ids = SiteAccess.objects.filter(
+        user=user, site__tenant=tenant,
+    ).values_list("site_id", flat=True)
+    return Site.objects.filter(id__in=accessible_ids), False
+
+
+def _check_site_read(user, site, tenant):
+    """Return True if user can view this site's projects."""
+    membership = Membership.objects.filter(
+        user=user, tenant=tenant, is_active=True,
+    ).first()
+    if not membership:
+        return False
+    if membership.can_admin:
+        return True
+    return SiteAccess.objects.filter(user=user, site=site).exists()
+
+
+def _check_site_write(user, site, tenant):
+    """Return True if user can edit this site's projects."""
+    membership = Membership.objects.filter(
+        user=user, tenant=tenant, is_active=True,
+    ).first()
+    if not membership:
+        return False
+    if membership.can_admin:
+        return True
+    access = SiteAccess.objects.filter(user=user, site=site).first()
+    return access is not None and access.role in ("member", "admin")
+
+
+def _is_site_admin(user, site, tenant):
+    """Return True if user is org admin or site admin for this site."""
+    membership = Membership.objects.filter(
+        user=user, tenant=tenant, is_active=True,
+    ).first()
+    if not membership:
+        return False
+    if membership.can_admin:
+        return True
+    access = SiteAccess.objects.filter(user=user, site=site).first()
+    return access is not None and access.role == "admin"
+
+
 # ---------------------------------------------------------------------------
 # Site CRUD
 # ---------------------------------------------------------------------------
@@ -65,18 +124,20 @@ def _require_tenant(user):
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def list_sites(request):
-    """List manufacturing sites for the user's tenant."""
+    """List manufacturing sites the user has access to."""
     tenant, err = _require_tenant(request.user)
     if err:
         return err
 
-    sites = Site.objects.filter(tenant=tenant)
+    accessible_sites, is_admin = _get_accessible_sites(request.user, tenant)
+    sites = accessible_sites
     if request.GET.get("active_only", "").lower() == "true":
         sites = sites.filter(is_active=True)
 
     return JsonResponse({
         "sites": [s.to_dict() for s in sites],
         "count": sites.count(),
+        "is_org_admin": is_admin,
     })
 
 
@@ -118,6 +179,8 @@ def get_site(request, site_id):
         return err
 
     site = get_object_or_404(Site, id=site_id, tenant=tenant)
+    if not _check_site_read(request.user, site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
     data = site.to_dict()
 
     # Add project summary
@@ -176,13 +239,14 @@ def delete_site(request, site_id):
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def list_hoshin_projects(request):
-    """List hoshin projects with filtering."""
+    """List hoshin projects the user has access to."""
     tenant, err = _require_tenant(request.user)
     if err:
         return err
 
+    accessible_sites, _ = _get_accessible_sites(request.user, tenant)
     projects = HoshinProject.objects.filter(
-        site__tenant=tenant,
+        site__in=accessible_sites,
     ).select_related("project", "site")
 
     # Filters
@@ -226,6 +290,8 @@ def create_hoshin_project(request):
     site = None
     if site_id:
         site = get_object_or_404(Site, id=site_id, tenant=tenant)
+        if not _check_site_write(request.user, site, tenant):
+            return JsonResponse({"error": "Not found"}, status=404)
 
     try:
         savings_target = Decimal(str(data.get("annual_savings_target", 0)))
@@ -286,6 +352,9 @@ def get_hoshin_project(request, hoshin_id):
         id=hoshin_id, site__tenant=tenant,
     )
 
+    if not _check_site_read(request.user, hoshin.site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
+
     data = hoshin.to_dict()
     data["savings_summary"] = aggregate_monthly_savings(hoshin.monthly_actuals or [])
     data["action_items"] = [
@@ -304,7 +373,12 @@ def update_hoshin_project(request, hoshin_id):
     if err:
         return err
 
-    hoshin = get_object_or_404(HoshinProject, id=hoshin_id, site__tenant=tenant)
+    hoshin = get_object_or_404(
+        HoshinProject.objects.select_related("site"),
+        id=hoshin_id, site__tenant=tenant,
+    )
+    if not _check_site_write(request.user, hoshin.site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
     data = json.loads(request.body)
 
     # Hoshin-specific fields
@@ -352,7 +426,12 @@ def delete_hoshin_project(request, hoshin_id):
     if err:
         return err
 
-    hoshin = get_object_or_404(HoshinProject, id=hoshin_id, site__tenant=tenant)
+    hoshin = get_object_or_404(
+        HoshinProject.objects.select_related("site"),
+        id=hoshin_id, site__tenant=tenant,
+    )
+    if not _check_site_write(request.user, hoshin.site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
     core_project = hoshin.project
     hoshin.delete()
     core_project.delete()
@@ -376,7 +455,12 @@ def update_monthly_actual(request, hoshin_id, month):
     if err:
         return err
 
-    hoshin = get_object_or_404(HoshinProject, id=hoshin_id, site__tenant=tenant)
+    hoshin = get_object_or_404(
+        HoshinProject.objects.select_related("site"),
+        id=hoshin_id, site__tenant=tenant,
+    )
+    if not _check_site_write(request.user, hoshin.site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
     data = json.loads(request.body)
 
     actuals = list(hoshin.monthly_actuals or [])
@@ -484,12 +568,19 @@ def create_from_proposals(request):
     vsm_id = data.get("vsm_id")
     vsm = None
     if vsm_id:
-        vsm = ValueStreamMap.objects.filter(id=vsm_id, owner=request.user).first()
+        vsm = ValueStreamMap.objects.select_related("project").filter(
+            id=vsm_id, owner=request.user,
+        ).first()
+        # Drop if VSM belongs to a different tenant
+        if vsm and vsm.project and vsm.project.tenant_id and vsm.project.tenant_id != tenant.id:
+            vsm = None
 
     site_id = data.get("site_id")
     site = None
     if site_id:
         site = get_object_or_404(Site, id=site_id, tenant=tenant)
+        if not _check_site_write(request.user, site, tenant):
+            return JsonResponse({"error": "Not found"}, status=404)
 
     fiscal_year = data.get("fiscal_year", date.today().year)
     created = []
@@ -548,7 +639,12 @@ def list_action_items(request, hoshin_id):
     if err:
         return err
 
-    hoshin = get_object_or_404(HoshinProject, id=hoshin_id, site__tenant=tenant)
+    hoshin = get_object_or_404(
+        HoshinProject.objects.select_related("site"),
+        id=hoshin_id, site__tenant=tenant,
+    )
+    if not _check_site_read(request.user, hoshin.site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
     items = ActionItem.objects.filter(project=hoshin.project)
 
     return JsonResponse({
@@ -566,7 +662,12 @@ def create_action_item(request, hoshin_id):
     if err:
         return err
 
-    hoshin = get_object_or_404(HoshinProject, id=hoshin_id, site__tenant=tenant)
+    hoshin = get_object_or_404(
+        HoshinProject.objects.select_related("site"),
+        id=hoshin_id, site__tenant=tenant,
+    )
+    if not _check_site_write(request.user, hoshin.site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
     data = json.loads(request.body)
 
     title = data.get("title", "").strip()
@@ -602,14 +703,17 @@ def create_action_item(request, hoshin_id):
 @require_http_methods(["PUT", "PATCH"])
 def update_action_item(request, action_id):
     """Update an action item."""
-    item = get_object_or_404(ActionItem, id=action_id)
-
-    # Verify tenant access
     tenant, err = _require_tenant(request.user)
     if err:
         return err
 
-    if not HoshinProject.objects.filter(project=item.project, site__tenant=tenant).exists():
+    item = get_object_or_404(
+        ActionItem.objects.select_related("project__hoshin__site"),
+        id=action_id,
+        project__hoshin__site__tenant=tenant,
+    )
+
+    if not _check_site_write(request.user, item.project.hoshin.site, tenant):
         return JsonResponse({"error": "Not found"}, status=404)
 
     data = json.loads(request.body)
@@ -639,13 +743,17 @@ def update_action_item(request, action_id):
 @require_http_methods(["DELETE"])
 def delete_action_item(request, action_id):
     """Delete an action item."""
-    item = get_object_or_404(ActionItem, id=action_id)
-
     tenant, err = _require_tenant(request.user)
     if err:
         return err
 
-    if not HoshinProject.objects.filter(project=item.project, site__tenant=tenant).exists():
+    item = get_object_or_404(
+        ActionItem.objects.select_related("project__hoshin__site"),
+        id=action_id,
+        project__hoshin__site__tenant=tenant,
+    )
+
+    if not _check_site_write(request.user, item.project.hoshin.site, tenant):
         return JsonResponse({"error": "Not found"}, status=404)
 
     item.delete()
@@ -671,8 +779,9 @@ def hoshin_dashboard(request):
     except ValueError:
         fiscal_year = date.today().year
 
+    accessible_sites, _ = _get_accessible_sites(request.user, tenant)
     projects = HoshinProject.objects.filter(
-        site__tenant=tenant,
+        site__in=accessible_sites,
         fiscal_year=fiscal_year,
     ).exclude(hoshin_status="aborted").select_related("project", "site")
 
@@ -750,6 +859,190 @@ def hoshin_dashboard(request):
         "by_type": list(type_data.values()),
         "monthly_trend": monthly_trend,
         "status_counts": status_counts,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Site member management
+# ---------------------------------------------------------------------------
+
+@csrf_exempt
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET"])
+def list_site_members(request, site_id):
+    """List users with access to a site."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    site = get_object_or_404(Site, id=site_id, tenant=tenant)
+    if not _check_site_read(request.user, site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    access_list = SiteAccess.objects.filter(
+        site=site,
+    ).select_related("user")
+
+    return JsonResponse({
+        "members": [a.to_dict() for a in access_list],
+        "count": access_list.count(),
+    })
+
+
+@csrf_exempt
+@require_feature("hoshin_kanri")
+@require_http_methods(["POST"])
+def grant_site_access(request, site_id):
+    """Grant a user access to a site. Requires org admin or site admin."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    site = get_object_or_404(Site, id=site_id, tenant=tenant)
+    if not _is_site_admin(request.user, site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    data = json.loads(request.body)
+    user_id = data.get("user_id")
+    role = data.get("role", "member")
+    if role not in ("viewer", "member", "admin"):
+        return JsonResponse({"error": "Invalid role"}, status=400)
+
+    if not user_id:
+        return JsonResponse({"error": "user_id is required"}, status=400)
+
+    # Verify user is a member of the same tenant
+    if not Membership.objects.filter(
+        user_id=user_id, tenant=tenant, is_active=True,
+    ).exists():
+        return JsonResponse({"error": "User is not a member of this organization"}, status=400)
+
+    access, created = SiteAccess.objects.update_or_create(
+        site=site, user_id=user_id,
+        defaults={
+            "role": role,
+            "granted_by": request.user,
+        },
+    )
+
+    return JsonResponse({
+        "success": True,
+        "access": access.to_dict(),
+        "created": created,
+    }, status=201 if created else 200)
+
+
+@csrf_exempt
+@require_feature("hoshin_kanri")
+@require_http_methods(["DELETE"])
+def revoke_site_access(request, site_id, access_id):
+    """Revoke a user's access to a site. Requires org admin or site admin."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    site = get_object_or_404(Site, id=site_id, tenant=tenant)
+    if not _is_site_admin(request.user, site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    access = get_object_or_404(SiteAccess, id=access_id, site=site)
+    access.delete()
+
+    return JsonResponse({"success": True})
+
+
+# ---------------------------------------------------------------------------
+# Calendar view
+# ---------------------------------------------------------------------------
+
+@csrf_exempt
+@require_feature("hoshin_kanri")
+@require_http_methods(["GET"])
+def hoshin_calendar_view(request):
+    """Hoshin calendar: projects grouped by site with monthly target vs actual."""
+    tenant, err = _require_tenant(request.user)
+    if err:
+        return err
+
+    fiscal_year = request.GET.get("fiscal_year", str(date.today().year))
+    try:
+        fiscal_year = int(fiscal_year)
+    except ValueError:
+        fiscal_year = date.today().year
+
+    accessible_sites, _ = _get_accessible_sites(request.user, tenant)
+
+    # Optional site filter
+    site_id = request.GET.get("site_id")
+    if site_id:
+        accessible_sites = accessible_sites.filter(id=site_id)
+
+    projects = HoshinProject.objects.filter(
+        site__in=accessible_sites,
+        fiscal_year=fiscal_year,
+    ).exclude(
+        hoshin_status="aborted",
+    ).select_related("project", "site").order_by("site__name", "project__title")
+
+    # Group by site
+    sites_map = {}
+    for p in projects:
+        sid = str(p.site_id) if p.site_id else "none"
+        if sid not in sites_map:
+            sites_map[sid] = {
+                "site_id": sid,
+                "site_name": p.site.name if p.site else "Unassigned",
+                "target": 0,
+                "ytd": 0,
+                "projects": [],
+            }
+        site_entry = sites_map[sid]
+        target = float(p.annual_savings_target)
+        site_entry["target"] += target
+        site_entry["ytd"] += float(p.ytd_savings)
+
+        monthly_target = target / 12.0
+        actuals_by_month = {}
+        for entry in (p.monthly_actuals or []):
+            mo = entry.get("month")
+            if mo and 1 <= mo <= 12:
+                actuals_by_month[mo] = float(entry.get("savings", 0) or 0)
+
+        months = []
+        for m in range(1, 13):
+            mt = round(monthly_target, 2)
+            ma = round(actuals_by_month.get(m, 0), 2)
+            pct = round(ma / mt * 100, 1) if mt else 0
+            months.append({"month": m, "target": mt, "actual": ma, "pct": pct})
+
+        site_entry["projects"].append({
+            "id": str(p.id),
+            "title": p.project.title,
+            "status": p.hoshin_status,
+            "type": p.project_type,
+            "class": p.project_class,
+            "target": target,
+            "ytd": float(p.ytd_savings),
+            "months": months,
+        })
+
+    # Build site-level monthly aggregates
+    sites_list = []
+    for site_entry in sites_map.values():
+        site_months = []
+        for m in range(1, 13):
+            mt = sum(proj["months"][m - 1]["target"] for proj in site_entry["projects"])
+            ma = sum(proj["months"][m - 1]["actual"] for proj in site_entry["projects"])
+            pct = round(ma / mt * 100, 1) if mt else 0
+            site_months.append({"month": m, "target": round(mt, 2), "actual": round(ma, 2), "pct": pct})
+        site_entry["months"] = site_months
+        site_entry["target"] = round(site_entry["target"], 2)
+        site_entry["ytd"] = round(site_entry["ytd"], 2)
+        sites_list.append(site_entry)
+
+    return JsonResponse({
+        "fiscal_year": fiscal_year,
+        "sites": sites_list,
     })
 
 

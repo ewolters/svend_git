@@ -13,6 +13,9 @@ urlpatterns = [
     path("sites/<uuid:site_id>/", views.get_site, name="hoshin_get_site"),
     path("sites/<uuid:site_id>/update/", views.update_site, name="hoshin_update_site"),
     path("sites/<uuid:site_id>/delete/", views.delete_site, name="hoshin_delete_site"),
+    path("sites/<uuid:site_id>/members/", views.list_site_members, name="hoshin_site_members"),
+    path("sites/<uuid:site_id>/members/grant/", views.grant_site_access, name="hoshin_grant_site_access"),
+    path("sites/<uuid:site_id>/members/<uuid:access_id>/revoke/", views.revoke_site_access, name="hoshin_revoke_site_access"),
 
     # Hoshin Projects
     path("projects/", views.list_hoshin_projects, name="hoshin_projects"),
@@ -29,8 +32,9 @@ urlpatterns = [
     path("actions/<uuid:action_id>/update/", views.update_action_item, name="hoshin_update_action"),
     path("actions/<uuid:action_id>/delete/", views.delete_action_item, name="hoshin_delete_action"),
 
-    # Dashboard & reference
+    # Dashboard, calendar & reference
     path("dashboard/", views.hoshin_dashboard, name="hoshin_dashboard"),
+    path("calendar/", views.hoshin_calendar_view, name="hoshin_calendar"),
     path("calculation-methods/", views.list_calculation_methods, name="hoshin_calc_methods"),
     path("test-formula/", views.test_formula, name="hoshin_test_formula"),
 ]

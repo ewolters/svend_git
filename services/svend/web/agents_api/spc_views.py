@@ -587,6 +587,117 @@ def analyze_uploaded(request):
 
 
 @csrf_exempt
+@require_http_methods(["POST"])
+@gated
+def gage_rr(request):
+    """
+    Perform Gage R&R (Crossed) study.
+
+    Request body (inline data):
+    {
+        "parts": ["P1", "P1", "P2", ...],
+        "operators": ["Op1", "Op1", "Op2", ...],
+        "measurements": [1.23, 1.25, ...],
+        "tolerance": 0.5,  // optional (USL - LSL)
+        "problem_id": "uuid"  // optional
+    }
+
+    Or (from file upload):
+    {
+        "cache_key": "user_id:filename",
+        "part_column": "Part",
+        "operator_column": "Operator",
+        "measurement_column": "Measurement",
+        "tolerance": 0.5,
+        "problem_id": "uuid"
+    }
+    """
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    tolerance = body.get("tolerance")
+    problem_id = body.get("problem_id")
+
+    try:
+        # Get data from inline arrays or from cached file upload
+        cache_key = body.get("cache_key")
+        if cache_key:
+            if cache_key not in _parsed_data_cache:
+                return JsonResponse({"error": "Data not found. Please upload the file again."}, status=400)
+
+            parsed = _parsed_data_cache[cache_key]
+            part_col = body.get("part_column")
+            op_col = body.get("operator_column")
+            meas_col = body.get("measurement_column")
+
+            if not all([part_col, op_col, meas_col]):
+                return JsonResponse({"error": "part_column, operator_column, and measurement_column are required"}, status=400)
+
+            for col in [part_col, op_col, meas_col]:
+                if col not in parsed.data:
+                    return JsonResponse({"error": f"Column '{col}' not found in uploaded data"}, status=400)
+
+            # Build parallel arrays, skipping rows with missing values
+            parts_list = []
+            operators_list = []
+            measurements_list = []
+            for i in range(parsed.row_count):
+                p_val = parsed.data[part_col][i]
+                o_val = parsed.data[op_col][i]
+                m_val = parsed.data[meas_col][i]
+                if p_val is not None and o_val is not None and m_val is not None:
+                    parts_list.append(str(p_val))
+                    operators_list.append(str(o_val))
+                    measurements_list.append(float(m_val))
+        else:
+            parts_list = body.get("parts", [])
+            operators_list = body.get("operators", [])
+            measurements_list = body.get("measurements", [])
+
+        if not parts_list or not operators_list or not measurements_list:
+            return JsonResponse({"error": "parts, operators, and measurements are required"}, status=400)
+
+        result = spc.gage_rr_crossed(
+            parts=parts_list,
+            operators=operators_list,
+            measurements=measurements_list,
+            tolerance=tolerance,
+        )
+
+        # Optionally save as evidence to a problem
+        if problem_id:
+            try:
+                problem = Problem.objects.get(id=problem_id, user=request.user)
+                evidence_summary = (
+                    f"Gage R&R Study: %GRR={result.grr_percent:.1f}% ({result.assessment}). "
+                    f"NDC={result.ndc}. {result.n_parts} parts, {result.n_operators} operators, "
+                    f"{result.n_replicates} replicates."
+                )
+                from .problem_views import write_context_file
+                problem.add_evidence(
+                    summary=evidence_summary,
+                    evidence_type="data_analysis",
+                    source="SPC Gage R&R",
+                )
+                write_context_file(problem)
+            except Problem.DoesNotExist:
+                pass
+
+        return JsonResponse({
+            "success": True,
+            "gage_rr": result.to_dict(),
+        })
+
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=400)
+    except Exception as e:
+        logger.exception("Gage R&R error")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def chart_types(request):

@@ -1147,6 +1147,259 @@ class A3Report(models.Model):
         }
 
 
+class Report(models.Model):
+    """Flexible report model for CAPA, 8D, and future report types.
+
+    Uses a registry-driven design: report_type maps to REPORT_TYPES in
+    report_types.py which defines the section structure. Adding a new
+    report type requires only a new registry entry — zero migrations.
+
+    Sections are stored as a JSONField dict: {"section_key": "content"}.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        IN_PROGRESS = "in_progress", "In Progress"
+        REVIEW = "review", "Under Review"
+        COMPLETE = "complete", "Complete"
+        ARCHIVED = "archived", "Archived"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="reports",
+    )
+
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.CASCADE,
+        related_name="reports",
+    )
+
+    report_type = models.CharField(
+        max_length=30,
+        help_text="Key into REPORT_TYPES registry (e.g. 'capa', '8d')",
+    )
+
+    title = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+
+    sections = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Section content: {"problem_description": "...", "root_cause_analysis": "..."}',
+    )
+
+    imported_from = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="References to imported content: {section: [{source, id, summary}]}",
+    )
+
+    embedded_diagrams = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Embedded SVG diagrams: {section: [{id, svg, board_name, room_code}]}",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "reports"
+        ordering = ["-updated_at"]
+        verbose_name = "Report"
+        verbose_name_plural = "Reports"
+
+    def __str__(self):
+        return f"{self.get_type_name()}: {self.title} ({self.status})"
+
+    def get_type_name(self):
+        from .report_types import REPORT_TYPES
+        rt = REPORT_TYPES.get(self.report_type, {})
+        return rt.get("name", self.report_type.upper())
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id),
+            "report_type": self.report_type,
+            "type_name": self.get_type_name(),
+            "title": self.title,
+            "status": self.status,
+            "sections": self.sections,
+            "imported_from": self.imported_from,
+            "embedded_diagrams": self.embedded_diagrams,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+# =============================================================================
+# FMEA (Failure Mode and Effects Analysis)
+# =============================================================================
+
+class FMEA(models.Model):
+    """Failure Mode and Effects Analysis study.
+
+    Persistent FMEA with S/O/D scoring and optional Bayesian evidence linking.
+    Each FMEA has rows (failure modes) that can generate Evidence records
+    linked to Hypothesis objects via EvidenceLink.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ACTIVE = "active", "Active"
+        REVIEW = "review", "Under Review"
+        COMPLETE = "complete", "Complete"
+
+    class FMEAType(models.TextChoices):
+        PROCESS = "process", "Process FMEA"
+        DESIGN = "design", "Design FMEA"
+        SYSTEM = "system", "System FMEA"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="fmeas",
+    )
+
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fmeas",
+    )
+
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    fmea_type = models.CharField(max_length=20, choices=FMEAType.choices, default=FMEAType.PROCESS)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "fmeas"
+        ordering = ["-updated_at"]
+        verbose_name = "FMEA"
+        verbose_name_plural = "FMEAs"
+
+    def __str__(self):
+        return f"FMEA: {self.title} ({self.status})"
+
+    def to_dict(self):
+        rows = list(self.rows.order_by("sort_order"))
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id) if self.project_id else None,
+            "title": self.title,
+            "description": self.description,
+            "status": self.status,
+            "fmea_type": self.fmea_type,
+            "rows": [r.to_dict() for r in rows],
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class FMEARow(models.Model):
+    """A single failure mode row in an FMEA study."""
+
+    class ActionStatus(models.TextChoices):
+        NOT_STARTED = "not_started", "Not Started"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETE = "complete", "Complete"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    fmea = models.ForeignKey(FMEA, on_delete=models.CASCADE, related_name="rows")
+    sort_order = models.IntegerField(default=0)
+
+    # Failure mode description
+    process_step = models.CharField(max_length=255, blank=True)
+    failure_mode = models.CharField(max_length=255)
+    effect = models.TextField(blank=True)
+
+    # Original S/O/D scores (1-10)
+    severity = models.IntegerField(default=1)
+    cause = models.TextField(blank=True)
+    occurrence = models.IntegerField(default=1)
+    current_controls = models.TextField(blank=True)
+    detection = models.IntegerField(default=1)
+
+    # Computed: severity * occurrence * detection
+    rpn = models.IntegerField(default=1)
+
+    # Recommended actions
+    recommended_action = models.TextField(blank=True)
+    action_owner = models.CharField(max_length=255, blank=True)
+    action_status = models.CharField(
+        max_length=20, choices=ActionStatus.choices, default=ActionStatus.NOT_STARTED,
+    )
+
+    # Revised scores (after corrective actions)
+    revised_severity = models.IntegerField(null=True, blank=True)
+    revised_occurrence = models.IntegerField(null=True, blank=True)
+    revised_detection = models.IntegerField(null=True, blank=True)
+    revised_rpn = models.IntegerField(null=True, blank=True)
+
+    # Bayesian bridge — optional links to hypothesis/evidence system
+    hypothesis_link = models.ForeignKey(
+        "core.Hypothesis",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="fmea_rows",
+        help_text="Hypothesis this failure mode relates to",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "fmea_rows"
+        ordering = ["sort_order"]
+
+    def __str__(self):
+        return f"{self.failure_mode} (RPN={self.rpn})"
+
+    def save(self, *args, **kwargs):
+        self.rpn = self.severity * self.occurrence * self.detection
+        if self.revised_severity and self.revised_occurrence and self.revised_detection:
+            self.revised_rpn = self.revised_severity * self.revised_occurrence * self.revised_detection
+        super().save(*args, **kwargs)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "fmea_id": str(self.fmea_id),
+            "sort_order": self.sort_order,
+            "process_step": self.process_step,
+            "failure_mode": self.failure_mode,
+            "effect": self.effect,
+            "severity": self.severity,
+            "cause": self.cause,
+            "occurrence": self.occurrence,
+            "current_controls": self.current_controls,
+            "detection": self.detection,
+            "rpn": self.rpn,
+            "recommended_action": self.recommended_action,
+            "action_owner": self.action_owner,
+            "action_status": self.action_status,
+            "revised_severity": self.revised_severity,
+            "revised_occurrence": self.revised_occurrence,
+            "revised_detection": self.revised_detection,
+            "revised_rpn": self.revised_rpn,
+            "hypothesis_id": str(self.hypothesis_link_id) if self.hypothesis_link_id else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
 # =============================================================================
 # Root Cause Analysis (RCA) - Special Cause Investigation
 # =============================================================================
@@ -1574,6 +1827,55 @@ class Site(models.Model):
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class SiteAccess(models.Model):
+    """Per-site access control for Hoshin Kanri.
+
+    Org owners/admins bypass this — they see all sites.
+    Members/viewers need an explicit SiteAccess entry to see a site's projects.
+    """
+
+    class SiteRole(models.TextChoices):
+        VIEWER = "viewer", "Viewer"
+        MEMBER = "member", "Member"
+        ADMIN = "admin", "Admin"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    site = models.ForeignKey(
+        Site, on_delete=models.CASCADE, related_name="access_list",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="site_access",
+    )
+    role = models.CharField(
+        max_length=20, choices=SiteRole.choices, default=SiteRole.MEMBER,
+    )
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "hoshin_site_access"
+        unique_together = [["site", "user"]]
+
+    def __str__(self):
+        return f"{self.user} → {self.site} ({self.role})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "site_id": str(self.site_id),
+            "user_id": self.user_id,
+            "username": self.user.username,
+            "display_name": getattr(self.user, "display_name", "") or self.user.username,
+            "email": self.user.email,
+            "role": self.role,
+            "granted_by_id": self.granted_by_id,
+            "created_at": self.created_at.isoformat(),
         }
 
 
