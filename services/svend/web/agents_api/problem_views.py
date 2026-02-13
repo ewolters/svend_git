@@ -141,8 +141,6 @@ _interview_sessions = {}
 def get_interview_session(problem_id: str):
     """Get or create an interview session for a problem."""
     if problem_id not in _interview_sessions:
-        import sys
-        sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
         from guide.decision import DecisionGuide
 
         guide = DecisionGuide()
@@ -278,8 +276,6 @@ def problems_list(request):
 
     # Check for initial biases in the description
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
         from guide.decision import detect_biases
 
         all_text = f"{data['title']} {data['effect_description']} {data.get('available_data', '')}"

@@ -64,8 +64,6 @@ def triage_clean(request):
 
     try:
         import pandas as pd
-        import sys
-        sys.path.insert(0, "/home/eric/kjerne/services")
         from scrub import DataCleaner, CleaningConfig
 
         # Read CSV
@@ -199,8 +197,6 @@ def triage_preview(request):
 
     try:
         import pandas as pd
-        import sys
-        sys.path.insert(0, "/home/eric/kjerne/services")
         from scrub import OutlierDetector, MissingHandler, TypeInferrer
         from scrub.outliers import OutlierMethod
 

@@ -15,6 +15,30 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-13 — Codebase cleanup: deduplicate agents, remove dead code, consolidate sys.path
+
+**Files removed (git rm):**
+- `services/svend/data/` — reasoning engine training data (tokenizer, datasets, seeds, generated JSONL)
+- `services/svend/shared_context/` — reasoning context sharing (problem JSON files)
+- `services/svend/agents/{coder,researcher,writer,reviewer,guide,experimenter,analyst}/` — duplicate copies (canonical is agents/agents/)
+- `services/svend/agents/agents/core/` — duplicate of root core/ shared library
+- `services/svend/{docs,tools,dsw,workflow}/` — duplicates of agents/agents/{docs,tools,dsw,workflow}/
+- `lab/` — empty synara placeholder
+**Directories cleaned (rm -rf, pycache-only):**
+- `services/svend/{server,models,pipeline,evaluation,inference_tools}/` — hollow dirs from prior reasoning engine removal
+- 66 `__pycache__/` directories repo-wide
+**Files modified:**
+- `services/svend/web/svend/settings.py` — centralized agent sys.path setup (one insert for agents/agents/)
+- `agents_api/views.py` — removed 30-line importlib bootstrap hack for agents/agents/core/ shadowing
+- `agents_api/experimenter_views.py` — removed sys.path.insert
+- `agents_api/problem_views.py` — removed 2 sys.path.insert calls
+- `agents_api/workflow_views.py` — removed 7 sys.path.insert calls
+- `agents_api/dsw_views.py` — removed 5 sys.path.insert calls (including Desktop/agents and services/ refs)
+- `agents_api/triage_views.py` — removed 2 sys.path.insert calls
+**Verification:** `python3 manage.py check` passes. `grep -r sys.path.insert services/svend/web/` returns only settings.py + one test. Zero references to Desktop/agents in Django views.
+
+---
+
 ### 2026-02-13 — Remove stale reasoning engine code and docs
 
 **Files removed:**

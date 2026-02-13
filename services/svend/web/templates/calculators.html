@@ -99,6 +99,44 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     color: var(--text-primary);
 }
 
+/* Search */
+.ops-search {
+    padding: 12px 12px 0;
+}
+
+.ops-search input {
+    width: 100%;
+    padding: 8px 10px 8px 30px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.ops-search input:focus {
+    border-color: var(--accent);
+}
+
+.ops-search {
+    position: relative;
+}
+
+.ops-search svg {
+    position: absolute;
+    left: 20px;
+    top: 22px;
+    width: 14px;
+    height: 14px;
+    color: var(--text-dim);
+    pointer-events: none;
+}
+
+.ops-nav-group.hidden { display: none; }
+.ops-nav-item.hidden { display: none; }
+
 .ops-nav-item.active {
     background: rgba(74, 159, 110, 0.1);
     color: var(--accent);
@@ -869,6 +907,10 @@ input[type="number"] {
         <div class="ops-sidebar-header">
             <h1>Operations</h1>
             <p>Lean calculations & planning</p>
+        </div>
+        <div class="ops-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="ops-search-input" placeholder="Search calculators..." oninput="filterCalcs(this.value)">
         </div>
         <nav class="ops-nav">
             <div class="ops-nav-group">
@@ -5813,6 +5855,24 @@ function toggleDerivation(id) {
 }
 
 let currentCalcId = 'takt';
+
+function filterCalcs(query) {
+    const q = query.toLowerCase().trim();
+    document.querySelectorAll('.ops-nav-group').forEach(group => {
+        const items = group.querySelectorAll('.ops-nav-item');
+        let anyVisible = false;
+        items.forEach(item => {
+            const label = item.querySelector('span')?.textContent.toLowerCase() || '';
+            const id = (item.getAttribute('onclick') || '').match(/showCalc\('([^']+)'\)/)?.[1] || '';
+            const meta = calcMeta[id];
+            const desc = meta?.desc?.toLowerCase() || '';
+            const match = !q || label.includes(q) || desc.includes(q) || id.includes(q);
+            item.classList.toggle('hidden', !match);
+            if (match) anyVisible = true;
+        });
+        group.classList.toggle('hidden', !anyVisible);
+    });
+}
 
 function showCalc(id) {
     currentCalcId = id;

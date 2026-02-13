@@ -173,8 +173,6 @@ def _run_researcher_step(step, context):
         return {"status": "skipped", "reason": "No query provided"}
 
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/Desktop/agents")
         from researcher.agent import ResearchAgent, ResearchQuery
 
         llm = get_shared_llm()
@@ -199,8 +197,6 @@ def _run_coder_step(step, context):
         return {"status": "skipped", "reason": "No prompt provided"}
 
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/Desktop/agents")
         from coder.agent import CodingAgent, CodingTask
 
         llm = get_coder_llm()
@@ -254,8 +250,6 @@ Write about the specific findings from this research, not about writing in gener
         full_topic = topic
 
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/Desktop/agents")
         from writer.agent import WriterAgent, DocumentRequest, DocumentType
 
         llm = get_shared_llm()
@@ -284,8 +278,6 @@ def _run_editor_step(step, context):
         return {"status": "skipped", "reason": "No document to edit"}
 
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/Desktop/agents")
         from reviewer.editor import Editor
 
         editor = Editor()
@@ -316,8 +308,6 @@ def _run_decision_guide_step(step, context):
         return {"status": "skipped", "reason": "No situation provided"}
 
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
         from guide.decision import DecisionGuide, quick_bias_check
 
         # Quick bias check on the situation
@@ -369,8 +359,6 @@ def _run_scrub_step(step, context):
         }
 
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
         from dsw.interfaces import ScrubAdapter, ScrubRequest
         import pandas as pd
 
@@ -417,8 +405,6 @@ def _run_analyst_step(step, context):
         }
 
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
         from dsw.interfaces import AnalystAdapter, AnalystRequest
         import pandas as pd
 

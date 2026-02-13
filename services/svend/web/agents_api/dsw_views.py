@@ -168,9 +168,6 @@ def dsw_from_intent(request):
         return JsonResponse({"error": "Intent is required"}, status=400)
 
     try:
-        import sys
-        sys.path.insert(0, "/home/eric/Desktop/agents")
-
         from dsw import DecisionScienceWorkbench
 
         dsw = DecisionScienceWorkbench()
@@ -331,9 +328,7 @@ def dsw_from_data(request):
         return JsonResponse({"error": "Target column is required"}, status=400)
 
     try:
-        import sys
         import pandas as pd
-        sys.path.insert(0, "/home/eric/Desktop/agents")
 
         # Read uploaded CSV
         df = pd.read_csv(file)
@@ -791,8 +786,6 @@ def scrub_data(request):
     Returns cleaned data + detailed report.
     """
     import pandas as pd
-    import sys
-    sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
 
     try:
         from scrub import DataCleaner, CleaningConfig
@@ -861,8 +854,6 @@ def scrub_analyze(request):
     Returns analysis of what would be cleaned + potential biases.
     """
     import pandas as pd
-    import sys
-    sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
 
     try:
         from scrub import DataCleaner
@@ -15306,8 +15297,6 @@ def triage_data(request):
         import pandas as pd
         import numpy as np
         from io import StringIO
-        import sys
-        sys.path.insert(0, "/home/eric/kjerne/services")
         from scrub import DataCleaner, CleaningConfig
 
         # Load the data

@@ -158,9 +158,12 @@ TEMPORA_SETTINGS = {
 KJERNE_PATH = config.kjerne_path
 INFERENCE_DEVICE = config.device
 
-# Add kjerne to path for imports
-sys.path.insert(0, str(KJERNE_PATH.parent))
-sys.path.insert(0, str(KJERNE_PATH))  # For svend_coder and other kjerne modules
+# Add agent modules to path (computed from BASE_DIR which is always correct)
+# Note: root core/ is NOT added here — it would shadow Django's core app.
+# Agent code handles its own core.* imports via sys.path in agent processes.
+_AGENTS_PATH = str(BASE_DIR.parent.parent.parent / "services" / "svend" / "agents" / "agents")
+if _AGENTS_PATH not in sys.path:
+    sys.path.insert(0, _AGENTS_PATH)
 
 # Stripe billing
 STRIPE_SECRET_KEY = config.stripe_secret_key

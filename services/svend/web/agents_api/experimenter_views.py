@@ -50,9 +50,6 @@ def _sanitize(obj):
         return obj
     return obj
 
-# Add experimenter agent to path
-sys.path.insert(0, "/home/eric/kjerne/services/svend/agents/agents")
-
 from experimenter.agent import ExperimenterAgent, ExperimentRequest
 from experimenter.doe import DOEGenerator, Factor
 from experimenter.stats import PowerAnalyzer, interpret_effect_size
