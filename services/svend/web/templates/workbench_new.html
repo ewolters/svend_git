@@ -3817,6 +3817,7 @@ function renderStatsOutput(result, title) {
         html += `<pre class="stats-summary">${formatted}</pre>`;
     }
 
+    let blockId;
     if (result.plots && result.plots.length > 0) {
         const plotIds = [];
         html += '<div class="stats-plots">';
@@ -3827,7 +3828,7 @@ function renderStatsOutput(result, title) {
         });
         html += '</div>';
 
-        const blockId = addOutput(title, html);
+        blockId = addOutput(title, html);
 
         // Render Plotly charts after DOM update
         setTimeout(() => {
@@ -3844,7 +3845,12 @@ function renderStatsOutput(result, title) {
             });
         }, 50);
     } else {
-        addOutput(title, html);
+        blockId = addOutput(title, html);
+    }
+
+    // Show save model prompt if model can be saved
+    if (result.can_save && result.model_key) {
+        appendSaveModelPrompt(blockId, result.model_key, title);
     }
 }
 
@@ -4684,7 +4690,56 @@ function renderMLOutput(result) {
         html += '</ol>';
     }
 
-    addOutput('ML Model', html);
+    const blockId = addOutput('ML Model', html);
+
+    // Show save model prompt if model can be saved
+    if (result.can_save && result.model_key) {
+        appendSaveModelPrompt(blockId, result.model_key, result.model_type || 'ML Model');
+    }
+}
+
+// =============================================================================
+// SAVE MODEL
+// =============================================================================
+function appendSaveModelPrompt(blockId, modelKey, modelType) {
+    const pane = document.getElementById(blockId);
+    if (!pane) return;
+    const body = pane.querySelector('.output-block-body');
+    if (!body) return;
+
+    const div = document.createElement('div');
+    div.className = 'save-model-prompt';
+    div.style.cssText = 'margin:0.75rem 0 0;padding:0.75rem;background:var(--accent-primary-dim);border:1px solid var(--accent-primary-border);border-radius:4px;display:flex;align-items:center;gap:0.75rem;';
+    div.innerHTML = `
+        <span style="flex:1;font-size:0.85rem;">
+            <strong style="color:var(--accent-primary);">Model Ready</strong> &mdash; Save this ${modelType} model for later use?
+        </span>
+        <input type="text" id="model-name-${modelKey}" placeholder="Model name"
+               style="padding:0.4rem 0.6rem;border:1px solid var(--border);border-radius:3px;background:var(--bg-secondary);color:var(--text-primary);width:160px;font-size:0.8rem;">
+        <button onclick="saveModel('${modelKey}')"
+                style="padding:0.4rem 1rem;background:var(--accent-primary);color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:500;font-size:0.8rem;white-space:nowrap;">
+            Save Model
+        </button>
+    `;
+    body.appendChild(div);
+}
+
+async function saveModel(modelKey) {
+    const nameInput = document.getElementById('model-name-' + modelKey);
+    const name = nameInput?.value?.trim() || 'Untitled Model';
+    try {
+        const { response, data } = await apiPost('/api/dsw/models/save/', { model_key: modelKey, name });
+        if (data.error) throw new Error(data.error);
+        const prompt = nameInput?.closest('.save-model-prompt');
+        if (prompt) {
+            prompt.innerHTML = `
+                <span style="color:var(--accent-primary);font-size:0.85rem;">Model "${data.name || name}" saved</span>
+                <a href="/app/models/" style="color:var(--accent-primary);margin-left:auto;font-size:0.85rem;">View Models</a>
+            `;
+        }
+    } catch (err) {
+        alert('Failed to save model: ' + err.message);
+    }
 }
 
 // =============================================================================

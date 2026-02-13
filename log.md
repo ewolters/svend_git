@@ -15,6 +15,28 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-13 — Exclude rtWzrd from internal analytics
+
+**Files changed:**
+- `api/internal_views.py` — Added `INTERNAL_USERNAMES = {"rtWzrd"}` constant. Updated `_customers()` and `_staff_ids()` helpers to exclude internal accounts. Added `.exclude(user__username__in=INTERNAL_USERNAMES)` to all 10 direct queryset filters (UsageLog, EventLog, Subscription, OnboardingSurvey, OnboardingEmail, TraceLog via `_staff_ids`).
+**Verification:** Check internal dashboard — rtWzrd should not appear in user counts, tier distribution, MRR, usage, activity, or onboarding metrics.
+
+---
+
+### 2026-02-13 — Remove invite code requirement from all account types
+
+**Files changed:**
+- `svend/settings.py` — Removed `InviteRequiredMiddleware` from MIDDLEWARE, removed `REQUIRE_INVITE` setting
+- `svend_config/config.py` — Removed `require_invite` config field
+- `accounts/middleware.py` — Removed `InviteRequiredMiddleware` class
+- `api/views.py` — Removed invite code validation, import, and usage from `register()` view
+- `templates/register.html` — Removed invite code form field and related CSS/JS
+- `templates/chat.html` — Removed invite code input, formatting JS, validation, and CSS; updated copy
+**Note:** `InviteCode` model, admin, migrations, and management command kept for historical records.
+**Verification:** Register a new free account without an invite code — should succeed.
+
+---
+
 ### 2026-02-13 — Unified Action Items: connect A3, RCA, FMEA to ActionItem model
 
 **Files changed:**
@@ -38,12 +60,21 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
-### 2026-02-12 — Operations Workbench: search bar + 3 new calculators
+### 2026-02-12 — Operations Workbench: semi-smart guide widget
 
 **Files changed:**
-- `services/svend/web/templates/calculators.html` — Added reactive search bar to left sidebar nav (filters by name, description, and ID). Added three new calculators: MTBF/MTTR + Availability (Reliability group), Erlang C Staffing (Service & Staffing group), Risk Matrix 5x5 (Risk group). Each calculator includes full derivation, SvendOps data bus publishing, and nextSteps linking.
+- `services/svend/web/templates/calculators.html` — Added collapsible guide widget system. Single `#calc-guide` container dynamically populated by `renderGuide(id)` on calculator switch. `calcGuide` data for 13 calculators (Takt, RTO, OEE, Bottleneck, SMED, EPEI, Kanban, EOQ, Little's Law, Pitch, MTBF, Erlang C, Risk Matrix). `buildSmartPrompts()` reads SvendOps bus to suggest pull actions. Gracefully hides for unconfigured calculators.
 
-**Verification:** Navigate to Operations (Methods → Operations in top navbar). Search bar should filter calculators as you type. New calculators appear in Reliability, Service & Staffing, and Risk nav groups at bottom of sidebar.
+**Verification:** Open Operations, expand Guide on Takt. Run Takt calc, switch to RTO — should show "Takt Time (Xs) available — pull it in" prompt.
+
+---
+
+### 2026-02-12 — Operations Workbench: search bar + 3 new calculators + nav cleanup
+
+**Files changed:**
+- `services/svend/web/templates/calculators.html` — Added reactive search bar to left sidebar nav (filters by name, description, and ID). Added three new calculators: MTBF/MTTR + Availability, Erlang C Staffing, Risk Matrix 5x5. Placed under existing nav groups (Line Performance, Queuing Lab, Risk & Quality) instead of creating new groups.
+
+**Verification:** Navigate to Operations. Search bar filters as you type. New calculators in Line Performance, Queuing Lab, and Risk & Quality groups.
 
 ---
 

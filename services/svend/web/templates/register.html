@@ -143,11 +143,6 @@
             text-decoration: none;
         }
         .footer a:hover { text-decoration: underline; }
-        .invite-note {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            margin-top: 0.25rem;
-        }
     </style>
 </head>
 <body>
@@ -178,11 +173,6 @@
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8">
-                </div>
-                <div class="form-group" id="invite-group">
-                    <label for="invite_code">Invite Code</label>
-                    <input type="text" id="invite_code" name="invite_code" placeholder="XXXX-XXXX">
-                    <p class="invite-note">Required during alpha. Ask for one or follow @svend_ai</p>
                 </div>
                 <button type="submit" class="btn" id="submitBtn">Create Account</button>
             </form>
@@ -224,14 +214,6 @@
             ? '/billing/checkout/?plan=' + plan
             : (nextUrl ? decodeURIComponent(nextUrl) : '/app/onboarding/');
 
-        // Hide invite code field for paid signups
-        if (isPaidSignup) {
-            const inviteGroup = document.getElementById('invite-group');
-            if (inviteGroup) {
-                inviteGroup.style.display = 'none';
-            }
-        }
-
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorDiv.classList.remove('show');
@@ -248,8 +230,6 @@
                         email: document.getElementById('email').value,
                         username: document.getElementById('username').value,
                         password: document.getElementById('password').value,
-                        invite_code: document.getElementById('invite_code')?.value || '',
-                        plan: plan,
                     }),
                     credentials: 'include',
                 });

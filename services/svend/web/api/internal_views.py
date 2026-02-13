@@ -1,4 +1,4 @@
-"""Internal telemetry dashboard — staff-only views."""
+"""Internal telemetry dashboard — staff and org-admin views."""
 
 import json
 from collections import Counter
@@ -12,7 +12,7 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import BasePermission, IsAdminUser
 from rest_framework.response import Response
 
 from accounts.models import Subscription, User
@@ -32,6 +32,33 @@ from chat.models import EventLog, TraceLog, UsageLog
 TIER_PRICES = {"founder": 19, "pro": 29, "team": 79, "enterprise": 199}
 PAID_TIERS = list(TIER_PRICES.keys())
 
+# Internal/test accounts excluded from all analytics (non-staff accounts
+# that shouldn't inflate customer metrics — e.g. team members, test users).
+INTERNAL_USERNAMES = {"rtWzrd"}
+
+# Tenant slugs whose owner/admin members get internal dashboard access.
+INTERNAL_TENANT_SLUGS = {"svend"}
+
+
+def can_access_internal(user):
+    """Return True if user is staff OR an owner/admin of an internal tenant."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_staff:
+        return True
+    return user.memberships.filter(
+        tenant__slug__in=INTERNAL_TENANT_SLUGS,
+        role__in=("owner", "admin"),
+        is_active=True,
+    ).exists()
+
+
+class IsInternalUser(BasePermission):
+    """DRF permission: staff or internal-tenant admin."""
+
+    def has_permission(self, request, view):
+        return can_access_internal(request.user)
+
 
 # ---------------------------------------------------------------------------
 # Helpers — staff exclusion
@@ -46,7 +73,7 @@ def _get_days(request):
 
 def _customers():
     """Real customers — excludes staff/internal accounts."""
-    return User.objects.filter(is_staff=False)
+    return User.objects.filter(is_staff=False).exclude(username__in=INTERNAL_USERNAMES)
 
 
 def _markdown_to_html(text):
@@ -166,15 +193,19 @@ def _markdown_to_html(text):
 
 
 def _staff_ids():
-    """Staff user UUIDs for TraceLog filtering (uses UUIDField, not FK)."""
-    return list(User.objects.filter(is_staff=True).values_list("id", flat=True))
+    """Staff + internal user UUIDs for TraceLog filtering (uses UUIDField, not FK)."""
+    return list(
+        User.objects.filter(
+            Q(is_staff=True) | Q(username__in=INTERNAL_USERNAMES)
+        ).values_list("id", flat=True)
+    )
 
 
 # ---------------------------------------------------------------------------
 # Page view
 # ---------------------------------------------------------------------------
 
-@user_passes_test(lambda u: u.is_staff, login_url="/login/")
+@user_passes_test(can_access_internal, login_url="/login/")
 def dashboard_view(request):
     return render(request, "internal_dashboard.html")
 
@@ -184,7 +215,7 @@ def dashboard_view(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_overview(request):
     days = _get_days(request)
     now = timezone.now()
@@ -198,6 +229,7 @@ def api_overview(request):
     day_usage = (
         UsageLog.objects.filter(date=today)
         .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
         .aggregate(
             requests=Sum("request_count"),
             errors=Sum("error_count"),
@@ -236,7 +268,7 @@ def api_overview(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_users(request):
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
@@ -306,11 +338,11 @@ def api_users(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_usage(request):
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
-    logs = UsageLog.objects.filter(date__gte=since).exclude(user__is_staff=True)
+    logs = UsageLog.objects.filter(date__gte=since).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES)
 
     daily_requests = (
         logs.values("date")
@@ -369,7 +401,7 @@ def api_usage(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_performance(request):
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
@@ -437,7 +469,7 @@ def api_performance(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_business(request):
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
@@ -458,10 +490,10 @@ def api_business(request):
     # Churn
     churning = Subscription.objects.filter(
         cancel_at_period_end=True,
-    ).exclude(user__is_staff=True).count()
+    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
     active_subs = Subscription.objects.filter(
         status="active",
-    ).exclude(user__is_staff=True).count()
+    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
 
     # Founder slots
     founder_count = customers.filter(tier="founder").count()
@@ -498,7 +530,7 @@ def api_business(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_insights(request):
     prompt = request.data.get(
         "prompt",
@@ -568,7 +600,7 @@ EMAIL_TEMPLATE = """\
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_send_email(request):
     """Send HTML email to customers with tracking. Supports individual, tier-based, or all."""
     import re
@@ -691,7 +723,7 @@ def api_send_email(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_save_email_draft(request):
     """Save or update an email draft. Supports multiple drafts."""
     import uuid as _uuid
@@ -729,7 +761,7 @@ def api_save_email_draft(request):
 
 
 @api_view(["GET", "DELETE"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_get_email_draft(request):
     """GET: list all drafts. DELETE: remove a draft by ?id=."""
     user = request.user
@@ -760,7 +792,7 @@ def api_get_email_draft(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_email_campaigns(request):
     """List email campaigns with tracking stats."""
     from api.models import EmailCampaign, EmailRecipient
@@ -806,11 +838,11 @@ def api_email_campaigns(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_activity(request):
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
-    events = EventLog.objects.filter(created_at__gte=since).exclude(user__is_staff=True)
+    events = EventLog.objects.filter(created_at__gte=since).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES)
 
     # Page popularity
     page_views = (
@@ -898,7 +930,7 @@ def api_activity(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_onboarding(request):
     """Onboarding funnel, survey distributions, and email stats."""
     from api.models import OnboardingEmail, OnboardingSurvey
@@ -906,7 +938,7 @@ def api_onboarding(request):
     customers = _customers()
     total = customers.count()
     completed = customers.filter(onboarding_completed_at__isnull=False).count()
-    surveys = OnboardingSurvey.objects.filter(user__is_staff=False)
+    surveys = OnboardingSurvey.objects.filter(user__is_staff=False).exclude(user__username__in=INTERNAL_USERNAMES)
 
     # Funnel
     verified = customers.filter(email_verified=True).count()
@@ -963,7 +995,7 @@ def api_onboarding(request):
     )
 
     # Email stats
-    emails = OnboardingEmail.objects.filter(user__is_staff=False)
+    emails = OnboardingEmail.objects.filter(user__is_staff=False).exclude(user__username__in=INTERNAL_USERNAMES)
     email_stats = {}
     for key in ["welcome", "getting_started", "tips", "learning_path", "checkin"]:
         key_emails = emails.filter(email_key=key)
@@ -1017,7 +1049,7 @@ def api_onboarding(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_list(request):
     """List all blog posts (drafts, scheduled, and published)."""
     posts = BlogPost.objects.all().order_by("-created_at")
@@ -1046,7 +1078,7 @@ def api_blog_list(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_get(request, post_id):
     """Get full blog post content for editing."""
     try:
@@ -1067,7 +1099,7 @@ def api_blog_get(request, post_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_save(request):
     """Create or update a blog post."""
     data = request.data
@@ -1098,7 +1130,7 @@ def api_blog_save(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_publish(request, post_id):
     """Publish, schedule, or unpublish a blog post."""
     try:
@@ -1134,7 +1166,7 @@ def api_blog_publish(request, post_id):
 
 
 @api_view(["DELETE"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_delete(request, post_id):
     """Delete a blog post."""
     try:
@@ -1146,7 +1178,7 @@ def api_blog_delete(request, post_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_generate(request):
     """Generate a blog post draft using AI."""
     topic = request.data.get("topic", "").strip()
@@ -1223,7 +1255,7 @@ def api_blog_generate(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_analytics(request):
     """Blog performance metrics: views, referrers, top posts, trends."""
     days = _get_days(request)
@@ -1321,6 +1353,7 @@ def _build_data_snapshot(days=30):
     usage = (
         UsageLog.objects.filter(date__gte=since_date)
         .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
         .aggregate(
             total_requests=Sum("request_count"),
             total_errors=Sum("error_count"),
@@ -1344,6 +1377,7 @@ def _build_data_snapshot(days=30):
     for log in (
         UsageLog.objects.filter(date__gte=since_date)
         .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
         .exclude(domain_counts__isnull=True)
     ):
         if log.domain_counts:
@@ -1365,7 +1399,7 @@ def _build_data_snapshot(days=30):
 
     churning = Subscription.objects.filter(
         cancel_at_period_end=True,
-    ).exclude(user__is_staff=True).count()
+    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
 
     signups = list(
         customers.filter(date_joined__gte=since)
@@ -1418,7 +1452,7 @@ def _build_data_snapshot(days=30):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_experiments(request):
     """List experiments or create a new one."""
     if request.method == "GET":
@@ -1478,7 +1512,7 @@ def api_experiments(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_experiment_evaluate(request, experiment_id):
     """Manually trigger experiment evaluation."""
     from api.experiments import evaluate_experiment
@@ -1497,7 +1531,7 @@ def api_experiment_evaluate(request, experiment_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_experiment_conclude(request, experiment_id):
     """Manually conclude an experiment with a chosen winner."""
     try:
@@ -1518,7 +1552,7 @@ def api_experiment_conclude(request, experiment_id):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_automation_rules(request):
     """List or create automation rules."""
     if request.method == "GET":
@@ -1568,7 +1602,7 @@ def api_automation_rules(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_automation_rule_toggle(request, rule_id):
     """Toggle an automation rule on/off."""
     try:
@@ -1586,7 +1620,7 @@ def api_automation_rule_toggle(request, rule_id):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_automation_log(request):
     """Recent automation log entries."""
     limit = int(request.GET.get("limit", 50))
@@ -1614,7 +1648,7 @@ def api_automation_log(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_autopilot(request):
     """Get autopilot reports."""
     reports = AutopilotReport.objects.all()[:10]
@@ -1632,7 +1666,7 @@ def api_autopilot(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_autopilot_approve(request, report_id):
     """Approve a recommendation from an autopilot report."""
     try:
@@ -1695,7 +1729,7 @@ def api_autopilot_approve(request, report_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_autopilot_run(request):
     """Manually trigger a Claude growth review."""
     from tempora.scheduler import schedule_task
@@ -1716,7 +1750,7 @@ def api_autopilot_run(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_feedback(request):
     """List feedback or update status."""
     if request.method == "POST":

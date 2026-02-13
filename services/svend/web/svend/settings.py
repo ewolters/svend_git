@@ -53,7 +53,6 @@ MIDDLEWARE = [
     # Svend custom middleware
     "accounts.middleware.SubscriptionMiddleware",
     "accounts.middleware.QueryLimitMiddleware",
-    "accounts.middleware.InviteRequiredMiddleware",
 ]
 
 ROOT_URLCONF = "svend.urls"
@@ -170,8 +169,6 @@ STRIPE_SECRET_KEY = config.stripe_secret_key
 STRIPE_WEBHOOK_SECRET = config.stripe_webhook_secret
 STRIPE_PRICE_ID_PRO = config.stripe_price_id_pro
 
-# Alpha access control
-REQUIRE_INVITE = config.require_invite
 
 # Pipeline selection
 SVEND_USE_SYNARA = config.use_synara  # True = Synara (alpha-ready), False = MoE

@@ -766,6 +766,9 @@ def me(request):
         "experience_level": user.experience_level,
         "organization_size": user.organization_size,
         "is_staff": user.is_staff,
+        "is_internal": user.is_staff or user.memberships.filter(
+            tenant__slug__in={"svend"}, role__in=("owner", "admin"), is_active=True,
+        ).exists(),
         "queries_today": user.queries_today,
         "daily_limit": user.daily_limit,
         "total_queries": user.total_queries,
@@ -828,26 +831,14 @@ def update_profile(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register(request):
-    """Register a new user.
-
-    Requires invite code when SVEND_REQUIRE_INVITE=true (default for alpha).
-    """
+    """Register a new user."""
     from django.contrib.auth import get_user_model
-    from accounts.models import InviteCode
-    from svend_config.config import get_settings
 
-    settings = get_settings()
     User = get_user_model()
 
     username = request.data.get("username", "").strip()
     email = request.data.get("email", "").strip()
     password = request.data.get("password", "")
-    invite_code = request.data.get("invite_code", "").strip().upper()
-    plan = request.data.get("plan", "").strip().lower()  # founder, pro, team, enterprise
-
-    # Paid plans bypass invite requirement (they're paying customers)
-    paid_plans = ["founder", "pro", "team", "enterprise"]
-    is_paid_signup = plan in paid_plans
 
     # Validation
     if not username or len(username) < 3:
@@ -874,28 +865,6 @@ def register(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Check invite code if required (paid plans bypass this)
-    invite = None
-    if settings.require_invite and not is_paid_signup:
-        if not invite_code:
-            return Response(
-                {"error": "Invite code required for alpha access"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            invite = InviteCode.objects.get(code=invite_code)
-            if not invite.is_valid:
-                return Response(
-                    {"error": "Invite code is expired or fully used"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        except InviteCode.DoesNotExist:
-            return Response(
-                {"error": "Invalid invite code"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
     # Create user
     user = User.objects.create_user(
         username=username,
@@ -903,10 +872,6 @@ def register(request):
         password=password,
         tier=User.Tier.FREE,  # New users start on free tier
     )
-
-    # Mark invite as used
-    if invite:
-        invite.use(user)
 
     # Send verification email
     verification_sent = False
@@ -918,7 +883,7 @@ def register(request):
         except Exception as e:
             logger.error(f"Failed to send verification email: {e}")
 
-    logger.info(f"New user registered: {username} (invite: {invite_code or 'none'})")
+    logger.info(f"New user registered: {username}")
 
     return Response({
         "status": "registered",
