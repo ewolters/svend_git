@@ -1,371 +1,1677 @@
 {% extends "base_app.html" %}
 
-{% block title %}My Models - SVEND{% endblock %}
+{% block title %}Machine Learning - SVEND{% endblock %}
 
 {% block content %}
-<div class="models-page">
-    <div class="page-header">
-        <h1>Saved Models</h1>
-        <p class="subtitle">Your trained ML models from DSW pipeline runs</p>
-    </div>
+<div class="ml-page">
 
-    <div id="models-list" class="models-grid">
-        <div class="loading">Loading models...</div>
-    </div>
+    <!-- ================================================================== -->
+    <!-- SECTION 1: Train a Model                                           -->
+    <!-- ================================================================== -->
+    <section class="train-section">
+        <div class="section-header">
+            <h1>Machine Learning</h1>
+            <a href="/app/dsw/" class="link-subtle" title="Advanced tools: custom analyses, code execution, manual model building">Advanced Workbench</a>
+        </div>
 
-    <div id="empty-state" class="empty-state" style="display: none;">
-        <p>No saved models yet.</p>
-        <p>Run a DSW pipeline to train and save a model.</p>
-        <a href="/app/dsw/" class="btn btn-primary">Go to DSW Pipeline</a>
+        <!-- Upload + Config (side by side) -->
+        <div class="train-layout">
+
+            <!-- Left: data upload & preview -->
+            <div class="train-data">
+                <div id="drop-zone" class="drop-zone" onclick="document.getElementById('file-input').click()">
+                    <input type="file" id="file-input" accept=".csv" style="display:none" onchange="handleFileUpload(this)">
+                    <div id="drop-prompt" class="drop-prompt">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.5;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span>Drop CSV here or click to upload</span>
+                    </div>
+                    <div id="file-info" class="file-info" style="display:none;"></div>
+                </div>
+                <div id="data-preview" class="data-preview" style="display:none;"></div>
+            </div>
+
+            <!-- Right: training config -->
+            <div class="train-config">
+                <div class="config-field">
+                    <label>Target Column</label>
+                    <select id="target-select" disabled>
+                        <option value="">Upload data first</option>
+                    </select>
+                </div>
+                <div class="config-field">
+                    <label>Training Mode</label>
+                    <div class="mode-cards">
+                        <label class="mode-card selected" onclick="selectMode('quick')">
+                            <input type="radio" name="train-mode" value="quick" checked style="display:none">
+                            <strong>Quick Train</strong>
+                            <span>Clean + auto-train best model</span>
+                        </label>
+                        <label class="mode-card" onclick="selectMode('full')">
+                            <input type="radio" name="train-mode" value="full" style="display:none">
+                            <strong>Full Pipeline</strong>
+                            <span>Compare models, explain, tune</span>
+                        </label>
+                        <label class="mode-card" onclick="selectMode('augment')">
+                            <input type="radio" name="train-mode" value="augment" style="display:none">
+                            <strong>Augment + Train</strong>
+                            <span>Generate synthetic data, then train</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Mode-specific options -->
+                <div id="opts-quick" class="config-field mode-opts">
+                    <label>Cleaning Options</label>
+                    <div class="checkbox-row">
+                        <label><input type="checkbox" id="opt-outliers" checked> Outliers</label>
+                        <label><input type="checkbox" id="opt-missing" checked> Missing</label>
+                        <label><input type="checkbox" id="opt-types" checked> Types</label>
+                    </div>
+                </div>
+                <div id="opts-full" class="config-field mode-opts" style="display:none;">
+                    <div class="inline-fields">
+                        <div><label>CV Folds</label><select id="opt-cv"><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option></select></div>
+                        <div><label>Optuna Trials</label><select id="opt-trials"><option value="10">10</option><option value="20">20</option><option value="30" selected>30</option><option value="50">50</option></select></div>
+                    </div>
+                </div>
+                <div id="opts-augment" class="config-field mode-opts" style="display:none;">
+                    <label>Synthetic Rows: <span id="synth-val">500</span></label>
+                    <input type="range" id="opt-synthetic" min="50" max="5000" value="500" step="50" oninput="document.getElementById('synth-val').textContent=this.value">
+                </div>
+
+                <button id="train-btn" class="btn-train" disabled onclick="runTraining()">
+                    <span id="train-btn-text">Train Model</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SECTION 2: Results (hidden until training completes)               -->
+    <!-- ================================================================== -->
+    <section id="results-section" class="results-section" style="display:none;">
+        <div class="section-header">
+            <h2 id="results-title">Results</h2>
+            <button class="link-subtle" onclick="document.getElementById('results-section').style.display='none'">Dismiss</button>
+        </div>
+
+        <!-- Pipeline progress badges -->
+        <div id="pipeline-stages" class="pipeline-stages"></div>
+
+        <!-- Summary cards row -->
+        <div id="summary-cards" class="summary-cards"></div>
+
+        <!-- Metrics -->
+        <div id="result-metrics" class="result-metrics"></div>
+
+        <!-- AI Insight -->
+        <div id="result-insight" style="display:none;"></div>
+
+        <!-- Comparison table (full pipeline) -->
+        <div id="result-comparison" style="display:none;"></div>
+
+        <!-- Plots grid -->
+        <div id="result-plots" class="plots-grid"></div>
+
+        <!-- Recipe (collapsible) -->
+        <div id="result-recipe" style="display:none;"></div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SECTION 3: Saved Models                                            -->
+    <!-- ================================================================== -->
+    <section class="models-section">
+        <div class="section-header">
+            <h2>Saved Models</h2>
+            <div class="models-controls">
+                <select id="project-filter" onchange="filterModels()">
+                    <option value="">All Projects</option>
+                </select>
+                <input type="text" id="search-input" placeholder="Search..." oninput="filterModels()">
+            </div>
+        </div>
+        <div id="models-stats" class="models-stats"></div>
+        <div id="models-container"></div>
+        <div id="empty-state" class="empty-state" style="display:none;">
+            <p>No saved models yet. Upload data above to train your first model.</p>
+        </div>
+    </section>
+</div>
+
+<!-- ====================================================================== -->
+<!-- PROFILER WORKBENCH (full-page, replaces ML list when active)           -->
+<!-- ====================================================================== -->
+<div id="profiler-view" class="profiler-view" style="display:none;">
+    <div class="profiler-topbar">
+        <button class="profiler-back" onclick="exitProfiler()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2L4 8l6 6"/></svg>
+            Models
+        </button>
+        <div class="profiler-topbar-info">
+            <h2 id="profiler-model-name"></h2>
+            <span id="profiler-meta" class="profiler-meta-text"></span>
+        </div>
+    </div>
+    <div class="profiler-workbench">
+        <aside class="profiler-sidebar">
+            <div class="profiler-prediction-card">
+                <div style="font-size:0.65rem;font-weight:600;color:var(--accent-primary);letter-spacing:0.06em;text-transform:uppercase;">Predicted</div>
+                <div id="profiler-value" style="font-size:2rem;font-weight:700;color:var(--text-primary);margin:0.2rem 0;">--</div>
+                <div id="profiler-target-label" style="font-size:0.75rem;color:var(--text-dim);"></div>
+            </div>
+            <div id="profiler-controls" class="profiler-controls-list"></div>
+        </aside>
+        <main class="profiler-main">
+            <div id="profiler-response-panel" class="profiler-response-panel" style="display:none;">
+                <div id="profiler-response-plot" class="profiler-response-plot"></div>
+            </div>
+            <div class="profiler-main-header">
+                <h3>Partial Dependence</h3>
+                <button class="btn-sm" onclick="renderPDPCurves()">Refresh</button>
+            </div>
+            <div id="profiler-pdp-plots" class="profiler-pdp-grid"></div>
+        </main>
     </div>
 </div>
 
 <!-- Model Details Modal -->
-<div id="model-modal" class="modal" style="display: none;">
-    <div class="modal-content">
+<div id="model-modal" class="modal" style="display:none;">
+    <div class="modal-content modal-lg">
         <div class="modal-header">
             <h2 id="modal-title">Model Details</h2>
-            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <button class="close-btn" onclick="closeDetailModal()">&times;</button>
+        </div>
+        <div class="modal-tabs">
+            <button class="tab-btn active" onclick="showTab('overview')">Overview</button>
+            <button class="tab-btn" onclick="showTab('report')">Report</button>
+            <button class="tab-btn" onclick="showTab('metrics')">Metrics</button>
+            <button class="tab-btn" onclick="showTab('recipe')">Recipe</button>
+            <button class="tab-btn" onclick="showTab('lineage')">Lineage</button>
+            <button class="tab-btn" onclick="showTab('inference')">Predict</button>
         </div>
         <div class="modal-body">
-            <div id="modal-details"></div>
-
-            <h3>Run Inference</h3>
-            <div class="inference-section">
-                <p>Upload a CSV file to get predictions:</p>
+            <div id="tab-overview" class="tab-content active"></div>
+            <div id="tab-report" class="tab-content" style="display:none;"></div>
+            <div id="tab-metrics" class="tab-content" style="display:none;"></div>
+            <div id="tab-recipe" class="tab-content" style="display:none;"></div>
+            <div id="tab-lineage" class="tab-content" style="display:none;"></div>
+            <div id="tab-inference" class="tab-content" style="display:none;">
+                <p>Upload a CSV with the expected features to get predictions:</p>
                 <input type="file" id="inference-file" accept=".csv">
-                <button class="btn btn-primary" onclick="runInference()">Run Prediction</button>
+                <button class="btn-sm btn-accent" onclick="runInference()" style="margin-top:0.5rem;">Predict</button>
+                <div id="inference-results" style="display:none;margin-top:1rem;">
+                    <pre id="predictions-output" class="code-block"></pre>
+                    <button class="btn-sm" onclick="downloadPredictions()" style="margin-top:0.5rem;">Download CSV</button>
+                </div>
             </div>
-
-            <div id="inference-results" style="display: none;">
-                <h4>Results</h4>
-                <pre id="predictions-output"></pre>
-            </div>
+            <!-- Profiler is a full-page view, not a modal tab -->
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="downloadModel()">Download Model (.pkl)</button>
-            <button class="btn btn-danger" onclick="deleteModel()">Delete Model</button>
+            <button class="btn-sm btn-accent" onclick="openProfiler()">Profiler</button>
+            <button class="btn-sm" onclick="retrainModel()">Retrain</button>
+            <button class="btn-sm" onclick="downloadModel()">Download .pkl</button>
+            <button class="btn-sm btn-danger" onclick="deleteModel()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Retrain Modal -->
+<div id="retrain-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Retrain Model</h2>
+            <button class="close-btn" onclick="document.getElementById('retrain-modal').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Upload new data to retrain with the same recipe:</p>
+            <input type="file" id="retrain-file" accept=".csv">
+            <p style="margin-top:0.5rem;color:var(--text-dim);font-size:0.85rem;">Leave empty to retrain with original data.</p>
+            <button class="btn-sm btn-accent" onclick="executeRetrain()" style="margin-top:1rem;">Retrain</button>
+            <div id="retrain-status" style="margin-top:1rem;"></div>
         </div>
     </div>
 </div>
 
 <style>
-    .models-page {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
+    .ml-page { max-width: 1200px; margin: 0 auto; }
 
-    .page-header {
-        margin-bottom: 2rem;
-    }
+    /* Section headers */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .section-header h1 { margin: 0; font-size: 1.5rem; }
+    .section-header h2 { margin: 0; font-size: 1.15rem; }
+    .link-subtle { color: var(--text-dim); font-size: 0.85rem; text-decoration: none; }
+    .link-subtle:hover { color: var(--accent-primary); }
 
-    .subtitle {
-        color: var(--text-dim);
-    }
+    /* ====== TRAIN SECTION ====== */
+    .train-section { margin-bottom: 2.5rem; }
+    .train-layout { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; }
 
-    .models-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
+    /* Data upload */
+    .train-data { min-width: 0; }
+    .drop-zone {
+        border: 2px dashed var(--border);
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        background: var(--bg-card);
     }
+    .drop-zone:hover, .drop-zone.drag-over {
+        border-color: var(--accent-primary);
+        background: rgba(74,159,110,0.04);
+    }
+    .drop-prompt { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; color: var(--text-dim); font-size: 0.9rem; }
+    .file-info { font-size: 0.9rem; color: var(--text-primary); }
+    .file-info .filename { font-weight: 600; }
+    .file-info .file-stats { color: var(--text-dim); font-size: 0.8rem; margin-top: 0.25rem; }
 
-    .model-card {
+    .data-preview {
+        margin-top: 0.75rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow-x: auto;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+    .data-preview table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .data-preview th { position: sticky; top: 0; background: var(--bg-card); padding: 0.4rem 0.6rem; text-align: left; font-weight: 600; color: var(--text-dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--border); }
+    .data-preview td { padding: 0.3rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-primary); white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Config panel */
+    .train-config {
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: 8px;
-        padding: 1.5rem;
-        cursor: pointer;
-        transition: border-color 0.2s;
-    }
-
-    .model-card:hover {
-        border-color: var(--accent-primary);
-    }
-
-    .model-card h3 {
-        font-size: 1.1rem;
-        margin-bottom: 0.5rem;
-        color: var(--text-primary);
-    }
-
-    .model-type {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        background: rgba(74, 159, 110, 0.15);
-        color: var(--accent-primary);
-        border-radius: 4px;
-        font-size: 0.8rem;
-        margin-bottom: 0.75rem;
-    }
-
-    .model-meta {
-        font-size: 0.85rem;
-        color: var(--text-dim);
-    }
-
-    .model-meta p {
-        margin-bottom: 0.25rem;
-    }
-
-    .metrics-preview {
-        margin-top: 0.75rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid var(--border);
-    }
-
-    .metrics-preview span {
-        display: inline-block;
-        margin-right: 1rem;
-        font-size: 0.85rem;
-    }
-
-    .metric-value {
-        color: var(--accent-primary);
-        font-weight: 500;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
-        color: var(--text-dim);
-    }
-
-    .loading {
-        text-align: center;
-        padding: 2rem;
-        color: var(--text-dim);
-    }
-
-    /* Modal styles */
-    .modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
+        padding: 1.25rem;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
+        flex-direction: column;
+        gap: 1rem;
     }
+    .config-field label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.3rem; font-weight: 500; }
+    .config-field select { width: 100%; padding: 0.4rem 0.5rem; background: var(--bg-primary, var(--bg-card)); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem; }
+    .config-field input[type="range"] { width: 100%; }
 
-    .modal-content {
-        background-color: var(--card-bg) !important;
+    /* Mode cards */
+    .mode-cards { display: flex; flex-direction: column; gap: 0.4rem; }
+    .mode-card {
+        display: block;
+        padding: 0.6rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: border-color 0.15s;
+    }
+    .mode-card:hover { border-color: var(--accent-primary); }
+    .mode-card.selected { border-color: var(--accent-primary); background: rgba(74,159,110,0.06); }
+    .mode-card strong { display: block; font-size: 0.85rem; color: var(--text-primary); }
+    .mode-card span { font-size: 0.75rem; color: var(--text-dim); }
+
+    .checkbox-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .checkbox-row label { display: flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; color: var(--text-primary); cursor: pointer; }
+    .inline-fields { display: flex; gap: 0.75rem; }
+    .inline-fields > div { flex: 1; }
+    .inline-fields select { width: 100%; padding: 0.35rem; background: var(--bg-primary, var(--bg-card)); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem; }
+
+    .btn-train {
+        width: 100%;
+        padding: 0.7rem;
+        background: var(--accent-primary);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+        margin-top: auto;
+    }
+    .btn-train:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-train:not(:disabled):hover { opacity: 0.9; }
+
+    /* ====== RESULTS SECTION ====== */
+    .results-section {
+        margin-bottom: 2.5rem;
+        padding: 1.5rem;
+        background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: 8px;
-        width: 90%;
-        max-width: 600px;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     }
 
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--border);
+    .pipeline-stages { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .stage-badge {
+        display: inline-flex; align-items: center; gap: 0.25rem;
+        padding: 0.2rem 0.55rem; border-radius: 4px; font-size: 0.78rem;
+        background: var(--bg-primary, var(--bg-card)); border: 1px solid var(--border);
     }
+    .stage-ok { color: var(--accent-primary); }
+    .stage-fail { color: var(--error, #e05252); }
 
-    .modal-header h2 {
-        margin: 0;
-        font-size: 1.25rem;
-    }
-
-    .close-btn {
-        background: none;
-        border: none;
-        color: var(--text-dim);
-        font-size: 1.5rem;
-        cursor: pointer;
-    }
-
-    .modal-body {
-        padding: 1.5rem;
-    }
-
-    .modal-body h3 {
-        font-size: 1rem;
-        margin-top: 1.5rem;
-        margin-bottom: 0.75rem;
-    }
-
-    .modal-footer {
-        display: flex;
-        gap: 1rem;
-        padding: 1.5rem;
-        border-top: 1px solid var(--border);
-    }
-
-    .inference-section {
-        margin-top: 0.75rem;
-    }
-
-    .inference-section input {
-        margin: 0.5rem 0;
-    }
-
-    #predictions-output {
-        background: var(--bg-primary);
-        padding: 1rem;
-        border-radius: 4px;
+    .summary-cards { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .summary-card {
+        flex: 1; min-width: 200px;
+        background: var(--bg-primary, var(--bg-card));
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.6rem 0.85rem;
         font-size: 0.85rem;
-        max-height: 200px;
-        overflow-y: auto;
     }
 
-    .btn-danger {
-        background: var(--error-dim);
-        border: 1px solid var(--error-border);
-        color: var(--error);
+    .result-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
+    .r-metric { text-align: center; padding: 0.6rem; background: var(--bg-primary, var(--bg-card)); border-radius: 6px; }
+    .r-metric .val { font-size: 1.3rem; font-weight: 600; color: var(--accent-primary); }
+    .r-metric .lbl { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.15rem; }
+
+    .insight-card {
+        padding: 0.75rem 1rem;
+        background: rgba(74,159,110,0.06);
+        border: 1px solid rgba(74,159,110,0.18);
+        border-radius: 6px;
+        margin-bottom: 1rem;
+    }
+    .insight-label { font-size: 0.7rem; font-weight: 600; color: var(--accent-primary); letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+    .insight-text { font-size: 0.85rem; line-height: 1.6; }
+
+    .comparison-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; margin-bottom: 1rem; }
+    .comparison-table th, .comparison-table td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .comparison-table .best-row { background: rgba(74,159,110,0.06); }
+
+    .plots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem; }
+    .plot-container { height: 300px; overflow: hidden; }
+    .modal-body .plots-grid { grid-template-columns: 1fr; }
+    .modal-body .plot-container { height: 340px; }
+
+    .recipe-toggle { cursor: pointer; font-size: 0.85rem; color: var(--text-dim); }
+    .recipe-block { background: var(--bg-primary, var(--bg-card)); padding: 0.75rem; border-radius: 6px; font-family: monospace; font-size: 0.75rem; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-top: 0.35rem; }
+
+    .loading-indicator { text-align: center; padding: 2rem; color: var(--accent-primary); font-size: 0.9rem; }
+
+    /* ====== SAVED MODELS SECTION ====== */
+    .models-section { margin-bottom: 2rem; }
+    .models-controls { display: flex; gap: 0.5rem; align-items: center; }
+    .models-controls select, .models-controls input {
+        background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.35rem 0.6rem; border-radius: 4px; font-size: 0.82rem;
+    }
+    .models-controls input { width: 160px; }
+
+    .models-stats { display: flex; gap: 1rem; margin-bottom: 1rem; font-size: 0.82rem; color: var(--text-dim); }
+    .models-stats strong { color: var(--accent-primary); }
+
+    .models-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .model-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+        padding: 1rem; cursor: pointer; transition: border-color 0.2s;
+    }
+    .model-card:hover { border-color: var(--accent-primary); }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.35rem; }
+    .card-top h3 { font-size: 0.95rem; margin: 0; flex: 1; }
+    .version-badge { font-size: 0.68rem; padding: 0.1rem 0.35rem; background: rgba(74,159,110,0.15); color: var(--accent-primary); border-radius: 3px; white-space: nowrap; }
+    .type-badge { display: inline-block; padding: 0.15rem 0.4rem; background: rgba(74,159,110,0.1); color: var(--accent-primary); border-radius: 3px; font-size: 0.72rem; margin-bottom: 0.35rem; }
+    .card-meta { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.35rem; }
+    .card-metric { display: flex; justify-content: space-between; align-items: center; padding-top: 0.4rem; border-top: 1px solid var(--border); }
+    .card-metric .label { font-size: 0.78rem; color: var(--text-dim); }
+    .card-metric .value { font-size: 1rem; font-weight: 600; }
+    .metric-good { color: var(--accent-primary); }
+    .metric-ok { color: var(--warning, #e6a23c); }
+    .metric-poor { color: var(--error, #e05252); }
+    .card-actions { display: flex; gap: 0.35rem; margin-top: 0.5rem; }
+    .card-actions button { font-size: 0.7rem; padding: 0.2rem 0.45rem; background: transparent; border: 1px solid var(--border); color: var(--text-dim); border-radius: 3px; cursor: pointer; }
+    .card-actions button:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+    .group-header { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; cursor: pointer; }
+    .group-header h3 { font-size: 0.95rem; margin: 0; }
+    .group-count { font-size: 0.75rem; color: var(--text-dim); background: var(--bg-card); padding: 0.15rem 0.5rem; border-radius: 10px; }
+
+    /* ====== MODALS ====== */
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: var(--card-bg, var(--bg-card)) !important; border: 1px solid var(--border); border-radius: 8px; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
+    .modal-lg { max-width: 960px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { margin: 0; font-size: 1.1rem; }
+    .close-btn { background: none; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer; }
+    .modal-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 1rem; }
+    .tab-btn { background: none; border: none; color: var(--text-dim); padding: 0.6rem 0.75rem; cursor: pointer; font-size: 0.82rem; border-bottom: 2px solid transparent; }
+    .tab-btn.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
+    .modal-body { padding: 1.25rem; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .modal-footer { display: flex; gap: 0.5rem; padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); }
+
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .detail-item label { font-size: 0.72rem; color: var(--text-dim); display: block; }
+    .detail-item span { font-size: 0.88rem; }
+    .version-list { margin-top: 1rem; }
+    .version-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+    .version-current { color: var(--accent-primary); font-weight: 500; }
+
+    /* Buttons */
+    .btn-sm { padding: 0.4rem 0.75rem; border-radius: 4px; font-size: 0.82rem; cursor: pointer; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); }
+    .btn-sm:hover { border-color: var(--accent-primary); }
+    .btn-accent { background: var(--accent-primary); color: #fff; border-color: var(--accent-primary); }
+    .btn-danger { background: rgba(224,82,82,0.1); border-color: rgba(224,82,82,0.3); color: var(--error, #e05252); }
+    .code-block { background: var(--bg-primary, var(--bg-card)); padding: 0.75rem; border-radius: 4px; font-size: 0.78rem; max-height: 200px; overflow-y: auto; }
+    .empty-state { text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.9rem; }
+
+    /* ================================================================ */
+    /* PROFILER WORKBENCH (full-page)                                   */
+    /* ================================================================ */
+    .profiler-view { position: fixed; inset: 0; z-index: 900; background: var(--bg-primary, #1a1a2e); display: flex; flex-direction: column; }
+
+    .profiler-topbar { display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--card-bg, var(--bg-card)); }
+    .profiler-back { display: flex; align-items: center; gap: 0.3rem; background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 5px; padding: 0.35rem 0.7rem; cursor: pointer; font-size: 0.82rem; white-space: nowrap; }
+    .profiler-back:hover { color: var(--text-primary); border-color: var(--accent-primary); }
+    .profiler-topbar-info { display: flex; align-items: baseline; gap: 0.75rem; min-width: 0; }
+    .profiler-topbar-info h2 { margin: 0; font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .profiler-meta-text { font-size: 0.78rem; color: var(--text-dim); white-space: nowrap; }
+
+    .profiler-workbench { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+    .profiler-sidebar { width: 280px; min-width: 280px; border-right: 1px solid var(--border); padding: 1rem; overflow-y: auto; background: var(--card-bg, var(--bg-card)); }
+    .profiler-prediction-card { text-align: center; padding: 0.75rem; background: rgba(74,159,110,0.06); border: 1px solid rgba(74,159,110,0.18); border-radius: 6px; margin-bottom: 0.75rem; }
+    .profiler-controls-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .profiler-main { flex: 1; min-width: 0; overflow-y: auto; padding: 1rem; }
+    .profiler-response-panel { margin-bottom: 1rem; background: var(--card-bg, var(--bg-card)); border: 1px solid rgba(228,184,75,0.25); border-radius: 8px; padding: 0.5rem 0.75rem; }
+    .profiler-response-plot { height: 130px; }
+
+    .profiler-main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .profiler-main-header h3 { margin: 0; font-size: 0.9rem; font-weight: 600; }
+    .profiler-pdp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+    .pdp-cell { height: 220px; background: var(--card-bg, var(--bg-card)); border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
+
+    @media (max-width: 1200px) { .profiler-pdp-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 900px) {
+        .profiler-pdp-grid { grid-template-columns: repeat(2, 1fr); }
+        .profiler-sidebar { width: 240px; min-width: 240px; }
+    }
+
+    /* Profiler controls */
+    .profiler-control { background: var(--bg-primary, var(--bg-card)); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.65rem; }
+    .profiler-control label { font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 0.2rem; font-weight: 500; }
+    .profiler-control .slider-row { display: flex; align-items: center; gap: 0.5rem; }
+    .profiler-control input[type="range"] { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: var(--border, #444); outline: none; }
+    .profiler-control input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #4a9f6e; border: 2px solid #3a8a5a; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .profiler-control input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #4a9f6e; border: 2px solid #3a8a5a; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .profiler-control input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
+    .profiler-control input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--border, #444); }
+    .profiler-control input[type="range"]:focus::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(74,159,110,0.25); }
+    .profiler-control .slider-val { font-size: 0.82rem; font-weight: 600; min-width: 55px; text-align: right; color: var(--accent-primary); }
+    .profiler-control select { width: 100%; padding: 0.35rem; background: var(--bg-primary, var(--bg-card)); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; font-size: 0.82rem; }
+
+    @media (max-width: 768px) {
+        .train-layout { grid-template-columns: 1fr; }
+        .plots-grid { grid-template-columns: 1fr; }
     }
 </style>
 
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <script>
-    let models = [];
-    let selectedModel = null;
+// =========================================================================
+// STATE
+// =========================================================================
+let uploadedFile = null;
+let parsedHeaders = [];
+let parsedRows = [];
+let allModels = [];
+let selectedModel = null;
+let lastPredictions = null;
+let currentMode = 'quick';
 
-    async function loadModels() {
-        try {
-            const response = await fetch('/api/dsw/models/', { credentials: 'include' });
-            const data = await response.json();
-            models = data.models || [];
-            renderModels();
-        } catch (err) {
-            console.error('Failed to load models:', err);
-            document.getElementById('models-list').innerHTML = '<p class="error">Failed to load models</p>';
-        }
+// =========================================================================
+// FILE UPLOAD + PREVIEW
+// =========================================================================
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.csv')) {
+        document.getElementById('file-input').files = e.dataTransfer.files;
+        handleFileUpload({ files: [file] });
+    }
+});
+
+function handleFileUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    uploadedFile = file;
+
+    // Read and parse
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(l => l.trim());
+        parsedHeaders = lines[0].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        parsedRows = lines.slice(1, 21).map(line => line.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
+        const totalRows = lines.length - 1;
+
+        // File info
+        document.getElementById('drop-prompt').style.display = 'none';
+        document.getElementById('file-info').style.display = 'block';
+        document.getElementById('file-info').innerHTML = `
+            <div class="filename">${file.name}</div>
+            <div class="file-stats">${totalRows.toLocaleString()} rows &middot; ${parsedHeaders.length} columns &middot; ${(file.size / 1024).toFixed(0)} KB</div>`;
+
+        // Data preview table
+        const preview = document.getElementById('data-preview');
+        let html = '<table><tr>' + parsedHeaders.map(h => `<th>${h}</th>`).join('') + '</tr>';
+        parsedRows.slice(0, 8).forEach(row => {
+            html += '<tr>' + parsedHeaders.map((_, i) => `<td>${row[i] || ''}</td>`).join('') + '</tr>';
+        });
+        if (totalRows > 8) html += `<tr><td colspan="${parsedHeaders.length}" style="text-align:center;color:var(--text-dim);font-size:0.75rem;padding:0.4rem;">${totalRows - 8} more rows...</td></tr>`;
+        html += '</table>';
+        preview.innerHTML = html;
+        preview.style.display = 'block';
+
+        // Populate target selector
+        const sel = document.getElementById('target-select');
+        sel.innerHTML = '<option value="">-- Select target column --</option>' +
+            parsedHeaders.map(h => `<option value="${h}">${h}</option>`).join('');
+        sel.disabled = false;
+
+        // Enable train button when target is selected
+        sel.onchange = () => {
+            document.getElementById('train-btn').disabled = !sel.value;
+        };
+    };
+    reader.readAsText(file);
+}
+
+// =========================================================================
+// MODE SELECTION
+// =========================================================================
+function selectMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+    document.querySelectorAll('.mode-opts').forEach(o => o.style.display = 'none');
+    const optMap = { quick: 'opts-quick', full: 'opts-full', augment: 'opts-augment' };
+    document.getElementById(optMap[mode]).style.display = 'block';
+}
+
+// =========================================================================
+// TRAINING
+// =========================================================================
+async function runTraining() {
+    const target = document.getElementById('target-select').value;
+    if (!uploadedFile || !target) return;
+
+    const formData = new FormData();
+    formData.append('file', uploadedFile);
+    formData.append('target', target);
+
+    // Pass project filter if set
+    const projFilter = document.getElementById('project-filter').value;
+    if (projFilter) formData.append('project_id', projFilter);
+
+    let endpoint;
+    if (currentMode === 'quick') {
+        endpoint = '/api/dsw/autopilot/clean-train/';
+        formData.append('detect_outliers', document.getElementById('opt-outliers').checked);
+        formData.append('handle_missing', document.getElementById('opt-missing').checked);
+        formData.append('correct_types', document.getElementById('opt-types').checked);
+    } else if (currentMode === 'full') {
+        endpoint = '/api/dsw/autopilot/full-pipeline/';
+        formData.append('cv_folds', document.getElementById('opt-cv').value);
+        formData.append('optuna_trials', document.getElementById('opt-trials').value);
+    } else {
+        endpoint = '/api/dsw/autopilot/augment-train/';
+        formData.append('n_synthetic', document.getElementById('opt-synthetic').value);
     }
 
-    function renderModels() {
-        const container = document.getElementById('models-list');
-        const emptyState = document.getElementById('empty-state');
+    // Show loading
+    const btn = document.getElementById('train-btn');
+    btn.disabled = true;
+    document.getElementById('train-btn-text').textContent = 'Training...';
 
-        if (models.length === 0) {
-            container.style.display = 'none';
-            emptyState.style.display = 'block';
+    const resultsEl = document.getElementById('results-section');
+    const modeLabels = { quick: 'Quick Train', full: 'Full Pipeline', augment: 'Augment + Train' };
+    document.getElementById('results-title').textContent = modeLabels[currentMode] + ' Results';
+    document.getElementById('pipeline-stages').innerHTML = '';
+    document.getElementById('summary-cards').innerHTML = '';
+    document.getElementById('result-metrics').innerHTML = '<div class="loading-indicator">Training model...</div>';
+    document.getElementById('result-insight').style.display = 'none';
+    document.getElementById('result-comparison').style.display = 'none';
+    document.getElementById('result-plots').innerHTML = '';
+    document.getElementById('result-recipe').style.display = 'none';
+    resultsEl.style.display = 'block';
+    resultsEl.scrollIntoView({ behavior: 'smooth' });
+
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST', credentials: 'include', body: formData,
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        });
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+            document.getElementById('result-metrics').innerHTML =
+                `<p style="color:var(--error,#e05252);">${data.error || 'Training failed'}</p>`;
             return;
         }
 
-        emptyState.style.display = 'none';
-        container.style.display = 'grid';
+        renderResults(data);
+        loadModels(); // Refresh saved models list
+    } catch (err) {
+        document.getElementById('result-metrics').innerHTML =
+            `<p style="color:var(--error,#e05252);">Error: ${err.message}</p>`;
+    } finally {
+        btn.disabled = false;
+        document.getElementById('train-btn-text').textContent = 'Train Model';
+    }
+}
 
-        container.innerHTML = models.map(model => {
-            const metrics = model.metrics || {};
-            const accuracy = metrics.accuracy ? (metrics.accuracy * 100).toFixed(1) + '%' : '-';
-            const date = new Date(model.created_at).toLocaleDateString();
+// =========================================================================
+// RENDER RESULTS
+// =========================================================================
+function renderResults(data) {
+    // Pipeline stages
+    const stagesEl = document.getElementById('pipeline-stages');
+    if (data.pipeline_stages) {
+        stagesEl.innerHTML = data.pipeline_stages.map(s =>
+            `<span class="stage-badge"><span class="${s.success ? 'stage-ok' : 'stage-fail'}" style="font-weight:700;">${s.success ? '\u2713' : '\u2717'}</span> ${s.name}</span>`
+        ).join('');
+    }
 
-            return `
-                <div class="model-card" onclick="showModel('${model.id}')">
-                    <h3>${model.name}</h3>
-                    <span class="model-type">${model.model_type}</span>
-                    <div class="model-meta">
-                        <p>Target: ${model.target || 'N/A'}</p>
-                        <p>Created: ${date}</p>
-                    </div>
-                    <div class="metrics-preview">
-                        <span>Accuracy: <span class="metric-value">${accuracy}</span></span>
-                    </div>
-                </div>
-            `;
+    // Summary cards
+    const summaryEl = document.getElementById('summary-cards');
+    let summaryHtml = '';
+    if (data.cleaning) {
+        const c = data.cleaning;
+        summaryHtml += `<div class="summary-card"><strong>Triage</strong><br>${c.original_shape?.[0]||'?'}\u00d7${c.original_shape?.[1]||'?'} \u2192 ${c.cleaned_shape?.[0]||'?'}\u00d7${c.cleaned_shape?.[1]||'?'}`;
+        if (c.outliers_flagged) summaryHtml += `<br>${c.outliers_flagged} outliers flagged`;
+        if (c.missing_filled) summaryHtml += `<br>${c.missing_filled} missing values filled`;
+        summaryHtml += '</div>';
+    }
+    if (data.augmentation) {
+        const a = data.augmentation;
+        summaryHtml += `<div class="summary-card"><strong>Forge</strong><br>${a.original_rows||'?'} + ${a.synthetic_rows||'?'} synthetic = ${a.total_rows||'?'} total</div>`;
+    }
+    if (data.tuning) {
+        const t = data.tuning;
+        summaryHtml += `<div class="summary-card"><strong>Optuna</strong><br>${t.n_trials||'?'} trials<br>Best ${t.metric_name||'score'}: ${typeof t.best_score === 'number' ? t.best_score.toFixed(4) : t.best_score||'?'}</div>`;
+    }
+    if (data.model_type) {
+        summaryHtml += `<div class="summary-card"><strong>Model</strong><br>${data.model_type}${data.task ? ' (' + data.task + ')' : ''}</div>`;
+    }
+    summaryEl.innerHTML = summaryHtml;
+
+    // Metrics
+    const metricsEl = document.getElementById('result-metrics');
+    if (data.metrics) {
+        metricsEl.innerHTML = Object.entries(data.metrics).map(([k, v]) => {
+            const display = typeof v === 'number' ? v.toFixed(4) : v;
+            return `<div class="r-metric"><div class="val">${display}</div><div class="lbl">${k}</div></div>`;
         }).join('');
+    } else {
+        metricsEl.innerHTML = '';
     }
 
-    function showModel(modelId) {
-        selectedModel = models.find(m => m.id === modelId);
-        if (!selectedModel) return;
-
-        document.getElementById('modal-title').textContent = selectedModel.name;
-
-        const metrics = selectedModel.metrics || {};
-        const features = selectedModel.features || [];
-
-        document.getElementById('modal-details').innerHTML = `
-            <p><strong>Model Type:</strong> ${selectedModel.model_type}</p>
-            <p><strong>Target:</strong> ${selectedModel.target || 'N/A'}</p>
-            <p><strong>Features:</strong> ${features.length > 0 ? features.join(', ') : 'N/A'}</p>
-            <p><strong>Metrics:</strong></p>
-            <ul>
-                ${Object.entries(metrics).map(([k, v]) => `<li>${k}: ${typeof v === 'number' ? v.toFixed(4) : v}</li>`).join('')}
-            </ul>
-        `;
-
-        document.getElementById('inference-results').style.display = 'none';
-        document.getElementById('model-modal').style.display = 'flex';
+    // AI insight
+    const insightEl = document.getElementById('result-insight');
+    if (data.interpretation) {
+        const escaped = data.interpretation.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const formatted = escaped.replace(/\n/g, '<br>').replace(/[✓]/g, '<span style="color:#4a9f6e">✓</span>').replace(/[⚠]/g, '<span style="color:#e89547">⚠</span>');
+        insightEl.innerHTML = `<div class="insight-card"><div class="insight-label">MODEL ASSESSMENT</div><div class="insight-text">${formatted}</div></div>`;
+        insightEl.style.display = 'block';
     }
 
-    function closeModal() {
-        document.getElementById('model-modal').style.display = 'none';
-        selectedModel = null;
+    // Comparison table
+    const compEl = document.getElementById('result-comparison');
+    if (data.comparison && data.comparison.length) {
+        const cols = Object.keys(data.comparison[0]);
+        let html = '<div style="overflow-x:auto;"><table class="comparison-table"><tr>' +
+            cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+        data.comparison.forEach(row => {
+            html += `<tr class="${row.is_best ? 'best-row' : ''}">` +
+                cols.map(c => {
+                    const v = typeof row[c] === 'number' ? row[c].toFixed(4) : (row[c] === true ? '\u2605' : row[c] || '');
+                    return `<td>${v}</td>`;
+                }).join('') + '</tr>';
+        });
+        html += '</table></div>';
+        compEl.innerHTML = html;
+        compEl.style.display = 'block';
     }
 
-    async function downloadModel() {
-        if (!selectedModel) return;
-        window.location.href = `/api/dsw/models/${selectedModel.id}/`;
-    }
+    // Plots
+    const plotsEl = document.getElementById('result-plots');
+    const allPlots = [...(data.shap_plots || []), ...(data.plots || [])];
+    const plotIds = [];
+    if (allPlots.length) {
+        plotsEl.innerHTML = allPlots.map((plot, i) => {
+            const id = 'rplot-' + Date.now() + '-' + i;
+            plotIds.push({ id, plot });
+            return `<div id="${id}" class="plot-container"></div>`;
+        }).join('');
 
-    async function deleteModel() {
-        if (!selectedModel) return;
-        if (!confirm('Are you sure you want to delete this model?')) return;
-
-        try {
-            const response = await fetch(`/api/dsw/models/${selectedModel.id}/delete/`, {
-                method: 'DELETE',
-                credentials: 'include',
+        requestAnimationFrame(() => {
+            const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e0e0e0';
+            plotIds.forEach(({ id, plot }) => {
+                const el = document.getElementById(id);
+                if (el && window.Plotly && plot.data) {
+                    const layout = Object.assign({
+                        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { color: textColor, size: 11 },
+                        margin: { l: 50, r: 20, t: 30, b: 40 },
+                    }, plot.layout || {});
+                    Plotly.newPlot(el, plot.data, layout, { responsive: true, displayModeBar: false });
+                }
             });
-
-            if (response.ok) {
-                closeModal();
-                loadModels();
-            } else {
-                alert('Failed to delete model');
-            }
-        } catch (err) {
-            alert('Error: ' + err.message);
-        }
+        });
     }
 
-    async function runInference() {
-        if (!selectedModel) return;
+    // Recipe
+    const recipeEl = document.getElementById('result-recipe');
+    if (data.recipe) {
+        recipeEl.innerHTML = `<details><summary class="recipe-toggle">Training Recipe</summary><div class="recipe-block">${JSON.stringify(data.recipe, null, 2)}</div></details>`;
+        recipeEl.style.display = 'block';
+    }
+}
 
-        const fileInput = document.getElementById('inference-file');
-        if (!fileInput.files[0]) {
-            alert('Please select a CSV file');
+// =========================================================================
+// REPORT RENDERING (into modal tab)
+// =========================================================================
+function renderReport(data, container) {
+    let html = '';
+
+    // Pipeline stages
+    if (data.pipeline_stages && data.pipeline_stages.length) {
+        html += '<div class="pipeline-stages" style="margin-bottom:1rem;">' +
+            data.pipeline_stages.map(s =>
+                `<span class="stage-badge"><span class="${s.success ? 'stage-ok' : 'stage-fail'}" style="font-weight:700;">${s.success ? '\u2713' : '\u2717'}</span> ${s.name}</span>`
+            ).join('') + '</div>';
+    }
+
+    // Summary cards
+    let cards = '';
+    if (data.cleaning) {
+        const c = data.cleaning;
+        cards += `<div class="summary-card"><strong>Triage</strong><br>${c.original_shape?.[0]||'?'}\u00d7${c.original_shape?.[1]||'?'} \u2192 ${c.cleaned_shape?.[0]||'?'}\u00d7${c.cleaned_shape?.[1]||'?'}`;
+        if (c.outliers_flagged) cards += `<br>${c.outliers_flagged} outliers flagged`;
+        if (c.missing_filled) cards += `<br>${c.missing_filled} missing values filled`;
+        cards += '</div>';
+    }
+    if (data.augmentation) {
+        const a = data.augmentation;
+        cards += `<div class="summary-card"><strong>Forge</strong><br>${a.original_rows||'?'} + ${a.synthetic_rows||'?'} synthetic = ${a.total_rows||'?'} total</div>`;
+    }
+    if (data.tuning) {
+        const t = data.tuning;
+        cards += `<div class="summary-card"><strong>Optuna</strong><br>${t.n_trials||'?'} trials<br>Best: ${typeof t.best_score === 'number' ? t.best_score.toFixed(4) : t.best_score||'?'}</div>`;
+    }
+    if (data.model_type) {
+        cards += `<div class="summary-card"><strong>Model</strong><br>${data.model_type}${data.task ? ' (' + data.task + ')' : ''}`;
+        if (data.elapsed_seconds) cards += `<br>${data.elapsed_seconds}s`;
+        cards += '</div>';
+    }
+    if (cards) html += '<div class="summary-cards" style="margin-bottom:1rem;">' + cards + '</div>';
+
+    // Metrics
+    if (data.metrics) {
+        html += '<div class="result-metrics" style="margin-bottom:1rem;">';
+        Object.entries(data.metrics).forEach(([k, v]) => {
+            const d = typeof v === 'number' ? v.toFixed(4) : v;
+            html += `<div class="r-metric"><div class="val">${d}</div><div class="lbl">${k}</div></div>`;
+        });
+        html += '</div>';
+    }
+
+    // Interpretation
+    if (data.interpretation) {
+        const escaped = data.interpretation.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const formatted = escaped.replace(/\n/g, '<br>').replace(/[✓]/g, '<span style="color:#4a9f6e">✓</span>').replace(/[⚠]/g, '<span style="color:#e89547">⚠</span>');
+        html += `<div class="insight-card" style="margin-bottom:1rem;"><div class="insight-label">MODEL ASSESSMENT</div><div class="insight-text">${formatted}</div></div>`;
+    }
+
+    // Comparison table
+    if (data.comparison && data.comparison.length) {
+        const cols = Object.keys(data.comparison[0]);
+        html += '<div style="overflow-x:auto;margin-bottom:1rem;"><table class="comparison-table"><tr>' +
+            cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+        data.comparison.forEach(row => {
+            html += `<tr class="${row.is_best ? 'best-row' : ''}">` +
+                cols.map(c => {
+                    const v = typeof row[c] === 'number' ? row[c].toFixed(4) : (row[c] === true ? '\u2605' : row[c] || '');
+                    return `<td>${v}</td>`;
+                }).join('') + '</tr>';
+        });
+        html += '</table></div>';
+    }
+
+    // Recipe
+    if (data.recipe) {
+        html += `<details style="margin-bottom:1rem;"><summary class="recipe-toggle">Training Recipe</summary><div class="recipe-block">${JSON.stringify(data.recipe, null, 2)}</div></details>`;
+    }
+
+    container.innerHTML = html;
+
+    // Plots (need to render after DOM update)
+    const allPlots = [...(data.shap_plots || []), ...(data.plots || [])];
+    if (allPlots.length) {
+        const plotsDiv = document.createElement('div');
+        plotsDiv.className = 'plots-grid';
+        const plotIds = [];
+        plotsDiv.innerHTML = allPlots.map((plot, i) => {
+            const id = 'report-plot-' + Date.now() + '-' + i;
+            plotIds.push({ id, plot });
+            return `<div id="${id}" class="plot-container"></div>`;
+        }).join('');
+        container.appendChild(plotsDiv);
+
+        requestAnimationFrame(() => {
+            const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e0e0e0';
+            plotIds.forEach(({ id, plot }) => {
+                const el = document.getElementById(id);
+                if (el && window.Plotly && plot.data) {
+                    const layout = Object.assign({
+                        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { color: textColor, size: 11 },
+                        margin: { l: 50, r: 20, t: 30, b: 40 },
+                    }, plot.layout || {});
+                    Plotly.newPlot(el, plot.data, layout, { responsive: true, displayModeBar: false });
+                }
+            });
+        });
+    }
+}
+
+async function loadReport(modelId) {
+    const container = document.getElementById('tab-report');
+    container.innerHTML = '<div class="loading-indicator">Loading report...</div>';
+    try {
+        const res = await fetch(`/api/dsw/models/${modelId}/report/`, { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+            container.innerHTML = `<p style="color:var(--text-dim);">${data.error || 'No report available'}</p>`;
             return;
         }
-
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-
-        try {
-            const response = await fetch(`/api/dsw/models/${selectedModel.id}/run/`, {
-                method: 'POST',
-                credentials: 'include',
-                body: formData,
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                document.getElementById('predictions-output').textContent = JSON.stringify(data.predictions, null, 2);
-                document.getElementById('inference-results').style.display = 'block';
-                svendTrack('feature_use', {category: 'models', action: 'inference'});
-            } else {
-                alert('Error: ' + (data.error || 'Inference failed'));
-            }
-        } catch (err) {
-            alert('Error: ' + err.message);
-        }
+        renderReport(data, container);
+    } catch (err) {
+        container.innerHTML = `<p style="color:var(--text-dim);">Failed to load report.</p>`;
     }
+}
 
-    // Close modal on outside click
-    document.getElementById('model-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'model-modal') closeModal();
+// =========================================================================
+// SAVED MODELS
+// =========================================================================
+async function loadModels() {
+    try {
+        const [modelsRes, summaryRes] = await Promise.all([
+            fetch('/api/dsw/models/', { credentials: 'include' }),
+            fetch('/api/dsw/models/summary/', { credentials: 'include' }),
+        ]);
+        const modelsData = await modelsRes.json();
+        const summaryData = await summaryRes.json();
+        allModels = modelsData.models || [];
+
+        // Stats line
+        const statsEl = document.getElementById('models-stats');
+        const total = summaryData.total_models || 0;
+        const recent = summaryData.recent_models || 0;
+        const best = summaryData.best_model;
+        const projCount = (summaryData.project_groups || []).filter(g => g.project_id).length;
+        statsEl.innerHTML = `<span><strong>${total}</strong> models</span>` +
+            (recent ? ` <span>&middot; <strong>${recent}</strong> this week</span>` : '') +
+            (best ? ` <span>&middot; best: <strong>${(best.metric * 100).toFixed(1)}%</strong></span>` : '') +
+            (projCount ? ` <span>&middot; <strong>${projCount}</strong> project${projCount !== 1 ? 's' : ''}</span>` : '');
+
+        // Project filter
+        const filter = document.getElementById('project-filter');
+        const prevVal = filter.value;
+        filter.innerHTML = '<option value="">All Projects</option>';
+        (summaryData.project_groups || []).forEach(g => {
+            if (g.project_id) {
+                const opt = document.createElement('option');
+                opt.value = g.project_id;
+                opt.textContent = `${g.project_title} (${g.model_count})`;
+                filter.appendChild(opt);
+            }
+        });
+        filter.value = prevVal;
+
+        renderModels();
+    } catch (err) { console.error('Failed to load models:', err); }
+}
+
+function filterModels() { renderModels(); }
+
+function renderModels() {
+    const container = document.getElementById('models-container');
+    const emptyState = document.getElementById('empty-state');
+    const projectFilter = document.getElementById('project-filter').value;
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+
+    let filtered = allModels;
+    if (projectFilter) filtered = filtered.filter(m => m.project_id === projectFilter);
+    if (searchTerm) filtered = filtered.filter(m =>
+        m.name.toLowerCase().includes(searchTerm) ||
+        m.model_type.toLowerCase().includes(searchTerm) ||
+        (m.target || '').toLowerCase().includes(searchTerm)
+    );
+
+    if (filtered.length === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = allModels.length === 0 ? 'block' : 'none';
+        if (allModels.length > 0 && filtered.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-dim);padding:1.5rem;">No models match your filter.</p>';
+        }
+        return;
+    }
+    emptyState.style.display = 'none';
+
+    // Group by project
+    const groups = {};
+    filtered.forEach(m => {
+        const key = m.project_id || 'ungrouped';
+        if (!groups[key]) groups[key] = { title: m.project_title || 'Ungrouped', models: [] };
+        groups[key].models.push(m);
     });
 
-    // Load models on page load
-    loadModels();
+    let html = '';
+    for (const [key, group] of Object.entries(groups)) {
+        if (Object.keys(groups).length > 1) {
+            html += `<div class="group-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'grid' : 'none'">
+                <h3>${group.title}</h3>
+                <span class="group-count">${group.models.length}</span>
+            </div>`;
+        }
+        html += '<div class="models-grid">';
+        group.models.forEach(m => {
+            const metrics = m.metrics || {};
+            const primaryVal = metrics.accuracy != null ? metrics.accuracy : metrics.r2;
+            const metricLabel = metrics.accuracy != null ? 'Accuracy' : (metrics.r2 != null ? 'R\u00b2' : 'Score');
+            let metricDisplay = '-', metricClass = '';
+            if (typeof primaryVal === 'number') {
+                metricDisplay = metricLabel === 'Accuracy' ? (primaryVal * 100).toFixed(1) + '%' : primaryVal.toFixed(4);
+                metricClass = primaryVal >= 0.8 ? 'metric-good' : (primaryVal >= 0.5 ? 'metric-ok' : 'metric-poor');
+            }
+            const date = new Date(m.created_at).toLocaleDateString();
+            const vBadge = m.version > 1 ? `<span class="version-badge">v${m.version}</span>` : '';
+
+            html += `<div class="model-card" onclick="showModel('${m.id}')">
+                <div class="card-top"><h3>${m.name}</h3>${vBadge}</div>
+                <span class="type-badge">${m.model_type}</span>
+                <div class="card-meta">Target: ${m.target || 'N/A'} &middot; ${date}</div>
+                <div class="card-metric"><span class="label">${metricLabel}</span><span class="value ${metricClass}">${metricDisplay}</span></div>
+                <div class="card-actions">
+                    <button onclick="event.stopPropagation();openProfilerById('${m.id}')">Profile</button>
+                    <button onclick="event.stopPropagation();retrainById('${m.id}')">Retrain</button>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+// =========================================================================
+// MODEL DETAIL MODAL
+// =========================================================================
+function showTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(t => { t.style.display = 'none'; t.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tabName).style.display = 'block';
+    document.getElementById('tab-' + tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+
+async function showModel(modelId) {
+    selectedModel = allModels.find(m => m.id === modelId);
+    if (!selectedModel) return;
+
+    document.getElementById('modal-title').textContent = selectedModel.name;
+    const metrics = selectedModel.metrics || {};
+    const features = selectedModel.features || [];
+    const recipe = selectedModel.training_config || {};
+    const lineage = selectedModel.data_lineage || {};
+
+    // Overview
+    document.getElementById('tab-overview').innerHTML = `
+        <div class="detail-grid">
+            <div class="detail-item"><label>Model Type</label><span>${selectedModel.model_type}</span></div>
+            <div class="detail-item"><label>Target</label><span>${selectedModel.target || 'N/A'}</span></div>
+            <div class="detail-item"><label>Version</label><span>v${selectedModel.version || 1}</span></div>
+            <div class="detail-item"><label>Created</label><span>${new Date(selectedModel.created_at).toLocaleString()}</span></div>
+            <div class="detail-item" style="grid-column:1/-1;"><label>Features (${features.length})</label><span>${features.length ? features.join(', ') : 'N/A'}</span></div>
+            ${selectedModel.project_title ? `<div class="detail-item"><label>Project</label><span>${selectedModel.project_title}</span></div>` : ''}
+        </div>`;
+
+    // Metrics
+    let metricsHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.6rem;">';
+    Object.entries(metrics).forEach(([k, v]) => {
+        const d = typeof v === 'number' ? v.toFixed(4) : v;
+        metricsHtml += `<div class="r-metric"><div class="val">${d}</div><div class="lbl">${k}</div></div>`;
+    });
+    metricsHtml += '</div>';
+
+    if (selectedModel.parent_model_id || selectedModel.version > 1) {
+        try {
+            const vRes = await fetch(`/api/dsw/models/${modelId}/versions/`, { credentials: 'include' });
+            const vData = await vRes.json();
+            if (vData.versions && vData.versions.length > 1) {
+                metricsHtml += '<h3 style="margin-top:1.25rem;font-size:0.95rem;">Version History</h3><div class="version-list">';
+                vData.versions.forEach(v => {
+                    const vm = v.metrics || {};
+                    const primary = vm.accuracy || vm.r2 || '-';
+                    const d = typeof primary === 'number' ? primary.toFixed(4) : primary;
+                    metricsHtml += `<div class="version-row">
+                        <span ${v.id === modelId ? 'class="version-current"' : ''}>v${v.version} ${v.id === modelId ? '(current)' : ''}</span>
+                        <span>${d}</span><span>${new Date(v.created_at).toLocaleDateString()}</span></div>`;
+                });
+                metricsHtml += '</div>';
+            }
+        } catch (e) {}
+    }
+    document.getElementById('tab-metrics').innerHTML = metricsHtml;
+
+    // Recipe
+    document.getElementById('tab-recipe').innerHTML = Object.keys(recipe).length
+        ? `<div class="recipe-block">${JSON.stringify(recipe, null, 2)}</div>`
+        : '<p style="color:var(--text-dim);">No training recipe stored.</p>';
+
+    // Lineage
+    let lineageHtml = '';
+    if (Object.keys(lineage).length) {
+        const steps = [];
+        if (lineage.source_type) steps.push({ l: 'Source', v: lineage.source_type });
+        if (lineage.original_file) steps.push({ l: 'File', v: lineage.original_file });
+        if (lineage.original_shape) steps.push({ l: 'Original', v: `${lineage.original_shape[0]} \u00d7 ${lineage.original_shape[1]}` });
+        if (lineage.triage_applied) steps.push({ l: 'Triage', v: 'Applied' });
+        if (lineage.cleaned_shape) steps.push({ l: 'Cleaned', v: `${lineage.cleaned_shape[0]} \u00d7 ${lineage.cleaned_shape[1]}` });
+        if (lineage.forge_applied) steps.push({ l: 'Forge', v: `${lineage.synthetic_rows || '?'} synthetic rows` });
+        if (lineage.pipeline) steps.push({ l: 'Pipeline', v: lineage.pipeline });
+        lineageHtml = steps.map(s => `<div style="padding:0.4rem 0;border-bottom:1px solid var(--border);"><span style="font-size:0.72rem;color:var(--text-dim);display:block;">${s.l}</span><span style="font-size:0.88rem;">${s.v}</span></div>`).join('');
+    } else {
+        lineageHtml = '<p style="color:var(--text-dim);">No lineage data stored.</p>';
+    }
+    document.getElementById('tab-lineage').innerHTML = lineageHtml;
+
+    // Load report (async, into Report tab)
+    if (selectedModel.dsw_result_id) {
+        document.getElementById('tab-report').innerHTML = '<div class="loading-indicator">Loading report...</div>';
+        loadReport(modelId);
+    } else {
+        document.getElementById('tab-report').innerHTML = '<p style="color:var(--text-dim);">No training report stored for this model.</p>';
+    }
+
+    // Reset tabs
+    document.querySelectorAll('.tab-content').forEach(t => { t.style.display = 'none'; t.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-overview').style.display = 'block';
+    document.getElementById('tab-overview').classList.add('active');
+    document.querySelector('.tab-btn').classList.add('active');
+    document.getElementById('inference-results').style.display = 'none';
+    document.getElementById('model-modal').style.display = 'flex';
+}
+
+function closeDetailModal() {
+    document.getElementById('model-modal').style.display = 'none';
+}
+
+function openProfilerById(modelId) {
+    selectedModel = allModels.find(m => m.id === modelId);
+    if (!selectedModel) return;
+    openProfiler();
+}
+
+function openProfiler() {
+    // Close modal if open
+    document.getElementById('model-modal').style.display = 'none';
+
+    if (!selectedModel) return;
+
+    // Set topbar info
+    const metrics = selectedModel.metrics || {};
+    const metricLabel = metrics.accuracy != null ? 'Accuracy' : metrics.r2 != null ? 'R\u00b2' : '';
+    const metricVal = metrics.accuracy != null ? (metrics.accuracy * 100).toFixed(1) + '%' : metrics.r2 != null ? metrics.r2.toFixed(4) : '';
+    document.getElementById('profiler-model-name').textContent = selectedModel.name;
+    document.getElementById('profiler-meta').textContent =
+        `${selectedModel.model_type} \u00b7 Target: ${selectedModel.target || 'N/A'}` +
+        (metricLabel ? ` \u00b7 ${metricLabel}: ${metricVal}` : '');
+
+    // Show profiler, hide ML page
+    document.querySelector('.ml-page').style.display = 'none';
+    document.getElementById('profiler-view').style.display = 'flex';
+
+    // Init
+    profilerInitialized = false;
+    pdpPlotData = [];
+    initProfiler();
+}
+
+function exitProfiler() {
+    document.getElementById('profiler-view').style.display = 'none';
+    document.querySelector('.ml-page').style.display = '';
+    profilerInitialized = false;
+    pdpPlotData = [];
+    responseCurveReady = false;
+    selectedModel = null;
+}
+
+// =========================================================================
+// MODEL ACTIONS
+// =========================================================================
+function downloadModel() {
+    if (selectedModel) window.location.href = `/api/dsw/models/${selectedModel.id}/`;
+}
+
+async function deleteModel() {
+    if (!selectedModel || !confirm('Delete this model permanently?')) return;
+    try {
+        const res = await fetch(`/api/dsw/models/${selectedModel.id}/delete/`, {
+            method: 'DELETE', credentials: 'include',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        });
+        if (res.ok) { closeDetailModal(); loadModels(); }
+        else alert('Failed to delete');
+    } catch (err) { alert('Error: ' + err.message); }
+}
+
+function retrainModel() {
+    if (!selectedModel) return;
+    document.getElementById('retrain-modal').style.display = 'flex';
+    document.getElementById('retrain-status').innerHTML = '';
+}
+
+function retrainById(modelId) {
+    selectedModel = allModels.find(m => m.id === modelId);
+    if (selectedModel) retrainModel();
+}
+
+async function executeRetrain() {
+    if (!selectedModel) return;
+    const statusEl = document.getElementById('retrain-status');
+    statusEl.innerHTML = '<p style="color:var(--accent-primary);">Retraining...</p>';
+
+    const formData = new FormData();
+    const file = document.getElementById('retrain-file').files[0];
+    if (file) formData.append('file', file);
+
+    try {
+        const res = await fetch(`/api/dsw/models/${selectedModel.id}/retrain/`, {
+            method: 'POST', credentials: 'include', body: formData,
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        });
+        const data = await res.json();
+        if (res.ok) {
+            let compHtml = '';
+            if (data.comparison) {
+                compHtml = '<div style="margin-top:0.5rem;">';
+                Object.entries(data.comparison).forEach(([k, v]) => {
+                    const arrow = v.change >= 0 ? '\u2191' : '\u2193';
+                    const color = v.change >= 0 ? 'var(--accent-primary)' : 'var(--error,#e05252)';
+                    compHtml += `<p style="font-size:0.85rem;">${k}: ${v.previous.toFixed(4)} \u2192 <span style="color:${color}">${v.current.toFixed(4)} ${arrow}</span></p>`;
+                });
+                compHtml += '</div>';
+            }
+            statusEl.innerHTML = `<p style="color:var(--accent-primary);">Retrained to v${data.version || '?'}</p>${compHtml}`;
+            setTimeout(() => { document.getElementById('retrain-modal').style.display = 'none'; loadModels(); }, 2000);
+        } else {
+            statusEl.innerHTML = `<p style="color:var(--error,#e05252);">${data.error || 'Failed'}</p>`;
+        }
+    } catch (err) {
+        statusEl.innerHTML = `<p style="color:var(--error,#e05252);">Error: ${err.message}</p>`;
+    }
+}
+
+async function runInference() {
+    if (!selectedModel) return;
+    const fileInput = document.getElementById('inference-file');
+    if (!fileInput.files[0]) { alert('Select a CSV file'); return; }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+        const res = await fetch(`/api/dsw/models/${selectedModel.id}/run/`, {
+            method: 'POST', credentials: 'include', body: formData,
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        });
+        const data = await res.json();
+        if (res.ok) {
+            lastPredictions = data.predictions;
+            document.getElementById('predictions-output').textContent = JSON.stringify(data.predictions, null, 2);
+            document.getElementById('inference-results').style.display = 'block';
+        } else {
+            alert(data.error || 'Inference failed');
+        }
+    } catch (err) { alert('Error: ' + err.message); }
+}
+
+function downloadPredictions() {
+    if (!lastPredictions) return;
+    const csv = 'prediction\n' + lastPredictions.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'predictions.csv'; a.click();
+}
+
+// =========================================================================
+// UTILS
+// =========================================================================
+function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+}
+
+// Modal close on outside click
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+});
+
+// =========================================================================
+// PREDICTION PROFILER
+// =========================================================================
+let profilerState = {};
+let profilerInitialized = false;
+let profilerDebounce = null;
+let pdpPlotData = [];  // stored PDP data for cursor updates
+let responseCurveReady = false;  // response sigmoid initialized
+
+function initProfiler() {
+    if (!selectedModel) return;
+    const controls = document.getElementById('profiler-controls');
+
+    const features = selectedModel.features || [];
+    if (!features.length) {
+        controls.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No feature metadata stored for this model.</p>';
+        return;
+    }
+
+    const recipe = selectedModel.training_config || {};
+    const featureInfo = recipe.feature_info || {};
+
+    profilerState = {};
+    controls.innerHTML = '';
+
+    features.forEach(feat => {
+        const info = featureInfo[feat] || {};
+        const div = document.createElement('div');
+        div.className = 'profiler-control';
+
+        if (info.categories && info.categories.length) {
+            profilerState[feat] = info.categories[0];
+            const opts = info.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+            div.innerHTML = `<label>${feat}</label><select onchange="updateProfiler('${feat}', this.value)">${opts}</select>`;
+        } else {
+            const min = info.min != null ? info.min : 0;
+            const max = info.max != null ? info.max : 100;
+            const mid = +((min + max) / 2).toFixed(4);
+            const step = +((max - min) / 200).toFixed(6) || 0.01;
+            profilerState[feat] = mid;
+            div.innerHTML = `<label>${feat}</label>
+                <div class="slider-row">
+                    <input type="range" min="${min}" max="${max}" step="${step}" value="${mid}"
+                        oninput="updateProfiler('${feat}', parseFloat(this.value))">
+                    <span class="slider-val" id="pval-${feat.replace(/\W/g,'_')}">${mid}</span>
+                </div>`;
+        }
+        controls.appendChild(div);
+    });
+
+    document.getElementById('profiler-target-label').textContent = selectedModel.target || '';
+    profilerInitialized = true;
+
+    runProfilerPrediction();
+    renderPDPCurves();
+}
+
+function updateProfiler(feat, val) {
+    profilerState[feat] = val;
+    const valEl = document.getElementById('pval-' + feat.replace(/\W/g, '_'));
+    if (valEl) valEl.textContent = typeof val === 'number' ? val.toFixed(3) : val;
+
+    // Move PDP cursors instantly (no API call needed)
+    updatePDPCursors();
+
+    clearTimeout(profilerDebounce);
+    profilerDebounce = setTimeout(() => runProfilerPrediction(), 150);
+}
+
+async function runProfilerPrediction() {
+    if (!selectedModel) return;
+    try {
+        const row = { ...profilerState };
+        const res = await fetch(`/api/dsw/models/${selectedModel.id}/run/`, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ data: [row] }),
+        });
+        const data = await res.json();
+        if (res.ok && data.predictions && data.predictions.length) {
+            const pred = data.predictions[0];
+            document.getElementById('profiler-value').textContent =
+                typeof pred === 'number' ? pred.toFixed(4) : String(pred);
+
+            // Update response curve
+            const recipe = selectedModel.training_config || {};
+            const task = recipe.task_type || 'regression';
+
+            if (task === 'classification' && data.probabilities && data.probabilities.length) {
+                const probs = data.probabilities[0];
+                const prob = probs.length === 2 ? probs[1] : Math.max(...probs);
+                if (!responseCurveReady) {
+                    renderResponseCurve(prob);
+                } else {
+                    updateResponseMarker(prob);
+                }
+            } else if (task !== 'classification' && typeof pred === 'number') {
+                if (!responseCurveReady) {
+                    renderResponseGauge(pred);
+                } else {
+                    updateResponseGauge(pred);
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('Profiler prediction error:', err);
+        document.getElementById('profiler-value').textContent = 'Error';
+    }
+}
+
+// ---- Response curve (classification sigmoid / regression gauge) ----
+
+function renderResponseCurve(prob) {
+    const el = document.getElementById('profiler-response-plot');
+    const panel = document.getElementById('profiler-response-panel');
+    if (!el || !window.Plotly) return;
+    panel.style.display = '';
+
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e0e0e0';
+
+    // Build sigmoid curve
+    const xVals = [], yVals = [];
+    for (let x = -6; x <= 6; x += 0.1) {
+        xVals.push(x);
+        yVals.push(1 / (1 + Math.exp(-x)));
+    }
+
+    // Map probability to logit for x-position on curve
+    const p = Math.max(0.002, Math.min(0.998, prob));
+    const logit = Math.log(p / (1 - p));
+
+    const target = (selectedModel.training_config || {}).target || selectedModel.target || 'class';
+
+    Plotly.newPlot(el, [
+        {
+            x: xVals, y: yVals,
+            type: 'scatter', mode: 'lines',
+            line: { color: 'rgba(228,184,75,0.45)', width: 3 },
+            fill: 'tozeroy', fillcolor: 'rgba(228,184,75,0.06)',
+            hoverinfo: 'skip',
+        },
+        {
+            x: [logit], y: [prob],
+            type: 'scatter', mode: 'markers+text',
+            marker: { size: 14, color: '#e4b84b', line: { color: '#fff', width: 2.5 },
+                       symbol: 'circle' },
+            text: [(prob * 100).toFixed(1) + '%'],
+            textposition: prob > 0.5 ? 'bottom center' : 'top center',
+            textfont: { color: '#e4b84b', size: 11, family: 'monospace' },
+            hoverinfo: 'text', hovertext: 'P(' + target + ') = ' + prob.toFixed(4),
+        },
+    ], {
+        title: { text: 'Response: P(' + target + ')', font: { size: 11, color: textColor } },
+        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: textColor, size: 10 },
+        margin: { l: 40, r: 20, t: 28, b: 25 },
+        xaxis: { showticklabels: false, zeroline: false, showgrid: false, range: [-6.5, 6.5] },
+        yaxis: { title: '', range: [-0.03, 1.05], dtick: 0.25,
+                 gridcolor: 'rgba(128,128,128,0.12)', zeroline: false },
+        showlegend: false,
+        shapes: [{
+            type: 'line', x0: logit, x1: logit,
+            y0: 0, y1: prob,
+            line: { color: 'rgba(228,184,75,0.35)', width: 1.5, dash: 'dot' },
+        }, {
+            type: 'line', x0: -6.5, x1: logit,
+            y0: prob, y1: prob,
+            line: { color: 'rgba(228,184,75,0.25)', width: 1, dash: 'dot' },
+        }],
+    }, { responsive: true, displayModeBar: false });
+
+    responseCurveReady = true;
+}
+
+function updateResponseMarker(prob) {
+    const el = document.getElementById('profiler-response-plot');
+    if (!el || !window.Plotly) return;
+
+    const p = Math.max(0.002, Math.min(0.998, prob));
+    const logit = Math.log(p / (1 - p));
+
+    Plotly.restyle(el, {
+        x: [[logit]], y: [[p]],
+        text: [(p * 100).toFixed(1) + '%'],
+        textposition: p > 0.5 ? 'bottom center' : 'top center',
+    }, [1]);
+
+    Plotly.relayout(el, {
+        'shapes[0].x0': logit, 'shapes[0].x1': logit, 'shapes[0].y1': p,
+        'shapes[1].x1': logit, 'shapes[1].y0': p, 'shapes[1].y1': p,
+    });
+}
+
+function renderResponseGauge(val) {
+    const el = document.getElementById('profiler-response-plot');
+    const panel = document.getElementById('profiler-response-panel');
+    if (!el || !window.Plotly) return;
+    panel.style.display = '';
+
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e0e0e0';
+    const recipe = selectedModel.training_config || {};
+    const target = recipe.target || selectedModel.target || 'y';
+
+    // Estimate range from feature_info or use heuristic
+    const margin = Math.abs(val) * 0.5 || 10;
+    const lo = val - margin, hi = val + margin;
+    window._responseGaugeRange = [lo, hi];
+
+    Plotly.newPlot(el, [{
+        type: 'scatter', mode: 'markers+text',
+        x: [val], y: [0.5],
+        marker: { size: 16, color: '#e4b84b', line: { color: '#fff', width: 2.5 } },
+        text: [val.toFixed(3)],
+        textposition: 'top center',
+        textfont: { color: '#e4b84b', size: 12, family: 'monospace' },
+        hoverinfo: 'text', hovertext: target + ' = ' + val.toFixed(4),
+    }], {
+        title: { text: 'Response: ' + target, font: { size: 11, color: textColor } },
+        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: textColor, size: 10 },
+        margin: { l: 40, r: 20, t: 28, b: 25 },
+        xaxis: { range: [lo, hi], gridcolor: 'rgba(128,128,128,0.12)' },
+        yaxis: { range: [0, 1], showticklabels: false, showgrid: false, zeroline: false },
+        showlegend: false,
+        shapes: [{
+            type: 'line', x0: val, x1: val, y0: 0, y1: 1,
+            line: { color: 'rgba(228,184,75,0.35)', width: 1.5, dash: 'dot' },
+        }],
+    }, { responsive: true, displayModeBar: false });
+
+    responseCurveReady = true;
+}
+
+function updateResponseGauge(val) {
+    const el = document.getElementById('profiler-response-plot');
+    if (!el || !window.Plotly) return;
+
+    // Expand range if prediction moves outside
+    const range = window._responseGaugeRange || [val - 10, val + 10];
+    if (val < range[0]) range[0] = val - Math.abs(val) * 0.2;
+    if (val > range[1]) range[1] = val + Math.abs(val) * 0.2;
+    window._responseGaugeRange = range;
+
+    Plotly.restyle(el, {
+        x: [[val]], text: [val.toFixed(3)],
+    }, [0]);
+    Plotly.relayout(el, {
+        'xaxis.range': range,
+        'shapes[0].x0': val, 'shapes[0].x1': val,
+    });
+}
+
+// ---- PDP Curves ----
+
+async function renderPDPCurves() {
+    if (!selectedModel) return;
+    const features = selectedModel.features || [];
+    const recipe = selectedModel.training_config || {};
+    const featureInfo = recipe.feature_info || {};
+    const plotsDiv = document.getElementById('profiler-pdp-plots');
+    plotsDiv.innerHTML = '<div class="loading-indicator">Computing partial dependence...</div>';
+
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e0e0e0';
+    const nPoints = 20;
+    const plotElements = [];
+
+    for (const feat of features) {
+        const info = featureInfo[feat] || {};
+        let sweepVals;
+
+        if (info.categories && info.categories.length) {
+            sweepVals = info.categories;
+        } else {
+            const min = info.min != null ? info.min : 0;
+            const max = info.max != null ? info.max : 100;
+            sweepVals = [];
+            for (let i = 0; i < nPoints; i++) sweepVals.push(min + (max - min) * i / (nPoints - 1));
+        }
+
+        const rows = sweepVals.map(sv => {
+            const row = { ...profilerState };
+            row[feat] = sv;
+            return row;
+        });
+
+        try {
+            const res = await fetch(`/api/dsw/models/${selectedModel.id}/run/`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ data: rows }),
+            });
+            const data = await res.json();
+            if (res.ok && data.predictions) {
+                let yVals = data.predictions;
+                // For classification, use probability of positive class for smooth curves
+                if (data.probabilities && data.probabilities.length) {
+                    const nCls = data.probabilities[0].length;
+                    yVals = data.probabilities.map(p => nCls === 2 ? p[1] : Math.max(...p));
+                }
+                plotElements.push({ feat, xVals: info.categories ? sweepVals.map(String) : sweepVals, yVals, isCategorical: !!(info.categories && info.categories.length) });
+            }
+        } catch (err) {
+            console.warn('PDP error for', feat, err);
+        }
+    }
+
+    // Store for cursor updates
+    pdpPlotData = plotElements;
+
+    // Render all at once
+    plotsDiv.innerHTML = plotElements.map((p, i) => `<div id="pdp-${i}" class="pdp-cell"></div>`).join('');
+    requestAnimationFrame(() => {
+        plotElements.forEach((p, i) => {
+            const el = document.getElementById('pdp-' + i);
+            if (!el || !window.Plotly) return;
+
+            // Find current slider value on the curve
+            const curVal = profilerState[p.feat];
+            let curX = curVal, curY = null;
+            if (p.isCategorical) {
+                const idx = p.xVals.indexOf(String(curVal));
+                if (idx >= 0) curY = p.yVals[idx];
+            } else {
+                // Interpolate y at current x
+                for (let j = 0; j < p.xVals.length - 1; j++) {
+                    if (curVal >= p.xVals[j] && curVal <= p.xVals[j + 1]) {
+                        const t = (curVal - p.xVals[j]) / (p.xVals[j + 1] - p.xVals[j]);
+                        curY = p.yVals[j] + t * (p.yVals[j + 1] - p.yVals[j]);
+                        break;
+                    }
+                }
+                if (curY === null && p.yVals.length) curY = p.yVals[p.yVals.length - 1];
+            }
+
+            const traces = [
+                {
+                    x: p.xVals, y: p.yVals,
+                    type: 'scatter', mode: 'lines',
+                    line: { color: 'rgba(74,159,110,0.4)', width: 2.5 },
+                    fill: 'tozeroy', fillcolor: 'rgba(74,159,110,0.06)',
+                    hoverinfo: 'skip',
+                },
+                {
+                    x: [curX], y: [curY],
+                    type: 'scatter', mode: 'markers',
+                    marker: { size: 10, color: '#4a9f6e', line: { color: '#fff', width: 2 } },
+                    hoverinfo: 'y', name: 'Current',
+                },
+            ];
+
+            const shapes = p.isCategorical ? [] : [{
+                type: 'line', x0: curVal, x1: curVal,
+                y0: 0, y1: 1, yref: 'paper',
+                line: { color: 'rgba(74,159,110,0.5)', width: 1.5, dash: 'dot' },
+            }];
+
+            Plotly.newPlot(el, traces, {
+                title: { text: p.feat, font: { size: 11, color: textColor } },
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: textColor, size: 10 },
+                margin: { l: 45, r: 10, t: 25, b: 30 },
+                xaxis: { title: '', gridcolor: 'rgba(128,128,128,0.1)' },
+                yaxis: { title: '', gridcolor: 'rgba(128,128,128,0.1)' },
+                shapes: shapes,
+                showlegend: false,
+            }, { responsive: true, displayModeBar: false });
+        });
+    });
+}
+
+function updatePDPCursors() {
+    if (!pdpPlotData.length || !window.Plotly) return;
+    pdpPlotData.forEach((p, i) => {
+        const el = document.getElementById('pdp-' + i);
+        if (!el) return;
+
+        const curVal = profilerState[p.feat];
+        let curX = curVal, curY = null;
+
+        if (p.isCategorical) {
+            const idx = p.xVals.indexOf(String(curVal));
+            if (idx >= 0) curY = p.yVals[idx];
+        } else {
+            for (let j = 0; j < p.xVals.length - 1; j++) {
+                if (curVal >= p.xVals[j] && curVal <= p.xVals[j + 1]) {
+                    const t = (curVal - p.xVals[j]) / (p.xVals[j + 1] - p.xVals[j]);
+                    curY = p.yVals[j] + t * (p.yVals[j + 1] - p.yVals[j]);
+                    break;
+                }
+            }
+            if (curY === null && p.yVals.length) curY = p.yVals[p.yVals.length - 1];
+        }
+
+        // Update cursor dot position (trace index 1)
+        Plotly.restyle(el, { x: [[curX]], y: [[curY]] }, [1]);
+
+        // Update vertical line
+        if (!p.isCategorical) {
+            Plotly.relayout(el, { 'shapes[0].x0': curVal, 'shapes[0].x1': curVal });
+        }
+    });
+}
+
+// Load saved models on page load
+loadModels();
 </script>
 {% endblock %}

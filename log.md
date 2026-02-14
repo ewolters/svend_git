@@ -15,6 +15,570 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-14 — Fix CategoricalDtype Crash in ML Pipeline
+
+**What:** ML pipeline ("From Intent" and "From Data") crashed with `Cannot interpret 'CategoricalDtype(...)' as a data type` when datasets contained categorical columns (e.g., Gender with Female/Male/Other). The root cause: `pd.Categorical(col).codes` returns int8 codes but the column can retain CategoricalDtype metadata, which numpy/sklearn can't interpret.
+
+**Fix:** Added `.astype(int)` to all 9 occurrences of `.codes` across `dsw_views.py`. Also hardened `_clean_for_ml()`:
+- Added `hasattr(y.dtype, 'categories')` check for CategoricalDtype detection
+- Added `y.map(label_map).astype(np.int32)` explicit cast for target
+- Added final safety cast: `X.apply(pd.to_numeric, errors='coerce').fillna(0)`
+
+**Files changed:**
+- `agents_api/dsw_views.py` — Fixed `_clean_for_ml()` (lines 767-799), `_auto_train()` dtype check, and 9 `.codes` calls across classification, regression, SHAP, and model comparison blocks
+
+**Verification:** Upload CSV with categorical columns → "From Data" or "From Intent" → pipeline completes without CategoricalDtype error
+
+---
+
+### 2026-02-14 — Practical Significance: Effect Sizes + Decision Language
+
+**What:** Enhanced 8 core statistical analyses to report effect sizes, practical significance classification, and prescriptive action language. Every analysis now answers "does this matter?" not just "is this significant?"
+
+**Files changed:**
+- `agents_api/dsw_views.py` — Added `_effect_magnitude()` and `_practical_block()` helper functions before `run_statistical_analysis()`. Enhanced:
+  - **One-sample t-test**: Cohen's d, magnitude classification, prescriptive summary
+  - **Two-sample t-test**: Cohen's d (pooled), unit-level context ("X is 15 units higher, 0.8 SDs")
+  - **Paired t-test**: Cohen's d (within-subject), direction language ("values improved by...")
+  - **One-way ANOVA**: Eta-squared + omega-squared, "factor explains X% of variation"
+  - **Two-way ANOVA**: Partial eta-squared per factor, strongest effect highlighted
+  - **Chi-square**: Cramér's V, association strength classification
+  - **Regression**: R² reframed as practical effect size, RMSE in plain language, guide_observation with significant predictors
+  - **Correlation**: P-values per pair (were missing), "KEY RELATIONSHIPS" section ranked by shared variance %
+
+**Effect size thresholds (Cohen's conventions):**
+- Cohen's d: <0.2 negligible, 0.2-0.5 small, 0.5-0.8 medium, ≥0.8 large
+- Eta-squared: <0.01 negligible, 0.01-0.06 small, 0.06-0.14 medium, ≥0.14 large
+- Cramér's V: <0.1 negligible, 0.1-0.3 small, 0.3-0.5 medium, ≥0.5 large
+- R-squared: <0.02 negligible, 0.02-0.13 small, 0.13-0.26 medium, ≥0.26 large
+
+**Key decisions:**
+- Four-way interpretation matrix: {significant + meaningful → act}, {significant + small → consider cost}, {significant + negligible → ignore despite p-value}, {not significant + large effect → need more data}
+- guide_observation now includes effect size for Synara evidence linking
+- statistics dict includes effect_size_label for downstream consumers
+- Correlation now computes per-pair p-values (Pearson/Spearman/Kendall) and highlights pairs with |r| ≥ 0.3
+
+**Verification:** Load data in DSW → run any t-test, ANOVA, chi-square, regression, or correlation → "PRACTICAL SIGNIFICANCE" section appears after p-value conclusion with effect size, magnitude, and action recommendation.
+
+---
+
+### 2026-02-14 — JMP Visualization Parity: New Chart Types + Prediction Profiler
+
+**What:** Added 5 new chart types to DSW and built an interactive Prediction Profiler in ML Hub, closing visualization gaps vs JMP.
+
+**New DSW Chart Types** (`agents_api/dsw_views.py` `run_visualization()`):
+- **Bubble Chart** (backend) — scatter with marker size mapped to 3rd variable, optional color grouping
+- **Parallel Coordinates** — Plotly `parcoords` trace, supports numeric + categorical dimensions, color line
+- **Contour Plot** — 2D contour from 3 variables using `scipy.interpolate.griddata`, cubic with linear fallback for NaN regions
+- **3D Surface Plot** — Plotly `surface` trace, same griddata interpolation, interactive rotation/zoom
+- **Mosaic Plot** — proportional rectangle tiles from `pd.crosstab()`, built with Plotly shapes + annotations, capped at 15 levels per variable
+
+**Workbench Ribbon** (`templates/workbench_new.html`):
+- 4 new buttons in Data tab Graph group: Parallel, Contour, Surface, Mosaic (with SVG icons)
+- 4 new dialog cases in `openGraphDialog()`: parcoords (checkbox dimension picker), contour/surface (x/y/z dropdowns), mosaic (row/col dropdowns)
+- Client-side `renderGraph('parcoords', ...)` case for parallel coordinates
+
+**ML Hub Prediction Profiler** (`templates/models.html`):
+- New "Profiler" tab in model detail modal
+- Feature sliders: numeric = range slider with min/max from training data, categorical = dropdown
+- Predicted value updates in real-time via debounced `POST /api/dsw/models/<uuid>/run/` with JSON body
+- "Show Partial Dependence" button: sweeps each feature across 20 points, batch predicts, renders PDP curves as Plotly line charts
+- CSS for profiler controls (grid layout, slider styling)
+
+**Feature Info Storage** (`agents_api/autopilot_views.py`):
+- New `_compute_feature_info(df, feature_names)` helper
+- All 4 autopilot endpoints (clean_train, full_pipeline, augment_train, retrain) now store `feature_info` in `training_config`
+- Contains `{type, min, max}` for numeric features and `{type, categories}` for categorical
+
+**Model Inference Fix** (`agents_api/dsw_views.py` `run_model()`):
+- Fixed categorical encoding mismatch: single-row `pd.Categorical().codes` produced different codes than training. Now uses stored training categories with `pd.Categorical(X[col], categories=sorted(train_cats))` for consistent encoding
+- Decodes classification predictions via `label_map` (returns original labels, not integer codes)
+- Added `label_map` to full_pipeline's `training_config` (was missing — other endpoints had it via `train_with_recipe`)
+
+**Profiler → Full-Page Workbench** (`templates/models.html`):
+- Profiler removed from modal tab → now a full-page pane (`#profiler-view`, `position:fixed; inset:0`)
+- Layout: topbar (back button + model name/metrics) → sidebar (280px, prediction card + sliders) → main area (4-col PDP grid)
+- "Profile" button on model cards (skip modal) and in modal footer (from detail view)
+- `openProfiler()` hides `.ml-page`, shows profiler; `exitProfiler()` reverses; no new routes needed
+- PDP curves auto-render on open, "Refresh" button for recompute
+- Green cursor dot + vertical dotted line on each PDP curve tracks current slider value
+- Cursors update instantly on slider drag via `Plotly.restyle`/`relayout` (no API call)
+- For classification, PDP y-axis uses class probabilities for smooth curves
+- Sliders styled with Svend green thumb/track (replaces browser default blue)
+- `.pdp-cell` has border + border-radius for visual separation
+- Responsive: 4-col > 1200px, 3-col > 900px, 2-col below
+- Error state shown in UI instead of silent console.warn
+
+**Verification:** `python3 manage.py check` → 0 issues. DSW Data tab → new chart buttons functional. ML page → train model → click model → Profiler tab → sliders update prediction → expand button → full-viewport with 4-col PDP grid → cursor dots track slider positions.
+
+---
+
+### 2026-02-13 — ML Hub Platform (Layers 6-11)
+
+**What:** Transformed the ML subsystem from disposable models into a full lifecycle platform with altitude control (manual / guided / autopilot). Six layers built on top of ML Lab Layers 1-5.
+
+**Layer 6: SavedModel Schema Evolution**
+- `agents_api/models.py` — Added `project` FK (→ core.Project), `training_config` JSONField, `data_lineage` JSONField, `version` IntegerField, `parent_model` self-FK for version chains
+- `agents_api/dsw_views.py` — Extended `save_model_to_disk()`, `list_models()`, `save_model_from_cache()`, `dsw_from_intent()`, `dsw_from_data()` with project linking, recipe capture, and lineage tracking
+- Migration `0031_savedmodel_project_training_config.py` applied
+
+**Layer 7: Synara Evidence Bridge**
+- `agents_api/dsw_views.py` — Added `_create_ml_evidence()` function that auto-creates `core.Evidence` from ML results when project_id is provided. Wired into `dsw_from_intent()` and `dsw_from_data()`
+
+**Layer 8: In-Memory Pipeline Engine**
+- `agents_api/ml_pipeline.py` — **NEW** — `triage_clean_df()` (in-memory scrub), `forge_augment_df()` (in-memory Forge tabular), `_infer_forge_schema()` (auto-detect types from DataFrame), `train_with_recipe()` (train + capture full recipe)
+
+**Layer 9: Autopilot Pipelines**
+- `agents_api/autopilot_views.py` — **NEW** — 4 endpoints: `autopilot_clean_train` (Triage+Train), `autopilot_full_pipeline` (Clean→Compare→SHAP→Tune), `autopilot_augment_train` (Forge+Train), `retrain_model` (replay recipe)
+- `agents_api/dsw_views.py` — Added `models_summary()` and `model_versions()` endpoints
+- `agents_api/dsw_urls.py` — Added 6 URL patterns for autopilot, retrain, summary, versions
+
+**Layer 10: ML Hub Frontend**
+- `templates/models.html` — Rewrote from 371-line card grid to ~510-line ML Hub with: stats bar, project grouping, search/filter, enhanced model cards (color-coded metrics, version badges, quick actions), tabbed detail modal (Overview/Metrics/Recipe/Lineage/Inference), version history, retrain modal, prediction download
+
+**Layer 11: Ribbon Integration + Dialogs**
+- `templates/workbench_new.html` — Added "Autopilot" ribbon group (Clean+Train, Full Pipeline, Augment+Train buttons) between Auto ML and Time Series. Added "Hub" button to Models group. Added `openAutopilotDialog()` with CSV header parsing for target selector, mode-specific options (triage toggles, CV folds, Optuna trials, synthetic row slider). Added `renderAutopilotOutput()` for multi-stage pipeline results.
+- `templates/models.html` — Complete rewrite. Page renamed "Machine Learning" (was "ML Hub" / "Saved Models"). Three-section layout: (1) Train section with drag-and-drop CSV upload, live data preview table (headers + first 8 rows), target column picker, three training mode cards (Quick Train / Full Pipeline / Augment+Train) with mode-specific options, Train button; (2) Results section with pipeline stage badges, summary cards (Triage/Forge/Optuna/Model), metrics grid, AI insight card, model comparison table, Plotly diagnostic plots grid, collapsible recipe; (3) Saved Models section with stats line, project filter, search, grouped model cards. Page is fully self-contained ML experience. Plotly CDN added.
+- `templates/workbench_new.html` — Renamed "Hub" button to "ML Page" in Models ribbon group.
+
+**Recallable Training Reports**
+- `agents_api/dsw_views.py` — Added `model_report()` endpoint (`GET /api/dsw/models/<uuid>/report/`). Fetches stored `DSWResult` linked to a SavedModel, transforms the raw result_data into the frontend-expected format (pipeline_stages, cleaning, augmentation, comparison, tuning, metrics, shap_plots, plots, recipe).
+- `agents_api/dsw_urls.py` — Added `models/<uuid:model_id>/report/` URL pattern.
+- `templates/models.html` — Added "Report" tab to model detail modal. New `renderReport(data, container)` function renders full training results (pipeline stages, summary cards, metrics, comparison table, plots via Plotly, recipe) inside the modal. `loadReport(modelId)` fetches report data from the API. Report tab auto-loads when model is opened. Modal widened to 960px for plots.
+
+**Verification:** `python3 manage.py check` → 0 issues. ML page at `/app/models/` — upload data, see preview, pick target, choose mode, train, see results with plots, manage saved models. Click any saved model → Report tab shows full training report with plots and metrics. Workbench ribbon has Autopilot shortcuts + ML Page link.
+
+---
+
+### 2026-02-13 — Synara Tab + Belief Engine Hardening
+
+**What:** Major hardening of the Synara hypothesis tracking system. Added the missing Synara tab to the workbench, delete endpoints for evidence/links, and expansion signal UI.
+
+**1. Synara tab in workbench ribbon**
+New "Synara" tab alongside Data/Prepare/Analysis/Experiment/ML. Shows:
+- Hypothesis list with posterior probability bars (color-coded: red <30%, yellow 30-70%, green >70%)
+- Evidence list (last 10, with supports/weakens indicators and source labels)
+- Expansion signals with amber alert cards, "Dismiss" and "Add Hypothesis" actions
+- Add Hypothesis button (inline prompt for description + prior)
+- Delete buttons on hypotheses and evidence
+- Auto-refreshes on tab click and workbench load
+
+**2. Delete endpoints for evidence and causal links**
+- `DELETE /api/synara/{wb}/evidence/{id}/delete/` — removes evidence from belief graph
+- `DELETE /api/synara/{wb}/links/delete/?from_id=...&to_id=...` — removes causal link
+- Both save updated Synara state after deletion
+
+**3. Expansion signals surfaced in UI**
+Backend already detected gaps in the causal surface but the frontend never showed them. Now rendered as amber-bordered cards with signal type, description, and dismiss/resolve actions. Resolving with "new_hypothesis" prompts for description and creates the hypothesis.
+
+**4. hypotheses.html confirmed as dead code**
+URL `/app/hypotheses/` already routes to `projects.html`. The standalone `hypotheses.html` template calls legacy `/api/problems/` endpoints and is completely disconnected. No action needed.
+
+**Files changed:**
+- `templates/workbench_new.html` — Synara tab HTML + ribbon content, `synaraRefresh()`, `renderSynaraHypotheses()`, `renderSynaraEvidence()`, `renderSynaraSignals()`, `synaraAddHypothesis()`, `synaraDeleteHypothesis()`, `synaraDeleteEvidence()`, `synaraResolveSignal()`, auto-refresh on tab click and workbench load
+- `agents_api/synara_views.py` — Added `delete_evidence()` and `delete_link()` endpoints
+- `agents_api/synara_urls.py` — Added URL patterns for delete endpoints
+
+**Verification:**
+1. Open workbench → Synara tab visible in ribbon → shows hypotheses/evidence/signals
+2. Add hypothesis → appears in list with probability bar
+3. Delete hypothesis → removed from list
+4. Delete evidence → removed from list
+5. Expansion signals show amber cards → dismiss or resolve works
+6. Link DSW result to hypothesis → switch to Synara tab → evidence appears
+
+---
+
+### 2026-02-13 — Studies & Hypothesis Tracking Polish
+
+**What:** Fixed two broken features in the Studies (projects) and hypothesis tracking system.
+
+**Fix 1: Hypothesis editing was a stub**
+`editHypothesis()` was `alert('Edit functionality coming soon')`. Replaced with full implementation that reuses the create modal — pre-fills all fields (If/Then/Because, variables, testing plan, prior), switches button text to "Save Changes", and PUTs to the existing `/api/core/projects/{id}/hypotheses/{id}/` endpoint. `closeHypothesisModal()` resets edit state.
+
+**Fix 2: Workbench → Study navigation was broken**
+"Open study" link from workbench always went to `/app/projects/` (generic list) instead of the specific project. Fixed by: (1) removing the `onclick` override that discarded the hash, (2) adding hash-based deep link support to projects.html `DOMContentLoaded` — if URL has `#<uuid>`, auto-navigates to that project.
+
+**Files changed:**
+- `templates/projects.html` — `editHypothesis()` implementation, `saveHypothesisEdit()`, `closeHypothesisModal()` reset, form onsubmit wiring, hash-based routing on load
+- `templates/workbench_new.html` — `updateProjectLink()` fixed to use href instead of hardcoded onclick
+
+**Verification:**
+1. Studies → view hypothesis → click "Edit" → modal opens with pre-filled fields → save → updates
+2. DSW workbench with project selected → click "Open study" → navigates to specific project
+
+---
+
+### 2026-02-13 — Fix Stale "96% Less" Pricing Claims
+
+**What:** Four references still said "96% less than Minitab" (from the old $19/mo Founder price). Updated to "68% less" to reflect current $49/mo Professional pricing ($588/yr vs Minitab's $1,851/yr).
+
+**Files changed:**
+- `templates/landing.html` — Hero title, Twitter meta description, structured data FAQ answer
+- `templates/blog_detail.html` — CTA box text
+
+**Verification:** View landing page → hero says "68% less". View page source → no "96%" references remain.
+
+---
+
+### 2026-02-13 — DSW → Synara Evidence Bridge + VSM Monte Carlo Savings
+
+**What:** Two backend improvements to close product differentiation gaps.
+
+**Feature 1: DSW → Synara "Link to hypothesis" button**
+After any DSW analysis renders, a "Link to hypothesis" button appears below results. Users can pick a hypothesis from their Synara session, choose supports/weakens, and evidence is auto-created via the existing Synara API. No backend changes needed — purely frontend wiring.
+
+**Feature 2: VSM Monte Carlo savings simulation**
+VSM savings estimates now use 1,000 Monte Carlo simulations with three uncertainty sources (volume volatility ±15%, cost variation ±10%, improvement realization risk via Beta(4,2)). Proposal cards show 90% CI ranges and P(positive ROI) instead of single point estimates.
+
+**Files changed:**
+- `templates/workbench_new.html` — Added `appendLinkHypothesisPrompt()`, `loadHypothesesForLink()`, `submitHypothesisLink()` functions; call site in `renderStatsOutput()`
+- `agents_api/hoshin_calculations.py` — Added `estimate_savings_monte_carlo()` function (wraps deterministic function with MC simulation)
+- `agents_api/vsm_views.py` — Updated `generate_proposals()` to use Monte Carlo; added CI fields to proposal response
+- `templates/vsm.html` — Updated proposal card to show savings range ($low — $high/yr, 90% CI, median, P(positive))
+
+**Verification:**
+1. DSW: Run analysis in workbench with Synara hypotheses → "Link to hypothesis" button appears → link works
+2. VSM: Generate proposals → savings show CI range instead of single number
+
+---
+
+### 2026-02-13 — In-App Documentation for Key Features
+
+**What:** Added contextual help panels to VSM, Synara (Hypotheses), and FMEA templates. Collapsible `<details>` sections explain workflows without cluttering the UI.
+
+**Files changed:**
+- `templates/vsm.html` — "How to build a VSM" guide, field tooltips (C/T, C/O, Uptime, Batch, Scrap), metric tooltips (Lead Time, PCE, Takt)
+- `templates/hypotheses.html` — "How hypothesis tracking works" panel explaining Bayesian reasoning and expansion signals
+- `templates/fmea.html` — S/O/D scoring guide, hypothesis linking explanation, enhanced empty state
+
+**Verification:** Visit each module → collapsible help visible at top (closed by default). VSM property labels show tooltips on hover.
+
+---
+
+### 2026-02-13 — Pricing Restructure: $49/$99/$299
+
+**What:** Restructured pricing tiers. Killed Founder tier (legacy users grandfathered), renamed Pro→Professional at $49/mo, Team→$99/mo, Enterprise→$299/mo. Positions Svend as serious tool at 68% less than Minitab ($588/yr vs $1,851/yr).
+
+**Files changed:**
+- `accounts/constants.py` — Updated tier labels, prices, comments
+- `accounts/billing.py` — New Stripe price IDs (Pro: price_1T0Y13, Team: price_1T0Y36, Enterprise: price_1T0Y42), legacy prices kept for existing subscribers, founder checkout redirects to pro
+- `accounts/permissions.py` — Updated tier comments and upgrade messages
+- `templates/landing.html` — New 4-card pricing (Free/Professional/Team/Enterprise), removed founder availability JS, updated meta descriptions and FAQ
+- `templates/settings.html` — Removed hardcoded seat price from invite text
+- `api/tasks.py` — Updated all email campaigns from "Founder $19" → "Professional $49"
+- `api/internal_views.py` — Updated system prompt pricing
+- `agents_api/llm_manager.py` — Updated docstring (Pro→Professional)
+- `svend_config/config.py` — Updated price description
+- `CLAUDE.md`, `DSW_gaps.md`, `STANDARD.md` — Updated pricing references
+- `reference_docs/ARCHITECTURE.md`, `LAUNCH_PLAN.md` — Updated pricing tables and market position
+- `TECH_DEBT.md`, `services/svend/__init__.py`, `agents/agents/CLAUDE.md` — Updated pricing
+- `site/site/index.html`, `agents/site/templates/landing.html`, `agents/site/templates/base.html`, `site/mockups/landing.html` — Updated "$19/month" → "$49/month"
+
+**Verification:** Visit svend.ai → pricing section shows Free/$49/$99/$299. Billing checkout routes to new Stripe prices. Existing founder/pro subscribers unaffected (legacy price IDs still mapped).
+
+---
+
+### 2026-02-13 — ML Lab Diagnostic Engine: Full visualization suite for all ML features
+
+**Context:** Pricing increase (Professional $49, Team $99, Enterprise $299) requires every ML feature to have JMP-competitive diagnostics. Previously From Intent/From Data had zero plots, XGBoost/LightGBM had 2 plots each.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — New shared `_build_ml_diagnostics()` engine:
+  - Classification (6 plots): confusion matrix (counts + %), ROC curve (Youden's J optimal, multiclass one-vs-rest), precision-recall curve (per-class), feature importance, predicted probability distribution (per-class histogram), calibration curve
+  - Regression (6 plots): actual vs predicted (R² annotated), residuals vs predicted (color-coded magnitude), residual histogram + normal + Shapiro-Wilk p, Q-Q plot + reference line, feature importance, scale-location homoscedasticity
+  - `_auto_train()` now returns test split + predictions for diagnostics
+  - Wired into: `dsw_from_intent`, `dsw_from_data`, `xgboost`, `lightgbm`
+  - `model_compare` enhanced: precision/recall/F1 for classification, MAE for regression, multi-metric heatmap, training time bar chart
+- `templates/workbench_new.html` — `renderMLOutput()` renders Plotly plots via stats-plots container
+
+**Verification:** From Intent/Data/XGBoost/LightGBM → 6 diagnostic charts. Compare → heatmap + timing.
+
+---
+
+### 2026-02-13 — ML Lab Layer 5: Hyperparameter Tuning (Optuna)
+
+**Context:** Auto-search for best hyperparameters — closes the last major ML gap vs JMP Pro.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — New `hyperparameter_tune` analysis ID. Supports RF, XGBoost, LightGBM, Ridge, LASSO with predefined search spaces. Optuna study with configurable trials (10-50) and CV folds (3/5). 2-minute timeout. Output: best params, optimization history plot (trial scores + running best), parameter importance plot. Final model trained with best params and cached for saving.
+- `templates/workbench_new.html` — "Tune" button (gear icon) in Auto ML group. `openTuneDialog()` with model type, task, trials, CV folds selectors.
+
+**Package installed:** optuna 4.7.0
+
+**Verification:** `/app/dsw/` → import CSV → Tune → select RF, 30 trials → optimization history + best params + parameter importance.
+
+---
+
+### 2026-02-13 — ML Lab Layer 4: SHAP Explainability
+
+**Context:** SHAP (SHapley Additive exPlanations) gives transparent, per-feature explanations for any model.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — New `shap_explain` analysis ID. TreeExplainer for tree models (RF, XGBoost, LightGBM), KernelExplainer fallback (capped at 100 background samples). Four Plotly charts: (1) Feature importance bar (mean |SHAP|), (2) Beeswarm plot (top 10 features, colored by feature value), (3) Waterfall for single prediction, (4) Dependence plot (top feature vs SHAP value). Works on any cached model from previous analysis.
+- `templates/workbench_new.html` — "Explain" button in Auto ML group. `openShapDialog()` with model key display, target/features, global vs single mode, sample index selector.
+
+**Package installed:** shap 0.49.1 (+ numba, llvmlite, slicer, cloudpickle)
+
+**Verification:** `/app/dsw/` → train any model → Explain → beeswarm plot + feature importance + waterfall renders.
+
+---
+
+### 2026-02-13 — ML Lab Layer 3: XGBoost + LightGBM + GPU Training
+
+**Context:** XGBoost and LightGBM are the industry standard for gradient boosting. GPU training uses the RTX 3090 with configurable allocation.
+
+**Files changed:**
+- `agents_api/gpu_manager.py` — **NEW**. Thread-safe GPU context manager with `_gpu_lock` mutex. Configurable via `SVEND_GPU_TRAINING_PERCENT` env var (default 50%). Falls back to CPU if GPU busy or unavailable. Returns model-specific params: `xgb_params()` (tree_method=hist, device=cuda) and `lgb_params()` (device=gpu).
+- `agents_api/dsw_views.py` — Two new analysis IDs: `xgboost` and `lightgbm`. Both: auto-detect task type, encode categoricals, GPU-accelerated via GPUTrainingContext, exposed hyperparameters (n_estimators, max_depth/num_leaves, learning_rate, subsample), feature importance plots, actual-vs-predicted or confusion matrix, model caching. Also integrated into `model_compare` roster (auto-added when installed).
+- `templates/workbench_new.html` — "XGBoost" and "LightGBM" buttons in Advanced ML group. `openGBMDialog()` with target/features/task/trees/depth/lr selectors.
+
+**Packages installed:** xgboost 3.2.0, lightgbm 4.6.0
+
+**Verification:** `/app/dsw/` → import CSV → XGBoost button → train. `nvidia-smi` should show GPU activity. Compare button now includes XGBoost + LightGBM in roster.
+
+---
+
+### 2026-02-13 — ML Lab Layer 2: Model Comparison + Cross-Validation
+
+**Context:** JMP Pro's killer feature is running 6+ models and comparing with CV. Svend previously only trained one model at a time.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — New `model_compare` analysis ID in the ML dispatch chain (after `regression_ml`, before `clustering`). Classification roster: RF, LogReg (Pipeline w/ Scaler), LDA, NaiveBayes. Regression roster: RF, Linear, Ridge, LASSO, ElasticNet, BayesianRidge. Auto-adds XGBoost/LightGBM if installed. Outputs: comparison table (CV mean ± std, train score, fit time), bar chart with error bars, ROC curves (binary classification), actual-vs-predicted overlay (regression). Best model auto-trained on full data and cached for saving. Gated by `can_use_ml()`.
+- `templates/workbench_new.html` — "Compare" button added to Auto ML ribbon group. `openModelCompareDialog()` function with target, feature checkboxes, task type (auto/classification/regression), CV folds (3/5/10) selectors. Calls `model_compare` analysis via existing `run_analysis` dispatch.
+
+**Verification:** `/app/dsw/` → import CSV → Compare button → select target + features → should show comparison table, bar chart, and ROC/actual-vs-predicted plots.
+
+---
+
+### 2026-02-13 — ML Lab Layer 1: Claude-powered From Intent + From Data
+
+**Context:** Competitive analysis showed JMP Pro ($8,400/yr) as the primary ML gap. The existing `dsw_from_intent()` and `dsw_from_data()` both imported a non-existent `dsw` module and fell back to hardcoded mock results. Replaced with Claude-powered pipelines that generate real data, train real models, and produce AI interpretations.
+
+**Files changed:**
+- `accounts/constants.py` — `can_use_anthropic()` widened from Enterprise-only to all paid tiers. LLMManager already handles tier-based model selection (FOUNDER→haiku, PRO/TEAM→sonnet, ENTERPRISE→opus).
+- `agents_api/dsw_views.py` — 5 new helper functions + 2 system prompts added before From Intent:
+  - `_claude_generate_schema()` — Claude designs dataset schema from natural language
+  - `_generate_data_from_schema()` — numpy/pandas synthetic data from schema
+  - `_clean_for_ml()` — encode categoricals, handle NaN, split X/y
+  - `_auto_train()` — auto-detect classification/regression, train RF, return metrics+importances
+  - `_claude_interpret_results()` — Claude narrative of ML results
+  - `dsw_from_intent()` rewritten: 4-step pipeline (schema→data→train→interpret), `@gated_paid` decorator
+  - `dsw_from_data()` rewritten: upload CSV→clean→train→interpret, `@gated_paid` decorator, preserves `add_finding_to_problem` Synara integration
+- `templates/workbench_new.html` — `renderMLOutput()` updated: AI Insight card for Claude interpretation, Plotly horizontal bar chart for feature importance, save model triggered by `model_key` (no longer requires `can_save` flag), shows task type and data shape details
+
+**Verification:** `/app/dsw/` → From Intent: type "predict widget defects from temperature and pressure" → should get real schema, synthetic data, trained RF, Claude interpretation. From Data: upload CSV + target → real model + interpretation. Non-paid users → 403.
+
+---
+
+### 2026-02-13 — Whiteboard UX gaps: multi-select, copy/paste, resize, SVG export, image drop
+
+**Context:** Competitive gap analysis identified 5 table-stakes UX features missing from the whiteboard. Connection cleanup on delete was also listed but was already implemented. All changes are client-side only in `whiteboard.html`.
+
+**Files changed:**
+- `templates/whiteboard.html` — 5 features added:
+  1. **Multi-select**: `selectedElements` Set, Shift+Click additive toggle, marquee drag-box selection (dashed rect on empty canvas), multi-drag (delta-based, all selected move together), multi-delete (removes all selected + their connections), Ctrl+A select all.
+  2. **Copy/paste**: Ctrl+C copies selected elements + inter-connections, Ctrl+V pastes with new IDs and +40,+40 offset, Ctrl+D duplicates in-place. Connections between copied elements are preserved.
+  3. **Resize handles**: 4 corner handles (nw/ne/sw/se) on selected element. Supports post-its, shapes, groups, images. Diamond constrained to square, images lock aspect ratio. Minimum sizes enforced. Width/height stored in element data and restored on undo/load.
+  4. **SVG export**: Client-side SVG generation (`exportBoardSVG()`). Renders all element types including images, connections with arrowheads, causal IF/THEN labels. New toolbar button next to PNG export.
+  5. **Image drop/paste**: New `image` element type stored as base64 data URL. Drag-and-drop from desktop, Ctrl+V from clipboard. Auto-downscale to max 800px, JPEG compression. 5MB file / 2MB data URL cap. Included in PNG export (async image preload) and SVG export. Resize handles with aspect ratio lock.
+
+**Verification:** Load /app/whiteboard/. Shift+click multiple elements, drag marquee. Ctrl+C/V. Drag image from desktop. Click SVG export. Resize handles on selected element.
+**Commit:** pending
+
+---
+
+### 2026-02-13 — Whiteboard guest invite system
+
+**Context:** Board owners need to share whiteboards with non-users (clients, stakeholders, contractors) without requiring a Svend account. Adds token-based guest access scoped to a single board with tier-based invite limits and owner-controlled permissions (view / edit / edit+vote).
+
+**Files changed:**
+- `agents_api/models.py` — Added `BoardGuestInvite` model (UUID PK, 64-char token, permission choices, expiry, presence fields). Made `BoardVote.user` nullable, added `guest_invite` FK, replaced `unique_together` with conditional `UniqueConstraint`s.
+- `accounts/constants.py` — Added `GUEST_INVITE_LIMITS` (Free=0, Founder=2, Pro=5, Team=15, Enterprise=unlimited) and `GUEST_INVITE_EXPIRY_DAYS` (Founder/Pro=7 days, Team/Enterprise=permanent).
+- `accounts/permissions.py` — Added `@allow_guest` decorator: checks `X-Guest-Token` header first, falls back to `@gated_paid` if no token.
+- `agents_api/whiteboard_views.py` — Switched 6 endpoints to `@allow_guest` (get_board, update_board, update_cursor, add_vote, remove_vote, export_svg) with guest branching. Added 5 new views: `create_guest_invite`, `list_guest_invites`, `revoke_guest_invite`, `set_guest_name`, `guest_board_view`. Added `_build_participants_list()` helper.
+- `agents_api/whiteboard_urls.py` — Added 4 guest API routes (list, create, revoke, set-name).
+- `svend/urls.py` — Added guest page route `app/whiteboard/guest/<token>/`.
+- `templates/base_guest.html` — New minimal base template (no nav/auth, just logo + Guest badge).
+- `templates/guest_invalid.html` — New error page for invalid/expired/revoked tokens.
+- `templates/whiteboard.html` — Variable extends for guest/normal base. Guest mode JS: fetch override for token injection, modified initCollaboration(), applyGuestMode(), name entry modal, invite management modal, Guests toolbar button for owners.
+- `agents_api/migrations/0030_*.py` — Auto-generated migration for above model changes.
+
+**Verification:** `manage.py check` passes. Migration applies cleanly. Guest page route serves HTML. API endpoints accept `X-Guest-Token` header. Owner sees Guests button in collaborative mode. Guest link opens board with minimal UI.
+**Commit:** pending
+
+---
+
+### 2026-02-13 — Internal Dashboard improvements (4 tiers)
+
+**Context:** After fixing the Internal Dashboard dropdown theming, performed a deep audit of the ~2149-line dashboard. Identified 13 improvements across 4 tiers. All implemented in this session.
+
+**Tier 1 — Quick Wins:**
+- Added "New Rule" form to Automation tab (name, trigger, config JSON, action, cooldown)
+- Added toast notification system (CSS + JS `showToast()`) for error feedback — wired into KPI, draft, and campaign loaders
+- Added feedback analytics summary: status counts + category Chart.js doughnut above the feedback table; extended `api_feedback` to return `summary` object
+- Audited JS template literals for broken CSS variables — all clean
+
+**Tier 2 — Marketing:**
+- Added behavioral email segmentation: 14 segments (active:7d/30d, inactive:14d/30d, has_queries, no_queries, new:7d, domain:dsw/spc/doe, plus tiers) with `<optgroup>` organized dropdown and live "X users match" preview via new `api_email_preview` endpoint
+- Added blog content calendar: month-view grid with colored dots (green=published, amber=scheduled, grey=draft) above the post list in the Content tab
+- Added campaign-to-conversion attribution: counts recipients who upgraded within 7 days of campaign, shows "Conversions" column in campaign history table
+
+**Tier 3 — Insights:**
+- Added KPI anomaly alerts: week-over-week change computation in `api_overview`, colored arrow + percentage indicators (green up/red down if >10% change)
+- Added cohort retention endpoint: `api_cohort_retention` returns monthly signup cohorts with retention percentages; rendered as heatmap table in Business tab
+- Added churn risk flags: paid users inactive 14+ days shown in Users tab with severity-colored days-inactive column
+
+**Tier 4 — Automation:**
+- Added feedback-to-action workflow: Reply button (switches to Email tab with user pre-filled), Note button (saves internal annotations); added `internal_notes` field to Feedback model
+- Added compound automation triggers: `trigger_2`, `trigger_2_config`, `trigger_logic` fields on AutomationRule; refactored `process_automations` to use `_evaluate_trigger` helper with AND/OR logic; updated rule form UI with optional 2nd trigger
+- Added autopilot recommendation tracking: approved recommendations now store result object IDs; UI shows action status (Experiment created / Blog draft created / Email queued) instead of just checkmark
+
+**Files changed:**
+- `api/internal_views.py` — Added `_resolve_recipients()` helper, `api_email_preview()`, `api_cohort_retention()` endpoints. Extended `api_overview` with WoW changes, `api_users` with churn_risk, `api_feedback` with summary + internal_notes, `api_email_campaigns` with conversions, `api_automation_rules` with compound trigger fields, `api_autopilot_approve` with result tracking
+- `templates/internal_dashboard.html` — Toast system, new rule form, feedback summary + doughnut, email segmentation dropdown + preview count, content calendar, campaign conversions column, KPI change indicators, retention heatmap, churn risk table, feedback action buttons, compound trigger UI, autopilot result display
+- `api/models.py` — Added `Feedback.internal_notes`, `AutomationRule.trigger_2/trigger_2_config/trigger_logic`
+- `api/tasks.py` — Refactored `process_automations` with `_evaluate_trigger()` helper for compound trigger evaluation
+- `api/urls.py` — Added `email-preview/` and `cohort-retention/` routes
+- `api/migrations/0008_feedback_internal_notes.py` — New field
+- `api/migrations/0009_automation_compound_triggers.py` — New fields
+
+**Verification:** Load /internal/ — all 10 tabs should work. KPI cards show WoW arrows. Email tab shows segments with user count. Content tab shows calendar. Business tab shows retention heatmap. Users tab shows churn risk. Feedback tab shows summary + Reply/Note buttons. Automation tab supports compound rules. Autopilot shows result status.
+**Commit:** pending
+
+---
+
+### 2026-02-13 — Fix Internal Dashboard dropdown theming
+
+**Context:** Dropdowns and form inputs in the Internal Dashboard were unreadable in dark/themed modes. Root cause: `var(--surface)` CSS variable doesn't exist in the Svend theme system, and `var(--bg-card)` was the wrong variable name (`--card-bg` is the actual name). Email dropdown options also had hardcoded dark-mode colors.
+
+**Files changed:**
+- `templates/internal_dashboard.html` — Replaced all `var(--surface)` → `var(--bg-tertiary)`, all `var(--bg-card)` → `var(--card-bg)`. Removed hardcoded `style="color:#e8efe8;background:#121a12;"` from email `<option>` elements. Added global `select, option` CSS rule to inherit theme colors.
+
+**Verification:** Load /internal/ — all dropdowns (email To, experiment type/status, feedback filter, inline feedback status) should be readable in all 6 themes.
+**Commit:** pending
+
+---
+
+### 2026-02-13 — Replace VSM emojis with Svend-style SVG icons
+
+**Context:** Value Stream Map palette, canvas rendering, and landing page showcase used emoji characters (factory, people, truck, package, etc.) which render inconsistently across platforms. Replaced all with inline SVG stroke icons matching the Svend design system (24x24 viewBox, stroke-based, currentColor).
+
+**Files changed:**
+- `templates/vsm.html` — Replaced all 13 palette icon entities with inline SVGs. Added `VSM_ICONS` constant and `createSvgIcon()` helper. Updated `renderEntityBox()` to render SVG icons instead of emoji text. Updated inventory delay type icon rendering (queue/transport/batch) to use SVG icons.
+- `templates/landing.html` — Replaced supplier (factory emoji) and customer (people emoji) in the VSM showcase SVG with inline SVG icon paths.
+
+**Verification:** Load /app/vsm/ — palette icons should render as clean monochrome stroke icons. Create customer/supplier entities on canvas — icons should appear as SVG. Load landing page — VSM showcase should show stroke icons for supplier/customer. Check all 6 themes.
+**Commit:** pending
+
+---
+
+### 2026-02-13 — Close DSW gaps: 7 new analyses + gap audit
+
+**Context:** Gap analysis showed ~91% Minitab parity but was stale — audit found 18 items already implemented. After check-off, true coverage ~95%. Built 7 new analyses to close remaining visible holes.
+
+**Files changed:**
+- `DSW_gaps.md` — Checked off 18 already-implemented items (reliability, SPC, GLM, ordinal logistic, factor analysis, sign test, Mood's, Box-Cox, etc.). Updated scorecard to ~95%. Added Resolved section.
+- `agents_api/dsw_views.py` — Added 7 new analysis blocks:
+  - `individual_value_plot` (viz): jittered points by group with mean diamonds + CI bars
+  - `interval_plot` (viz): group means with t-interval CI error bars + overall mean line
+  - `dotplot` (viz): stacked dot display with optional grouping
+  - `run_chart` (stats): time-ordered values + median line + runs tests (clustering/mixtures p-values)
+  - `grubbs_test` (stats): formal single-outlier test with G statistic + critical value + highlight plot
+  - `ccf` (stats): cross-correlation function with lag bars + significance bands
+  - `johnson_transform` (stats): SB/SL/SU family fitting, before/after histograms, best family selection
+- `templates/workbench_new.html` — Added 3 graph ribbon buttons (Ind Value, Interval, Dotplot) + Run Chart button in Prepare ribbon. Added dialogs: openIndValueDialog, openIntervalDialog, openDotplotDialog, openRunChartDialog. Added Grubbs + Johnson to Diagnostics dialog. Added CCF to All Tests time series group.
+
+**Verification:** Upload CSV → Graph ribbon shows 12 chart types. Prepare ribbon has Run Chart. Diagnostics has Grubbs + Johnson. All Tests has CCF under Time Series.
+**Commit:** pending
+
+---
+
+### 2026-02-13 — Graphical Summary + Auto-Profile on Import
+
+**Context:** DSW had 129 analysis types but no automatic data exploration on import. Users upload data and see a raw worksheet. Added Minitab-style Graphical Summary and auto-profiling on import.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — Added `auto_profile` analysis (lightweight overview: column stats, correlation heatmap, distribution histograms for up to 12 numeric columns, missing data bar chart). Added `graphical_summary` analysis (Minitab-style per-variable view: histogram + normal PDF overlay, boxplot, CI bars for mean/median, Anderson-Darling normality test, full descriptive stats, CIs for mean/median/StDev using scipy.stats)
+- `templates/workbench_new.html` — Added `autoRunProfile()` function, called after triage scan (clean data) and after triage fix (committed data). Added "Graphical" button in Prepare ribbon with column-select dialog + confidence level input. Added `openGraphicalSummaryDialog()` function.
+
+**Verification:** Upload CSV → "Data Overview" tab appears automatically. Click Graphical → select columns → histogram + normal curve, boxplot, CI bars, Anderson-Darling test, full stats.
+**Commit:** pending
+
+---
+
+### 2026-02-13 — Fix triage auto-fix silently dropping data
+
+**Context:** User reported triage auto-fix dropping data entirely on import. Three root causes found:
+
+1. **Response format mismatch (primary):** `workbench_new.html` (served at `/app/dsw/`) expects `data.cleaned_csv` in the triage response to re-upload as a new dataset. The `triage_data()` endpoint never included this field. So `data.cleaned_csv` was `undefined`, the frontend created a CSV blob containing the literal string "undefined", re-uploaded it, and the dataset became empty — 0 usable rows.
+2. **DSW triage `drop_rows` was nuclear:** `df.dropna()` drops every row with even ONE missing value. With real-world data (e.g. 70% missing in a notes column), this destroyed 91/100 rows.
+3. **Standalone triage (separate code path):** `triage_views.py` + `scrub` module at `/api/triage/clean/` had its own bug where `DataCleaner` ignored config's `drop_threshold`, auto-dropping columns >50% missing.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — Added `cleaned_csv` string to response (the actual fix); rewrote `drop_rows` to only drop rows >80% empty then impute the rest; type conversion no longer silently creates NaN; added `warnings` and `cols_removed` to response
+- `templates/analysis_workbench.html` — Shows warnings in session output; `drop_rows` label updated
+- `templates/workbench_new.html` — Shows warnings in toast; `drop_rows` label updated
+- `services/scrub/missing.py` — Removed auto-DROP from `analyze()`; added transparency fields to MissingResult; fixed median/mean for Int64 columns
+- `services/scrub/cleaner.py` — Passes `config.drop_threshold` to MissingHandler; surfaces warnings
+- `agents_api/triage_views.py` — Response includes `columns_dropped`, `rows_dropped`
+- `templates/triage.html` — 6-stat summary, "Changes Made" section, delta indicators
+
+**Verification:** Upload water potability CSV (3276 rows, 3 columns with missing) → all rows preserved, missing imputed
+**Commit:** pending
+
+---
+
+### 2026-02-13 — Security hardening: field-level encryption, infrastructure, privacy policy
+
+**Files changed:**
+- `.env`, `.env.production` — chmod 600 (was world-readable 644)
+- `/home/eric/.svend_encryption_key` — New Fernet key file (chmod 600)
+- `pyproject.toml` — Added `cryptography>=41.0` dependency
+- `Caddyfile` — Added HSTS (2yr, preload), CSP, Permissions-Policy headers; fixed stale static path
+- `svend/settings.py` — Removed BasicAuthentication from REST_FRAMEWORK; added SECURE_HSTS_*, SECURE_SSL_REDIRECT, SECURE_PROXY_SSL_HEADER, FIELD_ENCRYPTION_KEY
+- `svend_config/config.py` — Added `field_encryption_key` setting
+- `start_prod.sh` — Loads encryption key from keyfile before gunicorn start
+- `core/encryption.py` — New: EncryptedTextField, EncryptedCharField, EncryptedJSONField, encrypt/decrypt helpers, hash_token()
+- `core/encrypted_storage.py` — New: EncryptedFileSystemStorage (encrypts files on disk)
+- `chat/models.py` — Message.content, reasoning_trace, tool_calls; TraceLog.input_text, reasoning_trace, tool_calls, reasoner_raw_output, lm_prompt, lm_raw_output, response; TrainingCandidate.input_text, reasoning_trace, model_response, corrected_response → encrypted fields
+- `accounts/models.py` — stripe_customer_id → EncryptedCharField + stripe_customer_id_hash (SHA-256, indexed); verification token → stored as SHA-256 hash; generate_verification_token() returns plaintext but stores hash; verify_email() compares hashes
+- `accounts/billing.py` — Stripe customer lookup uses hash column; populates hash on create
+- `agents_api/models.py` — DSWResult.data, TriageResult.cleaned_csv/report_markdown/summary_json → EncryptedTextField
+- `files/models.py` — UserFile.file uses EncryptedFileSystemStorage
+- `chat/migrations/0005_*`, `0006_encrypt_existing_data.py` — Schema + data migration
+- `accounts/migrations/0009_*`, `0010_encrypt_existing_data.py` — Schema + data migration (hash column + encryption)
+- `agents_api/migrations/0028_*`, `0029_encrypt_existing_data.py` — Schema + data migration
+- `files/migrations/0002_*` — Storage backend migration
+- `files/management/commands/encrypt_existing_files.py` — New: one-time command to encrypt files on disk
+- `forge/management/commands/purge_old_data.py` — Extended with retention policy: TraceLog 30d, AgentLog 30d, TrainingCandidate 30/7d, EventLog 90d, SharedConversation expired, BlogView 180d
+- `backup_db.sh` — New: pg_dump | gzip | AES-256 encrypted backups with 30d retention
+- `svend-backup.service` + `svend-backup.timer` — New: systemd daily backup at 03:00
+- `templates/privacy.html` — Full rewrite: 10 sections covering data collection, encryption at rest, retention schedule, third-party services, rights, cookies, email
+
+**Verification:**
+1. Raw DB query shows Fernet ciphertext (gAAAAA...) for stripe_customer_id, dsw_result.data — confirmed
+2. ORM reads decrypt transparently — confirmed
+3. `curl -I https://svend.ai` should show HSTS, CSP, Permissions-Policy headers
+4. `python manage.py encrypt_existing_files --dry-run` shows 0 unencrypted files
+5. `python manage.py purge_old_data --dry-run` runs without error
+6. Privacy policy at /privacy/ reflects all actual data practices
+
+---
+
+### 2026-02-13 — DSW session save/load + model save/load + UX fixes
+
+**Files changed:**
+- `templates/base_app.html` — Logo href changed from `/` to `/app/` for logged-in users. Internal nav checks `is_internal` instead of `is_staff`.
+- `api/internal_views.py` — Added `INTERNAL_TENANT_SLUGS`, `can_access_internal()`, `IsInternalUser` permission class. Replaced `IsAdminUser` with `IsInternalUser` on all internal endpoints.
+- `api/views.py` — Added `is_internal` field to `/api/auth/me/` response.
+- `templates/workbench_new.html` — Added Save/Load Model buttons to ML ribbon. Added `openSaveModelDialog()`, `openLoadModelDialog()`, `saveModel()`, `appendSaveModelPrompt()`. Renamed top-right button to "Save Session". Added `collectSessionState()`, `collectOutputTabs()`. Rewrote `saveWorkbench()` to persist full session (output tabs, data ref, cache key). Updated `loadWorkbench()` to restore saved session state (output tabs, data panel, variables). Removed redundant `apiPost` in `openLoadModelDialog`. Both `renderStatsOutput` and `renderMLOutput` now track `lastModelKey` and show inline save prompts.
+- `workbench/views.py` — `update_workbench` accepts `datasets` and `guide_observations` on PATCH.
+- `workbench/models.py` — Added `layout` to `to_json()` serialization.
+**Verification:** Save a DSW session with data + analysis output, reload from list — output tabs and data panel should restore. Save/Load model from ML ribbon should work.
+
+---
+
 ### 2026-02-13 — Exclude rtWzrd from internal analytics
 
 **Files changed:**
@@ -114,6 +678,17 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - 10 stale reference docs: CLAUDE.md, PIPELINE_GUIDE.md, experiment_001_reasoning.md, RETRAINING_STRATEGY.md, SAFETY_EVAL_GUIDE.md, TOOL_SPEC_V0.md, TOOL_TRACE_GENERATION.md, TRAINING_STRATEGY.md, BETA_DEPLOYMENT.md, SVEND_PRODUCTION_PLAN.md, README.md
 **Kept:** `core/reasoning.py` (CodeReasoner used by agents), `agents/agents/CLAUDE.md` (current agent docs), reference_docs/ARCHITECTURE.md, SYNARA_WHITEPAPER.md, DATA_SOURCES.md, POLICIES.md, ROADMAP.md, LAUNCH_PLAN.md
 **Verification:** `grep -r "from.*server\|from.*pipeline\|from.*inference_tools\|from.*evaluation.harness" services/svend/web/` returns nothing — zero production imports.
+
+---
+
+### 2026-02-13 — Whiteboard: snap-to-grid, VSM removal, diamond connection points
+
+**Files changed:**
+- `templates/whiteboard.html` — Three changes:
+  1. **Snap-to-grid:** Added `GRID_SIZE = 20` and `snapToGrid()` helper. Applied to all 4 element placement paths (click postit, click text, drag move, drag-and-drop from sidebar). Grid size matches the visual background pattern.
+  2. **VSM removal:** Removed `vsm-process` and `vsm-inventory` element types from `createElement()`, removed ~40 lines of VSM CSS, removed VSM case from `loadTemplate()`. Replaced VSM template button with link to `/app/vsm/` since VSM is now its own standalone module.
+  3. **Diamond connection points at vertices:** Repositioned CSS connection point dots from edge midpoints to the corners of the unrotated 80×80 box (which become the visual vertices after 45deg rotation). Restored `cornerExt = 0.21` in `getConnectionPoint()` JS so SVG connector paths reach the actual diamond tips instead of the bounding box edges.
+**Verification:** Open whiteboard, drag elements — they snap to 20px grid. Diamond shapes show connection dots at all 4 pointy tips. Connectors attach at diamond vertices. VSM shapes no longer in sidebar.
 
 ---
 
@@ -2296,3 +2871,51 @@ All calculators include real-time updates and visualizations where applicable.
 
 **Files changed:**
 - `templates/calculators.html` - Added nav items, layouts, and JavaScript functions
+
+---
+
+## ML Interpretation & Decision Language — 2025-02-13
+
+Added "last mile" interpretation to all ML outputs — every model training result now answers "does this matter?" and "what should I do?" instead of just showing raw metrics.
+
+### Statistical Analyses (dsw_views.py)
+
+Added `_effect_magnitude()` and `_practical_block()` helpers. Enhanced 8 analyses with effect sizes and four-way interpretation matrix (significant+meaningful → act, significant+small → consider cost, significant+negligible → ignore, not significant+large → need more data):
+
+- **One-sample t-test** — Cohen's d
+- **Two-sample t-test** — Cohen's d (pooled std), direction context
+- **Paired t-test** — Cohen's d, improvement language
+- **One-way ANOVA** — eta-squared, omega-squared
+- **Two-way ANOVA** — partial eta-squared per factor, strongest effect ID
+- **Chi-square** — Cramér's V
+- **Regression** — R² as effect size, RMSE in plain language, significant predictors
+- **Correlation** — per-pair p-values, KEY RELATIONSHIPS ranked by shared variance %
+
+All enhanced analyses include `guide_observation` with effect sizes for downstream Synara Bayesian updates.
+
+### ML Analyses (dsw_views.py)
+
+Added `_ml_interpretation()` helper. Enhanced 4 ML analysis types:
+
+- **Classification** — majority class baseline comparison, lift %, class imbalance warning (>80%), confusion matrix highlights
+- **Regression ML** — RMSE as % of data range, CV(RMSE), R² practical significance, predict-mean baseline
+- **Model Compare** — overfitting diagnosis (train-test gap), winner margin analysis, baseline comparison, deployment recommendation
+- **Clustering** — silhouette score interpretation (strong/reasonable/weak/none), cluster size imbalance warning
+
+### Autopilot Endpoints (autopilot_views.py)
+
+Added `_build_training_interpretation()` and `_build_retrain_interpretation()` helpers. All 4 autopilot endpoints now return interpretation:
+
+- **Clean+Train** — baseline comparison, data quality impact, top drivers, next steps
+- **Full Pipeline** — same + Optuna tuning context
+- **Augment+Train** — same + synthetic data impact
+- **Retrain** — previous vs current comparison, degradation flags, notable changes
+
+### Frontend (models.html)
+
+Updated both rendering paths (inline results + modal report) to display interpretation with formatted newlines, colored checkmarks (✓ green), and warning icons (⚠ amber).
+
+**Files changed:**
+- `agents_api/dsw_views.py` — `_effect_magnitude()`, `_practical_block()`, `_ml_interpretation()`, enhanced 12 analysis types
+- `agents_api/autopilot_views.py` — `_build_training_interpretation()`, `_build_retrain_interpretation()`, all 4 endpoints + retrain
+- `templates/models.html` — interpretation rendering in both display paths

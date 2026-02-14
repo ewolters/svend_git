@@ -16,7 +16,7 @@ from django.views.decorators.http import require_http_methods
 
 from django.conf import settings
 from .models import DSWResult, AgentLog, SavedModel
-from accounts.permissions import gated, require_auth, require_enterprise
+from accounts.permissions import gated, gated_paid, require_auth, require_enterprise
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,10 @@ def _preload_llm_background():
         logger.warning(f"Could not trigger LLM preload: {e}")
 
 
-def save_model_to_disk(user, model, model_type, dsw_result_id, name=None, metrics=None, features=None, target=None):
+def save_model_to_disk(user, model, model_type, dsw_result_id, name=None,
+                       metrics=None, features=None, target=None,
+                       project_id=None, training_config=None,
+                       data_lineage=None, parent_model_id=None):
     """Save a trained model to disk and create database record.
 
     Returns SavedModel instance or None if failed.
@@ -128,6 +131,25 @@ def save_model_to_disk(user, model, model_type, dsw_result_id, name=None, metric
         with open(model_path, "wb") as f:
             pickle.dump(model, f)
 
+        # Resolve optional project link
+        project = None
+        if project_id:
+            try:
+                from core.models import Project
+                project = Project.objects.get(id=project_id)
+            except Exception:
+                logger.warning(f"Could not link model to project {project_id}")
+
+        # Resolve parent model for versioning
+        version = 1
+        parent_model = None
+        if parent_model_id:
+            try:
+                parent_model = SavedModel.objects.get(id=parent_model_id, user=user)
+                version = parent_model.version + 1
+            except SavedModel.DoesNotExist:
+                pass
+
         # Create database record
         saved_model = SavedModel.objects.create(
             id=model_id,
@@ -139,9 +161,14 @@ def save_model_to_disk(user, model, model_type, dsw_result_id, name=None, metric
             metrics=json.dumps(metrics) if metrics else "",
             feature_names=json.dumps(features) if features else "",
             target_name=target or "",
+            project=project,
+            training_config=training_config or {},
+            data_lineage=data_lineage or {},
+            version=version,
+            parent_model=parent_model,
         )
 
-        logger.info(f"Saved model {model_id} for user {user.username}")
+        logger.info(f"Saved model {model_id} v{version} for user {user.username}")
         return saved_model
 
     except Exception as e:
@@ -149,11 +176,720 @@ def save_model_to_disk(user, model, model_type, dsw_result_id, name=None, metric
         return None
 
 
+# ─── Synara Evidence Bridge ───────────────────────────────────────────────────
+# Auto-creates core.Evidence when ML models are trained with a project link.
+
+
+def _create_ml_evidence(user, project_id, model_type, metrics, importances, task, target):
+    """Create core.Evidence from ML model results, linked to a project.
+
+    Called automatically when a model is trained with a project_id.
+    Returns the Evidence instance or None on failure.
+    """
+    try:
+        from core.models import Project
+        from core.models.hypothesis import Evidence as CoreEvidence
+
+        project = Project.objects.get(id=project_id)
+
+        top_features = [f["feature"] for f in (importances or [])[:3]]
+        primary_metric = metrics.get("accuracy") or metrics.get("r2")
+        metric_name = "Accuracy" if task == "classification" else "R²"
+
+        metric_str = f"{primary_metric:.4f}" if isinstance(primary_metric, (int, float)) else str(primary_metric)
+        features_str = ", ".join(top_features) if top_features else "N/A"
+
+        summary = (
+            f"ML Model ({model_type}) trained to predict '{target}'. "
+            f"{metric_name}: {metric_str}. "
+            f"Top predictive factors: {features_str}."
+        )
+
+        confidence = 0.5
+        if isinstance(primary_metric, (int, float)):
+            confidence = min(max(float(primary_metric), 0.1), 0.95)
+
+        evidence = CoreEvidence.objects.create(
+            project=project,
+            summary=summary,
+            source_type="analysis",
+            source_description=f"DSW ML Pipeline ({model_type})",
+            result_type="statistical",
+            confidence=confidence,
+            created_by=user,
+            raw_output={
+                "model_type": model_type,
+                "metrics": metrics,
+                "top_features": top_features,
+                "task": task,
+                "target": target,
+            },
+        )
+
+        logger.info(f"Created ML evidence {evidence.id} for project {project_id}")
+        return evidence
+
+    except Exception as e:
+        logger.warning(f"Could not create ML evidence for project {project_id}: {e}")
+        return None
+
+
+# ─── ML Diagnostic Engine ──────────────────────────────────────────────────────
+# Shared by From Intent, From Data, XGBoost, LightGBM, Model Compare.
+# Generates a comprehensive suite of Plotly charts for any trained model.
+
+def _build_ml_diagnostics(model, X_test, y_test, y_pred, features, task,
+                          label_map=None, model_name="Model"):
+    """Build comprehensive diagnostic plots for a trained ML model.
+
+    Returns list of Plotly plot dicts (same format as DSW analysis plots).
+
+    Classification (6 plots): confusion matrix, ROC, precision-recall,
+    feature importance, probability distribution, calibration curve.
+
+    Regression (6 plots): actual-vs-predicted, residuals, residual histogram,
+    Q-Q plot, feature importance, scale-location.
+    """
+    import numpy as np
+    from sklearn.metrics import confusion_matrix
+
+    plots = []
+
+    if task == "classification":
+        plots.extend(_diag_classification(model, X_test, y_test, y_pred, features, label_map, model_name))
+    else:
+        plots.extend(_diag_regression(model, X_test, y_test, y_pred, features, model_name))
+
+    return plots
+
+
+def _diag_classification(model, X_test, y_test, y_pred, features, label_map, model_name):
+    """Classification diagnostic suite."""
+    import numpy as np
+    from sklearn.metrics import confusion_matrix, roc_curve, auc, precision_recall_curve, average_precision_score
+
+    plots = []
+    classes = sorted(list(set(y_test.tolist()) | set(y_pred.tolist())))
+    str_labels = [str(label_map.get(c, c) if label_map else c) for c in classes]
+
+    # 1. Confusion Matrix (annotated with counts + percentages)
+    cm = confusion_matrix(y_test, y_pred, labels=classes)
+    cm_pct = (cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100)
+    annotations = []
+    for i in range(len(classes)):
+        for j in range(len(classes)):
+            annotations.append({
+                "x": str_labels[j], "y": str_labels[i],
+                "text": f"{cm[i][j]}<br>({cm_pct[i][j]:.1f}%)",
+                "showarrow": False, "font": {"color": "#fff" if cm[i][j] > cm.max() * 0.5 else "#aaa", "size": 12},
+            })
+    plots.append({
+        "title": "Confusion Matrix",
+        "data": [{
+            "type": "heatmap", "z": cm.tolist(), "x": str_labels, "y": str_labels,
+            "colorscale": [[0, "#0d120d"], [0.5, "#2a6b3a"], [1, "#4a9f6e"]],
+            "showscale": True, "hoverongaps": False,
+            "hovertemplate": "Predicted: %{x}<br>Actual: %{y}<br>Count: %{z}<extra></extra>",
+        }],
+        "layout": {
+            "template": "plotly_dark", "height": 320,
+            "xaxis": {"title": "Predicted", "side": "bottom"},
+            "yaxis": {"title": "Actual", "autorange": "reversed"},
+            "annotations": annotations,
+        },
+    })
+
+    # 2. ROC Curve
+    if hasattr(model, 'predict_proba'):
+        try:
+            y_prob = model.predict_proba(X_test)
+            if len(classes) == 2:
+                # Binary ROC
+                fpr, tpr, thresholds = roc_curve(y_test, y_prob[:, 1], pos_label=classes[1])
+                roc_auc = auc(fpr, tpr)
+                # Find optimal threshold (Youden's J)
+                j_scores = tpr - fpr
+                opt_idx = np.argmax(j_scores)
+                plots.append({
+                    "title": f"ROC Curve (AUC = {roc_auc:.3f})",
+                    "data": [
+                        {"type": "scatter", "x": fpr.tolist(), "y": tpr.tolist(), "mode": "lines",
+                         "line": {"color": "#4a9f6e", "width": 2.5}, "name": f"ROC (AUC={roc_auc:.3f})",
+                         "fill": "tozeroy", "fillcolor": "rgba(74,159,110,0.1)"},
+                        {"type": "scatter", "x": [0, 1], "y": [0, 1], "mode": "lines",
+                         "line": {"dash": "dash", "color": "#555", "width": 1}, "name": "Random", "showlegend": True},
+                        {"type": "scatter", "x": [float(fpr[opt_idx])], "y": [float(tpr[opt_idx])],
+                         "mode": "markers", "marker": {"color": "#e89547", "size": 10, "symbol": "star"},
+                         "name": f"Optimal (J={j_scores[opt_idx]:.2f})", "showlegend": True},
+                    ],
+                    "layout": {
+                        "template": "plotly_dark", "height": 320,
+                        "xaxis": {"title": "False Positive Rate", "range": [0, 1]},
+                        "yaxis": {"title": "True Positive Rate", "range": [0, 1.05]},
+                    },
+                })
+            else:
+                # Multiclass one-vs-rest
+                from sklearn.preprocessing import label_binarize
+                y_bin = label_binarize(y_test, classes=classes)
+                roc_traces = []
+                colors = ["#4a9f6e", "#e89547", "#6a7fff", "#e8c547", "#ff7eb9", "#4a9faf", "#d06060", "#8a7fbf"]
+                for i, cls in enumerate(classes):
+                    if y_bin.shape[1] > i:
+                        fpr_i, tpr_i, _ = roc_curve(y_bin[:, i], y_prob[:, i])
+                        auc_i = auc(fpr_i, tpr_i)
+                        lbl = str(label_map.get(cls, cls) if label_map else cls)
+                        roc_traces.append({
+                            "type": "scatter", "x": fpr_i.tolist(), "y": tpr_i.tolist(),
+                            "mode": "lines", "line": {"color": colors[i % len(colors)], "width": 2},
+                            "name": f"{lbl} (AUC={auc_i:.3f})",
+                        })
+                roc_traces.append({
+                    "type": "scatter", "x": [0, 1], "y": [0, 1], "mode": "lines",
+                    "line": {"dash": "dash", "color": "#555"}, "name": "Random",
+                })
+                plots.append({
+                    "title": "ROC Curves (One-vs-Rest)",
+                    "data": roc_traces,
+                    "layout": {"template": "plotly_dark", "height": 350, "xaxis": {"title": "FPR"}, "yaxis": {"title": "TPR"}},
+                })
+        except Exception:
+            pass
+
+    # 3. Precision-Recall Curve
+    if hasattr(model, 'predict_proba'):
+        try:
+            y_prob = model.predict_proba(X_test)
+            if len(classes) == 2:
+                precision, recall, _ = precision_recall_curve(y_test, y_prob[:, 1], pos_label=classes[1])
+                ap = average_precision_score(y_test, y_prob[:, 1], pos_label=classes[1])
+                plots.append({
+                    "title": f"Precision-Recall Curve (AP = {ap:.3f})",
+                    "data": [
+                        {"type": "scatter", "x": recall.tolist(), "y": precision.tolist(), "mode": "lines",
+                         "line": {"color": "#4a9faf", "width": 2.5}, "name": f"PR (AP={ap:.3f})",
+                         "fill": "tozeroy", "fillcolor": "rgba(74,159,175,0.1)"},
+                    ],
+                    "layout": {
+                        "template": "plotly_dark", "height": 320,
+                        "xaxis": {"title": "Recall", "range": [0, 1]},
+                        "yaxis": {"title": "Precision", "range": [0, 1.05]},
+                    },
+                })
+            else:
+                # Multiclass: per-class PR curves
+                from sklearn.preprocessing import label_binarize
+                y_bin = label_binarize(y_test, classes=classes)
+                pr_traces = []
+                colors = ["#4a9faf", "#e89547", "#6a7fff", "#e8c547", "#ff7eb9", "#4a9f6e"]
+                for i, cls in enumerate(classes):
+                    if y_bin.shape[1] > i:
+                        p_i, r_i, _ = precision_recall_curve(y_bin[:, i], y_prob[:, i])
+                        ap_i = average_precision_score(y_bin[:, i], y_prob[:, i])
+                        lbl = str(label_map.get(cls, cls) if label_map else cls)
+                        pr_traces.append({
+                            "type": "scatter", "x": r_i.tolist(), "y": p_i.tolist(),
+                            "mode": "lines", "line": {"color": colors[i % len(colors)], "width": 2},
+                            "name": f"{lbl} (AP={ap_i:.3f})",
+                        })
+                plots.append({
+                    "title": "Precision-Recall Curves (Per Class)",
+                    "data": pr_traces,
+                    "layout": {"template": "plotly_dark", "height": 350, "xaxis": {"title": "Recall"}, "yaxis": {"title": "Precision"}},
+                })
+        except Exception:
+            pass
+
+    # 4. Feature Importance
+    if hasattr(model, 'feature_importances_'):
+        importances = model.feature_importances_
+        sorted_idx = np.argsort(importances)
+        plots.append({
+            "title": "Feature Importance",
+            "data": [{
+                "type": "bar", "orientation": "h",
+                "x": importances[sorted_idx].tolist(),
+                "y": [features[i] if i < len(features) else f"feat_{i}" for i in sorted_idx],
+                "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+            }],
+            "layout": {"template": "plotly_dark", "height": max(220, len(features) * 22)},
+        })
+
+    # 5. Predicted Probability Distribution
+    if hasattr(model, 'predict_proba'):
+        try:
+            y_prob = model.predict_proba(X_test)
+            prob_traces = []
+            colors = ["#4a9f6e", "#d06060", "#4a9faf", "#e8c547", "#8a7fbf", "#e89547"]
+            for i, cls in enumerate(classes):
+                mask = (np.array(y_test) == cls)
+                if mask.any() and y_prob.shape[1] > 1:
+                    col_idx = min(1, y_prob.shape[1] - 1) if len(classes) == 2 else i
+                    lbl = str(label_map.get(cls, cls) if label_map else cls)
+                    prob_traces.append({
+                        "type": "histogram", "x": y_prob[mask, col_idx].tolist(),
+                        "name": f"Actual: {lbl}", "opacity": 0.6,
+                        "marker": {"color": colors[i % len(colors)]},
+                    })
+            if prob_traces:
+                plots.append({
+                    "title": "Predicted Probability Distribution",
+                    "data": prob_traces,
+                    "layout": {
+                        "template": "plotly_dark", "height": 280, "barmode": "overlay",
+                        "xaxis": {"title": "Predicted Probability"}, "yaxis": {"title": "Count"},
+                    },
+                })
+        except Exception:
+            pass
+
+    # 6. Calibration Curve (reliability diagram)
+    if hasattr(model, 'predict_proba') and len(classes) == 2:
+        try:
+            from sklearn.calibration import calibration_curve
+            y_prob = model.predict_proba(X_test)[:, 1]
+            y_binary = (np.array(y_test) == classes[1]).astype(int)
+            n_bins = min(10, max(3, len(y_test) // 20))
+            fraction_pos, mean_pred = calibration_curve(y_binary, y_prob, n_bins=n_bins)
+            plots.append({
+                "title": "Calibration Curve",
+                "data": [
+                    {"type": "scatter", "x": mean_pred.tolist(), "y": fraction_pos.tolist(),
+                     "mode": "lines+markers", "line": {"color": "#4a9f6e", "width": 2},
+                     "marker": {"size": 8, "color": "#4a9f6e"}, "name": model_name},
+                    {"type": "scatter", "x": [0, 1], "y": [0, 1], "mode": "lines",
+                     "line": {"dash": "dash", "color": "#555"}, "name": "Perfectly Calibrated"},
+                ],
+                "layout": {
+                    "template": "plotly_dark", "height": 300,
+                    "xaxis": {"title": "Mean Predicted Probability", "range": [0, 1]},
+                    "yaxis": {"title": "Fraction of Positives", "range": [0, 1]},
+                },
+            })
+        except Exception:
+            pass
+
+    return plots
+
+
+def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
+    """Regression diagnostic suite."""
+    import numpy as np
+    from scipy import stats
+
+    plots = []
+    y_test_arr = np.array(y_test)
+    y_pred_arr = np.array(y_pred)
+    residuals = y_test_arr - y_pred_arr
+
+    # 1. Actual vs Predicted (with R² annotation and prediction band)
+    from sklearn.metrics import r2_score
+    r2 = r2_score(y_test_arr, y_pred_arr)
+    y_min, y_max = float(y_test_arr.min()), float(y_test_arr.max())
+    plots.append({
+        "title": f"Actual vs Predicted (R² = {r2:.4f})",
+        "data": [
+            {"type": "scatter", "x": y_test_arr.tolist(), "y": y_pred_arr.tolist(),
+             "mode": "markers", "marker": {"color": "rgba(74,159,110,0.5)", "size": 5,
+             "line": {"color": "#4a9f6e", "width": 0.5}}, "name": "Predictions"},
+            {"type": "scatter", "x": [y_min, y_max], "y": [y_min, y_max],
+             "mode": "lines", "line": {"color": "#d06060", "dash": "dash", "width": 2}, "name": "Perfect Fit"},
+        ],
+        "layout": {
+            "template": "plotly_dark", "height": 320,
+            "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"},
+            "annotations": [{"x": 0.05, "y": 0.95, "xref": "paper", "yref": "paper",
+                             "text": f"R² = {r2:.4f}", "showarrow": False,
+                             "font": {"size": 14, "color": "#4a9f6e"}, "bgcolor": "rgba(0,0,0,0.5)"}],
+        },
+    })
+
+    # 2. Residuals vs Predicted (with lowess trend)
+    # Color by magnitude
+    abs_res = np.abs(residuals)
+    res_norm = (abs_res - abs_res.min()) / (abs_res.max() - abs_res.min() + 1e-10)
+    plots.append({
+        "title": "Residuals vs Predicted",
+        "data": [
+            {"type": "scatter", "x": y_pred_arr.tolist(), "y": residuals.tolist(),
+             "mode": "markers", "marker": {"color": res_norm.tolist(), "colorscale": [[0, "#4a9f6e"], [1, "#d06060"]],
+             "size": 5, "showscale": True, "colorbar": {"title": "|Resid|", "thickness": 10, "len": 0.6}},
+             "name": "Residuals",
+             "hovertemplate": "Predicted: %{x:.3f}<br>Residual: %{y:.3f}<extra></extra>"},
+            {"type": "scatter", "x": [float(y_pred_arr.min()), float(y_pred_arr.max())], "y": [0, 0],
+             "mode": "lines", "line": {"color": "#d06060", "dash": "dash", "width": 1.5}, "name": "Zero"},
+        ],
+        "layout": {
+            "template": "plotly_dark", "height": 320,
+            "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Residual"},
+        },
+    })
+
+    # 3. Residual Distribution (histogram + fitted normal curve)
+    res_mean = float(np.mean(residuals))
+    res_std = float(np.std(residuals))
+    x_norm = np.linspace(residuals.min(), residuals.max(), 100)
+    y_norm = stats.norm.pdf(x_norm, res_mean, res_std)
+    # Scale normal curve to match histogram
+    bin_width = (residuals.max() - residuals.min()) / 30
+    y_norm_scaled = y_norm * len(residuals) * bin_width
+
+    # Shapiro-Wilk test for normality (on sample if large)
+    n_sw = min(len(residuals), 5000)
+    sw_stat, sw_p = stats.shapiro(residuals[:n_sw])
+
+    plots.append({
+        "title": f"Residual Distribution (Shapiro-Wilk p = {sw_p:.4f})",
+        "data": [
+            {"type": "histogram", "x": residuals.tolist(), "nbinsx": 30,
+             "marker": {"color": "rgba(74,159,110,0.5)", "line": {"color": "#4a9f6e", "width": 1}},
+             "name": "Residuals"},
+            {"type": "scatter", "x": x_norm.tolist(), "y": y_norm_scaled.tolist(),
+             "mode": "lines", "line": {"color": "#e89547", "width": 2.5}, "name": "Normal Fit"},
+        ],
+        "layout": {
+            "template": "plotly_dark", "height": 300, "barmode": "overlay",
+            "xaxis": {"title": "Residual"}, "yaxis": {"title": "Frequency"},
+        },
+    })
+
+    # 4. Q-Q Plot (Normal Probability Plot)
+    sorted_res = np.sort(residuals)
+    n = len(sorted_res)
+    theoretical_q = stats.norm.ppf(np.linspace(0.5/n, 1 - 0.5/n, n))
+    # Reference line
+    slope, intercept, _, _, _ = stats.linregress(theoretical_q, sorted_res)
+
+    plots.append({
+        "title": "Normal Q-Q Plot",
+        "data": [
+            {"type": "scatter", "x": theoretical_q.tolist(), "y": sorted_res.tolist(),
+             "mode": "markers", "marker": {"color": "rgba(74,159,175,0.6)", "size": 4}, "name": "Residuals"},
+            {"type": "scatter", "x": [float(theoretical_q.min()), float(theoretical_q.max())],
+             "y": [float(slope * theoretical_q.min() + intercept), float(slope * theoretical_q.max() + intercept)],
+             "mode": "lines", "line": {"color": "#d06060", "dash": "dash", "width": 2}, "name": "Reference Line"},
+        ],
+        "layout": {
+            "template": "plotly_dark", "height": 320,
+            "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": "Sample Quantiles"},
+        },
+    })
+
+    # 5. Feature Importance
+    if hasattr(model, 'feature_importances_'):
+        importances = model.feature_importances_
+        sorted_idx = np.argsort(importances)
+        plots.append({
+            "title": "Feature Importance",
+            "data": [{
+                "type": "bar", "orientation": "h",
+                "x": importances[sorted_idx].tolist(),
+                "y": [features[i] if i < len(features) else f"feat_{i}" for i in sorted_idx],
+                "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+            }],
+            "layout": {"template": "plotly_dark", "height": max(220, len(features) * 22)},
+        })
+
+    # 6. Scale-Location Plot (sqrt|standardized residuals| vs fitted)
+    std_res = residuals / (res_std if res_std > 0 else 1)
+    sqrt_abs_std_res = np.sqrt(np.abs(std_res))
+    plots.append({
+        "title": "Scale-Location (Homoscedasticity Check)",
+        "data": [
+            {"type": "scatter", "x": y_pred_arr.tolist(), "y": sqrt_abs_std_res.tolist(),
+             "mode": "markers", "marker": {"color": "rgba(138,127,191,0.5)", "size": 5}, "name": "√|Std. Residual|"},
+        ],
+        "layout": {
+            "template": "plotly_dark", "height": 300,
+            "xaxis": {"title": "Fitted Values"}, "yaxis": {"title": "√|Standardized Residual|"},
+        },
+    })
+
+    return plots
+
+
+# ─── ML Lab Helpers (Claude-powered From Intent / From Data) ───────────────────
+
+_SCHEMA_SYSTEM_PROMPT = """You are a data scientist designing a realistic dataset for ML training.
+Given the user's intent and optional domain, design a schema that would produce meaningful data.
+Return ONLY valid JSON with this exact structure:
+{
+  "name": "descriptive dataset name",
+  "target": "target_column_name",
+  "task": "classification" or "regression",
+  "features": [
+    {"name": "column_name", "type": "numeric", "distribution": "normal", "params": {"mean": 50, "std": 10}},
+    {"name": "column_name", "type": "numeric", "distribution": "uniform", "params": {"low": 0, "high": 100}},
+    {"name": "column_name", "type": "categorical", "categories": ["A", "B", "C"], "probabilities": [0.5, 0.3, 0.2]}
+  ],
+  "target_spec": {
+    "type": "categorical" or "numeric",
+    "categories": ["pass", "fail"],
+    "feature_weights": {"column_name": 0.6, "column_name": -0.3}
+  }
+}
+Design 4-8 features. For target_spec.feature_weights, specify how each feature correlates with the target (-1 to 1).
+For classification targets, use 2-4 categories. For regression, omit "categories".
+Make feature names domain-appropriate and realistic."""
+
+_INTERPRET_SYSTEM_PROMPT = """You are a quality engineer's data science advisor.
+Interpret ML results concisely and practically.
+In 3-4 sentences: What did the model learn? Which features drive predictions and why?
+What should the engineer investigate or do next? Be specific to the domain."""
+
+
+def _claude_generate_schema(user, intent, domain, n_records):
+    """Ask Claude to design a dataset schema from natural language intent."""
+    from agents_api.llm_manager import LLMManager
+
+    prompt = f"Intent: {intent}"
+    if domain:
+        prompt += f"\nDomain: {domain}"
+    prompt += f"\nTarget dataset size: {n_records} records"
+
+    result = LLMManager.chat(
+        user=user,
+        messages=[{"role": "user", "content": prompt}],
+        system=_SCHEMA_SYSTEM_PROMPT,
+        max_tokens=2048,
+        temperature=0.4,
+    )
+
+    if not result or not result.get("content"):
+        logger.error("Claude schema generation returned no content")
+        return None
+
+    # Parse JSON from response (handle markdown code blocks)
+    text = result["content"].strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Try to extract JSON from mixed text
+        import re
+        match = re.search(r'\{[\s\S]*\}', text)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        logger.error(f"Could not parse schema JSON from Claude response: {text[:200]}")
+        return None
+
+
+def _generate_data_from_schema(schema, n_records):
+    """Generate synthetic data from a Claude-designed schema."""
+    import numpy as np
+    import pandas as pd
+
+    np.random.seed(42)
+    data = {}
+
+    # Generate features
+    for feat in schema.get("features", []):
+        name = feat["name"]
+        ftype = feat.get("type", "numeric")
+
+        if ftype == "numeric":
+            dist = feat.get("distribution", "normal")
+            params = feat.get("params", {})
+            if dist == "normal":
+                data[name] = np.random.normal(params.get("mean", 0), params.get("std", 1), n_records)
+            elif dist == "uniform":
+                data[name] = np.random.uniform(params.get("low", 0), params.get("high", 100), n_records)
+            elif dist == "exponential":
+                data[name] = np.random.exponential(params.get("scale", 1), n_records)
+            elif dist == "poisson":
+                data[name] = np.random.poisson(params.get("lam", 5), n_records).astype(float)
+            else:
+                data[name] = np.random.normal(0, 1, n_records)
+        elif ftype == "categorical":
+            cats = feat.get("categories", ["A", "B"])
+            probs = feat.get("probabilities", None)
+            if probs and len(probs) == len(cats):
+                # Normalize probabilities
+                total = sum(probs)
+                probs = [p / total for p in probs]
+            else:
+                probs = None
+            data[name] = np.random.choice(cats, n_records, p=probs)
+
+    df = pd.DataFrame(data)
+
+    # Generate target based on feature weights
+    target_spec = schema.get("target_spec", {})
+    target_name = schema.get("target", "target")
+    weights = target_spec.get("feature_weights", {})
+    task = schema.get("task", "classification")
+
+    # Build linear combination from numeric features
+    score = np.zeros(n_records)
+    for feat_name, weight in weights.items():
+        if feat_name in df.columns:
+            col = df[feat_name]
+            if col.dtype == object:
+                # Categorical: encode as integers
+                col = pd.Categorical(col).codes.astype(float)
+            # Standardize before weighting
+            std = col.std()
+            if std > 0:
+                score += weight * ((col - col.mean()) / std)
+
+    # Add noise
+    score += np.random.normal(0, 0.3, n_records)
+
+    if task == "classification":
+        categories = target_spec.get("categories", ["class_0", "class_1"])
+        if len(categories) == 2:
+            # Binary: logistic threshold
+            prob = 1 / (1 + np.exp(-score))
+            df[target_name] = np.where(prob > 0.5, categories[1], categories[0])
+        else:
+            # Multi-class: bucket the score
+            thresholds = np.linspace(score.min(), score.max(), len(categories) + 1)
+            labels = np.digitize(score, thresholds[1:-1])
+            labels = np.clip(labels, 0, len(categories) - 1)
+            df[target_name] = [categories[i] for i in labels]
+    else:
+        # Regression: use score directly, scaled to reasonable range
+        target_mean = target_spec.get("mean", 50)
+        target_std = target_spec.get("std", 10)
+        df[target_name] = score * target_std + target_mean
+
+    return df
+
+
+def _clean_for_ml(df, target):
+    """Clean a DataFrame for ML: encode categoricals, handle missing values."""
+    import pandas as pd
+    import numpy as np
+
+    df = df.copy()
+
+    # Drop rows with missing target
+    df = df.dropna(subset=[target])
+
+    # Separate target
+    y = df[target]
+    X = df.drop(columns=[target])
+
+    # Encode categorical features — cast to int to avoid CategoricalDtype errors in numpy/sklearn
+    for col in X.select_dtypes(include=["object", "category"]).columns:
+        codes = pd.Categorical(X[col]).codes.astype(int)
+        X[col] = codes.astype(np.int32)
+
+    # Encode categorical target for classification
+    label_map = None
+    if hasattr(y.dtype, 'categories') or y.dtype == object or y.dtype.name == "category":
+        cats = y.unique().tolist()
+        label_map = {cat: i for i, cat in enumerate(sorted(str(c) for c in cats))}
+        y = y.map(label_map).astype(np.int32)
+
+    # Fill remaining NaN with median for numeric
+    for col in X.columns:
+        if X[col].isna().any():
+            X[col] = X[col].fillna(X[col].median())
+
+    # Ensure all columns are numeric (final safety cast)
+    X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
+
+    return X, y, label_map
+
+
+def _auto_train(X, y, task=None):
+    """Auto-detect task type and train the best available model.
+
+    Returns (model, metrics_dict, feature_importances_list, task,
+             X_test, y_test, y_pred) — last 3 for diagnostic plots.
+    """
+    import numpy as np
+    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import (
+        accuracy_score, precision_score, recall_score, f1_score,
+        r2_score, mean_squared_error, mean_absolute_error,
+    )
+
+    # Auto-detect task type
+    if task is None:
+        is_cat = y.dtype == object or y.dtype.name == "category" or hasattr(y.dtype, 'categories')
+        if y.nunique() <= 20 and (is_cat or y.nunique() <= 10):
+            task = "classification"
+        else:
+            task = "regression"
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    if task == "classification":
+        model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        metrics = {
+            "accuracy": round(accuracy_score(y_test, y_pred), 4),
+            "precision": round(precision_score(y_test, y_pred, average="weighted", zero_division=0), 4),
+            "recall": round(recall_score(y_test, y_pred, average="weighted", zero_division=0), 4),
+            "f1": round(f1_score(y_test, y_pred, average="weighted", zero_division=0), 4),
+        }
+    else:
+        model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        metrics = {
+            "r2": round(r2_score(y_test, y_pred), 4),
+            "rmse": round(float(np.sqrt(mean_squared_error(y_test, y_pred))), 4),
+            "mae": round(float(mean_absolute_error(y_test, y_pred)), 4),
+        }
+
+    # Feature importance
+    importances = []
+    if hasattr(model, "feature_importances_"):
+        for i, col in enumerate(X.columns):
+            importances.append({
+                "feature": col,
+                "importance": round(float(model.feature_importances_[i]), 4),
+            })
+        importances.sort(key=lambda x: x["importance"], reverse=True)
+
+    return model, metrics, importances, task, X_test, y_test, y_pred
+
+
+def _claude_interpret_results(user, context, metrics, importances, task=None):
+    """Ask Claude to interpret ML results in plain English."""
+    from agents_api.llm_manager import LLMManager
+
+    top_features = importances[:5] if importances else []
+    prompt = f"""Context: {context}
+Task: {task or 'auto-detected'}
+Metrics: {json.dumps(metrics)}
+Top features: {json.dumps(top_features)}"""
+
+    result = LLMManager.chat(
+        user=user,
+        messages=[{"role": "user", "content": prompt}],
+        system=_INTERPRET_SYSTEM_PROMPT,
+        max_tokens=512,
+        temperature=0.5,
+    )
+
+    if result and result.get("content"):
+        return result["content"]
+    return None
+
+
+# ─── From Intent / From Data Endpoints ─────────────────────────────────────────
+
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def dsw_from_intent(request):
-    """Run DSW pipeline from intent (zero data)."""
+    """Generate schema + synthetic data + model from natural language intent."""
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
@@ -161,49 +897,110 @@ def dsw_from_intent(request):
 
     intent = data.get("intent", "").strip()
     domain = data.get("domain")
-    n_records = int(data.get("n_records", 500))
+    n_records = min(int(data.get("n_records", 500)), 5000)
     priority = data.get("priority", "balanced")
 
     if not intent:
         return JsonResponse({"error": "Intent is required"}, status=400)
 
     try:
-        from dsw import DecisionScienceWorkbench
+        import pandas as pd
 
-        dsw = DecisionScienceWorkbench()
-        result = dsw.from_intent(
-            intent=intent,
-            domain=domain if domain else None,
-            n_records=n_records,
-            priority=priority,
+        # Step 1: Claude generates dataset schema
+        schema = _claude_generate_schema(request.user, intent, domain, n_records)
+        if not schema:
+            return JsonResponse({
+                "error": "Could not generate a dataset schema from your intent. Try rephrasing.",
+                "suggestion": "Be specific about what you want to predict and what factors might influence it.",
+            }, status=500)
+
+        # Step 2: Generate synthetic data from schema
+        df = _generate_data_from_schema(schema, n_records)
+
+        target_name = schema.get("target", "target")
+        feature_names = [c for c in df.columns if c != target_name]
+
+        # Step 3: Clean and train
+        X, y, label_map = _clean_for_ml(df, target_name)
+        model, metrics, importances, task, X_test, y_test, y_pred = _auto_train(X, y)
+
+        # Step 4: Build diagnostic plots
+        diag_plots = _build_ml_diagnostics(
+            model, X_test, y_test, y_pred, feature_names, task,
+            label_map=label_map, model_name=type(model).__name__,
         )
 
-        # Store result in database
-        result_id = f"dsw_{uuid.uuid4().hex[:8]}"
+        # Step 5: Claude interprets results
+        interpretation = _claude_interpret_results(
+            request.user, intent, metrics, importances, task
+        )
 
         # Save synthetic data to file
+        result_id = f"dsw_{uuid.uuid4().hex[:8]}"
         data_dir = Path(settings.MEDIA_ROOT) / "dsw_data" / str(request.user.id)
         data_dir.mkdir(parents=True, exist_ok=True)
         data_path = data_dir / f"{result_id}.csv"
-        result.synthetic_data.to_csv(data_path, index=False)
+        df.to_csv(data_path, index=False)
+
+        # Build training recipe
+        training_config = {
+            "features": feature_names,
+            "target": target_name,
+            "task_type": task,
+            "model_class": type(model).__name__,
+            "hyperparams": model.get_params() if hasattr(model, "get_params") else {},
+            "source": "from_intent",
+            "intent": intent,
+            "n_records": n_records,
+        }
+        data_lineage_info = {
+            "source_type": "synthetic",
+            "intent": intent,
+            "domain": domain or "auto-detected",
+            "original_shape": list(df.shape),
+            "data_path": str(data_path),
+        }
+
+        # Cache model for saving
+        project_id = data.get("project_id")
+        model_key = str(uuid.uuid4())
+        cache_model(request.user.id, model_key, model, {
+            "model_type": type(model).__name__,
+            "metrics": metrics,
+            "features": feature_names,
+            "target": target_name,
+            "training_config": training_config,
+            "data_lineage": data_lineage_info,
+        })
 
         result_data = {
             "schema": {
-                "name": result.schema.name,
-                "intent": result.schema.intent,
-                "domain": result.schema.domain,
-                "features": [f.name for f in result.schema.features],
-                "target": result.schema.target_name,
+                "name": schema.get("name", f"Schema for: {intent[:50]}"),
+                "intent": intent,
+                "domain": domain or "auto-detected",
+                "features": feature_names,
+                "target": target_name,
+                "task": task,
             },
-            "data_shape": list(result.synthetic_data.shape),
+            "data_shape": list(df.shape),
             "data_path": str(data_path),
-            "model_type": result.model_type,
-            "metrics": result.metrics,
-            "pipeline": result.pipeline_steps,
-            "warnings": result.warnings,
-            "summary": result.summary(),
+            "model_type": type(model).__name__,
+            "metrics": metrics,
+            "feature_importance": importances[:10],
+            "pipeline": ["schema_generation", "data_synthesis", "data_cleaning", "model_training", "diagnostics", "interpretation"],
+            "warnings": [],
+            "summary": (
+                f"Generated {n_records} synthetic records based on intent: {intent}. "
+                f"Trained {type(model).__name__} ({task}). "
+                + (f"Accuracy: {metrics.get('accuracy', 'N/A')}" if task == "classification"
+                   else f"R²: {metrics.get('r2', 'N/A')}")
+            ),
+            "interpretation": interpretation,
+            "model_key": model_key,
+            "plots": diag_plots,
         }
 
+        # Save to DB
         DSWResult.objects.create(
             id=result_id,
             user=request.user,
@@ -211,18 +1008,26 @@ def dsw_from_intent(request):
             data=json.dumps(result_data),
         )
 
-        # Save trained model
-        saved_model = None
-        if result.model:
-            saved_model = save_model_to_disk(
-                user=request.user,
-                model=result.model,
-                model_type=result.model_type,
-                dsw_result_id=result_id,
-                name=f"Model: {intent[:50]}",
-                metrics=result.metrics,
-                features=[f.name for f in result.schema.features],
-                target=result.schema.target_name,
+        # Save model to disk
+        saved_model = save_model_to_disk(
+            user=request.user,
+            model=model,
+            model_type=type(model).__name__,
+            dsw_result_id=result_id,
+            name=f"Intent: {intent[:50]}",
+            metrics=metrics,
+            features=feature_names,
+            target=target_name,
+            project_id=project_id,
+            training_config=training_config,
+            data_lineage=data_lineage_info,
+        )
+
+        # Create Synara evidence if project linked
+        if project_id:
+            _create_ml_evidence(
+                request.user, project_id, type(model).__name__,
+                metrics, importances, task, target_name,
             )
 
         log_agent_action(
@@ -230,66 +1035,14 @@ def dsw_from_intent(request):
             agent="dsw",
             action="from_intent",
             success=True,
-            metadata={"result_id": result_id, "domain": domain},
+            metadata={"result_id": result_id, "task": task, "n_records": n_records},
         )
 
-        # Track usage
-        request.user.increment_queries()
-
-        response_data = {
-            "result_id": result_id,
-            **result_data,
-        }
+        response_data = {"result_id": result_id, **result_data}
         if saved_model:
             response_data["model_id"] = str(saved_model.id)
 
         return JsonResponse(response_data)
-
-    except ImportError as e:
-        # DSW module not available - return mock result for testing
-        result_id = f"dsw_{uuid.uuid4().hex[:8]}"
-
-        mock_result = {
-            "schema": {
-                "name": f"Schema for: {intent[:50]}",
-                "intent": intent,
-                "domain": domain or "auto-detected",
-                "features": ["feature_1", "feature_2", "feature_3", "feature_4", "feature_5"],
-                "target": "target",
-            },
-            "data_shape": [n_records, 6],
-            "model_type": "RandomForest",
-            "metrics": {
-                "accuracy": 0.85,
-                "precision": 0.82,
-                "recall": 0.88,
-                "f1": 0.85,
-                "auc_roc": 0.91,
-            },
-            "pipeline": ["schema_generation", "data_synthesis", "data_cleaning", "model_training"],
-            "warnings": ["This is a mock result - DSW module not available"],
-            "summary": f"Generated {n_records} synthetic records based on intent: {intent}. Model achieved 85% accuracy.",
-        }
-
-        DSWResult.objects.create(
-            id=result_id,
-            user=request.user,
-            result_type="from_intent_mock",
-            data=json.dumps(mock_result),
-        )
-
-        log_agent_action(
-            user=request.user,
-            agent="dsw",
-            action="from_intent_mock",
-            success=True,
-            metadata={"result_id": result_id, "mock": True},
-        )
-
-        # Track usage
-        request.user.increment_queries()
-
-        return JsonResponse({"result_id": result_id, **mock_result})
 
     except Exception as e:
         import traceback
@@ -313,16 +1066,15 @@ def dsw_from_intent(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-@gated
+@gated_paid
 def dsw_from_data(request):
-    """Run DSW pipeline from uploaded data."""
+    """Auto-ML from uploaded data with Claude interpretation."""
     if "file" not in request.FILES:
         return JsonResponse({"error": "No file uploaded"}, status=400)
 
     file = request.FILES["file"]
     target = request.POST.get("target", "").strip()
     intent = request.POST.get("intent", "")
-    priority = request.POST.get("priority", "balanced")
 
     if not target:
         return JsonResponse({"error": "Target column is required"}, status=400)
@@ -336,29 +1088,88 @@ def dsw_from_data(request):
         if target not in df.columns:
             return JsonResponse({"error": f'Target column "{target}" not found in data'}, status=400)
 
-        from dsw import DecisionScienceWorkbench
+        if len(df) < 10:
+            return JsonResponse({"error": "Dataset too small — need at least 10 rows."}, status=400)
 
-        dsw = DecisionScienceWorkbench()
-        result = dsw.from_data(
-            data=df,
-            target=target,
-            intent=intent,
-            priority=priority,
+        original_shape = list(df.shape)
+
+        # Step 1: Clean data for ML
+        feature_names = [c for c in df.columns if c != target]
+        X, y, label_map = _clean_for_ml(df, target)
+
+        # Step 2: Auto-detect task and train best model
+        model, metrics, importances, task, X_test, y_test, y_pred = _auto_train(X, y)
+
+        # Step 3: Build diagnostic plots
+        diag_plots = _build_ml_diagnostics(
+            model, X_test, y_test, y_pred, feature_names, task,
+            label_map=label_map, model_name=type(model).__name__,
         )
 
-        # Store result in database
+        # Step 4: Claude interprets results
+        context = intent if intent else f"Predict '{target}' from {len(feature_names)} features"
+        interpretation = _claude_interpret_results(
+            request.user, context, metrics, importances, task
+        )
+
+        # Save data copy
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
-        result_data = {
-            "original_shape": list(result.original_data.shape),
-            "cleaned_shape": list(result.cleaned_data.shape),
-            "model_type": result.model_type,
-            "metrics": result.metrics,
-            "feature_importance": result.feature_importance[:10],
-            "pipeline": result.pipeline_steps,
-            "warnings": result.warnings,
-            "summary": result.summary(),
+        data_dir = Path(settings.MEDIA_ROOT) / "dsw_data" / str(request.user.id)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        data_path = data_dir / f"{result_id}.csv"
+        df.to_csv(data_path, index=False)
+
+        # Build training recipe
+        training_config = {
+            "features": feature_names,
+            "target": target,
+            "task_type": task,
+            "model_class": type(model).__name__,
+            "hyperparams": model.get_params() if hasattr(model, "get_params") else {},
+            "source": "from_data",
+        }
+        data_lineage_info = {
+            "source_type": "upload",
+            "original_file": file.name,
+            "original_shape": original_shape,
+            "cleaned_shape": [X.shape[0], X.shape[1]],
+            "data_path": str(data_path),
         }
 
+        # Cache model
+        project_id = request.POST.get("project_id")
+        model_key = str(uuid.uuid4())
+        cache_model(request.user.id, model_key, model, {
+            "model_type": type(model).__name__,
+            "metrics": metrics,
+            "features": feature_names,
+            "target": target,
+            "training_config": training_config,
+            "data_lineage": data_lineage_info,
+        })
+
+        result_data = {
+            "original_shape": original_shape,
+            "cleaned_shape": [X.shape[0], X.shape[1]],
+            "data_path": str(data_path),
+            "model_type": type(model).__name__,
+            "task": task,
+            "metrics": metrics,
+            "feature_importance": importances[:10],
+            "pipeline": ["data_loading", "data_cleaning", "model_training", "diagnostics", "interpretation"],
+            "warnings": [],
+            "summary": (
+                f"Processed {original_shape[0]} rows with {original_shape[1]} columns. Target: {target}. "
+                f"Trained {type(model).__name__} ({task}). "
+                + (f"Accuracy: {metrics.get('accuracy', 'N/A')}" if task == "classification"
+                   else f"R²: {metrics.get('r2', 'N/A')}")
+            ),
+            "interpretation": interpretation,
+            "model_key": model_key,
+            "plots": diag_plots,
+        }
+
+        # Save to DB
         DSWResult.objects.create(
             id=result_id,
             user=request.user,
@@ -366,19 +1177,26 @@ def dsw_from_data(request):
             data=json.dumps(result_data),
         )
 
-        # Save trained model
-        saved_model = None
-        if result.model:
-            features = [c for c in df.columns if c != target]
-            saved_model = save_model_to_disk(
-                user=request.user,
-                model=result.model,
-                model_type=result.model_type,
-                dsw_result_id=result_id,
-                name=f"Model: {target} prediction",
-                metrics=result.metrics,
-                features=features,
-                target=target,
+        # Save model to disk
+        saved_model = save_model_to_disk(
+            user=request.user,
+            model=model,
+            model_type=type(model).__name__,
+            dsw_result_id=result_id,
+            name=f"Data: {target} prediction",
+            metrics=metrics,
+            features=feature_names,
+            target=target,
+            project_id=project_id,
+            training_config=training_config,
+            data_lineage=data_lineage_info,
+        )
+
+        # Create Synara evidence if project linked
+        if project_id:
+            _create_ml_evidence(
+                request.user, project_id, type(model).__name__,
+                metrics, importances, task, target,
             )
 
         log_agent_action(
@@ -386,11 +1204,8 @@ def dsw_from_data(request):
             agent="dsw",
             action="from_data",
             success=True,
-            metadata={"result_id": result_id, "rows": df.shape[0]},
+            metadata={"result_id": result_id, "task": task, "rows": original_shape[0]},
         )
-
-        # Track usage
-        request.user.increment_queries()
 
         response_data = {"result_id": result_id, **result_data}
         if saved_model:
@@ -401,11 +1216,11 @@ def dsw_from_data(request):
         if problem_id:
             try:
                 from .views import add_finding_to_problem
-                metrics = result_data.get("metrics", {})
                 summary = (
-                    f"Built {result_data.get('model_type', 'model')} on {target}. "
-                    f"Accuracy: {metrics.get('accuracy', 'N/A')}, "
-                    f"Top features: {', '.join(f['feature'] for f in result_data.get('feature_importance', [])[:3])}"
+                    f"Built {type(model).__name__} on {target}. "
+                    f"{'Accuracy' if task == 'classification' else 'R²'}: "
+                    f"{metrics.get('accuracy' if task == 'classification' else 'r2', 'N/A')}, "
+                    f"Top features: {', '.join(f['feature'] for f in importances[:3])}"
                 )
                 evidence = add_finding_to_problem(
                     user=request.user,
@@ -421,52 +1236,6 @@ def dsw_from_data(request):
                 logger.warning(f"Could not link DSW from-data to problem {problem_id}: {e_prob}")
 
         return JsonResponse(response_data)
-
-    except ImportError as e:
-        # DSW module not available - return mock result
-        import pandas as pd
-
-        df = pd.read_csv(file)
-        result_id = f"dsw_{uuid.uuid4().hex[:8]}"
-
-        mock_result = {
-            "original_shape": list(df.shape),
-            "cleaned_shape": [int(df.shape[0] * 0.95), df.shape[1]],
-            "model_type": "GradientBoosting",
-            "metrics": {
-                "accuracy": 0.82,
-                "precision": 0.80,
-                "recall": 0.84,
-                "f1": 0.82,
-            },
-            "feature_importance": [
-                {"feature": col, "importance": 1.0 / len(df.columns)}
-                for col in df.columns[:10] if col != target
-            ],
-            "pipeline": ["data_loading", "data_cleaning", "feature_engineering", "model_training"],
-            "warnings": ["This is a mock result - DSW module not available"],
-            "summary": f"Processed {df.shape[0]} rows with {df.shape[1]} columns. Target: {target}. Model achieved 82% accuracy.",
-        }
-
-        DSWResult.objects.create(
-            id=result_id,
-            user=request.user,
-            result_type="from_data_mock",
-            data=json.dumps(mock_result),
-        )
-
-        log_agent_action(
-            user=request.user,
-            agent="dsw",
-            action="from_data_mock",
-            success=True,
-            metadata={"result_id": result_id, "mock": True},
-        )
-
-        # Track usage
-        request.user.increment_queries()
-
-        return JsonResponse({"result_id": result_id, **mock_result})
 
     except Exception as e:
         import traceback
@@ -594,7 +1363,13 @@ print(f'Accuracy: {accuracy:.3f}')
 @require_auth
 def list_models(request):
     """List user's saved models."""
-    models = SavedModel.objects.filter(user=request.user)
+    models_qs = SavedModel.objects.filter(user=request.user).select_related("project")
+
+    # Optional project filter
+    project_id = request.GET.get("project_id")
+    if project_id:
+        models_qs = models_qs.filter(project_id=project_id)
+
     return JsonResponse({
         "models": [
             {
@@ -607,8 +1382,14 @@ def list_models(request):
                 "features": json.loads(m.feature_names) if m.feature_names else None,
                 "target": m.target_name,
                 "created_at": m.created_at.isoformat(),
+                "project_id": str(m.project_id) if m.project_id else None,
+                "project_title": m.project.title if m.project else None,
+                "training_config": m.training_config or {},
+                "data_lineage": m.data_lineage or {},
+                "version": m.version,
+                "parent_model_id": str(m.parent_model_id) if m.parent_model_id else None,
             }
-            for m in models
+            for m in models_qs
         ]
     })
 
@@ -644,7 +1425,10 @@ def save_model_from_cache(request):
             name=name,
             metrics=metadata.get('metrics'),
             features=metadata.get('features'),
-            target=metadata.get('target')
+            target=metadata.get('target'),
+            project_id=data.get('project_id'),
+            training_config=metadata.get('training_config'),
+            data_lineage=metadata.get('data_lineage'),
         )
 
         if saved:
@@ -745,7 +1529,33 @@ def run_model(request, model_id):
         features = json.loads(saved_model.feature_names) if saved_model.feature_names else list(df.columns)
         X = df[features] if all(f in df.columns for f in features) else df
 
+        # Use training config for consistent categorical encoding
+        training_config = saved_model.training_config or {}
+        feature_info = training_config.get("feature_info", {})
+
+        for col in X.select_dtypes(include=["object", "category"]).columns:
+            if col in feature_info and feature_info[col].get("categories"):
+                # Use sorted training categories so codes match training
+                train_cats = sorted(feature_info[col]["categories"])
+                X[col] = pd.Categorical(X[col], categories=train_cats).codes.astype(int)
+            else:
+                X[col] = pd.Categorical(X[col]).codes.astype(int)
+
+        # Fill NaN/-1 (unknown categories get -1 from pd.Categorical)
+        X = X.fillna(0)
+        X = X.replace(-1, 0)
+
         predictions = model.predict(X)
+
+        # Decode classification labels if label_map exists
+        label_map = training_config.get("label_map")
+        if label_map:
+            # label_map from _clean_for_ml is {cat_str: int}
+            inv_map = {int(v): k for k, v in label_map.items()}
+            try:
+                predictions = [inv_map.get(int(p), p) for p in predictions]
+            except (ValueError, TypeError):
+                predictions = predictions.tolist()
 
         # Get probabilities if available
         probabilities = None
@@ -758,10 +1568,11 @@ def run_model(request, model_id):
         # Track query usage
         request.user.increment_queries()
 
+        pred_list = predictions if isinstance(predictions, list) else predictions.tolist()
         return JsonResponse({
-            "predictions": predictions.tolist(),
+            "predictions": pred_list,
             "probabilities": probabilities,
-            "count": len(predictions),
+            "count": len(pred_list),
         })
 
     except SavedModel.DoesNotExist:
@@ -769,6 +1580,160 @@ def run_model(request, model_id):
     except Exception as e:
         logger.exception("Model inference error")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_auth
+def models_summary(request):
+    """Summary stats for ML Hub dashboard."""
+    from django.utils import timezone
+    from datetime import timedelta
+
+    models_qs = SavedModel.objects.filter(user=request.user).select_related("project")
+    week_ago = timezone.now() - timedelta(days=7)
+
+    # Group by project
+    projects = {}
+    best_model = None
+    best_metric = -1
+
+    for m in models_qs:
+        key = str(m.project_id) if m.project_id else "ungrouped"
+        if key not in projects:
+            projects[key] = {
+                "project_id": str(m.project_id) if m.project_id else None,
+                "project_title": m.project.title if m.project else "Ungrouped",
+                "model_count": 0,
+            }
+        projects[key]["model_count"] += 1
+
+        # Track best model
+        try:
+            metrics = json.loads(m.metrics) if m.metrics else {}
+            primary = metrics.get("accuracy") or metrics.get("r2", 0)
+            if isinstance(primary, (int, float)) and primary > best_metric:
+                best_metric = primary
+                best_model = {"id": str(m.id), "name": m.name, "metric": primary}
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return JsonResponse({
+        "total_models": models_qs.count(),
+        "recent_models": models_qs.filter(created_at__gte=week_ago).count(),
+        "project_groups": list(projects.values()),
+        "best_model": best_model,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_auth
+def model_versions(request, model_id):
+    """Get version history for a model (walks parent chain)."""
+    try:
+        model = SavedModel.objects.get(id=model_id, user=request.user)
+    except SavedModel.DoesNotExist:
+        return JsonResponse({"error": "Model not found"}, status=404)
+
+    versions = []
+    current = model
+    seen = set()
+    while current and current.id not in seen:
+        seen.add(current.id)
+        versions.append({
+            "id": str(current.id),
+            "name": current.name,
+            "version": current.version,
+            "model_type": current.model_type,
+            "metrics": json.loads(current.metrics) if current.metrics else {},
+            "created_at": current.created_at.isoformat(),
+        })
+        current = current.parent_model
+
+    return JsonResponse({"versions": versions})
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_auth
+def model_report(request, model_id):
+    """Fetch the full training report for a saved model.
+
+    Returns the stored DSWResult data transformed to the format
+    that the frontend renderResults() / renderReport() expects.
+    """
+    try:
+        model = SavedModel.objects.get(id=model_id, user=request.user)
+    except SavedModel.DoesNotExist:
+        return JsonResponse({"error": "Model not found"}, status=404)
+
+    if not model.dsw_result_id:
+        return JsonResponse({"error": "No training report stored for this model"}, status=404)
+
+    try:
+        result = DSWResult.objects.get(id=model.dsw_result_id, user=request.user)
+    except DSWResult.DoesNotExist:
+        return JsonResponse({"error": "Training report not found"}, status=404)
+
+    try:
+        result_data = json.loads(result.data)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"error": "Invalid report data"}, status=500)
+
+    # Transform stored result_data to frontend format
+    steps = result_data.get("steps", [])
+    plots = result_data.get("plots", [])
+    data_lineage = result_data.get("data_lineage", {})
+
+    # Reconstruct cleaning summary from data_lineage
+    cleaning = None
+    if data_lineage.get("triage_applied"):
+        cleaning = {
+            "original_shape": data_lineage.get("original_shape"),
+            "cleaned_shape": data_lineage.get("cleaned_shape"),
+        }
+
+    # Reconstruct augmentation from data_lineage
+    augmentation = None
+    if data_lineage.get("forge_applied"):
+        augmentation = {
+            "original_rows": (data_lineage.get("original_shape") or [0])[0],
+            "synthetic_rows": data_lineage.get("synthetic_rows"),
+            "total_rows": (data_lineage.get("augmented_shape") or [0])[0],
+        }
+
+    # Separate SHAP plots from diagnostic plots
+    def _is_shap(p):
+        title = p.get("title") or ""
+        if not title:
+            layout = p.get("layout", {})
+            t = layout.get("title", "")
+            title = t.get("text", "") if isinstance(t, dict) else (t or "")
+        return "SHAP" in title
+
+    shap_plots = [p for p in plots if _is_shap(p)]
+    other_plots = [p for p in plots if not _is_shap(p)]
+
+    response = {
+        "pipeline_stages": [
+            {"name": s["name"], "success": s.get("status") == "completed"}
+            for s in steps
+        ],
+        "cleaning": cleaning,
+        "augmentation": augmentation,
+        "comparison": result_data.get("comparison"),
+        "tuning": result_data.get("tuning"),
+        "model_type": result_data.get("model_type"),
+        "task": result_data.get("task"),
+        "metrics": result_data.get("metrics"),
+        "shap_plots": shap_plots,
+        "plots": other_plots,
+        "recipe": result_data.get("training_config"),
+        "elapsed_seconds": result_data.get("elapsed_seconds"),
+    }
+
+    return JsonResponse(response)
 
 
 # =============================================================================
@@ -1146,6 +2111,148 @@ def run_analysis(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+def _effect_magnitude(value, effect_type):
+    """Classify effect size magnitude. Returns (label, is_meaningful)."""
+    av = abs(value)
+    if effect_type == "cohens_d":
+        if av < 0.2: return "negligible", False
+        if av < 0.5: return "small", False
+        if av < 0.8: return "medium", True
+        return "large", True
+    elif effect_type == "eta_squared":
+        if av < 0.01: return "negligible", False
+        if av < 0.06: return "small", False
+        if av < 0.14: return "medium", True
+        return "large", True
+    elif effect_type == "cramers_v":
+        if av < 0.1: return "negligible", False
+        if av < 0.3: return "small", False
+        if av < 0.5: return "medium", True
+        return "large", True
+    elif effect_type == "r_squared":
+        if av < 0.02: return "negligible", False
+        if av < 0.13: return "small", False
+        if av < 0.26: return "medium", True
+        return "large", True
+    return "unknown", False
+
+
+def _practical_block(effect_name, effect_val, effect_type, pval, alpha=0.05, context=""):
+    """Build practical significance interpretation block for analysis summaries."""
+    label, meaningful = _effect_magnitude(effect_val, effect_type)
+
+    b = f"\n<<COLOR:accent>>{'─' * 70}<</COLOR>>\n"
+    b += f"<<COLOR:title>>PRACTICAL SIGNIFICANCE<</COLOR>>\n"
+    b += f"<<COLOR:accent>>{'─' * 70}<</COLOR>>\n\n"
+    b += f"<<COLOR:highlight>>{effect_name}:<</COLOR>> {abs(effect_val):.3f} ({label} effect)\n\n"
+
+    if pval < alpha and meaningful:
+        b += f"<<COLOR:good>>Both statistically and practically significant.<</COLOR>>\n"
+        b += f"<<COLOR:text>>The difference is real and large enough to act on.{' ' + context if context else ''}<</COLOR>>"
+    elif pval < alpha and label == "small":
+        b += f"<<COLOR:warn>>Statistically significant but small effect.<</COLOR>>\n"
+        b += f"<<COLOR:text>>The difference is real but may be too small to justify action. Consider whether the cost of change is worth this magnitude.{' ' + context if context else ''}<</COLOR>>"
+    elif pval < alpha:
+        b += f"<<COLOR:warn>>Statistically significant but negligible effect.<</COLOR>>\n"
+        b += f"<<COLOR:text>>With enough data, even trivial differences reach significance. This difference is too small to act on.<</COLOR>>"
+    elif pval >= alpha and meaningful:
+        b += f"<<COLOR:warn>>Not statistically significant, but the effect size is {label}.<</COLOR>>\n"
+        b += f"<<COLOR:text>>This may indicate insufficient sample size rather than no real effect. Consider collecting more data before concluding there is no difference.<</COLOR>>"
+    else:
+        b += f"<<COLOR:text>>Not statistically significant, and the effect is {label}.<</COLOR>>\n"
+        b += f"<<COLOR:text>>No evidence of a meaningful difference.<</COLOR>>"
+
+    return b
+
+
+def _ml_interpretation(task, metrics, y_test=None, y_pred=None, features=None, target=None, model=None):
+    """Build practical interpretation block for ML models."""
+    import numpy as np
+    b = f"\n<<COLOR:accent>>{'─' * 70}<</COLOR>>\n"
+    b += f"<<COLOR:title>>MODEL ASSESSMENT<</COLOR>>\n"
+    b += f"<<COLOR:accent>>{'─' * 70}<</COLOR>>\n\n"
+
+    if task == "classification" and y_test is not None:
+        acc = metrics.get("accuracy", 0)
+        # Baseline: majority class accuracy
+        from collections import Counter
+        class_counts = Counter(y_test)
+        majority_pct = max(class_counts.values()) / len(y_test)
+        n_classes = len(class_counts)
+        lift = acc - majority_pct
+
+        b += f"<<COLOR:highlight>>Accuracy:<</COLOR>> {acc:.1%}\n"
+        b += f"<<COLOR:highlight>>Baseline (always predict majority class):<</COLOR>> {majority_pct:.1%}\n"
+        b += f"<<COLOR:highlight>>Lift over baseline:<</COLOR>> {lift:+.1%}\n\n"
+
+        if lift < 0.02:
+            b += f"<<COLOR:danger>>Model is barely better than always guessing '{class_counts.most_common(1)[0][0]}'.<</COLOR>>\n"
+            b += f"<<COLOR:text>>Consider: more features, better features, or more data. The model is not learning meaningful patterns.<</COLOR>>"
+        elif lift < 0.10:
+            b += f"<<COLOR:warn>>Model is modestly better than baseline ({lift:+.1%}).<</COLOR>>\n"
+            b += f"<<COLOR:text>>Useful for screening but not for high-stakes decisions. Consider feature engineering or more data.<</COLOR>>"
+        elif acc >= 0.95:
+            b += f"<<COLOR:good>>Excellent performance.<</COLOR>>\n"
+            b += f"<<COLOR:text>>Verify this isn't due to data leakage (a feature that perfectly predicts the target because it's derived from it).<</COLOR>>"
+        elif acc >= 0.85:
+            b += f"<<COLOR:good>>Strong model — suitable for decision support.<</COLOR>>\n"
+            b += f"<<COLOR:text>>Review the confusion matrix to check if errors are concentrated in specific classes.<</COLOR>>"
+        else:
+            b += f"<<COLOR:text>>Moderate performance.<</COLOR>>\n"
+            b += f"<<COLOR:text>>The model learned real patterns ({lift:+.1%} over baseline). Consider whether this accuracy is sufficient for your use case.<</COLOR>>"
+
+        # Class imbalance warning
+        if majority_pct > 0.8:
+            minority = class_counts.most_common()[-1]
+            b += f"\n\n<<COLOR:warn>>Class imbalance detected:<</COLOR>> '{minority[0]}' has only {minority[1]} samples ({minority[1]/len(y_test):.1%}).\n"
+            b += f"<<COLOR:text>>Accuracy may be misleading. Check precision and recall for the minority class — F1 score is more informative here.<</COLOR>>"
+
+        # Confusion highlights
+        if y_pred is not None and n_classes <= 10:
+            from sklearn.metrics import confusion_matrix
+            cm = confusion_matrix(y_test, y_pred)
+            labels = sorted(list(set(y_test)))
+            # Find most confused pairs
+            np.fill_diagonal(cm, 0)
+            if cm.max() > 0:
+                worst_i, worst_j = np.unravel_index(cm.argmax(), cm.shape)
+                b += f"\n\n<<COLOR:text>>Most confused pair:<</COLOR>> '{labels[worst_i]}' misclassified as '{labels[worst_j]}' ({cm[worst_i, worst_j]} times)."
+
+    elif task == "regression":
+        r2 = metrics.get("r2", 0)
+        rmse = metrics.get("rmse", 0)
+
+        b += f"<<COLOR:highlight>>R²:<</COLOR>> {r2:.4f}\n"
+        b += f"<<COLOR:highlight>>RMSE:<</COLOR>> {rmse:.4f}\n"
+
+        # RMSE in context
+        if y_test is not None and len(y_test) > 0:
+            y_range = float(np.ptp(y_test))
+            y_mean = float(np.mean(y_test))
+            rmse_pct = (rmse / y_range * 100) if y_range > 0 else 0
+            cv_rmse = (rmse / abs(y_mean) * 100) if abs(y_mean) > 0 else 0
+            b += f"<<COLOR:highlight>>RMSE as % of range:<</COLOR>> {rmse_pct:.1f}%\n"
+            b += f"<<COLOR:highlight>>CV(RMSE):<</COLOR>> {cv_rmse:.1f}% of mean\n\n"
+
+            if r2 < 0.1:
+                b += f"<<COLOR:danger>>Model explains very little variation.<</COLOR>>\n"
+                b += f"<<COLOR:text>>The features selected may not predict '{target}'. Try different features or check data quality.<</COLOR>>"
+            elif r2 < 0.5:
+                b += f"<<COLOR:warn>>Moderate fit — predictions will have substantial error.<</COLOR>>\n"
+                b += f"<<COLOR:text>>On average, predictions are off by {rmse:.2f} ({rmse_pct:.0f}% of the data range). Useful for trend identification but not precision control.<</COLOR>>"
+            elif r2 < 0.8:
+                b += f"<<COLOR:text>>Good fit — the model captures most of the pattern.<</COLOR>>\n"
+                b += f"<<COLOR:text>>Predictions are off by ±{rmse:.2f} on average. Suitable for forecasting and decision support.<</COLOR>>"
+            else:
+                b += f"<<COLOR:good>>Strong fit.<</COLOR>>\n"
+                b += f"<<COLOR:text>>Model explains {r2*100:.0f}% of variation. Predictions are off by ±{rmse:.2f}. Check for data leakage if R² > 0.95.<</COLOR>>"
+        else:
+            r2_label, _ = _effect_magnitude(r2, "r_squared")
+            b += f"\n<<COLOR:text>>R² is {r2_label}. Model explains {r2*100:.0f}% of variation in '{target}'.<</COLOR>>"
+
+    return b
+
+
 def run_statistical_analysis(df, analysis_id, config):
     """Run statistical analysis."""
     import numpy as np
@@ -1235,8 +2342,22 @@ def run_statistical_analysis(df, analysis_id, config):
         else:
             summary += f"<<COLOR:text>>Fail to reject H₀ (p >= {alpha})<</COLOR>>"
 
+        # Effect size: Cohen's d
+        d = (x.mean() - mu) / x.std() if x.std() > 0 else 0.0
+        diff_val = x.mean() - mu
+        label, meaningful = _effect_magnitude(d, "cohens_d")
+        summary += _practical_block("Cohen's d", d, "cohens_d", pval, alpha,
+            context=f"The sample mean differs from {mu} by {abs(diff_val):.4f} units ({abs(d):.2f} standard deviations).")
+
         result["summary"] = summary
-        result["guide_observation"] = f"One-sample t-test with p-value {pval:.4f}. " + ("Significant." if pval < alpha else "Not significant.")
+        obs_parts = [f"One-sample t-test: mean={x.mean():.4f} vs μ₀={mu}, p={pval:.4f}, Cohen's d={abs(d):.3f} ({label})"]
+        if pval < alpha and meaningful:
+            obs_parts.append("Practically significant — act on this difference.")
+        elif pval < alpha:
+            obs_parts.append("Statistically significant but small effect.")
+        else:
+            obs_parts.append("Not significant.")
+        result["guide_observation"] = " ".join(obs_parts)
 
         # Explicit statistics for Synara
         result["statistics"] = {
@@ -1245,6 +2366,8 @@ def run_statistical_analysis(df, analysis_id, config):
             f"n({var1})": int(n),
             "t_statistic": float(stat),
             "p_value": float(pval),
+            "cohens_d": float(d),
+            "effect_size_label": label,
             f"ci_lower({var1})": float(ci[0]),
             f"ci_upper({var1})": float(ci[1]),
         }
@@ -1287,14 +2410,32 @@ def run_statistical_analysis(df, analysis_id, config):
         else:
             summary += f"<<COLOR:text>>No significant difference (p >= {alpha})<</COLOR>>"
 
+        # Effect size: Cohen's d (pooled)
+        nx, ny = len(x), len(y)
+        pooled_std = np.sqrt(((nx - 1) * x.std()**2 + (ny - 1) * y.std()**2) / (nx + ny - 2)) if (nx + ny > 2) else 1.0
+        d = (x.mean() - y.mean()) / pooled_std if pooled_std > 0 else 0.0
+        diff_val = x.mean() - y.mean()
+        label, meaningful = _effect_magnitude(d, "cohens_d")
+        summary += _practical_block("Cohen's d", d, "cohens_d", pval, alpha,
+            context=f"{var1} is {abs(diff_val):.4f} units {'higher' if diff_val > 0 else 'lower'} than {var2} ({abs(d):.2f} pooled SDs).")
+
         result["summary"] = summary
-        result["guide_observation"] = f"Two-sample t-test with p-value {pval:.4f}."
+        obs_parts = [f"Two-sample t-test: diff={diff_val:.4f}, p={pval:.4f}, Cohen's d={abs(d):.3f} ({label})"]
+        if pval < alpha and meaningful:
+            obs_parts.append("Practically significant difference.")
+        elif pval < alpha:
+            obs_parts.append("Statistically significant but small effect.")
+        else:
+            obs_parts.append("Not significant.")
+        result["guide_observation"] = " ".join(obs_parts)
         result["statistics"] = {
             f"mean({var1})": float(x.mean()),
             f"mean({var2})": float(y.mean()),
-            "difference": float(x.mean() - y.mean()),
+            "difference": float(diff_val),
             "t_statistic": float(stat),
             "p_value": float(pval),
+            "cohens_d": float(d),
+            "effect_size_label": label,
         }
 
         # Side-by-side box plots
@@ -1342,14 +2483,30 @@ def run_statistical_analysis(df, analysis_id, config):
         else:
             summary += f"<<COLOR:text>>No significant difference (p >= {alpha})<</COLOR>>"
 
+        # Effect size: Cohen's d for paired data
+        d = diff.mean() / diff.std() if diff.std() > 0 else 0.0
+        label, meaningful = _effect_magnitude(d, "cohens_d")
+        direction = "improved" if diff.mean() > 0 else "decreased"
+        summary += _practical_block("Cohen's d", d, "cohens_d", pval, alpha,
+            context=f"Values {direction} by {abs(diff.mean()):.4f} units on average ({abs(d):.2f} SDs of within-subject change).")
+
         result["summary"] = summary
-        result["guide_observation"] = f"Paired t-test with p-value {pval:.4f}."
+        obs_parts = [f"Paired t-test: mean diff={diff.mean():.4f}, p={pval:.4f}, Cohen's d={abs(d):.3f} ({label})"]
+        if pval < alpha and meaningful:
+            obs_parts.append(f"Practically significant — values {direction} meaningfully.")
+        elif pval < alpha:
+            obs_parts.append("Statistically significant but small effect.")
+        else:
+            obs_parts.append("Not significant.")
+        result["guide_observation"] = " ".join(obs_parts)
         result["statistics"] = {
             "mean_difference": float(diff.mean()),
             "std_difference": float(diff.std()),
             "n_pairs": int(len(x)),
             "t_statistic": float(stat),
             "p_value": float(pval),
+            "cohens_d": float(d),
+            "effect_size_label": label,
         }
 
         # Histogram of differences
@@ -1391,6 +2548,18 @@ def run_statistical_analysis(df, analysis_id, config):
                 grp = df[df[factor_col] == level][response].dropna()
                 summary += f"  {level}: n={len(grp)}, mean={grp.mean():.4f}, std={grp.std():.4f}\n"
 
+            # Compute eta-squared
+            grand_mean = df[response].dropna().mean()
+            ss_between = sum(len(g) * (g.mean() - grand_mean)**2 for g in groups)
+            ss_total = sum((df[response].dropna() - grand_mean)**2)
+            eta_sq = ss_between / ss_total if ss_total > 0 else 0.0
+            n_total = sum(len(g) for g in groups)
+            k = len(groups)
+            # Omega-squared (less biased)
+            omega_sq = (ss_between - (k - 1) * (ss_total - ss_between) / (n_total - k)) / (ss_total + (ss_total - ss_between) / (n_total - k)) if (n_total > k and ss_total > 0) else 0.0
+            omega_sq = max(0, omega_sq)
+            eta_label, eta_meaningful = _effect_magnitude(eta_sq, "eta_squared")
+
             summary += f"\n<<COLOR:text>>ANOVA Results:<</COLOR>>\n"
             summary += f"  F-statistic: {stat:.4f}\n"
             summary += f"  p-value: {pval:.4f}\n\n"
@@ -1401,7 +2570,27 @@ def run_statistical_analysis(df, analysis_id, config):
             else:
                 summary += f"<<COLOR:text>>No significant difference (p >= 0.05)<</COLOR>>"
 
+            summary += _practical_block("Eta-squared (η²)", eta_sq, "eta_squared", pval,
+                context=f"The factor '{factor_col}' explains {eta_sq*100:.1f}% of the variation in '{response}'. Omega-squared (less biased): {omega_sq:.3f}.")
+
             result["summary"] = summary
+            obs_parts = [f"One-way ANOVA: F={stat:.4f}, p={pval:.4f}, η²={eta_sq:.3f} ({eta_label})"]
+            if pval < 0.05 and eta_meaningful:
+                obs_parts.append(f"'{factor_col}' has a {eta_label}, practically significant effect on '{response}'.")
+            elif pval < 0.05:
+                obs_parts.append(f"Significant but {eta_label} effect.")
+            else:
+                obs_parts.append("Not significant.")
+            result["guide_observation"] = " ".join(obs_parts)
+            result["statistics"] = {
+                "f_statistic": float(stat),
+                "p_value": float(pval),
+                "eta_squared": float(eta_sq),
+                "omega_squared": float(omega_sq),
+                "effect_size_label": eta_label,
+                "n_groups": k,
+                "n_total": n_total,
+            }
 
             # Box plot
             result["plots"].append({
@@ -1442,15 +2631,34 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += f"<<COLOR:text>>ANOVA Table:<</COLOR>>\n"
             summary += anova_table.to_string() + "\n\n"
 
-            # Interpret results
+            # Compute partial eta-squared and interpret each factor
+            ss_resid = anova_table.loc['Residual', 'sum_sq'] if 'Residual' in anova_table.index else 0
+            effect_stats = {}
             for idx in anova_table.index:
+                if idx == 'Residual':
+                    continue
                 if 'PR(>F)' in anova_table.columns:
                     p = anova_table.loc[idx, 'PR(>F)']
+                    ss = anova_table.loc[idx, 'sum_sq'] if 'sum_sq' in anova_table.columns else 0
+                    partial_eta = ss / (ss + ss_resid) if (ss + ss_resid) > 0 else 0.0
+                    eta_label, eta_meaningful = _effect_magnitude(partial_eta, "eta_squared")
                     if not np.isnan(p):
                         sig = "<<COLOR:good>>*<</COLOR>>" if p < 0.05 else ""
-                        summary += f"{idx}: p = {p:.4f} {sig}\n"
+                        summary += f"{idx}: p = {p:.4f} {sig}  |  partial η² = {partial_eta:.3f} ({eta_label})\n"
+                        effect_stats[idx] = {"p_value": float(p), "partial_eta_squared": float(partial_eta), "label": eta_label}
+
+            # Practical significance block for strongest effect
+            if effect_stats:
+                strongest = max(effect_stats.items(), key=lambda x: x[1]["partial_eta_squared"])
+                s_name, s_vals = strongest
+                summary += _practical_block(f"Partial η² ({s_name})", s_vals["partial_eta_squared"], "eta_squared", s_vals["p_value"],
+                    context=f"'{s_name}' explains {s_vals['partial_eta_squared']*100:.1f}% of the remaining variation in '{response}'.")
 
             result["summary"] = summary
+            result["guide_observation"] = "Two-way ANOVA: " + "; ".join(
+                f"{k}: p={v['p_value']:.4f}, η²={v['partial_eta_squared']:.3f} ({v['label']})" for k, v in effect_stats.items()
+            )
+            result["statistics"] = {"effects": effect_stats}
 
             # Interaction plot
             means = df.groupby([factor_a, factor_b])[response].mean().unstack()
@@ -1686,7 +2894,23 @@ def run_statistical_analysis(df, analysis_id, config):
             for i, sug in enumerate(suggestions[:5], 1):  # Limit to 5 suggestions
                 summary += f"<<COLOR:warning>>{i}.<</COLOR>> <<COLOR:text>>{sug}<</COLOR>>\n"
 
+        # Practical significance: R² as effect size
+        r2_label, r2_meaningful = _effect_magnitude(r2, "r_squared")
+        summary += _practical_block("R²", r2, "r_squared", f_pvalue,
+            context=f"The model explains {r2*100:.1f}% of the variation in '{response}'. "
+                    f"RMSE = {rmse:.4f} — on average, predictions are off by this amount in the original units.")
+
         result["summary"] = summary
+        # Build guide_observation for regression
+        sig_predictors = [names[i] for i in range(1, len(names)) if p_values[i] < 0.05]
+        obs = f"Regression: R²={r2:.3f} ({r2_label}), F p={f_pvalue:.4f}."
+        if sig_predictors:
+            obs += f" Significant predictors: {', '.join(sig_predictors[:5])}."
+        if r2_meaningful:
+            obs += f" Model explains {r2*100:.0f}% of variation — practically useful."
+        else:
+            obs += f" Model explains only {r2*100:.0f}% of variation — limited practical use."
+        result["guide_observation"] = obs
 
         # Create 4-panel diagnostic plots
 
@@ -1820,7 +3044,50 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += "<<COLOR:text>>Correlation Matrix:<</COLOR>>\n"
         summary += corr_matrix.to_string() + "\n"
 
+        # Find and report strongest correlations with practical interpretation
+        n_obs = len(df[numeric_cols].dropna())
+        strong_pairs = []
+        stat_dict = {}
+        for i, col1 in enumerate(numeric_cols):
+            for j, col2 in enumerate(numeric_cols):
+                if i < j:
+                    r = corr_matrix.loc[col1, col2]
+                    # Compute p-value for each pair
+                    pair_data = df[[col1, col2]].dropna()
+                    if len(pair_data) > 2:
+                        if method == "spearman":
+                            r_val, p_val = stats.spearmanr(pair_data[col1], pair_data[col2])
+                        elif method == "kendall":
+                            r_val, p_val = stats.kendalltau(pair_data[col1], pair_data[col2])
+                        else:
+                            r_val, p_val = stats.pearsonr(pair_data[col1], pair_data[col2])
+                    else:
+                        r_val, p_val = float(r), 1.0
+                    r2_val = r_val**2
+                    label, meaningful = _effect_magnitude(r2_val, "r_squared")
+                    stat_dict[f"r({col1},{col2})"] = float(r_val)
+                    stat_dict[f"p({col1},{col2})"] = float(p_val)
+                    if abs(r_val) >= 0.3:
+                        strong_pairs.append((col1, col2, float(r_val), float(p_val), label))
+
+        if strong_pairs:
+            strong_pairs.sort(key=lambda x: abs(x[2]), reverse=True)
+            summary += f"\n<<COLOR:accent>>{'─' * 70}<</COLOR>>\n"
+            summary += f"<<COLOR:title>>KEY RELATIONSHIPS<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>{'─' * 70}<</COLOR>>\n\n"
+            for col1, col2, r_val, p_val, label in strong_pairs[:8]:
+                direction = "positive" if r_val > 0 else "negative"
+                sig = "**" if p_val < 0.01 else "*" if p_val < 0.05 else ""
+                r2_pct = r_val**2 * 100
+                summary += f"<<COLOR:highlight>>{col1} ↔ {col2}:<</COLOR>> r = {r_val:+.3f} {sig} — {label} {direction} ({r2_pct:.0f}% shared variance)\n"
+            summary += f"\n<<COLOR:text>>Strongest: {strong_pairs[0][0]} and {strong_pairs[0][1]} share {strong_pairs[0][2]**2*100:.0f}% of their variation.<</COLOR>>"
+        else:
+            summary += f"\n<<COLOR:text>>No strong correlations found (all |r| < 0.3).<</COLOR>>"
+
         result["summary"] = summary
+        result["guide_observation"] = f"Correlation ({method}): {len(strong_pairs)} pairs with |r| ≥ 0.3." + (
+            f" Strongest: {strong_pairs[0][0]} ↔ {strong_pairs[0][1]} (r={strong_pairs[0][2]:.3f})." if strong_pairs else " No strong relationships found.")
+        result["statistics"] = stat_dict
 
         # Heatmap
         result["plots"].append({
@@ -1944,17 +3211,43 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:text>>Contingency Table (Observed):<</COLOR>>\n"
         summary += contingency.to_string() + "\n\n"
 
+        # Cramér's V effect size
+        n_obs = contingency.values.sum()
+        min_dim = min(contingency.shape[0], contingency.shape[1]) - 1
+        cramers_v = np.sqrt(chi2 / (n_obs * min_dim)) if (n_obs > 0 and min_dim > 0) else 0.0
+        v_label, v_meaningful = _effect_magnitude(cramers_v, "cramers_v")
+
         summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
         summary += f"  Chi-square statistic: {chi2:.4f}\n"
         summary += f"  Degrees of freedom: {dof}\n"
-        summary += f"  p-value: {pval:.4f}\n\n"
+        summary += f"  p-value: {pval:.4f}\n"
+        summary += f"  Cramér's V: {cramers_v:.3f} ({v_label} association)\n\n"
 
         if pval < 0.05:
             summary += f"<<COLOR:good>>Variables are significantly associated (p < 0.05)<</COLOR>>"
         else:
             summary += f"<<COLOR:text>>No significant association found (p >= 0.05)<</COLOR>>"
 
+        summary += _practical_block("Cramér's V", cramers_v, "cramers_v", pval,
+            context=f"The association between '{row_var}' and '{col_var}' is {v_label}. V=0 means no association, V=1 means perfect association.")
+
         result["summary"] = summary
+        obs_parts = [f"Chi-square test: χ²={chi2:.4f}, p={pval:.4f}, Cramér's V={cramers_v:.3f} ({v_label})"]
+        if pval < 0.05 and v_meaningful:
+            obs_parts.append(f"'{row_var}' and '{col_var}' are meaningfully associated.")
+        elif pval < 0.05:
+            obs_parts.append("Significant but weak association.")
+        else:
+            obs_parts.append("No significant association.")
+        result["guide_observation"] = " ".join(obs_parts)
+        result["statistics"] = {
+            "chi2": float(chi2),
+            "dof": int(dof),
+            "p_value": float(pval),
+            "cramers_v": float(cramers_v),
+            "effect_size_label": v_label,
+            "n": int(n_obs),
+        }
 
         # Heatmap of observed counts
         result["plots"].append({
@@ -6213,6 +7506,329 @@ def run_statistical_analysis(df, analysis_id, config):
             "layout": {"template": "plotly_dark", "height": 250, "xaxis": {"title": "Lambda (λ)"}, "yaxis": {"title": "Log-Likelihood"}}
         })
 
+    # ── Run Chart ──────────────────────────────────────────────────────────
+    elif analysis_id == "run_chart":
+        """
+        Run Chart — time-ordered individual values with median line and runs tests.
+        Tests for clustering, mixtures, trends, and oscillation.
+        """
+        var = config.get("var")
+        time_col = config.get("time_col")
+
+        vals = df[var].dropna().values
+        n = len(vals)
+
+        if n < 5:
+            result["summary"] = "Run chart requires at least 5 observations."
+        else:
+            median_val = float(np.median(vals))
+
+            # X-axis: time column or row index
+            if time_col and time_col != "" and time_col != "None":
+                x_vals = df[time_col].loc[df[var].dropna().index].tolist()
+            else:
+                x_vals = list(range(1, n + 1))
+
+            # Count runs above/below median
+            above = vals > median_val
+            # Exclude values exactly at the median for runs test
+            not_on = vals != median_val
+            filtered = above[not_on]
+            n_above = int(np.sum(filtered))
+            n_below = int(len(filtered) - n_above)
+
+            if n_above > 0 and n_below > 0:
+                # Count runs
+                runs = 1
+                for i in range(1, len(filtered)):
+                    if filtered[i] != filtered[i - 1]:
+                        runs += 1
+
+                # Expected runs and standard deviation
+                n1, n2 = n_above, n_below
+                expected_runs = (2 * n1 * n2) / (n1 + n2) + 1
+                std_runs = np.sqrt((2 * n1 * n2 * (2 * n1 * n2 - n1 - n2)) / ((n1 + n2)**2 * (n1 + n2 - 1)))
+
+                z_score = (runs - expected_runs) / std_runs if std_runs > 0 else 0
+                p_clustering = stats.norm.cdf(z_score)  # Too few runs = clustering
+                p_mixtures = 1 - stats.norm.cdf(z_score)  # Too many runs = mixtures
+
+                # Longest run (trend indicator)
+                longest_run = 1
+                current_run = 1
+                for i in range(1, len(filtered)):
+                    if filtered[i] == filtered[i - 1]:
+                        current_run += 1
+                        longest_run = max(longest_run, current_run)
+                    else:
+                        current_run = 1
+
+                cluster_flag = "<<COLOR:danger>>Yes<<\/COLOR>>" if p_clustering < 0.05 else "<<COLOR:success>>No<<\/COLOR>>"
+                mixture_flag = "<<COLOR:danger>>Yes<<\/COLOR>>" if p_mixtures < 0.05 else "<<COLOR:success>>No<<\/COLOR>>"
+
+                summary = f"""<<COLOR:title>>RUN CHART<<\/COLOR>>
+{'='*50}
+<<COLOR:highlight>>Variable:<<\/COLOR>> {var}
+<<COLOR:highlight>>Observations:<<\/COLOR>> {n}
+<<COLOR:highlight>>Median:<<\/COLOR>> {median_val:.6g}
+
+<<COLOR:accent>>Runs Test Results<<\/COLOR>>
+  Number of runs:    {runs}
+  Expected runs:     {expected_runs:.1f}
+  Longest run:       {longest_run}
+  Points above median: {n_above}
+  Points below median: {n_below}
+
+  Clustering (too few runs)?   {cluster_flag}  (p = {p_clustering:.4f})
+  Mixtures (too many runs)?    {mixture_flag}  (p = {p_mixtures:.4f})"""
+            else:
+                summary = f"""<<COLOR:title>>RUN CHART<<\/COLOR>>
+{'='*50}
+Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
+<<COLOR:warning>>All values on same side of median — runs test not applicable<<\/COLOR>>"""
+                runs = 0
+
+            result["summary"] = summary
+            result["guide_observation"] = f"Run chart: {n} obs, median={median_val:.4g}, {runs} runs."
+
+            # Plot
+            traces = [
+                {"type": "scatter", "x": x_vals, "y": vals.tolist(), "mode": "lines+markers",
+                 "marker": {"color": "#4a9f6e", "size": 5}, "line": {"color": "#4a9f6e", "width": 1.5}, "name": var},
+                {"type": "scatter", "x": [x_vals[0], x_vals[-1]], "y": [median_val, median_val],
+                 "mode": "lines", "line": {"color": "#e89547", "dash": "dash", "width": 2}, "name": f"Median = {median_val:.4g}"}
+            ]
+            result["plots"].append({
+                "title": f"Run Chart: {var}",
+                "data": traces,
+                "layout": {"height": 350, "xaxis": {"title": time_col if time_col else "Observation"}, "yaxis": {"title": var}, "showlegend": True}
+            })
+
+    # ── Grubbs' Outlier Test ─────────────────────────────────────────────
+    elif analysis_id == "grubbs_test":
+        """
+        Grubbs' test for a single outlier.
+        Tests whether the most extreme value is significantly different.
+        """
+        var = config.get("var")
+        alpha = config.get("alpha", 0.05)
+
+        vals = df[var].dropna().values
+        n = len(vals)
+
+        if n < 3:
+            result["summary"] = "Grubbs' test requires at least 3 observations."
+        else:
+            mean_val = float(np.mean(vals))
+            std_val = float(np.std(vals, ddof=1))
+
+            if std_val == 0:
+                result["summary"] = "All values are identical — no outlier possible."
+            else:
+                # Find most extreme value
+                deviations = np.abs(vals - mean_val)
+                max_idx = int(np.argmax(deviations))
+                suspect = float(vals[max_idx])
+                G = float(deviations[max_idx] / std_val)
+
+                # Critical value from t-distribution
+                t_crit = stats.t.ppf(1 - alpha / (2 * n), n - 2)
+                G_crit = ((n - 1) / np.sqrt(n)) * np.sqrt(t_crit**2 / (n - 2 + t_crit**2))
+
+                # Two-sided p-value (approximation)
+                t_stat = G * np.sqrt(n) / np.sqrt(n - 1)
+                p_val = min(1.0, 2 * n * (1 - stats.t.cdf(np.sqrt((n * (n - 2) * G**2) / (n - 1 - G**2 * (n - 1) / n)), n - 2))) if G**2 < n * (n - 1) / n else 0.0
+
+                is_outlier = G > G_crit
+                verdict = "<<COLOR:danger>>Yes — significant outlier<<\/COLOR>>" if is_outlier else "<<COLOR:success>>No — not a significant outlier<<\/COLOR>>"
+
+                summary = f"""<<COLOR:title>>GRUBBS' OUTLIER TEST<<\/COLOR>>
+{'='*50}
+<<COLOR:highlight>>Variable:<<\/COLOR>> {var}
+<<COLOR:highlight>>N:<<\/COLOR>> {n}
+<<COLOR:highlight>>Significance level:<<\/COLOR>> {alpha}
+
+<<COLOR:accent>>Results<<\/COLOR>>
+  Suspect value: {suspect:.6g}
+  Mean:          {mean_val:.6g}
+  StDev:         {std_val:.6g}
+
+  G statistic:   {G:.4f}
+  G critical:    {G_crit:.4f}
+
+  Outlier? {verdict}"""
+
+                result["summary"] = summary
+                result["guide_observation"] = f"Grubbs' test on {var}: suspect={suspect:.4g}, G={G:.3f}, {'outlier' if is_outlier else 'not outlier'} at α={alpha}."
+                result["statistics"] = {"G": G, "G_critical": G_crit, "suspect_value": suspect, "is_outlier": is_outlier}
+
+                # Highlight plot
+                colors = ["#4a9f6e" if i != max_idx else "#d94a4a" for i in range(n)]
+                sizes = [5 if i != max_idx else 12 for i in range(n)]
+                result["plots"].append({
+                    "title": f"Grubbs' Test: {var}",
+                    "data": [
+                        {"type": "scatter", "x": list(range(1, n + 1)), "y": vals.tolist(),
+                         "mode": "markers", "marker": {"color": colors, "size": sizes}, "name": var},
+                        {"type": "scatter", "x": [1, n], "y": [mean_val, mean_val],
+                         "mode": "lines", "line": {"color": "#e89547", "dash": "dash"}, "name": f"Mean = {mean_val:.4g}"}
+                    ],
+                    "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": var}}
+                })
+
+    # ── Cross-Correlation Function ───────────────────────────────────────
+    elif analysis_id == "ccf":
+        """
+        Cross-Correlation Function — correlation between two time series at various lags.
+        """
+        var1 = config.get("var1")
+        var2 = config.get("var2")
+        max_lag = int(config.get("max_lag", 20))
+
+        x = df[var1].dropna().values
+        y = df[var2].dropna().values
+        n = min(len(x), len(y))
+        x = x[:n]
+        y = y[:n]
+
+        if n < 5:
+            result["summary"] = "Cross-correlation requires at least 5 observations."
+        else:
+            # Standardize
+            x_std = (x - np.mean(x)) / np.std(x)
+            y_std = (y - np.mean(y)) / np.std(y)
+
+            lags = list(range(-max_lag, max_lag + 1))
+            ccf_vals = []
+            for lag in lags:
+                if lag >= 0:
+                    cc = np.mean(x_std[:n - lag] * y_std[lag:]) if lag < n else 0.0
+                else:
+                    cc = np.mean(x_std[-lag:] * y_std[:n + lag]) if -lag < n else 0.0
+                ccf_vals.append(float(cc))
+
+            sig_bound = 2.0 / np.sqrt(n)
+
+            # Find significant lags
+            sig_lags = [(lag, cc) for lag, cc in zip(lags, ccf_vals) if abs(cc) > sig_bound]
+
+            summary = f"""<<COLOR:title>>CROSS-CORRELATION FUNCTION<<\/COLOR>>
+{'='*50}
+<<COLOR:highlight>>Series 1:<<\/COLOR>> {var1}
+<<COLOR:highlight>>Series 2:<<\/COLOR>> {var2}
+<<COLOR:highlight>>N:<<\/COLOR>> {n}
+<<COLOR:highlight>>Max lag:<<\/COLOR>> ±{max_lag}
+<<COLOR:highlight>>Significance bound:<<\/COLOR>> ±{sig_bound:.4f}
+
+<<COLOR:accent>>Lag 0 correlation:<<\/COLOR>> {ccf_vals[max_lag]:.4f}"""
+
+            if sig_lags:
+                summary += f"\n\n<<COLOR:accent>>Significant lags:<<\/COLOR>>"
+                for lag, cc in sorted(sig_lags, key=lambda x: abs(x[1]), reverse=True)[:10]:
+                    summary += f"\n  Lag {lag:>3d}: r = {cc:+.4f}"
+
+            result["summary"] = summary
+            result["guide_observation"] = f"CCF({var1}, {var2}): lag-0 r={ccf_vals[max_lag]:.3f}, {len(sig_lags)} significant lags."
+            result["statistics"] = {"lag_0_correlation": ccf_vals[max_lag], "significant_lags": len(sig_lags)}
+
+            result["plots"].append({
+                "title": f"Cross-Correlation: {var1} vs {var2}",
+                "data": [
+                    {"type": "bar", "x": lags, "y": ccf_vals, "marker": {"color": ["#d94a4a" if abs(c) > sig_bound else "#4a9f6e" for c in ccf_vals]}, "name": "CCF"},
+                    {"type": "scatter", "x": [-max_lag, max_lag], "y": [sig_bound, sig_bound], "mode": "lines", "line": {"color": "#e89547", "dash": "dash", "width": 1}, "showlegend": False},
+                    {"type": "scatter", "x": [-max_lag, max_lag], "y": [-sig_bound, -sig_bound], "mode": "lines", "line": {"color": "#e89547", "dash": "dash", "width": 1}, "showlegend": False}
+                ],
+                "layout": {"height": 300, "xaxis": {"title": "Lag"}, "yaxis": {"title": "Correlation", "range": [-1.05, 1.05]}}
+            })
+
+    # ── Johnson Transformation ───────────────────────────────────────────
+    elif analysis_id == "johnson_transform":
+        """
+        Johnson Transformation — finds optimal Johnson family (SB, SL, SU) to normalize data.
+        More general than Box-Cox (handles bounded and unbounded distributions).
+        """
+        var = config.get("var")
+
+        data = df[var].dropna().values
+        n = len(data)
+
+        if n < 10:
+            result["summary"] = "Johnson transformation requires at least 10 observations."
+        else:
+            summary = f"<<COLOR:title>>JOHNSON TRANSFORMATION<<\/COLOR>>\n{'='*50}\n"
+            summary += f"<<COLOR:highlight>>Variable:<<\/COLOR>> {var}\n"
+            summary += f"<<COLOR:highlight>>N:<<\/COLOR>> {n}\n\n"
+
+            # Test each Johnson family
+            families = {}
+
+            # SU (unbounded)
+            try:
+                params_su = stats.johnsonsu.fit(data)
+                transformed_su = stats.johnsonsu.cdf(data, *params_su)
+                transformed_su = stats.norm.ppf(np.clip(transformed_su, 0.001, 0.999))
+                _, p_su = stats.shapiro(transformed_su[:min(5000, len(transformed_su))])
+                families["SU"] = {"params": params_su, "p_value": float(p_su), "transformed": transformed_su}
+            except Exception:
+                pass
+
+            # SB (bounded)
+            try:
+                params_sb = stats.johnsonsb.fit(data)
+                transformed_sb = stats.johnsonsb.cdf(data, *params_sb)
+                transformed_sb = stats.norm.ppf(np.clip(transformed_sb, 0.001, 0.999))
+                _, p_sb = stats.shapiro(transformed_sb[:min(5000, len(transformed_sb))])
+                families["SB"] = {"params": params_sb, "p_value": float(p_sb), "transformed": transformed_sb}
+            except Exception:
+                pass
+
+            # SL (lognormal — just use log transform)
+            try:
+                if np.all(data > 0):
+                    transformed_sl = np.log(data)
+                    _, p_sl = stats.shapiro(transformed_sl[:min(5000, len(transformed_sl))])
+                    families["SL"] = {"params": None, "p_value": float(p_sl), "transformed": transformed_sl}
+            except Exception:
+                pass
+
+            # Original normality
+            _, p_orig = stats.shapiro(data[:min(5000, n)])
+
+            summary += f"<<COLOR:text>>Original Shapiro-Wilk p-value:<<\/COLOR>> {p_orig:.4f}"
+            summary += f" {'(normal)' if p_orig > 0.05 else '(non-normal)'}\n\n"
+
+            if families:
+                best_family = max(families.keys(), key=lambda k: families[k]["p_value"])
+                best = families[best_family]
+
+                summary += f"<<COLOR:accent>>Family Results:<<\/COLOR>>\n"
+                for fam_name, fam_data in sorted(families.items(), key=lambda x: -x[1]["p_value"]):
+                    marker = " ← Best" if fam_name == best_family else ""
+                    p = fam_data["p_value"]
+                    status = "<<COLOR:success>>normal<<\/COLOR>>" if p > 0.05 else "<<COLOR:warning>>non-normal<<\/COLOR>>"
+                    summary += f"  Johnson {fam_name}: Shapiro-Wilk p = {p:.4f} ({status}){marker}\n"
+
+                summary += f"\n<<COLOR:success>>Best transformation: Johnson {best_family}<<\/COLOR>>\n"
+
+                result["summary"] = summary
+                result["guide_observation"] = f"Johnson transform: best family={best_family}, p={best['p_value']:.4f}."
+                result["statistics"] = {"best_family": best_family, "p_original": float(p_orig), "p_transformed": best["p_value"]}
+
+                # Plots: before and after
+                result["plots"].append({
+                    "title": f"Original: {var}",
+                    "data": [{"type": "histogram", "x": data.tolist(), "marker": {"color": "rgba(232,87,71,0.4)", "line": {"color": "#e85747", "width": 1}}}],
+                    "layout": {"height": 200, "xaxis": {"title": var}}
+                })
+                result["plots"].append({
+                    "title": f"Johnson {best_family} Transformed",
+                    "data": [{"type": "histogram", "x": best["transformed"].tolist(), "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}}}],
+                    "layout": {"height": 200, "xaxis": {"title": f"Johnson {best_family}({var})"}}
+                })
+            else:
+                summary += "\n<<COLOR:warning>>Could not fit any Johnson family to this data.<<\/COLOR>>"
+                result["summary"] = summary
+
     elif analysis_id == "robust_regression":
         """
         Robust Regression - outlier-resistant regression.
@@ -8489,6 +10105,269 @@ Top Correlations:
         except Exception as e:
             result["summary"] = f"Data profile error: {str(e)}"
 
+    # ── Auto Profile (lightweight, runs on import) ───────────────────────
+    elif analysis_id == "auto_profile":
+        try:
+            n_rows, n_cols = df.shape
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+            cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+            dt_cols = df.select_dtypes(include=["datetime"]).columns.tolist()
+            total_missing = int(df.isnull().sum().sum())
+            total_cells = n_rows * n_cols
+            miss_pct = (total_missing / total_cells * 100) if total_cells > 0 else 0
+
+            # Per-column one-liner stats
+            col_lines = []
+            for col in df.columns:
+                miss = int(df[col].isnull().sum())
+                miss_p = miss / n_rows * 100 if n_rows > 0 else 0
+                if col in numeric_cols:
+                    vals = df[col].dropna()
+                    if len(vals) > 0:
+                        col_lines.append(f"  <<COLOR:accent>>{col}<<\/COLOR>>  N={len(vals)}  Mean={vals.mean():.4g}  StDev={vals.std():.4g}  Min={vals.min():.4g}  Max={vals.max():.4g}  Missing={miss_p:.1f}%")
+                    else:
+                        col_lines.append(f"  <<COLOR:warning>>{col}<<\/COLOR>>  (all missing)")
+                else:
+                    uniq = df[col].nunique()
+                    top = df[col].mode().iloc[0] if len(df[col].mode()) > 0 else "-"
+                    col_lines.append(f"  <<COLOR:accent>>{col}<<\/COLOR>>  Unique={uniq}  Top=\"{str(top)[:20]}\"  Missing={miss_p:.1f}%")
+
+            summary = f"""<<COLOR:title>>DATA OVERVIEW<</COLOR>>
+{'='*50}
+<<COLOR:highlight>>{n_rows}<<\/COLOR>> rows × <<COLOR:highlight>>{n_cols}<<\/COLOR>> columns
+Numeric: {len(numeric_cols)}  |  Categorical: {len(cat_cols)}  |  Datetime: {len(dt_cols)}
+Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
+
+<<COLOR:title>>Column Summary<</COLOR>>
+{chr(10).join(col_lines)}"""
+
+            result["summary"] = summary
+
+            # Correlation heatmap (if 2+ numeric)
+            if len(numeric_cols) >= 2:
+                corr_matrix = df[numeric_cols].corr()
+                result["plots"].append({
+                    "data": [{"type": "heatmap", "z": corr_matrix.values.tolist(),
+                              "x": numeric_cols, "y": numeric_cols,
+                              "colorscale": "RdBu_r", "zmin": -1, "zmax": 1,
+                              "text": [[f"{v:.2f}" for v in row] for row in corr_matrix.values],
+                              "texttemplate": "%{text}", "hovertemplate": "%{x} vs %{y}: %{z:.3f}<extra></extra>"}],
+                    "layout": {"title": "Correlation Matrix", "height": 350, "template": "plotly_white"}
+                })
+
+            # Distribution histograms (up to 12 numeric)
+            for col in numeric_cols[:12]:
+                vals = df[col].dropna().tolist()
+                if len(vals) > 0:
+                    result["plots"].append({
+                        "data": [{"type": "histogram", "x": vals, "marker": {"color": "rgba(74,144,217,0.6)"}, "nbinsx": 30}],
+                        "layout": {"title": f"{col}", "height": 220, "template": "plotly_white",
+                                   "xaxis": {"title": col}, "yaxis": {"title": "Count"},
+                                   "margin": {"t": 30, "b": 40, "l": 50, "r": 20}}
+                    })
+
+            # Missing bar if any
+            miss_cols = df.columns[df.isnull().any()].tolist()
+            if miss_cols:
+                miss_pcts = [(df[c].isnull().sum() / n_rows * 100) for c in miss_cols]
+                result["plots"].append({
+                    "data": [{"type": "bar", "x": [round(p, 1) for p in miss_pcts], "y": miss_cols,
+                              "orientation": "h", "marker": {"color": "rgba(232,71,71,0.6)"}}],
+                    "layout": {"title": "Missing Data (%)", "height": max(200, len(miss_cols) * 22),
+                               "xaxis": {"title": "% Missing"}, "template": "plotly_white", "margin": {"l": 120}}
+                })
+
+            result["guide_observation"] = f"Auto-profile: {n_rows} rows, {n_cols} cols, {total_missing} missing, {len(numeric_cols)} numeric."
+
+        except Exception as e:
+            result["summary"] = f"Auto-profile error: {str(e)}"
+
+    # ── Graphical Summary (Minitab-style) ────────────────────────────────
+    elif analysis_id == "graphical_summary":
+        try:
+            from scipy import stats as sp_stats
+
+            conf_level = config.get("confidence", 0.95)
+            selected = config.get("vars", [])
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+            if not selected:
+                selected = numeric_cols
+            selected = [c for c in selected if c in numeric_cols]
+
+            if not selected:
+                result["summary"] = "No numeric columns selected or available for Graphical Summary."
+            else:
+                all_summaries = []
+                for col in selected:
+                    vals = df[col].dropna().values
+                    n = len(vals)
+                    n_star = int(df[col].isnull().sum())
+
+                    if n < 3:
+                        all_summaries.append(f"<<COLOR:title>>{col}<<\/COLOR>>: insufficient data (N={n})")
+                        continue
+
+                    # Descriptive stats
+                    mean_val = float(np.mean(vals))
+                    std_val = float(np.std(vals, ddof=1))
+                    var_val = std_val ** 2
+                    se = std_val / np.sqrt(n)
+                    skew_val = float(sp_stats.skew(vals, bias=False))
+                    kurt_val = float(sp_stats.kurtosis(vals, bias=False))
+                    q1 = float(np.percentile(vals, 25))
+                    median_val = float(np.median(vals))
+                    q3 = float(np.percentile(vals, 75))
+                    min_val = float(np.min(vals))
+                    max_val = float(np.max(vals))
+
+                    # Anderson-Darling test
+                    ad_result = sp_stats.anderson(vals, dist='norm')
+                    ad_stat = ad_result.statistic
+                    # Use 5% significance level (index 2 in critical_values)
+                    ad_crit = ad_result.critical_values[2] if len(ad_result.critical_values) > 2 else ad_result.critical_values[-1]
+                    ad_sig = ad_result.significance_level[2] if len(ad_result.significance_level) > 2 else ad_result.significance_level[-1]
+                    ad_pass = ad_stat < ad_crit
+                    ad_verdict = "<<COLOR:success>>Yes (fail to reject H₀)<<\/COLOR>>" if ad_pass else "<<COLOR:danger>>No (reject H₀)<<\/COLOR>>"
+
+                    # CI for mean (t-interval)
+                    ci_mean = sp_stats.t.interval(conf_level, df=n - 1, loc=mean_val, scale=se)
+
+                    # CI for median (nonparametric sign-test inversion)
+                    alpha = 1 - conf_level
+                    from scipy.stats import binom
+                    j = 0
+                    for k_idx in range(n):
+                        if binom.cdf(k_idx, n, 0.5) >= alpha / 2:
+                            j = k_idx
+                            break
+                    sorted_vals = np.sort(vals)
+                    ci_median_lo = float(sorted_vals[j]) if j < n else float(sorted_vals[0])
+                    ci_median_hi = float(sorted_vals[n - 1 - j]) if (n - 1 - j) >= 0 else float(sorted_vals[-1])
+
+                    # CI for StDev (chi-square)
+                    chi2_lo = sp_stats.chi2.ppf((1 + conf_level) / 2, n - 1)
+                    chi2_hi = sp_stats.chi2.ppf((1 - conf_level) / 2, n - 1)
+                    ci_std_lo = np.sqrt((n - 1) * var_val / chi2_lo)
+                    ci_std_hi = np.sqrt((n - 1) * var_val / chi2_hi)
+
+                    pct_str = f"{conf_level*100:.0f}%"
+
+                    # Summary text
+                    summ = f"""<<COLOR:title>>{'═'*50}
+{col}
+{'═'*50}<<\/COLOR>>
+
+<<COLOR:accent>>Anderson-Darling Normality Test<<\/COLOR>>
+  A² = {ad_stat:.4f}    Critical ({ad_sig:.0f}%) = {ad_crit:.4f}
+  Normal? {ad_verdict}
+
+<<COLOR:accent>>Descriptive Statistics<<\/COLOR>>
+  N = {n}    N* = {n_star}
+  Mean     = {mean_val:.6g}       StDev    = {std_val:.6g}
+  Variance = {var_val:.6g}       Skewness = {skew_val:.4f}
+  Kurtosis = {kurt_val:.4f}
+  Minimum  = {min_val:.6g}       Q1       = {q1:.6g}
+  Median   = {median_val:.6g}       Q3       = {q3:.6g}
+  Maximum  = {max_val:.6g}
+
+<<COLOR:accent>>Confidence Intervals ({pct_str})<<\/COLOR>>
+  Mean:   ({ci_mean[0]:.6g}, {ci_mean[1]:.6g})
+  Median: ({ci_median_lo:.6g}, {ci_median_hi:.6g})
+  StDev:  ({ci_std_lo:.6g}, {ci_std_hi:.6g})"""
+                    all_summaries.append(summ)
+
+                    # ── Plotly figure: 3-row subplot ──
+                    import plotly.graph_objects as go
+                    from plotly.subplots import make_subplots
+
+                    fig = make_subplots(
+                        rows=3, cols=1, row_heights=[0.55, 0.20, 0.25],
+                        shared_xaxes=True, vertical_spacing=0.06,
+                        subplot_titles=[f"{col} — Histogram + Normal Fit", "Boxplot", f"{pct_str} Confidence Intervals"]
+                    )
+
+                    # Row 1: Histogram + normal curve
+                    nbins = min(max(int(np.sqrt(n)), 10), 50)
+                    counts, bin_edges = np.histogram(vals, bins=nbins)
+                    bin_width = bin_edges[1] - bin_edges[0]
+
+                    fig.add_trace(go.Histogram(
+                        x=vals.tolist(), nbinsx=nbins,
+                        marker=dict(color="rgba(74,144,217,0.6)", line=dict(color="rgba(74,144,217,1)", width=1)),
+                        name="Data", showlegend=False
+                    ), row=1, col=1)
+
+                    # Normal PDF overlay scaled to histogram
+                    x_fit = np.linspace(min_val - 0.5 * std_val, max_val + 0.5 * std_val, 200)
+                    y_fit = sp_stats.norm.pdf(x_fit, mean_val, std_val) * n * bin_width
+                    fig.add_trace(go.Scatter(
+                        x=x_fit.tolist(), y=y_fit.tolist(), mode="lines",
+                        line=dict(color="rgba(232,71,71,0.9)", width=2),
+                        name="Normal Fit", showlegend=False
+                    ), row=1, col=1)
+
+                    # Row 2: Boxplot
+                    fig.add_trace(go.Box(
+                        x=vals.tolist(), orientation="h",
+                        marker=dict(color="rgba(74,144,217,0.7)"),
+                        line=dict(color="rgba(74,144,217,1)"),
+                        fillcolor="rgba(74,144,217,0.3)",
+                        name="Box", showlegend=False
+                    ), row=2, col=1)
+
+                    # Row 3: CI bars (mean and median)
+                    fig.add_trace(go.Scatter(
+                        x=[ci_mean[0], mean_val, ci_mean[1]], y=["Mean", "Mean", "Mean"],
+                        mode="lines+markers",
+                        marker=dict(size=[8, 12, 8], color=["rgba(232,71,71,0.8)", "rgba(232,71,71,1)", "rgba(232,71,71,0.8)"],
+                                    symbol=["line-ns", "diamond", "line-ns"]),
+                        line=dict(color="rgba(232,71,71,0.8)", width=2),
+                        name="Mean CI", showlegend=False
+                    ), row=3, col=1)
+
+                    fig.add_trace(go.Scatter(
+                        x=[ci_median_lo, median_val, ci_median_hi], y=["Median", "Median", "Median"],
+                        mode="lines+markers",
+                        marker=dict(size=[8, 12, 8], color=["rgba(74,144,217,0.8)", "rgba(74,144,217,1)", "rgba(74,144,217,0.8)"],
+                                    symbol=["line-ns", "diamond", "line-ns"]),
+                        line=dict(color="rgba(74,144,217,0.8)", width=2),
+                        name="Median CI", showlegend=False
+                    ), row=3, col=1)
+
+                    fig.update_layout(height=520, template="plotly_white",
+                                      margin=dict(t=40, b=30, l=60, r=20))
+                    fig.update_yaxes(showticklabels=False, row=2, col=1)
+
+                    # Convert to JSON-serializable dict
+                    fig_dict = fig.to_dict()
+                    result["plots"].append({
+                        "data": [t for t in fig_dict["data"]],
+                        "layout": fig_dict["layout"]
+                    })
+
+                    # HTML table for this variable
+                    tbl = f"""<table class='result-table'>
+<tr><th colspan='4' style='text-align:center;'>{col} — Descriptive Statistics</th></tr>
+<tr><td>N</td><td>{n}</td><td>N* (missing)</td><td>{n_star}</td></tr>
+<tr><td>Mean</td><td>{mean_val:.6g}</td><td>StDev</td><td>{std_val:.6g}</td></tr>
+<tr><td>Variance</td><td>{var_val:.6g}</td><td>Skewness</td><td>{skew_val:.4f}</td></tr>
+<tr><td>Kurtosis</td><td>{kurt_val:.4f}</td><td>A² Statistic</td><td>{ad_stat:.4f}</td></tr>
+<tr><td>Minimum</td><td>{min_val:.6g}</td><td>Q1</td><td>{q1:.6g}</td></tr>
+<tr><td>Median</td><td>{median_val:.6g}</td><td>Q3</td><td>{q3:.6g}</td></tr>
+<tr><td>Maximum</td><td>{max_val:.6g}</td><td>IQR</td><td>{q3 - q1:.6g}</td></tr>
+<tr><th colspan='4'>Confidence Intervals ({pct_str})</th></tr>
+<tr><td>Mean</td><td>({ci_mean[0]:.6g}, {ci_mean[1]:.6g})</td><td>Median</td><td>({ci_median_lo:.6g}, {ci_median_hi:.6g})</td></tr>
+<tr><td>StDev</td><td>({ci_std_lo:.6g}, {ci_std_hi:.6g})</td><td></td><td></td></tr>
+</table>"""
+                    result["tables"].append({"title": f"{col} Statistics", "html": tbl})
+
+                result["summary"] = "\n\n".join(all_summaries)
+                result["guide_observation"] = f"Graphical summary for {len(selected)} variable(s) at {conf_level*100:.0f}% confidence."
+
+        except Exception as e:
+            import traceback
+            result["summary"] = f"Graphical Summary error: {str(e)}\n{traceback.format_exc()}"
+
     # ── Missing Data Analysis ─────────────────────────────────────────────
     elif analysis_id == "missing_data_analysis":
         try:
@@ -9160,24 +11039,42 @@ def run_ml_analysis(df, analysis_id, config, user):
         accuracy = accuracy_score(y_test, y_pred)
         report = classification_report(y_test, y_pred)
 
-        result["summary"] = f"Classification Results\n\nAlgorithm: {algorithm}\nAccuracy: {accuracy:.4f}\n\n{report}"
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>CLASSIFICATION RESULTS<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Algorithm:<</COLOR>> {algorithm.upper()}\n"
+        summary += f"<<COLOR:highlight>>Accuracy:<</COLOR>> {accuracy:.4f}\n\n"
+        summary += f"<<COLOR:text>>{report}<</COLOR>>"
+        summary += _ml_interpretation("classification", {"accuracy": accuracy}, y_test, y_pred, features, target, model)
+        result["summary"] = summary
 
         # Feature importance
         if hasattr(model, 'feature_importances_'):
             importances = model.feature_importances_
+            sorted_idx = np.argsort(importances)
             result["plots"].append({
                 "title": "Feature Importance",
                 "data": [{
                     "type": "bar",
-                    "x": importances.tolist(),
-                    "y": features,
+                    "x": importances[sorted_idx].tolist(),
+                    "y": [features[i] for i in sorted_idx],
                     "orientation": "h",
                     "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}
                 }],
-                "layout": {"template": "plotly_dark", "height": 300}
+                "layout": {"template": "plotly_dark", "height": max(200, len(features) * 25)}
             })
 
-        result["guide_observation"] = f"Classification model achieved {accuracy:.1%} accuracy."
+        from collections import Counter
+        majority_pct = max(Counter(y_test).values()) / len(y_test)
+        lift = accuracy - majority_pct
+        obs = f"Classification ({algorithm.upper()}): accuracy={accuracy:.1%}, baseline={majority_pct:.1%}, lift={lift:+.1%}."
+        if lift < 0.02:
+            obs += " Barely better than guessing — needs improvement."
+        elif accuracy >= 0.85:
+            obs += " Strong model suitable for decision support."
+        else:
+            obs += " Moderate model — useful for screening."
+        result["guide_observation"] = obs
 
         # Confusion matrix heatmap
         from sklearn.metrics import confusion_matrix
@@ -9240,7 +11137,19 @@ def run_ml_analysis(df, analysis_id, config, user):
         r2 = r2_score(y_test, y_pred)
         rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 
-        result["summary"] = f"Regression Results\n\nR²: {r2:.4f}\nRMSE: {rmse:.4f}"
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>REGRESSION RESULTS (RANDOM FOREST)<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>R²:<</COLOR>> {r2:.4f}\n"
+        summary += f"<<COLOR:highlight>>RMSE:<</COLOR>> {rmse:.4f}\n"
+        summary += _ml_interpretation("regression", {"r2": r2, "rmse": rmse}, y_test, y_pred, features, target)
+        result["summary"] = summary
+
+        r2_label, _ = _effect_magnitude(r2, "r_squared")
+        y_range_val = float(np.ptp(y_test)) if len(y_test) > 0 else 1
+        rmse_pct = rmse / y_range_val * 100 if y_range_val > 0 else 0
+        result["guide_observation"] = f"Random Forest Regression: R²={r2:.3f} ({r2_label}), RMSE={rmse:.2f} ({rmse_pct:.0f}% of range). " + (
+            "Strong predictive model." if r2 >= 0.7 else "Moderate model — useful for trends." if r2 >= 0.4 else "Weak model — features may not predict target well.")
 
         # Actual vs Predicted
         result["plots"].append({
@@ -9291,6 +11200,935 @@ def run_ml_analysis(df, analysis_id, config, user):
             result["model_key"] = model_key
             result["can_save"] = True
 
+    elif analysis_id == "model_compare":
+        from sklearn.model_selection import cross_validate as sk_cross_validate
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.pipeline import Pipeline
+        from accounts.constants import can_use_ml
+        import time as _time
+
+        if not can_use_ml(getattr(user, 'tier', 'free')):
+            result["summary"] = "Error: Model comparison requires a paid tier with ML access."
+            return result
+
+        cv_folds = int(config.get("cv_folds", 5))
+        task_type = config.get("task_type", "auto")
+
+        # Auto-detect task type
+        if task_type == "auto":
+            if y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10):
+                task_type = "classification"
+            else:
+                task_type = "regression"
+
+        # Encode categorical target for classification
+        if task_type == "classification" and (y.dtype == object or y.dtype.name == "category"):
+            from sklearn.preprocessing import LabelEncoder
+            le = LabelEncoder()
+            y_enc = pd.Series(le.fit_transform(y), index=y.index)
+        else:
+            y_enc = y
+
+        # Encode categorical features
+        X_enc = X.copy()
+        for col in X_enc.select_dtypes(include=["object", "category"]).columns:
+            X_enc[col] = pd.Categorical(X_enc[col]).codes.astype(int)
+
+        # Fill NaN
+        X_enc = X_enc.fillna(X_enc.median(numeric_only=True))
+
+        # Build model roster
+        models = []
+        if task_type == "classification":
+            from sklearn.linear_model import LogisticRegression
+            from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+            from sklearn.naive_bayes import GaussianNB
+
+            models = [
+                ("Random Forest", RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)),
+                ("Logistic Regression", Pipeline([("scaler", StandardScaler()), ("lr", LogisticRegression(max_iter=1000))])),
+                ("LDA", LinearDiscriminantAnalysis()),
+                ("Naive Bayes", GaussianNB()),
+            ]
+            scoring = {"accuracy": "accuracy", "f1": "f1_weighted", "precision": "precision_weighted", "recall": "recall_weighted"}
+            primary_metric = "accuracy"
+        else:
+            from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, BayesianRidge
+
+            models = [
+                ("Random Forest", RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)),
+                ("Linear Regression", LinearRegression()),
+                ("Ridge", Ridge(alpha=1.0)),
+                ("LASSO", Lasso(alpha=0.1)),
+                ("ElasticNet", ElasticNet(alpha=0.1, l1_ratio=0.5)),
+                ("Bayesian Ridge", BayesianRidge()),
+            ]
+            scoring = {"r2": "r2", "neg_rmse": "neg_root_mean_squared_error", "neg_mae": "neg_mean_absolute_error"}
+            primary_metric = "r2"
+
+        # Try adding XGBoost / LightGBM if installed
+        try:
+            import xgboost as xgb
+            if task_type == "classification":
+                models.append(("XGBoost", xgb.XGBClassifier(n_estimators=100, use_label_encoder=False, eval_metric="logloss", random_state=42, verbosity=0)))
+            else:
+                models.append(("XGBoost", xgb.XGBRegressor(n_estimators=100, random_state=42, verbosity=0)))
+        except ImportError:
+            pass
+
+        try:
+            import lightgbm as lgb
+            if task_type == "classification":
+                models.append(("LightGBM", lgb.LGBMClassifier(n_estimators=100, random_state=42, verbosity=-1)))
+            else:
+                models.append(("LightGBM", lgb.LGBMRegressor(n_estimators=100, random_state=42, verbosity=-1)))
+        except ImportError:
+            pass
+
+        # Cross-validate each model
+        comparison = []
+        best_score = -999
+        best_model_name = ""
+        best_model_obj = None
+
+        for name, mdl in models:
+            try:
+                t0 = _time.time()
+                cv_results = sk_cross_validate(
+                    mdl, X_enc, y_enc, cv=cv_folds, scoring=scoring,
+                    return_train_score=True, n_jobs=-1,
+                )
+                fit_time = _time.time() - t0
+
+                row = {"model": name, "fit_time": round(fit_time, 2)}
+                for metric_name, scorer_key in scoring.items():
+                    test_key = f"test_{metric_name}"
+                    train_key = f"train_{metric_name}"
+                    vals = cv_results.get(test_key, [])
+                    train_vals = cv_results.get(train_key, [])
+                    mean_val = float(np.mean(vals)) if len(vals) > 0 else 0
+                    std_val = float(np.std(vals)) if len(vals) > 0 else 0
+
+                    # Handle negative metrics
+                    if "neg_" in scorer_key:
+                        mean_val = -mean_val
+                        train_vals = -np.array(train_vals) if len(train_vals) > 0 else train_vals
+
+                    row[metric_name] = round(mean_val, 4)
+                    row[f"{metric_name}_std"] = round(std_val, 4)
+                    row[f"{metric_name}_train"] = round(float(np.mean(train_vals)), 4) if len(train_vals) > 0 else None
+
+                comparison.append(row)
+
+                # Track best
+                score_val = row.get(primary_metric, 0)
+                if score_val > best_score:
+                    best_score = score_val
+                    best_model_name = name
+                    best_model_obj = mdl
+            except Exception as e_model:
+                logger.warning(f"Model compare: {name} failed: {e_model}")
+                comparison.append({"model": name, "error": str(e_model)[:100]})
+
+        # Summary text
+        summary_lines = [f"Model Comparison — {task_type.title()} ({cv_folds}-fold CV)\n"]
+        summary_lines.append(f"{'Model':<22} {'Score':>8} {'± Std':>8} {'Train':>8} {'Time':>6}")
+        summary_lines.append("-" * 55)
+        for row in comparison:
+            if "error" in row:
+                summary_lines.append(f"{row['model']:<22} ERROR: {row['error'][:30]}")
+                continue
+            score = row.get(primary_metric, 0)
+            std = row.get(f"{primary_metric}_std", 0)
+            train = row.get(f"{primary_metric}_train", 0)
+            marker = " *" if row["model"] == best_model_name else ""
+            summary_lines.append(f"{row['model']:<22} {score:>8.4f} {std:>8.4f} {train:>8.4f} {row['fit_time']:>5.1f}s{marker}")
+        summary_lines.append(f"\n* Best: {best_model_name} ({primary_metric} = {best_score:.4f})")
+
+        # --- MODEL ASSESSMENT ---
+        assess = f"\n{'─' * 55}\nMODEL ASSESSMENT\n{'─' * 55}\n"
+        valid_rows = [r for r in comparison if "error" not in r]
+
+        # Overfitting diagnosis
+        overfit_warnings = []
+        for row in valid_rows:
+            train_score = row.get(f"{primary_metric}_train", 0)
+            test_score = row.get(primary_metric, 0)
+            if train_score and test_score and train_score > 0:
+                gap = train_score - test_score
+                gap_pct = gap / train_score * 100 if train_score != 0 else 0
+                if gap_pct > 15:
+                    overfit_warnings.append(f"  ⚠ {row['model']}: train={train_score:.4f} vs test={test_score:.4f} (gap: {gap_pct:.0f}%) — likely overfit")
+                elif gap_pct > 8:
+                    overfit_warnings.append(f"  ◐ {row['model']}: train-test gap of {gap_pct:.0f}% — monitor for overfitting")
+
+        if overfit_warnings:
+            assess += "Overfitting check:\n" + "\n".join(overfit_warnings) + "\n\n"
+        else:
+            assess += "Overfitting check: ✓ No significant train-test gaps detected.\n\n"
+
+        # Is the best model meaningfully better than others?
+        if len(valid_rows) >= 2:
+            scores_sorted = sorted(valid_rows, key=lambda r: r.get(primary_metric, 0), reverse=True)
+            best_r = scores_sorted[0]
+            second_r = scores_sorted[1]
+            margin = best_r.get(primary_metric, 0) - second_r.get(primary_metric, 0)
+            best_std = best_r.get(f"{primary_metric}_std", 0)
+            if margin < best_std:
+                assess += f"Winner margin: {best_r['model']} beats {second_r['model']} by {margin:.4f} — within 1 std ({best_std:.4f}).\n"
+                assess += f"  → The difference may be noise. Consider {second_r['model']} if it's simpler or faster.\n\n"
+            else:
+                assess += f"Winner margin: {best_r['model']} beats {second_r['model']} by {margin:.4f} (> 1 std). Solid winner.\n\n"
+
+        # Baseline comparison
+        if task_type == "classification":
+            from collections import Counter
+            majority_pct = max(Counter(y_enc).values()) / len(y_enc)
+            assess += f"Baseline (majority class): {majority_pct:.4f}\n"
+            if best_score < majority_pct + 0.02:
+                assess += "⚠ Best model is barely better than always guessing the majority class.\n"
+            else:
+                assess += f"Lift over baseline: {best_score - majority_pct:+.4f}\n"
+        else:
+            assess += f"Baseline (predict mean): R²=0.000\n"
+            assess += f"Best model lift: R²={best_score:.4f}\n"
+
+        # Recommendation
+        assess += f"\nRecommendation: "
+        if task_type == "classification" and best_score >= 0.90:
+            assess += f"Deploy {best_model_name}. High accuracy — suitable for automated decision support."
+        elif task_type == "classification" and best_score >= 0.80:
+            assess += f"{best_model_name} is solid for screening. Review misclassifications before high-stakes use."
+        elif task_type == "regression" and best_score >= 0.80:
+            assess += f"Deploy {best_model_name}. Strong R² — suitable for forecasting."
+        elif task_type == "regression" and best_score >= 0.50:
+            assess += f"{best_model_name} captures the main trends. Consider adding features or engineering interactions to improve."
+        else:
+            assess += f"Model performance is limited. Consider: (1) more/better features, (2) data quality issues, (3) whether the target is predictable from these features."
+
+        summary_lines.append(assess)
+        result["summary"] = "\n".join(summary_lines)
+
+        # Comparison bar chart
+        model_names = [r["model"] for r in comparison if "error" not in r]
+        scores = [r.get(primary_metric, 0) for r in comparison if "error" not in r]
+        stds = [r.get(f"{primary_metric}_std", 0) for r in comparison if "error" not in r]
+
+        result["plots"].append({
+            "title": f"Model Comparison — {primary_metric.upper()}",
+            "data": [{
+                "type": "bar",
+                "x": model_names,
+                "y": scores,
+                "error_y": {"type": "data", "array": stds, "visible": True},
+                "marker": {
+                    "color": ["rgba(74,159,110,0.85)" if n == best_model_name else "rgba(74,159,110,0.4)" for n in model_names],
+                    "line": {"color": "#4a9f6e", "width": 1}
+                },
+            }],
+            "layout": {
+                "template": "plotly_dark", "height": 300,
+                "yaxis": {"title": primary_metric.upper()},
+                "xaxis": {"title": "Model"},
+            }
+        })
+
+        # Multi-metric heatmap (all metrics x all models)
+        metric_keys = [k for k in scoring.keys() if not k.startswith("neg_")]
+        # Also include the neg_ metrics with corrected names
+        for k in scoring.keys():
+            if k.startswith("neg_"):
+                clean_name = k.replace("neg_", "")
+                if clean_name not in metric_keys:
+                    metric_keys.append(clean_name)
+
+        valid_models = [r for r in comparison if "error" not in r]
+        if len(valid_models) > 1 and len(metric_keys) > 1:
+            heatmap_z = []
+            for mk in metric_keys:
+                row = []
+                for r in valid_models:
+                    row.append(round(r.get(mk, 0), 4))
+                heatmap_z.append(row)
+            heatmap_names = [r["model"] for r in valid_models]
+
+            result["plots"].append({
+                "title": "Multi-Metric Comparison",
+                "data": [{
+                    "type": "heatmap",
+                    "z": heatmap_z,
+                    "x": heatmap_names,
+                    "y": [m.upper() for m in metric_keys],
+                    "colorscale": [[0, "#0d120d"], [0.5, "#2a6b3a"], [1, "#4a9f6e"]],
+                    "showscale": True,
+                    "text": [[f"{v:.4f}" for v in row] for row in heatmap_z],
+                    "texttemplate": "%{text}",
+                    "hovertemplate": "%{y}: %{z:.4f}<br>%{x}<extra></extra>",
+                }],
+                "layout": {
+                    "template": "plotly_dark", "height": max(200, len(metric_keys) * 50 + 80),
+                    "xaxis": {"title": ""},
+                    "yaxis": {"autorange": "reversed"},
+                },
+            })
+
+        # Fit time comparison
+        if valid_models:
+            fit_times = [r.get("fit_time", 0) for r in valid_models]
+            fit_names = [r["model"] for r in valid_models]
+            result["plots"].append({
+                "title": "Training Time (seconds)",
+                "data": [{
+                    "type": "bar", "x": fit_names, "y": fit_times,
+                    "marker": {"color": "rgba(232,149,71,0.6)", "line": {"color": "#e89547", "width": 1}},
+                    "text": [f"{t:.1f}s" for t in fit_times], "textposition": "auto",
+                }],
+                "layout": {"template": "plotly_dark", "height": 250, "yaxis": {"title": "Seconds"}},
+            })
+
+        # ROC curves (classification, binary)
+        if task_type == "classification" and y_enc.nunique() == 2:
+            from sklearn.metrics import roc_curve, auc as sk_auc
+            roc_traces = []
+            for name, mdl in models:
+                try:
+                    mdl_fitted = mdl.__class__(**mdl.get_params()) if not isinstance(mdl, Pipeline) else mdl
+                    mdl_fitted.fit(X_enc.values, y_enc.values)
+                    if hasattr(mdl_fitted, 'predict_proba'):
+                        y_prob = mdl_fitted.predict_proba(X_enc.values)[:, 1]
+                        fpr, tpr, _ = roc_curve(y_enc.values, y_prob)
+                        roc_auc = sk_auc(fpr, tpr)
+                        roc_traces.append({
+                            "type": "scatter", "x": fpr.tolist(), "y": tpr.tolist(),
+                            "mode": "lines", "name": f"{name} (AUC={roc_auc:.3f})",
+                        })
+                except Exception:
+                    pass
+            if roc_traces:
+                roc_traces.append({
+                    "type": "scatter", "x": [0, 1], "y": [0, 1],
+                    "mode": "lines", "line": {"dash": "dash", "color": "#555"}, "name": "Random",
+                })
+                result["plots"].append({
+                    "title": "ROC Curves",
+                    "data": roc_traces,
+                    "layout": {
+                        "template": "plotly_dark", "height": 350,
+                        "xaxis": {"title": "False Positive Rate"},
+                        "yaxis": {"title": "True Positive Rate"},
+                    }
+                })
+
+        # Actual vs Predicted overlay (regression)
+        if task_type == "regression":
+            avp_traces = []
+            colors = ["#4a9f6e", "#e89547", "#6a7fff", "#e8c547", "#ff7eb9", "#4a9faf"]
+            for i, (name, mdl) in enumerate(models[:4]):
+                try:
+                    mdl_fitted = mdl.__class__(**mdl.get_params()) if not isinstance(mdl, Pipeline) else mdl
+                    mdl_fitted.fit(X_train.values if hasattr(X_train, 'values') else X_train, y_train.values if hasattr(y_train, 'values') else y_train)
+                    y_pred_cmp = mdl_fitted.predict(X_test.values if hasattr(X_test, 'values') else X_test)
+                    avp_traces.append({
+                        "type": "scatter", "x": y_test.tolist(), "y": y_pred_cmp.tolist(),
+                        "mode": "markers", "marker": {"color": colors[i % len(colors)], "size": 4, "opacity": 0.6},
+                        "name": name,
+                    })
+                except Exception:
+                    pass
+            if avp_traces:
+                y_range = [float(y_test.min()), float(y_test.max())]
+                avp_traces.append({
+                    "type": "scatter", "x": y_range, "y": y_range,
+                    "mode": "lines", "line": {"dash": "dash", "color": "#d94a4a"}, "name": "Perfect",
+                })
+                result["plots"].append({
+                    "title": "Actual vs Predicted (Top Models)",
+                    "data": avp_traces,
+                    "layout": {
+                        "template": "plotly_dark", "height": 350,
+                        "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"},
+                    }
+                })
+
+        # Train & cache best model on full data
+        if best_model_obj is not None and user and user.is_authenticated:
+            try:
+                best_clone = best_model_obj.__class__(**best_model_obj.get_params()) if not isinstance(best_model_obj, Pipeline) else best_model_obj
+                best_clone.fit(X_enc.values, y_enc.values)
+                model_key = str(uuid.uuid4())
+                cache_model(user.id, model_key, best_clone, {
+                    'model_type': f"Best: {best_model_name}",
+                    'features': features,
+                    'target': target,
+                    'metrics': {primary_metric: best_score},
+                })
+                result["model_key"] = model_key
+                result["can_save"] = True
+            except Exception:
+                pass
+
+        result["comparison"] = comparison
+        result["best_model"] = best_model_name
+        overfit_models = [r["model"] for r in valid_rows if r.get(f"{primary_metric}_train", 0) and r.get(primary_metric, 0) and (r[f"{primary_metric}_train"] - r[primary_metric]) / r[f"{primary_metric}_train"] * 100 > 15]
+        obs = f"Compared {len(comparison)} models ({task_type}, {cv_folds}-fold CV). Best: {best_model_name} ({primary_metric}={best_score:.4f})."
+        if overfit_models:
+            obs += f" Overfitting risk: {', '.join(overfit_models)}."
+        result["guide_observation"] = obs
+
+    elif analysis_id == "xgboost":
+        import xgboost as xgb
+        from agents_api.gpu_manager import GPUTrainingContext
+        from accounts.constants import can_use_ml
+
+        if not can_use_ml(getattr(user, 'tier', 'free')):
+            result["summary"] = "Error: XGBoost requires a paid tier with ML access."
+            return result
+
+        # User-configurable params
+        n_estimators = int(config.get("n_estimators", 100))
+        max_depth = int(config.get("max_depth", 6))
+        learning_rate = float(config.get("learning_rate", 0.1))
+        subsample = float(config.get("subsample", 0.8))
+        colsample = float(config.get("colsample_bytree", 0.8))
+
+        # Auto-detect task
+        task_type = config.get("task_type", "auto")
+        if task_type == "auto":
+            task_type = "classification" if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10)) else "regression"
+
+        # Encode target
+        label_map = None
+        y_work = y.copy()
+        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+            from sklearn.preprocessing import LabelEncoder
+            le = LabelEncoder()
+            y_work = pd.Series(le.fit_transform(y_work), index=y_work.index)
+            label_map = {i: c for i, c in enumerate(le.classes_)}
+
+        # Encode categorical features
+        X_enc = X.copy()
+        for col in X_enc.select_dtypes(include=["object", "category"]).columns:
+            X_enc[col] = pd.Categorical(X_enc[col]).codes.astype(int)
+        X_enc = X_enc.fillna(X_enc.median(numeric_only=True))
+
+        X_train, X_test, y_train, y_test = train_test_split(X_enc, y_work, test_size=0.2, random_state=42)
+
+        with GPUTrainingContext() as gpu:
+            params = {
+                "n_estimators": n_estimators, "max_depth": max_depth,
+                "learning_rate": learning_rate, "subsample": subsample,
+                "colsample_bytree": colsample, "random_state": 42, "verbosity": 0,
+                **gpu.xgb_params(),
+            }
+            gpu_used = gpu.available
+
+            if task_type == "classification":
+                params["use_label_encoder"] = False
+                params["eval_metric"] = "logloss"
+                model = xgb.XGBClassifier(**params)
+            else:
+                model = xgb.XGBRegressor(**params)
+
+            model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+
+        if task_type == "classification":
+            accuracy = accuracy_score(y_test, y_pred)
+            result["summary"] = (
+                f"XGBoost Classification {'(GPU)' if gpu_used else '(CPU)'}\n\n"
+                f"Accuracy: {accuracy:.4f}\n"
+                f"Params: depth={max_depth}, lr={learning_rate}, n_est={n_estimators}\n\n"
+                f"{classification_report(y_test, y_pred)}"
+            )
+            metrics_dict = {"accuracy": float(accuracy)}
+        else:
+            r2 = r2_score(y_test, y_pred)
+            rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
+            result["summary"] = (
+                f"XGBoost Regression {'(GPU)' if gpu_used else '(CPU)'}\n\n"
+                f"R²: {r2:.4f}\nRMSE: {rmse:.4f}\n"
+                f"Params: depth={max_depth}, lr={learning_rate}, n_est={n_estimators}"
+            )
+            metrics_dict = {"r2": float(r2), "rmse": rmse}
+
+        # Full diagnostic suite
+        result["plots"].extend(_build_ml_diagnostics(
+            model, X_test, y_test, y_pred, features, task_type,
+            label_map=label_map, model_name=f"XGBoost ({'GPU' if gpu_used else 'CPU'})",
+        ))
+
+        # Cache model
+        if user and user.is_authenticated:
+            model_key = str(uuid.uuid4())
+            cache_model(user.id, model_key, model, {
+                'model_type': f"XGBoost ({'GPU' if gpu_used else 'CPU'})",
+                'features': features, 'target': target, 'metrics': metrics_dict,
+            })
+            result["model_key"] = model_key
+            result["can_save"] = True
+
+        result["guide_observation"] = f"XGBoost {'(GPU)' if gpu_used else '(CPU)'}: {list(metrics_dict.values())[0]:.4f} ({list(metrics_dict.keys())[0]})."
+
+    elif analysis_id == "lightgbm":
+        import lightgbm as lgb
+        from agents_api.gpu_manager import GPUTrainingContext
+        from accounts.constants import can_use_ml
+
+        if not can_use_ml(getattr(user, 'tier', 'free')):
+            result["summary"] = "Error: LightGBM requires a paid tier with ML access."
+            return result
+
+        n_estimators = int(config.get("n_estimators", 100))
+        num_leaves = int(config.get("num_leaves", 31))
+        learning_rate = float(config.get("learning_rate", 0.1))
+        subsample = float(config.get("subsample", 0.8))
+
+        task_type = config.get("task_type", "auto")
+        if task_type == "auto":
+            task_type = "classification" if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10)) else "regression"
+
+        label_map = None
+        y_work = y.copy()
+        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+            from sklearn.preprocessing import LabelEncoder
+            le = LabelEncoder()
+            y_work = pd.Series(le.fit_transform(y_work), index=y_work.index)
+            label_map = {i: c for i, c in enumerate(le.classes_)}
+
+        X_enc = X.copy()
+        for col in X_enc.select_dtypes(include=["object", "category"]).columns:
+            X_enc[col] = pd.Categorical(X_enc[col]).codes.astype(int)
+        X_enc = X_enc.fillna(X_enc.median(numeric_only=True))
+
+        X_train, X_test, y_train, y_test = train_test_split(X_enc, y_work, test_size=0.2, random_state=42)
+
+        with GPUTrainingContext() as gpu:
+            params = {
+                "n_estimators": n_estimators, "num_leaves": num_leaves,
+                "learning_rate": learning_rate, "subsample": subsample,
+                "random_state": 42, "verbosity": -1,
+                **gpu.lgb_params(),
+            }
+            gpu_used = gpu.available
+
+            if task_type == "classification":
+                model = lgb.LGBMClassifier(**params)
+            else:
+                model = lgb.LGBMRegressor(**params)
+
+            model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+
+        if task_type == "classification":
+            accuracy = accuracy_score(y_test, y_pred)
+            result["summary"] = (
+                f"LightGBM Classification {'(GPU)' if gpu_used else '(CPU)'}\n\n"
+                f"Accuracy: {accuracy:.4f}\n"
+                f"Params: leaves={num_leaves}, lr={learning_rate}, n_est={n_estimators}\n\n"
+                f"{classification_report(y_test, y_pred)}"
+            )
+            metrics_dict = {"accuracy": float(accuracy)}
+        else:
+            r2 = r2_score(y_test, y_pred)
+            rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
+            result["summary"] = (
+                f"LightGBM Regression {'(GPU)' if gpu_used else '(CPU)'}\n\n"
+                f"R²: {r2:.4f}\nRMSE: {rmse:.4f}\n"
+                f"Params: leaves={num_leaves}, lr={learning_rate}, n_est={n_estimators}"
+            )
+            metrics_dict = {"r2": float(r2), "rmse": rmse}
+
+        # Full diagnostic suite
+        result["plots"].extend(_build_ml_diagnostics(
+            model, X_test, y_test, y_pred, features, task_type,
+            label_map=label_map, model_name=f"LightGBM ({'GPU' if gpu_used else 'CPU'})",
+        ))
+
+        if user and user.is_authenticated:
+            model_key = str(uuid.uuid4())
+            cache_model(user.id, model_key, model, {
+                'model_type': f"LightGBM ({'GPU' if gpu_used else 'CPU'})",
+                'features': features, 'target': target, 'metrics': metrics_dict,
+            })
+            result["model_key"] = model_key
+            result["can_save"] = True
+
+        result["guide_observation"] = f"LightGBM {'(GPU)' if gpu_used else '(CPU)'}: {list(metrics_dict.values())[0]:.4f} ({list(metrics_dict.keys())[0]})."
+
+    elif analysis_id == "shap_explain":
+        import shap
+        from accounts.constants import can_use_ml
+
+        if not can_use_ml(getattr(user, 'tier', 'free')):
+            result["summary"] = "Error: SHAP explainability requires a paid tier with ML access."
+            return result
+
+        # Get model from cache
+        model_key = config.get("model_key", "")
+        if not model_key:
+            result["summary"] = "Error: No model selected. Train a model first, then explain it."
+            return result
+
+        cached = get_cached_model(user.id if user else 0, model_key)
+        if not cached:
+            result["summary"] = "Error: Model not found in cache. It may have expired — retrain and try again."
+            return result
+
+        model_obj = cached["model"]
+        model_features = cached.get("meta", {}).get("features", features)
+        explain_mode = config.get("mode", "global")  # global or single
+        sample_idx = int(config.get("sample_index", 0))
+
+        # Prepare data
+        X_explain = X[model_features] if all(f in X.columns for f in model_features) else X
+        # Encode categoricals
+        for col in X_explain.select_dtypes(include=["object", "category"]).columns:
+            X_explain[col] = pd.Categorical(X_explain[col]).codes.astype(int)
+        X_explain = X_explain.fillna(X_explain.median(numeric_only=True))
+
+        # Cap background data for KernelExplainer
+        max_bg = 100
+        if len(X_explain) > max_bg:
+            bg_data = X_explain.sample(max_bg, random_state=42)
+        else:
+            bg_data = X_explain
+
+        # Choose explainer
+        is_tree = hasattr(model_obj, 'feature_importances_') and type(model_obj).__name__ in (
+            'RandomForestClassifier', 'RandomForestRegressor',
+            'XGBClassifier', 'XGBRegressor',
+            'LGBMClassifier', 'LGBMRegressor',
+            'GradientBoostingClassifier', 'GradientBoostingRegressor',
+        )
+
+        if is_tree:
+            explainer = shap.TreeExplainer(model_obj)
+            shap_values = explainer.shap_values(bg_data)
+        else:
+            explainer = shap.KernelExplainer(model_obj.predict, bg_data.values[:50])
+            shap_values = explainer.shap_values(bg_data.values[:max_bg])
+
+        # Handle multi-class shap_values (list of arrays)
+        if isinstance(shap_values, list):
+            # Take the first class for binary or max-variance class for multi
+            if len(shap_values) == 2:
+                sv = shap_values[1]
+            else:
+                variances = [np.var(s) for s in shap_values]
+                sv = shap_values[np.argmax(variances)]
+        else:
+            sv = shap_values
+
+        feature_names_explain = list(X_explain.columns) if hasattr(X_explain, 'columns') else model_features
+
+        # Global: mean absolute SHAP values (feature importance bar)
+        mean_abs = np.abs(sv).mean(axis=0)
+        sorted_idx = np.argsort(mean_abs)
+        result["plots"].append({
+            "title": "SHAP Feature Importance (mean |SHAP|)",
+            "data": [{
+                "type": "bar", "orientation": "h",
+                "x": mean_abs[sorted_idx].tolist(),
+                "y": [feature_names_explain[i] for i in sorted_idx],
+                "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+            }],
+            "layout": {"template": "plotly_dark", "height": max(250, len(feature_names_explain) * 25), "xaxis": {"title": "mean |SHAP value|"}},
+        })
+
+        # Beeswarm plot (scatter of SHAP values per feature)
+        beeswarm_traces = []
+        for i in sorted_idx[-10:]:  # Top 10
+            feat_name = feature_names_explain[i]
+            vals = sv[:, i]
+            feat_vals = bg_data.iloc[:, i].values if hasattr(bg_data, 'iloc') else bg_data[:, i]
+            # Normalize feature values for color
+            fmin, fmax = float(np.min(feat_vals)), float(np.max(feat_vals))
+            colors = ((feat_vals - fmin) / (fmax - fmin + 1e-10)).tolist()
+            jitter = np.random.normal(0, 0.15, len(vals))
+            beeswarm_traces.append({
+                "type": "scatter", "mode": "markers",
+                "x": vals.tolist(),
+                "y": (jitter + len(sorted_idx) - 1 - np.where(sorted_idx == i)[0][0]).tolist(),
+                "marker": {"size": 3, "color": colors, "colorscale": [[0, "#4a9faf"], [1, "#d94a4a"]], "opacity": 0.7},
+                "name": feat_name, "showlegend": False,
+                "hovertemplate": f"{feat_name}<br>SHAP: %{{x:.3f}}<br>Value: %{{text}}<extra></extra>",
+                "text": [f"{v:.2f}" for v in feat_vals],
+            })
+        if beeswarm_traces:
+            tick_labels = [feature_names_explain[i] for i in sorted_idx[-10:]][::-1]
+            result["plots"].append({
+                "title": "SHAP Beeswarm (Top 10 Features)",
+                "data": beeswarm_traces,
+                "layout": {
+                    "template": "plotly_dark", "height": 350,
+                    "xaxis": {"title": "SHAP value (impact on prediction)", "zeroline": True, "zerolinecolor": "#555"},
+                    "yaxis": {"tickvals": list(range(len(tick_labels))), "ticktext": tick_labels},
+                    "showlegend": False,
+                },
+            })
+
+        # Single prediction waterfall (if requested or always show first sample)
+        if explain_mode == "single" or True:
+            idx = min(sample_idx, len(sv) - 1)
+            single_sv = sv[idx]
+            base_val = float(explainer.expected_value) if not isinstance(explainer.expected_value, (list, np.ndarray)) else float(explainer.expected_value[1] if len(explainer.expected_value) > 1 else explainer.expected_value[0])
+
+            # Waterfall as horizontal bar
+            sorted_single = np.argsort(np.abs(single_sv))[-10:]
+            wf_names = [feature_names_explain[i] for i in sorted_single]
+            wf_vals = [float(single_sv[i]) for i in sorted_single]
+            wf_colors = ["rgba(74,159,110,0.7)" if v >= 0 else "rgba(208,96,96,0.7)" for v in wf_vals]
+
+            result["plots"].append({
+                "title": f"SHAP Waterfall (Sample #{idx})",
+                "data": [{
+                    "type": "bar", "orientation": "h",
+                    "x": wf_vals, "y": wf_names,
+                    "marker": {"color": wf_colors},
+                }],
+                "layout": {
+                    "template": "plotly_dark", "height": max(200, len(wf_names) * 25),
+                    "xaxis": {"title": "SHAP value"},
+                    "annotations": [{"x": 0, "y": -0.15, "xref": "paper", "yref": "paper",
+                                     "text": f"Base value: {base_val:.3f}", "showarrow": False,
+                                     "font": {"size": 11, "color": "#9aaa9a"}}],
+                },
+            })
+
+        # Dependence plot (top feature vs SHAP)
+        top_feat_idx = sorted_idx[-1]
+        dep_x = bg_data.iloc[:, top_feat_idx].values if hasattr(bg_data, 'iloc') else bg_data[:, top_feat_idx]
+        dep_y = sv[:, top_feat_idx]
+        result["plots"].append({
+            "title": f"SHAP Dependence: {feature_names_explain[top_feat_idx]}",
+            "data": [{
+                "type": "scatter", "mode": "markers",
+                "x": dep_x.tolist(), "y": dep_y.tolist(),
+                "marker": {"color": "rgba(74,159,110,0.5)", "size": 4},
+            }],
+            "layout": {
+                "template": "plotly_dark", "height": 300,
+                "xaxis": {"title": feature_names_explain[top_feat_idx]},
+                "yaxis": {"title": "SHAP value"},
+            },
+        })
+
+        # Summary text
+        top_3 = [(feature_names_explain[i], float(mean_abs[i])) for i in sorted_idx[-3:]][::-1]
+        result["summary"] = (
+            f"SHAP Explainability Analysis\n\n"
+            f"Explainer: {'TreeExplainer' if is_tree else 'KernelExplainer'}\n"
+            f"Background samples: {len(bg_data)}\n\n"
+            f"Top 3 features by mean |SHAP|:\n"
+            + "\n".join(f"  {i+1}. {name}: {val:.4f}" for i, (name, val) in enumerate(top_3))
+        )
+
+        result["guide_observation"] = f"SHAP: top feature is {top_3[0][0]} (mean |SHAP| = {top_3[0][1]:.4f})."
+
+    elif analysis_id == "hyperparameter_tune":
+        import optuna
+        from accounts.constants import can_use_ml
+        import time as _time
+
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+        if not can_use_ml(getattr(user, 'tier', 'free')):
+            result["summary"] = "Error: Hyperparameter tuning requires a paid tier with ML access."
+            return result
+
+        model_type = config.get("model_type", "rf")
+        n_trials = min(int(config.get("n_trials", 30)), 50)
+        task_type = config.get("task_type", "auto")
+        cv_folds = int(config.get("cv_folds", 3))
+
+        if task_type == "auto":
+            task_type = "classification" if (y.nunique() <= 20 and (y.dtype == object or y.dtype.name == "category" or y.nunique() <= 10)) else "regression"
+
+        # Encode
+        y_work = y.copy()
+        if task_type == "classification" and (y_work.dtype == object or y_work.dtype.name == "category"):
+            from sklearn.preprocessing import LabelEncoder
+            le = LabelEncoder()
+            y_work = pd.Series(le.fit_transform(y_work), index=y_work.index)
+
+        X_enc = X.copy()
+        for col in X_enc.select_dtypes(include=["object", "category"]).columns:
+            X_enc[col] = pd.Categorical(X_enc[col]).codes.astype(int)
+        X_enc = X_enc.fillna(X_enc.median(numeric_only=True))
+
+        from sklearn.model_selection import cross_val_score
+
+        def objective(trial):
+            if model_type == "rf":
+                params = {
+                    "n_estimators": trial.suggest_int("n_estimators", 50, 300),
+                    "max_depth": trial.suggest_int("max_depth", 3, 20),
+                    "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
+                    "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
+                    "random_state": 42, "n_jobs": -1,
+                }
+                mdl = RandomForestClassifier(**params) if task_type == "classification" else RandomForestRegressor(**params)
+            elif model_type == "xgboost":
+                import xgboost as xgb
+                params = {
+                    "n_estimators": trial.suggest_int("n_estimators", 50, 300),
+                    "max_depth": trial.suggest_int("max_depth", 3, 12),
+                    "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+                    "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+                    "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+                    "random_state": 42, "verbosity": 0,
+                }
+                mdl = xgb.XGBClassifier(**params, use_label_encoder=False, eval_metric="logloss") if task_type == "classification" else xgb.XGBRegressor(**params)
+            elif model_type == "lightgbm":
+                import lightgbm as lgb
+                params = {
+                    "n_estimators": trial.suggest_int("n_estimators", 50, 300),
+                    "num_leaves": trial.suggest_int("num_leaves", 10, 127),
+                    "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+                    "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+                    "random_state": 42, "verbosity": -1,
+                }
+                mdl = lgb.LGBMClassifier(**params) if task_type == "classification" else lgb.LGBMRegressor(**params)
+            elif model_type == "ridge":
+                from sklearn.linear_model import Ridge, LogisticRegression
+                alpha = trial.suggest_float("alpha", 0.001, 100.0, log=True)
+                if task_type == "classification":
+                    mdl = LogisticRegression(C=1.0/alpha, max_iter=1000, penalty="l2")
+                else:
+                    mdl = Ridge(alpha=alpha)
+            elif model_type == "lasso":
+                from sklearn.linear_model import Lasso, LogisticRegression
+                alpha = trial.suggest_float("alpha", 0.001, 10.0, log=True)
+                if task_type == "classification":
+                    mdl = LogisticRegression(C=1.0/alpha, max_iter=1000, penalty="l1", solver="saga")
+                else:
+                    mdl = Lasso(alpha=alpha)
+            else:
+                # Default: random forest
+                params = {
+                    "n_estimators": trial.suggest_int("n_estimators", 50, 200),
+                    "max_depth": trial.suggest_int("max_depth", 3, 15),
+                    "random_state": 42, "n_jobs": -1,
+                }
+                mdl = RandomForestClassifier(**params) if task_type == "classification" else RandomForestRegressor(**params)
+
+            scoring = "accuracy" if task_type == "classification" else "r2"
+            scores = cross_val_score(mdl, X_enc, y_work, cv=cv_folds, scoring=scoring, n_jobs=-1)
+            return float(np.mean(scores))
+
+        # Run optimization with timeout
+        study = optuna.create_study(direction="maximize")
+        t0 = _time.time()
+        study.optimize(objective, n_trials=n_trials, timeout=120)
+        elapsed = _time.time() - t0
+
+        best = study.best_trial
+        best_params = best.params
+        best_score = best.value
+
+        # Summary
+        summary_lines = [
+            f"Hyperparameter Tuning — {model_type.upper()} ({task_type})\n",
+            f"Trials: {len(study.trials)} / {n_trials} ({elapsed:.1f}s)",
+            f"CV Folds: {cv_folds}",
+            f"Best Score: {best_score:.4f}",
+            f"\nBest Parameters:",
+        ]
+        for k, v in best_params.items():
+            summary_lines.append(f"  {k}: {v:.4f}" if isinstance(v, float) else f"  {k}: {v}")
+
+        result["summary"] = "\n".join(summary_lines)
+
+        # Optimization history plot
+        trial_numbers = [t.number for t in study.trials if t.value is not None]
+        trial_values = [t.value for t in study.trials if t.value is not None]
+        best_so_far = []
+        running_best = -999
+        for v in trial_values:
+            running_best = max(running_best, v)
+            best_so_far.append(running_best)
+
+        result["plots"].append({
+            "title": "Optimization History",
+            "data": [
+                {"type": "scatter", "x": trial_numbers, "y": trial_values, "mode": "markers",
+                 "marker": {"color": "rgba(74,159,110,0.4)", "size": 5}, "name": "Trial Score"},
+                {"type": "scatter", "x": trial_numbers, "y": best_so_far, "mode": "lines",
+                 "line": {"color": "#4a9f6e", "width": 2}, "name": "Best So Far"},
+            ],
+            "layout": {
+                "template": "plotly_dark", "height": 300,
+                "xaxis": {"title": "Trial"}, "yaxis": {"title": "Score"},
+            },
+        })
+
+        # Parameter importance (if enough trials)
+        if len(study.trials) >= 5:
+            try:
+                param_importance = optuna.importance.get_param_importances(study)
+                p_names = list(param_importance.keys())[::-1]
+                p_vals = [param_importance[k] for k in p_names]
+                result["plots"].append({
+                    "title": "Hyperparameter Importance",
+                    "data": [{
+                        "type": "bar", "orientation": "h",
+                        "x": p_vals, "y": p_names,
+                        "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                    }],
+                    "layout": {"template": "plotly_dark", "height": max(200, len(p_names) * 30)},
+                })
+            except Exception:
+                pass
+
+        # Train final model with best params and cache
+        if user and user.is_authenticated:
+            try:
+                # Rebuild model with best params
+                obj_trial = type('FakeTrial', (), {'suggest_int': lambda s, n, *a, **kw: best_params[n],
+                                                    'suggest_float': lambda s, n, *a, **kw: best_params[n]})()
+                # Simpler: just train directly
+                if model_type == "rf":
+                    final_model = (RandomForestClassifier if task_type == "classification" else RandomForestRegressor)(
+                        **{k: v for k, v in best_params.items()}, random_state=42, n_jobs=-1)
+                elif model_type == "xgboost":
+                    import xgboost as xgb
+                    final_model = (xgb.XGBClassifier if task_type == "classification" else xgb.XGBRegressor)(
+                        **{k: v for k, v in best_params.items()}, random_state=42, verbosity=0)
+                elif model_type == "lightgbm":
+                    import lightgbm as lgb
+                    final_model = (lgb.LGBMClassifier if task_type == "classification" else lgb.LGBMRegressor)(
+                        **{k: v for k, v in best_params.items()}, random_state=42, verbosity=-1)
+                elif model_type in ("ridge", "lasso"):
+                    from sklearn.linear_model import Ridge, Lasso, LogisticRegression
+                    alpha = best_params.get("alpha", 1.0)
+                    if task_type == "classification":
+                        penalty = "l1" if model_type == "lasso" else "l2"
+                        solver = "saga" if model_type == "lasso" else "lbfgs"
+                        final_model = LogisticRegression(C=1.0/alpha, max_iter=1000, penalty=penalty, solver=solver)
+                    else:
+                        final_model = (Lasso if model_type == "lasso" else Ridge)(alpha=alpha)
+                else:
+                    final_model = (RandomForestClassifier if task_type == "classification" else RandomForestRegressor)(
+                        **{k: v for k, v in best_params.items()}, random_state=42, n_jobs=-1)
+
+                final_model.fit(X_enc, y_work)
+                model_key = str(uuid.uuid4())
+                primary = "accuracy" if task_type == "classification" else "r2"
+                cache_model(user.id, model_key, final_model, {
+                    'model_type': f"Tuned {model_type.upper()}",
+                    'features': features, 'target': target,
+                    'metrics': {primary: best_score},
+                })
+                result["model_key"] = model_key
+                result["can_save"] = True
+            except Exception as e_tune:
+                logger.warning(f"Could not cache tuned model: {e_tune}")
+
+        result["best_params"] = best_params
+        result["guide_observation"] = f"Tuned {model_type.upper()}: best score {best_score:.4f} in {len(study.trials)} trials."
+
     elif analysis_id == "clustering":
         from sklearn.cluster import KMeans
         from sklearn.preprocessing import StandardScaler
@@ -9302,7 +12140,48 @@ def run_ml_analysis(df, analysis_id, config, user):
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         clusters = kmeans.fit_predict(X_scaled)
 
-        result["summary"] = f"K-Means Clustering\n\nClusters: {n_clusters}\nInertia: {kmeans.inertia_:.2f}"
+        # Silhouette for selected k
+        from sklearn.metrics import silhouette_score as _sil_score
+        sil = _sil_score(X_scaled, clusters) if n_clusters > 1 and n_clusters < len(X_scaled) else 0.0
+
+        # Cluster size distribution
+        cluster_sizes = pd.Series(clusters).value_counts().sort_index()
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>K-MEANS CLUSTERING<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Clusters:<</COLOR>> {n_clusters}\n"
+        summary += f"<<COLOR:highlight>>Inertia:<</COLOR>> {kmeans.inertia_:.2f}\n"
+        summary += f"<<COLOR:highlight>>Silhouette Score:<</COLOR>> {sil:.3f}\n\n"
+
+        summary += f"<<COLOR:text>>Cluster Sizes:<</COLOR>>\n"
+        for c_id, c_size in cluster_sizes.items():
+            summary += f"  Cluster {c_id}: {c_size} observations ({c_size/len(clusters)*100:.0f}%)\n"
+
+        summary += f"\n<<COLOR:accent>>{'─' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>CLUSTER QUALITY<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'─' * 70}<</COLOR>>\n\n"
+
+        if sil >= 0.7:
+            summary += f"<<COLOR:good>>Strong cluster structure (silhouette = {sil:.3f}).<</COLOR>>\n"
+            summary += f"<<COLOR:text>>Clusters are well-separated and internally cohesive. This grouping reflects real structure in the data.<</COLOR>>"
+        elif sil >= 0.5:
+            summary += f"<<COLOR:good>>Reasonable cluster structure (silhouette = {sil:.3f}).<</COLOR>>\n"
+            summary += f"<<COLOR:text>>Clusters have meaningful separation. Some overlap exists but the grouping is useful.<</COLOR>>"
+        elif sil >= 0.25:
+            summary += f"<<COLOR:warn>>Weak cluster structure (silhouette = {sil:.3f}).<</COLOR>>\n"
+            summary += f"<<COLOR:text>>Clusters overlap substantially. Try different k values or different features. The data may not have clear natural groups.<</COLOR>>"
+        else:
+            summary += f"<<COLOR:danger>>No meaningful cluster structure (silhouette = {sil:.3f}).<</COLOR>>\n"
+            summary += f"<<COLOR:text>>Clusters are essentially arbitrary. The data does not separate into distinct groups with these features.<</COLOR>>"
+
+        # Size imbalance warning
+        max_size = cluster_sizes.max()
+        min_size = cluster_sizes.min()
+        if max_size > 5 * min_size:
+            summary += f"\n\n<<COLOR:warn>>Imbalanced clusters:<</COLOR>> largest is {max_size/min_size:.0f}x the smallest. One cluster may be catching 'everything else.' Consider increasing k."
+
+        result["summary"] = summary
 
         # Scatter plot of first two features colored by cluster
         if len(features) >= 2:
@@ -9347,7 +12226,9 @@ def run_ml_analysis(df, analysis_id, config, user):
                 }
             })
 
-        result["guide_observation"] = f"K-Means with {n_clusters} clusters. Inertia: {kmeans.inertia_:.2f}."
+        sil_quality = "strong" if sil >= 0.5 else "weak" if sil >= 0.25 else "no meaningful"
+        result["guide_observation"] = f"K-Means: {n_clusters} clusters, silhouette={sil:.3f} ({sil_quality} structure). " + (
+            f"Optimal k by silhouette: {best_k}." if max_k >= 2 else "")
 
     elif analysis_id == "pca":
         from sklearn.decomposition import PCA
@@ -13762,6 +16643,476 @@ def run_visualization(df, analysis_id, config):
             ad_stat = stats.anderson(x)
             result["summary"] = f"Probability Plot ({dist_name})\n\nAnderson-Darling: {ad_stat.statistic:.4f}\nCritical values (15%, 10%, 5%, 2.5%, 1%):\n{ad_stat.critical_values}"
 
+    elif analysis_id == "individual_value_plot":
+        import numpy as np
+        from scipy import stats
+
+        var = config.get("var")
+        groupby = config.get("group")
+        show_mean = config.get("show_mean", True)
+        show_ci = config.get("show_ci", True)
+        conf = config.get("confidence", 0.95)
+
+        traces = []
+        has_groups = groupby and groupby != "" and groupby != "None"
+
+        if has_groups:
+            groups = df[groupby].dropna().unique()
+            for i, grp in enumerate(groups):
+                vals = df[df[groupby] == grp][var].dropna().values
+                color = theme_colors[i % len(theme_colors)]
+                jitter = np.random.uniform(-0.15, 0.15, len(vals))
+                traces.append({
+                    "type": "scatter", "x": (np.full(len(vals), i) + jitter).tolist(),
+                    "y": vals.tolist(), "mode": "markers",
+                    "marker": {"color": color, "size": 6, "opacity": 0.6},
+                    "name": str(grp), "showlegend": True
+                })
+                if show_mean and len(vals) > 0:
+                    mean_val = float(np.mean(vals))
+                    traces.append({
+                        "type": "scatter", "x": [i], "y": [mean_val],
+                        "mode": "markers", "marker": {"color": color, "size": 14, "symbol": "diamond", "line": {"color": "#fff", "width": 1}},
+                        "showlegend": False
+                    })
+                if show_ci and len(vals) > 1:
+                    mean_val = float(np.mean(vals))
+                    se = float(np.std(vals, ddof=1) / np.sqrt(len(vals)))
+                    ci = stats.t.interval(conf, df=len(vals)-1, loc=mean_val, scale=se)
+                    traces.append({
+                        "type": "scatter", "x": [i, i], "y": [ci[0], ci[1]],
+                        "mode": "lines", "line": {"color": color, "width": 2},
+                        "showlegend": False
+                    })
+
+            result["plots"].append({
+                "title": f"Individual Value Plot: {var} by {groupby}",
+                "data": traces,
+                "layout": {"height": 350, "xaxis": {"tickvals": list(range(len(groups))), "ticktext": [str(g) for g in groups], "title": groupby}, "yaxis": {"title": var}, "showlegend": True}
+            })
+        else:
+            vals = df[var].dropna().values
+            jitter = np.random.uniform(-0.15, 0.15, len(vals))
+            traces.append({
+                "type": "scatter", "x": jitter.tolist(), "y": vals.tolist(),
+                "mode": "markers", "marker": {"color": "rgba(74,159,110,0.6)", "size": 6},
+                "name": var, "showlegend": False
+            })
+            if show_mean and len(vals) > 0:
+                mean_val = float(np.mean(vals))
+                traces.append({
+                    "type": "scatter", "x": [0], "y": [mean_val],
+                    "mode": "markers", "marker": {"color": "#e89547", "size": 14, "symbol": "diamond"},
+                    "showlegend": False
+                })
+            result["plots"].append({
+                "title": f"Individual Value Plot: {var}",
+                "data": traces,
+                "layout": {"height": 350, "xaxis": {"showticklabels": False}, "yaxis": {"title": var}}
+            })
+
+    elif analysis_id == "interval_plot":
+        import numpy as np
+        from scipy import stats
+
+        var = config.get("var")
+        groupby = config.get("group")
+        conf = config.get("confidence", 0.95)
+
+        if not groupby or groupby == "" or groupby == "None":
+            result["summary"] = "Interval plot requires a grouping variable."
+        else:
+            groups = df[groupby].dropna().unique()
+            means = []
+            ci_lo = []
+            ci_hi = []
+            labels = []
+
+            for grp in groups:
+                vals = df[df[groupby] == grp][var].dropna().values
+                if len(vals) < 2:
+                    continue
+                m = float(np.mean(vals))
+                se = float(np.std(vals, ddof=1) / np.sqrt(len(vals)))
+                ci = stats.t.interval(conf, df=len(vals)-1, loc=m, scale=se)
+                means.append(m)
+                ci_lo.append(m - ci[0])
+                ci_hi.append(ci[1] - m)
+                labels.append(str(grp))
+
+            overall_mean = float(df[var].dropna().mean())
+
+            traces = [{
+                "type": "scatter", "x": labels, "y": means,
+                "mode": "markers",
+                "marker": {"color": "#4a9f6e", "size": 10, "symbol": "diamond"},
+                "error_y": {"type": "data", "symmetric": False, "array": ci_hi, "arrayminus": ci_lo, "color": "#4a9f6e", "thickness": 2, "width": 8},
+                "name": f"Mean ± {conf*100:.0f}% CI"
+            }, {
+                "type": "scatter", "x": [labels[0], labels[-1]], "y": [overall_mean, overall_mean],
+                "mode": "lines", "line": {"color": "#e89547", "dash": "dash", "width": 1.5},
+                "name": f"Overall Mean ({overall_mean:.4g})"
+            }]
+
+            result["plots"].append({
+                "title": f"Interval Plot: {var} by {groupby} ({conf*100:.0f}% CI)",
+                "data": traces,
+                "layout": {"height": 350, "xaxis": {"title": groupby}, "yaxis": {"title": var}, "showlegend": True}
+            })
+
+    elif analysis_id == "dotplot":
+        import numpy as np
+
+        var = config.get("var")
+        groupby = config.get("group")
+
+        has_groups = groupby and groupby != "" and groupby != "None"
+
+        if has_groups:
+            groups = df[groupby].dropna().unique()
+            traces = []
+            for i, grp in enumerate(groups):
+                vals = np.sort(df[df[groupby] == grp][var].dropna().values)
+                color = theme_colors[i % len(theme_colors)]
+                # Stack dots: for repeated values, offset y
+                if len(vals) == 0:
+                    continue
+                rng = float(np.ptp(vals)) if np.ptp(vals) > 0 else 1.0
+                bin_width = rng / max(min(int(np.sqrt(len(vals))), 30), 5) if len(vals) > 1 else rng
+                if bin_width == 0:
+                    bin_width = 1.0
+                binned = np.round(vals / bin_width) * bin_width
+                x_out, y_out = [], []
+                from collections import Counter
+                counts = Counter()
+                for bv, rv in zip(binned, vals):
+                    counts[bv] += 1
+                    x_out.append(float(rv))
+                    y_out.append(i + (counts[bv] - 1) * 0.08)
+                traces.append({
+                    "type": "scatter", "x": x_out, "y": y_out,
+                    "mode": "markers", "marker": {"color": color, "size": 7},
+                    "name": str(grp)
+                })
+            result["plots"].append({
+                "title": f"Dotplot: {var} by {groupby}",
+                "data": traces,
+                "layout": {"height": 350, "xaxis": {"title": var}, "yaxis": {"tickvals": list(range(len(groups))), "ticktext": [str(g) for g in groups], "title": groupby}}
+            })
+        else:
+            vals = np.sort(df[var].dropna().values)
+            if len(vals) > 0:
+                rng = float(np.ptp(vals)) if np.ptp(vals) > 0 else 1.0
+                bin_width = rng / max(min(int(np.sqrt(len(vals))), 30), 5) if len(vals) > 1 else rng
+                if bin_width == 0:
+                    bin_width = 1.0
+                binned = np.round(vals / bin_width) * bin_width
+                x_out, y_out = [], []
+                from collections import Counter
+                counts = Counter()
+                for bv, rv in zip(binned, vals):
+                    counts[bv] += 1
+                    x_out.append(float(rv))
+                    y_out.append(counts[bv])
+                result["plots"].append({
+                    "title": f"Dotplot: {var}",
+                    "data": [{"type": "scatter", "x": x_out, "y": y_out, "mode": "markers", "marker": {"color": "#4a9f6e", "size": 7}, "name": var}],
+                    "layout": {"height": 300, "xaxis": {"title": var}, "yaxis": {"title": "Count"}}
+                })
+
+    # =====================================================================
+    # Bubble Chart (backend — complements client-side renderGraph)
+    # =====================================================================
+    elif analysis_id == "bubble":
+        x_var = config.get("x")
+        y_var = config.get("y")
+        size_var = config.get("size")
+        color_var = config.get("color")
+
+        size_vals = df[size_var].dropna().values.astype(float)
+        s_min, s_max = float(size_vals.min()), float(size_vals.max())
+        s_range = s_max - s_min if s_max != s_min else 1.0
+
+        data = []
+        if color_var and color_var not in ("", "None"):
+            for i, group in enumerate(df[color_var].dropna().unique()):
+                sub = df.loc[df[color_var] == group]
+                sizes = ((sub[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5).tolist()
+                data.append({
+                    "type": "scatter", "mode": "markers",
+                    "x": sub[x_var].tolist(), "y": sub[y_var].tolist(),
+                    "marker": {"size": sizes, "sizemode": "diameter",
+                               "color": theme_colors[i % len(theme_colors)], "opacity": 0.7},
+                    "name": str(group),
+                })
+        else:
+            sizes = ((df[size_var].fillna(s_min).astype(float) - s_min) / s_range * 35 + 5).tolist()
+            data.append({
+                "type": "scatter", "mode": "markers",
+                "x": df[x_var].tolist(), "y": df[y_var].tolist(),
+                "marker": {"size": sizes, "sizemode": "diameter",
+                           "color": "rgba(74,159,110,0.6)",
+                           "line": {"color": "#4a9f6e", "width": 1}},
+                "name": size_var,
+            })
+
+        result["plots"].append({
+            "title": f"Bubble Chart: {y_var} vs {x_var} (size: {size_var})",
+            "data": data,
+            "layout": {"height": 400, "xaxis": {"title": x_var}, "yaxis": {"title": y_var},
+                       "showlegend": bool(color_var and color_var not in ("", "None"))},
+        })
+        result["summary"] = (
+            f"Bubble Chart\n\nX: {x_var}, Y: {y_var}, Size: {size_var}"
+            + (f", Color: {color_var}" if color_var and color_var not in ("", "None") else "")
+            + f"\nObservations: {len(df)}"
+        )
+
+    # =====================================================================
+    # Parallel Coordinates
+    # =====================================================================
+    elif analysis_id == "parallel_coordinates":
+        dims = config.get("dimensions", [])
+        color_col = config.get("color")
+
+        if len(dims) < 2:
+            result["summary"] = "Select at least 2 dimensions for parallel coordinates."
+            return result
+
+        dimensions = []
+        for col in dims:
+            if np.issubdtype(df[col].dtype, np.number):
+                dimensions.append({
+                    "label": col,
+                    "values": df[col].fillna(df[col].median()).tolist(),
+                    "range": [float(df[col].min()), float(df[col].max())],
+                })
+            else:
+                cats = df[col].dropna().unique().tolist()
+                cat_map = {c: i for i, c in enumerate(cats)}
+                dimensions.append({
+                    "label": col,
+                    "values": df[col].map(cat_map).fillna(-1).astype(int).tolist(),
+                    "tickvals": list(range(len(cats))),
+                    "ticktext": [str(c) for c in cats],
+                })
+
+        trace = {"type": "parcoords", "dimensions": dimensions}
+        if color_col and color_col not in ("", "None"):
+            if np.issubdtype(df[color_col].dtype, np.number):
+                trace["line"] = {
+                    "color": df[color_col].fillna(0).tolist(),
+                    "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
+                    "showscale": True, "colorbar": {"title": color_col},
+                }
+            else:
+                cats = df[color_col].dropna().unique().tolist()
+                cat_map = {c: i for i, c in enumerate(cats)}
+                trace["line"] = {
+                    "color": df[color_col].map(cat_map).fillna(0).tolist(),
+                    "colorscale": [[0, "#4a9f6e"], [0.5, "#4a90d9"], [1, "#d94a4a"]],
+                    "showscale": True,
+                }
+        else:
+            trace["line"] = {"color": "#4a9f6e"}
+
+        result["plots"].append({
+            "title": f"Parallel Coordinates ({len(dims)} dimensions)",
+            "data": [trace],
+            "layout": {"height": 450},
+        })
+        result["summary"] = (
+            f"Parallel Coordinates Plot\n\n"
+            f"Dimensions: {len(dims)}\nObservations: {len(df)}\n\n"
+            f"Drag axis ranges to filter. Reorder axes by dragging labels."
+        )
+
+    # =====================================================================
+    # Contour Plot
+    # =====================================================================
+    elif analysis_id == "contour":
+        from scipy.interpolate import griddata as scipy_griddata
+
+        x_col = config.get("x")
+        y_col = config.get("y")
+        z_col = config.get("z")
+
+        common = df[[x_col, y_col, z_col]].dropna()
+        if len(common) < 4:
+            result["summary"] = "Need at least 4 non-missing data points for contour interpolation."
+            return result
+
+        x, y, z = common[x_col].values.astype(float), common[y_col].values.astype(float), common[z_col].values.astype(float)
+
+        xi = np.linspace(x.min(), x.max(), 50)
+        yi = np.linspace(y.min(), y.max(), 50)
+        xi_grid, yi_grid = np.meshgrid(xi, yi)
+
+        zi_grid = scipy_griddata((x, y), z, (xi_grid, yi_grid), method="cubic")
+        # Fill NaN regions with linear interpolation fallback
+        nan_mask = np.isnan(zi_grid)
+        if nan_mask.any():
+            zi_linear = scipy_griddata((x, y), z, (xi_grid, yi_grid), method="linear")
+            zi_grid[nan_mask] = zi_linear[nan_mask]
+
+        result["plots"].append({
+            "title": f"Contour: {z_col}",
+            "data": [
+                {
+                    "type": "contour",
+                    "x": xi.tolist(), "y": yi.tolist(),
+                    "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
+                    "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
+                    "contours": {"showlabels": True, "labelfont": {"size": 10, "color": "#fff"}},
+                    "colorbar": {"title": z_col},
+                },
+                {
+                    "type": "scatter", "mode": "markers",
+                    "x": x.tolist(), "y": y.tolist(),
+                    "marker": {"color": "#fff", "size": 3, "opacity": 0.5},
+                    "showlegend": False,
+                },
+            ],
+            "layout": {"height": 450, "xaxis": {"title": x_col}, "yaxis": {"title": y_col}},
+        })
+        result["summary"] = (
+            f"Contour Plot\n\nX: {x_col}, Y: {y_col}, Z: {z_col}\n"
+            f"Data points: {len(x)}\nGrid: 50x50, interpolation: cubic\n\n"
+            f"Contour lines show estimated iso-response levels. White dots show data locations."
+        )
+
+    # =====================================================================
+    # 3D Surface Plot
+    # =====================================================================
+    elif analysis_id == "surface_3d":
+        from scipy.interpolate import griddata as scipy_griddata
+
+        x_col = config.get("x")
+        y_col = config.get("y")
+        z_col = config.get("z")
+
+        common = df[[x_col, y_col, z_col]].dropna()
+        if len(common) < 4:
+            result["summary"] = "Need at least 4 non-missing data points for surface interpolation."
+            return result
+
+        x, y, z = common[x_col].values.astype(float), common[y_col].values.astype(float), common[z_col].values.astype(float)
+
+        xi = np.linspace(x.min(), x.max(), 40)
+        yi = np.linspace(y.min(), y.max(), 40)
+        xi_grid, yi_grid = np.meshgrid(xi, yi)
+
+        zi_grid = scipy_griddata((x, y), z, (xi_grid, yi_grid), method="cubic")
+        nan_mask = np.isnan(zi_grid)
+        if nan_mask.any():
+            zi_linear = scipy_griddata((x, y), z, (xi_grid, yi_grid), method="linear")
+            zi_grid[nan_mask] = zi_linear[nan_mask]
+
+        result["plots"].append({
+            "title": f"3D Surface: {z_col}",
+            "data": [{
+                "type": "surface",
+                "x": xi.tolist(), "y": yi.tolist(),
+                "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
+                "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#d94a4a"]],
+                "colorbar": {"title": z_col},
+            }],
+            "layout": {"height": 500,
+                       "scene": {"xaxis": {"title": x_col}, "yaxis": {"title": y_col}, "zaxis": {"title": z_col}}},
+        })
+        result["summary"] = (
+            f"3D Surface Plot\n\nX: {x_col}, Y: {y_col}, Z: {z_col}\n"
+            f"Data points: {len(x)}\nGrid: 40x40\n\n"
+            f"Drag to rotate. Scroll to zoom."
+        )
+
+    # =====================================================================
+    # Mosaic Plot
+    # =====================================================================
+    elif analysis_id == "mosaic":
+        row_var = config.get("row_var")
+        col_var = config.get("col_var")
+
+        # Cap levels
+        if df[row_var].nunique() > 15:
+            top_rows = df[row_var].value_counts().head(15).index
+            df = df[df[row_var].isin(top_rows)]
+        if df[col_var].nunique() > 15:
+            top_cols = df[col_var].value_counts().head(15).index
+            df = df[df[col_var].isin(top_cols)]
+
+        ct = pd.crosstab(df[row_var], df[col_var])
+        row_totals = ct.sum(axis=1)
+        grand_total = int(ct.values.sum())
+        col_names = ct.columns.tolist()
+        row_names = ct.index.tolist()
+
+        shapes = []
+        annotations = []
+        x_cursor = 0.0
+
+        for ri, row_name in enumerate(row_names):
+            row_width = float(row_totals[row_name]) / grand_total
+            y_cursor = 0.0
+            col_total = float(row_totals[row_name])
+
+            for ci, col_name in enumerate(col_names):
+                cell_val = float(ct.loc[row_name, col_name])
+                cell_height = cell_val / col_total if col_total > 0 else 0
+
+                shapes.append({
+                    "type": "rect",
+                    "x0": x_cursor, "x1": x_cursor + row_width,
+                    "y0": y_cursor, "y1": y_cursor + cell_height,
+                    "fillcolor": theme_colors[ci % len(theme_colors)],
+                    "opacity": 0.7,
+                    "line": {"color": "#1a1a2e", "width": 1},
+                })
+                if cell_height > 0.06 and row_width > 0.06:
+                    annotations.append({
+                        "x": x_cursor + row_width / 2,
+                        "y": y_cursor + cell_height / 2,
+                        "text": str(int(cell_val)),
+                        "showarrow": False,
+                        "font": {"color": "#fff", "size": 10},
+                    })
+                y_cursor += cell_height
+
+            annotations.append({
+                "x": x_cursor + row_width / 2, "y": -0.04,
+                "text": str(row_name), "showarrow": False,
+                "font": {"color": "#b0b0b0", "size": 9},
+            })
+            x_cursor += row_width
+
+        # Legend traces for column categories
+        legend_traces = [
+            {
+                "type": "scatter", "x": [None], "y": [None], "mode": "markers",
+                "marker": {"color": theme_colors[ci % len(theme_colors)], "size": 10},
+                "name": str(col_name), "showlegend": True,
+            }
+            for ci, col_name in enumerate(col_names)
+        ]
+
+        result["plots"].append({
+            "title": f"Mosaic: {row_var} x {col_var}",
+            "data": legend_traces,
+            "layout": {
+                "height": 400,
+                "shapes": shapes, "annotations": annotations,
+                "xaxis": {"range": [0, 1], "title": row_var, "showticklabels": False},
+                "yaxis": {"range": [-0.08, 1], "title": col_var, "showticklabels": False},
+                "showlegend": True,
+            },
+        })
+        result["summary"] = (
+            f"Mosaic Plot\n\nRow: {row_var} ({len(row_names)} levels)\n"
+            f"Column: {col_var} ({len(col_names)} levels)\n"
+            f"Total: {grand_total} observations\n\n"
+            f"Tile widths proportional to row totals. Heights proportional to column distribution within each row."
+        )
+
     return result
 
 
@@ -15350,7 +18701,9 @@ def triage_data(request):
             "outliers_clipped": 0,
             "types_converted": 0,
         }
+        warnings = []
         original_rows = len(df_clean)
+        original_cols = len(df_clean.columns)
 
         # 1. Fix Excel errors
         if fix_excel:
@@ -15361,45 +18714,80 @@ def triage_data(request):
                     count = mask.sum()
                     if count > 0:
                         df_clean.loc[mask, col] = np.nan
-                        changes["excel_errors"] += count
+                        changes["excel_errors"] += int(count)
 
         # 2. Fix types (before missing/outlier handling)
         if fix_types:
             for col in df_clean.columns:
                 if df_clean[col].dtype == object:
-                    # Try to convert to numeric
                     try:
                         converted = pd.to_numeric(df_clean[col].str.replace(',', ''), errors='coerce')
-                        # Only convert if >80% success
-                        success_rate = converted.notna().sum() / max(df_clean[col].notna().sum(), 1)
-                        if success_rate > 0.8:
+                        non_null_original = df_clean[col].notna().sum()
+                        non_null_converted = converted.notna().sum()
+                        # Only convert if no values are lost (coerce didn't create new NaNs)
+                        if non_null_original > 0 and non_null_converted == non_null_original:
                             df_clean[col] = converted
                             changes["types_converted"] += 1
+                        elif non_null_original > 0 and non_null_converted / non_null_original > 0.95:
+                            # >95% converted — apply but warn about lost values
+                            lost = int(non_null_original - non_null_converted)
+                            df_clean[col] = converted
+                            changes["types_converted"] += 1
+                            warnings.append(f"Type conversion: '{col}' — {lost} non-numeric values became empty")
                     except Exception:
                         pass
 
         # 3. Handle missing values
         if fix_missing and missing_action != "leave":
             if missing_action == "drop_rows":
-                before = len(df_clean)
-                df_clean = df_clean.dropna()
-                changes["missing_dropped"] = before - len(df_clean)
+                # Only drop rows that are mostly empty (>80% missing), NOT rows with a single NaN
+                n_cols = len(df_clean.columns)
+                if n_cols > 0:
+                    row_missing_pct = df_clean.isna().sum(axis=1) / n_cols
+                    rows_to_drop = row_missing_pct[row_missing_pct > 0.8].index
+                    if len(rows_to_drop) > 0:
+                        changes["missing_dropped"] = len(rows_to_drop)
+                        warnings.append(f"Dropped {len(rows_to_drop)} rows with >80% missing values")
+                        df_clean = df_clean.drop(rows_to_drop)
+
+                    # Impute remaining missing values instead of dropping their rows
+                    for col in df_clean.columns:
+                        missing_count = int(df_clean[col].isna().sum())
+                        if missing_count > 0:
+                            if pd.api.types.is_numeric_dtype(df_clean[col]):
+                                fill_val = df_clean[col].median()
+                                if pd.notna(fill_val):
+                                    if pd.api.types.is_integer_dtype(df_clean[col]):
+                                        fill_val = round(fill_val)
+                                    df_clean[col] = df_clean[col].fillna(fill_val)
+                            else:
+                                mode_val = df_clean[col].mode()
+                                if len(mode_val) > 0:
+                                    df_clean[col] = df_clean[col].fillna(mode_val.iloc[0])
+                            changes["missing_filled"] += missing_count
             elif missing_action in ["impute_mean", "impute_median"]:
                 for col in df_clean.columns:
-                    missing_count = df_clean[col].isna().sum()
+                    missing_count = int(df_clean[col].isna().sum())
                     if missing_count > 0:
                         if pd.api.types.is_numeric_dtype(df_clean[col]):
                             if missing_action == "impute_mean":
                                 fill_val = df_clean[col].mean()
                             else:
                                 fill_val = df_clean[col].median()
-                            df_clean[col] = df_clean[col].fillna(fill_val)
+                            if pd.notna(fill_val):
+                                if pd.api.types.is_integer_dtype(df_clean[col]):
+                                    fill_val = round(fill_val)
+                                df_clean[col] = df_clean[col].fillna(fill_val)
                         else:
-                            # Mode for categorical
                             mode_val = df_clean[col].mode()
                             if len(mode_val) > 0:
                                 df_clean[col] = df_clean[col].fillna(mode_val.iloc[0])
                         changes["missing_filled"] += missing_count
+
+                        # Warn about high-missing columns
+                        missing_pct = missing_count / max(original_rows, 1) * 100
+                        if missing_pct > 50:
+                            warnings.append(f"'{col}' has {missing_pct:.0f}% missing — imputed, but consider whether this column is reliable")
 
         # 4. Handle outliers
         if fix_outliers:
@@ -15412,7 +18800,7 @@ def triage_data(request):
                     lower = q1 - 1.5 * iqr
                     upper = q3 + 1.5 * iqr
                     outlier_mask = (df_clean[col] < lower) | (df_clean[col] > upper)
-                    outlier_count = outlier_mask.sum()
+                    outlier_count = int(outlier_mask.sum())
 
                     if outlier_count > 0:
                         if outlier_action == "flag":
@@ -15421,6 +18809,7 @@ def triage_data(request):
                         elif outlier_action == "remove":
                             df_clean = df_clean[~outlier_mask]
                             changes["outliers_removed"] += outlier_count
+                            warnings.append(f"Removed {outlier_count} outlier rows from '{col}'")
                         elif outlier_action == "clip":
                             df_clean[col] = df_clean[col].clip(lower=lower, upper=upper)
                             changes["outliers_clipped"] += outlier_count
@@ -15431,6 +18820,12 @@ def triage_data(request):
         data_dir.mkdir(parents=True, exist_ok=True)
         data_path = data_dir / f"{new_data_id}.csv"
         df_clean.to_csv(data_path, index=False)
+
+        # Also produce CSV string for frontends that re-upload
+        import io
+        csv_buf = io.StringIO()
+        df_clean.to_csv(csv_buf, index=False)
+        cleaned_csv_str = csv_buf.getvalue()
 
         # Build column info
         columns = []
@@ -15470,8 +18865,11 @@ def triage_data(request):
                 "columns": columns,
                 "preview": preview,
             },
+            "cleaned_csv": cleaned_csv_str,
             "changes": changes_clean,
             "rows_removed": int(original_rows - len(df_clean)),
+            "cols_removed": int(original_cols - len(df_clean.columns)),
+            "warnings": warnings,
         })
 
     except Exception as e:
