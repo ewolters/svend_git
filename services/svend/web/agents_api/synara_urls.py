@@ -20,6 +20,10 @@ urlpatterns = [
     # Evidence
     path("<str:workbench_id>/evidence/", views.get_evidence, name="synara_evidence"),
     path("<str:workbench_id>/evidence/add/", views.add_evidence, name="synara_add_evidence"),
+    path("<str:workbench_id>/evidence/<str:evidence_id>/delete/", views.delete_evidence, name="synara_delete_evidence"),
+
+    # Causal Links — Delete
+    path("<str:workbench_id>/links/delete/", views.delete_link, name="synara_delete_link"),
 
     # Expansion Signals
     path("<str:workbench_id>/expansions/", views.get_expansions, name="synara_expansions"),

@@ -306,6 +306,54 @@ def get_evidence(request, workbench_id: str):
     })
 
 
+@csrf_exempt
+@require_http_methods(["DELETE"])
+@gated_paid
+def delete_evidence(request, workbench_id: str, evidence_id: str):
+    """Remove an evidence item from the belief engine."""
+
+    synara = get_synara(workbench_id)
+
+    original_len = len(synara.graph.evidence)
+    synara.graph.evidence = [e for e in synara.graph.evidence if e.id != evidence_id]
+
+    if len(synara.graph.evidence) == original_len:
+        return JsonResponse({"error": "Evidence not found"}, status=404)
+
+    save_synara(workbench_id, synara)
+    return JsonResponse({"success": True})
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+@gated_paid
+def delete_link(request, workbench_id: str):
+    """Remove a causal link between hypotheses.
+
+    Query params: ?from_id=h_123&to_id=h_456
+    """
+
+    from_id = request.GET.get("from_id", "")
+    to_id = request.GET.get("to_id", "")
+
+    if not from_id or not to_id:
+        return JsonResponse({"error": "from_id and to_id required"}, status=400)
+
+    synara = get_synara(workbench_id)
+
+    original_len = len(synara.graph.links)
+    synara.graph.links = [
+        lnk for lnk in synara.graph.links
+        if not (lnk.from_id == from_id and lnk.to_id == to_id)
+    ]
+
+    if len(synara.graph.links) == original_len:
+        return JsonResponse({"error": "Link not found"}, status=404)
+
+    save_synara(workbench_id, synara)
+    return JsonResponse({"success": True})
+
+
 # =============================================================================
 # Expansion Signals
 # =============================================================================

@@ -120,10 +120,9 @@ DM for access.
 | Tier | Price | Limit |
 |------|-------|-------|
 | Free | $0 | 5 analyses/day |
-| Founder | $19/mo | Unlimited |
-| Pro | $29/mo | Unlimited + API |
-| Team | $79/mo | 5 seats |
-| Enterprise | $199/mo | 5000 analyses/day |
+| Professional | $49/mo | 50 analyses/day, full suite |
+| Team | $99/mo | 200/day, collaboration |
+| Enterprise | $299/mo | 1000/day, SSO, AI assistant |
 
 ### Marketing Channels
 | Channel | Effort | Expected Reach |
@@ -270,7 +269,7 @@ Cost: ~$100-200/mo
 Week 0     : Model trained
 Week 1-2   : Alpha (friends testing)
 Week 3-6   : Private beta
-Feb 2026   : Public launch (from $19/mo) ← DONE
+Feb 2026   : Public launch (from $49/mo) ← DONE
 Month 6-12 : Scale to 4000 users
 ```
 

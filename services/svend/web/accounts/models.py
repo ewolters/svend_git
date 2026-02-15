@@ -7,6 +7,8 @@ from datetime import timedelta
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from core.encryption import EncryptedCharField, hash_token
+
 from .constants import (
     Tier, Industry, Role, ExperienceLevel, OrganizationSize,
     get_daily_limit, has_feature, is_paid_tier,
@@ -142,8 +144,9 @@ class User(AbstractUser):
     # Founder's rate lock - users who signed up at founder pricing keep it
     is_founder_locked = models.BooleanField(default=False)
 
-    # Stripe
-    stripe_customer_id = models.CharField(max_length=255, blank=True, db_index=True)
+    # Stripe (encrypted at rest, hash column for lookups)
+    stripe_customer_id = EncryptedCharField(blank=True)
+    stripe_customer_id_hash = models.CharField(max_length=64, blank=True, db_index=True)
 
     # Legacy fields (kept for backwards compat, use Subscription model instead)
     subscription_active = models.BooleanField(default=False)
@@ -186,10 +189,10 @@ class User(AbstractUser):
     # Onboarding
     onboarding_completed_at = models.DateTimeField(null=True, blank=True)
 
-    # Email verification
+    # Email verification (token stored as SHA-256 hash)
     email_verified = models.BooleanField(default=False)
     email_verification_token = models.CharField(max_length=64, blank=True, db_index=True)
-    email_opted_out = models.BooleanField(default=False)  # Unsubscribed from marketing/automation emails
+    email_opted_out = models.BooleanField(default=False)
 
     class Meta:
         db_table = "users"
@@ -238,10 +241,15 @@ class User(AbstractUser):
         self.save(update_fields=["queries_today", "total_queries"])
 
     def generate_verification_token(self) -> str:
-        """Generate and save a new email verification token."""
-        self.email_verification_token = secrets.token_urlsafe(32)
+        """Generate a new email verification token.
+
+        Returns plaintext token (for the email link) but stores only
+        a SHA-256 hash in the database.
+        """
+        plaintext = secrets.token_urlsafe(32)
+        self.email_verification_token = hash_token(plaintext)
         self.save(update_fields=["email_verification_token"])
-        return self.email_verification_token
+        return plaintext
 
     def send_verification_email(self):
         """Send verification email to user."""
@@ -272,8 +280,8 @@ If you didn't create this account, you can ignore this email.
         return True
 
     def verify_email(self, token: str) -> bool:
-        """Verify email with token. Returns True if successful."""
-        if self.email_verification_token and self.email_verification_token == token:
+        """Verify email with token. Compares hash of input to stored hash."""
+        if self.email_verification_token and self.email_verification_token == hash_token(token):
             self.email_verified = True
             self.email_verification_token = ""
             self.save(update_fields=["email_verified", "email_verification_token"])

@@ -5,6 +5,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from core.encryption import EncryptedTextField
+
 
 class Workflow(models.Model):
     """User-defined workflow (chain of agents)."""
@@ -37,7 +39,7 @@ class DSWResult(models.Model):
         related_name="dsw_results",
     )
     result_type = models.CharField(max_length=50)  # from_intent, from_data
-    data = models.TextField()  # JSON serialized result
+    data = EncryptedTextField()  # JSON serialized result (encrypted at rest)
     created_at = models.DateTimeField(auto_now_add=True)
 
     # Optional project linking for A3/method import
@@ -86,9 +88,9 @@ class TriageResult(models.Model):
         related_name="triage_results",
     )
     original_filename = models.CharField(max_length=255)
-    cleaned_csv = models.TextField()  # The cleaned CSV data
-    report_markdown = models.TextField()  # Cleaning report
-    summary_json = models.TextField()  # JSON summary stats
+    cleaned_csv = EncryptedTextField()  # The cleaned CSV data (encrypted at rest)
+    report_markdown = EncryptedTextField()  # Cleaning report (encrypted at rest)
+    summary_json = EncryptedTextField()  # JSON summary stats (encrypted at rest)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -113,6 +115,31 @@ class SavedModel(models.Model):
     feature_names = models.TextField(blank=True)  # JSON list of features
     target_name = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # Project linkage for Synara evidence integration
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="saved_models",
+    )
+
+    # Training recipe — exact config to reproduce this model
+    training_config = models.JSONField(default=dict, blank=True)
+
+    # Data provenance — where the training data came from
+    data_lineage = models.JSONField(default=dict, blank=True)
+
+    # Versioning — retrain creates new version linked to parent
+    version = models.IntegerField(default=1)
+    parent_model = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="retrained_versions",
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -1015,17 +1042,91 @@ class BoardVote(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="board_votes",
+    )
+    guest_invite = models.ForeignKey(
+        "BoardGuestInvite",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="votes",
     )
     element_id = models.CharField(max_length=50)  # The element ID being voted on
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        # One vote per user per element
-        unique_together = ("board", "user", "element_id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["board", "user", "element_id"],
+                condition=models.Q(user__isnull=False),
+                name="unique_user_vote",
+            ),
+            models.UniqueConstraint(
+                fields=["board", "guest_invite", "element_id"],
+                condition=models.Q(guest_invite__isnull=False),
+                name="unique_guest_vote",
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.user.username} voted on {self.element_id}"
+        if self.user:
+            return f"{self.user.username} voted on {self.element_id}"
+        return f"Guest voted on {self.element_id}"
+
+
+class BoardGuestInvite(models.Model):
+    """Guest invite for board access without a Svend account.
+
+    Guests get scoped access to a single board via a unique token URL.
+    No navigation, no access to other tools. Owner controls permission level.
+    """
+
+    class Permission(models.TextChoices):
+        VIEW = "view", "View Only"
+        EDIT = "edit", "Edit"
+        EDIT_VOTE = "edit_vote", "Edit + Vote"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="guest_invites")
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    display_name = models.CharField(max_length=100, blank=True)
+    permission = models.CharField(
+        max_length=10,
+        choices=Permission.choices,
+        default=Permission.VIEW,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    color = models.CharField(max_length=7, default="#ff7eb9")
+    last_seen = models.DateTimeField(null=True, blank=True)
+    cursor_x = models.FloatField(null=True, blank=True)
+    cursor_y = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["board", "is_active"]),
+        ]
+
+    def __str__(self):
+        name = self.display_name or "(unnamed)"
+        return f"Guest '{name}' on {self.board.room_code} ({self.permission})"
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_valid(self):
+        return self.is_active and not self.is_expired
+
+    @classmethod
+    def generate_token(cls):
+        import secrets
+        return secrets.token_hex(32)
 
 
 # =============================================================================

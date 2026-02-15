@@ -1,0 +1,10 @@
+[Unit]
+Description=Svend encrypted database backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=eric
+ExecStart=/home/eric/kjerne/services/svend/web/backup_db.sh
+StandardOutput=journal
+StandardError=journal

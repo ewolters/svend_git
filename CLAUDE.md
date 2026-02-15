@@ -11,7 +11,7 @@ Kjerne is the monorepo for **Svend** — a hypothesis-driven decision science pl
 - **Triage** — data cleaning and validation
 - **Learn** — courses, assessments, and certification tracking
 
-Pricing: Free / Founder $19/mo / Pro $29/mo / Team $79/mo / Enterprise $199/mo. Live in production. Competing against Minitab ($1,851/yr) and JMP ($1,320-$8,400/yr).
+Pricing: Free / Professional $49/mo / Team $99/mo / Enterprise $299/mo. Live in production. Competing against Minitab ($1,851/yr) and JMP ($1,320-$8,400/yr). Founder tier ($19/mo) is legacy — no longer sold.
 
 ## Critical Context
 

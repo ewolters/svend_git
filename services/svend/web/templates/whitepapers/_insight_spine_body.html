@@ -1,0 +1,743 @@
+<style>
+/* === Whitepaper: Insight Spine — embedded styles === */
+
+/* Section numbers */
+.section-num {
+    font-size: 0.65rem; font-weight: 500; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--text-dim);
+    display: block; margin-bottom: 0.4rem;
+}
+
+/* Article typography */
+.wp-article h2 {
+    font-size: 1.35rem; font-weight: 500; color: var(--text-primary);
+    margin: 3.5rem 0 1rem; line-height: 1.3;
+}
+.wp-article h3 {
+    font-size: 1.05rem; font-weight: 500; color: var(--accent-primary);
+    margin: 2.25rem 0 0.75rem;
+}
+.wp-article p {
+    color: var(--text-secondary); margin-bottom: 1.1rem;
+    font-weight: 300; line-height: 1.8; font-size: 0.95rem;
+}
+.wp-article p strong { color: var(--text-primary); font-weight: 500; }
+
+/* Pull quote */
+.pull-quote {
+    border-left: 2px solid var(--accent-primary);
+    padding: 1.25rem 1.5rem; margin: 2rem 0;
+    font-style: italic; color: var(--text-secondary);
+    line-height: 1.7; font-size: 1rem;
+}
+.pull-quote strong { color: var(--text-primary); font-weight: 500; font-style: normal; }
+.pull-quote-attr {
+    font-style: normal; font-size: 0.8rem; color: var(--text-dim);
+    margin-top: 0.75rem; display: block;
+}
+
+/* Stat callout row */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0; }
+.stat-box {
+    text-align: center; padding: 1.25rem 0.75rem;
+    background: var(--bg-secondary); border: 1px solid rgba(74, 159, 110, 0.1);
+    border-radius: 4px;
+}
+.stat-value { font-size: 1.6rem; font-weight: 400; color: var(--accent-primary); margin-bottom: 0.2rem; }
+.stat-label {
+    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-dim); line-height: 1.3;
+}
+
+/* Cards */
+.card {
+    background: var(--bg-secondary); border: 1px solid rgba(74, 159, 110, 0.15);
+    border-radius: 4px; padding: 1.5rem; margin: 1.5rem 0;
+}
+.card--green { border-left: 3px solid var(--accent-primary); }
+.card--gold { border-left: 3px solid var(--accent-gold); }
+.card--blue { border-left: 3px solid var(--accent-blue); }
+.card--orange { border-left: 3px solid var(--accent-orange); }
+.card p:last-child { margin-bottom: 0; }
+.card-label {
+    font-size: 0.65rem; font-weight: 500; letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 0.6rem;
+}
+.card-label--green { color: var(--accent-primary); }
+.card-label--gold { color: var(--accent-gold); }
+.card-label--blue { color: var(--accent-blue); }
+
+/* Contrast table */
+.contrast-table { width: 100%; margin: 1.5rem 0; border-collapse: collapse; }
+.contrast-table th {
+    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-dim); text-align: left;
+    padding: 0.75rem 1rem; border-bottom: 1px solid var(--accent-primary-border);
+}
+.contrast-table td {
+    padding: 0.7rem 1rem; font-size: 0.88rem; color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.03); font-weight: 300; vertical-align: top;
+}
+.contrast-table td:first-child { color: var(--text-dim); font-weight: 400; width: 140px; }
+.contrast-table td strong { color: var(--text-primary); font-weight: 500; }
+
+/* Spine diagram */
+.spine-diagram { position: relative; padding-left: 2.5rem; margin: 2rem 0; }
+.spine-diagram::before {
+    content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px;
+    background: linear-gradient(180deg, var(--accent-primary) 0%, var(--accent-blue) 40%, var(--accent-purple) 65%, var(--accent-gold) 100%);
+    border-radius: 1px;
+}
+.spine-step { position: relative; padding: 0.6rem 0; }
+.spine-step::before {
+    content: ''; position: absolute; left: -2.5rem; top: 1rem;
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--accent-primary); background: var(--bg-primary);
+}
+.spine-step:nth-child(3)::before { border-color: #4a8f7e; }
+.spine-step:nth-child(4)::before { border-color: var(--accent-blue); }
+.spine-step:nth-child(5)::before { border-color: var(--accent-blue); }
+.spine-step:nth-child(6)::before { border-color: var(--accent-purple); }
+.spine-step:nth-child(7)::before { border-color: var(--accent-gold); }
+.spine-step-title { font-weight: 500; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.15rem; }
+.spine-step-desc { font-size: 0.85rem; color: var(--text-dim); font-weight: 300; line-height: 1.5; }
+
+/* Divider */
+.divider { height: 1px; background: linear-gradient(90deg, transparent, var(--accent-primary-border), transparent); margin: 3.5rem 0; }
+
+/* === Interactive 1: Insight Mortality Funnel === */
+.mortality-funnel { margin: 2rem 0; }
+.mortality-funnel .mf-label {
+    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 1rem; text-align: center;
+}
+.mf-track { display: flex; align-items: flex-end; gap: 0; height: 200px; position: relative; }
+.mf-stage {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-end; position: relative; cursor: pointer;
+}
+.mf-bar {
+    width: 60%; border-radius: 3px 3px 0 0; transition: height 1s ease, opacity 0.3s;
+    min-height: 4px; position: relative;
+}
+.mf-bar-fill {
+    width: 100%; border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, var(--accent-primary), rgba(74,159,110,0.6));
+}
+.mf-pct {
+    font-size: 0.75rem; font-weight: 600; color: var(--accent-primary);
+    margin-bottom: 0.3rem; opacity: 0; transition: opacity 0.6s;
+}
+.mf-pct.visible { opacity: 1; }
+.mf-name {
+    font-size: 0.65rem; color: var(--text-dim); text-align: center;
+    margin-top: 0.4rem; line-height: 1.2; font-weight: 400;
+}
+.mf-loss {
+    position: absolute; top: -1.2rem; font-size: 0.6rem; font-weight: 600;
+    color: var(--error); opacity: 0; transition: opacity 0.3s;
+}
+.mf-stage:hover .mf-loss, .mf-stage.active .mf-loss { opacity: 1; }
+.mf-detail {
+    margin-top: 1rem; padding: 1rem 1.25rem; background: var(--bg-secondary);
+    border: 1px solid var(--accent-primary-border); border-radius: 4px;
+    font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;
+    min-height: 3rem; transition: all 0.3s;
+}
+.mf-detail strong { color: var(--text-primary); }
+@media (max-width: 640px) { .mf-track { height: 150px; } .mf-bar { width: 80%; } }
+
+/* === Interactive 2: Optimization Profiler === */
+.opt-profiler {
+    margin: 2rem 0; background: var(--bg-secondary);
+    border: 1px solid rgba(74,159,110,0.15); border-radius: 6px;
+    padding: 1.5rem;
+}
+.opt-profiler .opt-label {
+    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 1.25rem;
+}
+.opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.opt-inputs { display: flex; flex-direction: column; gap: 1rem; }
+.opt-row label {
+    display: block; font-size: 0.8rem; color: var(--text-secondary);
+    font-weight: 400; margin-bottom: 0.25rem;
+}
+.opt-row .opt-slider-wrap { display: flex; align-items: center; gap: 0.75rem; }
+.opt-row input[type="range"] {
+    flex: 1; accent-color: var(--accent-primary); height: 4px;
+    -webkit-appearance: none; background: var(--bg-tertiary); border-radius: 2px; outline: none;
+}
+.opt-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent-primary); cursor: pointer;
+}
+.opt-row .opt-val {
+    font-size: 0.85rem; font-weight: 500; color: var(--text-primary);
+    min-width: 3.5rem; text-align: right; font-family: 'JetBrains Mono', monospace;
+}
+.opt-row .opt-constraint {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem; cursor: pointer;
+}
+.opt-row .opt-constraint input { accent-color: var(--accent-primary); }
+.opt-output {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 0.75rem; text-align: center;
+}
+.opt-yield-value {
+    font-size: 2.2rem; font-weight: 400; color: var(--accent-primary);
+    font-family: 'Inter', sans-serif; transition: all 0.3s;
+}
+.opt-yield-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+.opt-cost-line { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.25rem; }
+.opt-cost-line strong { color: var(--accent-gold); }
+.opt-btn {
+    margin-top: 0.5rem; padding: 0.5rem 1.5rem;
+    background: var(--accent-primary-dim); border: 1px solid var(--accent-primary-border);
+    border-radius: 3px; color: var(--accent-primary); font-family: 'Inter', sans-serif;
+    font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s;
+}
+.opt-btn:hover { background: rgba(74,159,110,0.25); border-color: rgba(74,159,110,0.5); }
+.opt-result {
+    font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;
+    min-height: 1.5rem; transition: all 0.3s;
+}
+.opt-result strong { color: var(--text-primary); }
+.opt-feasibility {
+    font-size: 0.7rem; padding: 0.3rem 0.6rem; border-radius: 3px;
+    display: inline-block; margin-top: 0.25rem;
+}
+.opt-feasibility.ok { background: rgba(74,159,110,0.15); color: var(--accent-primary); }
+.opt-feasibility.warn { background: rgba(232,197,71,0.15); color: var(--accent-gold); }
+@media (max-width: 640px) { .opt-grid { grid-template-columns: 1fr; } }
+
+/* Print overrides for interactives */
+@media print {
+    .mf-pct { opacity: 1 !important; }
+    .mf-loss { opacity: 1 !important; }
+    .opt-btn { display: none; }
+    .mortality-funnel, .opt-profiler { page-break-inside: avoid; }
+}
+</style>
+
+<div class="wp-article">
+
+<!-- ========== SECTION 1: THE NUMBERS ========== -->
+<span class="section-num">Section 01</span>
+<h2>The Numbers Everyone Cites, and the Pattern Nobody Explains</h2>
+
+<p>If you work in operational excellence, quality management, or continuous improvement, you've seen these statistics before. They appear in every conference slide deck, every consulting pitch, every QMS vendor whitepaper:</p>
+
+<div class="stat-row">
+    <div class="stat-box">
+        <div class="stat-value">70%</div>
+        <div class="stat-label">Complex change programs fail</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">87–90%</div>
+        <div class="stat-label">ML models never reach production</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">#1</div>
+        <div class="stat-label">CAPA is the top FDA 483 citation</div>
+    </div>
+</div>
+
+<p>McKinsey's 70% figure comes from research into large-scale transformation efforts. The ML statistic comes from VentureBeat's analysis and UC Berkeley interview studies with machine learning engineers. The CAPA finding has been consistent across FDA inspection data for years — improper corrective and preventive action procedures remain the single most frequent observation on Form 483.</p>
+
+<p>These numbers get cited constantly. What rarely gets explained is <strong>why they cluster together</strong>. On the surface, a failed Lean Six Sigma deployment at an automotive plant has nothing in common with a machine learning model that never leaves a Jupyter notebook. But the failure mode is identical.</p>
+
+<p><strong>The insight was correct. The analysis was sound. The finding was real.</strong> And it died anyway — somewhere in the space between discovery and execution.</p>
+
+<p>This whitepaper examines that space. Not the tools. Not the methodologies. The structural gap between them — and what it takes to close it.</p>
+
+<div class="divider"></div>
+
+<!-- ========== SECTION 2: THE DISCOVERY-EXECUTION GAP ========== -->
+<span class="section-num">Section 02</span>
+<h2>The Discovery-Execution Gap</h2>
+
+<p>Consider a typical continuous improvement cycle at a manufacturing facility. A process engineer detects an out-of-control signal on an SPC chart. This triggers an investigation. The engineer opens Minitab, runs the analysis, identifies a significant relationship between a process variable and the defect rate. Real finding. Sound statistics. Actionable insight.</p>
+
+<p>Now watch what happens to that insight:</p>
+
+<p>The Minitab output gets screenshot into a <strong>PowerPoint deck</strong>. The deck gets presented at a quality review meeting. Action items get assigned via <strong>email</strong>. Someone opens a CAPA in the <strong>QMS</strong> — a different system entirely. The corrective action references the analysis, but the analysis lives in Minitab on the engineer's laptop. Six months later, when someone checks effectiveness, they can't find the original data. The CAPA gets closed with a note that says "process improved." The FMEA never gets updated. The hoshin board on the wall still shows last year's priorities.</p>
+
+<p>Every piece of this story is real. Every practitioner reading this has lived some version of it. And the structural problem is obvious once you see it:</p>
+
+<div class="pull-quote">
+    The insight was discovered in one system, documented in a second, assigned in a third, tracked in a fourth, and verified (if at all) in a fifth. No single system held the thread from signal to root cause to action to verification to strategic outcome. <strong>The insight didn't fail. The connection between systems failed.</strong>
+</div>
+
+<p>This is the Discovery-Execution Gap. It's not a tooling problem — organizations have plenty of tools. It's a <strong>topology problem</strong>. The tools don't form a connected graph. Each one is an island, and insights drown in the channels between them.</p>
+
+<h3>Where Insights Go to Die</h3>
+
+<p>Based on patterns observed across manufacturing, quality, and operational excellence environments, insights typically perish at five specific handoff points:</p>
+
+<table class="contrast-table">
+    <thead><tr><th>Handoff</th><th>What Breaks</th></tr></thead>
+    <tbody>
+        <tr><td>Analysis → Report</td><td>Statistical output becomes a static screenshot. The interactive relationship with the data is severed. Nobody can re-run the analysis when conditions change.</td></tr>
+        <tr><td>Report → Meeting</td><td>Findings are presented verbally, discussed, and condensed into bullet points. Nuance is lost. Caveats vanish. The confidence interval becomes "it's significant."</td></tr>
+        <tr><td>Meeting → Action</td><td>Action items are assigned via email or meeting notes. No connection back to the data that justified them. No link to the strategic priority they serve.</td></tr>
+        <tr><td>Action → Verification</td><td>Months later, effectiveness checks require reconstructing the original analysis from scratch. Often impossible. CAPA gets closed as "effective" without re-running the statistics.</td></tr>
+        <tr><td>Verification → Strategy</td><td>Even when a project succeeds, the result rarely flows back to hoshin or strategic planning. The improvement exists in isolation, not as evidence for the next investment decision.</td></tr>
+    </tbody>
+</table>
+
+<p>Five handoffs. Five chances for the insight to die. And in most organizations, the tools actively ensure these handoffs are disconnected — because each tool was designed to solve its own problem, not to participate in a workflow.</p>
+
+<!-- Interactive 1: Insight Mortality Funnel -->
+<div class="mortality-funnel" id="mortality-funnel">
+    <div class="mf-label">Interactive — Insight Survival Through the Five Handoff Points</div>
+    <div class="mf-track" id="mf-track">
+        <div class="mf-stage" data-idx="0">
+            <div class="mf-pct visible">100%</div>
+            <div class="mf-bar"><div class="mf-bar-fill" style="height:200px"></div></div>
+            <div class="mf-name">Discovery</div>
+        </div>
+        <div class="mf-stage" data-idx="1">
+            <div class="mf-loss">-20%</div>
+            <div class="mf-pct">80%</div>
+            <div class="mf-bar"><div class="mf-bar-fill" style="height:160px"></div></div>
+            <div class="mf-name">Report</div>
+        </div>
+        <div class="mf-stage" data-idx="2">
+            <div class="mf-loss">-35%</div>
+            <div class="mf-pct">45%</div>
+            <div class="mf-bar"><div class="mf-bar-fill" style="height:90px"></div></div>
+            <div class="mf-name">Meeting</div>
+        </div>
+        <div class="mf-stage" data-idx="3">
+            <div class="mf-loss">-20%</div>
+            <div class="mf-pct">25%</div>
+            <div class="mf-bar"><div class="mf-bar-fill" style="height:50px"></div></div>
+            <div class="mf-name">Action</div>
+        </div>
+        <div class="mf-stage" data-idx="4">
+            <div class="mf-loss">-15%</div>
+            <div class="mf-pct">10%</div>
+            <div class="mf-bar"><div class="mf-bar-fill" style="height:20px"></div></div>
+            <div class="mf-name">Verification</div>
+        </div>
+        <div class="mf-stage" data-idx="5">
+            <div class="mf-loss">-7%</div>
+            <div class="mf-pct">3%</div>
+            <div class="mf-bar"><div class="mf-bar-fill" style="height:6px"></div></div>
+            <div class="mf-name">Strategy</div>
+        </div>
+    </div>
+    <div class="mf-detail" id="mf-detail">Click a stage to see what breaks at each handoff.</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ========== SECTION 3: THE HUMAN ERROR TRAP ========== -->
+<span class="section-num">Section 03</span>
+<h2>The Root Cause That Isn't: Why "Human Error" Keeps Passing Review</h2>
+
+<p>There's a specific version of the Discovery-Execution Gap that quality professionals deal with daily, and it's worth examining in detail because it reveals how deeply the structural problem runs.</p>
+
+<p>CAPA — Corrective and Preventive Action — is the backbone of any quality management system. It's mandated by FDA regulations, ISO standards, and virtually every quality framework in regulated industry. It's also, consistently, the area where organizations fail most visibly. FDA inspectors cite CAPA deficiencies more often than any other quality system element.</p>
+
+<p>The question is: why? Organizations invest in CAPA software, train their teams, write procedures. And still, the same pattern repeats.</p>
+
+<p>The answer is deceptively simple. <strong>Teams stop investigating too early.</strong></p>
+
+<p>A deviation occurs. An investigation opens. The team conducts a "root cause analysis" — often a perfunctory 5 Whys exercise. They arrive at "human error." Operator didn't follow procedure. Training gap identified. Retraining scheduled. CAPA closed.</p>
+
+<p>Six months later, the same deviation recurs. With a different operator. Who was also "retrained." Because <strong>"human error" is never a root cause</strong>. It's a symptom. The system that allowed the error — the procedure that was ambiguous, the design that was error-prone, the process that had no mistake-proofing — remains unchanged.</p>
+
+<p>This is not news to experienced quality professionals. Everyone in the field knows that "human error" is an investigation dead end. Yet it persists because the <strong>tools don't prevent it</strong>.</p>
+
+<h3>The Thinking Gap</h3>
+
+<p>Consider what happens when a Green Belt or quality engineer opens their analysis tools. Minitab will run an I-MR chart flawlessly. JMP will execute an ANOVA with precision. Neither tool will tell you what to <strong>do</strong> with the result. Neither will ask whether you've considered alternative explanations. Neither will challenge the conclusion you're about to write into your CAPA.</p>
+
+<p>Practitioners learn tools during certification — fishbone diagrams, 5 Whys, control charts, Pareto analysis. They know <strong>how</strong> to draw a fishbone. What they often struggle with is <strong>when</strong> it's the right tool and <strong>how</strong> to think through a problem systematically once the diagram is complete. The tools don't teach method. They execute method. The gap between those two things is where "human error" lives.</p>
+
+<p>What would it look like if the tool itself pushed back? If an investigation system asked:</p>
+
+<div class="card card--green">
+    <div class="card-label card-label--green">Counterfactual Challenge</div>
+    <p><strong>"You've identified 'operator error' as your root cause. Let's test that."</strong></p>
+    <p>If we had magically prevented this specific operator error yesterday, would the system be incapable of producing this same failure mode tomorrow with a different operator?</p>
+    <p>If the answer is no — if the system could still produce the failure — then you haven't found the root cause. You've found a <strong>contributing factor</strong>. The investigation isn't finished.</p>
+</div>
+
+<p>This kind of adversarial thinking is what experienced consultants and auditors bring to investigations. It's what differentiates a thorough investigation from a perfunctory one. And it's precisely the capability that disappears when the consultant leaves — which brings us to the next structural failure.</p>
+
+<div class="divider"></div>
+
+<!-- ========== SECTION 4: THE CONSULTING PROBLEM ========== -->
+<span class="section-num">Section 04</span>
+<h2>What Happens After the Consultants Leave</h2>
+
+<p>The pattern is sickeningly consistent across industries, and anyone who has worked on the receiving end of a major consulting engagement recognizes it immediately.</p>
+
+<p>The engagement begins. Consultants arrive with methodologies, frameworks, and analyst teams. Over weeks or months, they build bespoke models on their own infrastructure. They conduct analyses using tools the client doesn't have licenses for. They develop beautiful decks with findings, recommendations, and implementation roadmaps.</p>
+
+<p>Then they present. The deck is compelling. The analysis is sound. The recommendations are specific. Leadership approves the plan.</p>
+
+<p>Then the consultants leave.</p>
+
+<p>What remains is a collection of PowerPoint files that nobody can execute from. Models built in environments the client can't access. Frameworks that made sense when the consultant explained them but that nobody internal was trained to operate. "Transformation" that exists as a narrative in a deck, not as a living capability in the organization.</p>
+
+<p>When conditions change — and they always change — nobody can re-run the analysis. Nobody can adjust the model. Nobody can update the recommendation. The knowledge walked out the door with the engagement team's badge access.</p>
+
+<div class="pull-quote">
+    This isn't a story about bad consultants. Most consulting teams do excellent analytical work. The failure is structural: <strong>the engagement model is designed to deliver conclusions, not capability.</strong> The client receives answers. They don't receive the ability to generate new answers when the questions change.
+    <span class="pull-quote-attr">— Based on first-hand experience as an OpEx Director managing the operational aftermath of a multi-million dollar consulting engagement</span>
+</div>
+
+<p>The financial consequences can be severe. Organizations invest millions in engagements that produce real insights — insights that die the moment the engagement ends because no system exists to carry them forward. The analysis was right. The recommendations were sound. And the company still ends up back where it started, sometimes worse, because the "transformation" created dependencies on external capability that evaporated on schedule.</p>
+
+<h3>The Capability Question</h3>
+
+<p>The question every organization should ask before engaging external analytical support is not "What will you find?" It's: <strong>"After you leave, can we re-run this analysis ourselves? Can we adjust the model when conditions change? Does the capability transfer, or does it rent?"</strong></p>
+
+<p>If the answer is that the deliverable is a deck — a static snapshot of analysis conducted at a point in time, using tools the client doesn't control — then the insight has an expiration date. It was born dying.</p>
+
+<p>This is not an argument against consulting. It's an argument for <strong>tools that let organizations keep the capability</strong> instead of renting it. Systems where the analysis, the model, the optimization, the constraints, and the findings all live in an environment the organization owns and can operate independently.</p>
+
+<div class="divider"></div>
+
+<!-- ========== SECTION 5: DISCONNECTED QUALITY EVENTS ========== -->
+<span class="section-num">Section 05</span>
+<h2>Five Systems, One Investigation: The Fragmentation Problem</h2>
+
+<p>Beyond the discovery-execution gap and the consulting capability gap, there's a third structural failure that compounds both: <strong>the tools themselves are siloed</strong>.</p>
+
+<p>A typical quality investigation touches multiple systems and methodologies. An SPC chart detects an out-of-control condition. Root cause analysis investigates why. FMEA should be updated with the new risk information. A CAPA documents the corrective action. Effectiveness verification confirms the fix worked. Management review evaluates whether the pattern connects to broader strategic priorities.</p>
+
+<p>In most organizations, this workflow crosses five or more disconnected systems:</p>
+
+<table class="contrast-table">
+    <thead><tr><th>Activity</th><th>Typical Tool</th></tr></thead>
+    <tbody>
+        <tr><td>SPC Analysis</td><td>Minitab, JMP, or Excel</td></tr>
+        <tr><td>Root Cause Analysis</td><td>Excel template, Visio fishbone, or paper</td></tr>
+        <tr><td>FMEA</td><td>Separate Excel workbook</td></tr>
+        <tr><td>CAPA Tracking</td><td>QMS (MasterControl, Greenlight.guru, etc.)</td></tr>
+        <tr><td>Management Review</td><td>PowerPoint, with data copied from all of the above</td></tr>
+    </tbody>
+</table>
+
+<p>Each tool does its job. None of them talk to each other. The SPC data that triggered the investigation lives in Minitab. The fishbone that identified potential causes lives in Visio or on a whiteboard photo. The FMEA that should reflect the updated risk lives in a version-controlled Excel file that hasn't been opened since the last audit. The CAPA references all of these, but through text descriptions and file attachments, not live data connections.</p>
+
+<p>The result is that <strong>organizations treat each quality event in isolation</strong> rather than connecting complaints, field reports, manufacturing deviations, and supplier issues into a coherent picture. Data exists. It's scattered across a half-dozen systems that were never designed to share context.</p>
+
+<h3>FMEA: The Universal Pain Point</h3>
+
+<p>No quality tool is more universally disliked — or more universally required — than FMEA. Failure Mode and Effects Analysis asks teams to score severity, occurrence, and detection for every potential failure mode in a process or design. The scores are supposed to reflect risk. In practice, they reflect <strong>opinion</strong>.</p>
+
+<p>Severity scores are debated in conference rooms without reference to field data. Occurrence scores are estimated from memory, not calculated from process data. Detection scores reflect what teams believe their controls can catch, not what the data shows their controls actually catch.</p>
+
+<p>The irony is that the data to make these scores evidence-based often exists — in the SPC system, in the complaint database, in the ML models that have already identified feature importance rankings for the variables that drive failures. It exists in a different system, in a different format, owned by a different team. So the FMEA stays opinion-based, and the risk assessment stays disconnected from reality.</p>
+
+<p>What would it look like if the analysis tool could suggest occurrence scores based on actual process capability data? If ML feature importance rankings could inform which failure modes deserve the highest risk priority numbers? If the FMEA wasn't a static spreadsheet exercise but a living document that updated as new evidence arrived?</p>
+
+<div class="divider"></div>
+
+<!-- ========== SECTION 6: WHAT CLOSED-LOOP LOOKS LIKE ========== -->
+<span class="section-num">Section 06</span>
+<h2>What a Closed-Loop System Actually Looks Like</h2>
+
+<p>The five sections above describe the same structural problem from different angles: the discovery-execution gap, the human error trap, the consulting capability problem, the system fragmentation, and the FMEA opinion problem. They share a common root cause — which is appropriate for a paper about root cause analysis.</p>
+
+<p><strong>The root cause is disconnection.</strong> Not lack of capability. Not lack of tools. Disconnection between the tools, between analysis and action, between action and strategy, between strategy and measurement.</p>
+
+<p>What would it look like if those connections existed?</p>
+
+<h3>The Insight Spine</h3>
+
+<p>Picture a workflow — not as a feature list, but as a year in the life of an operational improvement. It starts with understanding the current state and ends with measurable performance improvement. Every step stays connected to the one before it and the one after it. No handoffs between systems. No screenshots into PowerPoints. No insights dying in transit.</p>
+
+<div class="spine-diagram">
+    <div class="spine-step">
+        <div class="spine-step-title">Value Stream Map</div>
+        <div class="spine-step-desc">Map the current state with real metrics — cycle time, changeover, uptime, OEE, scrap. Calculate lead time, process time, and process cycle efficiency automatically. Identify constraints. This is where the year begins.</div>
+    </div>
+    <div class="spine-step">
+        <div class="spine-step-title">Simulators & Counterfactuals</div>
+        <div class="spine-step-desc">Before committing resources, test hypotheses. "What if we reduce changeover by 40%?" "What if we eliminate this buffer?" Operations tools answer "what if" with data, not conference-room debate.</div>
+    </div>
+    <div class="spine-step">
+        <div class="spine-step-title">Strategic Priorities (Hoshin)</div>
+        <div class="spine-step-desc">VSM findings translate into hoshin priorities with measurable targets linked to budget. Not a wall poster — a living system that connects strategic intent to operational execution.</div>
+    </div>
+    <div class="spine-step">
+        <div class="spine-step-title">Project Charters & Studies</div>
+        <div class="spine-step-desc">Improvement projects are chartered against hoshin priorities. Each study — every regression, every SPC analysis, every DOE — lives inside the project context. Connected, traceable, auditable.</div>
+    </div>
+    <div class="spine-step">
+        <div class="spine-step-title">Analytical Tools</div>
+        <div class="spine-step-desc">SPC, regression, ANOVA, Gage R&R, DOE, reliability, ML — all within the same study. Root cause investigation with adversarial challenge. Optimization with real constraints and cost weights. Diagnostics that explain results in plain language.</div>
+    </div>
+    <div class="spine-step">
+        <div class="spine-step-title">Insights → Plans → Hoshin Results</div>
+        <div class="spine-step-desc">Findings flow back to the strategic level. Did the CAPA actually move the needle? Does the VSM look different six months later? The same system that identified the constraint shows whether the constraint is gone.</div>
+    </div>
+    <div class="spine-step">
+        <div class="spine-step-title">Tangible Performance Improvement</div>
+        <div class="spine-step-desc">Budget-linked, scorecard-verified, auditable. Not "we think it got better." The data proves it, in the same system that predicted it would, connected to the strategy that justified investing in it.</div>
+    </div>
+</div>
+
+<p>This isn't a feature list. It's an <strong>operational year</strong> encoded as a connected workflow. The person doing a 5 Why investigation is doing it inside the same system that tracks whether the CAPA actually moved the hoshin needle. The VSM that identified the constraint is the same VSM that shows the constraint is gone six months later. The ML model that found the feature drivers feeds the study that feeds the project that feeds the charter that feeds the hoshin that feeds the budget.</p>
+
+<div class="pull-quote">
+    Not only do insights not die — users <strong>feel</strong> them. When you sit down for a VSM, it's one thing to observe data. It's another to feel analogs of the urgency, the relief, and the excitement of real operational change DURING the mapping. That emotional engagement becomes the hook. Hoshin is the line. Rather than stepping away from interactive tools to go do projects in a vacuum, you come back and execute to the same strategic intent that was defined in the VSM.
+</div>
+
+<h3>What This Is Not</h3>
+
+<p>Honesty matters. A closed-loop investigation and decision workbench is not the same thing as:</p>
+
+<div class="card card--orange">
+    <p><strong>Not an enterprise MLOps platform.</strong> Model deployment, CI/CD pipelines, drift monitoring at scale, Kubernetes orchestration — that's a different problem. The analytical layer here is for investigation, optimization, and decision support. Not production model serving.</p>
+    <p><strong>Not a document management system.</strong> Electronic signatures, 21 CFR Part 11 compliance, workflow routing for approvals — that's MasterControl and Veeva territory. A workbench handles the analytical work that feeds into those administrative systems.</p>
+    <p><strong>Not an ERP replacement.</strong> Real-time plant floor data integration, MES connectivity, shop-floor execution — those are infrastructure systems. The workbench operates on the data those systems produce, typically via standard data imports.</p>
+</div>
+
+<p>What it <strong>is</strong>: the analytical and strategic layer that connects insight to action to strategy. The missing middle between your data infrastructure and your quality management system. The place where the actual thinking happens — and where that thinking stays connected to everything that comes before and after it.</p>
+
+<div class="divider"></div>
+
+<!-- ========== SECTION 7: DECISION SCIENCE LAYER ========== -->
+<span class="section-num">Section 07</span>
+<h2>The Decision Science Layer: From "Here's Your R²" to "Here's What to Do"</h2>
+
+<p>The most expensive thirty seconds in any analytical engagement happen right after the model results appear on screen. Someone asks: <strong>"So what do we do?"</strong> And too often, the data scientist shrugs.</p>
+
+<p>This isn't incompetence. It's a gap in the tooling. Statistical software is designed to produce model outputs — coefficients, p-values, confidence intervals, goodness-of-fit metrics. It's not designed to translate those outputs into operational decisions.</p>
+
+<p>A regression model tells you that temperature, humidity, and line speed are significant predictors of defect rate. It does not tell you: which one is cheapest to change, whether your proposed setpoints are within the range of observed data, at what point increasing line speed produces diminishing returns, or whether your recommended combination of settings is physically feasible given that some variables are correlated.</p>
+
+<p>These are <strong>decision science</strong> questions, not statistics questions. And the gap between statistics and decisions is where analytical projects die — not because the model was wrong, but because nobody could bridge from model output to operational prescription.</p>
+
+<h3>What a Prescription Looks Like</h3>
+
+<p>Consider the difference between a model output and a decision brief:</p>
+
+<table class="contrast-table">
+    <thead><tr><th></th><th>Model Output (Traditional)</th><th>Decision Brief</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Format</strong></td><td>Coefficient table, R² = 0.847, ANOVA F-test significant</td><td>To maximize yield to 94.3%, adjust these three levers with feasibility checks</td></tr>
+        <tr><td><strong>Actionability</strong></td><td>Requires statistician to interpret</td><td>Plant manager can act immediately</td></tr>
+        <tr><td><strong>Constraints</strong></td><td>Not considered</td><td>"We can't reduce cycle time below 12s because of policy" — honored</td></tr>
+        <tr><td><strong>Feasibility</strong></td><td>No check against observed data range</td><td>Warning when recommendation is at the edge of training data</td></tr>
+        <tr><td><strong>Cost</strong></td><td>Not modeled</td><td>Cost weights: changing temperature costs 1×, changing supplier costs 10×</td></tr>
+        <tr><td><strong>Diminishing Returns</strong></td><td>Not visible</td><td>Chart showing where marginal gains flatten — "stop spending here"</td></tr>
+    </tbody>
+</table>
+
+<p>The constrained optimization that produces a decision brief instead of a coefficient table is the difference between an analytical tool and a <strong>decision science tool</strong>. And it's the feature that makes the finance team listen — because it answers the question they actually care about: <strong>"Where do we stop spending?"</strong></p>
+
+<h3>The Real Competitor</h3>
+
+<p>The competitor for this kind of capability is not another SaaS analytics tool. The competitor is the <strong>$150,000 consulting engagement</strong> where an analyst team builds a custom optimization model, presents it once in a PowerPoint, and walks out the door.</p>
+
+<p>When the organization can run that optimization themselves — change the constraints when policies change, re-run when conditions shift, update the cost weights when budgets tighten — the engagement model inverts. <strong>The capability transfers.</strong> The insight doesn't die when the consultants leave, because the tool that produced it still lives inside the organization.</p>
+
+<!-- Interactive 2: Optimization Profiler Demo -->
+<div class="opt-profiler" id="opt-profiler">
+    <div class="opt-label">Interactive — Constrained Optimization: From Model Output to Decision Brief</div>
+    <div class="opt-grid">
+        <div class="opt-inputs">
+            <div class="opt-row">
+                <label>Temperature (°C)</label>
+                <div class="opt-slider-wrap">
+                    <input type="range" min="150" max="250" value="200" step="1" id="opt-temp">
+                    <span class="opt-val" id="opt-temp-val">200</span>
+                </div>
+                <label class="opt-constraint"><input type="checkbox" id="opt-temp-lock"> Constrain: max 220°C (equipment limit)</label>
+            </div>
+            <div class="opt-row">
+                <label>Line Speed (m/min)</label>
+                <div class="opt-slider-wrap">
+                    <input type="range" min="10" max="50" value="30" step="1" id="opt-speed">
+                    <span class="opt-val" id="opt-speed-val">30</span>
+                </div>
+                <label class="opt-constraint"><input type="checkbox" id="opt-speed-lock"> Constrain: min 20 m/min (throughput req.)</label>
+            </div>
+            <div class="opt-row">
+                <label>Humidity (%RH)</label>
+                <div class="opt-slider-wrap">
+                    <input type="range" min="30" max="80" value="55" step="1" id="opt-humid">
+                    <span class="opt-val" id="opt-humid-val">55</span>
+                </div>
+                <label class="opt-constraint"><input type="checkbox" id="opt-humid-lock"> Constrain: 40–65% (HVAC range)</label>
+            </div>
+        </div>
+        <div class="opt-output">
+            <div class="opt-yield-value" id="opt-yield">92.4%</div>
+            <div class="opt-yield-label">Predicted Yield</div>
+            <div class="opt-cost-line">Relative cost: <strong id="opt-cost">1.0×</strong></div>
+            <div id="opt-feasibility" class="opt-feasibility ok">Within training data</div>
+            <button class="opt-btn" id="opt-optimize">Find Constrained Optimum</button>
+            <div class="opt-result" id="opt-result"></div>
+        </div>
+    </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ========== SECTION 8: CLOSING ========== -->
+<span class="section-num">Section 08</span>
+<h2>The Structural Fix</h2>
+
+<p>The problem described in this paper is not new. The 70% failure rate for change programs has been cited for over a decade. CAPA has been the top FDA citation for years. The discovery-execution gap is something every operational excellence professional has experienced personally.</p>
+
+<p>What has changed is the <strong>feasibility of the solution</strong>.</p>
+
+<p>Ten years ago, building a connected workflow from value stream mapping through statistical analysis through root cause investigation through strategic deployment would have required a multi-million dollar enterprise platform integration project. It would have been a consulting engagement — ironically reproducing the very problem it was trying to solve.</p>
+
+<p>Today, the component capabilities exist: interactive VSM with automated metrics, statistical process control with diagnostic guidance, adversarial root cause investigation, machine learning with constrained optimization, hoshin planning with budget linkage. The question is no longer whether these capabilities can exist. It's <strong>whether they can exist in a single, connected system</strong> — an insight spine where each step feeds the next and the results flow back to strategy.</p>
+
+<p>The answer to that question determines whether the next 70% of improvement programs die the same way the last 70% did — or whether the structural fix finally arrives.</p>
+
+<div class="pull-quote">
+    The insight was correct. The analysis was sound. The finding was real.<br><br>
+    <strong>The system should be designed so that's enough.</strong>
+</div>
+
+</div><!-- /wp-article -->
+
+<script>
+(function() {
+    /* === Mortality Funnel Interactivity === */
+    const details = [
+        'This is the starting point. 100% of insights are alive at the moment of discovery — the SPC chart flags an out-of-control point, the regression identifies a significant predictor, the DOE reveals an optimal setting.',
+        '<strong>Analysis → Report:</strong> Statistical output becomes a static screenshot in PowerPoint. The interactive relationship with the data is severed. Nobody can re-run the analysis when conditions change. ~20% of actionable detail is lost.',
+        '<strong>Report → Meeting:</strong> Findings are presented verbally, discussed, condensed into bullet points. Nuance vanishes. Confidence intervals become "it\'s significant." Caveats disappear. This is the single biggest kill zone — 35% of remaining insight dies here.',
+        '<strong>Meeting → Action:</strong> Action items are assigned via email or meeting notes. No connection back to the data that justified them. No link to the strategic priority they serve. Another 20% lost to disconnection.',
+        '<strong>Action → Verification:</strong> Months later, effectiveness checks require reconstructing the original analysis from scratch. Often impossible. CAPA gets closed as "effective" without re-running the statistics. 15% more gone.',
+        '<strong>Verification → Strategy:</strong> Even when a project succeeds, the result rarely flows back to hoshin or strategic planning. Only ~3% of original insights survive as strategic evidence. The rest existed in isolation.'
+    ];
+    document.querySelectorAll('.mf-stage').forEach(function(stage) {
+        stage.addEventListener('click', function() {
+            document.querySelectorAll('.mf-stage').forEach(function(s) { s.classList.remove('active'); });
+            stage.classList.add('active');
+            var idx = parseInt(stage.getAttribute('data-idx'));
+            var detail = document.getElementById('mf-detail');
+            if (detail) detail.innerHTML = details[idx] || '';
+        });
+    });
+    // Animate bars on scroll
+    var animated = false;
+    function animateBars() {
+        if (animated) return;
+        var el = document.getElementById('mortality-funnel');
+        if (!el) return;
+        var rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.8) {
+            animated = true;
+            document.querySelectorAll('.mf-pct').forEach(function(p, i) {
+                setTimeout(function() { p.classList.add('visible'); }, i * 200);
+            });
+        }
+    }
+    window.addEventListener('scroll', animateBars);
+    animateBars();
+
+    /* === Optimization Profiler === */
+    // Simple polynomial yield model: yield = f(temp, speed, humidity)
+    // Coefficients chosen to create a realistic response surface
+    function predictYield(temp, speed, humid) {
+        // Centered and scaled
+        var t = (temp - 200) / 50;
+        var s = (speed - 30) / 20;
+        var h = (humid - 55) / 25;
+        // Quadratic model with interactions
+        var y = 92.0
+            + 3.2 * t - 1.8 * t * t
+            - 1.5 * s + 0.8 * s * s
+            + 1.0 * h - 2.5 * h * h
+            - 0.6 * t * s
+            + 0.4 * t * h;
+        return Math.max(70, Math.min(99.5, y));
+    }
+
+    function costIndex(temp, speed, humid) {
+        // Temperature changes are cheap (1x), speed changes moderate (2x), humidity expensive (5x)
+        var tDelta = Math.abs(temp - 200) / 50;
+        var sDelta = Math.abs(speed - 30) / 20;
+        var hDelta = Math.abs(humid - 55) / 25;
+        return (1 + tDelta * 1.0 + sDelta * 2.0 + hDelta * 5.0).toFixed(1);
+    }
+
+    function checkFeasibility(temp, speed, humid) {
+        // Training data range: temp 160-240, speed 15-45, humid 35-70
+        var warnings = [];
+        if (temp < 160 || temp > 240) warnings.push('Temperature outside training range');
+        if (speed < 15 || speed > 45) warnings.push('Line speed outside training range');
+        if (humid < 35 || humid > 70) warnings.push('Humidity outside training range');
+        return warnings;
+    }
+
+    function updateProfiler() {
+        var temp = parseInt(document.getElementById('opt-temp').value);
+        var speed = parseInt(document.getElementById('opt-speed').value);
+        var humid = parseInt(document.getElementById('opt-humid').value);
+
+        document.getElementById('opt-temp-val').textContent = temp;
+        document.getElementById('opt-speed-val').textContent = speed;
+        document.getElementById('opt-humid-val').textContent = humid;
+
+        var y = predictYield(temp, speed, humid);
+        document.getElementById('opt-yield').textContent = y.toFixed(1) + '%';
+        document.getElementById('opt-cost').textContent = costIndex(temp, speed, humid) + '\u00d7';
+
+        var warnings = checkFeasibility(temp, speed, humid);
+        var fEl = document.getElementById('opt-feasibility');
+        if (warnings.length > 0) {
+            fEl.className = 'opt-feasibility warn';
+            fEl.textContent = warnings[0];
+        } else {
+            fEl.className = 'opt-feasibility ok';
+            fEl.textContent = 'Within training data';
+        }
+    }
+
+    ['opt-temp', 'opt-speed', 'opt-humid'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateProfiler);
+    });
+
+    // Constrained optimization via grid search
+    var optimizeBtn = document.getElementById('opt-optimize');
+    if (optimizeBtn) optimizeBtn.addEventListener('click', function() {
+        var tMin = 150, tMax = 250, sMin = 10, sMax = 50, hMin = 30, hMax = 80;
+
+        if (document.getElementById('opt-temp-lock').checked) tMax = Math.min(tMax, 220);
+        if (document.getElementById('opt-speed-lock').checked) sMin = Math.max(sMin, 20);
+        if (document.getElementById('opt-humid-lock').checked) { hMin = Math.max(hMin, 40); hMax = Math.min(hMax, 65); }
+
+        var bestY = -1, bestT = tMin, bestS = sMin, bestH = hMin;
+        for (var t = tMin; t <= tMax; t += 2) {
+            for (var s = sMin; s <= sMax; s += 2) {
+                for (var h = hMin; h <= hMax; h += 2) {
+                    var y = predictYield(t, s, h);
+                    if (y > bestY) { bestY = y; bestT = t; bestS = s; bestH = h; }
+                }
+            }
+        }
+
+        // Set sliders to optimum
+        document.getElementById('opt-temp').value = bestT;
+        document.getElementById('opt-speed').value = bestS;
+        document.getElementById('opt-humid').value = bestH;
+        updateProfiler();
+
+        var result = document.getElementById('opt-result');
+        var w = checkFeasibility(bestT, bestS, bestH);
+        var feasNote = w.length ? ' (extrapolation warning)' : '';
+        result.innerHTML = '<strong>Optimum found:</strong> Temp=' + bestT + '°C, Speed=' + bestS + ' m/min, Humidity=' + bestH + '%RH → <strong>' + bestY.toFixed(1) + '% yield</strong> at ' + costIndex(bestT, bestS, bestH) + '\u00d7 cost' + feasNote;
+    });
+
+    updateProfiler();
+})();
+</script>

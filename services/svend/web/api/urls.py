@@ -57,6 +57,8 @@ urlpatterns = [
     path("internal/insights/", internal_views.api_insights, name="internal_insights"),
     path("internal/activity/", internal_views.api_activity, name="internal_activity"),
     path("internal/send-email/", internal_views.api_send_email, name="internal_send_email"),
+    path("internal/email-preview/", internal_views.api_email_preview, name="internal_email_preview"),
+    path("internal/cohort-retention/", internal_views.api_cohort_retention, name="internal_cohort_retention"),
     path("internal/email-draft/save/", internal_views.api_save_email_draft, name="internal_email_draft_save"),
     path("internal/email-draft/", internal_views.api_get_email_draft, name="internal_email_draft"),
     path("internal/email-campaigns/", internal_views.api_email_campaigns, name="internal_email_campaigns"),
@@ -78,6 +80,14 @@ urlpatterns = [
     path("internal/blog/<uuid:post_id>/publish/", internal_views.api_blog_publish, name="internal_blog_publish"),
     path("internal/blog/<uuid:post_id>/delete/", internal_views.api_blog_delete, name="internal_blog_delete"),
     path("internal/blog/analytics/", internal_views.api_blog_analytics, name="internal_blog_analytics"),
+
+    # Whitepaper management (staff-only)
+    path("internal/whitepapers/", internal_views.api_whitepaper_list, name="internal_whitepaper_list"),
+    path("internal/whitepapers/save/", internal_views.api_whitepaper_save, name="internal_whitepaper_save"),
+    path("internal/whitepapers/<uuid:paper_id>/", internal_views.api_whitepaper_get, name="internal_whitepaper_get"),
+    path("internal/whitepapers/<uuid:paper_id>/publish/", internal_views.api_whitepaper_publish, name="internal_whitepaper_publish"),
+    path("internal/whitepapers/<uuid:paper_id>/delete/", internal_views.api_whitepaper_delete, name="internal_whitepaper_delete"),
+    path("internal/whitepapers/analytics/", internal_views.api_whitepaper_analytics, name="internal_whitepaper_analytics"),
 
     # Automation: Experiments
     path("internal/experiments/", internal_views.api_experiments, name="internal_experiments"),

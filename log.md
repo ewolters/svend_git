@@ -15,6 +15,252 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-14 — Whitepaper Management + Content Tab Split
+
+**What:** Added whitepaper CRUD and analytics to the Internal dashboard, separated from blog management with sub-tab navigation.
+
+**Backend:**
+- `WhitePaper` model (uuid PK, title, slug, description, body, meta_description, topic, status, gated, author, timestamps)
+- `WhitePaperDownload` model (paper FK, downloaded_at, referrer_domain, ip_hash, user_agent, email, is_bot)
+- 6 API endpoints: list (with download_count annotation), get, save, publish, delete, analytics
+- Analytics: daily downloads, top papers, referrer breakdown, totals (downloads, unique, emails, bots)
+
+**Frontend (internal_dashboard.html):**
+- Content tab split into Blog / Whitepapers sub-tabs via `switchContentSub()`
+- Full whitepaper editor: title, slug, topic, meta description, abstract, markdown body with live preview, gated checkbox
+- Whitepaper list with status badges, gated indicator, download counts
+- Whitepaper analytics: 4 KPI cards + 3 charts (downloads over time, top papers, traffic sources)
+- CRUD functions: newWhitepaper, saveWhitepaper, publishWhitepaper, deleteWhitepaper, loadWhitepaper
+
+**Files changed:**
+- `api/models.py` — WhitePaper + WhitePaperDownload models
+- `api/internal_views.py` — 6 whitepaper endpoints + download_count annotation
+- `api/urls.py` — 6 URL routes under internal/whitepapers/
+- `templates/internal_dashboard.html` — sub-tab toggle, whitepaper editor/analytics HTML + all JS functions
+- `api/migrations/0010_whitepaper_models.py` — migration (applied)
+
+**Verification:** Internal dashboard > Content tab > click "Whitepapers" sub-tab > create/save/publish a whitepaper, analytics charts render
+
+---
+
+### 2026-02-14 — Free SEO tool pages (/tools/)
+
+**What:** Built 5 standalone calculator pages as SEO landing pages. Each is a fully functional client-side tool with no login required, targeting high-intent search keywords.
+
+**Pages created:**
+- `/tools/` — Index page linking to all calculators (CollectionPage structured data)
+- `/tools/cpk-calculator/` — Cpk/Ppk from pasted measurements + spec limits (histogram, normal overlay)
+- `/tools/sample-size-calculator/` — Sample size for t-tests, proportions, ANOVA (power curve)
+- `/tools/oee-calculator/` — OEE from production data (ring gauges, six big losses, world-class benchmarks)
+- `/tools/sigma-calculator/` — DPMO ↔ sigma level ↔ yield ↔ Cpk bidirectional converter
+- `/tools/takt-time-calculator/` — Takt time + line balance chart with station cycle times
+
+**SEO features per page:**
+- Unique `<title>`, `<meta description>`, `<meta keywords>`, canonical URL
+- Open Graph + Twitter Card meta tags
+- WebApplication structured data (schema.org)
+- FAQPage structured data (schema.org) with 3-5 questions each
+- All pages added to sitemap.xml via StaticSitemap
+
+**Files changed:**
+- `templates/tool_base.html` — New shared base template (Svend branding, nav, footer, CSS, FAQ toggle)
+- `templates/tools/index.html` — Tools index with cards linking to each calculator
+- `templates/tools/cpk_calculator.html` — Cpk/Ppk calculator
+- `templates/tools/sample_size_calculator.html` — Sample size calculator
+- `templates/tools/oee_calculator.html` — OEE calculator
+- `templates/tools/sigma_calculator.html` — Sigma/DPMO converter
+- `templates/tools/takt_time_calculator.html` — Takt time calculator
+- `svend/urls.py` — Added 6 tool routes + sitemap entries
+- `templates/landing.html` — Added "Calculators" link to nav
+
+**Verification:** Visit https://svend.ai/tools/ and each sub-page. All calculators compute results with default data on page load. No auth required.
+
+---
+
+### 2026-02-14 — Split Analysis ribbon into Statistics + Quality tabs
+
+**What:** The Analysis ribbon tab was dense (37 buttons in one horizontal scroll). Split into two focused tabs:
+- **Statistics** — Hypothesis Tests (t-Test, ANOVA, Non-Param, Post-Hoc), Modeling (Regression, GLM, Multivariate, Factor), Diagnostics (Normality, Survival), All Tests
+- **Quality** — Control Charts (14 chart types), Capability (Cp/Cpk, B/W, NN Cap), MSA (Gage R&R, Sampling), Reliability (Weibull, Dist ID, K-M, CIF, ALT, Repair, Warranty, Plan)
+
+Tab order: Data | Prepare | Statistics | Quality | Experiment | ML | Simulate | Synara
+
+**Files changed:**
+- `templates/workbench_new.html` — replaced `ribbon-analysis` with `ribbon-statistics` + `ribbon-quality`
+
+**Verification:** Click Statistics tab → see tests/modeling/diagnostics. Click Quality tab → see control charts/capability/MSA/reliability.
+
+---
+
+### 2026-02-14 — Cross-Simulator Station Sharing
+
+**What:** Added 4 pull connections between the discrete-event simulators so they can share station layouts:
+
+1. **Line Sim ← Kanban Sim**: Pull stations (same `{name, cycleTime}` structure, direct copy)
+2. **Kanban Sim ← Line Sim**: Pull stations (bidirectional — same structure)
+3. **TOC/DBR ← Line Sim**: Pull stations with conversion (`cycleTime` sec → `capacity` units/hr via `3600/CT`)
+4. **TOC/DBR ← Bottleneck**: Pull stations with same CT→capacity conversion
+
+Now a user can: VSM → Line Sim → Kanban Sim → TOC/DBR as a connected pipeline without re-entering station data.
+
+**Files changed:**
+- `templates/calculators.html` — 4 pull buttons in HTML + 4 JS functions (`pullLinesToKanban`, `pullKanbanToLine`, `pullLinesToTOC`, `pullBottleneckToTOC`)
+
+**Verification:** Open Line Sim with stations → switch to Kanban Sim → click "← Line Sim" → stations populate. Same for TOC/DBR ← Line Sim and ← Bottleneck.
+
+---
+
+### 2026-02-14 — Operations Calculator Hardening: Flow Gaps + VSM Import + Financial Layer
+
+**What:** 10 changes to `calculators.html` addressing disconnections documented in `new_flows.md`:
+
+**Flow Gaps (4):**
+1. Changeover Matrix → Sequence Optimizer: Added "← Matrix" pull button. The code already checked `changeoverMatrix[from][to]` but users couldn't see it. Now surfaced with toast feedback.
+2. Mixed-Model → Line Sim: Added "← Mixed-Model" pull button in Line Sim order queue. Calls existing `pushMixedToLineSim()`.
+3. Due Date Risk → Actions: High-risk orders (<80% on-time) now show Reschedule and Flag buttons. Reschedule prompts for new due date and re-runs simulation. Flag adds visual indicator.
+4. Before/After → Synara: Added "Log to Synara" button. Posts improvement summary as evidence to `/api/synara/{wbId}/evidence/add/`. Falls back to sessionStorage if no workbench.
+
+**VSM Import Expansion (3):**
+5. Capacity Load: New `loadVSMIntoCapacityLoad()` — creates work orders per station (CT × demand / 3600 = hours). Added `capacity-load` case to dispatcher.
+6. RTO Staffing: New `loadVSMIntoRTO()` — sums station cycle times → rto-cycle, imports takt_time → rto-takt. Added `rto` case to dispatcher.
+7. OEE: Expanded `loadVSMIntoOEE()` to also import `cycle_time` as ideal cycle time (was only importing `uptime`).
+
+**Financial Layer (3):**
+8. TOC/DBR: Added "Value per Unit ($)" input + "Throughput Value $/hr" result card. `updateTocMetrics()` now calculates `throughput × valuePerUnit`.
+9. Changeover Matrix: Added "Hourly Cost Rate ($)" input + "Avg Cost" and "Best Sequence Cost" result cards. `calcChangeover()` converts minutes to $.
+10. Sequence Optimizer: Added "Hourly Cost Rate ($)" input. Improvement summary now shows "= $X saved" alongside time savings.
+
+**Files changed:**
+- `templates/calculators.html` — all 10 changes (~175 lines added)
+
+**Verification:** See plan file for 10-step verification checklist. Test each calculator individually.
+
+---
+
+### 2026-02-14 — Operations Calculator Flows & Surface Area Documentation
+
+**What:** Created `new_flows.md` documenting the complete surface area of the 54 Operations calculators (49 active + 5 coming soon). Maps all SvendOps publish-pull data flows (38 keys, 6 pull connections, 2 push connections), all 16 simulation engines (6 discrete-event, 7 Monte Carlo, 3 statistical), financial capabilities (6 calculators with $ output), and critical flow gaps (4 high-priority, 6 medium, 5 low). Includes multi-material kanban v2 architecture proposal, VSM import surface analysis, and cross-simulator integration opportunities.
+
+**Files changed:**
+- `new_flows.md` — new file, full surface area documentation
+
+**Verification:** Read `new_flows.md` — should contain 12 sections covering inventory, data bus, flow graph, simulations, financial, scheduling, kanban v2, gaps, coming-soon, cross-sim, VSM import, and summary counts.
+
+---
+
+### 2026-02-14 — Response + Factor (Stacked) Data Format for Two-Sample & Paired Tests
+
+**What:** Added "Response + Factor" data format option to ttest2, paired_t, and wilcoxon. Users can now run these tests on stacked/long-format data (one measurement column + one grouping column) instead of requiring two separate numeric columns. This is standard practice in statistics — ANOVA, Mann-Whitney, Kruskal-Wallis, and F-test already supported it.
+
+**Backend** (`agents_api/dsw_views.py`):
+- `ttest2`: detects `data_format: "factor"`, splits response by factor levels (exactly 2 required), labels with group names
+- `paired_t`: same detection, pairs by row order within each group (`reset_index(drop=True)`)
+- `wilcoxon`: same pattern as paired_t
+
+**Frontend** (`templates/workbench_new.html`):
+- t-Test dialog: "Data Format" radio toggle (Two Columns / Response + Factor), shown for ttest2 and paired_t. Swaps labels and dropdowns.
+- Generic "more" dialog: same toggle, shown for wilcoxon and equivalence tests
+- `updateTTestDialog()` and `updateMoreDialog()` handle show/hide logic
+
+**Verification:** t-Test dialog → Two-Sample → toggle to Response + Factor → select numeric response + categorical factor → Run
+
+---
+
+### 2026-02-14 — Interactive DSW: What-If Replay, Power Explorer, Monte Carlo Simulation
+
+**What:** Made DSW statistical analysis interactive. After every analysis, users can explore "what if?" with client-side sliders — zero server round-trips. Plus a full Monte Carlo simulation engine that competitors charge $1,500+/yr for.
+
+**Phase 1 — What-If Replay** (`dsw_views.py` + `workbench_new.html`):
+- **Capability What-If**: After capability analysis, LSL/USL sliders update Cpk/Cp/DPMO/Yield/Sigma Level + Plotly histogram with movable spec lines — all client-side.
+- **Regression What-If**: After linear regression, sliders per predictor update predicted value + 95% PI via dot product `ŷ = intercept + Σ(coef × val)`.
+- Backend augments capability and regression responses with `what_if_data` (sufficient statistics).
+- Client-side `normalCDF()` (Abramowitz & Stegun) and `normalPPF()` (Acklam rational approximation).
+
+**Phase 2 — Interactive Power Explorer** (`dsw_views.py` + `workbench_new.html`):
+- Auto-appends below every hypothesis test (t-test, two-sample t, paired t, ANOVA, chi-square).
+- Three sliders: effect size, sample size, alpha → live power curve + marker + 80% threshold line.
+- "Need n = X for 80% power (Y more samples)" message.
+- Backend adds `power_explorer` metadata (Cohen's d, observed n/std, alpha) to 5 test branches.
+- Client-side power via z-approximation: `computePowerJS()` handles ttest/ttest2/anova/chi2.
+
+**Phase 3 — Monte Carlo Simulation Engine** (`dsw_views.py` + `workbench_new.html`):
+- New `run_simulation()` function + `simulation` type in analysis dispatcher.
+- 8 input distributions (Normal, Uniform, Lognormal, Weibull, Exponential, Gamma, Triangular, Beta) + "Fit from Data" (auto-selects best via `_fit_best_distribution()` helper).
+- Transfer function via safe `eval()` with AST validation (rejects imports, restricts names) OR saved ML model prediction.
+- Output: histogram, sensitivity tornado (±1σ), input-output correlation chart, percentiles, threshold probabilities.
+- "Simulate" ribbon tab with full Monte Carlo dialog: dynamic variable builder, distribution parameter inputs, formula/model toggle, threshold inputs.
+- Interactive threshold slider on output histogram — drag to see P(output > X) instantly.
+- Security: `__builtins__: {}`, AST walk rejects forbidden names, cap 100k iterations × 20 variables.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — `_fit_best_distribution()`, `run_simulation()`, `what_if_data` on capability/regression, `power_explorer` on 5 hypothesis tests, `simulation` route
+- `templates/workbench_new.html` — normalCDF/PPF, appendCapabilityWhatIf, appendRegressionWhatIf, computePowerJS, appendPowerExplorer, openMonteCarloDialog, appendMCThresholdSlider, Simulate ribbon tab, renderStatsOutput hooks
+
+**Verification:** Run capability analysis → What-If sliders appear. Run t-test → Power Explorer appears. Simulate tab → Monte Carlo dialog → Run → output histogram + tornado + threshold slider.
+
+---
+
+### 2026-02-14 — Constrained Optimization: Density, Bounds, Costs, Diminishing Returns
+
+**What:** Made the optimizer reality-aware. Users can now define real-world constraints (feature bounds, sum limits, change costs) and the optimizer respects them via penalty terms. Joint-distribution density penalty keeps solutions in high-density regions. Diminishing returns analysis shows where to stop pushing.
+
+**Backend — `optimize_model()` rewrite** (`agents_api/dsw_views.py`):
+- **Joint density penalty**: Mahalanobis distance penalty ramps quadratically beyond the "ok" threshold, scaling with prediction magnitude. Keeps optimizer in observed data regions.
+- **User-defined feature bounds**: `feature_bounds` dict overrides training-data min/max with tighter real-world limits (e.g., temperature 20-80 instead of 0-100). Applied directly to `differential_evolution` bounds.
+- **Sum constraints**: `sum_constraints` array (e.g., sleep+study+gaming ≤ 24). Enforced via quadratic penalty scaled 10× prediction magnitude.
+- **Cost weights**: `cost_weights` dict (1=easy, 10=hard to change). Penalizes changing expensive features proportional to fractional change × cost weight.
+- **Diminishing returns**: Post-optimization, sweeps each feature from current→optimal in 11 steps. Finds knee point where 80% of total gain is achieved. Returns per-feature `{knee_pct, knee_value, total_gain}`.
+- **Constraint satisfaction**: Reports whether each sum constraint was satisfied at optimal point.
+- Extracted `_predict_numeric()` helper to module level (eliminates closure over changing variables).
+
+**Frontend — Optimization Settings Panel** (`templates/models.html`):
+- "Settings" button next to Optimize in topbar → toggles collapsible panel
+- **Feature table**: Each numeric feature shows min/max override inputs (placeholders = training range) + cost weight input (1-10)
+- **Sum constraint builder**: Click "+ Add constraint" → feature pill selector + operator (≤/≥) + limit input. Features toggle on/off with visual feedback.
+- **Density checkbox**: "Stay near observed data" toggle (checked by default)
+- `getOptSettings()` collects all settings → sent with optimize request
+- `populateOptSettings()` rebuilds table on profiler init
+
+**Frontend — Results Panel additions**:
+- **Diminishing returns bars**: Per-feature horizontal bars showing solid green (80% of gain) + faded green (remaining 20%) + yellow knee marker. Shows where to stop pushing.
+- **Constraint status**: Per constraint checkmark/cross with actual vs limit values.
+- **Cost column**: When cost weights > 1 exist, prescription table adds a "Cost" column with dot indicators.
+
+**Verification:** Profiler → Settings → set feature min/max overrides → add sum constraint → set cost on expensive feature → click Optimize → results show constrained optimal with diminishing returns bars and constraint status.
+
+---
+
+### 2026-02-14 — Smart Optimization: Decision Intelligence in Profiler
+
+**What:** Enhanced the ML Profiler's Optimize feature from naive slider-moving into a full decision intelligence toolkit. When a user clicks "Optimize", they now get not just optimal values but a comprehensive assessment of whether those values are achievable and what to change.
+
+**Backend — `optimize_model()` enrichment** (`agents_api/dsw_views.py`):
+- **Prescription**: Per-feature actions (increase/decrease/switch/hold) with magnitude as % of range and from→to values
+- **Feasibility scoring**: Mahalanobis distance from optimal point to training data centroid. Three-tier classification (high/moderate/low) using χ²-based thresholds scaled by feature count
+- **Correlation violation detection**: Checks whether optimal values violate observed feature correlations (|r| > 0.5). Flags when optimizer pushes positively-correlated features apart or negatively-correlated features together
+- **Edge warnings**: Flags features where optimal value is within 5% of observed min/max boundary
+- **Sensitivity analysis**: Numerical gradient ∂prediction/∂feature at optimal point, ranked by total impact across feature range
+- **Prediction interval**: 90% interval from tree ensemble at optimal point (RandomForest models)
+
+**Backend — `_compute_feature_stats()`** (`agents_api/autopilot_views.py`):
+- New helper storing means, stds, covariance matrix, and strong correlations at training time
+- Wired into all 4 autopilot endpoints (clean_train, full_pipeline, augment_train, retrain)
+- Stored in `training_config.feature_stats` for use by optimize endpoint
+
+**Frontend — Optimization Results Panel** (`templates/models.html`):
+- New `#optimize-results` panel in profiler main area (between response plot and PDP curves)
+- Feasibility badge: green/amber/red with Mahalanobis distance and plain-language interpretation
+- Prescription table: feature-by-feature actions with directional arrows and magnitude indicators
+- Edge warning badges: amber chips for features at boundary of observed data
+- Correlation conflict warnings: red text flagging violated correlations
+- Sensitivity bars: horizontal bar chart ranking features by impact at optimal point
+- Prediction interval at optimum: 90% interval with range and standard deviation
+- Dismissible panel with "Dismiss" button
+
+**Verification:** ML Hub → train model → Profiler → click Optimize → results panel appears with feasibility badge, prescription table, sensitivity bars. Try with data that has correlated features to see correlation warnings.
+
+---
+
 ### 2026-02-14 — Fix CategoricalDtype Crash in ML Pipeline
 
 **What:** ML pipeline ("From Intent" and "From Data") crashed with `Cannot interpret 'CategoricalDtype(...)' as a data type` when datasets contained categorical columns (e.g., Gender with Female/Male/Other). The root cause: `pd.Categorical(col).codes` returns int8 codes but the column can retain CategoricalDtype metadata, which numpy/sklearn can't interpret.
@@ -2811,6 +3057,32 @@ Backend: 6 new analysis_ids in run_statistical_analysis + 3 new tools in transfo
 - Whiteboard accessible at `/app/whiteboard/` and `/app/whiteboard/<ROOM_CODE>/`
 **Commit:** pending
 
+## 2026-02-14 - Whitepaper PDF download infrastructure (WeasyPrint)
+
+**What:** Built end-to-end whitepaper system with web reading + PDF download via WeasyPrint.
+
+**Files added:**
+- `api/whitepaper_views.py` — public views: `whitepaper_list`, `whitepaper_detail`, `whitepaper_pdf`
+- `templates/whitepaper_detail.html` — web-readable view (extends tool_base.html, SEO metadata, TechArticle schema)
+- `templates/whitepaper_print.html` — print-optimized standalone HTML for WeasyPrint (cover page, A4 pagination, page numbers, back cover CTA)
+
+**Files modified:**
+- `svend/urls.py` — added `/whitepapers/<slug>/` and `/whitepapers/<slug>/pdf/` routes, `WhitePaperSitemap` class, changed whitepapers index from TemplateView to `whitepaper_list` view
+- `templates/whitepapers.html` — dynamic listing from DB with Read + PDF buttons, `{% empty %}` fallback
+
+**Architecture:**
+- Uses existing `WhitePaper` model (body field stores HTML content)
+- `WhitePaperDownload` tracking on every view/download
+- WeasyPrint installed system-wide (`pip3 install weasyprint`) — needed because gunicorn uses `/usr/bin/python3`
+- PDF has cover page (title, topic tag, date, Svend branding), paginated body, page numbers, back cover CTA
+- Web detail page has marked.js fallback for markdown bodies + native HTML rendering
+- Sitemap auto-includes published whitepapers
+
+**Verify:**
+- `curl -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/whitepapers/` — 200
+- Create a WhitePaper via admin with status=published, verify detail + PDF routes work
+- `python3 manage.py check` — 0 issues
+
 ## 2026-02-10 - Fixed founder registration invite bypass
 
 **Issue:** Founder registration was still showing "Invite code required" error even after updating the middleware.
@@ -2919,3 +3191,31 @@ Updated both rendering paths (inline results + modal report) to display interpre
 - `agents_api/dsw_views.py` — `_effect_magnitude()`, `_practical_block()`, `_ml_interpretation()`, enhanced 12 analysis types
 - `agents_api/autopilot_views.py` — `_build_training_interpretation()`, `_build_retrain_interpretation()`, all 4 endpoints + retrain
 - `templates/models.html` — interpretation rendering in both display paths
+
+---
+
+## Interactive ML Insights — 2025-02-13
+
+Four features that close the gap between ML numbers and actionable decisions.
+
+### 1. Subgroup Diagnostics (autopilot_views.py + models.html)
+
+After training, the system automatically slices the test set by each categorical feature and reports per-segment metrics. Color-coded badges show where the model excels (green) and where it struggles (amber). Flags segments where accuracy drops >15% below overall. Renders in both inline results and modal report views.
+
+### 2. Cost-Sensitive Threshold Analysis (autopilot_views.py + models.html)
+
+For binary classification models: sweeps thresholds from 0.05 to 0.95, computing precision, recall, F1, and accuracy at each point. Reports optimal thresholds for F1, accuracy, and Youden's J. Includes a Plotly chart with precision/recall/F1 curves. In the Profiler, a threshold slider lets users adjust the decision boundary in real-time and see how reclassification changes. Stored in `training_config.threshold_analysis` for profiler access.
+
+### 3. Prediction Intervals (dsw_views.py + models.html)
+
+`run_model()` now accepts `intervals: true` parameter. For RandomForest models (most common), computes 90% prediction intervals from individual tree predictions (5th/95th percentiles of estimators). Profiler prediction card shows "± X (90% interval)". PDP curves display a shaded confidence band around the main line.
+
+### 4. Optimization Profiler (dsw_views.py + dsw_urls.py + models.html)
+
+New endpoint: `POST /api/dsw/models/<uuid>/optimize/` using `scipy.optimize.differential_evolution`. Supports maximize, minimize, and target-value goals. Optimizes over numeric features while brute-forcing categorical combinations (capped at 3 categorical features × 10 categories). "Optimize" button in profiler top bar with goal selector — sets all sliders to optimal values on completion.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — `optimize_model()` endpoint, prediction intervals in `run_model()`
+- `agents_api/dsw_urls.py` — optimize route
+- `agents_api/autopilot_views.py` — `_compute_subgroup_diagnostics()`, `_compute_threshold_analysis()`, stored in all 4 endpoints + `training_config`
+- `templates/models.html` — subgroup badges, threshold chart+slider, interval display, PDP confidence bands, optimize UI

@@ -22,6 +22,11 @@ Track technical debt here. Review weekly.
 [REPO] 50+ hardcoded /home/eric/ paths across Python files — works on prod server but breaks portability | Added: 2026-02-06 | Priority: P3
 [REPO] Duplicate agents/agents/ directory (85 files duplicating agents/) | Added: 2026-02-06 | Priority: P3
 
+### Infrastructure
+
+[INFRA] Off-site backup sync — encrypted backups sit on same machine as data. Push AES-256 encrypted dumps to Backblaze B2 or similar for fire/theft/disk-failure resilience | Added: 2026-02-13 | Priority: P3
+[INFRA] RCA critique views (rca_views.py) use @gated_paid instead of @require_enterprise — Founder/Pro/Team users can hit Anthropic API through critique/evaluate_chain/critique_countermeasure | Added: 2026-02-13 | Priority: P2
+
 ### Existing Debt (carried forward)
 
 [CORE] Writer template validation should support nested sections | Added: 2024-01-27 | Priority: P3

@@ -11,7 +11,9 @@ from django.views.generic import TemplateView
 
 from api.blog_views import blog_list, blog_detail
 from api.internal_views import dashboard_view
-from api.models import BlogPost
+from api.models import BlogPost, WhitePaper
+from api.whitepaper_views import whitepaper_list, whitepaper_detail, whitepaper_pdf
+from agents_api.whiteboard_views import guest_board_view
 
 
 # ---------------------------------------------------------------------------
@@ -24,7 +26,10 @@ class StaticSitemap(Sitemap):
     protocol = "https"
 
     def items(self):
-        return ["/", "/blog/", "/privacy/", "/terms/"]
+        return ["/", "/blog/", "/privacy/", "/terms/", "/whitepapers/",
+                "/tools/", "/tools/cpk-calculator/", "/tools/sample-size-calculator/",
+                "/tools/oee-calculator/", "/tools/sigma-calculator/",
+                "/tools/takt-time-calculator/"]
 
     def location(self, item):
         return item
@@ -45,9 +50,25 @@ class BlogSitemap(Sitemap):
         return f"/blog/{obj.slug}/"
 
 
+class WhitePaperSitemap(Sitemap):
+    changefreq = "monthly"
+    priority = 0.8
+    protocol = "https"
+
+    def items(self):
+        return WhitePaper.objects.filter(status=WhitePaper.Status.PUBLISHED)
+
+    def lastmod(self, obj):
+        return obj.updated_at
+
+    def location(self, obj):
+        return f"/whitepapers/{obj.slug}/"
+
+
 sitemaps = {
     "static": StaticSitemap,
     "blog": BlogSitemap,
+    "whitepapers": WhitePaperSitemap,
 }
 
 
@@ -67,6 +88,7 @@ urlpatterns = [
     path("app/forge/", TemplateView.as_view(template_name="forge.html"), name="forge_ui"),
     path("app/whiteboard/", TemplateView.as_view(template_name="whiteboard.html"), name="whiteboard"),
     path("app/whiteboard/<str:room_code>/", TemplateView.as_view(template_name="whiteboard.html"), name="whiteboard_room"),
+    path("app/whiteboard/guest/<str:token>/", guest_board_view, name="whiteboard_guest"),
     path("app/vsm/", TemplateView.as_view(template_name="vsm.html"), name="vsm"),
     path("app/vsm/<uuid:vsm_id>/", TemplateView.as_view(template_name="vsm.html"), name="vsm_edit"),
     path("app/onboarding/", TemplateView.as_view(template_name="onboarding.html"), name="onboarding"),
@@ -90,6 +112,20 @@ urlpatterns = [
     path("app/fmea/", TemplateView.as_view(template_name="fmea.html"), name="fmea"),
     path("app/fmea/<uuid:fmea_id>/", TemplateView.as_view(template_name="fmea.html"), name="fmea_edit"),
     path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
+
+    # Whitepapers (public, no auth — SEO + PDF download)
+    path("whitepapers/", whitepaper_list, name="whitepapers"),
+    path("whitepapers/<slug:slug>/", whitepaper_detail, name="whitepaper_detail"),
+    path("whitepapers/<slug:slug>/pdf/", whitepaper_pdf, name="whitepaper_pdf"),
+
+    # Free tools (public, no auth — SEO landing pages)
+    path("tools/", TemplateView.as_view(template_name="tools/index.html"), name="tools_index"),
+    path("tools/cpk-calculator/", TemplateView.as_view(template_name="tools/cpk_calculator.html"), name="tool_cpk"),
+    path("tools/sample-size-calculator/", TemplateView.as_view(template_name="tools/sample_size_calculator.html"), name="tool_sample_size"),
+    path("tools/oee-calculator/", TemplateView.as_view(template_name="tools/oee_calculator.html"), name="tool_oee"),
+    path("tools/sigma-calculator/", TemplateView.as_view(template_name="tools/sigma_calculator.html"), name="tool_sigma"),
+    path("tools/takt-time-calculator/", TemplateView.as_view(template_name="tools/takt_time_calculator.html"), name="tool_takt_time"),
+
     # Blog (public, no auth)
     path("blog/", blog_list, name="blog_list"),
     path("blog/<slug:slug>/", blog_detail, name="blog_detail"),

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SVEND - Guest{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            var theme = localStorage.getItem('svend_theme') || '';
+            if (theme) document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        /* === SVEND Theme: Forest at Night (Default) === */
+        :root {
+            --bg-primary: #0a0f0a;
+            --bg-secondary: #0d120d;
+            --bg-tertiary: #121a12;
+            --bg-hover: #1a261a;
+            --bg: #0a0f0a;
+            --card-bg: #121a12;
+            --accent-primary: #4a9f6e;
+            --accent-primary-dim: rgba(74, 159, 110, 0.15);
+            --accent-primary-border: rgba(74, 159, 110, 0.3);
+            --accent: #4a9f6e;
+            --accent-blue: #4a9faf;
+            --accent-purple: #8a7fbf;
+            --accent-gold: #e8c547;
+            --accent-orange: #e89547;
+            --text-primary: #e8efe8;
+            --text-secondary: #9aaa9a;
+            --text-dim: #7a8f7a;
+            --text: #e8efe8;
+            --success: #4a9f6e;
+            --warning: #e89547;
+            --error: #d06060;
+            --info: #4a9faf;
+            --error-dim: rgba(208, 96, 96, 0.15);
+            --error-border: rgba(208, 96, 96, 0.3);
+            --warning-dim: rgba(232, 149, 71, 0.1);
+            --warning-border: rgba(232, 149, 71, 0.3);
+            --border: rgba(74, 159, 110, 0.2);
+        }
+        [data-theme="light"] {
+            --bg-primary: #f5f7f5; --bg-secondary: #eef2ee; --bg-tertiary: #e5ebe5;
+            --bg-hover: #dce4dc; --bg: #f5f7f5; --card-bg: #ffffff;
+            --accent-primary: #2d7a4a; --accent-primary-dim: rgba(45, 122, 74, 0.1);
+            --accent-primary-border: rgba(45, 122, 74, 0.25); --accent: #2d7a4a;
+            --accent-blue: #2a6070; --accent-purple: #4a3f6f; --accent-gold: #846a0a; --accent-orange: #9a580a;
+            --text-primary: #1a2a1a; --text-secondary: #4a5a4a; --text-dim: #5f705f; --text: #1a2a1a;
+            --success: #2d7a4a; --warning: #9a580a; --error: #a03030; --info: #2a6070;
+            --error-dim: rgba(160, 48, 48, 0.1); --error-border: rgba(160, 48, 48, 0.25);
+            --warning-dim: rgba(154, 88, 10, 0.1); --warning-border: rgba(154, 88, 10, 0.25);
+            --border: rgba(45, 122, 74, 0.2);
+        }
+        [data-theme="nordic"] {
+            --bg-primary: #f2f5f8; --bg-secondary: #e8edf2; --bg-tertiary: #dde3ea;
+            --bg-hover: #d2d9e2; --bg: #f2f5f8; --card-bg: #ffffff;
+            --accent-primary: #2a6b50; --accent-primary-dim: rgba(42, 107, 80, 0.1);
+            --accent-primary-border: rgba(42, 107, 80, 0.25); --accent: #2a6b50;
+            --text-primary: #1a2030; --text-secondary: #485060; --text-dim: #5f6878; --text: #1a2030;
+            --border: rgba(42, 107, 80, 0.18);
+        }
+        [data-theme="sandstone"] {
+            --bg-primary: #f7f4f0; --bg-secondary: #ede8e2; --bg-tertiary: #e3ddd5;
+            --bg-hover: #d9d2c8; --bg: #f7f4f0; --card-bg: #ffffff;
+            --accent-primary: #2d7a4a; --accent-primary-dim: rgba(45, 122, 74, 0.1);
+            --accent-primary-border: rgba(45, 122, 74, 0.25); --accent: #2d7a4a;
+            --text-primary: #2a2420; --text-secondary: #5a524a; --text-dim: #6f675f; --text: #2a2420;
+            --border: rgba(45, 122, 74, 0.18);
+        }
+        [data-theme="midnight"] {
+            --bg-primary: #0a0a14; --bg-secondary: #0d0d1a; --bg-tertiary: #12121f;
+            --bg-hover: #1a1a2a; --bg: #0a0a14; --card-bg: #12121f;
+            --accent-primary: #6a7fff; --accent-primary-dim: rgba(106, 127, 255, 0.15);
+            --accent-primary-border: rgba(106, 127, 255, 0.3); --accent: #6a7fff;
+            --text-primary: #e8e8f8; --text-secondary: #9a9aaa; --text-dim: #7e7e95; --text: #e8e8f8;
+            --border: rgba(106, 127, 255, 0.2);
+        }
+        [data-theme="contrast"] {
+            --bg-primary: #000000; --bg-secondary: #0a0a0a; --bg-tertiary: #141414;
+            --bg-hover: #1e1e1e; --bg: #000000; --card-bg: #0a0a0a;
+            --accent-primary: #50c080; --accent-primary-dim: rgba(80, 192, 128, 0.15);
+            --accent-primary-border: rgba(80, 192, 128, 0.35); --accent: #50c080;
+            --text-primary: #ffffff; --text-secondary: #c0c0c0; --text-dim: #909090; --text: #ffffff;
+            --border: rgba(80, 192, 128, 0.25);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .guest-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            height: 40px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .guest-header-logo {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.1em;
+            color: var(--accent-primary);
+        }
+        .guest-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            background: var(--accent-primary-dim);
+            border: 1px solid var(--accent-primary-border);
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--accent-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="guest-header">
+        <span class="guest-header-logo">SVEND</span>
+        <span class="guest-badge">Guest</span>
+    </div>
+    {% block content %}{% endblock %}
+    <script>
+        window.svendUser = null;
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

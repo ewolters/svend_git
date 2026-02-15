@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Svend — SEO & Whitepaper Content Strategy</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0f0a;
+    --bg-secondary: #0d120d;
+    --bg-tertiary: #121a12;
+    --bg-hover: #1a261a;
+    --accent-primary: #4a9f6e;
+    --accent-primary-dim: rgba(74, 159, 110, 0.15);
+    --accent-primary-border: rgba(74, 159, 110, 0.3);
+    --accent-blue: #3a7f8f;
+    --accent-purple: #5a4f7f;
+    --accent-gold: #e8c547;
+    --accent-orange: #e89547;
+    --text-primary: #e8efe8;
+    --text-secondary: #9aaa9a;
+    --text-dim: #5a6a5a;
+    --error: #9f4a4a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.7;
+    font-weight: 300;
+    font-size: 0.95rem;
+  }
+
+  .container {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 3rem 2rem 6rem;
+  }
+
+  /* === HEADER === */
+  .doc-header {
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid var(--accent-primary-border);
+    margin-bottom: 3rem;
+  }
+
+  .logo {
+    font-weight: 300;
+    font-size: 1.1rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--accent-primary);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .logo .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  .doc-title {
+    font-size: 2rem;
+    font-weight: 400;
+    line-height: 1.3;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .doc-subtitle {
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+  }
+
+  .doc-meta {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    display: flex;
+    gap: 2rem;
+  }
+
+  .doc-meta span { letter-spacing: 0.05em; }
+
+  /* === SECTIONS === */
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 3rem 0 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(74, 159, 110, 0.15);
+  }
+
+  h3 {
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 2rem 0 0.75rem;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  p {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    font-weight: 300;
+  }
+
+  p strong { color: var(--text-primary); font-weight: 500; }
+
+  /* === CARDS === */
+  .card {
+    background: rgba(10, 15, 10, 0.85);
+    border: 1px solid rgba(74, 159, 110, 0.15);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  .card--accent {
+    border-left: 3px solid var(--accent-primary);
+  }
+
+  .card--gold {
+    border-left: 3px solid var(--accent-gold);
+  }
+
+  .card--blue {
+    border-left: 3px solid var(--accent-blue);
+  }
+
+  .card--orange {
+    border-left: 3px solid var(--accent-orange);
+  }
+
+  .card--purple {
+    border-left: 3px solid var(--accent-purple);
+  }
+
+  .card-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  .card-label--green { color: var(--accent-primary); }
+  .card-label--gold { color: var(--accent-gold); }
+  .card-label--blue { color: var(--accent-blue); }
+  .card-label--orange { color: var(--accent-orange); }
+  .card-label--purple { color: var(--accent-purple); }
+
+  /* === KEYWORD TABLE === */
+  .kw-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+
+  .kw-table th {
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(74, 159, 110, 0.2);
+  }
+
+  .kw-table td {
+    padding: 0.65rem 1rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-weight: 300;
+  }
+
+  .kw-table tr:hover td {
+    background: rgba(74, 159, 110, 0.03);
+  }
+
+  .kw-table .kw-term { color: var(--text-primary); font-weight: 400; }
+
+  /* === BADGES === */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .badge--easy {
+    background: rgba(74, 159, 110, 0.15);
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary-border);
+  }
+
+  .badge--medium {
+    background: rgba(232, 197, 71, 0.12);
+    color: var(--accent-gold);
+    border: 1px solid rgba(232, 197, 71, 0.25);
+  }
+
+  .badge--hard {
+    background: rgba(159, 74, 74, 0.15);
+    color: #cf6a6a;
+    border: 1px solid rgba(159, 74, 74, 0.3);
+  }
+
+  .badge--own {
+    background: rgba(90, 79, 127, 0.15);
+    color: #7a6f9f;
+    border: 1px solid rgba(90, 79, 127, 0.3);
+  }
+
+  /* === SPINE DIAGRAM === */
+  .spine {
+    position: relative;
+    padding-left: 2rem;
+    margin: 1.5rem 0;
+  }
+
+  .spine::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--accent-primary), var(--accent-blue), var(--accent-purple), var(--accent-gold));
+    border-radius: 1px;
+  }
+
+  .spine-node {
+    position: relative;
+    padding: 0.75rem 0;
+  }
+
+  .spine-node::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 1.1rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-primary);
+    background: var(--bg-primary);
+  }
+
+  .spine-node:nth-child(2)::before { border-color: var(--accent-primary); }
+  .spine-node:nth-child(3)::before { border-color: #45907a; }
+  .spine-node:nth-child(4)::before { border-color: var(--accent-blue); }
+  .spine-node:nth-child(5)::before { border-color: var(--accent-purple); }
+  .spine-node:nth-child(6)::before { border-color: var(--accent-gold); }
+  .spine-node:nth-child(7)::before { border-color: var(--accent-orange); }
+
+  .spine-node-title {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+  }
+
+  .spine-node-desc {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-top: 0.2rem;
+  }
+
+  /* === CONTENT CALENDAR === */
+  .cal-grid {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0;
+    margin: 1rem 0;
+  }
+
+  .cal-row {
+    display: contents;
+  }
+
+  .cal-row > * {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 0.85rem;
+  }
+
+  .cal-week {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+
+  .cal-title {
+    color: var(--text-primary);
+    font-weight: 400;
+  }
+
+  .cal-type {
+    text-align: right;
+  }
+
+  /* === SECTION DIVIDER === */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-primary-border), transparent);
+    margin: 3rem 0;
+  }
+
+  /* === QUOTE === */
+  .quote {
+    border-left: 2px solid var(--accent-primary);
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+    font-style: italic;
+    color: var(--text-secondary);
+  }
+
+  .quote-attr {
+    font-style: normal;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+  }
+
+  /* === FOOTER === */
+  .doc-footer {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(74, 159, 110, 0.15);
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+  }
+
+  /* === METRIC ROW === */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .metric {
+    text-align: center;
+    padding: 1.25rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid rgba(74, 159, 110, 0.1);
+    border-radius: 4px;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: var(--accent-primary);
+    margin-bottom: 0.25rem;
+  }
+
+  .metric-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* === LIST STYLE === */
+  ul, ol {
+    padding-left: 1.25rem;
+    margin: 0.75rem 0;
+    color: var(--text-secondary);
+  }
+
+  li {
+    margin-bottom: 0.4rem;
+    font-weight: 300;
+  }
+
+  li strong { color: var(--text-primary); font-weight: 500; }
+
+  /* === COMPETITIVE MATRIX === */
+  .comp-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  .comp-name {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .comp-bar-wrap {
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .comp-bar {
+    height: 6px;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .comp-note {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .container { padding: 2rem 1.25rem 4rem; }
+    .doc-title { font-size: 1.5rem; }
+    .metrics { grid-template-columns: 1fr; }
+    .doc-meta { flex-direction: column; gap: 0.25rem; }
+    .comp-row { grid-template-columns: 100px 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="doc-header">
+    <div class="logo"><span class="dot"></span> svend</div>
+    <h1 class="doc-title">SEO & Whitepaper Content Strategy</h1>
+    <p class="doc-subtitle">Keyword architecture, competitive positioning, and the content spine that wins</p>
+    <div class="doc-meta">
+      <span>Version 1.0</span>
+      <span>February 2026</span>
+      <span>Internal Strategy Document</span>
+    </div>
+  </header>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <h2>Executive Summary</h2>
+  <p>This document defines the keyword node Svend can realistically own, the whitepaper that becomes the SEO pillar page, and the content calendar that fragments it into rankable assets. The strategy is built on one finding: <strong>nobody is writing about why operational insights die between discovery and execution</strong>. Everyone writes about individual tools. Nobody writes about the spine that connects them.</p>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-value">70%</div>
+      <div class="metric-label">CI Programs Fail</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">87–90%</div>
+      <div class="metric-label">ML Projects Never Ship</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">#1</div>
+      <div class="metric-label">CAPA = Top FDA Citation</div>
+    </div>
+  </div>
+
+  <p>These numbers are cited everywhere. What's missing is the <strong>structural explanation</strong> — the reason insights die is not lack of tools, it's lack of connection between them. Svend's whitepaper fills that gap and becomes the pillar page for an uncontested keyword cluster.</p>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 1: BATTLEFIELD -->
+  <h2>1. The Keyword Battlefield</h2>
+  <p>Before picking where to fight, we mapped what's already occupied, what's contested, and what's open.</p>
+
+  <h3>Tier 1 — Can't Win (Enterprise Incumbents)</h3>
+  <p>These terms are locked by high-authority domains. Frontal assault loses on domain authority alone.</p>
+
+  <table class="kw-table">
+    <thead>
+      <tr><th>Keyword</th><th>Owned By</th><th>Difficulty</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="kw-term">root cause analysis software</td><td>TapRooT, EasyRCA, ClickUp, Causelink</td><td><span class="badge badge--hard">High</span></td></tr>
+      <tr><td class="kw-term">CAPA software</td><td>MasterControl, QT9, Sparta, AssurX</td><td><span class="badge badge--hard">High</span></td></tr>
+      <tr><td class="kw-term">value stream mapping tool</td><td>Lucidchart, SmartDraw, Creately, eVSM</td><td><span class="badge badge--hard">High</span></td></tr>
+      <tr><td class="kw-term">continuous improvement software</td><td>KaiNexus, Minitab, various BPM vendors</td><td><span class="badge badge--hard">High</span></td></tr>
+      <tr><td class="kw-term">quality management system</td><td>MasterControl, Greenlight.guru, Veeva</td><td><span class="badge badge--hard">High</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Tier 2 — Contested, Generic Content</h3>
+  <p>Lots of articles exist but they all repeat the same advice. Could rank eventually, but you're competing in a crowded room saying identical things.</p>
+
+  <table class="kw-table">
+    <thead>
+      <tr><th>Keyword</th><th>Problem</th><th>Difficulty</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="kw-term">why continuous improvement fails</td><td>~15 identical articles citing McKinsey 70%</td><td><span class="badge badge--medium">Medium</span></td></tr>
+      <tr><td class="kw-term">root cause analysis tools</td><td>Listicle wars (ClickUp, ComplianceOnline, etc.)</td><td><span class="badge badge--medium">Medium</span></td></tr>
+      <tr><td class="kw-term">5 whys template</td><td>Template farms dominate</td><td><span class="badge badge--medium">Medium</span></td></tr>
+      <tr><td class="kw-term">CAPA best practices</td><td>QMS vendor blogs, all same content</td><td><span class="badge badge--medium">Medium</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Tier 3 — The Gap: Nobody's Writing This</h3>
+
+  <div class="card card--accent">
+    <div class="card-label card-label--green">The Keyword Node We Win</div>
+    <p>Every article treats these topics in <strong>isolation</strong>. RCA tool listicles. CAPA software comparisons. VSM tool roundups. "Why CI fails" think-pieces. But <strong>nobody is writing about the connective tissue</strong> — why insights discovered in analysis die before they reach execution, and what a system looks like that prevents that.</p>
+  </div>
+
+  <table class="kw-table">
+    <thead>
+      <tr><th>Target Keyword / Long-Tail</th><th>Competition</th><th>Svend Fit</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="kw-term">why operational insights die after discovery</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Pillar</span></td></tr>
+      <tr><td class="kw-term">closed loop quality investigation workflow</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Core</span></td></tr>
+      <tr><td class="kw-term">root cause analysis beyond human error</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Core</span></td></tr>
+      <tr><td class="kw-term">SPC to CAPA workflow single platform</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Core</span></td></tr>
+      <tr><td class="kw-term">decision science for manufacturing</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Core</span></td></tr>
+      <tr><td class="kw-term">value stream mapping to hoshin kanri</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Core</span></td></tr>
+      <tr><td class="kw-term">consulting engagement failure capability transfer</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Origin</span></td></tr>
+      <tr><td class="kw-term">operational excellence closed loop system</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Core</span></td></tr>
+      <tr><td class="kw-term">FMEA data-driven risk scores</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Feature</span></td></tr>
+      <tr><td class="kw-term">ML optimization for plant managers</td><td><span class="badge badge--easy">Low</span></td><td><span class="badge badge--own">Feature</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 2: PILLAR PAGE / WHITEPAPER -->
+  <h2>2. The Whitepaper — Pillar Page Architecture</h2>
+
+  <p>The whitepaper isn't just a PDF download — it <strong>is</strong> the SEO pillar page. Published at <strong>svend.ai/insights/why-operational-insights-die</strong>, it targets the primary cluster while each H2 answers a specific long-tail query that also becomes a standalone blog post.</p>
+
+  <div class="card card--gold">
+    <div class="card-label card-label--gold">Title & Meta</div>
+    <p><strong>H1/Title:</strong> Why Operational Insights Die — and What a Closed-Loop System Looks Like</p>
+    <p><strong>URL:</strong> /insights/why-operational-insights-die</p>
+    <p><strong>Meta Description:</strong> 70% of improvement programs fail — not from lack of analysis, but because insights die between discovery and execution. Learn the structural pattern behind this failure and the closed-loop architecture that prevents it.</p>
+    <p><strong>Target Length:</strong> 4,000–5,500 words (pillar-length)</p>
+  </div>
+
+  <h3>Whitepaper Section Architecture</h3>
+  <p>Each section maps to a keyword cluster and becomes a future standalone blog post (see Content Calendar).</p>
+
+  <h4>Section 1 — The Discovery-Execution Gap</h4>
+  <div class="card">
+    <p><strong>SEO target:</strong> "why operational insights die after discovery"</p>
+    <p><strong>Content:</strong> The structural pattern. Analysis happens in Minitab. Findings go into PowerPoint. Action items go into email. Hoshin lives on a wall nobody checks after February. No return path from execution back to strategy. The insight dies in transit.</p>
+    <p><strong>Data hooks:</strong> McKinsey 70% change program failure rate. 87–90% ML models never reaching production. Berkeley MLE study on handoff walls.</p>
+  </div>
+
+  <h4>Section 2 — The Human Error Trap</h4>
+  <div class="card">
+    <p><strong>SEO target:</strong> "root cause analysis beyond human error"</p>
+    <p><strong>Content:</strong> CAPA is #1 FDA 483 citation. Teams label root cause as "human error" and close investigation. Regulators reject it. Same problem recurs 6 months later. Investigation never gets past symptom to system failure. The thinking gap — practitioners know tools but not methods.</p>
+    <p><strong>Data hooks:</strong> FDA 483 observation data, Greenlight.guru State of Medical Device report (50% rate CAPA competency as average or below).</p>
+  </div>
+
+  <h4>Section 3 — The Consulting Capability Problem</h4>
+  <div class="card">
+    <p><strong>SEO target:</strong> "consulting engagement failure capability transfer"</p>
+    <p><strong>Content:</strong> The pattern: consultants arrive, build bespoke models on their infrastructure, present decks, bill millions, leave. Client left with PowerPoints they can't execute, models they can't re-run, "transformation" that evaporates when engagement ends. Knowledge walks out the door.</p>
+    <p><strong>Origin story hook:</strong> First-person operational experience managing the aftermath of a multi-million dollar consulting engagement. Company declared chapter 11 months after those who understood the systems left.</p>
+  </div>
+
+  <h4>Section 4 — Disconnected Quality Events</h4>
+  <div class="card">
+    <p><strong>SEO target:</strong> "SPC to CAPA workflow single platform" / "closed loop quality investigation"</p>
+    <p><strong>Content:</strong> Deviation found → investigation opened → root cause links to process → process has SPC data → risk should be in FMEA — but all in different systems. Data exists, but scattered across Minitab (analysis), Excel (FMEA), QMS (CAPA tracking), email (complaints), PowerPoint (management review).</p>
+  </div>
+
+  <h4>Section 5 — What a Closed-Loop System Looks Like</h4>
+  <div class="card card--accent">
+    <p><strong>SEO target:</strong> "operational excellence closed loop system"</p>
+    <p><strong>Content:</strong> The Insight Spine — from VSM through analysis, investigation, decision science, to hoshin execution and back. Not a tool. A closed-loop management operating system with analytical capability built in. This is the product reveal, positioned as architectural answer to the structural problem.</p>
+  </div>
+
+  <h4>Section 6 — The Decision Science Layer</h4>
+  <div class="card">
+    <p><strong>SEO target:</strong> "decision science for manufacturing" / "ML optimization for plant managers"</p>
+    <p><strong>Content:</strong> Moving from "here's your R²" to "here's what to do about it." Constrained optimization with cost weights, feasibility checks, diminishing returns. The gap isn't training models — it's the 30 seconds after training when someone asks "so what?" and the data scientist shrugs.</p>
+    <p><strong>Positioning line:</strong> Competitor isn't Jupyter notebook. Competitor is $150K McKinsey engagement that produces one PowerPoint and walks out the door.</p>
+  </div>
+
+  <h4>Section 7 — Evidence-Based Risk (FMEA That Updates)</h4>
+  <div class="card">
+    <p><strong>SEO target:</strong> "FMEA data-driven risk scores"</p>
+    <p><strong>Content:</strong> FMEA universally hated because severity/occurrence/detection scores are made up in a conference room with no data. If ML feature importance or regression coefficients could suggest occurrence scores based on actual process data, FMEA transforms from opinion exercise to evidence-based risk assessment.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 3: THE INSIGHT SPINE -->
+  <h2>3. The Insight Spine — Product Narrative</h2>
+  <p>This is the single connected product story the whitepaper builds toward. First time articulated as a continuous flow rather than a feature list.</p>
+
+  <div class="spine">
+    <div class="spine-node">
+      <div class="spine-node-title">Value Stream Map</div>
+      <div class="spine-node-desc">Universal entry point. Identify constraints, calculate metrics, feel the process.</div>
+    </div>
+    <div class="spine-node">
+      <div class="spine-node-title">Simulators & Counterfactuals</div>
+      <div class="spine-node-desc">Operations suite answers "what if" with data, not opinion.</div>
+    </div>
+    <div class="spine-node">
+      <div class="spine-node-title">Value Stream Analysis → Hoshin</div>
+      <div class="spine-node-desc">VSM findings translate into strategic priorities with measurable targets.</div>
+    </div>
+    <div class="spine-node">
+      <div class="spine-node-title">Charters → Projects → Studies</div>
+      <div class="spine-node-desc">Execution stays linked to the strategic intent defined in VSM.</div>
+    </div>
+    <div class="spine-node">
+      <div class="spine-node-title">Analytical Tools (DSW, ML Hub, Operations)</div>
+      <div class="spine-node-desc">SPC, Regression, ANOVA, DOE, Gage R&R, RCA Challenge, ML Profiler — all in one study context.</div>
+    </div>
+    <div class="spine-node">
+      <div class="spine-node-title">Insights → Plans → Hoshin Results</div>
+      <div class="spine-node-desc">Findings flow back to hoshin. Did the CAPA actually move the needle?</div>
+    </div>
+    <div class="spine-node">
+      <div class="spine-node-title">Tangible Performance Improvement</div>
+      <div class="spine-node-desc">Budget-linked, scorecard-verified, auditable. That's the year.</div>
+    </div>
+  </div>
+
+  <div class="quote">
+    "Not only do insights not die — users FEEL them. When you sit down for VSM, I want people to feel analogs of fear, relief, and excitement they feel in the real world DURING the VSM. That becomes the hook, and hoshin is the line."
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 4: COMPETITIVE POSITIONING -->
+  <h2>4. Competitive Positioning</h2>
+
+  <h3>What Svend Is Not Competing With</h3>
+  <div class="card card--orange">
+    <div class="card-label card-label--orange">Honest Boundaries</div>
+    <ul>
+      <li><strong>Enterprise MLOps</strong> — Model deployment, CI/CD pipelines, drift monitoring, Kubernetes. Svend ML Hub is for analysis/investigation, not production serving.</li>
+      <li><strong>Document Control / eQMS</strong> — Electronic signatures, 21 CFR Part 11, workflow routing. That's MasterControl/Veeva territory.</li>
+      <li><strong>ERP/MES Integration</strong> — Real-time plant floor data. Svend works with CSV uploads.</li>
+    </ul>
+  </div>
+
+  <h3>Where Svend Wins</h3>
+
+  <div class="comp-row">
+    <div class="comp-name">RCA Challenge</div>
+    <div class="comp-bar-wrap">
+      <div class="comp-bar" style="width:95%; background: var(--accent-primary);"></div>
+      <span class="comp-note">Unique — no competitor has adversarial investigation</span>
+    </div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-name">VSM Builder</div>
+    <div class="comp-bar-wrap">
+      <div class="comp-bar" style="width:85%; background: var(--accent-primary);"></div>
+      <span class="comp-note">Full metrics calc, same platform as analysis tools</span>
+    </div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-name">Diagnostic Guidance</div>
+    <div class="comp-bar-wrap">
+      <div class="comp-bar" style="width:80%; background: var(--accent-primary);"></div>
+      <span class="comp-note">Coaching layer Minitab/JMP don't provide</span>
+    </div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-name">ML Optimization Profiler</div>
+    <div class="comp-bar-wrap">
+      <div class="comp-bar" style="width:85%; background: var(--accent-blue);"></div>
+      <span class="comp-note">Prescription, not just prediction — with constraints</span>
+    </div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-name">Connected Study Workflow</div>
+    <div class="comp-bar-wrap">
+      <div class="comp-bar" style="width:75%; background: var(--accent-blue);"></div>
+      <span class="comp-note">SPC → RCA → CAPA → Effectiveness — architecturally positioned</span>
+    </div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-name">Hoshin Integration</div>
+    <div class="comp-bar-wrap">
+      <div class="comp-bar" style="width:70%; background: var(--accent-purple);"></div>
+      <span class="comp-note">Project results tied to strategic deployment</span>
+    </div>
+  </div>
+
+  <h3>Positioning Line</h3>
+  <div class="card card--accent">
+    <p><strong>Not this:</strong> "ML platform that happens to have quality tools"</p>
+    <p><strong>This:</strong> "Quality investigation workbench that happens to have ML — with a closed-loop spine connecting analysis to execution to strategy"</p>
+    <p style="margin-top: 1rem; margin-bottom: 0;"><strong>Headline:</strong> Stop doing root cause analysis in Excel. Stop copy-pasting between Minitab and PowerPoint. Stop getting 483s because your CAPA stopped at human error.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 5: CONTENT CALENDAR -->
+  <h2>5. Content Calendar — Pillar + Fragments</h2>
+  <p>The whitepaper publishes first as the pillar page. Then each section fragments into standalone blog posts, each targeting specific long-tails from the keyword cluster. All interlink back to the pillar.</p>
+
+  <h3>Phase 1 — Pillar Publication</h3>
+  <div class="card card--gold">
+    <div class="card-label card-label--gold">Week 1</div>
+    <p><strong>Publish:</strong> "Why Operational Insights Die" — full whitepaper at /insights/why-operational-insights-die</p>
+    <p><strong>Format:</strong> Web page (indexable) + PDF download (lead capture)</p>
+    <p><strong>Distribution:</strong> LinkedIn long-form post, email to existing network</p>
+  </div>
+
+  <h3>Phase 2 — Fragment Posts (Weeks 2–9)</h3>
+
+  <table class="kw-table">
+    <thead>
+      <tr><th>Week</th><th>Post Title</th><th>Target Keyword</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>2</td>
+        <td class="kw-term">Your Root Cause Isn't "Human Error" — Here's How to Prove It</td>
+        <td>root cause analysis beyond human error</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td class="kw-term">The SPC-to-CAPA Gap: Why Your Quality Events Live in 5 Different Systems</td>
+        <td>SPC to CAPA workflow single platform</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td class="kw-term">What Happens After the Consultants Leave</td>
+        <td>consulting engagement failure capability transfer</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td class="kw-term">From Value Stream Map to Hoshin: Connecting Discovery to Strategy</td>
+        <td>value stream mapping to hoshin kanri</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td class="kw-term">Decision Science for the Plant Floor: Turning Models Into Levers</td>
+        <td>decision science for manufacturing</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td class="kw-term">FMEA Without the Guesswork: Data-Driven Risk Scoring</td>
+        <td>FMEA data-driven risk scores</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td class="kw-term">Closed-Loop Quality: What It Actually Means in Practice</td>
+        <td>closed loop quality investigation workflow</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td class="kw-term">The Insight Spine: One System from VSM to Hoshin Results</td>
+        <td>operational excellence closed loop system</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Phase 3 — Amplification (Weeks 10+)</h3>
+  <ul>
+    <li><strong>LinkedIn series:</strong> Each blog post gets a condensed LinkedIn post linking back</li>
+    <li><strong>Quora/Reddit answers:</strong> Target specific questions in r/leansixsigma, r/qualitymanagement, Quora quality threads — link to relevant blog post</li>
+    <li><strong>Guest contributions:</strong> Quality Digest, ISixSigma, IndustryWeek — pitch the "Insight Spine" thesis</li>
+    <li><strong>Webinar:</strong> "Why Your Continuous Improvement Insights Die" — live demo of VSM → RCA Challenge → hoshin workflow</li>
+  </ul>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 6: DEMO SEQUENCE -->
+  <h2>6. Demo Feature Priority</h2>
+  <p>Based on market research, this is the order that creates maximum impact in sales conversations and content demonstrations.</p>
+
+  <div class="card card--accent" style="margin-bottom: 0.5rem;">
+    <div class="card-label card-label--green">Demo First — Moat Feature</div>
+    <p style="margin-bottom: 0;"><strong>RCA Challenge System</strong> — AI-adversarial root cause investigation that won't let you stop at "human error." Counterfactual testing, challenge prompts, structured rigor. Nobody else has this. Feature that makes auditors say "how do I get this for my clients."</p>
+  </div>
+
+  <div class="card card--blue" style="margin-bottom: 0.5rem;">
+    <div class="card-label card-label--blue">Demo Second — Universal Entry Point</div>
+    <p style="margin-bottom: 0;"><strong>VSM Builder</strong> — Full metrics calculation (lead time, process time, PCE, takt time, OEE), auto-calculated timeline bar. Replaces Visio + Excel combo. Lives in same ecosystem as everything else. The hook.</p>
+  </div>
+
+  <div class="card card--gold" style="margin-bottom: 0.5rem;">
+    <div class="card-label card-label--gold">Demo Third — Decision Differentiator</div>
+    <p style="margin-bottom: 0;"><strong>ML Hub Optimization Profiler</strong> — Not "here's your model" but "here's what to do." Constrained optimization with cost weights, feasibility checks, edge warnings, diminishing returns. The feature that makes CFOs listen. Competitor is the $150K McKinsey engagement.</p>
+  </div>
+
+  <div class="card card--purple">
+    <div class="card-label card-label--purple">Demo Fourth — The Spine</div>
+    <p style="margin-bottom: 0;"><strong>Connected Workflow</strong> — Show how RCA findings flow into study, study feeds project charter, charter feeds hoshin, hoshin links to budget and scorecards. Not a feature demo. An operational year, compressed into 5 minutes.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 7: WHAT WOULD MAKE SVEND INDISPENSABLE -->
+  <h2>7. Roadmap Priorities (Content-Informed)</h2>
+  <p>Features that would generate organic content and close the loop for the whitepaper thesis.</p>
+
+  <table class="kw-table">
+    <thead>
+      <tr><th>Priority</th><th>Feature</th><th>Content Impact</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td class="kw-term">Study-Linked CAPA Workflow: SPC → RCA → CAPA → Effectiveness Check</td>
+        <td>Makes "closed loop" claim demonstrable, not aspirational</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td class="kw-term">Audit Export Packages</td>
+        <td>One-click investigation report = worth subscription alone. Screenshot-ready content.</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td class="kw-term">FMEA with Evidence-Based Occurrence Scores</td>
+        <td>First to market. Entire blog post series. Conference talk material.</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td class="kw-term">Minitab/JMP Import Paths</td>
+        <td>Migration content: "Moving from Minitab to Svend" blog series</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td class="kw-term">Phase 2 Constrained Optimization (sum constraints, cost weights)</td>
+        <td>Diminishing returns chart alone is demo gold</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 8: METRICS -->
+  <h2>8. Success Metrics</h2>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-value">Page 1</div>
+      <div class="metric-label">For 3+ Cluster Terms (90 Days)</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">500+</div>
+      <div class="metric-label">Monthly Organic Visits (6 Mo)</div>
+    </div>
+    <div class="metric">
+      <div class="metric-value">5%</div>
+      <div class="metric-label">PDF Download Conv. Rate</div>
+    </div>
+  </div>
+
+  <p>Secondary metrics: backlinks from quality/OpEx publications, LinkedIn post engagement on fragment posts, email list growth from whitepaper download gate, demo requests attributable to content.</p>
+
+  <div class="divider"></div>
+
+  <!-- POSITIONING SUMMARY -->
+  <h2>9. Core Positioning — Copy Bank</h2>
+
+  <h3>One-Liner</h3>
+  <div class="card card--accent">
+    <p style="font-size: 1.05rem; margin-bottom: 0;"><strong>Svend is a closed-loop decision science workbench that connects analysis to execution to strategy — so operational insights stop dying between discovery and the shop floor.</strong></p>
+  </div>
+
+  <h3>Origin Story</h3>
+  <div class="quote">
+    "I watched a company spend hundreds of millions on consultants and capital, then go bankrupt months after the people who actually understood the work left. Svend exists so the next company keeps capability instead of renting it."
+  </div>
+
+  <h3>Headline Options</h3>
+  <ul>
+    <li>Stop doing root cause analysis in Excel.</li>
+    <li>Stop copy-pasting between Minitab and PowerPoint.</li>
+    <li>Stop getting 483s because your CAPA stopped at "human error."</li>
+    <li>Your improvement insights shouldn't die in a PowerPoint.</li>
+    <li>The consulting engagement ends. Does the capability stay?</li>
+  </ul>
+
+  <h3>Pricing Anchor</h3>
+  <p>Competitor isn't Jupyter notebook PDF. <strong>Competitor is the $150K McKinsey engagement</strong> where an analyst builds a custom optimization model, presents it once in PowerPoint, and leaves. Svend lets the client keep the tool, change constraints, re-run when conditions change, never call the consultant again. <strong>$29–199/month.</strong></p>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <div class="logo" style="justify-content: center; margin-bottom: 1rem;"><span class="dot"></span> svend</div>
+    <p>Internal Strategy Document — v1.0 — February 2026</p>
+    <p style="margin-top: 0.5rem;">svend.ai</p>
+  </div>
+
+</div>
+</body>
+</html>

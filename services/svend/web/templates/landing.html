@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Svend - Statistical Analysis & SPC Software | Minitab Alternative</title>
-    <meta name="description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies. Minitab-level power at 96% lower cost. Used by quality engineers worldwide. From $19/month.">
+    <meta name="description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies. Minitab-level power at 75% lower cost. Used by quality engineers worldwide. From $49/month.">
     <meta name="keywords" content="statistical analysis software, SPC software, control charts, Six Sigma tools, DOE software, capability analysis, Minitab alternative, quality engineering, process capability, Cpk calculator, statistical process control">
     <meta name="author" content="Svend">
     <meta name="robots" content="index, follow">
@@ -19,7 +19,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://svend.ai/">
     <meta property="og:title" content="Svend - Statistical Analysis & SPC Software">
-    <meta property="og:description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies at 96% lower cost than Minitab. From $19/month.">
+    <meta property="og:description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies at 75% lower cost than Minitab. From $49/month.">
     <meta property="og:image" content="https://svend.ai/static/og-image.png">
     <meta property="og:site_name" content="Svend">
 
@@ -27,7 +27,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://svend.ai/">
     <meta name="twitter:title" content="Svend - Statistical Analysis & SPC Software">
-    <meta name="twitter:description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies at 96% lower cost than Minitab.">
+    <meta name="twitter:description" content="Professional statistical analysis, SPC control charts, DOE, and capability studies at 68% lower cost than Minitab. From $49/month.">
     <meta name="twitter:image" content="https://svend.ai/static/og-image.png">
     <meta name="twitter:site" content="@svend_ai">
 
@@ -93,7 +93,7 @@
                 "name": "How does this compare to Minitab?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Same statistical rigor: ANOVA, DOE, SPC, capability studies, hypothesis tests. But Svend adds AI that helps you think - it detects assumptions, challenges reasoning, and drafts conclusions. And it's 96% cheaper ($228/year vs $1,500+/year)."
+                    "text": "Same statistical rigor: ANOVA, DOE, SPC, capability studies, hypothesis tests — 64+ analyses. But Svend adds hypothesis tracking, Bayesian reasoning, and ML methods included. Professional plan is $588/year vs Minitab's $1,851/year — 68% less."
                 }
             },
             {
@@ -625,6 +625,128 @@
             color: var(--text-dim);
         }
 
+        /* Insight Spine */
+        .spine-section {
+            padding: 6rem 2rem;
+            background: var(--bg-secondary);
+        }
+        .spine-inner {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .spine-flow {
+            position: relative;
+            margin-top: 3rem;
+            padding-left: 3rem;
+        }
+        .spine-flow::before {
+            content: '';
+            position: absolute;
+            left: 11px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg,
+                #4a9f6e 0%, #4a9f6e 14%,
+                #45907a 14%, #45907a 28%,
+                #3a7f8f 28%, #3a7f8f 42%,
+                #5a6f9f 42%, #5a6f9f 57%,
+                #5a4f7f 57%, #5a4f7f 71%,
+                #9a7f3f 71%, #9a7f3f 85%,
+                #e8c547 85%, #e8c547 100%);
+            border-radius: 1px;
+        }
+        .spine-step {
+            position: relative;
+            padding: 1rem 0 1rem 1.5rem;
+        }
+        .spine-step::before {
+            content: '';
+            position: absolute;
+            left: -3rem;
+            top: 1.35rem;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-primary);
+            background: var(--bg-secondary);
+            z-index: 1;
+        }
+        .spine-step::after {
+            content: '';
+            position: absolute;
+            left: calc(-3rem + 8px);
+            top: calc(1.35rem + 8px);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            z-index: 2;
+        }
+        .spine-step:nth-child(1)::before, .spine-step:nth-child(1)::after { border-color: #4a9f6e; }
+        .spine-step:nth-child(1)::after { background: #4a9f6e; }
+        .spine-step:nth-child(2)::before { border-color: #45907a; }
+        .spine-step:nth-child(2)::after { background: #45907a; }
+        .spine-step:nth-child(3)::before { border-color: #3a7f8f; }
+        .spine-step:nth-child(3)::after { background: #3a7f8f; }
+        .spine-step:nth-child(4)::before { border-color: #5a6f9f; }
+        .spine-step:nth-child(4)::after { background: #5a6f9f; }
+        .spine-step:nth-child(5)::before { border-color: #5a4f7f; }
+        .spine-step:nth-child(5)::after { background: #5a4f7f; }
+        .spine-step:nth-child(6)::before { border-color: #9a7f3f; }
+        .spine-step:nth-child(6)::after { background: #9a7f3f; }
+        .spine-step:nth-child(7)::before { border-color: #e8c547; }
+        .spine-step:nth-child(7)::after { background: #e8c547; }
+        .spine-step-title {
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.2rem;
+        }
+        .spine-step-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .spine-step-tools {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin-top: 0.35rem;
+        }
+        .spine-chip {
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            background: rgba(74, 159, 110, 0.1);
+            color: var(--text-dim);
+            border: 1px solid rgba(74, 159, 110, 0.15);
+        }
+        .spine-return {
+            margin-top: 2rem;
+            padding: 1rem 1.5rem;
+            border: 1px solid var(--accent-primary-border);
+            border-radius: 8px;
+            background: rgba(74, 159, 110, 0.04);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .spine-return-arrow {
+            font-size: 1.5rem;
+            color: var(--accent-primary);
+            flex-shrink: 0;
+        }
+        .spine-return-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .spine-return-text strong { color: var(--accent-primary); }
+
         /* Pricing */
         .pricing {
             padding: 6rem 2rem;
@@ -936,6 +1058,8 @@
         <div class="nav-links">
             <a href="#features" class="nav-link">Features</a>
             <a href="#tools" class="nav-link">Tools</a>
+            <a href="/tools/" class="nav-link">Calculators</a>
+            <a href="/whitepapers/" class="nav-link">Whitepapers</a>
             <a href="#pricing" class="nav-link">Pricing</a>
             <a href="#faq" class="nav-link">FAQ</a>
             <a href="/blog/" class="nav-link">Blog</a>
@@ -946,7 +1070,7 @@
 
     <!-- Hero -->
     <section class="hero">
-        <h1 class="hero-title">Minitab + AI at <strong>96% less</strong></h1>
+        <h1 class="hero-title">Minitab + AI at <strong>68% less</strong></h1>
         <p class="hero-subtitle">
             Professional-grade statistics, SPC, DOE, and process capability. AI that helps you think, not just compute. Structured responses, not just numbers.
         </p>
@@ -1079,7 +1203,7 @@
                         <!-- Supplier entity box (100x80) -->
                         <g transform="translate(10, 15)">
                             <rect width="100" height="80" fill="#121a12" stroke="#3a7f8f" stroke-width="2" rx="4"/>
-                            <text x="50" y="30" text-anchor="middle" font-size="20">&#127981;</text>
+                            <svg x="38" y="8" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3a7f8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V11l5 3v-3l5 3V6h6v15"/><line x1="2" y1="21" x2="22" y2="21"/></svg>
                             <text x="50" y="52" text-anchor="middle" fill="#e8efe8" font-size="11" font-weight="600">Supplier</text>
                             <text x="50" y="68" text-anchor="middle" fill="#7a8f7a" font-size="9">Weekly</text>
                         </g>
@@ -1087,7 +1211,7 @@
                         <!-- Customer entity box (100x80) -->
                         <g transform="translate(890, 15)">
                             <rect width="100" height="80" fill="#121a12" stroke="#3a7f8f" stroke-width="2" rx="4"/>
-                            <text x="50" y="30" text-anchor="middle" font-size="20">&#128101;</text>
+                            <svg x="38" y="8" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3a7f8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
                             <text x="50" y="52" text-anchor="middle" fill="#e8efe8" font-size="11" font-weight="600">Customer</text>
                             <text x="50" y="68" text-anchor="middle" fill="#7a8f7a" font-size="9">18,400/mo</text>
                         </g>
@@ -1308,61 +1432,61 @@
                 <a href="/register/" class="pricing-btn pricing-btn-secondary">Start Free</a>
             </div>
 
-            <div class="pricing-card featured" id="founder-card">
-                <div class="pricing-popular" id="founder-badge">Limited Time</div>
-                <h3 class="pricing-name">Founder</h3>
-                <p class="pricing-desc">Early adopter rate</p>
+            <div class="pricing-card featured">
+                <div class="pricing-popular">Most Popular</div>
+                <h3 class="pricing-name">Professional</h3>
+                <p class="pricing-desc">Full individual seat</p>
                 <div class="pricing-price">
-                    <span class="pricing-amount">$19</span>
+                    <span class="pricing-amount">$49</span>
                     <span class="pricing-period">/month</span>
                 </div>
                 <ul class="pricing-features">
-                    <li>500 analyses per day</li>
-                    <li>Full statistics suite</li>
-                    <li>All SPC charts</li>
-                    <li>DOE & Power Analysis</li>
-                    <li>Locked rate forever</li>
-                </ul>
-                <a href="/register/?plan=founder" class="pricing-btn pricing-btn-primary" id="founder-btn">Get Founder Rate</a>
-            </div>
-
-            <div class="pricing-card">
-                <h3 class="pricing-name">Pro</h3>
-                <p class="pricing-desc">Full access</p>
-                <div class="pricing-price">
-                    <span class="pricing-amount">$29</span>
-                    <span class="pricing-period">/month</span>
-                </div>
-                <ul class="pricing-features">
-                    <li>500 analyses per day</li>
-                    <li>Full statistics suite</li>
-                    <li>All SPC charts</li>
-                    <li>DOE & Power Analysis</li>
+                    <li>64+ statistical analyses</li>
+                    <li>SPC, DOE & Reliability</li>
+                    <li>ML model training</li>
+                    <li>Gage R&R & Capability</li>
                     <li>Priority support</li>
                 </ul>
-                <a href="/billing/checkout/?plan=pro" class="pricing-btn pricing-btn-secondary">Get Pro</a>
+                <a href="/register/?plan=pro" class="pricing-btn pricing-btn-primary">Get Professional</a>
             </div>
 
             <div class="pricing-card">
                 <h3 class="pricing-name">Team</h3>
                 <p class="pricing-desc">Collaboration</p>
                 <div class="pricing-price">
-                    <span class="pricing-amount">$79</span>
-                    <span class="pricing-period">/month</span>
+                    <span class="pricing-amount">$99</span>
+                    <span class="pricing-period">/seat/mo</span>
                 </div>
                 <ul class="pricing-features">
-                    <li>1000 analyses per day</li>
-                    <li>Everything in Pro</li>
-                    <li>Team workspaces</li>
-                    <li>Shared dashboards</li>
+                    <li>Everything in Professional</li>
+                    <li>Shared projects & dashboards</li>
+                    <li>FMEA, A3 & VSM collaboration</li>
+                    <li>Knowledge graph</li>
                     <li>Admin controls</li>
                 </ul>
-                <a href="/billing/checkout/?plan=team" class="pricing-btn pricing-btn-secondary">Get Team</a>
+                <a href="/register/?plan=team" class="pricing-btn pricing-btn-secondary">Get Team</a>
+            </div>
+
+            <div class="pricing-card">
+                <h3 class="pricing-name">Enterprise</h3>
+                <p class="pricing-desc">Full platform</p>
+                <div class="pricing-price">
+                    <span class="pricing-amount">$299</span>
+                    <span class="pricing-period">/seat/mo</span>
+                </div>
+                <ul class="pricing-features">
+                    <li>Everything in Team</li>
+                    <li>AI assistant (Claude)</li>
+                    <li>Hoshin Kanri CI</li>
+                    <li>SSO & audit trails</li>
+                    <li>Dedicated support & SLA</li>
+                </ul>
+                <a href="mailto:hello@svend.ai" class="pricing-btn pricing-btn-secondary">Contact Sales</a>
             </div>
         </div>
 
         <p style="text-align: center; margin-top: 2rem; color: var(--text-dim); font-size: 0.9rem;">
-            Enterprise plan available at $199/month with AI assistant and 5000 analyses/day. <a href="mailto:hello@svend.ai" style="color: var(--accent-primary);">Contact us</a>
+            All plans include unlimited exports. Annual billing available — <a href="mailto:hello@svend.ai" style="color: var(--accent-primary);">contact us</a> for volume discounts.
         </p>
     </section>
 
@@ -1373,7 +1497,7 @@
 
             <div class="faq-item">
                 <div class="faq-question">How does this compare to Minitab?</div>
-                <div class="faq-answer">Same statistical rigor: ANOVA, DOE, SPC, capability studies, hypothesis tests. But Svend adds AI that helps you think - it detects assumptions, challenges reasoning, and drafts conclusions. And it's 96% cheaper ($228/year vs $1,500+/year).</div>
+                <div class="faq-answer">Same statistical rigor: ANOVA, DOE, SPC, capability studies, hypothesis tests — 64+ analyses. But Svend adds hypothesis tracking, Bayesian reasoning, and ML methods included. Professional plan is $588/year vs Minitab's $1,851/year — 68% less.</div>
             </div>
 
             <div class="faq-item">
@@ -1493,39 +1617,7 @@
             });
         });
 
-        // Check founder availability
-        async function checkFounderAvailability() {
-            try {
-                const response = await fetch('/billing/founder-availability/');
-                const data = await response.json();
-
-                const founderCard = document.getElementById('founder-card');
-                const founderBadge = document.getElementById('founder-badge');
-                const founderBtn = document.getElementById('founder-btn');
-
-                if (!data.available) {
-                    // Sold out - hide the founder card entirely
-                    if (founderCard) {
-                        founderCard.style.display = 'none';
-                    }
-                } else if (data.remaining <= 20) {
-                    // Low stock - show urgency
-                    if (founderBadge) {
-                        founderBadge.textContent = `Only ${data.remaining} left!`;
-                        founderBadge.style.background = '#e74c3c';
-                    }
-                } else {
-                    // Show remaining spots
-                    if (founderBadge) {
-                        founderBadge.textContent = `${data.remaining} of 100 left`;
-                    }
-                }
-            } catch (err) {
-                console.error('Failed to check founder availability:', err);
-            }
-        }
-
-        checkFounderAvailability();
+        // Pricing section — no dynamic checks needed
 
         // =====================================================================
         // Showcase tabs + auto-rotation

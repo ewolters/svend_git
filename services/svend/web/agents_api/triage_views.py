@@ -134,6 +134,8 @@ def triage_clean(request):
             },
             "outliers_flagged": result.outliers.count if result.outliers else 0,
             "missing_filled": result.missing.total_filled if result.missing else 0,
+            "columns_dropped": result.missing.columns_dropped if result.missing else [],
+            "rows_dropped": result.missing.rows_dropped if result.missing else 0,
             "warnings": result.warnings,
         })
 

@@ -1,7 +1,7 @@
 """
 Svend Agents - AI Agent Service
 
-Agents with documented, deterministic outputs. From $19/month.
+Agents with documented, deterministic outputs. From $49/month.
 
 Philosophy: The LLM executes tasks. The tools provide value.
 Deterministic outputs you can trust.

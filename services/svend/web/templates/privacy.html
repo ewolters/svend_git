@@ -49,8 +49,14 @@
         h2 {
             font-size: 1.25rem;
             font-weight: 500;
-            margin: 2rem 0 1rem;
+            margin: 2.5rem 0 1rem;
             color: var(--accent-primary);
+        }
+        h3 {
+            font-size: 1.05rem;
+            font-weight: 500;
+            margin: 1.5rem 0 0.5rem;
+            color: var(--text-primary);
         }
         p, ul {
             color: var(--text-secondary);
@@ -66,46 +72,201 @@
             text-decoration: none;
         }
         .back:hover { color: var(--accent-primary); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        th, td {
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        th {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="/" class="logo">SVEND</a>
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: January 2026</p>
+        <p class="updated">Last updated: February 2026</p>
 
-        <h2>Information We Collect</h2>
-        <p>When you use SVEND, we collect:</p>
+        <p>SVEND is a self-hosted decision science platform operated by Eric Wolters. This policy describes what data we collect, how we protect it, and your rights. We aim to be transparent &mdash; if something isn't covered here, ask us.</p>
+
+        <!-- ─── 1. What We Collect ──────────────────────────── -->
+        <h2>1. What We Collect</h2>
+
+        <h3>Account Data</h3>
         <ul>
-            <li><strong>Account information:</strong> Email address, username, and password (encrypted)</li>
-            <li><strong>Usage data:</strong> Queries you submit, analyses you run, and features you use</li>
-            <li><strong>Payment information:</strong> Processed securely by Stripe; we don't store card details</li>
+            <li>Email address, username, and password (hashed with PBKDF2, never stored in plaintext)</li>
+            <li>Profile fields you optionally provide: display name, industry, role, experience level, organization size</li>
+            <li>Subscription tier and billing status</li>
         </ul>
 
-        <h2>How We Use Your Data</h2>
+        <h3>Conversations &amp; Analysis</h3>
         <ul>
-            <li>To provide and improve the SVEND service</li>
-            <li>To process your subscription payments</li>
-            <li>To send important service updates</li>
-            <li>To improve our AI models (anonymized usage patterns only)</li>
+            <li>Messages you send and responses you receive</li>
+            <li>Files you upload (datasets, documents)</li>
+            <li>Analysis results (DSW, SPC, DOE, triage, forecasting)</li>
+            <li>Projects, hypotheses, evidence, A3 reports, FMEA studies, RCA sessions, value stream maps, whiteboards</li>
         </ul>
 
-        <h2>Data Storage & Security</h2>
-        <p>Your data is stored on secure servers. We use encryption in transit (HTTPS) and at rest. We do not sell your personal data to third parties.</p>
-
-        <h2>Your Data Rights</h2>
-        <p>You can request to:</p>
+        <h3>Diagnostic Logs</h3>
         <ul>
-            <li>Access your personal data</li>
-            <li>Delete your account and associated data</li>
-            <li>Export your data</li>
+            <li>Pipeline trace logs (input, reasoning steps, model outputs) &mdash; used for debugging and model improvement</li>
+            <li>Low-confidence and error responses are flagged as training candidates for review</li>
         </ul>
 
-        <h2>Cookies</h2>
-        <p>We use essential cookies for authentication and session management. No third-party tracking cookies.</p>
+        <h3>Usage Analytics</h3>
+        <ul>
+            <li>Page views, feature usage, session events</li>
+            <li>IP addresses are hashed (SHA-256) before storage &mdash; we do not store raw IPs</li>
+            <li>Daily query counts and token usage</li>
+        </ul>
 
+        <h3>Payment Data</h3>
+        <ul>
+            <li>Processed entirely by <strong>Stripe</strong>. We never see or store your card number, expiry, or CVV.</li>
+            <li>We store a Stripe customer ID (encrypted) to link your account to your subscription.</li>
+        </ul>
+
+        <!-- ─── 2. How We Use Your Data ─────────────────────── -->
+        <h2>2. How We Use Your Data</h2>
+        <ul>
+            <li><strong>Service delivery:</strong> Running your analyses, storing your projects, responding to queries</li>
+            <li><strong>AI improvement:</strong> Low-confidence responses may be reviewed to improve model accuracy. Reviewed data is never shared externally.</li>
+            <li><strong>Email:</strong> Account verification, service updates, and optional onboarding emails. You can opt out of non-essential emails at any time.</li>
+            <li><strong>Analytics:</strong> Understanding feature usage to improve the product. Analytics are aggregated; we don't build individual behavioral profiles.</li>
+            <li><strong>Rate limiting:</strong> Enforcing fair-use query limits per subscription tier</li>
+        </ul>
+
+        <!-- ─── 3. Data Storage & Security ───────────────────── -->
+        <h2>3. Data Storage &amp; Security</h2>
+
+        <h3>Infrastructure</h3>
+        <ul>
+            <li>SVEND runs on a <strong>private, self-hosted server</strong> &mdash; not shared cloud infrastructure</li>
+            <li>PostgreSQL database on localhost (no external DB access)</li>
+            <li>All traffic encrypted via <strong>HTTPS with HSTS</strong> (2-year max-age, preload)</li>
+            <li>Content Security Policy (CSP) restricts page resource origins</li>
+        </ul>
+
+        <h3>Encryption at Rest</h3>
+        <ul>
+            <li>Sensitive fields are encrypted using <strong>AES-128 (Fernet)</strong> before storage in the database: conversation content, reasoning traces, analysis results, uploaded files, Stripe customer IDs</li>
+            <li>The encryption key is stored separately from the database and application code</li>
+            <li>Even with direct database or disk access, sensitive data appears as ciphertext</li>
+        </ul>
+
+        <h3>Authentication</h3>
+        <ul>
+            <li>Passwords hashed with <strong>PBKDF2-SHA256</strong> (Django default, 720,000 iterations)</li>
+            <li>Email verification tokens stored as SHA-256 hashes (one-way)</li>
+            <li>Session cookies: secure, HttpOnly, SameSite=Lax</li>
+        </ul>
+
+        <h3>Backups</h3>
+        <ul>
+            <li>Daily encrypted database backups (AES-256)</li>
+            <li>Backups retained for 30 days, then automatically deleted</li>
+        </ul>
+
+        <!-- ─── 4. Data Retention ────────────────────────────── -->
+        <h2>4. Data Retention</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Retention</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Conversations &amp; projects</td>
+                    <td>While your account is active</td>
+                </tr>
+                <tr>
+                    <td>Uploaded files</td>
+                    <td>While your account is active; deleted on account deletion</td>
+                </tr>
+                <tr>
+                    <td>Pipeline trace logs</td>
+                    <td>30 days</td>
+                </tr>
+                <tr>
+                    <td>Training candidates (reviewed)</td>
+                    <td>30 days after export</td>
+                </tr>
+                <tr>
+                    <td>Usage analytics &amp; event logs</td>
+                    <td>90 days</td>
+                </tr>
+                <tr>
+                    <td>Blog view analytics</td>
+                    <td>180 days</td>
+                </tr>
+                <tr>
+                    <td>Shared conversations</td>
+                    <td>Deleted when expired or when account is deleted</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ─── 5. Third-Party Services ──────────────────────── -->
+        <h2>5. Third-Party Services</h2>
+        <ul>
+            <li><strong>Stripe</strong> &mdash; Payment processing. Stripe's privacy policy applies to payment data. We never access your card details.</li>
+            <li><strong>Resend (SMTP)</strong> &mdash; Transactional email delivery (verification, onboarding, service updates)</li>
+            <li><strong>Anthropic API</strong> &mdash; Enterprise-tier AI features (critique, escalation). Data sent to Anthropic is subject to their <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">privacy policy</a>. This feature is opt-in and only available on the Enterprise plan.</li>
+            <li><strong>Let's Encrypt</strong> &mdash; TLS certificate issuance (automated, no user data shared)</li>
+        </ul>
+        <p>We do not use any third-party analytics services, advertising networks, or tracking pixels.</p>
+
+        <!-- ─── 6. Your Rights ───────────────────────────────── -->
+        <h2>6. Your Rights</h2>
+        <p>You can:</p>
+        <ul>
+            <li><strong>Access</strong> your data &mdash; your conversations, projects, and analyses are visible in your account</li>
+            <li><strong>Delete</strong> your account and all associated data &mdash; email us and we'll process it within 7 days</li>
+            <li><strong>Export</strong> your data &mdash; analysis results can be downloaded as CSV/JSON from the app</li>
+            <li><strong>Opt out</strong> of non-essential emails via your account settings or by clicking the unsubscribe link</li>
+            <li><strong>Correct</strong> inaccurate information &mdash; update your profile in Settings, or contact us for other corrections</li>
+        </ul>
+
+        <!-- ─── 7. Cookies ───────────────────────────────────── -->
+        <h2>7. Cookies</h2>
+        <p>We use <strong>essential cookies only</strong>:</p>
+        <ul>
+            <li><strong>Session cookie</strong> (<code>sessionid</code>) &mdash; keeps you logged in</li>
+            <li><strong>CSRF cookie</strong> (<code>csrftoken</code>) &mdash; prevents cross-site request forgery</li>
+        </ul>
+        <p>We do not use third-party tracking cookies, analytics cookies, or advertising cookies.</p>
+
+        <!-- ─── 8. Email Communications ──────────────────────── -->
+        <h2>8. Email Communications</h2>
+        <ul>
+            <li><strong>Transactional:</strong> Account verification, password resets, subscription changes &mdash; cannot be opted out</li>
+            <li><strong>Onboarding:</strong> Welcome series and feature tips for new users &mdash; can be opted out</li>
+            <li><strong>Service updates:</strong> Important changes to terms, pricing, or functionality &mdash; sent rarely</li>
+        </ul>
+
+        <!-- ─── 9. Children ──────────────────────────────────── -->
+        <h2>9. Children</h2>
+        <p>SVEND is not intended for use by anyone under the age of 16. We do not knowingly collect data from children.</p>
+
+        <!-- ─── 10. Changes ──────────────────────────────────── -->
+        <h2>10. Changes to This Policy</h2>
+        <p>We may update this policy as the product evolves. Significant changes will be communicated via email to active users. The "last updated" date at the top reflects when changes were last made.</p>
+
+        <!-- ─── Contact ──────────────────────────────────────── -->
         <h2>Contact</h2>
-        <p>Questions about privacy? Email <a href="mailto:eric.wolters@svend.ai">eric.wolters@svend.ai</a></p>
+        <p>Questions or requests about your privacy? Email <a href="mailto:eric.wolters@svend.ai">eric.wolters@svend.ai</a></p>
 
         <a href="/" class="back">&larr; Back to SVEND</a>
     </div>

@@ -66,7 +66,7 @@ def _email_welcome(user, survey):
 <li>Try an <a href="https://svend.ai/app/spc/" style="color:#4a9f6e;">SPC control chart</a> with your own data</li>
 </ol>
 
-<p>You get 5 free runs per day. If you hit that limit quickly, that's a good sign you should check out our <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">paid plans</a> starting at $19/month.</p>
+<p>You get 5 free runs per day. If you hit that limit quickly, that's a good sign you should check out our <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Professional plan</a> at $49/month — 75% less than Minitab.</p>
 
 <p>Reply to this email anytime. I read everything.</p>
 <p>-- Eric, Founder</p>""",
@@ -228,12 +228,12 @@ def _email_checkin(user, survey):
         content = f"""<h2>Hey {name},</h2>
 <p>You've run {queries} analyses so far. How's it going?</p>
 <p>If something isn't working the way you expected, or if there's a feature you wish existed, just reply to this email. I'm building this based on what users actually need.</p>
-<p>If you're finding Svend useful and hitting the daily limit, the <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Founder plan at $19/month</a> gives you 50 runs/day and locks in that price forever.</p>"""
+<p>If you're finding Svend useful and hitting the daily limit, the <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Professional plan at $49/month</a> gives you 50 runs/day and access to all 64+ analyses.</p>"""
     else:
         content = f"""<h2>Hey {name},</h2>
 <p>You've run {queries} analyses this week. Looks like you're getting good use out of Svend.</p>
 <p>Quick question: is there anything that would make it even more useful for your work? A specific test, a feature, a workflow? Reply and let me know.</p>
-<p>If you haven't already, the <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Founder plan</a> is still available at $19/month (locked forever). Only {'{remaining}'} of 100 spots left.</p>"""
+<p>If you haven't already, the <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Professional plan</a> at $49/month gives you full access to 64+ statistical analyses, SPC, DOE, and ML — at 75% less than Minitab.</p>"""
 
     return (
         f"Quick check-in, {name}",
@@ -417,7 +417,7 @@ def _lifecycle_upgrade_nudge(user):
         f"You're a power user, {name}",
         f"""<h2>Hey {name},</h2>
 <p>You're hitting your daily analysis limit regularly — that means you're getting real value from Svend.</p>
-<p>The <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Founder plan</a> gives you <strong>10x the daily limit</strong> for $19/month — and that price is locked in forever, even as we raise prices later.</p>
+<p>The <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Professional plan</a> gives you <strong>10x the daily limit</strong> for $49/month — full access to 64+ analyses, SPC, DOE, reliability, and ML.</p>
 <p><strong>What you get:</strong></p>
 <ul>
 <li>50 analyses/day (vs 5 on free)</li>
@@ -487,7 +487,7 @@ def _lifecycle_milestone(user, count=100):
         f"""<h2>Hey {name},</h2>
 <p>You've just hit <strong>{count} analyses</strong> on Svend. That's impressive.</p>
 <p>You're clearly getting real work done with this tool, and that's exactly what it's built for.</p>
-<p>If you're on the free plan, the <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Founder plan at $19/month</a> would give you 10x the daily limit. If you're already a paying customer — thank you. You're literally making this possible.</p>
+<p>If you're on the free plan, the <a href="https://svend.ai/#pricing" style="color:#4a9f6e;">Professional plan at $49/month</a> would give you 10x the daily limit. If you're already a paying customer — thank you. You're literally making this possible.</p>
 <p>Keep going. And if you ever want a feature added, just reply.</p>
 <p>-- Eric</p>""",
     )
@@ -612,85 +612,87 @@ def process_automations(payload, context):
     staff_ids = set(User.objects.filter(is_staff=True).values_list("id", flat=True))
     fired = 0
 
-    for rule in rules:
-        cfg = rule.trigger_config or {}
-        matched_users = []
-
-        if rule.trigger == "signup_no_query":
+    def _evaluate_trigger(trigger_type, cfg, staff_ids, now):
+        """Return set of user IDs matching a single trigger."""
+        matched = set()
+        if trigger_type == "signup_no_query":
             days = cfg.get("days", 3)
             cutoff = now - timedelta(days=days)
-            matched_users = list(
+            matched = set(
                 User.objects.filter(
-                    date_joined__lte=cutoff,
-                    total_queries=0,
-                    is_active=True,
-                    email_opted_out=False,
-                ).exclude(id__in=staff_ids)
+                    date_joined__lte=cutoff, total_queries=0,
+                    is_active=True, email_opted_out=False,
+                ).exclude(id__in=staff_ids).values_list("id", flat=True)
             )
-
-        elif rule.trigger == "inactive_days":
+        elif trigger_type == "inactive_days":
             days = cfg.get("days", 7)
             cutoff = now - timedelta(days=days)
-            matched_users = list(
+            matched = set(
                 User.objects.filter(
-                    last_active_at__lte=cutoff,
-                    total_queries__gt=0,
-                    is_active=True,
-                    email_opted_out=False,
-                ).exclude(id__in=staff_ids)
+                    last_active_at__lte=cutoff, total_queries__gt=0,
+                    is_active=True, email_opted_out=False,
+                ).exclude(id__in=staff_ids).values_list("id", flat=True)
             )
-
-        elif rule.trigger == "query_limit_near":
+        elif trigger_type == "query_limit_near":
             threshold_pct = cfg.get("threshold", 80)
             for user in User.objects.filter(is_active=True, tier="free", email_opted_out=False).exclude(id__in=staff_ids):
                 limit = TIER_LIMITS.get(user.tier, 5)
                 if limit > 0 and user.queries_today >= (limit * threshold_pct / 100):
-                    matched_users.append(user)
-
-        elif rule.trigger == "churn_signal":
+                    matched.add(user.id)
+        elif trigger_type == "churn_signal":
             sub_user_ids = Subscription.objects.filter(
-                cancel_at_period_end=True,
-                status="active",
+                cancel_at_period_end=True, status="active",
             ).values_list("user_id", flat=True)
-            matched_users = list(
+            matched = set(
                 User.objects.filter(
-                    id__in=sub_user_ids,
-                    is_active=True,
-                    email_opted_out=False,
-                ).exclude(id__in=staff_ids)
+                    id__in=sub_user_ids, is_active=True, email_opted_out=False,
+                ).exclude(id__in=staff_ids).values_list("id", flat=True)
             )
-
-        elif rule.trigger == "milestone":
+        elif trigger_type == "milestone":
             threshold = cfg.get("count", 100)
-            matched_users = list(
+            matched = set(
                 User.objects.filter(
-                    total_queries__gte=threshold,
-                    is_active=True,
-                    email_opted_out=False,
-                ).exclude(id__in=staff_ids)
+                    total_queries__gte=threshold, is_active=True, email_opted_out=False,
+                ).exclude(id__in=staff_ids).values_list("id", flat=True)
             )
-
-        elif rule.trigger == "feature_unused":
-            # Check paid users who haven't used a specific domain
+        elif trigger_type == "feature_unused":
             feature = cfg.get("feature", "doe")
             days = cfg.get("days", 14)
             cutoff = now - timedelta(days=days)
             from chat.models import UsageLog
             paid_users = User.objects.filter(
                 tier__in=["founder", "pro", "team", "enterprise"],
-                is_active=True,
-                email_opted_out=False,
+                is_active=True, email_opted_out=False,
             ).exclude(id__in=staff_ids)
             for user in paid_users:
                 recent = UsageLog.objects.filter(
-                    user=user,
-                    date__gte=cutoff.date(),
+                    user=user, date__gte=cutoff.date(),
                 ).order_by("-date").first()
                 if recent and recent.domain_counts:
                     if feature not in recent.domain_counts:
-                        matched_users.append(user)
+                        matched.add(user.id)
                 elif recent:
-                    matched_users.append(user)
+                    matched.add(user.id)
+        return matched
+
+    for rule in rules:
+        cfg = rule.trigger_config or {}
+
+        # Evaluate primary trigger
+        primary_ids = _evaluate_trigger(rule.trigger, cfg, staff_ids, now)
+
+        # Evaluate optional second trigger
+        if rule.trigger_2:
+            cfg2 = rule.trigger_2_config or {}
+            secondary_ids = _evaluate_trigger(rule.trigger_2, cfg2, staff_ids, now)
+            if rule.trigger_logic == "or":
+                matched_ids = primary_ids | secondary_ids
+            else:
+                matched_ids = primary_ids & secondary_ids
+        else:
+            matched_ids = primary_ids
+
+        matched_users = list(User.objects.filter(id__in=matched_ids))
 
         # Filter by cooldown
         for user in matched_users:
@@ -863,7 +865,7 @@ def claude_growth_review(payload, context):
     }
 
     system_prompt = """You are a growth advisor for Svend, a SaaS decision science platform for engineers and analysts.
-Pricing: Free (5/day) / Founder $19/mo (50/day) / Pro $29/mo / Team $79/mo / Enterprise $199/mo.
+Pricing: Free (5/day) / Professional $49/mo (50/day) / Team $99/mo / Enterprise $299/mo.
 Competing against Minitab ($1,851/yr) and JMP ($1,320-$8,400/yr).
 Solo founder operation. Every recommendation must be actionable with zero employees.
 

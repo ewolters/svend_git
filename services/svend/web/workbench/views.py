@@ -112,6 +112,10 @@ def update_workbench(request, workbench_id):
         workbench.conclusion_confidence = data["conclusion_confidence"]
     if "layout" in data:
         workbench.layout = data["layout"]
+    if "datasets" in data:
+        workbench.datasets = data["datasets"]
+    if "guide_observations" in data:
+        workbench.guide_observations = data["guide_observations"]
 
     workbench.save()
 

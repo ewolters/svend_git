@@ -1,0 +1,94 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Engineering Whitepapers — Free Guides for Quality Engineers{% endblock %}
+{% block meta_description %}Free in-depth guides on statistical methods, quality engineering, and process improvement. Written for practicing engineers. No signup required.{% endblock %}
+{% block meta_keywords %}quality engineering whitepapers, SPC guide, process capability guide, Six Sigma whitepapers, statistical methods, control chart guide, lean manufacturing{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/whitepapers/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/whitepapers/">
+<meta property="og:title" content="Engineering Whitepapers | Svend">
+<meta property="og:description" content="Free in-depth guides on SPC, capability analysis, hypothesis testing, DOE, and more. Written for practicing engineers.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Engineering Whitepapers",
+    "url": "https://svend.ai/whitepapers/",
+    "description": "Free in-depth guides on statistical methods, quality engineering, and process improvement for practicing engineers.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.wp-list { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+.wp-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem 1.75rem;
+    display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center;
+    transition: border-color 0.2s;
+}
+.wp-card:hover { border-color: var(--accent-primary-border); }
+.wp-meta { display: flex; flex-direction: column; gap: 0.25rem; }
+.wp-title { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+.wp-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+.wp-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem; }
+.wp-tag {
+    font-size: 0.65rem; color: var(--accent-primary); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    background: var(--accent-primary-dim); border-radius: 3px; padding: 0.15rem 0.4rem;
+}
+.wp-download {
+    display: flex; align-items: center; gap: 0.4rem;
+    background: var(--accent-primary); color: #fff; padding: 0.5rem 1.25rem;
+    border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 600;
+    white-space: nowrap; transition: background 0.2s; flex-shrink: 0;
+}
+.wp-download:hover { background: #3a8a5a; }
+.wp-download svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+.wp-coming { color: var(--text-dim); font-size: 0.8rem; font-style: italic; flex-shrink: 0; }
+@media (max-width: 768px) {
+    .wp-card { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1>Engineering <strong>Whitepapers</strong></h1>
+    <p>In-depth guides on statistical methods, quality engineering, and process improvement. Free to download.</p>
+</div>
+
+<div class="wp-list" id="whitepapers">
+    {% for paper in papers %}
+    <div class="wp-card">
+        <div class="wp-meta">
+            <a href="/whitepapers/{{ paper.slug }}/" class="wp-title" style="text-decoration:none;">{{ paper.title }}</a>
+            <div class="wp-desc">{{ paper.description }}</div>
+            <div class="wp-tags">
+                {% if paper.topic %}<span class="wp-tag">{{ paper.topic }}</span>{% endif %}
+                <span class="wp-tag">{{ paper.published_at|date:"M Y" }}</span>
+            </div>
+        </div>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+            <a href="/whitepapers/{{ paper.slug }}/" class="wp-download" style="background:var(--bg-tertiary); color:var(--text-secondary); border:1px solid var(--border);">
+                Read
+            </a>
+            <a href="/whitepapers/{{ paper.slug }}/pdf/" class="wp-download">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+                PDF
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <p style="color: var(--text-dim); text-align: center; padding: 3rem 0;">Whitepapers coming soon.</p>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -578,8 +578,10 @@ select option {
 .calc-guide-card.expanded .calc-guide-header svg { transform: rotate(90deg); }
 .calc-guide-body {
     display: none; padding: 16px 20px;
-    background: var(--bg-card); font-size: 13px;
-    line-height: 1.6; color: var(--text-secondary);
+    background: var(--bg-card);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.8; color: var(--text-secondary);
 }
 .calc-guide-card.expanded .calc-guide-body { display: block; }
 .calc-guide-section { margin-bottom: 14px; }
@@ -1615,13 +1617,17 @@ input[type="number"] {
 
                     <!-- Order Queue -->
                     <div style="margin-top: 16px;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
                             <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">Order Queue</div>
                             <button onclick="addOrder()" style="padding: 4px 10px; background: var(--accent); border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
                                 + Add Order
                             </button>
                             <button onclick="generateSampleOrders()" style="padding: 4px 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-secondary); cursor: pointer; font-size: 11px;">
                                 Generate Sample
+                            </button>
+                            <button class="calc-pull-btn standalone" onclick="pullFromMixedModel()" title="Pull leveled sequence from Mixed-Model Sequencer" style="margin-left: auto;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                ← Mixed-Model
                             </button>
                         </div>
                         <div id="ls-orders" style="max-height: 200px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; padding: 12px;">
@@ -1645,11 +1651,15 @@ input[type="number"] {
                 </div>
 
                 <div class="calc-section">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
                         <div class="calc-section-title" style="margin: 0;">Stations</div>
                         <button onclick="importFromYamazumi()" style="padding: 6px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             Import from Yamazumi
+                        </button>
+                        <button class="calc-pull-btn standalone" onclick="pullKanbanToLine()" title="Copy stations from Kanban Simulator">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            ← Kanban Sim
                         </button>
                     </div>
                     <div id="ls-stations" style="display: flex; flex-direction: column; gap: 8px;">
@@ -3810,6 +3820,16 @@ input[type="number"] {
                 </div>
 
                 <div class="calc-section">
+                    <div class="calc-inputs" style="max-width: 300px;">
+                        <div class="calc-input">
+                            <label>Hourly Cost Rate ($)</label>
+                            <input type="number" id="changeover-hourly-cost" value="150" min="0" oninput="renderChangeoverMatrix()">
+                            <span class="input-hint">For cost per changeover</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calc-section">
                     <div class="calc-section-title">Analysis</div>
                     <div class="calc-results">
                         <div class="calc-result-card">
@@ -3827,6 +3847,14 @@ input[type="number"] {
                         <div class="calc-result-card primary">
                             <div class="calc-result-label">Best Sequence</div>
                             <div class="calc-result-value" id="changeover-best" style="font-size: 18px;">A→B→C→D</div>
+                        </div>
+                        <div class="calc-result-card" style="border-top: 2px solid #4a9f6e;">
+                            <div class="calc-result-label">Avg Cost</div>
+                            <div class="calc-result-value" id="changeover-avg-cost" style="color: #4a9f6e;">$0</div>
+                        </div>
+                        <div class="calc-result-card" style="border-top: 2px solid #4a9f6e;">
+                            <div class="calc-result-label">Best Sequence Cost</div>
+                            <div class="calc-result-value" id="changeover-seq-cost" style="color: #4a9f6e;">$0</div>
                         </div>
                     </div>
                 </div>
@@ -4353,6 +4381,12 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title">Improvement Summary</div>
                     <div id="beforeafter-chart" style="height: 350px;"></div>
+                    <div id="ba-synara-action" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; text-align: center;">
+                        <button onclick="logBAToSynara()" style="padding: 10px 20px; background: var(--accent); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">
+                            Log to Synara
+                        </button>
+                        <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">Submit improvement evidence to hypothesis tracker</div>
+                    </div>
                 </div>
             </div>
 
@@ -4523,6 +4557,11 @@ input[type="number"] {
                                 <option value="spt">Shortest Processing Time</option>
                             </select>
                         </div>
+                        <div class="calc-input">
+                            <label>Hourly Cost Rate ($)</label>
+                            <input type="number" id="seq-hourly-cost" value="150" min="0">
+                            <span class="input-hint">For $ savings calculation</span>
+                        </div>
                     </div>
                     <div style="margin-top: 16px; display: flex; gap: 8px;">
                         <button onclick="runSequenceOptimizer()" style="padding: 10px 20px; background: var(--accent); border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; flex: 1;">
@@ -4531,6 +4570,10 @@ input[type="number"] {
                         <button class="calc-pull-btn standalone" onclick="pullFromSequencer()" title="Pull jobs from Job Sequencer">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                             ← Sequencer
+                        </button>
+                        <button class="calc-pull-btn standalone" onclick="pullChangeoverMatrix()" title="Use per-pair setup times from Changeover Matrix">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            ← Matrix
                         </button>
                     </div>
                 </div>
@@ -5013,7 +5056,13 @@ input[type="number"] {
                 </div>
 
                 <div class="calc-section">
-                    <div class="calc-section-title">Stations</div>
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div class="calc-section-title" style="margin: 0;">Stations</div>
+                        <button class="calc-pull-btn standalone" onclick="pullLinesToKanban()" title="Copy station layout from Line Simulator">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            ← Line Sim
+                        </button>
+                    </div>
                     <div id="ks-stations" style="display: flex; flex-direction: column; gap: 8px;"></div>
                     <div style="margin-top: 8px; font-size: 11px; color: var(--text-dim);">Cycle time in seconds per unit</div>
                 </div>
@@ -5204,11 +5253,26 @@ input[type="number"] {
                             <input type="range" id="toc-cov" min="0" max="50" value="20" oninput="document.getElementById('toc-cov-label').textContent = this.value + '%'">
                             <span class="input-hint" id="toc-cov-label">20%</span>
                         </div>
+                        <div class="calc-input">
+                            <label>Value per Unit ($)</label>
+                            <input type="number" id="toc-value-per-unit" value="100" min="0" step="10">
+                            <span class="input-hint">For throughput accounting</span>
+                        </div>
                     </div>
                 </div>
 
                 <div class="calc-section">
-                    <div class="calc-section-title">Stations <span style="font-size: 11px; color: var(--text-dim); font-weight: 400; margin-left: 8px;">capacity = units/hr</span></div>
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div class="calc-section-title" style="margin: 0;">Stations <span style="font-size: 11px; color: var(--text-dim); font-weight: 400; margin-left: 8px;">capacity = units/hr</span></div>
+                        <button class="calc-pull-btn standalone" onclick="pullLinesToTOC()" title="Copy stations from Line Simulator (converts cycle time → capacity)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            ← Line Sim
+                        </button>
+                        <button class="calc-pull-btn standalone" onclick="pullBottleneckToTOC()" title="Copy stations from Bottleneck analysis">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            ← Bottleneck
+                        </button>
+                    </div>
                     <div id="toc-stations" style="display: flex; flex-direction: column; gap: 8px;"></div>
                 </div>
 
@@ -5250,6 +5314,10 @@ input[type="number"] {
                         <div class="calc-result-card">
                             <div class="calc-result-label">Avg Lead Time</div>
                             <div class="calc-result-value" id="toc-leadtime">0<span class="calc-result-unit">sec</span></div>
+                        </div>
+                        <div class="calc-result-card" style="border-top: 2px solid #4a9f6e;">
+                            <div class="calc-result-label">Throughput Value</div>
+                            <div class="calc-result-value" id="toc-financial-throughput" style="color: #4a9f6e;">$0<span class="calc-result-unit">/hr</span></div>
                         </div>
                     </div>
                 </div>
@@ -6699,6 +6767,8 @@ function doVSMImport() {
         case 'takt': loadVSMIntoTakt(vsm); break;
         case 'oee': loadVSMIntoOEE(steps); break;
         case 'kanban': loadVSMIntoKanbanSizing(vsm); break;
+        case 'capacity-load': loadVSMIntoCapacityLoad(effectiveStations, vsm); break;
+        case 'rto': loadVSMIntoRTO(effectiveStations, vsm); break;
         default:
             // Generic: try to load into simulators that have stations
             if (effectiveStations.length > 0) {
@@ -6868,6 +6938,9 @@ function loadVSMIntoOEE(steps) {
     if (step.uptime) {
         document.getElementById('oee-uptime').value = step.uptime;
     }
+    if (step.cycle_time) {
+        document.getElementById('oee-ideal').value = step.cycle_time;
+    }
     if (typeof calcOEE === 'function') calcOEE();
 }
 
@@ -6885,32 +6958,82 @@ function loadVSMIntoKanbanSizing(vsm) {
     if (typeof calcKanban === 'function') calcKanban();
 }
 
+function loadVSMIntoCapacityLoad(stations, vsm) {
+    if (stations.length === 0) return;
+    const demand = parseFloat((vsm.customer_demand || '').replace(/[^\d.]/g, '')) || 100;
+    capacityOrders.length = 0;
+    stations.forEach((s, i) => {
+        capacityOrders.push({
+            id: i + 1,
+            name: s.name,
+            hours: parseFloat(((s.cycle_time * demand) / 3600).toFixed(2)),
+            startDay: 1
+        });
+    });
+    if (typeof renderCapacityOrders === 'function') renderCapacityOrders();
+    if (typeof calcCapacityLoad === 'function') calcCapacityLoad();
+}
+
+function loadVSMIntoRTO(stations, vsm) {
+    if (stations.length === 0) return;
+    const totalCT = stations.reduce((sum, s) => sum + (s.cycle_time || 0), 0);
+    document.getElementById('rto-cycle').value = totalCT.toFixed(1);
+    if (vsm.takt_time) document.getElementById('rto-takt').value = vsm.takt_time;
+    if (typeof calcRTO === 'function') calcRTO();
+}
+
 // --- Export Takt to VSM ---
 
 async function exportTaktToVSM() {
     const taktSec = SvendOps.get('takt');
     if (!taktSec) { alert('Calculate takt time first'); return; }
 
-    // Fetch VSMs
     try {
         const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
         const data = await resp.json();
         const maps = data.maps || [];
-        if (maps.length === 0) { alert('No VSMs found'); return; }
+        if (maps.length === 0) { alert('No VSMs found. Create a Value Stream Map first.'); return; }
 
-        const name = maps.length === 1 ? maps[0].name :
-            prompt('Enter VSM name to update:\n' + maps.map(m => '• ' + m.name).join('\n'));
-        if (!name) return;
+        // Single VSM — export directly
+        if (maps.length === 1) {
+            await doExportTaktToVSM(maps[0], taktSec);
+            return;
+        }
 
-        const target = maps.find(m => m.name === name) || maps[0];
+        // Multiple VSMs — show selection modal
+        const opts = maps.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+        const modal = document.getElementById('vsm-import-modal');
+        modal.querySelector('h3').textContent = 'Export Takt Time to VSM';
+        const selectEl = document.getElementById('vsm-import-select');
+        selectEl.innerHTML = opts;
+        document.getElementById('vsm-import-preview').style.display = 'none';
+        const importBtn = document.getElementById('vsm-import-btn');
+        importBtn.textContent = 'Export to Selected VSM';
+        importBtn.onclick = async () => {
+            const selectedId = selectEl.value;
+            const target = maps.find(m => String(m.id) === selectedId);
+            if (!target) return;
+            closeVSMImport();
+            await doExportTaktToVSM(target, taktSec);
+            importBtn.onclick = () => doVSMImport();
+            importBtn.textContent = 'Import into Current Calculator';
+            modal.querySelector('h3').textContent = 'Import from Value Stream Map';
+        };
+        modal.style.display = 'flex';
+    } catch (e) {
+        alert('Failed to export: ' + e.message);
+    }
+}
 
-        await fetch(`/api/vsm/${target.id}/`, {
+async function doExportTaktToVSM(target, taktSec) {
+    try {
+        const resp = await fetch(`/api/vsm/${target.id}/update/`, {
             method: 'PUT',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ takt_time: taktSec })
         });
-
+        if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
         alert(`Takt time (${taktSec.toFixed(1)}s) exported to "${target.name}"`);
     } catch (e) {
         alert('Failed to export: ' + e.message);
@@ -11491,6 +11614,18 @@ function calcChangeover(products) {
         else break;
     }
     document.getElementById('changeover-best').textContent = sequence.join('→');
+
+    // Financial: cost per changeover
+    const hourlyCost = parseFloat(document.getElementById('changeover-hourly-cost')?.value) || 0;
+    const avgCost = (avg / 60) * hourlyCost;
+    document.getElementById('changeover-avg-cost').innerHTML = `$${avgCost.toFixed(0)}`;
+    // Best sequence total cost
+    let seqTotal = 0;
+    for (let i = 0; i < sequence.length - 1; i++) {
+        seqTotal += changeoverMatrix[sequence[i]]?.[sequence[i + 1]] || 0;
+    }
+    const seqCost = (seqTotal / 60) * hourlyCost;
+    document.getElementById('changeover-seq-cost').innerHTML = `$${seqCost.toFixed(0)}`;
 }
 
 // ============================================================================
@@ -12572,6 +12707,53 @@ function calcBA() {
         xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
         legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
     }, { responsive: true, displayModeBar: false });
+
+    // Show Synara action bar
+    const actionBar = document.getElementById('ba-synara-action');
+    if (actionBar) actionBar.style.display = 'block';
+}
+
+async function logBAToSynara() {
+    if (baData.length === 0) { showToast('No before/after data to log', 'warning'); return; }
+
+    const improvements = baData.map(m => {
+        const change = m.after - m.before;
+        const pctChange = m.before !== 0 ? (change / m.before) * 100 : 0;
+        const improved = m.lowerBetter ? change < 0 : change > 0;
+        return { ...m, change, pctChange, improved };
+    });
+
+    const improvedCount = improvements.filter(m => m.improved).length;
+    const details = improvements.map(m =>
+        `${m.metric}: ${m.before}${m.unit} \u2192 ${m.after}${m.unit} (${m.pctChange >= 0 ? '+' : ''}${m.pctChange.toFixed(1)}%${m.improved ? ' \u2713' : ' \u2717'})`
+    ).join('; ');
+    const summary = `Before/After: ${improvedCount}/${baData.length} metrics improved. ${details}`;
+
+    // Try posting to Synara if workbench context available
+    const wbId = typeof currentWorkbench !== 'undefined' && currentWorkbench?.id;
+    if (wbId) {
+        try {
+            const hypResp = await fetch(`/api/synara/${wbId}/hypotheses/`);
+            const hypData = await hypResp.json();
+            const hypotheses = hypData.hypotheses || [];
+            if (hypotheses.length === 0) {
+                showToast('No hypotheses yet \u2014 create one in the Synara tab first', 'warning');
+                return;
+            }
+            // Post as general evidence (not linked to specific hypothesis)
+            await fetch(`/api/synara/${wbId}/evidence/add/`, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: summary, strength: improvedCount / baData.length, source: 'before_after' })
+            });
+            showToast('Evidence logged to Synara');
+        } catch (e) {
+            showToast('Failed to log evidence: ' + e.message, 'error');
+        }
+    } else {
+        sessionStorage.setItem('pendingEvidence', JSON.stringify({ source: 'Before/After', summary, confidence: improvedCount / baData.length }));
+        showToast('Evidence saved \u2014 will be available when you open a workbench');
+    }
 }
 
 // ============================================================================
@@ -13078,29 +13260,41 @@ function runSequenceOptimizer() {
     document.getElementById('opt-new-make').textContent = newMetrics.makespan + ' min';
     document.getElementById('opt-new-flow').textContent = newMetrics.avgFlowTime.toFixed(0) + ' min';
 
-    // Improvement summary
+    // Improvement summary with $ valuation
     let improvement = '';
+    const seqHourlyCost = parseFloat(document.getElementById('seq-hourly-cost')?.value) || 0;
+    const dollarSuffix = (minSaved) => seqHourlyCost > 0 ? ` = <strong>$${((minSaved / 60) * seqHourlyCost).toFixed(0)} saved</strong>` : '';
     switch (objective) {
         case 'setup':
             const setupSaved = currentMetrics.setup - newMetrics.setup;
-            improvement = setupSaved > 0 ? `<span style="color: #4a9f6e;">${setupSaved} min setup saved (${((setupSaved/currentMetrics.setup)*100).toFixed(0)}% reduction)</span>` : 'Already optimal for setup';
+            improvement = setupSaved > 0 ? `<span style="color: #4a9f6e;">${setupSaved} min setup saved (${((setupSaved/currentMetrics.setup)*100).toFixed(0)}% reduction)${dollarSuffix(setupSaved)}</span>` : 'Already optimal for setup';
             break;
         case 'tardiness':
             const tardSaved = currentMetrics.tardiness - newMetrics.tardiness;
-            improvement = tardSaved > 0 ? `<span style="color: #4a9f6e;">${tardSaved} min tardiness reduced</span>` : 'Already optimal for tardiness';
+            improvement = tardSaved > 0 ? `<span style="color: #4a9f6e;">${tardSaved} min tardiness reduced${dollarSuffix(tardSaved)}</span>` : 'Already optimal for tardiness';
             break;
         case 'makespan':
             const makeSaved = currentMetrics.makespan - newMetrics.makespan;
-            improvement = makeSaved > 0 ? `<span style="color: #4a9f6e;">${makeSaved} min makespan reduced</span>` : 'Already optimal for makespan';
+            improvement = makeSaved > 0 ? `<span style="color: #4a9f6e;">${makeSaved} min makespan reduced${dollarSuffix(makeSaved)}</span>` : 'Already optimal for makespan';
             break;
         case 'flowtime':
             const flowSaved = currentMetrics.avgFlowTime - newMetrics.avgFlowTime;
-            improvement = flowSaved > 0 ? `<span style="color: #4a9f6e;">${flowSaved.toFixed(0)} min avg flow time reduced</span>` : 'Already optimal for flow time';
+            improvement = flowSaved > 0 ? `<span style="color: #4a9f6e;">${flowSaved.toFixed(0)} min avg flow time reduced${dollarSuffix(flowSaved)}</span>` : 'Already optimal for flow time';
             break;
     }
     document.getElementById('opt-improvement').innerHTML = improvement;
 
     optimizedOrder = newOrder;
+}
+
+function pullChangeoverMatrix() {
+    if (!changeoverMatrix || Object.keys(changeoverMatrix).length === 0) {
+        showToast('No changeover data — configure Changeover Matrix first', 'warning');
+        return;
+    }
+    const products = Object.keys(changeoverMatrix);
+    showToast(`Using per-pair setup times for ${products.length} products from Changeover Matrix`);
+    runSequenceOptimizer();
 }
 
 function nearestNeighborSequence(jobs, objective) {
@@ -13634,6 +13828,58 @@ function pushMixedToLineSim() {
     showToast('Pushed leveled sequence to Line Simulator');
 }
 
+function pullFromMixedModel() {
+    if (typeof mixedProducts === 'undefined' || mixedProducts.length === 0) {
+        showToast('No Mixed-Model data — configure products in Mixed-Model first', 'warning');
+        return;
+    }
+    pushMixedToLineSim();
+}
+
+// --- Cross-Simulator Station Sharing ---
+
+function pullLinesToKanban() {
+    if (lineStations.length === 0) { showToast('No Line Sim stations — add stations or import from VSM first', 'warning'); return; }
+    kanbanStations.length = 0;
+    lineStations.forEach(s => kanbanStations.push({ name: s.name, cycleTime: s.cycleTime }));
+    if (typeof renderKanbanStations === 'function') renderKanbanStations();
+    if (typeof resetKanbanSim === 'function') resetKanbanSim();
+    showToast(`Pulled ${kanbanStations.length} stations from Line Sim`);
+}
+
+function pullKanbanToLine() {
+    if (kanbanStations.length === 0) { showToast('No Kanban Sim stations — add stations first', 'warning'); return; }
+    lineStations.length = 0;
+    kanbanStations.forEach(s => lineStations.push({ name: s.name, cycleTime: s.cycleTime }));
+    if (typeof renderLineStations === 'function') renderLineStations();
+    if (typeof resetLineSim === 'function') resetLineSim();
+    showToast(`Pulled ${lineStations.length} stations from Kanban Sim`);
+}
+
+function pullLinesToTOC() {
+    if (lineStations.length === 0) { showToast('No Line Sim stations — add stations or import from VSM first', 'warning'); return; }
+    tocStationsData.length = 0;
+    lineStations.forEach(s => {
+        const capacity = Math.round(3600 / (s.cycleTime || 60));
+        tocStationsData.push({ name: s.name, capacity });
+    });
+    if (typeof renderTocStations === 'function') renderTocStations();
+    if (typeof resetTocSim === 'function') resetTocSim();
+    showToast(`Pulled ${tocStationsData.length} stations from Line Sim (cycle time → capacity)`);
+}
+
+function pullBottleneckToTOC() {
+    if (bottleneckData.length === 0) { showToast('No Bottleneck data — add process steps first', 'warning'); return; }
+    tocStationsData.length = 0;
+    bottleneckData.forEach(s => {
+        const capacity = Math.round(3600 / (s.time || 60));
+        tocStationsData.push({ name: s.name, capacity });
+    });
+    if (typeof renderTocStations === 'function') renderTocStations();
+    if (typeof resetTocSim === 'function') resetTocSim();
+    showToast(`Pulled ${tocStationsData.length} stations from Bottleneck (cycle time → capacity)`);
+}
+
 // ============================================================================
 // Due Date Risk Simulator
 // ============================================================================
@@ -13677,6 +13923,24 @@ function removeDDSOrder(idx) {
 function updateDDSOrder(idx, field, value) {
     if (field === 'processTime' || field === 'dueDate') value = parseFloat(value) || 0;
     ddsOrders[idx][field] = value;
+}
+
+function ddsReschedule(idx) {
+    const order = ddsOrders[idx];
+    const newDue = prompt(`Reschedule ${order.name}\nCurrent due: ${order.dueDate} min\nSuggested: ${Math.round(order.dueDate * 1.3)} min\n\nEnter new due date (minutes):`, Math.round(order.dueDate * 1.3));
+    if (newDue !== null) {
+        ddsOrders[idx].dueDate = parseFloat(newDue) || order.dueDate;
+        renderDDSOrders();
+        runDueDateSim();
+        showToast(`${order.name} rescheduled to ${newDue} min`);
+    }
+}
+
+function ddsFlag(idx) {
+    const order = ddsOrders[idx];
+    order.flagged = true;
+    showToast(`${order.name} flagged for expediting`);
+    runDueDateSim();
 }
 
 function loadSampleDDSOrders() {
@@ -13777,18 +14041,25 @@ function runDueDateSim() {
 
     // Per-order results
     const resultsContainer = document.getElementById('dds-order-results');
-    resultsContainer.innerHTML = orderResults.map(r => {
+    resultsContainer.innerHTML = orderResults.map((r, idx) => {
         const riskColor = r.onTimePct >= 95 ? '#4a9f6e' : r.onTimePct >= 80 ? '#e8c547' : '#e74c3c';
+        const isHighRisk = r.onTimePct < 80;
         return `
             <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border-left: 3px solid ${riskColor};">
                 <div style="flex: 1;">
-                    <div style="font-weight: 500;">${r.name}</div>
+                    <div style="font-weight: 500;">${r.name}${r.flagged ? ' <span style="color:#e8c547;">&#9873;</span>' : ''}</div>
                     <div style="font-size: 11px; color: var(--text-dim);">Due: ${r.dueDate} min | Avg: ${r.mean.toFixed(0)} min</div>
                 </div>
                 <div style="text-align: right;">
                     <div style="font-size: 18px; font-weight: 600; color: ${riskColor};">${r.onTimePct.toFixed(0)}%</div>
                     <div style="font-size: 10px; color: var(--text-dim);">on-time</div>
                 </div>
+                ${isHighRisk ? `
+                <div style="display: flex; gap: 4px;">
+                    <button onclick="ddsReschedule(${idx})" style="padding: 4px 8px; font-size: 11px; background: var(--accent); border: none; border-radius: 4px; color: white; cursor: pointer;" title="Adjust due date and re-run">Reschedule</button>
+                    <button onclick="ddsFlag(${idx})" style="padding: 4px 8px; font-size: 11px; background: #e8c547; border: none; border-radius: 4px; color: #1a1d23; cursor: pointer;" title="Flag for expediting">Flag</button>
+                </div>
+                ` : ''}
             </div>
         `;
     }).join('');
@@ -14582,7 +14853,19 @@ let currentScenarioId = null;
 
 // Collect all calculator state into one object
 function collectState() {
+    // Collect all calculator input values generically
+    const calcInputs = {};
+    document.querySelectorAll('.calc-layout input, .calc-layout select').forEach(el => {
+        if (el.id) calcInputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
     return {
+        // Active calculator
+        currentCalcId: currentCalcId,
+
+        // All calculator input values
+        calcInputs: calcInputs,
+
         // Line Simulator
         lineStations: lineStations,
         lineProducts: lineProducts,
@@ -14672,6 +14955,21 @@ function collectState() {
 // Restore state from saved object
 function restoreState(state) {
     if (!state) return;
+
+    // Restore all calculator inputs generically
+    if (state.calcInputs) {
+        for (const [id, val] of Object.entries(state.calcInputs)) {
+            const el = document.getElementById(id);
+            if (!el) continue;
+            if (el.type === 'checkbox') el.checked = val;
+            else el.value = val;
+        }
+    }
+
+    // Restore active calculator
+    if (state.currentCalcId && typeof showCalc === 'function') {
+        showCalc(state.currentCalcId);
+    }
 
     // Line Simulator
     if (state.lineStations) lineStations = state.lineStations;
@@ -15048,6 +15346,21 @@ function refreshAllDisplays() {
 
     // WFA — Workflow Analysis
     if (typeof renderWFAElements === 'function') renderWFAElements();
+
+    // Recalculate all simple calculators from restored inputs
+    if (typeof calcTakt === 'function') calcTakt();
+    if (typeof calcRTO === 'function') calcRTO();
+    if (typeof calcOEE === 'function') calcOEE();
+    if (typeof calcKanban === 'function') calcKanban();
+    if (typeof calcEPEI === 'function') calcEPEI();
+    if (typeof calcSafety === 'function') calcSafety();
+    if (typeof calcEOQ === 'function') calcEOQ();
+    if (typeof calcLittles === 'function') calcLittles();
+    if (typeof calcQueue === 'function') calcQueue();
+    if (typeof calcPitch === 'function') calcPitch();
+    if (typeof calcBottleneck === 'function') calcBottleneck();
+    if (typeof calcMTBF === 'function') calcMTBF();
+    if (typeof renderYamazumi === 'function') renderYamazumi();
 }
 
 // Toast notification helper
@@ -16310,6 +16623,12 @@ function updateTocMetrics() {
     // Simplified lead time: WIP / throughput (Little's Law)
     const lt = throughput > 0 ? (totalWIP / throughput * 3600) : 0;
     document.getElementById('toc-leadtime').innerHTML = `${lt.toFixed(0)}<span class="calc-result-unit">sec</span>`;
+
+    // Financial throughput accounting
+    const valuePerUnit = parseFloat(document.getElementById('toc-value-per-unit')?.value) || 0;
+    const financialThroughput = throughput * valuePerUnit;
+    const ftEl = document.getElementById('toc-financial-throughput');
+    if (ftEl) ftEl.innerHTML = `$${financialThroughput.toFixed(0)}<span class="calc-result-unit">/hr</span>`;
 
     // Chart
     if (tocState.history.time.length % 5 === 0 && tocState.history.time.length > 0) {

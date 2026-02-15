@@ -78,6 +78,14 @@
         letter-spacing: 0.5px;
         margin-top: 4px;
     }
+    .kpi-change {
+        font-size: 0.7rem;
+        margin-top: 2px;
+        font-weight: 500;
+    }
+    .kpi-change.up { color: #4a9f6e; }
+    .kpi-change.down { color: #ef4444; }
+    .kpi-change.neutral { color: var(--text-dim); }
 
     /* Tabs */
     .tab-bar {
@@ -273,7 +281,48 @@
         color: var(--text-dim);
         font-size: 0.9rem;
     }
+
+    /* Theme-aware form controls */
+    select, option {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+    }
+
+    /* Toast notifications */
+    .toast-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .toast {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        animation: toast-in 0.2s ease-out;
+        max-width: 360px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toast.success { background: #065f46; color: #d1fae5; border: 1px solid #10b981; }
+    .toast.error { background: #7f1d1d; color: #fecaca; border: 1px solid #ef4444; }
+    .toast.info { background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border); }
+    .toast button {
+        background: none; border: none; color: inherit; cursor: pointer; opacity: 0.7; font-size: 1rem; padding: 0;
+    }
+    .toast button:hover { opacity: 1; }
+    @keyframes toast-in {
+        from { opacity: 0; transform: translateX(20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
 </style>
+
+<div class="toast-container" id="toast-container"></div>
 
 <!-- Header -->
 <div class="dash-header">
@@ -287,10 +336,10 @@
 
 <!-- KPI Cards -->
 <div class="kpi-row" id="kpi-row">
-    <div class="kpi-card"><div class="kpi-value" id="kpi-users">—</div><div class="kpi-label">Total Users</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpi-active">—</div><div class="kpi-label">Active Today</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpi-requests">—</div><div class="kpi-label">Requests Today</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpi-errors">—</div><div class="kpi-label">Errors Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-users">—</div><div class="kpi-change" id="kpi-users-change"></div><div class="kpi-label">Total Users</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-active">—</div><div class="kpi-change" id="kpi-active-change"></div><div class="kpi-label">Active Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-requests">—</div><div class="kpi-change" id="kpi-requests-change"></div><div class="kpi-label">Requests Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-errors">—</div><div class="kpi-change" id="kpi-errors-change"></div><div class="kpi-label">Errors Today</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpi-latency">—</div><div class="kpi-label">Avg Latency</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpi-mrr">—</div><div class="kpi-label">Est. MRR</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpi-conversion">—</div><div class="kpi-label">Conversion</div></div>
@@ -328,6 +377,12 @@
             </div>
         </div>
         <div class="chart-card"><h3>Experience Level</h3><canvas id="chart-experience"></canvas></div>
+        <div class="chart-card full-width">
+            <h3>Churn Risk (Paid Users)</h3>
+            <div id="churn-risk-table" style="overflow-x:auto;font-size:0.8rem;margin-top:0.5rem;">
+                <div style="color:var(--text-dim);text-align:center;padding:1rem;">Loading...</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -369,6 +424,12 @@
             </div>
         </div>
         <div class="chart-card"><h3>Feature Adoption (Paid Users)</h3><canvas id="chart-features"></canvas></div>
+        <div class="chart-card full-width">
+            <h3>Cohort Retention</h3>
+            <div id="retention-heatmap" style="overflow-x:auto;font-size:0.75rem;margin-top:0.5rem;">
+                <div style="color:var(--text-dim);text-align:center;padding:1rem;">Loading retention data...</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -425,27 +486,48 @@
             <div style="display:flex;gap:12px;margin-bottom:12px;">
                 <div style="flex:1;">
                     <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">To</label>
-                    <select id="email-to" style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
-                        <option value="all" style="color:#e8efe8;background:#121a12;">All customers</option>
-                        <option value="tier:free" style="color:#e8efe8;background:#121a12;">Free tier</option>
-                        <option value="tier:founder" style="color:#e8efe8;background:#121a12;">Founders</option>
-                        <option value="tier:pro" style="color:#e8efe8;background:#121a12;">Pro</option>
-                        <option value="tier:team" style="color:#e8efe8;background:#121a12;">Team</option>
-                        <option value="tier:enterprise" style="color:#e8efe8;background:#121a12;">Enterprise</option>
+                    <select id="email-to" onchange="previewEmailCount()" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+                        <optgroup label="Broadcast">
+                            <option value="all">All customers</option>
+                        </optgroup>
+                        <optgroup label="By Tier">
+                            <option value="tier:free">Free tier</option>
+                            <option value="tier:founder">Founders</option>
+                            <option value="tier:pro">Pro</option>
+                            <option value="tier:team">Team</option>
+                            <option value="tier:enterprise">Enterprise</option>
+                        </optgroup>
+                        <optgroup label="Activity">
+                            <option value="active:7d">Active last 7 days</option>
+                            <option value="active:30d">Active last 30 days</option>
+                            <option value="inactive:14d">Inactive 14+ days</option>
+                            <option value="inactive:30d">Inactive 30+ days</option>
+                        </optgroup>
+                        <optgroup label="Engagement">
+                            <option value="has_queries">Has used queries</option>
+                            <option value="no_queries">Never queried</option>
+                            <option value="new:7d">Signed up last 7 days</option>
+                        </optgroup>
+                        <optgroup label="Feature Usage (90d)">
+                            <option value="domain:dsw">Used DSW</option>
+                            <option value="domain:spc">Used SPC</option>
+                            <option value="domain:doe">Used DOE</option>
+                        </optgroup>
                     </select>
+                    <span id="email-match-count" style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px;display:block;"></span>
                 </div>
                 <div style="flex:1;">
                     <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Or custom address</label>
-                    <input id="email-custom-to" type="email" placeholder="someone@example.com" style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+                    <input id="email-custom-to" type="email" placeholder="someone@example.com" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
                 </div>
             </div>
             <div style="margin-bottom:12px;">
                 <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Subject</label>
-                <input id="email-subject" type="text" placeholder="Email subject..." style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+                <input id="email-subject" type="text" placeholder="Email subject..." style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
             </div>
             <div style="margin-bottom:12px;">
                 <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Body (Markdown — supports &#123;&#123;firstname&#125;&#125;, &#123;&#123;name&#125;&#125;, &#123;&#123;email&#125;&#125;, &#123;&#123;tier&#125;&#125;)</label>
-                <textarea id="email-body" rows="14" placeholder="Write your email in markdown..." oninput="updateEmailPreview()" style="width:100%;padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
+                <textarea id="email-body" rows="14" placeholder="Write your email in markdown..." oninput="updateEmailPreview()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <button onclick="confirmSendEmail(false)" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Send</button>
@@ -490,10 +572,11 @@
                         <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Opened</th>
                         <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Clicked</th>
                         <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Open Rate</th>
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Conversions</th>
                     </tr>
                 </thead>
                 <tbody id="campaigns-tbody">
-                    <tr><td colspan="7" style="padding:16px;color:var(--text-dim);text-align:center;">Loading...</td></tr>
+                    <tr><td colspan="8" style="padding:16px;color:var(--text-dim);text-align:center;">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -502,54 +585,114 @@
 
 <!-- Tab: Content -->
 <div class="tab-content" id="tab-content">
-    <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;min-height:500px;">
-        <!-- Left: Post list + AI generator -->
-        <div>
-            <button onclick="newPost()" style="width:100%;padding:8px;margin-bottom:12px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">+ New Post</button>
-            <div style="margin-bottom:16px;">
-                <input id="gen-topic" placeholder="Topic for AI draft..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
-                <input id="gen-keywords" placeholder="SEO keywords..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
-                <button onclick="generateDraft()" id="gen-btn" style="width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.85rem;">Generate Draft</button>
-            </div>
-            <div id="post-list" style="max-height:400px;overflow-y:auto;"></div>
-        </div>
-        <!-- Right: Editor -->
-        <div id="editor-panel" style="display:none;">
-            <input id="ed-title" placeholder="Post title" style="width:100%;padding:10px;margin-bottom:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:1.1rem;font-weight:500;">
-            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                <input id="ed-slug" placeholder="slug" style="flex:1;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
-                <input id="ed-meta" placeholder="Meta description (160 chars)" maxlength="160" style="flex:2;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
-                <textarea id="ed-body" rows="20" placeholder="Markdown body..." style="width:100%;padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;" oninput="updatePreview()"></textarea>
-                <div id="ed-preview" style="padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;overflow-y:auto;max-height:500px;font-size:0.85rem;color:var(--text-secondary);"></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <button onclick="savePost()" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Save</button>
-                <button onclick="publishPost()" id="pub-btn" style="padding:8px 20px;background:transparent;border:1px solid var(--accent-primary);border-radius:6px;color:var(--accent-primary);cursor:pointer;">Publish</button>
-                <div style="display:flex;gap:6px;align-items:center;">
-                    <input id="ed-schedule" type="datetime-local" style="padding:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.8rem;">
-                    <button onclick="schedulePost()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">Schedule</button>
+    <!-- Content sub-tabs: Blog / Whitepapers -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);">
+        <button onclick="switchContentSub('blog')" id="content-sub-blog" style="padding:10px 24px;background:transparent;border:none;border-bottom:2px solid var(--accent-primary);margin-bottom:-2px;color:var(--accent-primary);font-weight:600;cursor:pointer;font-size:0.9rem;">Blog Posts</button>
+        <button onclick="switchContentSub('whitepapers')" id="content-sub-wp" style="padding:10px 24px;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);font-weight:500;cursor:pointer;font-size:0.9rem;">Whitepapers</button>
+    </div>
+
+    <!-- Sub: Blog -->
+    <div id="content-blog-section">
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;min-height:500px;">
+            <!-- Left: Post list + AI generator -->
+            <div>
+                <button onclick="newPost()" style="width:100%;padding:8px;margin-bottom:12px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">+ New Post</button>
+                <!-- Content Calendar -->
+                <div id="content-calendar" style="margin-bottom:12px;font-size:0.7rem;"></div>
+                <div style="margin-bottom:16px;">
+                    <input id="gen-topic" placeholder="Topic for AI draft..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
+                    <input id="gen-keywords" placeholder="SEO keywords..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
+                    <button onclick="generateDraft()" id="gen-btn" style="width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.85rem;">Generate Draft</button>
                 </div>
-                <button onclick="insertChart()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">+ Chart</button>
-                <span style="flex:1;"></span>
-                <button onclick="deletePost()" style="padding:6px 12px;background:transparent;border:1px solid rgba(232,90,90,0.3);border-radius:6px;color:#e85a5a;cursor:pointer;font-size:0.8rem;">Delete</button>
-                <span id="ed-status" style="font-size:0.8rem;color:var(--text-dim);"></span>
+                <div id="post-list" style="max-height:400px;overflow-y:auto;"></div>
             </div>
+            <!-- Right: Editor -->
+            <div id="editor-panel" style="display:none;">
+                <input id="ed-title" placeholder="Post title" style="width:100%;padding:10px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:1.1rem;font-weight:500;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <input id="ed-slug" placeholder="slug" style="flex:1;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                    <input id="ed-meta" placeholder="Meta description (160 chars)" maxlength="160" style="flex:2;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+                    <textarea id="ed-body" rows="20" placeholder="Markdown body..." style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;" oninput="updatePreview()"></textarea>
+                    <div id="ed-preview" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;overflow-y:auto;max-height:500px;font-size:0.85rem;color:var(--text-secondary);"></div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button onclick="savePost()" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Save</button>
+                    <button onclick="publishPost()" id="pub-btn" style="padding:8px 20px;background:transparent;border:1px solid var(--accent-primary);border-radius:6px;color:var(--accent-primary);cursor:pointer;">Publish</button>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input id="ed-schedule" type="datetime-local" style="padding:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.8rem;">
+                        <button onclick="schedulePost()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">Schedule</button>
+                    </div>
+                    <button onclick="insertChart()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">+ Chart</button>
+                    <span style="flex:1;"></span>
+                    <button onclick="deletePost()" style="padding:6px 12px;background:transparent;border:1px solid rgba(232,90,90,0.3);border-radius:6px;color:#e85a5a;cursor:pointer;font-size:0.8rem;">Delete</button>
+                    <span id="ed-status" style="font-size:0.8rem;color:var(--text-dim);"></span>
+                </div>
+            </div>
+        </div>
+        <!-- Blog Analytics -->
+        <div class="chart-grid" style="margin-top:24px;">
+            <div class="chart-card full-width" style="padding-bottom:0;">
+                <div class="stat-row" style="border-top:none;padding-top:0;justify-content:center;">
+                    <div class="stat-item"><div class="stat-val" id="stat-blog-views">—</div><div class="stat-lbl">Views</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-blog-unique">—</div><div class="stat-lbl">Unique Visitors</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-blog-bots">—</div><div class="stat-lbl">Bot Hits</div></div>
+                </div>
+            </div>
+            <div class="chart-card full-width"><h3>Views Over Time</h3><canvas id="chart-blog-views"></canvas></div>
+            <div class="chart-card"><h3>Top Posts</h3><canvas id="chart-blog-top"></canvas></div>
+            <div class="chart-card"><h3>Traffic Sources</h3><canvas id="chart-blog-referrers"></canvas></div>
         </div>
     </div>
-    <!-- Blog Analytics -->
-    <div class="chart-grid" style="margin-top:24px;">
-        <div class="chart-card full-width" style="padding-bottom:0;">
-            <div class="stat-row" style="border-top:none;padding-top:0;justify-content:center;">
-                <div class="stat-item"><div class="stat-val" id="stat-blog-views">—</div><div class="stat-lbl">Views</div></div>
-                <div class="stat-item"><div class="stat-val" id="stat-blog-unique">—</div><div class="stat-lbl">Unique Visitors</div></div>
-                <div class="stat-item"><div class="stat-val" id="stat-blog-bots">—</div><div class="stat-lbl">Bot Hits</div></div>
+
+    <!-- Sub: Whitepapers -->
+    <div id="content-wp-section" style="display:none;">
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;min-height:400px;">
+            <!-- Left: Paper list -->
+            <div>
+                <button onclick="newWhitepaper()" style="width:100%;padding:8px;margin-bottom:12px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">+ New Whitepaper</button>
+                <div id="wp-list" style="max-height:500px;overflow-y:auto;"></div>
+            </div>
+            <!-- Right: Editor -->
+            <div id="wp-editor-panel" style="display:none;">
+                <input id="wp-title" placeholder="Whitepaper title" style="width:100%;padding:10px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:1.1rem;font-weight:500;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <input id="wp-slug" placeholder="slug" style="flex:1;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                    <input id="wp-topic" placeholder="Topic (e.g. SPC, DOE, Lean)" style="flex:1;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                    <input id="wp-meta" placeholder="Meta description (160 chars)" maxlength="160" style="flex:2;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                </div>
+                <textarea id="wp-desc" rows="3" placeholder="Short description / abstract..." style="width:100%;padding:10px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;"></textarea>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+                    <textarea id="wp-body" rows="18" placeholder="Full markdown content..." style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;" oninput="updateWPPreview()"></textarea>
+                    <div id="wp-preview" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;overflow-y:auto;max-height:450px;font-size:0.85rem;color:var(--text-secondary);"></div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button onclick="saveWhitepaper()" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Save</button>
+                    <button onclick="publishWhitepaper()" id="wp-pub-btn" style="padding:8px 20px;background:transparent;border:1px solid var(--accent-primary);border-radius:6px;color:var(--accent-primary);cursor:pointer;">Publish</button>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text-secondary);cursor:pointer;">
+                        <input type="checkbox" id="wp-gated" checked> Gated (email required)
+                    </label>
+                    <span style="flex:1;"></span>
+                    <button onclick="deleteWhitepaper()" style="padding:6px 12px;background:transparent;border:1px solid rgba(232,90,90,0.3);border-radius:6px;color:#e85a5a;cursor:pointer;font-size:0.8rem;">Delete</button>
+                    <span id="wp-status" style="font-size:0.8rem;color:var(--text-dim);"></span>
+                </div>
             </div>
         </div>
-        <div class="chart-card full-width"><h3>Views Over Time</h3><canvas id="chart-blog-views"></canvas></div>
-        <div class="chart-card"><h3>Top Posts</h3><canvas id="chart-blog-top"></canvas></div>
-        <div class="chart-card"><h3>Traffic Sources</h3><canvas id="chart-blog-referrers"></canvas></div>
+        <!-- Whitepaper Analytics -->
+        <div class="chart-grid" style="margin-top:24px;">
+            <div class="chart-card full-width" style="padding-bottom:0;">
+                <div class="stat-row" style="border-top:none;padding-top:0;justify-content:center;">
+                    <div class="stat-item"><div class="stat-val" id="stat-wp-downloads">—</div><div class="stat-lbl">Downloads</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-wp-unique">—</div><div class="stat-lbl">Unique Downloaders</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-wp-emails">—</div><div class="stat-lbl">Emails Captured</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-wp-bots">—</div><div class="stat-lbl">Bot Hits</div></div>
+                </div>
+            </div>
+            <div class="chart-card full-width"><h3>Downloads Over Time</h3><canvas id="chart-wp-downloads"></canvas></div>
+            <div class="chart-card"><h3>Top Papers</h3><canvas id="chart-wp-top"></canvas></div>
+            <div class="chart-card"><h3>Traffic Sources</h3><canvas id="chart-wp-referrers"></canvas></div>
+        </div>
     </div>
 </div>
 
@@ -605,35 +748,35 @@
             </div>
             <div id="experiment-form" style="display:none;margin:1rem 0;padding:1rem;border:1px solid var(--border);border-radius:8px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-                    <input id="exp-name" placeholder="Experiment name" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
-                    <select id="exp-type" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    <input id="exp-name" placeholder="Experiment name" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
+                    <select id="exp-type" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                         <option value="email_subject">Email Subject</option>
                         <option value="email_body">Email Body</option>
                         <option value="onboarding_flow">Onboarding Flow</option>
                         <option value="feature_flag">Feature Flag</option>
                     </select>
                 </div>
-                <textarea id="exp-hypothesis" placeholder="Hypothesis" rows="2" style="width:100%;margin:0.5rem 0;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);resize:vertical;"></textarea>
+                <textarea id="exp-hypothesis" placeholder="Hypothesis" rows="2" style="width:100%;margin:0.5rem 0;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);resize:vertical;"></textarea>
                 <div id="exp-variants" style="margin:0.5rem 0;">
                     <div style="display:flex;gap:0.5rem;margin-bottom:0.3rem;">
-                        <input class="exp-variant-name" placeholder="Variant A name" value="Control" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
-                        <input class="exp-variant-config" placeholder='Config JSON (optional)' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                        <input class="exp-variant-name" placeholder="Variant A name" value="Control" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
+                        <input class="exp-variant-config" placeholder='Config JSON (optional)' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                     </div>
                     <div style="display:flex;gap:0.5rem;">
-                        <input class="exp-variant-name" placeholder="Variant B name" value="Treatment" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
-                        <input class="exp-variant-config" placeholder='Config JSON, e.g. {"subject":"New subject"}' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                        <input class="exp-variant-name" placeholder="Variant B name" value="Treatment" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
+                        <input class="exp-variant-config" placeholder='Config JSON, e.g. {"subject":"New subject"}' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                     </div>
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <select id="exp-status" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    <select id="exp-status" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                         <option value="draft">Draft</option>
                         <option value="running">Running</option>
                     </select>
-                    <input id="exp-min-sample" type="number" value="100" placeholder="Min sample" style="width:100px;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    <input id="exp-min-sample" type="number" value="100" placeholder="Min sample" style="width:100px;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                     <span style="color:var(--text-secondary);font-size:0.75rem;">min sample/variant</span>
                     <div style="flex:1;"></div>
                     <button onclick="saveExperiment()" style="background:var(--accent);color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;">Save</button>
-                    <button onclick="document.getElementById('experiment-form').style.display='none'" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">Cancel</button>
+                    <button onclick="document.getElementById('experiment-form').style.display='none'" style="background:var(--bg-tertiary);color:var(--text);border:1px solid var(--border);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">Cancel</button>
                 </div>
             </div>
             <table id="experiments-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
@@ -657,6 +800,51 @@
         <div class="chart-card full-width">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <h3>Automation Rules</h3>
+                <button onclick="showRuleForm()" style="background:var(--accent);color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-size:0.8rem;">+ New Rule</button>
+            </div>
+            <div id="rule-form" style="display:none;margin:1rem 0;padding:1rem;border:1px solid var(--border);border-radius:8px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                    <input id="rule-name" placeholder="Rule name" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                    <select id="rule-trigger" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                        <option value="inactive_days">Inactive days</option>
+                        <option value="signup_no_query">Signup, no queries</option>
+                        <option value="query_limit_near">Near query limit</option>
+                        <option value="churn_signal">Churn signal</option>
+                        <option value="milestone">Milestone reached</option>
+                        <option value="feature_unused">Feature unused</option>
+                    </select>
+                </div>
+                <input id="rule-trigger-config" placeholder='Trigger config JSON, e.g. {"days": 14}' style="width:100%;margin:0.5rem 0;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                <!-- Optional compound trigger -->
+                <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                    <select id="rule-trigger-logic" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);font-size:0.8rem;">
+                        <option value="">No second trigger</option>
+                        <option value="and">AND</option>
+                        <option value="or">OR</option>
+                    </select>
+                    <select id="rule-trigger-2" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);" disabled>
+                        <option value="">Select 2nd trigger...</option>
+                        <option value="inactive_days">Inactive days</option>
+                        <option value="signup_no_query">Signup, no queries</option>
+                        <option value="query_limit_near">Near query limit</option>
+                        <option value="churn_signal">Churn signal</option>
+                        <option value="milestone">Milestone reached</option>
+                        <option value="feature_unused">Feature unused</option>
+                    </select>
+                    <input id="rule-trigger-2-config" placeholder='2nd trigger config JSON' style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);" disabled>
+                </div>
+                <textarea id="rule-description" placeholder="Description (optional)" rows="2" style="width:100%;margin-bottom:0.5rem;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);resize:vertical;"></textarea>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <select id="rule-action" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                        <option value="send_email">Send email</option>
+                        <option value="internal_alert">Internal alert</option>
+                    </select>
+                    <input id="rule-action-config" placeholder='Action config JSON, e.g. {"template": "inactive_nudge"}' style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                    <input id="rule-cooldown" type="number" value="72" placeholder="Cooldown (hrs)" style="width:100px;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                    <div style="flex:1;"></div>
+                    <button onclick="saveRule()" class="btn btn-primary" style="font-size:0.8rem;padding:0.4rem 1rem;">Save</button>
+                    <button onclick="document.getElementById('rule-form').style.display='none'" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem;">Cancel</button>
+                </div>
             </div>
             <table id="rules-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
                 <thead>
@@ -689,12 +877,41 @@
         <div class="chart-card full-width">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <h3>User Feedback</h3>
-                <select id="feedback-filter" onchange="loadFeedback()" style="padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:0.75rem;">
+                <select id="feedback-filter" onchange="loadFeedback()" style="padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);font-size:0.75rem;">
                     <option value="">All</option>
                     <option value="new">New</option>
                     <option value="reviewed">Reviewed</option>
                     <option value="resolved">Resolved</option>
                 </select>
+            </div>
+            <!-- Feedback Summary -->
+            <div id="feedback-summary" style="display:none;margin-top:0.5rem;padding:0.75rem;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border);">
+                <div style="display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;">
+                    <div style="display:flex;gap:1rem;align-items:center;flex:1;min-width:200px;">
+                        <div style="text-align:center;">
+                            <div id="fb-total" style="font-size:1.5rem;font-weight:600;color:var(--text-primary);">0</div>
+                            <div style="font-size:0.7rem;color:var(--text-secondary);">Total</div>
+                        </div>
+                        <div style="width:1px;height:2rem;background:var(--border);"></div>
+                        <div style="display:flex;gap:0.75rem;">
+                            <div style="text-align:center;">
+                                <div id="fb-new" style="font-size:1.1rem;font-weight:600;color:#f59e0b;">0</div>
+                                <div style="font-size:0.65rem;color:var(--text-secondary);">New</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div id="fb-reviewed" style="font-size:1.1rem;font-weight:600;color:#3b82f6;">0</div>
+                                <div style="font-size:0.65rem;color:var(--text-secondary);">Reviewed</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div id="fb-resolved" style="font-size:1.1rem;font-weight:600;color:#4a9f6e;">0</div>
+                                <div style="font-size:0.65rem;color:var(--text-secondary);">Resolved</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="width:120px;height:120px;">
+                        <canvas id="fb-category-chart"></canvas>
+                    </div>
+                </div>
             </div>
             <table id="feedback-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
                 <thead>
@@ -705,6 +922,7 @@
                         <th style="text-align:left;">Message</th>
                         <th>Page</th>
                         <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -765,6 +983,18 @@ function makeChart(id, config) {
 }
 
 // =========================================================================
+// Toast notifications
+// =========================================================================
+function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">&times;</button>`;
+    container.appendChild(toast);
+    if (duration > 0) setTimeout(() => toast.remove(), duration);
+}
+
+// =========================================================================
 // Data fetching
 // =========================================================================
 async function apiFetch(endpoint) {
@@ -776,6 +1006,18 @@ async function apiFetch(endpoint) {
 // =========================================================================
 // KPI Cards
 // =========================================================================
+function renderChange(elId, pct, invertColor) {
+    const el = document.getElementById(elId);
+    if (!el || pct == null) return;
+    const arrow = pct > 0 ? '\u2191' : pct < 0 ? '\u2193' : '\u2192';
+    const isUp = pct > 0;
+    // For errors, up is bad (invert colors)
+    const cls = pct === 0 ? 'neutral' : (invertColor ? (isUp ? 'down' : 'up') : (isUp ? 'up' : 'down'));
+    el.className = `kpi-change ${Math.abs(pct) > 10 ? cls : 'neutral'}`;
+    el.textContent = `${arrow} ${Math.abs(pct)}% WoW`;
+    el.title = 'Week-over-week change';
+}
+
 async function loadKPIs() {
     try {
         const d = await apiFetch('overview');
@@ -786,8 +1028,15 @@ async function loadKPIs() {
         document.getElementById('kpi-latency').textContent = d.avg_latency_ms ? d.avg_latency_ms + 'ms' : '—';
         document.getElementById('kpi-mrr').textContent = '$' + d.mrr.toLocaleString();
         document.getElementById('kpi-conversion').textContent = d.conversion_rate + '%';
+
+        if (d.changes) {
+            renderChange('kpi-users-change', d.changes.users, false);
+            renderChange('kpi-active-change', d.changes.active, false);
+            renderChange('kpi-requests-change', d.changes.requests, false);
+            renderChange('kpi-errors-change', d.changes.errors, true);
+        }
     } catch (e) {
-        console.error('KPI load failed:', e);
+        showToast('Failed to load KPIs', 'error');
     }
 }
 
@@ -905,6 +1154,31 @@ async function loadUsers() {
     document.getElementById('stat-verified').textContent = d.verified_count;
     document.getElementById('stat-unverified').textContent = d.total_count - d.verified_count;
     document.getElementById('stat-vrate').textContent = d.verification_rate + '%';
+
+    // Churn risk table
+    const riskEl = document.getElementById('churn-risk-table');
+    if (d.churn_risk && d.churn_risk.length > 0) {
+        let html = '<table style="width:100%;border-collapse:collapse;">';
+        html += '<thead><tr style="border-bottom:1px solid var(--border);">';
+        html += '<th style="text-align:left;padding:6px;color:var(--text-dim);font-weight:500;">User</th>';
+        html += '<th style="padding:6px;color:var(--text-dim);font-weight:500;">Tier</th>';
+        html += '<th style="padding:6px;color:var(--text-dim);font-weight:500;">Days Inactive</th>';
+        html += '<th style="padding:6px;color:var(--text-dim);font-weight:500;">Queries</th>';
+        html += '</tr></thead><tbody>';
+        d.churn_risk.forEach(u => {
+            const severity = u.days_inactive > 30 ? 'color:#ef4444;font-weight:600;' : u.days_inactive > 21 ? 'color:#f59e0b;' : 'color:var(--text-secondary);';
+            html += `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:6px;color:var(--text-primary);">${u.username}</td>
+                <td style="padding:6px;text-align:center;"><span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:var(--accent-primary)22;color:var(--accent-primary);">${u.tier}</span></td>
+                <td style="padding:6px;text-align:center;${severity}">${u.days_inactive}d</td>
+                <td style="padding:6px;text-align:center;color:var(--text-secondary);">${u.total_queries}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        riskEl.innerHTML = html;
+    } else {
+        riskEl.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:1rem;">No at-risk paid users detected.</div>';
+    }
 }
 
 // =========================================================================
@@ -1116,6 +1390,54 @@ async function loadBusiness() {
             options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
         });
     }
+
+    // Cohort retention heatmap
+    loadRetention();
+}
+
+async function loadRetention() {
+    try {
+        const r = await fetch('/api/internal/cohort-retention/?months=6', { credentials: 'include' });
+        const data = await r.json();
+        const el = document.getElementById('retention-heatmap');
+        if (!data.cohorts || data.cohorts.length === 0) {
+            el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:1rem;">Not enough data for retention analysis.</div>';
+            return;
+        }
+
+        const maxMonths = Math.max(...data.cohorts.map(c => c.retention.length));
+        let html = '<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">';
+        html += '<thead><tr style="border-bottom:1px solid var(--border);">';
+        html += '<th style="padding:4px 8px;text-align:left;color:var(--text-dim);">Cohort</th>';
+        html += '<th style="padding:4px 8px;text-align:center;color:var(--text-dim);">Users</th>';
+        for (let i = 0; i < maxMonths; i++) {
+            html += `<th style="padding:4px 8px;text-align:center;color:var(--text-dim);">M${i}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        data.cohorts.forEach(cohort => {
+            html += '<tr style="border-bottom:1px solid var(--border);">';
+            html += `<td style="padding:4px 8px;color:var(--text-primary);font-weight:500;">${cohort.label}</td>`;
+            html += `<td style="padding:4px 8px;text-align:center;color:var(--text-secondary);">${cohort.size}</td>`;
+            for (let i = 0; i < maxMonths; i++) {
+                const r = cohort.retention.find(x => x.month === i);
+                if (r) {
+                    const pct = r.retained;
+                    const intensity = pct / 100;
+                    const bg = `rgba(74, 159, 110, ${intensity * 0.6})`;
+                    html += `<td style="padding:4px 8px;text-align:center;background:${bg};color:var(--text-primary);font-weight:${pct > 50 ? '500' : 'normal'};">${pct}%</td>`;
+                } else {
+                    html += '<td style="padding:4px 8px;text-align:center;color:var(--text-dim);">—</td>';
+                }
+            }
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        el.innerHTML = html;
+    } catch (e) {
+        document.getElementById('retention-heatmap').innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:1rem;">Failed to load retention data.</div>';
+    }
 }
 
 // =========================================================================
@@ -1289,7 +1611,7 @@ async function loadActivity() {
     if (data.journeys.length) {
         jDiv.innerHTML = data.journeys.map(j => {
             const evts = j.events.map(e =>
-                `<span style="display:inline-block;padding:2px 6px;margin:2px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;font-size:0.75rem;">${e.category || e.type}${e.action ? ':' + e.action : ''}</span>`
+                `<span style="display:inline-block;padding:2px 6px;margin:2px;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;font-size:0.75rem;">${e.category || e.type}${e.action ? ':' + e.action : ''}</span>`
             ).join('');
             return `<div style="margin-bottom:12px;"><strong>${j.username}</strong><br>${evts}</div>`;
         }).join('');
@@ -1333,14 +1655,33 @@ function updateEmailPreview() {
     previewBody.innerHTML = html;
 }
 
+let _previewTimer = null;
+async function previewEmailCount() {
+    const target = document.getElementById('email-to').value;
+    const el = document.getElementById('email-match-count');
+    if (!target || target.includes('@')) { el.textContent = ''; return; }
+    el.textContent = 'counting...';
+    clearTimeout(_previewTimer);
+    _previewTimer = setTimeout(async () => {
+        try {
+            const r = await fetch(`/api/internal/email-preview/?target=${encodeURIComponent(target)}`, { credentials: 'include' });
+            const d = await r.json();
+            el.textContent = d.count != null ? `${d.count} users match` : '';
+        } catch { el.textContent = ''; }
+    }, 200);
+}
+
 function confirmSendEmail(testMode) {
     if (testMode) {
         sendEmail(true);
         return;
     }
     const to = document.getElementById('email-custom-to').value.trim() || document.getElementById('email-to').value;
-    const label = to.includes('@') ? to : to === 'all' ? 'ALL customers' : to.replace('tier:', '') + ' tier users';
-    if (!confirm(`Send this email to ${label}?`)) return;
+    const sel = document.getElementById('email-to');
+    const label = to.includes('@') ? to : to === 'all' ? 'ALL customers' : sel.options[sel.selectedIndex]?.text || to;
+    const countEl = document.getElementById('email-match-count').textContent;
+    const extra = countEl ? ` (${countEl})` : '';
+    if (!confirm(`Send this email to ${label}${extra}?`)) return;
     sendEmail(false);
 }
 
@@ -1473,7 +1814,7 @@ async function loadEmailDrafts() {
             </div>`;
         }).join('');
     } catch (e) {
-        console.error('Drafts load failed:', e);
+        showToast('Failed to load email drafts', 'error');
     }
 }
 
@@ -1497,27 +1838,106 @@ async function loadEmailCampaigns() {
                 <td style="padding:8px;text-align:center;color:var(--accent-primary);">${c.opened}</td>
                 <td style="padding:8px;text-align:center;color:${cc(2)};">${c.clicked}</td>
                 <td style="padding:8px;text-align:center;">${c.open_rate}%</td>
+                <td style="padding:8px;text-align:center;${c.conversions ? 'color:#4a9f6e;font-weight:500;' : 'color:var(--text-dim);'}">${c.conversions || '—'}</td>
             </tr>`;
         }).join('');
     } catch (e) {
-        console.error('Campaigns load failed:', e);
+        showToast('Failed to load campaigns', 'error');
     }
 }
 
 async function loadEmail() {
     await Promise.all([loadEmailDrafts(), loadEmailCampaigns()]);
+    previewEmailCount();
 }
 
 // =========================================================================
-// Tab: Content (Blog Management)
+// Tab: Content (Blog + Whitepapers)
 // =========================================================================
 let currentPostId = null;
+let currentWPId = null;
+
+function switchContentSub(sub) {
+    const blogBtn = document.getElementById('content-sub-blog');
+    const wpBtn = document.getElementById('content-sub-wp');
+    const blogSec = document.getElementById('content-blog-section');
+    const wpSec = document.getElementById('content-wp-section');
+    if (sub === 'whitepapers') {
+        blogSec.style.display = 'none';
+        wpSec.style.display = 'block';
+        blogBtn.style.borderBottomColor = 'transparent';
+        blogBtn.style.color = 'var(--text-dim)';
+        blogBtn.style.fontWeight = '500';
+        wpBtn.style.borderBottomColor = 'var(--accent-primary)';
+        wpBtn.style.color = 'var(--accent-primary)';
+        wpBtn.style.fontWeight = '600';
+        loadWhitepapers();
+    } else {
+        blogSec.style.display = 'block';
+        wpSec.style.display = 'none';
+        blogBtn.style.borderBottomColor = 'var(--accent-primary)';
+        blogBtn.style.color = 'var(--accent-primary)';
+        blogBtn.style.fontWeight = '600';
+        wpBtn.style.borderBottomColor = 'transparent';
+        wpBtn.style.color = 'var(--text-dim)';
+        wpBtn.style.fontWeight = '500';
+    }
+}
 
 async function loadContent() {
     const resp = await fetch('/api/internal/blog/', { credentials: 'include' });
     const data = await resp.json();
     renderPostList(data.posts);
+    renderContentCalendar(data.posts);
     loadBlogAnalytics();
+    loadWhitepapers();
+}
+
+function renderContentCalendar(posts) {
+    const el = document.getElementById('content-calendar');
+    if (!el) return;
+    const now = new Date();
+    const year = now.getFullYear(), month = now.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    // Map posts to calendar days
+    const dayMap = {};  // day -> [{status, title}]
+    posts.forEach(p => {
+        let date = null;
+        if (p.status === 'published' && p.published_at) date = new Date(p.published_at);
+        else if (p.status === 'scheduled' && p.scheduled_at) date = new Date(p.scheduled_at);
+        else if (p.status === 'draft' && p.created_at) date = new Date(p.created_at);
+        if (!date || date.getFullYear() !== year || date.getMonth() !== month) return;
+        const day = date.getDate();
+        if (!dayMap[day]) dayMap[day] = [];
+        dayMap[day].push({ status: p.status, title: p.title || 'Untitled' });
+    });
+
+    const dotColor = { published: '#4a9f6e', scheduled: '#e8a94a', draft: '#6b7280' };
+
+    let html = `<div style="text-align:center;font-weight:500;margin-bottom:4px;color:var(--text-primary);font-size:0.75rem;">${monthName}</div>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;text-align:center;">';
+    ['S','M','T','W','T','F','S'].forEach(d => {
+        html += `<div style="color:var(--text-dim);font-size:0.6rem;padding:2px;">${d}</div>`;
+    });
+    for (let i = 0; i < firstDay; i++) html += '<div></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = d === now.getDate();
+        const entries = dayMap[d];
+        const dots = entries ? entries.map(e => `<span style="display:inline-block;width:4px;height:4px;border-radius:50%;background:${dotColor[e.status] || '#6b7280'};" title="${e.title} (${e.status})"></span>`).join(' ') : '';
+        html += `<div style="padding:2px;${isToday ? 'font-weight:700;color:var(--accent-primary);' : 'color:var(--text-secondary);'}">
+            <div>${d}</div>${dots ? `<div style="line-height:1;margin-top:1px;">${dots}</div>` : ''}
+        </div>`;
+    }
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px;justify-content:center;margin-top:4px;">';
+    html += '<span style="font-size:0.6rem;color:var(--text-dim);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#4a9f6e;vertical-align:middle;"></span> published</span>';
+    html += '<span style="font-size:0.6rem;color:var(--text-dim);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#e8a94a;vertical-align:middle;"></span> scheduled</span>';
+    html += '<span style="font-size:0.6rem;color:var(--text-dim);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#6b7280;vertical-align:middle;"></span> draft</span>';
+    html += '</div>';
+    el.innerHTML = html;
 }
 
 async function loadBlogAnalytics() {
@@ -1718,6 +2138,170 @@ function updatePreview() {
     }
 }
 
+// ---- Whitepapers ----
+
+async function loadWhitepapers() {
+    const resp = await fetch('/api/internal/whitepapers/', { credentials: 'include' });
+    const data = await resp.json();
+    renderWPList(data.papers);
+    loadWhitepaperAnalytics();
+}
+
+function renderWPList(papers) {
+    const el = document.getElementById('wp-list');
+    if (!el) return;
+    el.innerHTML = papers.map(p =>
+        `<div onclick="loadWhitepaper('${p.id}')" style="padding:8px;margin-bottom:4px;border:1px solid var(--border);border-radius:6px;cursor:pointer;${currentWPId === p.id ? 'border-color:var(--accent-primary);' : ''}">
+            <div style="font-size:0.85rem;font-weight:500;margin-bottom:2px;">${p.title || 'Untitled'}</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+                ${statusBadge(p.status)}
+                ${p.gated ? '<span style="font-size:0.65rem;padding:1px 5px;border-radius:3px;background:rgba(232,169,74,0.15);color:#e8a94a;">gated</span>' : ''}
+                ${p.download_count ? `<span style="font-size:0.65rem;color:var(--text-dim);">${p.download_count} downloads</span>` : ''}
+            </div>
+        </div>`
+    ).join('');
+}
+
+async function loadWhitepaper(id) {
+    currentWPId = id;
+    const resp = await fetch(`/api/internal/whitepapers/${id}/`, { credentials: 'include' });
+    const wp = await resp.json();
+    document.getElementById('wp-title').value = wp.title || '';
+    document.getElementById('wp-slug').value = wp.slug || '';
+    document.getElementById('wp-topic').value = wp.topic || '';
+    document.getElementById('wp-meta').value = wp.meta_description || '';
+    document.getElementById('wp-desc').value = wp.description || '';
+    document.getElementById('wp-body').value = wp.body || '';
+    document.getElementById('wp-gated').checked = wp.gated !== false;
+    document.getElementById('wp-status').textContent = wp.status;
+    document.getElementById('wp-editor-panel').style.display = 'block';
+    updateWPPreview();
+    loadWhitepapers();
+}
+
+function newWhitepaper() {
+    currentWPId = null;
+    document.getElementById('wp-title').value = '';
+    document.getElementById('wp-slug').value = '';
+    document.getElementById('wp-topic').value = '';
+    document.getElementById('wp-meta').value = '';
+    document.getElementById('wp-desc').value = '';
+    document.getElementById('wp-body').value = '';
+    document.getElementById('wp-gated').checked = true;
+    document.getElementById('wp-status').textContent = 'new';
+    document.getElementById('wp-editor-panel').style.display = 'block';
+    updateWPPreview();
+}
+
+async function saveWhitepaper() {
+    const payload = {
+        id: currentWPId,
+        title: document.getElementById('wp-title').value,
+        slug: document.getElementById('wp-slug').value,
+        topic: document.getElementById('wp-topic').value,
+        meta_description: document.getElementById('wp-meta').value,
+        description: document.getElementById('wp-desc').value,
+        body: document.getElementById('wp-body').value,
+        gated: document.getElementById('wp-gated').checked,
+    };
+    const resp = await fetch('/api/internal/whitepapers/save/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        currentWPId = data.id;
+        document.getElementById('wp-slug').value = data.slug;
+        document.getElementById('wp-status').textContent = 'saved';
+        loadWhitepapers();
+    }
+}
+
+async function publishWhitepaper() {
+    if (!currentWPId) return;
+    const resp = await fetch(`/api/internal/whitepapers/${currentWPId}/publish/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'publish' }),
+        credentials: 'include',
+    });
+    if (resp.ok) { document.getElementById('wp-status').textContent = 'published'; loadWhitepapers(); }
+}
+
+async function deleteWhitepaper() {
+    if (!currentWPId || !confirm('Delete this whitepaper?')) return;
+    await fetch(`/api/internal/whitepapers/${currentWPId}/delete/`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCSRF() },
+        credentials: 'include',
+    });
+    currentWPId = null;
+    document.getElementById('wp-editor-panel').style.display = 'none';
+    loadWhitepapers();
+}
+
+function updateWPPreview() {
+    const body = document.getElementById('wp-body').value;
+    const preview = document.getElementById('wp-preview');
+    if (typeof marked !== 'undefined') {
+        preview.innerHTML = marked.parse(body || '');
+    } else {
+        preview.textContent = body;
+    }
+}
+
+async function loadWhitepaperAnalytics() {
+    const resp = await fetch(`/api/internal/whitepapers/analytics/?days=${selectedDays}`, { credentials: 'include' });
+    const data = await resp.json();
+
+    // Totals
+    document.getElementById('stat-wp-downloads').textContent = (data.totals.downloads || 0).toLocaleString();
+    document.getElementById('stat-wp-unique').textContent = (data.totals.unique_downloaders || 0).toLocaleString();
+    document.getElementById('stat-wp-emails').textContent = (data.totals.emails_captured || 0).toLocaleString();
+    document.getElementById('stat-wp-bots').textContent = (data.totals.bot_hits || 0).toLocaleString();
+
+    // Downloads over time
+    if (data.daily_downloads && data.daily_downloads.length) {
+        makeChart('chart-wp-downloads', {
+            type: 'line',
+            data: {
+                labels: data.daily_downloads.map(d => d.date),
+                datasets: [
+                    { label: 'Downloads', data: data.daily_downloads.map(d => d.total), borderColor: cc(2), backgroundColor: cca(2, 0.15), fill: true, tension: 0.3 },
+                ]
+            }
+        });
+    }
+
+    // Top papers (horizontal bar)
+    if (data.top_papers && data.top_papers.length) {
+        makeChart('chart-wp-top', {
+            type: 'bar',
+            data: {
+                labels: data.top_papers.map(p => p.title.length > 30 ? p.title.slice(0, 30) + '…' : p.title),
+                datasets: [
+                    { label: 'Downloads', data: data.top_papers.map(p => p.downloads), backgroundColor: cc(2) },
+                ]
+            },
+            options: { indexAxis: 'y' }
+        });
+    }
+
+    // Traffic sources
+    if (data.referrers && data.referrers.length) {
+        makeChart('chart-wp-referrers', {
+            type: 'bar',
+            data: {
+                labels: data.referrers.map(r => r.domain),
+                datasets: [{ data: data.referrers.map(r => r.count), backgroundColor: data.referrers.map((_, i) => cc(i)) }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+}
+
 // =========================================================================
 // Tab: Onboarding
 // =========================================================================
@@ -1894,8 +2478,8 @@ async function loadExperiments() {
             : '—';
         const statusColor = e.status === 'running' ? '#4a9f6e' : e.status === 'concluded' ? '#6b7280' : '#f59e0b';
         const actions = e.status === 'running'
-            ? `<button onclick="evaluateExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">Evaluate</button>
-               <button onclick="concludeExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">Conclude</button>`
+            ? `<button onclick="evaluateExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);cursor:pointer;">Evaluate</button>
+               <button onclick="concludeExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);cursor:pointer;">Conclude</button>`
             : '—';
         return `<tr style="border-bottom:1px solid var(--border);">
             <td style="padding:0.4rem 0.3rem;font-weight:500;">${e.name}</td>
@@ -1972,8 +2556,13 @@ async function loadRules() {
         return;
     }
     tbody.innerHTML = data.rules.map(rule => {
-        const triggerDesc = rule.trigger.replace(/_/g, ' ');
+        let triggerDesc = rule.trigger.replace(/_/g, ' ');
         const configStr = Object.entries(rule.trigger_config || {}).map(([k,v]) => `${k}=${v}`).join(', ');
+        if (rule.trigger_2) {
+            const t2 = rule.trigger_2.replace(/_/g, ' ');
+            const c2 = Object.entries(rule.trigger_2_config || {}).map(([k,v]) => `${k}=${v}`).join(', ');
+            triggerDesc += ` <span style="color:var(--accent-primary);font-weight:600;">${(rule.trigger_logic || 'and').toUpperCase()}</span> ${t2}${c2 ? ' ('+c2+')' : ''}`;
+        }
         const lastFired = rule.last_fired_at ? new Date(rule.last_fired_at).toLocaleDateString() : 'Never';
         const cooldown = rule.cooldown_hours > 0 ? `${rule.cooldown_hours}h` : 'Once';
         return `<tr style="border-bottom:1px solid var(--border);">
@@ -1984,10 +2573,69 @@ async function loadRules() {
             <td style="text-align:center;">${rule.times_fired}</td>
             <td style="text-align:center;font-size:0.75rem;">${lastFired}</td>
             <td style="text-align:center;">
-                <button onclick="toggleRule('${rule.id}')" style="font-size:0.7rem;padding:0.2rem 0.6rem;border:none;border-radius:4px;cursor:pointer;${rule.is_active ? 'background:#4a9f6e;color:#fff;' : 'background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);'}">${rule.is_active ? 'ON' : 'OFF'}</button>
+                <button onclick="toggleRule('${rule.id}')" style="font-size:0.7rem;padding:0.2rem 0.6rem;border:none;border-radius:4px;cursor:pointer;${rule.is_active ? 'background:#4a9f6e;color:#fff;' : 'background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border);'}">${rule.is_active ? 'ON' : 'OFF'}</button>
             </td>
         </tr>`;
     }).join('');
+}
+
+function showRuleForm() {
+    document.getElementById('rule-form').style.display = 'block';
+    document.getElementById('rule-name').value = '';
+    document.getElementById('rule-description').value = '';
+    document.getElementById('rule-trigger-config').value = '';
+    document.getElementById('rule-action-config').value = '';
+    document.getElementById('rule-cooldown').value = '72';
+    document.getElementById('rule-trigger-logic').value = '';
+    document.getElementById('rule-trigger-2').value = '';
+    document.getElementById('rule-trigger-2-config').value = '';
+    toggleCompoundTrigger();
+}
+
+function toggleCompoundTrigger() {
+    const logic = document.getElementById('rule-trigger-logic').value;
+    const enabled = logic !== '';
+    document.getElementById('rule-trigger-2').disabled = !enabled;
+    document.getElementById('rule-trigger-2-config').disabled = !enabled;
+}
+// Wire up the toggle
+document.getElementById('rule-trigger-logic')?.addEventListener('change', toggleCompoundTrigger);
+
+async function saveRule() {
+    let triggerConfig = {}, actionConfig = {}, trigger2Config = null;
+    try { triggerConfig = JSON.parse(document.getElementById('rule-trigger-config').value || '{}'); } catch(e) { showToast('Invalid trigger config JSON', 'error'); return; }
+    try { actionConfig = JSON.parse(document.getElementById('rule-action-config').value || '{}'); } catch(e) { showToast('Invalid action config JSON', 'error'); return; }
+    const logic = document.getElementById('rule-trigger-logic').value;
+    const trigger2 = document.getElementById('rule-trigger-2').value;
+    if (logic && trigger2) {
+        try { trigger2Config = JSON.parse(document.getElementById('rule-trigger-2-config').value || '{}'); } catch(e) { showToast('Invalid 2nd trigger config JSON', 'error'); return; }
+    }
+    const payload = {
+        name: document.getElementById('rule-name').value,
+        description: document.getElementById('rule-description').value,
+        trigger: document.getElementById('rule-trigger').value,
+        trigger_config: triggerConfig,
+        action: document.getElementById('rule-action').value,
+        action_config: actionConfig,
+        cooldown_hours: parseInt(document.getElementById('rule-cooldown').value) || 72,
+    };
+    if (logic && trigger2) {
+        payload.trigger_2 = trigger2;
+        payload.trigger_2_config = trigger2Config;
+        payload.trigger_logic = logic;
+    }
+    const r = await fetch('/api/internal/automation/rules/', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(payload),
+    });
+    if (r.ok) {
+        document.getElementById('rule-form').style.display = 'none';
+        showToast('Rule created', 'success');
+        loadRules();
+    } else {
+        showToast('Failed to create rule', 'error');
+    }
 }
 
 async function toggleRule(id) {
@@ -2035,11 +2683,21 @@ async function loadAutopilot() {
             html += `<div style="border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.8rem;margin:0.4rem 0;display:flex;justify-content:space-between;align-items:center;">
                 <div>
                     <span style="font-size:0.7rem;background:${priorityColor}22;color:${priorityColor};padding:0.1rem 0.4rem;border-radius:3px;margin-right:0.4rem;">${rec.priority}</span>
-                    <span style="font-size:0.7rem;background:var(--surface);padding:0.1rem 0.4rem;border-radius:3px;margin-right:0.4rem;">${rec.type}</span>
+                    <span style="font-size:0.7rem;background:var(--bg-tertiary);padding:0.1rem 0.4rem;border-radius:3px;margin-right:0.4rem;">${rec.type}</span>
                     <strong style="font-size:0.8rem;">${rec.title || ''}${approved}</strong>
                     <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.2rem;">${rec.reason || ''}</div>
                 </div>
-                ${!rec.approved ? `<button onclick="approveRecommendation('${report.id}', ${idx})" style="background:var(--accent);color:#fff;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer;font-size:0.7rem;white-space:nowrap;">Approve</button>` : '<span style="color:#4a9f6e;font-size:0.75rem;">✓</span>'}
+                ${!rec.approved
+                    ? `<button onclick="approveRecommendation('${report.id}', ${idx})" style="background:var(--accent);color:#fff;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer;font-size:0.7rem;white-space:nowrap;">Approve</button>`
+                    : (() => {
+                        const res = rec.result || {};
+                        if (res.action === 'experiment_created') return `<span style="color:#4a9f6e;font-size:0.7rem;">Experiment created</span>`;
+                        if (res.action === 'blog_draft_created') return `<span style="color:#4a9f6e;font-size:0.7rem;">Blog draft created</span>`;
+                        if (res.action === 'email_queued') return `<span style="color:#4a9f6e;font-size:0.7rem;">Email queued → ${res.target || ''}</span>`;
+                        if (res.action === 'rule_tweak_noted') return `<span style="color:#4a9f6e;font-size:0.7rem;">Noted: ${res.rule || ''}</span>`;
+                        return '<span style="color:#4a9f6e;font-size:0.75rem;">Approved</span>';
+                    })()
+                }
             </div>`;
         });
         html += '</div>';
@@ -2055,7 +2713,7 @@ async function approveRecommendation(reportId, index) {
         body: JSON.stringify({ index }),
     });
     const data = await r.json();
-    alert(`Action: ${data.action || data.status || 'done'}`);
+    showToast(`${data.action || 'Approved'}`, 'success');
     loadAutopilot();
 }
 
@@ -2067,35 +2725,105 @@ async function runAutopilot() {
     alert('Growth review scheduled. Check back in a few minutes.');
 }
 
+let fbCategoryChart = null;
+
 async function loadFeedback() {
     const filter = document.getElementById('feedback-filter')?.value || '';
     const url = '/api/internal/feedback/' + (filter ? `?status=${filter}` : '');
-    const r = await fetch(url, { credentials: 'include' });
-    const data = await r.json();
-    const tbody = document.querySelector('#feedback-table tbody');
-    if (!data.feedback || data.feedback.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:1rem;color:var(--text-secondary);text-align:center;">No feedback yet.</td></tr>';
-        return;
+    try {
+        const r = await fetch(url, { credentials: 'include' });
+        const data = await r.json();
+        const tbody = document.querySelector('#feedback-table tbody');
+
+        // Render summary
+        const summary = data.summary;
+        const summaryEl = document.getElementById('feedback-summary');
+        if (summary && summary.total > 0) {
+            summaryEl.style.display = 'block';
+            document.getElementById('fb-total').textContent = summary.total;
+            document.getElementById('fb-new').textContent = summary.by_status.new;
+            document.getElementById('fb-reviewed').textContent = summary.by_status.reviewed;
+            document.getElementById('fb-resolved').textContent = summary.by_status.resolved;
+
+            // Category doughnut
+            const ctx = document.getElementById('fb-category-chart');
+            if (ctx) {
+                if (fbCategoryChart) fbCategoryChart.destroy();
+                fbCategoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Bug', 'Feature', 'Question', 'Other'],
+                        datasets: [{
+                            data: [
+                                summary.by_category.bug,
+                                summary.by_category.feature,
+                                summary.by_category.question,
+                                summary.by_category.other
+                            ],
+                            backgroundColor: ['#ef4444', '#4a9f6e', '#4a9faf', '#6b7280'],
+                            borderWidth: 0,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#999',
+                                    font: { size: 10 },
+                                    boxWidth: 10,
+                                    padding: 6,
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } else {
+            summaryEl.style.display = 'none';
+        }
+
+        // Render table
+        if (!data.feedback || data.feedback.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding:1rem;color:var(--text-secondary);text-align:center;">No feedback yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.feedback.map(fb => {
+            const time = new Date(fb.created_at).toLocaleString();
+            const catColor = fb.category === 'bug' ? '#ef4444' : fb.category === 'feature' ? '#4a9f6e' : fb.category === 'question' ? '#4a9faf' : '#6b7280';
+            const statusOpts = ['new', 'reviewed', 'resolved'].map(s =>
+                `<option value="${s}" ${fb.status === s ? 'selected' : ''}>${s}</option>`
+            ).join('');
+            const notesHtml = fb.internal_notes
+                ? `<div style="margin-top:4px;font-size:0.7rem;color:var(--text-dim);font-style:italic;border-left:2px solid var(--border);padding-left:6px;">${fb.internal_notes}</div>`
+                : '';
+            const replyBtn = fb.user_email
+                ? `<button onclick="replyToFeedback('${fb.user_email}','${fb.category}')" style="font-size:0.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:3px;background:var(--bg-tertiary);color:var(--text-secondary);cursor:pointer;" title="Reply via email">Reply</button>`
+                : '';
+            return `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.4rem 0.3rem;font-size:0.75rem;">${time}</td>
+                <td style="font-size:0.8rem;">${fb.user}<br><span style="color:var(--text-secondary);font-size:0.7rem;">${fb.user_tier}</span></td>
+                <td style="text-align:center;"><span style="color:${catColor};font-size:0.75rem;font-weight:500;">${fb.category}</span></td>
+                <td style="font-size:0.8rem;max-width:300px;word-break:break-word;">${fb.message}${notesHtml}</td>
+                <td style="font-size:0.7rem;color:var(--text-secondary);">${fb.page}</td>
+                <td style="text-align:center;">
+                    <select onchange="updateFeedbackStatus('${fb.id}', this.value)" style="font-size:0.7rem;padding:0.15rem 0.3rem;border:1px solid var(--border);border-radius:3px;background:var(--bg-tertiary);color:var(--text);">
+                        ${statusOpts}
+                    </select>
+                </td>
+                <td style="text-align:center;white-space:nowrap;">
+                    ${replyBtn}
+                    <button onclick="addFeedbackNote('${fb.id}')" style="font-size:0.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:3px;background:var(--bg-tertiary);color:var(--text-secondary);cursor:pointer;" title="Add internal note">Note</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load feedback:', e);
+        showToast('Failed to load feedback', 'error');
     }
-    tbody.innerHTML = data.feedback.map(fb => {
-        const time = new Date(fb.created_at).toLocaleString();
-        const catColor = fb.category === 'bug' ? '#ef4444' : fb.category === 'feature' ? '#4a9f6e' : fb.category === 'question' ? '#4a9faf' : '#6b7280';
-        const statusOpts = ['new', 'reviewed', 'resolved'].map(s =>
-            `<option value="${s}" ${fb.status === s ? 'selected' : ''}>${s}</option>`
-        ).join('');
-        return `<tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.4rem 0.3rem;font-size:0.75rem;">${time}</td>
-            <td style="font-size:0.8rem;">${fb.user}<br><span style="color:var(--text-secondary);font-size:0.7rem;">${fb.user_tier}</span></td>
-            <td style="text-align:center;"><span style="color:${catColor};font-size:0.75rem;font-weight:500;">${fb.category}</span></td>
-            <td style="font-size:0.8rem;max-width:300px;word-break:break-word;">${fb.message}</td>
-            <td style="font-size:0.7rem;color:var(--text-secondary);">${fb.page}</td>
-            <td style="text-align:center;">
-                <select onchange="updateFeedbackStatus('${fb.id}', this.value)" style="font-size:0.7rem;padding:0.15rem 0.3rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text);">
-                    ${statusOpts}
-                </select>
-            </td>
-        </tr>`;
-    }).join('');
 }
 
 async function updateFeedbackStatus(id, status) {
@@ -2104,6 +2832,30 @@ async function updateFeedbackStatus(id, status) {
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
         body: JSON.stringify({ id, status }),
     });
+}
+
+function replyToFeedback(email, category) {
+    // Switch to the email tab with the user's email pre-filled
+    switchTab('email');
+    document.getElementById('email-custom-to').value = email;
+    document.getElementById('email-subject').value = `Re: Your ${category} feedback on Svend`;
+    document.getElementById('email-body').focus();
+}
+
+async function addFeedbackNote(id) {
+    const note = prompt('Add internal note:');
+    if (note === null) return;
+    try {
+        await fetch('/api/internal/feedback/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ id, notes: note }),
+        });
+        showToast('Note saved', 'success');
+        loadFeedback();
+    } catch (e) {
+        showToast('Failed to save note', 'error');
+    }
 }
 
 async function loadAutomationLog() {

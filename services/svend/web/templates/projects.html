@@ -515,7 +515,7 @@
             <button class="modal-close" onclick="closeHypothesisModal()">&times;</button>
         </div>
 
-        <form id="hypothesis-form" onsubmit="addHypothesis(event)">
+        <form id="hypothesis-form" onsubmit="saveHypothesisEdit(event)">
             <!-- Structured Format -->
             <div class="hypothesis-builder">
                 <div class="form-group">
@@ -1775,7 +1775,13 @@ let currentHypothesis = null;
 let currentFilter = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadProjects();
+    loadProjects().then(() => {
+        // Check for hash-based deep link (e.g., /app/projects/#<uuid>)
+        const hash = window.location.hash.slice(1);
+        if (hash && hash.length > 8) {
+            viewProject(hash);
+        }
+    });
 
     // Slider value displays
     document.getElementById('hyp-prior').addEventListener('input', (e) => {
@@ -2501,10 +2507,15 @@ function showAddHypothesisModal() {
 }
 
 function closeHypothesisModal() {
-    document.getElementById('hypothesis-modal').style.display = 'none';
+    const modal = document.getElementById('hypothesis-modal');
+    modal.style.display = 'none';
     document.getElementById('hypothesis-form').reset();
     document.getElementById('hyp-prior-value').textContent = '50%';
     document.getElementById('hyp-statement-preview').innerHTML = '<em>Fill in the If/Then/Because fields above...</em>';
+    // Reset edit mode
+    delete modal.dataset.editId;
+    modal.querySelector('.modal-header h2').textContent = 'Add Hypothesis';
+    modal.querySelector('button[type="submit"]').textContent = 'Add Hypothesis';
     // Collapse sections
     document.querySelectorAll('#hypothesis-modal .section-content').forEach(el => {
         el.style.display = 'none';
@@ -2745,7 +2756,111 @@ function backToProject() {
 }
 
 function editHypothesis() {
-    alert('Edit functionality coming soon');
+    if (!currentHypothesis) return;
+    const h = currentHypothesis;
+
+    // Pre-fill modal fields from current hypothesis
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    setVal('hyp-if', h.if_clause);
+    setVal('hyp-then', h.then_clause);
+    setVal('hyp-because', h.because_clause);
+    setVal('hyp-indep-var', h.independent_variable);
+    setVal('hyp-dep-var', h.dependent_variable);
+    setVal('hyp-dep-unit', h.dependent_var_unit);
+    setVal('hyp-direction', h.predicted_direction || 'change');
+    setVal('hyp-magnitude', h.predicted_magnitude);
+    setVal('hyp-rationale', h.rationale);
+    setVal('hyp-test-method', h.test_method);
+    setVal('hyp-success', h.success_criteria);
+    setVal('hyp-statement-input', h.statement);
+
+    // Set prior slider
+    const prior = h.prior_probability || 0.5;
+    const slider = document.getElementById('hyp-prior');
+    if (slider) slider.value = prior;
+    document.getElementById('hyp-prior-value').textContent = Math.round(prior * 100) + '%';
+
+    // Update preview
+    updateHypothesisPreview();
+
+    // Expand all collapsible sections so user sees filled fields
+    document.querySelectorAll('#hypothesis-modal .section-content').forEach(el => {
+        if (el.closest('.section-content')?.querySelector('input, textarea')?.value) {
+            el.style.display = 'block';
+            const icon = el.previousElementSibling?.querySelector('.toggle-icon');
+            if (icon) icon.textContent = '▼';
+        }
+    });
+
+    // Switch modal to edit mode
+    const modal = document.getElementById('hypothesis-modal');
+    modal.querySelector('.modal-header h2').textContent = 'Edit Hypothesis';
+    const submitBtn = modal.querySelector('button[type="submit"]');
+    submitBtn.textContent = 'Save Changes';
+    modal.dataset.editId = h.id;
+
+    modal.style.display = 'flex';
+}
+
+async function saveHypothesisEdit(e) {
+    e.preventDefault();
+    const modal = document.getElementById('hypothesis-modal');
+    const editId = modal.dataset.editId;
+
+    // If not in edit mode, fall through to addHypothesis
+    if (!editId) return addHypothesis(e);
+
+    const ifClause = document.getElementById('hyp-if')?.value.trim() || '';
+    const thenClause = document.getElementById('hyp-then')?.value.trim() || '';
+    const becauseClause = document.getElementById('hyp-because')?.value.trim() || '';
+
+    let statement = document.getElementById('hyp-statement-input')?.value || '';
+    if (!statement && (ifClause || thenClause)) {
+        if (ifClause) statement += `If ${ifClause}`;
+        if (thenClause) statement += `${statement ? ', then ' : 'Then '}${thenClause}`;
+        if (becauseClause) statement += `${statement ? ', because ' : 'Because '}${becauseClause}`;
+        statement += '.';
+    }
+
+    if (!statement) {
+        alert('Please fill in at least the IF and THEN fields');
+        return;
+    }
+
+    const data = {
+        statement,
+        if_clause: ifClause,
+        then_clause: thenClause,
+        because_clause: becauseClause,
+        independent_variable: document.getElementById('hyp-indep-var')?.value || '',
+        dependent_variable: document.getElementById('hyp-dep-var')?.value || '',
+        dependent_var_unit: document.getElementById('hyp-dep-unit')?.value || '',
+        predicted_direction: document.getElementById('hyp-direction')?.value || 'change',
+        predicted_magnitude: document.getElementById('hyp-magnitude')?.value || '',
+        rationale: document.getElementById('hyp-rationale')?.value || '',
+        test_method: document.getElementById('hyp-test-method')?.value || '',
+        success_criteria: document.getElementById('hyp-success')?.value || '',
+        prior_probability: parseFloat(document.getElementById('hyp-prior').value),
+    };
+
+    try {
+        const response = await fetch(`/api/core/projects/${currentProject.id}/hypotheses/${editId}/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+            closeHypothesisModal();
+            await viewHypothesis(editId);
+        } else {
+            const result = await response.json();
+            alert(result.error || 'Failed to update hypothesis');
+        }
+    } catch (err) {
+        alert('Failed to save: ' + err.message);
+    }
 }
 
 // =============================================================================

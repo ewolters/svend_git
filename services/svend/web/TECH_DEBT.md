@@ -27,7 +27,7 @@ Last updated: 2026-02-02
 ### [FIXED] Tier definition duplicated
 - Created `accounts/constants.py` with unified Tier enum
 - Updated `accounts/models.py` and `forge/models.py` to import from constants
-- Pricing: FREE, FOUNDER ($19), PRO ($29), TEAM ($79), ENTERPRISE ($199)
+- Pricing: FREE, PROFESSIONAL ($49), TEAM ($99), ENTERPRISE ($299). FOUNDER ($19) is legacy.
 
 ### [FIXED] Rate limiting in multiple places
 - Consolidated into single `@rate_limited` decorator in `accounts/permissions.py`

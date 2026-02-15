@@ -1,24 +1,36 @@
-"""Purge Forge and Triage data older than 30 days."""
+"""Purge old data according to retention policy.
+
+Retention schedule:
+  - Forge jobs: 30 days
+  - Triage results: 30 days
+  - DSW results: 30 days
+  - TraceLog: 30 days
+  - AgentLog: 30 days
+  - TrainingCandidate (exported/rejected): 30 / 7 days
+  - EventLog: 90 days
+  - SharedConversation (expired): delete on expiry
+  - BlogView (api.models): 180 days
+
+Usage:
+    python manage.py purge_old_data --dry-run
+    python manage.py purge_old_data
+"""
 
 import os
 from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from forge.models import Job
-from agents_api.models import TriageResult, DSWResult
+from agents_api.models import AgentLog, TriageResult, DSWResult
+from chat.models import TraceLog, TrainingCandidate, EventLog, SharedConversation
 
 
 class Command(BaseCommand):
-    help = "Purge Forge jobs and data older than 30 days"
+    help = "Purge old data according to retention policy"
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--days",
-            type=int,
-            default=30,
-            help="Delete data older than this many days (default: 30)",
-        )
         parser.add_argument(
             "--dry-run",
             action="store_true",
@@ -26,71 +38,124 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        days = options["days"]
         dry_run = options["dry_run"]
-        cutoff = timezone.now() - timedelta(days=days)
+        now = timezone.now()
+        total_deleted = 0
 
-        self.stdout.write(f"Purging Forge data older than {days} days (before {cutoff})")
         if dry_run:
-            self.stdout.write(self.style.WARNING("DRY RUN - no data will be deleted"))
+            self.stdout.write(self.style.WARNING("DRY RUN - no data will be deleted\n"))
 
-        # Find old jobs
-        old_jobs = Job.objects.filter(created_at__lt=cutoff)
+        # ── 30-day retention ──────────────────────────────────────────
+        cutoff_30 = now - timedelta(days=30)
+
+        # Forge jobs (with file cleanup)
+        old_jobs = Job.objects.filter(created_at__lt=cutoff_30)
         job_count = old_jobs.count()
-
-        if job_count == 0:
-            self.stdout.write(self.style.SUCCESS("No old jobs found"))
-            return
-
-        self.stdout.write(f"Found {job_count} jobs to delete")
-
-        # Delete result files
-        files_deleted = 0
-        bytes_freed = 0
-
-        for job in old_jobs:
-            if job.result_path and os.path.exists(job.result_path):
-                if dry_run:
-                    self.stdout.write(f"  Would delete: {job.result_path}")
-                else:
-                    try:
-                        size = os.path.getsize(job.result_path)
-                        os.remove(job.result_path)
-                        files_deleted += 1
-                        bytes_freed += size
-                    except OSError as e:
-                        self.stdout.write(
-                            self.style.WARNING(f"  Failed to delete {job.result_path}: {e}")
-                        )
-
-        # Delete job records
-        if not dry_run:
-            old_jobs.delete()
-
-        # Purge old Triage results
-        old_triage = TriageResult.objects.filter(created_at__lt=cutoff)
-        triage_count = old_triage.count()
-        if triage_count > 0:
-            self.stdout.write(f"Found {triage_count} Triage results to delete")
+        if job_count:
             if not dry_run:
-                old_triage.delete()
+                for job in old_jobs:
+                    if job.result_path and os.path.exists(job.result_path):
+                        try:
+                            os.remove(job.result_path)
+                        except OSError:
+                            pass
+                old_jobs.delete()
+            self.stdout.write(f"Forge jobs: {job_count}")
+            total_deleted += job_count
 
-        # Purge old DSW results
-        old_dsw = DSWResult.objects.filter(created_at__lt=cutoff)
-        dsw_count = old_dsw.count()
-        if dsw_count > 0:
-            self.stdout.write(f"Found {dsw_count} DSW results to delete")
+        # Triage results
+        count = TriageResult.objects.filter(created_at__lt=cutoff_30).count()
+        if count:
             if not dry_run:
-                old_dsw.delete()
+                TriageResult.objects.filter(created_at__lt=cutoff_30).delete()
+            self.stdout.write(f"Triage results: {count}")
+            total_deleted += count
 
-        # Summary
-        if dry_run:
-            self.stdout.write(self.style.WARNING(
-                f"Would delete: {job_count} Forge jobs, {triage_count} Triage results, {dsw_count} DSW results"
-            ))
+        # DSW results
+        count = DSWResult.objects.filter(created_at__lt=cutoff_30).count()
+        if count:
+            if not dry_run:
+                DSWResult.objects.filter(created_at__lt=cutoff_30).delete()
+            self.stdout.write(f"DSW results: {count}")
+            total_deleted += count
+
+        # Trace logs
+        count = TraceLog.objects.filter(created_at__lt=cutoff_30).count()
+        if count:
+            if not dry_run:
+                TraceLog.objects.filter(created_at__lt=cutoff_30).delete()
+            self.stdout.write(f"Trace logs: {count}")
+            total_deleted += count
+
+        # Agent logs
+        count = AgentLog.objects.filter(created_at__lt=cutoff_30).count()
+        if count:
+            if not dry_run:
+                AgentLog.objects.filter(created_at__lt=cutoff_30).delete()
+            self.stdout.write(f"Agent logs: {count}")
+            total_deleted += count
+
+        # Training candidates — exported: 30 days, rejected: 7 days
+        count_exported = TrainingCandidate.objects.filter(
+            status="exported", created_at__lt=cutoff_30
+        ).count()
+        cutoff_7 = now - timedelta(days=7)
+        count_rejected = TrainingCandidate.objects.filter(
+            status="rejected", created_at__lt=cutoff_7
+        ).count()
+        tc_total = count_exported + count_rejected
+        if tc_total:
+            if not dry_run:
+                TrainingCandidate.objects.filter(
+                    status="exported", created_at__lt=cutoff_30
+                ).delete()
+                TrainingCandidate.objects.filter(
+                    status="rejected", created_at__lt=cutoff_7
+                ).delete()
+            self.stdout.write(f"Training candidates: {tc_total} (exported: {count_exported}, rejected: {count_rejected})")
+            total_deleted += tc_total
+
+        # ── 90-day retention ──────────────────────────────────────────
+        cutoff_90 = now - timedelta(days=90)
+
+        # Event logs
+        count = EventLog.objects.filter(created_at__lt=cutoff_90).count()
+        if count:
+            if not dry_run:
+                EventLog.objects.filter(created_at__lt=cutoff_90).delete()
+            self.stdout.write(f"Event logs: {count}")
+            total_deleted += count
+
+        # ── Expired shared conversations ──────────────────────────────
+        count = SharedConversation.objects.filter(
+            expires_at__isnull=False, expires_at__lt=now
+        ).count()
+        if count:
+            if not dry_run:
+                SharedConversation.objects.filter(
+                    expires_at__isnull=False, expires_at__lt=now
+                ).delete()
+            self.stdout.write(f"Expired shared conversations: {count}")
+            total_deleted += count
+
+        # ── 180-day retention ─────────────────────────────────────────
+        cutoff_180 = now - timedelta(days=180)
+
+        # Blog views (api.models.BlogView if it exists)
+        try:
+            from api.models import BlogView
+            count = BlogView.objects.filter(created_at__lt=cutoff_180).count()
+            if count:
+                if not dry_run:
+                    BlogView.objects.filter(created_at__lt=cutoff_180).delete()
+                self.stdout.write(f"Blog views: {count}")
+                total_deleted += count
+        except (ImportError, Exception):
+            pass
+
+        # ── Summary ───────────────────────────────────────────────────
+        if total_deleted == 0:
+            self.stdout.write(self.style.SUCCESS("Nothing to purge"))
         else:
-            self.stdout.write(self.style.SUCCESS(
-                f"Deleted {job_count} Forge jobs, {files_deleted} files, "
-                f"freed {bytes_freed / 1024 / 1024:.1f} MB\n"
-                f"Deleted {triage_count} Triage results, {dsw_count} DSW results"
-            ))
+            prefix = "Would delete" if dry_run else "Deleted"
+            self.stdout.write(self.style.SUCCESS(f"\n{prefix} {total_deleted} total records"))

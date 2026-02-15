@@ -540,6 +540,7 @@ class Workbench(models.Model):
             "template_state": self.template_state,
             "artifacts": [a.to_json() for a in self.artifacts.all()],
             "connections": self.connections,
+            "layout": self.layout,
             "datasets": self.datasets,
             "guide_observations": self.guide_observations,
             "conclusion": self.conclusion,

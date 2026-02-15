@@ -1,0 +1,134 @@
+{% extends "tool_base.html" %}
+
+{% block title %}{{ paper.title }} — Svend Whitepaper{% endblock %}
+{% block meta_description %}{{ paper.meta_description|default:paper.description }}{% endblock %}
+{% block meta_keywords %}{{ paper.topic }}, quality engineering, whitepaper, statistical methods{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/whitepapers/{{ paper.slug }}/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://svend.ai/whitepapers/{{ paper.slug }}/">
+<meta property="og:title" content="{{ paper.title }} | Svend">
+<meta property="og:description" content="{{ paper.meta_description|default:paper.description }}">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta property="article:published_time" content="{{ paper.published_at|date:'c' }}">
+<meta property="article:modified_time" content="{{ paper.updated_at|date:'c' }}">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "{{ paper.title|escapejs }}",
+    "description": "{{ paper.meta_description|default:paper.description|escapejs }}",
+    "url": "https://svend.ai/whitepapers/{{ paper.slug }}/",
+    "datePublished": "{{ paper.published_at|date:'c' }}",
+    "dateModified": "{{ paper.updated_at|date:'c' }}",
+    "publisher": {
+        "@type": "Organization",
+        "name": "Svend",
+        "url": "https://svend.ai"
+    },
+    "isAccessibleForFree": true
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.wp-header {
+    text-align: center; padding: 2rem 0 1.5rem;
+    border-bottom: 1px solid var(--border); margin-bottom: 2rem;
+}
+.wp-header h1 { font-size: 1.8rem; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+.wp-header .wp-subtitle {
+    font-size: 0.95rem; color: var(--text-secondary); margin-top: 0.5rem; line-height: 1.6;
+}
+.wp-header .wp-meta-row {
+    display: flex; justify-content: center; gap: 1.5rem; margin-top: 1rem;
+    font-size: 0.8rem; color: var(--text-dim);
+}
+.wp-header .wp-meta-row .wp-topic {
+    color: var(--accent-primary); font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; font-size: 0.7rem;
+    background: var(--accent-primary-dim); border-radius: 3px; padding: 0.15rem 0.5rem;
+}
+.wp-actions {
+    display: flex; justify-content: center; gap: 1rem; margin-top: 1.25rem;
+}
+.wp-actions a {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.5rem 1.25rem; border-radius: 6px; text-decoration: none;
+    font-size: 0.8rem; font-weight: 600; transition: background 0.2s;
+}
+.wp-actions .btn-pdf {
+    background: var(--accent-primary); color: #fff;
+}
+.wp-actions .btn-pdf:hover { background: #3a8a5a; }
+.wp-actions .btn-pdf svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+.wp-actions .btn-back {
+    background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border);
+}
+.wp-actions .btn-back:hover { border-color: var(--accent-primary-border); color: var(--text-primary); }
+
+/* Minimal container — each whitepaper body brings its own styles via inline <style> */
+.wp-body {
+    max-width: 760px; margin: 0 auto; padding: 0 1rem 3rem;
+}
+/* Fallback typography for markdown-based whitepapers (no inline <style>) */
+.wp-body--md { font-size: 0.92rem; line-height: 1.8; color: var(--text-secondary); }
+.wp-body--md h2 { color: var(--text-primary); font-size: 1.3rem; font-weight: 600; margin: 2rem 0 0.75rem; }
+.wp-body--md h3 { color: var(--text-primary); font-size: 1.1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+.wp-body--md p { margin-bottom: 1rem; }
+.wp-body--md a { color: var(--accent-primary); text-decoration: none; }
+.wp-body--md a:hover { text-decoration: underline; }
+{% endblock %}
+
+{% block content %}
+<div class="wp-header">
+    <h1>{{ paper.title }}</h1>
+    {% if paper.description %}<p class="wp-subtitle">{{ paper.description }}</p>{% endif %}
+    <div class="wp-meta-row">
+        {% if paper.topic %}<span class="wp-topic">{{ paper.topic }}</span>{% endif %}
+        <span>{{ paper.published_at|date:"F j, Y" }}</span>
+    </div>
+    <div class="wp-actions">
+        <a href="/whitepapers/" class="btn-back">All Whitepapers</a>
+        <a href="/whitepapers/{{ paper.slug }}/pdf/" class="btn-pdf">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+            Download PDF
+        </a>
+    </div>
+</div>
+
+<div class="wp-body" id="wp-body">
+    {{ paper.body|safe }}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const body = document.getElementById('wp-body');
+    if (!body || typeof marked === 'undefined') return;
+    // If body starts with a <style> or HTML tag, it's self-styled — leave it alone
+    const first = body.innerHTML.trim();
+    if (first.startsWith('<style') || first.startsWith('<div') || first.startsWith('<span')) return;
+    // Otherwise treat as markdown
+    body.classList.add('wp-body--md');
+    const raw = body.textContent.trim();
+    if (raw) {
+        const renderer = new marked.Renderer();
+        renderer.link = function(href, title, text) {
+            const t = title ? ' title="' + title + '"' : '';
+            return '<a href="' + href + '"' + t + ' target="_blank" rel="noopener">' + text + '</a>';
+        };
+        marked.setOptions({ renderer, breaks: false, gfm: true });
+        body.innerHTML = marked.parse(raw);
+    }
+});
+</script>
+{% endblock %}

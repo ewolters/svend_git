@@ -18,7 +18,7 @@ from django.shortcuts import get_object_or_404
 
 from accounts.permissions import gated_paid, require_feature
 from .models import ValueStreamMap
-from .hoshin_calculations import estimate_savings_from_vsm_delta
+from .hoshin_calculations import estimate_savings_from_vsm_delta, estimate_savings_monte_carlo
 from core.models import Project
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,16 @@ def update_vsm(request, vsm_id):
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    # Validate takt_time if provided
+    if 'takt_time' in data and data['takt_time'] is not None:
+        try:
+            tt = float(data['takt_time'])
+            if tt <= 0:
+                return JsonResponse({"error": "Takt time must be positive"}, status=400)
+            data['takt_time'] = tt
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Takt time must be a number"}, status=400)
 
     # Update simple fields
     for field in ['name', 'status', 'product_family', 'customer_name', 'customer_demand',
@@ -472,13 +482,14 @@ def generate_proposals(request, vsm_id):
         # Match to current-state step by name
         current_step = current_steps.get(step_name, {})
 
-        # Estimate savings from metric deltas
+        # Estimate savings from metric deltas (Monte Carlo for confidence intervals)
         if current_step:
-            estimate = estimate_savings_from_vsm_delta(
+            estimate = estimate_savings_monte_carlo(
                 current_step, nearest_step,
                 annual_volume=annual_volume,
                 cost_per_unit=cost_per_unit,
             )
+            estimate["estimated_annual_savings"] = estimate["median_savings"]
         else:
             estimate = {
                 "cycle_time_delta": 0, "changeover_delta": 0,
@@ -486,6 +497,9 @@ def generate_proposals(request, vsm_id):
                 "estimated_annual_savings": 0,
                 "suggested_method": "direct",
                 "improvement_pct": 0,
+                "median_savings": 0, "lower_5": 0, "upper_95": 0,
+                "lower_25": 0, "upper_75": 0, "p_positive": 0,
+                "mean_savings": 0, "std_savings": 0, "deterministic": 0,
             }
 
         proposals.append({
@@ -503,6 +517,10 @@ def generate_proposals(request, vsm_id):
             "estimated_annual_savings": estimate["estimated_annual_savings"],
             "suggested_method": estimate["suggested_method"],
             "improvement_pct": estimate["improvement_pct"],
+            "median_savings": estimate.get("median_savings", 0),
+            "lower_5": estimate.get("lower_5", 0),
+            "upper_95": estimate.get("upper_95", 0),
+            "p_positive": estimate.get("p_positive", 0),
             "suggested_title": f"{burst_text} — {step_name}",
             "suggested_type": "labor" if estimate["suggested_method"] in ("time_reduction", "headcount") else "material",
         })

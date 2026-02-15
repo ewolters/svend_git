@@ -238,7 +238,7 @@
                         <button type="submit" class="btn btn-primary" style="align-self:flex-end;">Send Invite</button>
                     </div>
                 </form>
-                <p class="help-text">Sending an invite adds a seat ($129/month, prorated). The link is valid for 7 days.</p>
+                <p class="help-text">Sending an invite adds a seat (prorated to your billing cycle). The link is valid for 7 days.</p>
             </section>
 
             <!-- Pending Invitations -->
@@ -934,7 +934,7 @@
             }
 
             const msg = data.seat_added
-                ? `Invitation sent to ${email} — seat added ($129/mo prorated)`
+                ? `Invitation sent to ${email} — seat added (prorated to billing cycle)`
                 : `Invitation sent to ${email}`;
             showToast(msg);
             document.getElementById('invite-email').value = '';

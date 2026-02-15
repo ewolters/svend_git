@@ -4,10 +4,10 @@ All tier-related constants live here. Import from this module, not from models.
 
 Pricing:
 - FREE: $0/month - Trial tier, limited queries
-- FOUNDER: $19/month - First 100 users, locked rate forever
-- PRO: $29/month - Standard paid tier
-- TEAM: $79/month - Collaboration features
-- ENTERPRISE: $199/month - Full access + AI assistant
+- FOUNDER: $19/month - Legacy (existing users only, no longer sold)
+- PRO: $49/month - Professional tier (individual seat)
+- TEAM: $99/month per seat - Collaboration features
+- ENTERPRISE: $299/month per seat - Full access + AI assistant + SSO
 """
 
 from django.db import models
@@ -19,10 +19,10 @@ class Tier(models.TextChoices):
     Used by User model and throughout the app for access control.
     """
     FREE = "free", "Free"
-    FOUNDER = "founder", "Founder ($19/month)"
-    PRO = "pro", "Pro ($29/month)"
-    TEAM = "team", "Team ($79/month)"
-    ENTERPRISE = "enterprise", "Enterprise ($199/month)"
+    FOUNDER = "founder", "Founder ($19/month)"  # Legacy — no longer sold
+    PRO = "pro", "Professional ($49/month)"
+    TEAM = "team", "Team ($99/month)"
+    ENTERPRISE = "enterprise", "Enterprise ($299/month)"
 
 
 # Maximum founder slots available
@@ -32,10 +32,10 @@ FOUNDER_SLOTS = 100
 # Daily query limits by tier
 TIER_LIMITS = {
     Tier.FREE: 5,           # Trial - basic DSW only
-    Tier.FOUNDER: 50,       # Same as PRO, locked at $19 forever
-    Tier.PRO: 50,           # Basic ML, most tools, no Anthropic
-    Tier.TEAM: 200,         # + Collaboration, + priority
-    Tier.ENTERPRISE: 1000,  # + Anthropic, + API access, + support
+    Tier.FOUNDER: 50,       # Legacy, locked at $19 forever
+    Tier.PRO: 50,           # Professional ($49/mo)
+    Tier.TEAM: 200,         # Team ($99/mo) + collaboration
+    Tier.ENTERPRISE: 1000,  # Enterprise ($299/mo) + AI + SSO
 }
 
 
@@ -59,7 +59,7 @@ TIER_FEATURES = {
         "collaboration": False,
         "forge_api": True,
         "hoshin_kanri": False,
-        "priority_support": True,  # Founders get priority as thanks
+        "priority_support": True,  # Legacy founders get priority
     },
     Tier.PRO: {
         "basic_dsw": True,
@@ -93,6 +93,24 @@ TIER_FEATURES = {
     },
 }
 
+
+# Guest invite limits per board (by owner's tier)
+GUEST_INVITE_LIMITS = {
+    Tier.FREE: 0,
+    Tier.FOUNDER: 2,
+    Tier.PRO: 5,
+    Tier.TEAM: 15,
+    Tier.ENTERPRISE: 9999,
+}
+
+# Guest invite expiry in days (0 = permanent, stored as 100 years)
+GUEST_INVITE_EXPIRY_DAYS = {
+    Tier.FREE: 0,
+    Tier.FOUNDER: 7,
+    Tier.PRO: 7,
+    Tier.TEAM: 0,
+    Tier.ENTERPRISE: 0,
+}
 
 
 # --- User profile choices ---
@@ -149,8 +167,12 @@ def is_paid_tier(tier: str) -> bool:
 
 
 def can_use_anthropic(tier: str) -> bool:
-    """Check if tier can use Anthropic models (Enterprise only)."""
-    return tier == Tier.ENTERPRISE
+    """Check if tier can use Anthropic models.
+
+    All paid tiers get access — LLMManager selects model quality by tier:
+    FOUNDER→haiku, PRO/TEAM→sonnet, ENTERPRISE→opus.
+    """
+    return is_paid_tier(tier)
 
 
 def can_use_ml(tier: str) -> bool:

@@ -17,8 +17,8 @@ Usage:
     response = client.messages.create(model="claude-3-5-haiku-20241022", ...)
 
 Model Selection by Tier:
-    - Free/Founder: claude-3-5-haiku-20241022
-    - Pro/Team: claude-sonnet-4-20250514
+    - Free/Founder (legacy): claude-3-5-haiku-20241022
+    - Professional/Team: claude-sonnet-4-20250514
     - Enterprise: claude-opus-4-20250514
 
 Note: Custom Qwen/DeepSeek models temporarily disabled while testing Synara.

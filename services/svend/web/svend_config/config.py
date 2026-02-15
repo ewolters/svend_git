@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     )
     stripe_price_id_pro: str = Field(
         default="",
-        description="Stripe Price ID for Pro tier ($29/month)",
+        description="Stripe Price ID for Professional tier ($49/month)",
     )
 
     # Kjerne pipeline
@@ -99,6 +99,12 @@ class Settings(BaseSettings):
     flywheel_auto_escalate_threshold: float = Field(
         default=0.4,
         description="Below this confidence, auto-escalate to Opus",
+    )
+
+    # Field-level encryption
+    field_encryption_key: str = Field(
+        default="",
+        description="Fernet key for field-level encryption at rest",
     )
 
     # Email settings (SMTP)

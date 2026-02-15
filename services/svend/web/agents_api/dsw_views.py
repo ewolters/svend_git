@@ -1565,21 +1565,455 @@ def run_model(request, model_id):
             except Exception:
                 pass
 
+        # Prediction intervals (RandomForest/ensemble tree models)
+        intervals = None
+        want_intervals = False
+        if request.body:
+            try:
+                body_data = json.loads(request.body)
+                want_intervals = body_data.get("intervals", False)
+            except (json.JSONDecodeError, AttributeError):
+                pass
+
+        if want_intervals and hasattr(model, "estimators_"):
+            try:
+                tree_preds = np.array([t.predict(X) for t in model.estimators_])
+                lo = np.percentile(tree_preds, 5, axis=0)
+                hi = np.percentile(tree_preds, 95, axis=0)
+                intervals = [[round(float(lo[i]), 4), round(float(hi[i]), 4)] for i in range(len(lo))]
+            except Exception:
+                pass
+
         # Track query usage
         request.user.increment_queries()
 
         pred_list = predictions if isinstance(predictions, list) else predictions.tolist()
-        return JsonResponse({
+        result = {
             "predictions": pred_list,
             "probabilities": probabilities,
             "count": len(pred_list),
-        })
+        }
+        if intervals:
+            result["intervals"] = intervals
+        return JsonResponse(result)
 
     except SavedModel.DoesNotExist:
         return JsonResponse({"error": "Model not found"}, status=404)
     except Exception as e:
         logger.exception("Model inference error")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
+def optimize_model(request, model_id):
+    """Find optimal input values with density awareness, constraints, costs, and diminishing returns."""
+    try:
+        import pickle
+        import numpy as np
+        import pandas as pd
+        from scipy.optimize import differential_evolution
+
+        saved_model = SavedModel.objects.get(id=model_id, user=request.user)
+        model_path = Path(saved_model.model_path)
+        if not model_path.exists():
+            return JsonResponse({"error": "Model file not found"}, status=404)
+
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+
+        data = json.loads(request.body)
+        goal = data.get("goal", "maximize")
+        target_value = data.get("target_value", 0)
+        current_values = data.get("current_values", {})
+
+        # ── New: user-definable constraints, cost weights, density toggle ──
+        user_bounds = data.get("feature_bounds", {})        # {feat: {min, max}}
+        sum_constraints = data.get("sum_constraints", [])   # [{features: [...], operator: "<=", limit: N}]
+        cost_weights = data.get("cost_weights", {})         # {feat: 1-10}
+        use_density = data.get("density_penalty", True)
+
+        features = json.loads(saved_model.feature_names) if saved_model.feature_names else []
+        training_config = saved_model.training_config or {}
+        feature_info = training_config.get("feature_info", {})
+        feature_stats = training_config.get("feature_stats", {})
+
+        # Separate numeric and categorical features; apply user bounds
+        numeric_feats = []
+        cat_feats = []
+        bounds = []
+        ranges = []
+        for feat in features:
+            info = feature_info.get(feat, {})
+            if info.get("categories"):
+                cat_feats.append(feat)
+            else:
+                numeric_feats.append(feat)
+                lo = info.get("min", 0)
+                hi = info.get("max", 100)
+                # User-defined tighter bounds override training-data bounds
+                ub = user_bounds.get(feat, {})
+                if ub.get("min") is not None:
+                    lo = max(lo, float(ub["min"]))
+                if ub.get("max") is not None:
+                    hi = min(hi, float(ub["max"]))
+                if lo >= hi:
+                    hi = lo + 1e-4
+                bounds.append((lo, hi))
+                ranges.append(hi - lo if hi > lo else 1)
+
+        if not numeric_feats:
+            return JsonResponse({"error": "No numeric features to optimize"}, status=400)
+
+        # Build numeric index for sum constraints
+        num_idx = {f: i for i, f in enumerate(numeric_feats)}
+
+        # Current numeric values as array (for cost penalty)
+        current_numeric = np.array([float(current_values.get(f, (bounds[i][0] + bounds[i][1]) / 2))
+                                    for i, f in enumerate(numeric_feats)])
+        ranges_arr = np.array(ranges)
+
+        # Cost weight array (default 1, user can set 1-10)
+        cost_arr = np.array([float(cost_weights.get(f, 1)) for f in numeric_feats])
+        has_costs = any(cost_weights.get(f) and float(cost_weights[f]) != 1 for f in numeric_feats)
+
+        # ── Density penalty: precompute Mahalanobis components ──
+        cov_inv = None
+        means_arr = None
+        density_threshold = 1.0
+        if use_density and feature_stats.get("covariance") and feature_stats.get("means"):
+            try:
+                stat_feats = feature_stats["numeric_features"]
+                means_arr = np.array([feature_stats["means"].get(f, 0) for f in stat_feats])
+                stat_idx = {f: i for i, f in enumerate(stat_feats)}
+                cov_matrix = np.array([[feature_stats["covariance"][c][r]
+                                        for c in stat_feats] for r in stat_feats])
+                cov_matrix += np.eye(len(stat_feats)) * 1e-6
+                cov_inv = np.linalg.inv(cov_matrix)
+                density_threshold = np.sqrt(len(stat_feats)) * 1.5
+            except Exception:
+                cov_inv = None
+
+        # Get baseline prediction at current values for scaling penalties
+        baseline_pred = abs(_predict_numeric(
+            model, current_numeric, {f: current_values.get(f, "") for f in cat_feats},
+            numeric_feats, cat_feats, features, feature_info, current_values,
+        ))
+        pred_scale = max(baseline_pred, 1.0)
+
+        def _predict_row(numeric_vals, cat_vals):
+            return _predict_numeric(
+                model, numeric_vals, cat_vals,
+                numeric_feats, cat_feats, features, feature_info, current_values,
+            )
+
+        # ── Build categorical combos ──
+        cat_combos = [current_values]
+        if cat_feats:
+            from itertools import product
+            cat_options = []
+            for feat in cat_feats:
+                info = feature_info.get(feat, {})
+                cats = info.get("categories", [current_values.get(feat, "")])
+                cat_options.append([(feat, c) for c in cats[:5]])
+            total_combos = 1
+            for opts in cat_options:
+                total_combos *= len(opts)
+            if total_combos <= 20:
+                cat_combos = [dict(combo) for combo in product(*cat_options)]
+
+        best_val = None
+        best_inputs = None
+
+        for cat_vals in cat_combos:
+            def objective(x, _cv=cat_vals):
+                pred = _predict_row(x, _cv)
+
+                # Base objective
+                if goal == "maximize":
+                    obj = -pred
+                elif goal == "minimize":
+                    obj = pred
+                else:
+                    obj = abs(pred - target_value)
+
+                # Density penalty — push towards high-density regions
+                if cov_inv is not None:
+                    stat_feats = feature_stats["numeric_features"]
+                    x_full = np.array([float(x[num_idx[f]]) if f in num_idx
+                                       else means_arr[i] for i, f in enumerate(stat_feats)])
+                    diff = x_full - means_arr
+                    mahal = float(np.sqrt(max(0, diff @ cov_inv @ diff)))
+                    # Soft penalty: ramps up beyond the "ok" threshold
+                    if mahal > density_threshold:
+                        obj += 0.05 * pred_scale * ((mahal - density_threshold) / density_threshold) ** 2
+
+                # Cost weights — penalize changing expensive features
+                if has_costs:
+                    deltas = np.abs(x - current_numeric) / ranges_arr
+                    obj += 0.03 * pred_scale * float(np.sum(cost_arr * deltas))
+
+                # Sum constraints — hard penalty for violations
+                for sc in sum_constraints:
+                    sc_feats = sc.get("features", [])
+                    sc_op = sc.get("operator", "<=")
+                    sc_limit = float(sc.get("limit", 0))
+                    feat_sum = sum(float(x[num_idx[f]]) for f in sc_feats if f in num_idx)
+                    if sc_op == "<=" and feat_sum > sc_limit:
+                        obj += 10 * pred_scale * ((feat_sum - sc_limit) / max(sc_limit, 1)) ** 2
+                    elif sc_op == ">=" and feat_sum < sc_limit:
+                        obj += 10 * pred_scale * ((sc_limit - feat_sum) / max(sc_limit, 1)) ** 2
+
+                return obj
+
+            result = differential_evolution(
+                objective, bounds, maxiter=30, tol=1e-4,
+                seed=42, polish=True, init="latinhypercube",
+                popsize=10,
+            )
+
+            pred = _predict_row(result.x, cat_vals)
+            if best_val is None or (goal == "maximize" and pred > best_val) or \
+               (goal == "minimize" and pred < best_val) or \
+               (goal == "target" and abs(pred - target_value) < abs(best_val - target_value)):
+                best_val = pred
+                best_inputs = {}
+                best_numeric = list(result.x)
+                for i, feat in enumerate(numeric_feats):
+                    best_inputs[feat] = round(float(result.x[i]), 4)
+                for feat in cat_feats:
+                    best_inputs[feat] = cat_vals.get(feat, current_values.get(feat, ""))
+
+        # ── Decision Intelligence: feasibility, prescription, sensitivity ──
+
+        response = {
+            "optimal_inputs": best_inputs,
+            "predicted_value": round(best_val, 4) if best_val is not None else None,
+            "goal": goal,
+        }
+
+        if not best_inputs:
+            return JsonResponse(response)
+
+        best_cat = {f: best_inputs.get(f, current_values.get(f, "")) for f in cat_feats}
+        best_num = np.array([float(best_inputs.get(f, 0)) for f in numeric_feats])
+
+        # 1. Prescription — plain-language changes from current to optimal
+        prescription = []
+        for feat in features:
+            curr = current_values.get(feat)
+            opt = best_inputs.get(feat)
+            if curr is None or opt is None:
+                continue
+            info = feature_info.get(feat, {})
+            if info.get("categories"):
+                if str(curr) != str(opt):
+                    prescription.append({"feature": feat, "from": str(curr), "to": str(opt), "type": "switch"})
+            else:
+                try:
+                    delta = float(opt) - float(curr)
+                    if abs(delta) < 1e-6:
+                        prescription.append({"feature": feat, "action": "hold", "value": round(float(opt), 4)})
+                    else:
+                        feat_range = (info.get("max", 100) - info.get("min", 0)) or 1
+                        pct = abs(delta) / feat_range * 100
+                        prescription.append({
+                            "feature": feat, "from": round(float(curr), 4), "to": round(float(opt), 4),
+                            "delta": round(delta, 4), "direction": "increase" if delta > 0 else "decrease",
+                            "magnitude_pct": round(pct, 1), "type": "adjust",
+                            "cost": float(cost_weights.get(feat, 1)),
+                        })
+                except (ValueError, TypeError):
+                    pass
+        response["prescription"] = prescription
+
+        # 2. Edge warnings — features at boundary of observed data
+        edge_warnings = []
+        for feat in numeric_feats:
+            info = feature_info.get(feat, {})
+            lo, hi = info.get("min", 0), info.get("max", 100)
+            val = best_inputs.get(feat)
+            if val is None:
+                continue
+            feat_range = (hi - lo) or 1
+            if (val - lo) / feat_range < 0.05:
+                edge_warnings.append({"feature": feat, "edge": "lower", "value": round(val, 4), "bound": round(lo, 4)})
+            elif (hi - val) / feat_range < 0.05:
+                edge_warnings.append({"feature": feat, "edge": "upper", "value": round(val, 4), "bound": round(hi, 4)})
+        response["edge_warnings"] = edge_warnings
+
+        # 3. Feasibility score — Mahalanobis distance to training centroid
+        feasibility = {"score": 1.0, "label": "feasible", "details": ""}
+        if cov_inv is not None:
+            try:
+                stat_feats = feature_stats["numeric_features"]
+                opt_vals = np.array([float(best_inputs.get(f, feature_stats["means"].get(f, 0))) for f in stat_feats])
+                diff = opt_vals - means_arr
+                mahal_dist = float(np.sqrt(max(0, diff @ cov_inv @ diff)))
+
+                p = len(stat_feats)
+                threshold_ok = np.sqrt(p) * 1.5
+                threshold_warn = np.sqrt(p) * 2.5
+
+                if mahal_dist <= threshold_ok:
+                    feasibility = {"score": round(1.0 - mahal_dist / (threshold_warn * 1.5), 2),
+                                   "label": "high", "mahalanobis": round(mahal_dist, 2),
+                                   "details": "This combination is well within your observed data — prediction is reliable."}
+                elif mahal_dist <= threshold_warn:
+                    feasibility = {"score": round(0.5 - (mahal_dist - threshold_ok) / (threshold_warn * 2), 2),
+                                   "label": "moderate", "mahalanobis": round(mahal_dist, 2),
+                                   "details": "This combination is at the edge of your data. Prediction has moderate uncertainty."}
+                else:
+                    feasibility = {"score": max(0.0, round(0.2 - mahal_dist / (threshold_warn * 5), 2)),
+                                   "label": "low", "mahalanobis": round(mahal_dist, 2),
+                                   "details": "This combination is far from any training data — the model is extrapolating. Collect data near these values before acting."}
+
+                # Check violated correlations
+                violated = []
+                for corr in feature_stats.get("strong_correlations", []):
+                    f1, f2, r = corr["f1"], corr["f2"], corr["r"]
+                    if f1 in best_inputs and f2 in best_inputs:
+                        v1 = (float(best_inputs[f1]) - feature_stats["means"].get(f1, 0)) / max(feature_stats["stds"].get(f1, 1), 1e-6)
+                        v2 = (float(best_inputs[f2]) - feature_stats["means"].get(f2, 0)) / max(feature_stats["stds"].get(f2, 1), 1e-6)
+                        if r > 0 and v1 * v2 < -1:
+                            violated.append(f"{f1} and {f2} are positively correlated (r={r}) but the optimum pushes them apart")
+                        elif r < 0 and v1 * v2 > 1:
+                            violated.append(f"{f1} and {f2} are negatively correlated (r={r}) but the optimum pushes them together")
+                if violated:
+                    feasibility["correlation_warnings"] = violated
+            except Exception:
+                pass
+        response["feasibility"] = feasibility
+
+        # 4. Sensitivity — gradient at optimal point
+        sensitivity = []
+        for i, feat in enumerate(numeric_feats):
+            info = feature_info.get(feat, {})
+            lo, hi = info.get("min", 0), info.get("max", 100)
+            step = (hi - lo) * 0.01 if (hi - lo) > 0 else 0.01
+            opt_val = float(best_inputs.get(feat, 0))
+
+            x_up = list(best_num)
+            x_down = list(best_num)
+            x_up[i] = min(opt_val + step, hi)
+            x_down[i] = max(opt_val - step, lo)
+
+            pred_up = _predict_row(x_up, best_cat)
+            pred_down = _predict_row(x_down, best_cat)
+            gradient = (pred_up - pred_down) / (2 * step) if step > 0 else 0
+
+            sensitivity.append({
+                "feature": feat, "gradient": round(gradient, 6),
+                "impact": round(abs(gradient) * (hi - lo), 4),
+            })
+        sensitivity.sort(key=lambda s: abs(s["impact"]), reverse=True)
+        response["sensitivity"] = sensitivity
+
+        # 5. Diminishing returns — sweep current→optimal per feature, find knee
+        diminishing = []
+        for i, feat in enumerate(numeric_feats):
+            curr_val = float(current_values.get(feat, current_numeric[i]))
+            opt_val = float(best_inputs.get(feat, curr_val))
+            if abs(opt_val - curr_val) < 1e-6:
+                continue
+
+            steps = np.linspace(curr_val, opt_val, 11)
+            preds = []
+            for sv in steps:
+                test_x = list(best_num)
+                test_x[i] = sv
+                preds.append(_predict_row(test_x, best_cat))
+
+            total_gain = abs(preds[-1] - preds[0])
+            if total_gain < 1e-8:
+                continue
+
+            # Find knee where 80% of gain is captured
+            knee_pct = 100
+            knee_val = opt_val
+            for k in range(1, len(preds)):
+                achieved = abs(preds[k] - preds[0]) / total_gain
+                if achieved >= 0.8:
+                    knee_pct = round(k / (len(preds) - 1) * 100)
+                    knee_val = round(float(steps[k]), 4)
+                    break
+
+            diminishing.append({
+                "feature": feat,
+                "knee_pct": knee_pct,
+                "knee_value": knee_val,
+                "total_gain": round(total_gain, 4),
+                "current": round(curr_val, 4),
+                "optimal": round(opt_val, 4),
+            })
+        response["diminishing_returns"] = diminishing
+
+        # 6. Constraint satisfaction check
+        constraint_status = []
+        for sc in sum_constraints:
+            sc_feats = sc.get("features", [])
+            sc_op = sc.get("operator", "<=")
+            sc_limit = float(sc.get("limit", 0))
+            feat_sum = sum(float(best_inputs.get(f, 0)) for f in sc_feats if f in best_inputs)
+            satisfied = (sc_op == "<=" and feat_sum <= sc_limit + 1e-6) or \
+                        (sc_op == ">=" and feat_sum >= sc_limit - 1e-6)
+            constraint_status.append({
+                "features": sc_feats, "operator": sc_op, "limit": sc_limit,
+                "actual": round(feat_sum, 4), "satisfied": satisfied,
+            })
+        if constraint_status:
+            response["constraints"] = constraint_status
+
+        # 7. Prediction interval at optimal point
+        if hasattr(model, "estimators_"):
+            try:
+                opt_row = {f: best_inputs.get(f, current_values.get(f, "")) for f in features}
+                opt_df = pd.DataFrame([opt_row])
+                for col in opt_df.select_dtypes(include=["object", "category"]).columns:
+                    if col in feature_info and feature_info[col].get("categories"):
+                        train_cats = sorted(feature_info[col]["categories"])
+                        opt_df[col] = pd.Categorical(opt_df[col], categories=train_cats).codes.astype(int)
+                    else:
+                        opt_df[col] = pd.Categorical(opt_df[col]).codes.astype(int)
+                opt_df = opt_df.fillna(0).replace(-1, 0)
+                X_opt = opt_df[features] if all(f in opt_df.columns for f in features) else opt_df
+                tree_preds = np.array([t.predict(X_opt)[0] for t in model.estimators_])
+                response["interval"] = {
+                    "lower": round(float(np.percentile(tree_preds, 5)), 4),
+                    "upper": round(float(np.percentile(tree_preds, 95)), 4),
+                    "std": round(float(np.std(tree_preds)), 4),
+                }
+            except Exception:
+                pass
+
+        return JsonResponse(response)
+
+    except SavedModel.DoesNotExist:
+        return JsonResponse({"error": "Model not found"}, status=404)
+    except Exception as e:
+        logger.exception("Model optimization error")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def _predict_numeric(model, numeric_vals, cat_vals, numeric_feats, cat_feats, features, feature_info, current_values):
+    """Shared prediction helper for optimize — builds DataFrame from numeric array + cat dict."""
+    import pandas as pd
+    row = {}
+    for i, feat in enumerate(numeric_feats):
+        row[feat] = numeric_vals[i]
+    for feat in cat_feats:
+        row[feat] = cat_vals.get(feat, current_values.get(feat, ""))
+    df = pd.DataFrame([row])
+    for col in df.select_dtypes(include=["object", "category"]).columns:
+        if col in feature_info and feature_info[col].get("categories"):
+            train_cats = sorted(feature_info[col]["categories"])
+            df[col] = pd.Categorical(df[col], categories=train_cats).codes.astype(int)
+        else:
+            df[col] = pd.Categorical(df[col]).codes.astype(int)
+    df = df.fillna(0).replace(-1, 0)
+    X = df[features] if all(f in df.columns for f in features) else df
+    return float(model.predict(X)[0])
 
 
 @csrf_exempt
@@ -2009,7 +2443,9 @@ def run_analysis(request):
             except Exception:
                 pass
 
-        if df is None:
+        if df is None and analysis_type == "simulation":
+            df = pd.DataFrame()  # Simulation can run without data (user-defined distributions)
+        elif df is None:
             return JsonResponse({"error": "No data loaded. Please load a dataset first."}, status=400)
 
         result = {"plots": [], "summary": "", "guide_observation": ""}
@@ -2027,6 +2463,8 @@ def run_analysis(request):
             result = run_bayesian_analysis(df, analysis_id, config)
         elif analysis_type == "reliability":
             result = run_reliability_analysis(df, analysis_id, config)
+        elif analysis_type == "simulation":
+            result = run_simulation(df, analysis_id, config, request.user)
         else:
             return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
 
@@ -2253,6 +2691,403 @@ def _ml_interpretation(task, metrics, y_test=None, y_pred=None, features=None, t
     return b
 
 
+def _fit_best_distribution(data):
+    """Fit multiple distributions and return the best by KS p-value.
+    Returns (dist_name, scipy_dist, fit_args, ks_pvalue)."""
+    from scipy import stats as sp_stats
+    import numpy as np
+
+    data = np.asarray(data, dtype=float)
+    data = data[np.isfinite(data)]
+    if len(data) < 5:
+        mu, sigma = float(np.mean(data)), max(float(np.std(data)), 1e-6)
+        return "normal", sp_stats.norm, (mu, sigma), 1.0
+
+    candidates = []
+
+    # Normal
+    try:
+        mu, sigma = sp_stats.norm.fit(data)
+        ks = sp_stats.kstest(data, "norm", args=(mu, sigma))
+        candidates.append(("normal", sp_stats.norm, (mu, sigma), ks.pvalue))
+    except Exception:
+        pass
+
+    # Lognormal (only positive data)
+    if np.all(data > 0):
+        try:
+            s, loc, scale = sp_stats.lognorm.fit(data, floc=0)
+            ks = sp_stats.kstest(data, "lognorm", args=(s, 0, scale))
+            candidates.append(("lognormal", sp_stats.lognorm, (s, 0, scale), ks.pvalue))
+        except Exception:
+            pass
+
+    # Weibull (only positive data)
+    if np.all(data > 0):
+        try:
+            c, loc, scale = sp_stats.weibull_min.fit(data, floc=0)
+            ks = sp_stats.kstest(data, "weibull_min", args=(c, 0, scale))
+            candidates.append(("weibull", sp_stats.weibull_min, (c, 0, scale), ks.pvalue))
+        except Exception:
+            pass
+
+    # Exponential (only positive data)
+    if np.all(data > 0):
+        try:
+            loc, scale = sp_stats.expon.fit(data)
+            ks = sp_stats.kstest(data, "expon", args=(loc, scale))
+            candidates.append(("exponential", sp_stats.expon, (loc, scale), ks.pvalue))
+        except Exception:
+            pass
+
+    # Gamma (only positive data)
+    if np.all(data > 0):
+        try:
+            a, loc, scale = sp_stats.gamma.fit(data, floc=0)
+            ks = sp_stats.kstest(data, "gamma", args=(a, 0, scale))
+            candidates.append(("gamma", sp_stats.gamma, (a, 0, scale), ks.pvalue))
+        except Exception:
+            pass
+
+    # Uniform
+    try:
+        loc, scale = sp_stats.uniform.fit(data)
+        ks = sp_stats.kstest(data, "uniform", args=(loc, scale))
+        candidates.append(("uniform", sp_stats.uniform, (loc, scale), ks.pvalue))
+    except Exception:
+        pass
+
+    if not candidates:
+        mu, sigma = float(np.mean(data)), max(float(np.std(data)), 1e-6)
+        return "normal", sp_stats.norm, (mu, sigma), 0.0
+
+    best = max(candidates, key=lambda x: x[3])
+    return best
+
+
+def run_simulation(df, analysis_id, config, user):
+    """Monte Carlo simulation engine."""
+    import numpy as np
+    from scipy import stats as sp_stats
+    import ast
+    import math
+
+    result = {"plots": [], "summary": "", "guide_observation": ""}
+
+    if analysis_id != "monte_carlo":
+        result["summary"] = f"Unknown simulation: {analysis_id}"
+        return result
+
+    variables = config.get("variables", [])
+    formula = config.get("transfer_function", "")
+    model_id = config.get("model_id")
+    n_iter = min(int(config.get("n_iterations", 10000)), 100000)
+    thresholds = config.get("thresholds", [])
+    seed = config.get("seed")
+
+    if not variables:
+        result["summary"] = "Error: No input variables defined."
+        return result
+    if len(variables) > 20:
+        result["summary"] = "Error: Maximum 20 variables supported."
+        return result
+    if not formula and not model_id:
+        result["summary"] = "Error: Provide a transfer function formula or a saved model ID."
+        return result
+
+    rng = np.random.default_rng(int(seed) if seed else None)
+
+    # --- Generate input samples ---
+    samples = {}
+    var_names = []
+    for var in variables:
+        name = var.get("name", "X")
+        dist = var.get("distribution", "normal")
+        params = var.get("params", {})
+        var_names.append(name)
+
+        if dist == "fit_from_data":
+            col = var.get("column")
+            if col and col in df.columns:
+                col_data = df[col].dropna().values
+                _, best_dist, fit_args, _ = _fit_best_distribution(col_data)
+                samples[name] = best_dist.rvs(*fit_args, size=n_iter, random_state=rng)
+            else:
+                samples[name] = rng.normal(0, 1, n_iter)
+        elif dist == "normal":
+            samples[name] = rng.normal(float(params.get("mean", 0)), max(float(params.get("std", 1)), 1e-9), n_iter)
+        elif dist == "uniform":
+            lo, hi = float(params.get("low", 0)), float(params.get("high", 1))
+            samples[name] = rng.uniform(lo, hi, n_iter)
+        elif dist == "lognormal":
+            samples[name] = rng.lognormal(float(params.get("mean", 0)), max(float(params.get("sigma", 1)), 1e-9), n_iter)
+        elif dist == "weibull":
+            samples[name] = sp_stats.weibull_min.rvs(float(params.get("shape", 2)), scale=float(params.get("scale", 1)), size=n_iter, random_state=rng)
+        elif dist == "exponential":
+            samples[name] = rng.exponential(max(float(params.get("scale", 1)), 1e-9), n_iter)
+        elif dist == "gamma":
+            samples[name] = rng.gamma(max(float(params.get("shape", 2)), 0.01), max(float(params.get("scale", 1)), 1e-9), n_iter)
+        elif dist == "triangular":
+            lo = float(params.get("low", 0))
+            mode = float(params.get("mode", 0.5))
+            hi = float(params.get("high", 1))
+            if lo >= hi:
+                hi = lo + 1
+            mode = max(lo, min(hi, mode))
+            samples[name] = rng.triangular(lo, mode, hi, n_iter)
+        elif dist == "beta":
+            samples[name] = rng.beta(max(float(params.get("a", 2)), 0.01), max(float(params.get("b", 2)), 0.01), n_iter)
+        else:
+            samples[name] = rng.normal(0, 1, n_iter)
+
+    # --- Evaluate transfer function ---
+    outputs = None
+
+    if model_id:
+        # Use saved ML model
+        try:
+            from .models import SavedModel
+            import pickle, pandas as pd
+            saved = SavedModel.objects.get(id=model_id, user=user)
+            model_obj = pickle.loads(saved.model_data)
+            input_df = pd.DataFrame(samples)
+            outputs = model_obj.predict(input_df).astype(float)
+        except Exception as e:
+            result["summary"] = f"Error loading model: {e}"
+            return result
+    else:
+        # Validate formula AST for security
+        allowed_names = set(var_names) | {"sqrt", "log", "exp", "abs", "sin", "cos", "tan",
+                                          "pi", "max", "min", "pow", "np", "e", "ceil", "floor"}
+        try:
+            tree = ast.parse(formula, mode="eval")
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name) and node.id not in allowed_names:
+                    result["summary"] = f"Error: Forbidden name '{node.id}' in formula. Allowed: variable names + math functions."
+                    return result
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    result["summary"] = "Error: Import statements not allowed in formula."
+                    return result
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                    if isinstance(node.func.value, ast.Name) and node.func.value.id not in ("np", "math"):
+                        result["summary"] = f"Error: Only np.* and math.* methods allowed."
+                        return result
+        except SyntaxError as e:
+            result["summary"] = f"Error: Invalid formula syntax — {e}"
+            return result
+
+        # Build safe namespace
+        safe_ns = {"__builtins__": {}}
+        safe_ns.update({name: samples[name] for name in var_names})
+        safe_ns.update({
+            "sqrt": np.sqrt, "log": np.log, "exp": np.exp, "abs": np.abs,
+            "sin": np.sin, "cos": np.cos, "tan": np.tan,
+            "pi": np.pi, "e": np.e, "max": np.maximum, "min": np.minimum,
+            "pow": np.power, "np": np, "ceil": np.ceil, "floor": np.floor,
+        })
+
+        try:
+            outputs = eval(compile(tree, "<formula>", "eval"), safe_ns)
+            outputs = np.asarray(outputs, dtype=float).ravel()
+        except Exception as e:
+            result["summary"] = f"Error evaluating formula: {e}"
+            return result
+
+    if outputs is None or len(outputs) == 0:
+        result["summary"] = "Error: Simulation produced no output."
+        return result
+
+    # --- Compute statistics ---
+    outputs = outputs[:n_iter]  # ensure correct length
+    out_mean = float(np.mean(outputs))
+    out_std = float(np.std(outputs))
+    percentiles = {
+        "p1": float(np.percentile(outputs, 1)),
+        "p5": float(np.percentile(outputs, 5)),
+        "p10": float(np.percentile(outputs, 10)),
+        "p25": float(np.percentile(outputs, 25)),
+        "p50": float(np.percentile(outputs, 50)),
+        "p75": float(np.percentile(outputs, 75)),
+        "p90": float(np.percentile(outputs, 90)),
+        "p95": float(np.percentile(outputs, 95)),
+        "p99": float(np.percentile(outputs, 99)),
+    }
+
+    # Threshold probabilities
+    threshold_results = []
+    for t in thresholds:
+        val = float(t.get("value", 0))
+        direction = t.get("direction", "above")
+        if direction == "above":
+            prob = float(np.mean(outputs > val))
+        else:
+            prob = float(np.mean(outputs < val))
+        threshold_results.append({"value": val, "direction": direction, "probability": prob})
+
+    # Sensitivity tornado: vary each input ±1σ, hold others at mean
+    sensitivity = []
+    means = {name: float(np.mean(samples[name])) for name in var_names}
+    stds = {name: float(np.std(samples[name])) for name in var_names}
+
+    for name in var_names:
+        baseline = {n: np.full(1, means[n]) for n in var_names}
+        # Low: -1σ
+        low_ns = dict(baseline)
+        low_ns[name] = np.full(1, means[name] - stds[name])
+        # High: +1σ
+        high_ns = dict(baseline)
+        high_ns[name] = np.full(1, means[name] + stds[name])
+
+        if model_id:
+            try:
+                import pandas as pd
+                low_out = float(model_obj.predict(pd.DataFrame(low_ns))[0])
+                high_out = float(model_obj.predict(pd.DataFrame(high_ns))[0])
+            except Exception:
+                low_out = high_out = out_mean
+        else:
+            try:
+                low_safe = dict(safe_ns)
+                low_safe.update(low_ns)
+                low_out = float(eval(compile(tree, "<formula>", "eval"), low_safe))
+                high_safe = dict(safe_ns)
+                high_safe.update(high_ns)
+                high_out = float(eval(compile(tree, "<formula>", "eval"), high_safe))
+            except Exception:
+                low_out = high_out = out_mean
+
+        sensitivity.append({
+            "variable": name,
+            "low": low_out,
+            "high": high_out,
+            "swing": abs(high_out - low_out),
+        })
+
+    sensitivity.sort(key=lambda x: x["swing"], reverse=True)
+
+    # Input-output correlations
+    correlations = []
+    for name in var_names:
+        try:
+            r = float(np.corrcoef(samples[name][:len(outputs)], outputs)[0, 1])
+        except Exception:
+            r = 0.0
+        correlations.append({"variable": name, "r": r})
+    correlations.sort(key=lambda x: abs(x["r"]), reverse=True)
+
+    # --- Build plots ---
+
+    # 1. Output histogram
+    hist_data = outputs.tolist() if len(outputs) <= 10000 else outputs[:10000].tolist()
+    threshold_shapes = []
+    for t in threshold_results:
+        threshold_shapes.append({
+            "type": "line", "x0": t["value"], "x1": t["value"],
+            "y0": 0, "y1": 1, "yref": "paper",
+            "line": {"color": "#dc5050", "width": 2, "dash": "dash"},
+        })
+
+    result["plots"].append({
+        "title": f"Output Distribution ({n_iter:,} iterations)",
+        "data": [{
+            "type": "histogram", "x": hist_data,
+            "marker": {"color": "rgba(74, 159, 110, 0.5)", "line": {"color": "#4a9f6e", "width": 1}},
+            "name": "Output",
+        }],
+        "layout": {
+            "template": "plotly_dark", "height": 320,
+            "xaxis": {"title": "Output Value"}, "yaxis": {"title": "Frequency"},
+            "shapes": threshold_shapes,
+        },
+    })
+
+    # 2. Tornado chart
+    if sensitivity:
+        labels = [s["variable"] for s in sensitivity[:10]]
+        lows = [s["low"] - out_mean for s in sensitivity[:10]]
+        highs = [s["high"] - out_mean for s in sensitivity[:10]]
+
+        result["plots"].append({
+            "title": "Sensitivity Tornado (±1σ impact)",
+            "data": [
+                {"type": "bar", "y": labels, "x": lows, "orientation": "h",
+                 "name": "Low (−1σ)", "marker": {"color": "#4a90d9"}},
+                {"type": "bar", "y": labels, "x": highs, "orientation": "h",
+                 "name": "High (+1σ)", "marker": {"color": "#dc5050"}},
+            ],
+            "layout": {
+                "template": "plotly_dark", "height": max(200, len(labels) * 30 + 80),
+                "barmode": "overlay", "xaxis": {"title": "Change from mean"},
+                "yaxis": {"autorange": "reversed"},
+            },
+        })
+
+    # 3. Correlation bar chart
+    if correlations:
+        result["plots"].append({
+            "title": "Input-Output Correlations",
+            "data": [{
+                "type": "bar",
+                "x": [c["variable"] for c in correlations],
+                "y": [c["r"] for c in correlations],
+                "marker": {"color": ["#4a9f6e" if c["r"] >= 0 else "#dc5050" for c in correlations]},
+            }],
+            "layout": {
+                "template": "plotly_dark", "height": 250,
+                "yaxis": {"title": "Pearson r", "range": [-1.05, 1.05]},
+            },
+        })
+
+    # --- Summary ---
+    summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+    summary += f"<<COLOR:title>>MONTE CARLO SIMULATION<</COLOR>>\n"
+    summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+    summary += f"<<COLOR:text>>Iterations:<</COLOR>> {n_iter:,}\n"
+    summary += f"<<COLOR:text>>Variables:<</COLOR>> {len(var_names)} ({', '.join(var_names)})\n"
+    if formula:
+        summary += f"<<COLOR:text>>Formula:<</COLOR>> {formula}\n"
+    if model_id:
+        summary += f"<<COLOR:text>>Model:<</COLOR>> saved model #{model_id}\n"
+    summary += f"\n<<COLOR:highlight>>Output Statistics:<</COLOR>>\n"
+    summary += f"  Mean: {out_mean:.4f}\n"
+    summary += f"  Std Dev: {out_std:.4f}\n"
+    summary += f"  Median: {percentiles['p50']:.4f}\n"
+    summary += f"  5th percentile: {percentiles['p5']:.4f}\n"
+    summary += f"  95th percentile: {percentiles['p95']:.4f}\n"
+    summary += f"  Range: [{percentiles['p1']:.4f}, {percentiles['p99']:.4f}]\n"
+
+    if threshold_results:
+        summary += f"\n<<COLOR:highlight>>Threshold Analysis:<</COLOR>>\n"
+        for t in threshold_results:
+            summary += f"  P(output {'>' if t['direction'] == 'above' else '<'} {t['value']:.2f}) = {t['probability']*100:.1f}%\n"
+
+    if sensitivity:
+        summary += f"\n<<COLOR:highlight>>Top Drivers (by ±1σ swing):<</COLOR>>\n"
+        for s in sensitivity[:5]:
+            summary += f"  {s['variable']}: swing = {s['swing']:.4f}\n"
+
+    result["summary"] = summary
+    result["guide_observation"] = f"Monte Carlo simulation ({n_iter:,} iterations): output mean={out_mean:.4f}, std={out_std:.4f}. Top driver: {sensitivity[0]['variable'] if sensitivity else 'N/A'}."
+
+    result["statistics"] = {
+        "mean": out_mean,
+        "std": out_std,
+        "percentiles": percentiles,
+        "thresholds": threshold_results,
+        "sensitivity": sensitivity,
+        "correlations": correlations,
+    }
+
+    # Ship output values for client-side interactive threshold
+    result["simulation_data"] = {
+        "output_values": hist_data,
+        "output_mean": out_mean,
+        "output_std": out_std,
+    }
+
+    return result
+
+
 def run_statistical_analysis(df, analysis_id, config):
     """Run statistical analysis."""
     import numpy as np
@@ -2372,6 +3207,16 @@ def run_statistical_analysis(df, analysis_id, config):
             f"ci_upper({var1})": float(ci[1]),
         }
 
+        # Interactive Power Explorer metadata
+        result["power_explorer"] = {
+            "test_type": "ttest",
+            "observed_effect": float(abs(x.mean() - mu)),
+            "observed_std": float(x.std()) if x.std() > 0 else 1.0,
+            "observed_n": int(n),
+            "alpha": float(alpha),
+            "cohens_d": float(abs(d)),
+        }
+
         # Histogram with mean line and CI band
         result["plots"].append({
             "title": f"Distribution of {var1} with Mean & {conf}% CI",
@@ -2391,8 +3236,20 @@ def run_statistical_analysis(df, analysis_id, config):
         conf = int(config.get("conf", 95))
         alpha = 1 - conf / 100
 
-        x = df[var1].dropna()
-        y = df[var2].dropna()
+        # Support stacked/factor format: response column + grouping column
+        if config.get("data_format") == "factor":
+            response_col = config.get("response") or var1
+            factor_col = config.get("group_var") or config.get("factor") or var2
+            levels = df[factor_col].dropna().unique()
+            if len(levels) != 2:
+                result["summary"] = f"Two-sample t-test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                return result
+            x = df[df[factor_col] == levels[0]][response_col].dropna()
+            y = df[df[factor_col] == levels[1]][response_col].dropna()
+            var1, var2 = f"{response_col} [{levels[0]}]", f"{response_col} [{levels[1]}]"
+        else:
+            x = df[var1].dropna()
+            y = df[var2].dropna()
         stat, pval = stats.ttest_ind(x, y)
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
@@ -2438,6 +3295,16 @@ def run_statistical_analysis(df, analysis_id, config):
             "effect_size_label": label,
         }
 
+        # Interactive Power Explorer metadata
+        result["power_explorer"] = {
+            "test_type": "ttest2",
+            "observed_effect": float(abs(diff_val)),
+            "observed_std": float(pooled_std) if pooled_std > 0 else 1.0,
+            "observed_n": int(nx + ny),
+            "alpha": float(alpha),
+            "cohens_d": float(abs(d)),
+        }
+
         # Side-by-side box plots
         result["plots"].append({
             "title": f"Comparison: {var1} vs {var2}",
@@ -2455,12 +3322,28 @@ def run_statistical_analysis(df, analysis_id, config):
         conf = int(config.get("conf", 95))
         alpha = 1 - conf / 100
 
-        x = df[var1].dropna()
-        y = df[var2].dropna()
-        # Align samples
-        common_idx = x.index.intersection(y.index)
-        x = x.loc[common_idx]
-        y = y.loc[common_idx]
+        # Support stacked/factor format: response column + grouping column
+        if config.get("data_format") == "factor":
+            response_col = config.get("response") or var1
+            factor_col = config.get("group_var") or config.get("factor") or var2
+            levels = df[factor_col].dropna().unique()
+            if len(levels) != 2:
+                result["summary"] = f"Paired t-test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                return result
+            x = df[df[factor_col] == levels[0]][response_col].dropna().reset_index(drop=True)
+            y = df[df[factor_col] == levels[1]][response_col].dropna().reset_index(drop=True)
+            var1, var2 = f"{response_col} [{levels[0]}]", f"{response_col} [{levels[1]}]"
+            # Align by row order (pairs must match by position)
+            min_len = min(len(x), len(y))
+            x = x.iloc[:min_len]
+            y = y.iloc[:min_len]
+        else:
+            x = df[var1].dropna()
+            y = df[var2].dropna()
+            # Align samples
+            common_idx = x.index.intersection(y.index)
+            x = x.loc[common_idx]
+            y = y.loc[common_idx]
 
         diff = x - y
         stat, pval = stats.ttest_rel(x, y)
@@ -2507,6 +3390,16 @@ def run_statistical_analysis(df, analysis_id, config):
             "p_value": float(pval),
             "cohens_d": float(d),
             "effect_size_label": label,
+        }
+
+        # Interactive Power Explorer metadata
+        result["power_explorer"] = {
+            "test_type": "ttest",
+            "observed_effect": float(abs(diff.mean())),
+            "observed_std": float(diff.std()) if diff.std() > 0 else 1.0,
+            "observed_n": int(len(x)),
+            "alpha": float(alpha),
+            "cohens_d": float(abs(d)),
         }
 
         # Histogram of differences
@@ -2590,6 +3483,19 @@ def run_statistical_analysis(df, analysis_id, config):
                 "effect_size_label": eta_label,
                 "n_groups": k,
                 "n_total": n_total,
+            }
+
+            # Interactive Power Explorer metadata
+            # Convert eta-squared to Cohen's f: f = sqrt(eta2 / (1 - eta2))
+            cohens_f = np.sqrt(eta_sq / (1 - eta_sq)) if eta_sq < 1 else 1.0
+            result["power_explorer"] = {
+                "test_type": "anova",
+                "observed_effect": float(cohens_f),
+                "observed_std": 1.0,
+                "observed_n": int(n_total),
+                "alpha": 0.05,
+                "cohens_d": float(cohens_f),
+                "n_groups": int(k),
             }
 
             # Box plot
@@ -2911,6 +3817,24 @@ def run_statistical_analysis(df, analysis_id, config):
         else:
             obs += f" Model explains only {r2*100:.0f}% of variation — limited practical use."
         result["guide_observation"] = obs
+
+        # What-If data for client-side interactive predictor explorer (degree 1 only)
+        if degree == 1 and interactions == "none":
+            result["what_if_data"] = {
+                "type": "regression",
+                "intercept": float(model.intercept_),
+                "coefficients": {feat: float(c) for feat, c in zip(predictors, model.coef_)},
+                "residual_std": float(np.sqrt(mse)) if mse > 0 else 0.0,
+                "n": int(n),
+                "feature_ranges": {
+                    feat: {
+                        "min": float(X_raw[feat].min()), "max": float(X_raw[feat].max()),
+                        "mean": float(X_raw[feat].mean()), "std": float(X_raw[feat].std()),
+                    }
+                    for feat in predictors
+                },
+                "response_name": response,
+            }
 
         # Create 4-panel diagnostic plots
 
@@ -3247,6 +4171,18 @@ def run_statistical_analysis(df, analysis_id, config):
             "cramers_v": float(cramers_v),
             "effect_size_label": v_label,
             "n": int(n_obs),
+        }
+
+        # Interactive Power Explorer metadata
+        # For chi-square, use Cramér's V as effect size, dof for power calc
+        result["power_explorer"] = {
+            "test_type": "chi2",
+            "observed_effect": float(cramers_v),
+            "observed_std": 1.0,
+            "observed_n": int(n_obs),
+            "alpha": 0.05,
+            "cohens_d": float(cramers_v),
+            "dof": int(dof),
         }
 
         # Heatmap of observed counts
@@ -4566,12 +5502,27 @@ def run_statistical_analysis(df, analysis_id, config):
         var1 = config.get("var1")
         var2 = config.get("var2")
 
-        sample1 = df[var1].dropna()
-        sample2 = df[var2].dropna()
-        # Align lengths for paired data
-        min_len = min(len(sample1), len(sample2))
-        sample1 = sample1.iloc[:min_len]
-        sample2 = sample2.iloc[:min_len]
+        # Support stacked/factor format: response column + grouping column
+        if config.get("data_format") == "factor":
+            response_col = config.get("response") or var1
+            factor_col = config.get("group_var") or config.get("factor") or var2
+            levels = df[factor_col].dropna().unique()
+            if len(levels) != 2:
+                result["summary"] = f"Wilcoxon test requires exactly 2 groups. Found {len(levels)}: {list(levels)}"
+                return result
+            sample1 = df[df[factor_col] == levels[0]][response_col].dropna().reset_index(drop=True)
+            sample2 = df[df[factor_col] == levels[1]][response_col].dropna().reset_index(drop=True)
+            var1, var2 = f"{response_col} [{levels[0]}]", f"{response_col} [{levels[1]}]"
+            min_len = min(len(sample1), len(sample2))
+            sample1 = sample1.iloc[:min_len]
+            sample2 = sample2.iloc[:min_len]
+        else:
+            sample1 = df[var1].dropna()
+            sample2 = df[var2].dropna()
+            # Align lengths for paired data
+            min_len = min(len(sample1), len(sample2))
+            sample1 = sample1.iloc[:min_len]
+            sample2 = sample2.iloc[:min_len]
 
         if min_len < 6:
             result["summary"] = f"Wilcoxon signed-rank requires at least 6 paired observations. Got {min_len}."
@@ -15258,6 +16209,17 @@ def run_spc_analysis(df, analysis_id, config):
         })
 
         result["summary"] = summary
+
+        # What-If data for client-side interactive exploration
+        result["what_if_data"] = {
+            "type": "capability",
+            "mean": float(mean),
+            "std": float(std),
+            "n": int(len(data)),
+            "current_lsl": float(lsl) if lsl else None,
+            "current_usl": float(usl) if usl else None,
+            "data_values": data.tolist() if len(data) <= 5000 else data[:5000].tolist(),
+        }
 
     elif analysis_id == "xbar_r":
         # Xbar-R Chart for subgrouped data

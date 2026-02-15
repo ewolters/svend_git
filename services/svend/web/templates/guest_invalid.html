@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest Link Invalid - SVEND</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0f0a;
+            color: #e8efe8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 20px;
+        }
+        .container { max-width: 440px; }
+        .logo {
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.1em;
+            color: #4a9f6e;
+            margin-bottom: 32px;
+        }
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        p {
+            color: #9aaa9a;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        a {
+            color: #4a9f6e;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">SVEND</div>
+        <h1>This link is no longer valid</h1>
+        <p>{{ reason|default:"The guest invite link is invalid or has expired." }}</p>
+        <a href="https://svend.ai">Learn about SVEND</a>
+    </div>
+</body>
+</html>

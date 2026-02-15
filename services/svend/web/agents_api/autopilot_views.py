@@ -81,6 +81,51 @@ def _compute_feature_info(df, feature_names):
     return info
 
 
+def _compute_feature_stats(X_train, feature_names, feature_info):
+    """Compute training data distribution stats for optimization feasibility checks.
+
+    Stores means, stds, and covariance matrix for numeric features.
+    This enables Mahalanobis distance (how far is a point from training data?)
+    and correlation-aware optimization constraints.
+    """
+    numeric_cols = [f for f in feature_names
+                    if f in X_train.columns and feature_info.get(f, {}).get("type") == "numeric"]
+
+    if len(numeric_cols) < 2:
+        return {}
+
+    X_num = X_train[numeric_cols].dropna()
+    if len(X_num) < 10:
+        return {}
+
+    means = X_num.mean().to_dict()
+    stds = X_num.std().to_dict()
+
+    # Covariance matrix for Mahalanobis distance
+    cov = X_num.cov()
+    # Store as nested dict (JSON-serializable)
+    cov_dict = {c: {r: float(cov.loc[r, c]) for r in numeric_cols} for c in numeric_cols}
+
+    # Feature correlations (for detecting implausible combos)
+    corr = X_num.corr()
+    # Store strong correlations (|r| > 0.5) as warnings
+    strong_corrs = []
+    for i, c1 in enumerate(numeric_cols):
+        for c2 in numeric_cols[i+1:]:
+            r = float(corr.loc[c1, c2])
+            if abs(r) > 0.5:
+                strong_corrs.append({"f1": c1, "f2": c2, "r": round(r, 3)})
+
+    return {
+        "numeric_features": numeric_cols,
+        "means": {k: round(float(v), 6) for k, v in means.items()},
+        "stds": {k: round(float(v), 6) for k, v in stds.items()},
+        "covariance": cov_dict,
+        "strong_correlations": strong_corrs,
+        "n_train": len(X_num),
+    }
+
+
 def _build_training_interpretation(task, metrics, model_type, y_test, y_pred,
                                     top_features, target, original_shape, clean_shape):
     """Build a plain-language interpretation of ML training results."""
@@ -203,6 +248,113 @@ def _build_retrain_interpretation(task, metrics, old_metrics, comparison, model_
     return "\n".join(lines)
 
 
+def _compute_subgroup_diagnostics(X_test, y_test, y_pred, feature_info, task):
+    """Slice test set by categorical features and report per-segment metrics."""
+    from sklearn.metrics import accuracy_score, f1_score, r2_score, mean_squared_error
+    results = []
+    if not feature_info:
+        return results
+
+    overall_metric = None
+    metric_name = None
+    if task == "classification":
+        metric_name = "accuracy"
+        overall_metric = accuracy_score(y_test, y_pred)
+    else:
+        metric_name = "r2"
+        overall_metric = r2_score(y_test, y_pred) if len(y_test) > 1 else 0
+
+    for col, info in feature_info.items():
+        if info.get("type") != "categorical" or col not in X_test.columns:
+            continue
+        cats = info.get("categories", [])
+        if not cats or len(cats) > 10:
+            continue
+
+        sorted_cats = sorted(cats)
+        segments = []
+        for code, cat_name in enumerate(sorted_cats):
+            mask = X_test[col] == code
+            n = int(mask.sum())
+            if n < 5:
+                continue
+            yt = y_test[mask]
+            yp = y_pred[mask] if hasattr(y_pred, '__getitem__') else np.array(y_pred)[mask]
+            if task == "classification":
+                val = float(accuracy_score(yt, yp))
+            else:
+                val = float(r2_score(yt, yp)) if n > 1 else 0.0
+            flag = "warning" if overall_metric and val < overall_metric * 0.85 else "ok"
+            segments.append({
+                "value": str(cat_name), "n": n,
+                "metric": metric_name, "score": round(val, 4), "flag": flag,
+            })
+
+        if segments:
+            results.append({
+                "feature": col,
+                "overall": round(overall_metric, 4) if overall_metric else 0,
+                "metric": metric_name,
+                "segments": segments,
+            })
+
+    return results
+
+
+def _compute_threshold_analysis(y_test, model, X_test, class_names=None):
+    """Sweep classification thresholds and compute metrics at each."""
+    from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
+    if not hasattr(model, "predict_proba"):
+        return None
+
+    try:
+        y_prob = model.predict_proba(X_test)
+    except Exception:
+        return None
+
+    n_classes = y_prob.shape[1]
+    if n_classes != 2:
+        return None  # Binary only
+
+    pos_probs = y_prob[:, 1]
+    y_true = np.array(y_test)
+
+    thresholds = [round(t * 0.05, 2) for t in range(1, 20)]  # 0.05 to 0.95
+    rows = []
+    for t in thresholds:
+        y_hat = (pos_probs >= t).astype(int)
+        tp = int(((y_hat == 1) & (y_true == 1)).sum())
+        fp = int(((y_hat == 1) & (y_true == 0)).sum())
+        tn = int(((y_hat == 0) & (y_true == 0)).sum())
+        fn = int(((y_hat == 0) & (y_true == 1)).sum())
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0
+        rec = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0
+        acc = (tp + tn) / len(y_true) if len(y_true) > 0 else 0
+        rows.append({
+            "threshold": t, "tp": tp, "fp": fp, "tn": tn, "fn": fn,
+            "precision": round(prec, 4), "recall": round(rec, 4),
+            "f1": round(f1, 4), "accuracy": round(acc, 4),
+        })
+
+    # Find optimal thresholds
+    best_f1 = max(rows, key=lambda r: r["f1"])
+    best_acc = max(rows, key=lambda r: r["accuracy"])
+    # Youden's J = sensitivity + specificity - 1 = recall + (tn/(tn+fp)) - 1
+    best_youden = max(rows, key=lambda r: r["recall"] + (r["tn"] / (r["tn"] + r["fp"]) if (r["tn"] + r["fp"]) > 0 else 0) - 1)
+
+    names = class_names or ["0", "1"]
+    return {
+        "thresholds": rows,
+        "optimal": {
+            "f1": best_f1["threshold"],
+            "accuracy": best_acc["threshold"],
+            "youden": best_youden["threshold"],
+        },
+        "class_names": [str(n) for n in names],
+    }
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
@@ -289,6 +441,16 @@ def autopilot_clean_train(request):
         }
 
         recipe["feature_info"] = _compute_feature_info(df_clean, feature_names)
+        recipe["feature_stats"] = _compute_feature_stats(df_clean, feature_names, recipe["feature_info"])
+
+        # Store threshold analysis in recipe for profiler access
+        if task == "classification":
+            label_map_ct = recipe.get("label_map", {})
+            inv_map_ct = {int(v): k for k, v in label_map_ct.items()} if label_map_ct else None
+            class_names_ct = [inv_map_ct[i] for i in sorted(inv_map_ct)] if inv_map_ct else None
+            ta_ct = _compute_threshold_analysis(y_test, model, X_test, class_names_ct)
+            if ta_ct:
+                recipe["threshold_analysis"] = ta_ct
 
         model_key = str(uuid.uuid4())
         cache_model(request.user.id, model_key, model, {
@@ -365,7 +527,18 @@ def autopilot_clean_train(request):
                 importances[:5] if importances else [], target,
                 original_shape, list(df_clean.shape),
             ),
+            "subgroup_diagnostics": _compute_subgroup_diagnostics(
+                X_test, y_test, y_pred, recipe.get("feature_info", {}), task,
+            ),
         }
+
+        if task == "classification":
+            label_map = recipe.get("label_map", {})
+            inv_map = {int(v): k for k, v in label_map.items()} if label_map else None
+            class_names = [inv_map[i] for i in sorted(inv_map)] if inv_map else None
+            ta = _compute_threshold_analysis(y_test, model, X_test, class_names)
+            if ta:
+                response["threshold_analysis"] = ta
 
         request.user.increment_queries()
         return _json_response(response)
@@ -720,9 +893,11 @@ def autopilot_full_pipeline(request):
             "comparison_models": [r["model"] for r in comparison],
             "tuning_trials": n_trials,
             "source": "autopilot_full_pipeline",
-            "feature_info": _compute_feature_info(df_clean, feature_names),
             "label_map": json_label_map,
         }
+        fi_fp = _compute_feature_info(df_clean, feature_names)
+        training_config["feature_info"] = fi_fp
+        training_config["feature_stats"] = _compute_feature_stats(df_clean, feature_names, fi_fp)
         data_lineage = {
             "source_type": "upload",
             "original_file": request.FILES["file"].name,
@@ -731,6 +906,14 @@ def autopilot_full_pipeline(request):
             "triage_applied": True,
             "pipeline": "autopilot_full_pipeline",
         }
+
+        # Store threshold analysis for profiler
+        if task_type == "classification":
+            inv_map_fp = {int(v): k for k, v in json_label_map.items()} if json_label_map else None
+            cn_fp = [inv_map_fp[i] for i in sorted(inv_map_fp)] if inv_map_fp else None
+            ta_fp = _compute_threshold_analysis(y_test, best_model_obj, X_test, cn_fp)
+            if ta_fp:
+                training_config["threshold_analysis"] = ta_fp
 
         model_key = str(uuid.uuid4())
         cache_model(request.user.id, model_key, best_model_obj, {
@@ -811,7 +994,17 @@ def autopilot_full_pipeline(request):
                 importances[:5] if importances else [], target,
                 original_shape, list(df_clean.shape),
             ),
+            "subgroup_diagnostics": _compute_subgroup_diagnostics(
+                X_test, y_test, y_pred, training_config.get("feature_info", {}), task_type,
+            ),
         }
+
+        if task_type == "classification":
+            inv_map = {int(v): k for k, v in json_label_map.items()} if json_label_map else None
+            class_names = [inv_map[i] for i in sorted(inv_map)] if inv_map else None
+            ta = _compute_threshold_analysis(y_test, best_model_obj, X_test, class_names)
+            if ta:
+                response["threshold_analysis"] = ta
 
         request.user.increment_queries()
         return _json_response(response)
@@ -907,6 +1100,15 @@ def autopilot_augment_train(request):
         recipe["source"] = "autopilot_augment_train"
         recipe["forge_config"] = {"n_synthetic": n_synthetic}
         recipe["feature_info"] = _compute_feature_info(augmented_df, feature_names)
+        recipe["feature_stats"] = _compute_feature_stats(augmented_df, feature_names, recipe["feature_info"])
+
+        if task == "classification":
+            label_map_at = recipe.get("label_map", {})
+            inv_map_at = {int(v): k for k, v in label_map_at.items()} if label_map_at else None
+            cn_at = [inv_map_at[i] for i in sorted(inv_map_at)] if inv_map_at else None
+            ta_at = _compute_threshold_analysis(y_test, model, X_test, cn_at)
+            if ta_at:
+                recipe["threshold_analysis"] = ta_at
 
         model_key = str(uuid.uuid4())
         cache_model(request.user.id, model_key, model, {
@@ -983,7 +1185,18 @@ def autopilot_augment_train(request):
                 importances[:5] if importances else [], target,
                 original_shape, list(augmented_df.shape),
             ),
+            "subgroup_diagnostics": _compute_subgroup_diagnostics(
+                X_test, y_test, y_pred, recipe.get("feature_info", {}), task,
+            ),
         }
+
+        if task == "classification":
+            label_map = recipe.get("label_map", {})
+            inv_map = {int(v): k for k, v in label_map.items()} if label_map else None
+            class_names = [inv_map[i] for i in sorted(inv_map)] if inv_map else None
+            ta = _compute_threshold_analysis(y_test, model, X_test, class_names)
+            if ta:
+                response["threshold_analysis"] = ta
 
         request.user.increment_queries()
         return _json_response(response)
@@ -1074,6 +1287,15 @@ def retrain_model(request, model_id):
 
         new_recipe["source"] = "retrain"
         new_recipe["feature_info"] = _compute_feature_info(df, feature_names)
+        new_recipe["feature_stats"] = _compute_feature_stats(df, feature_names, new_recipe["feature_info"])
+
+        if task == "classification":
+            label_map_rt = new_recipe.get("label_map", {})
+            inv_map_rt = {int(v): k for k, v in label_map_rt.items()} if label_map_rt else None
+            cn_rt = [inv_map_rt[i] for i in sorted(inv_map_rt)] if inv_map_rt else None
+            ta_rt = _compute_threshold_analysis(y_test, model, X_test, cn_rt)
+            if ta_rt:
+                new_recipe["threshold_analysis"] = ta_rt
 
         project_id = saved.project_id or request.POST.get("project_id")
 
@@ -1161,7 +1383,18 @@ def retrain_model(request, model_id):
             "version": new_saved.version if new_saved else saved.version + 1,
             "saved_model_id": str(new_saved.id) if new_saved else None,
             "interpretation": _build_retrain_interpretation(task, metrics, old_metrics, comparison, type(model).__name__, target),
+            "subgroup_diagnostics": _compute_subgroup_diagnostics(
+                X_test, y_test, y_pred, new_recipe.get("feature_info", {}), task,
+            ),
         }
+
+        if task == "classification":
+            label_map = new_recipe.get("label_map", {})
+            inv_map = {int(v): k for k, v in label_map.items()} if label_map else None
+            class_names = [inv_map[i] for i in sorted(inv_map)] if inv_map else None
+            ta = _compute_threshold_analysis(y_test, model, X_test, class_names)
+            if ta:
+                response["threshold_analysis"] = ta
 
         request.user.increment_queries()
         return _json_response(response)

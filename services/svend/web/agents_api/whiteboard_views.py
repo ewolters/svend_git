@@ -9,8 +9,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
-from accounts.permissions import gated_paid
-from .models import Board, BoardParticipant, BoardVote
+from accounts.permissions import gated_paid, allow_guest
+from accounts.constants import GUEST_INVITE_LIMITS, GUEST_INVITE_EXPIRY_DAYS
+from .models import Board, BoardParticipant, BoardVote, BoardGuestInvite
 from core.models import Project, Hypothesis
 
 
@@ -35,6 +36,38 @@ def get_participant_color(board, user):
     else:
         idx = len(participants)
     return PARTICIPANT_COLORS[idx % len(PARTICIPANT_COLORS)]
+
+
+def _build_participants_list(board, cutoff):
+    """Build combined participants list (users + guests) for board responses."""
+    active_users = board.participants.filter(last_seen__gte=cutoff).select_related('user')
+    active_guests = board.guest_invites.filter(
+        is_active=True, last_seen__gte=cutoff,
+    ).exclude(display_name="")
+
+    participants = [
+        {
+            "username": p.user.username,
+            "color": p.color,
+            "cursor_x": p.cursor_x,
+            "cursor_y": p.cursor_y,
+            "is_owner": p.user_id == board.owner_id,
+            "is_guest": False,
+        }
+        for p in active_users
+    ]
+    participants.extend([
+        {
+            "username": g.display_name,
+            "color": g.color,
+            "cursor_x": g.cursor_x,
+            "cursor_y": g.cursor_y,
+            "is_owner": False,
+            "is_guest": True,
+        }
+        for g in active_guests
+    ])
+    return participants
 
 
 @csrf_exempt
@@ -81,29 +114,59 @@ def create_board(request):
 
 
 @csrf_exempt
-@gated_paid
+@allow_guest
 @require_http_methods(["GET"])
 def get_board(request, room_code):
     """Get board state by room code."""
     board = get_object_or_404(Board, room_code=room_code.upper())
 
-    # Add/update participant
+    cutoff = timezone.now() - timedelta(seconds=30)
+
+    # Vote counts (shared by both paths)
+    vote_counts = {}
+    for vote in board.votes.all():
+        vote_counts[vote.element_id] = vote_counts.get(vote.element_id, 0) + 1
+
+    if request.is_guest:
+        invite = request.guest_invite
+        if invite.board_id != board.id:
+            return JsonResponse({"error": "Access denied"}, status=403)
+
+        guest_votes = list(
+            board.votes.filter(guest_invite=invite).values_list('element_id', flat=True)
+        )
+
+        return JsonResponse({
+            "id": str(board.id),
+            "room_code": board.room_code,
+            "name": board.name,
+            "elements": board.elements,
+            "connections": board.connections,
+            "zoom": board.zoom,
+            "pan_x": board.pan_x,
+            "pan_y": board.pan_y,
+            "version": board.version,
+            "voting_active": board.voting_active,
+            "votes_per_user": board.votes_per_user,
+            "vote_counts": vote_counts,
+            "user_votes": guest_votes,
+            "user_votes_remaining": board.votes_per_user - len(guest_votes),
+            "participants": _build_participants_list(board, cutoff),
+            "is_owner": False,
+            "is_guest": True,
+            "guest_permission": invite.permission,
+            "guest_display_name": invite.display_name,
+            "my_color": invite.color,
+            "project": None,
+        })
+
+    # Normal user path
     participant, created = BoardParticipant.objects.update_or_create(
         board=board,
         user=request.user,
         defaults={"color": get_participant_color(board, request.user)},
     )
 
-    # Get active participants (seen in last 30 seconds)
-    cutoff = timezone.now() - timedelta(seconds=30)
-    active_participants = board.participants.filter(last_seen__gte=cutoff).select_related('user')
-
-    # Get vote counts per element
-    vote_counts = {}
-    for vote in board.votes.all():
-        vote_counts[vote.element_id] = vote_counts.get(vote.element_id, 0) + 1
-
-    # Get current user's votes
     user_votes = list(board.votes.filter(user=request.user).values_list('element_id', flat=True))
 
     return JsonResponse({
@@ -121,17 +184,9 @@ def get_board(request, room_code):
         "vote_counts": vote_counts,
         "user_votes": user_votes,
         "user_votes_remaining": board.votes_per_user - len(user_votes),
-        "participants": [
-            {
-                "username": p.user.username,
-                "color": p.color,
-                "cursor_x": p.cursor_x,
-                "cursor_y": p.cursor_y,
-                "is_owner": p.user_id == board.owner_id,
-            }
-            for p in active_participants
-        ],
+        "participants": _build_participants_list(board, cutoff),
         "is_owner": request.user.id == board.owner_id,
+        "is_guest": False,
         "my_color": participant.color,
         "project": {
             "id": str(board.project.id),
@@ -141,7 +196,7 @@ def get_board(request, room_code):
 
 
 @csrf_exempt
-@gated_paid
+@allow_guest
 @require_http_methods(["PUT", "PATCH"])
 def update_board(request, room_code):
     """Update board state."""
@@ -155,7 +210,6 @@ def update_board(request, room_code):
     # Check version for conflict detection
     client_version = data.get("version")
     if client_version is not None and client_version < board.version:
-        # Client is behind - return current state for merge
         return JsonResponse({
             "conflict": True,
             "server_version": board.version,
@@ -163,7 +217,21 @@ def update_board(request, room_code):
             "connections": board.connections,
         }, status=409)
 
-    # Update fields
+    if request.is_guest:
+        invite = request.guest_invite
+        if invite.board_id != board.id:
+            return JsonResponse({"error": "Access denied"}, status=403)
+        if invite.permission == "view":
+            return JsonResponse({"error": "View-only guests cannot edit"}, status=403)
+        # Guests can only update elements and connections
+        if "elements" in data:
+            board.elements = data["elements"]
+        if "connections" in data:
+            board.connections = data["connections"]
+        board.save()
+        return JsonResponse({"success": True, "version": board.version})
+
+    # Normal user path
     if "elements" in data:
         board.elements = data["elements"]
     if "connections" in data:
@@ -190,7 +258,6 @@ def update_board(request, room_code):
 
     board.save()
 
-    # Update participant last_seen
     BoardParticipant.objects.filter(board=board, user=request.user).update(last_seen=timezone.now())
 
     return JsonResponse({
@@ -200,7 +267,7 @@ def update_board(request, room_code):
 
 
 @csrf_exempt
-@gated_paid
+@allow_guest
 @require_http_methods(["POST"])
 def update_cursor(request, room_code):
     """Update cursor position for presence."""
@@ -211,11 +278,21 @@ def update_cursor(request, room_code):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    BoardParticipant.objects.filter(board=board, user=request.user).update(
-        cursor_x=data.get("x"),
-        cursor_y=data.get("y"),
-        last_seen=timezone.now(),
-    )
+    if request.is_guest:
+        invite = request.guest_invite
+        if invite.board_id != board.id:
+            return JsonResponse({"error": "Access denied"}, status=403)
+        BoardGuestInvite.objects.filter(id=invite.id).update(
+            cursor_x=data.get("x"),
+            cursor_y=data.get("y"),
+            last_seen=timezone.now(),
+        )
+    else:
+        BoardParticipant.objects.filter(board=board, user=request.user).update(
+            cursor_x=data.get("x"),
+            cursor_y=data.get("y"),
+            last_seen=timezone.now(),
+        )
 
     return JsonResponse({"success": True})
 
@@ -252,7 +329,7 @@ def toggle_voting(request, room_code):
 
 
 @csrf_exempt
-@gated_paid
+@allow_guest
 @require_http_methods(["POST"])
 def add_vote(request, room_code):
     """Add a dot vote to an element."""
@@ -270,18 +347,28 @@ def add_vote(request, room_code):
     if not element_id:
         return JsonResponse({"error": "element_id required"}, status=400)
 
-    # Check vote limit
-    user_vote_count = board.votes.filter(user=request.user).count()
-    if user_vote_count >= board.votes_per_user:
-        return JsonResponse({"error": "Vote limit reached"}, status=400)
+    if request.is_guest:
+        invite = request.guest_invite
+        if invite.board_id != board.id:
+            return JsonResponse({"error": "Access denied"}, status=403)
+        if invite.permission != "edit_vote":
+            return JsonResponse({"error": "You don't have voting permission"}, status=403)
+        user_vote_count = board.votes.filter(guest_invite=invite).count()
+        if user_vote_count >= board.votes_per_user:
+            return JsonResponse({"error": "Vote limit reached"}, status=400)
+        try:
+            BoardVote.objects.create(board=board, guest_invite=invite, element_id=element_id)
+        except Exception:
+            return JsonResponse({"error": "Already voted on this element"}, status=400)
+    else:
+        user_vote_count = board.votes.filter(user=request.user).count()
+        if user_vote_count >= board.votes_per_user:
+            return JsonResponse({"error": "Vote limit reached"}, status=400)
+        try:
+            BoardVote.objects.create(board=board, user=request.user, element_id=element_id)
+        except Exception:
+            return JsonResponse({"error": "Already voted on this element"}, status=400)
 
-    # Add vote (unique constraint prevents duplicates)
-    try:
-        BoardVote.objects.create(board=board, user=request.user, element_id=element_id)
-    except Exception:
-        return JsonResponse({"error": "Already voted on this element"}, status=400)
-
-    # Return updated counts
     vote_count = board.votes.filter(element_id=element_id).count()
     votes_remaining = board.votes_per_user - user_vote_count - 1
 
@@ -294,30 +381,36 @@ def add_vote(request, room_code):
 
 
 @csrf_exempt
-@gated_paid
+@allow_guest
 @require_http_methods(["DELETE"])
 def remove_vote(request, room_code, element_id):
     """Remove a dot vote from an element."""
     board = get_object_or_404(Board, room_code=room_code.upper())
 
-    deleted, _ = BoardVote.objects.filter(
-        board=board,
-        user=request.user,
-        element_id=element_id,
-    ).delete()
+    if request.is_guest:
+        invite = request.guest_invite
+        if invite.board_id != board.id:
+            return JsonResponse({"error": "Access denied"}, status=403)
+        deleted, _ = BoardVote.objects.filter(
+            board=board, guest_invite=invite, element_id=element_id,
+        ).delete()
+        remaining_count = board.votes.filter(guest_invite=invite).count()
+    else:
+        deleted, _ = BoardVote.objects.filter(
+            board=board, user=request.user, element_id=element_id,
+        ).delete()
+        remaining_count = board.votes.filter(user=request.user).count()
 
     if deleted == 0:
         return JsonResponse({"error": "Vote not found"}, status=404)
 
-    # Return updated counts
     vote_count = board.votes.filter(element_id=element_id).count()
-    user_vote_count = board.votes.filter(user=request.user).count()
 
     return JsonResponse({
         "success": True,
         "element_id": element_id,
         "vote_count": vote_count,
-        "votes_remaining": board.votes_per_user - user_vote_count,
+        "votes_remaining": board.votes_per_user - remaining_count,
     })
 
 
@@ -590,7 +683,7 @@ def _render_connection_svg(conn, elements, offset_x=0, offset_y=0):
 
 
 @csrf_exempt
-@gated_paid
+@allow_guest
 @require_http_methods(["GET"])
 def export_svg(request, room_code):
     """Export whiteboard as SVG for embedding in A3 reports.
@@ -658,4 +751,198 @@ def export_svg(request, room_code):
         "element_count": len(elements),
         "connection_count": len(connections),
         "board_name": board.name,
+    })
+
+
+# ============================================================================
+# Guest Invite Management
+# ============================================================================
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["POST"])
+def create_guest_invite(request, room_code):
+    """Create a guest invite link. Owner only."""
+    board = get_object_or_404(Board, room_code=room_code.upper())
+
+    if request.user.id != board.owner_id:
+        return JsonResponse({"error": "Only the board owner can create invites"}, status=403)
+
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        data = {}
+
+    permission = data.get("permission", "view")
+    if permission not in ("view", "edit", "edit_vote"):
+        return JsonResponse({"error": "Invalid permission. Use: view, edit, edit_vote"}, status=400)
+
+    # Check tier limit
+    tier = request.user.tier
+    limit = GUEST_INVITE_LIMITS.get(tier, 0)
+    active_count = BoardGuestInvite.objects.filter(board=board, is_active=True).count()
+
+    if active_count >= limit:
+        return JsonResponse({
+            "error": f"Guest invite limit reached ({limit} per board on your plan)",
+            "limit": limit,
+            "active": active_count,
+            "upgrade_url": "/billing/checkout/",
+        }, status=403)
+
+    # Compute expiration
+    expiry_days = GUEST_INVITE_EXPIRY_DAYS.get(tier, 7)
+    if expiry_days > 0:
+        expires_at = timezone.now() + timedelta(days=expiry_days)
+    else:
+        expires_at = timezone.now() + timedelta(days=36500)  # ~100 years
+
+    # Assign color from pool (avoid collisions with existing participants/guests)
+    used_colors = set(
+        board.participants.values_list("color", flat=True)
+    ) | set(
+        BoardGuestInvite.objects.filter(board=board, is_active=True).values_list("color", flat=True)
+    )
+    color = "#ff7eb9"
+    for c in PARTICIPANT_COLORS:
+        if c not in used_colors:
+            color = c
+            break
+
+    token = BoardGuestInvite.generate_token()
+
+    invite = BoardGuestInvite.objects.create(
+        board=board,
+        token=token,
+        permission=permission,
+        expires_at=expires_at,
+        color=color,
+    )
+
+    return JsonResponse({
+        "id": str(invite.id),
+        "token": token,
+        "url": f"/app/whiteboard/guest/{token}/",
+        "permission": permission,
+        "expires_at": invite.expires_at.isoformat(),
+        "color": color,
+    })
+
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["GET"])
+def list_guest_invites(request, room_code):
+    """List guest invites for a board. Owner only."""
+    board = get_object_or_404(Board, room_code=room_code.upper())
+
+    if request.user.id != board.owner_id:
+        return JsonResponse({"error": "Only the board owner can view invites"}, status=403)
+
+    invites = BoardGuestInvite.objects.filter(board=board).order_by("-created_at")
+    cutoff = timezone.now() - timedelta(seconds=30)
+
+    return JsonResponse({
+        "invites": [
+            {
+                "id": str(inv.id),
+                "display_name": inv.display_name or "(waiting to join)",
+                "permission": inv.permission,
+                "is_active": inv.is_active,
+                "is_expired": inv.is_expired,
+                "is_online": inv.last_seen is not None and inv.last_seen >= cutoff,
+                "created_at": inv.created_at.isoformat(),
+                "expires_at": inv.expires_at.isoformat(),
+                "url": f"/app/whiteboard/guest/{inv.token}/",
+                "color": inv.color,
+            }
+            for inv in invites
+        ],
+    })
+
+
+@csrf_exempt
+@gated_paid
+@require_http_methods(["DELETE"])
+def revoke_guest_invite(request, room_code, invite_id):
+    """Revoke a guest invite. Owner only."""
+    board = get_object_or_404(Board, room_code=room_code.upper())
+
+    if request.user.id != board.owner_id:
+        return JsonResponse({"error": "Only the board owner can revoke invites"}, status=403)
+
+    try:
+        invite = BoardGuestInvite.objects.get(id=invite_id, board=board)
+    except BoardGuestInvite.DoesNotExist:
+        return JsonResponse({"error": "Invite not found"}, status=404)
+
+    invite.is_active = False
+    invite.save(update_fields=["is_active"])
+
+    return JsonResponse({"success": True, "id": str(invite.id)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def set_guest_name(request, room_code):
+    """Set guest display name. Called by guest with X-Guest-Token header."""
+    guest_token = request.headers.get("X-Guest-Token", "").strip()
+    if not guest_token:
+        return JsonResponse({"error": "Guest token required"}, status=401)
+
+    try:
+        invite = BoardGuestInvite.objects.select_related("board").get(token=guest_token)
+    except BoardGuestInvite.DoesNotExist:
+        return JsonResponse({"error": "Invalid token"}, status=401)
+
+    if not invite.is_valid:
+        return JsonResponse({"error": "Invite expired or revoked"}, status=403)
+
+    if invite.board.room_code != room_code.upper():
+        return JsonResponse({"error": "Token does not match this board"}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    name = (data.get("display_name") or "").strip()[:100]
+    if not name:
+        return JsonResponse({"error": "Display name is required"}, status=400)
+
+    invite.display_name = name
+    invite.save(update_fields=["display_name"])
+
+    return JsonResponse({"success": True, "display_name": name})
+
+
+# ============================================================================
+# Guest Page View (serves HTML, not API)
+# ============================================================================
+
+def guest_board_view(request, token):
+    """Serve the whiteboard template for a guest user."""
+    from django.shortcuts import render
+
+    try:
+        invite = BoardGuestInvite.objects.select_related("board").get(token=token)
+    except BoardGuestInvite.DoesNotExist:
+        return render(request, "guest_invalid.html", status=404)
+
+    if not invite.is_active:
+        return render(request, "guest_invalid.html", {
+            "reason": "This invite has been revoked by the board owner.",
+        }, status=403)
+
+    if invite.is_expired:
+        return render(request, "guest_invalid.html", {
+            "reason": "This invite link has expired.",
+        }, status=403)
+
+    return render(request, "whiteboard.html", {
+        "base_template": "base_guest.html",
+        "guest_token": token,
+        "guest_room_code": invite.board.room_code,
+        "guest_display_name": invite.display_name,
+        "guest_permission": invite.permission,
     })

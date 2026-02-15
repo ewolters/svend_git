@@ -19,6 +19,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib.auth.decorators import login_required
 
+from core.encryption import hash_token
+
 from .models import User, Subscription
 from .constants import get_founder_availability
 
@@ -27,25 +29,28 @@ logger = logging.getLogger(__name__)
 # Initialize Stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
-# Price ID to Tier mapping
+# Price ID to Tier mapping (includes legacy prices for existing subscribers)
 PRICE_TO_TIER = {
-    "price_1SvoFZDQfJOZ4D24PhKMqiY5": User.Tier.FOUNDER,   # $19/month
-    "price_1SvoD0DQfJOZ4D24pIPmyitE": User.Tier.PRO,       # $29/month
-    "price_1SvoDiDQfJOZ4D24LYA2sCc5": User.Tier.TEAM,      # $79/month
-    "price_1SvoEGDQfJOZ4D24trvit3VM": User.Tier.ENTERPRISE, # $199/month
+    # Legacy prices (existing subscribers)
+    "price_1SvoFZDQfJOZ4D24PhKMqiY5": User.Tier.FOUNDER,   # $19/month (legacy)
+    "price_1SvoD0DQfJOZ4D24pIPmyitE": User.Tier.PRO,       # $29/month (legacy)
+    "price_1SvoDiDQfJOZ4D24LYA2sCc5": User.Tier.TEAM,      # $79/month (legacy)
+    "price_1SvoEGDQfJOZ4D24trvit3VM": User.Tier.ENTERPRISE, # $199/month (legacy)
+    # New prices (Feb 2026)
+    "price_1T0Y13DQfJOZ4D24GjaVOd09": User.Tier.PRO,       # $49/month
+    "price_1T0Y36DQfJOZ4D24hhziBDe3": User.Tier.TEAM,      # $99/month
+    "price_1T0Y42DQfJOZ4D245kTDgtal": User.Tier.ENTERPRISE, # $299/month
 }
 
-# Tier to Price ID mapping (for checkout)
+# Tier to Price ID mapping (for new checkouts — Founder no longer sold)
 TIER_TO_PRICE = {
-    "founder": "price_1SvoFZDQfJOZ4D24PhKMqiY5",
-    "pro": "price_1SvoD0DQfJOZ4D24pIPmyitE",
-    "team": "price_1SvoDiDQfJOZ4D24LYA2sCc5",
-    "enterprise": "price_1SvoEGDQfJOZ4D24trvit3VM",
+    "pro": "price_1T0Y13DQfJOZ4D24GjaVOd09",         # $49/month
+    "team": "price_1T0Y36DQfJOZ4D24hhziBDe3",         # $99/month
+    "enterprise": "price_1T0Y42DQfJOZ4D245kTDgtal",    # $299/month
 }
 
-# Enterprise seat add-on price ($129/month/seat)
-# Create this in Stripe dashboard → Products → Enterprise Seat → $129/month recurring
-SEAT_PRICE_ID = "price_1T04XYDQfJOZ4D24MhGxl8Lp"  # $129/month/seat
+# Seat add-on removed — Team ($99) and Enterprise ($299) are per-seat prices.
+SEAT_PRICE_ID = ""
 
 
 # =============================================================================
@@ -64,114 +69,35 @@ def get_or_create_stripe_customer(user: User) -> str:
     )
 
     user.stripe_customer_id = customer.id
-    user.save(update_fields=["stripe_customer_id"])
+    user.stripe_customer_id_hash = hash_token(customer.id)
+    user.save(update_fields=["stripe_customer_id", "stripe_customer_id_hash"])
 
     return customer.id
 
 
 def add_org_seat(tenant) -> int:
-    """Add a seat to the org's Stripe subscription.
+    """Add a seat to the org.
 
-    Finds the org owner's subscription and adds/increments a seat line item.
-    Stripe prorates the charge to the current billing period.
+    Each member needs their own Team/Enterprise subscription ($99/$299 per seat).
+    This just tracks the local member cap.
 
-    Returns the new seat quantity, or raises stripe.error.StripeError on failure.
+    Returns the new max_members count.
     """
-    from core.models import Membership
-
-    if not SEAT_PRICE_ID:
-        # Seat billing not configured yet — allow invite but skip Stripe
-        tenant.max_members += 1
-        tenant.save(update_fields=["max_members"])
-        return tenant.max_members
-
-    # Find org owner's subscription
-    owner_membership = Membership.objects.filter(
-        tenant=tenant, role=Membership.Role.OWNER, is_active=True
-    ).select_related("user").first()
-
-    if not owner_membership:
-        raise stripe.error.StripeError("No owner found for this organization")
-
-    owner = owner_membership.user
-    if not hasattr(owner, "subscription") or not owner.subscription.is_active:
-        raise stripe.error.StripeError("Organization owner has no active subscription")
-
-    sub_id = owner.subscription.stripe_subscription_id
-
-    if tenant.stripe_seat_item_id:
-        # Increment existing seat item
-        item = stripe.SubscriptionItem.retrieve(tenant.stripe_seat_item_id)
-        new_qty = (item.quantity or 0) + 1
-        stripe.SubscriptionItem.modify(
-            tenant.stripe_seat_item_id,
-            quantity=new_qty,
-            proration_behavior="create_prorations",
-        )
-    else:
-        # Create new seat line item on the subscription
-        item = stripe.SubscriptionItem.create(
-            subscription=sub_id,
-            price=SEAT_PRICE_ID,
-            quantity=1,
-            proration_behavior="create_prorations",
-        )
-        new_qty = 1
-        tenant.stripe_seat_item_id = item.id
-
     tenant.max_members += 1
-    tenant.save(update_fields=["max_members", "stripe_seat_item_id"])
-
-    logger.info(f"Seat added for {tenant.name}: now {new_qty} seats")
-    return new_qty
+    tenant.save(update_fields=["max_members"])
+    logger.info(f"Seat added for {tenant.name}: max_members={tenant.max_members}")
+    return tenant.max_members
 
 
 def remove_org_seat(tenant) -> int:
-    """Remove a seat from the org's Stripe subscription.
+    """Remove a seat from the org.
 
-    Decrements the seat line item quantity. If last seat, removes the item.
-    Credit is applied to the next invoice.
-
-    Returns the new seat quantity.
+    Returns the new max_members count.
     """
-    if not SEAT_PRICE_ID or not tenant.stripe_seat_item_id:
-        # Seat billing not configured — just adjust the cap
-        tenant.max_members = max(1, tenant.max_members - 1)
-        tenant.save(update_fields=["max_members"])
-        return tenant.max_members
-
-    try:
-        item = stripe.SubscriptionItem.retrieve(tenant.stripe_seat_item_id)
-        current_qty = item.quantity or 1
-
-        if current_qty <= 1:
-            # Remove the item entirely
-            stripe.SubscriptionItem.delete(
-                tenant.stripe_seat_item_id,
-                proration_behavior="create_prorations",
-            )
-            tenant.stripe_seat_item_id = ""
-            new_qty = 0
-        else:
-            new_qty = current_qty - 1
-            stripe.SubscriptionItem.modify(
-                tenant.stripe_seat_item_id,
-                quantity=new_qty,
-                proration_behavior="create_prorations",
-            )
-
-        tenant.max_members = max(1, tenant.max_members - 1)
-        tenant.save(update_fields=["max_members", "stripe_seat_item_id"])
-
-        logger.info(f"Seat removed for {tenant.name}: now {new_qty} seats")
-        return new_qty
-
-    except stripe.error.StripeError as e:
-        logger.error(f"Failed to remove seat for {tenant.name}: {e}")
-        # Still adjust local cap even if Stripe fails
-        tenant.max_members = max(1, tenant.max_members - 1)
-        tenant.save(update_fields=["max_members"])
-        return tenant.max_members
+    tenant.max_members = max(1, tenant.max_members - 1)
+    tenant.save(update_fields=["max_members"])
+    logger.info(f"Seat removed for {tenant.name}: max_members={tenant.max_members}")
+    return tenant.max_members
 
 
 def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription]:
@@ -187,7 +113,7 @@ def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription
     except Subscription.DoesNotExist:
         # Find user by customer ID
         try:
-            user = User.objects.get(stripe_customer_id=stripe_sub.customer)
+            user = User.objects.get(stripe_customer_id_hash=hash_token(stripe_sub.customer))
         except User.DoesNotExist:
             logger.error(f"No user found for customer {stripe_sub.customer}")
             return None
@@ -228,39 +154,7 @@ def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription
         user.subscription_active = False
     user.save(update_fields=["tier", "subscription_active", "subscription_ends_at"])
 
-    # Sync seat count from subscription items to tenant
-    if SEAT_PRICE_ID:
-        _sync_seat_count(stripe_sub, user)
-
     return sub
-
-
-def _sync_seat_count(stripe_sub, user):
-    """Sync seat line item quantity to tenant.max_members.
-
-    Called during subscription sync to handle seats modified via
-    Stripe dashboard or customer portal.
-    """
-    from core.models import Membership
-
-    membership = Membership.objects.filter(
-        user=user, role=Membership.Role.OWNER, is_active=True
-    ).select_related("tenant").first()
-
-    if not membership:
-        return
-
-    tenant = membership.tenant
-
-    for item in stripe_sub.get("items", {}).get("data", []):
-        if item["price"]["id"] == SEAT_PRICE_ID:
-            seat_qty = item.get("quantity", 0)
-            # max_members = base member (owner) + seat add-ons
-            tenant.max_members = 1 + seat_qty
-            tenant.stripe_seat_item_id = item["id"]
-            tenant.save(update_fields=["max_members", "stripe_seat_item_id"])
-            logger.info(f"Synced seat count for {tenant.name}: {seat_qty} seats → max_members={tenant.max_members}")
-            return
 
 
 # =============================================================================
@@ -271,8 +165,8 @@ def _sync_seat_count(stripe_sub, user):
 def create_checkout_session(request: HttpRequest):
     """Create a Stripe Checkout session for subscription.
 
-    Accepts ?plan= query param: founder, pro, team, enterprise
-    Defaults to pro if not specified.
+    Accepts ?plan= query param: pro, team, enterprise
+    Defaults to pro if not specified. Founder tier is no longer sold.
     """
     if not settings.STRIPE_SECRET_KEY:
         return JsonResponse({"error": "Billing not configured"}, status=503)
@@ -290,11 +184,9 @@ def create_checkout_session(request: HttpRequest):
     if not price_id:
         return redirect("/app/settings/?error=invalid_plan")
 
-    # Enforce founder slot limit
+    # Founder tier is no longer sold — redirect to pro
     if plan == "founder":
-        availability = get_founder_availability()
-        if not availability["available"]:
-            return redirect("/app/settings/?error=founder_sold_out")
+        return redirect("/billing/checkout/?plan=pro")
 
     try:
         customer_id = get_or_create_stripe_customer(user)

@@ -7,7 +7,7 @@ svend.ai, www.svend.ai {
 
     # Serve static files directly
     handle_path /static/* {
-        root * /home/eric/Desktop/svend_transfer/svend/staticfiles
+        root * /home/eric/kjerne/services/svend/web/staticfiles
         file_server
     }
 
@@ -17,6 +17,15 @@ svend.ai, www.svend.ai {
         X-Frame-Options DENY
         Referrer-Policy strict-origin-when-cross-origin
         -Server
+
+        # HSTS — force HTTPS for 2 years, include subdomains, allow preload list
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+        # CSP — restrict what pages can load
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.stripe.com; frame-src https://js.stripe.com; object-src 'none'; base-uri 'self'"
+
+        # Permissions-Policy — disable unused browser APIs
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(self)"
     }
 
     # Logs

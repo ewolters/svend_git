@@ -111,6 +111,12 @@
         <!-- AI Insight -->
         <div id="result-insight" style="display:none;"></div>
 
+        <!-- Subgroup diagnostics -->
+        <div id="result-subgroups" style="display:none;"></div>
+
+        <!-- Threshold analysis -->
+        <div id="result-threshold" style="display:none;"></div>
+
         <!-- Comparison table (full pipeline) -->
         <div id="result-comparison" style="display:none;"></div>
 
@@ -155,13 +161,33 @@
             <h2 id="profiler-model-name"></h2>
             <span id="profiler-meta" class="profiler-meta-text"></span>
         </div>
+        <div class="profiler-optimize" style="display:flex;align-items:center;gap:0.4rem;margin-left:auto;">
+            <select id="opt-goal" style="font-size:0.8rem;padding:0.2rem 0.4rem;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;">
+                <option value="maximize">Maximize</option>
+                <option value="minimize">Minimize</option>
+                <option value="target">Target</option>
+            </select>
+            <input id="opt-target-val" type="number" step="any" style="display:none;width:80px;font-size:0.8rem;padding:0.2rem 0.4rem;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;" placeholder="Value">
+            <button class="btn-sm" id="opt-btn" onclick="runOptimize()">Optimize</button>
+            <button class="btn-sm" style="font-size:0.7rem;opacity:0.7;" onclick="toggleOptSettings()">Settings</button>
+        </div>
     </div>
     <div class="profiler-workbench">
         <aside class="profiler-sidebar">
             <div class="profiler-prediction-card">
                 <div style="font-size:0.65rem;font-weight:600;color:var(--accent-primary);letter-spacing:0.06em;text-transform:uppercase;">Predicted</div>
                 <div id="profiler-value" style="font-size:2rem;font-weight:700;color:var(--text-primary);margin:0.2rem 0;">--</div>
+                <div id="profiler-interval" style="font-size:0.75rem;color:var(--text-dim);display:none;"></div>
                 <div id="profiler-target-label" style="font-size:0.75rem;color:var(--text-dim);"></div>
+            </div>
+            <div id="profiler-threshold-control" style="display:none;padding:0.5rem 0.75rem;border-bottom:1px solid var(--border);">
+                <div style="font-size:0.65rem;font-weight:600;color:var(--accent-primary);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.25rem;">Decision Threshold</div>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <input type="range" id="profiler-threshold-slider" min="0.05" max="0.95" step="0.05" value="0.50"
+                        oninput="updateThreshold(parseFloat(this.value))" style="flex:1;">
+                    <span id="profiler-threshold-val" style="font-size:0.85rem;font-weight:600;min-width:2rem;">0.50</span>
+                </div>
+                <div id="profiler-threshold-metrics" style="font-size:0.7rem;color:var(--text-dim);margin-top:0.2rem;"></div>
             </div>
             <div id="profiler-controls" class="profiler-controls-list"></div>
         </aside>
@@ -169,6 +195,84 @@
             <div id="profiler-response-panel" class="profiler-response-panel" style="display:none;">
                 <div id="profiler-response-plot" class="profiler-response-plot"></div>
             </div>
+            <!-- Optimization Settings (constraints, costs, density) -->
+            <div id="opt-settings-panel" style="display:none;padding:0.75rem;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;margin-bottom:0.75rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                    <div style="font-size:0.7rem;font-weight:700;color:var(--accent-primary);letter-spacing:0.06em;text-transform:uppercase;">Optimization Settings</div>
+                    <button class="btn-sm" style="font-size:0.65rem;padding:0.1rem 0.4rem;" onclick="toggleOptSettings()">Close</button>
+                </div>
+
+                <!-- Density penalty toggle -->
+                <div style="margin-bottom:0.6rem;">
+                    <label style="font-size:0.7rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;">
+                        <span style="position:relative;display:inline-block;width:32px;height:18px;flex-shrink:0;">
+                            <input type="checkbox" id="opt-density" checked
+                                onchange="this.nextElementSibling.style.background=this.checked?'var(--accent-primary)':'var(--border)';this.nextElementSibling.nextElementSibling.style.transform=this.checked?'translateX(14px)':'translateX(0)'"
+                                style="opacity:0;width:0;height:0;position:absolute;">
+                            <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:var(--accent-primary);border-radius:9px;transition:background 0.2s;"></span>
+                            <span style="position:absolute;top:2px;left:2px;width:14px;height:14px;background:white;border-radius:50%;transition:transform 0.2s;transform:translateX(14px);"></span>
+                        </span>
+                        Stay near observed data (joint density penalty)
+                    </label>
+                </div>
+
+                <!-- Feature bounds + cost weights -->
+                <div style="margin-bottom:0.6rem;">
+                    <div style="font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.3rem;">Feature Bounds &amp; Cost Weights</div>
+                    <div style="font-size:0.6rem;color:var(--text-dim);margin-bottom:0.3rem;">Override training-data ranges with real-world limits. Cost = how hard this is to change (1=easy, 10=very hard).</div>
+                    <table id="opt-feature-table" style="width:100%;font-size:0.7rem;border-collapse:collapse;">
+                        <thead><tr style="color:var(--text-dim);border-bottom:1px solid var(--border);">
+                            <th style="text-align:left;padding:0.2rem 0.3rem;">Feature</th>
+                            <th style="text-align:center;padding:0.2rem 0.3rem;width:60px;">Min</th>
+                            <th style="text-align:center;padding:0.2rem 0.3rem;width:60px;">Max</th>
+                            <th style="text-align:center;padding:0.2rem 0.3rem;width:45px;">Cost</th>
+                            <th style="text-align:left;padding:0.2rem 0.3rem;width:80px;font-size:0.6rem;color:var(--text-dim);">Data range</th>
+                        </tr></thead>
+                        <tbody id="opt-feature-rows"></tbody>
+                    </table>
+                </div>
+
+                <!-- Sum constraints -->
+                <div>
+                    <div style="font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.3rem;">Sum Constraints</div>
+                    <div style="font-size:0.6rem;color:var(--text-dim);margin-bottom:0.3rem;">e.g. sleep + study + gaming &le; 24</div>
+                    <div id="opt-sum-constraints"></div>
+                    <button class="btn-sm" style="font-size:0.65rem;margin-top:0.3rem;" onclick="addSumConstraint()">+ Add constraint</button>
+                </div>
+            </div>
+
+            <!-- Optimization Results Panel -->
+            <div id="optimize-results" style="display:none;padding:0.75rem;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;margin-bottom:0.75rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+                    <div style="font-size:0.7rem;font-weight:700;color:var(--accent-primary);letter-spacing:0.06em;text-transform:uppercase;">Optimization Results</div>
+                    <button class="btn-sm" style="font-size:0.65rem;padding:0.1rem 0.4rem;" onclick="document.getElementById('optimize-results').style.display='none'">Dismiss</button>
+                </div>
+
+                <!-- Feasibility badge -->
+                <div id="opt-feasibility" style="margin-bottom:0.5rem;"></div>
+
+                <!-- Prescription table -->
+                <div id="opt-prescription" style="margin-bottom:0.5rem;"></div>
+
+                <!-- Edge warnings -->
+                <div id="opt-edge-warnings" style="margin-bottom:0.5rem;"></div>
+
+                <!-- Correlation warnings -->
+                <div id="opt-corr-warnings" style="margin-bottom:0.5rem;"></div>
+
+                <!-- Sensitivity ranking -->
+                <div id="opt-sensitivity" style="margin-bottom:0.5rem;"></div>
+
+                <!-- Diminishing returns -->
+                <div id="opt-diminishing" style="margin-bottom:0.5rem;"></div>
+
+                <!-- Constraint satisfaction -->
+                <div id="opt-constraints-status" style="margin-bottom:0.5rem;"></div>
+
+                <!-- Prediction interval -->
+                <div id="opt-interval"></div>
+            </div>
+
             <div class="profiler-main-header">
                 <h3>Partial Dependence</h3>
                 <button class="btn-sm" onclick="renderPDPCurves()">Refresh</button>
@@ -478,7 +582,7 @@
 
     .profiler-main { flex: 1; min-width: 0; overflow-y: auto; padding: 1rem; }
     .profiler-response-panel { margin-bottom: 1rem; background: var(--card-bg, var(--bg-card)); border: 1px solid rgba(228,184,75,0.25); border-radius: 8px; padding: 0.5rem 0.75rem; }
-    .profiler-response-plot { height: 130px; }
+    .profiler-response-plot { height: 160px; }
 
     .profiler-main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
     .profiler-main-header h3 { margin: 0; font-size: 0.9rem; font-weight: 600; }
@@ -521,6 +625,7 @@ let parsedRows = [];
 let allModels = [];
 let selectedModel = null;
 let lastPredictions = null;
+let lastThresholdData = null;
 let currentMode = 'quick';
 
 // =========================================================================
@@ -724,6 +829,63 @@ function renderResults(data) {
         insightEl.style.display = 'block';
     }
 
+    // Subgroup diagnostics
+    const subgroupEl = document.getElementById('result-subgroups');
+    if (data.subgroup_diagnostics && data.subgroup_diagnostics.length) {
+        let sgHtml = '<div class="insight-card"><div class="insight-label">SEGMENT PERFORMANCE</div>';
+        data.subgroup_diagnostics.forEach(sg => {
+            sgHtml += `<div style="margin:0.5rem 0;"><strong>${sg.feature}</strong> <span style="color:var(--text-dim);font-size:0.75rem;">(overall ${sg.metric}: ${sg.overall})</span>`;
+            sgHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.25rem;">';
+            sg.segments.forEach(s => {
+                const color = s.flag === 'warning' ? '#e89547' : '#4a9f6e';
+                sgHtml += `<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;background:rgba(${s.flag === 'warning' ? '232,149,71' : '74,159,110'},0.12);border:1px solid ${color};color:${color};">`;
+                sgHtml += `${s.value} <strong>${s.score}</strong> <span style="color:var(--text-dim);">(n=${s.n})</span></span>`;
+            });
+            sgHtml += '</div></div>';
+        });
+        sgHtml += '</div>';
+        subgroupEl.innerHTML = sgHtml;
+        subgroupEl.style.display = 'block';
+    }
+
+    // Threshold analysis
+    const thresholdEl = document.getElementById('result-threshold');
+    if (data.threshold_analysis) {
+        const ta = data.threshold_analysis;
+        const thresholds = ta.thresholds;
+        const plotId = 'threshold-plot-' + Date.now();
+
+        let taHtml = '<div class="insight-card"><div class="insight-label">THRESHOLD ANALYSIS</div>';
+        taHtml += `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.5rem;">`;
+        taHtml += `Optimal thresholds — F1: <strong>${ta.optimal.f1}</strong> | Accuracy: <strong>${ta.optimal.accuracy}</strong> | Youden's J: <strong>${ta.optimal.youden}</strong>`;
+        taHtml += '</div>';
+        taHtml += `<div id="${plotId}" style="height:220px;"></div></div>`;
+        thresholdEl.innerHTML = taHtml;
+        thresholdEl.style.display = 'block';
+
+        // Store for rendering after DOM update
+        lastThresholdData = { plotId, thresholds, optimal: ta.optimal };
+        requestAnimationFrame(() => {
+            if (!window.Plotly || !lastThresholdData) return;
+            const td = lastThresholdData;
+            const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e0e0e0';
+            const xs = td.thresholds.map(t => t.threshold);
+            Plotly.newPlot(td.plotId, [
+                { x: xs, y: td.thresholds.map(t => t.precision), name: 'Precision', mode: 'lines', line: { color: '#4a9f6e', width: 2 } },
+                { x: xs, y: td.thresholds.map(t => t.recall), name: 'Recall', mode: 'lines', line: { color: '#5b8def', width: 2 } },
+                { x: xs, y: td.thresholds.map(t => t.f1), name: 'F1', mode: 'lines', line: { color: '#e89547', width: 2.5 } },
+            ], {
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: textColor, size: 11 },
+                margin: { l: 40, r: 10, t: 10, b: 35 },
+                xaxis: { title: 'Threshold', gridcolor: 'rgba(128,128,128,0.1)' },
+                yaxis: { title: '', range: [0, 1.05], gridcolor: 'rgba(128,128,128,0.1)' },
+                legend: { orientation: 'h', y: 1.12 },
+                shapes: [{ type: 'line', x0: td.optimal.f1, x1: td.optimal.f1, y0: 0, y1: 1, line: { color: '#e89547', width: 1.5, dash: 'dot' } }],
+            }, { responsive: true, displayModeBar: false });
+        });
+    }
+
     // Comparison table
     const compEl = document.getElementById('result-comparison');
     if (data.comparison && data.comparison.length) {
@@ -830,6 +992,22 @@ function renderReport(data, container) {
         const escaped = data.interpretation.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const formatted = escaped.replace(/\n/g, '<br>').replace(/[✓]/g, '<span style="color:#4a9f6e">✓</span>').replace(/[⚠]/g, '<span style="color:#e89547">⚠</span>');
         html += `<div class="insight-card" style="margin-bottom:1rem;"><div class="insight-label">MODEL ASSESSMENT</div><div class="insight-text">${formatted}</div></div>`;
+    }
+
+    // Subgroup diagnostics
+    if (data.subgroup_diagnostics && data.subgroup_diagnostics.length) {
+        html += '<div class="insight-card" style="margin-bottom:1rem;"><div class="insight-label">SEGMENT PERFORMANCE</div>';
+        data.subgroup_diagnostics.forEach(sg => {
+            html += `<div style="margin:0.5rem 0;"><strong>${sg.feature}</strong> <span style="color:var(--text-dim);font-size:0.75rem;">(overall ${sg.metric}: ${sg.overall})</span>`;
+            html += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.25rem;">';
+            sg.segments.forEach(s => {
+                const color = s.flag === 'warning' ? '#e89547' : '#4a9f6e';
+                html += `<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;background:rgba(${s.flag === 'warning' ? '232,149,71' : '74,159,110'},0.12);border:1px solid ${color};color:${color};">`;
+                html += `${s.value} <strong>${s.score}</strong> <span style="color:var(--text-dim);">(n=${s.n})</span></span>`;
+            });
+            html += '</div></div>';
+        });
+        html += '</div>';
     }
 
     // Comparison table
@@ -1319,7 +1497,27 @@ function initProfiler() {
     });
 
     document.getElementById('profiler-target-label').textContent = selectedModel.target || '';
+
+    // Show threshold slider for classification models
+    const threshCtrl = document.getElementById('profiler-threshold-control');
+    const taskType = (selectedModel.training_config || {}).task_type || '';
+    if (taskType === 'classification') {
+        threshCtrl.style.display = '';
+        profilerThreshold = 0.5;
+        document.getElementById('profiler-threshold-slider').value = 0.5;
+        document.getElementById('profiler-threshold-val').textContent = '0.50';
+        document.getElementById('profiler-threshold-metrics').textContent = '';
+    } else {
+        threshCtrl.style.display = 'none';
+    }
+
     profilerInitialized = true;
+
+    // Populate optimization settings table
+    populateOptSettings();
+    // Hide settings and results panels on fresh init
+    document.getElementById('opt-settings-panel').style.display = 'none';
+    document.getElementById('optimize-results').style.display = 'none';
 
     runProfilerPrediction();
     renderPDPCurves();
@@ -1344,32 +1542,51 @@ async function runProfilerPrediction() {
         const res = await fetch(`/api/dsw/models/${selectedModel.id}/run/`, {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-            body: JSON.stringify({ data: [row] }),
+            body: JSON.stringify({ data: [row], intervals: true }),
         });
         const data = await res.json();
         if (res.ok && data.predictions && data.predictions.length) {
-            const pred = data.predictions[0];
-            document.getElementById('profiler-value').textContent =
-                typeof pred === 'number' ? pred.toFixed(4) : String(pred);
-
-            // Update response curve
+            let pred = data.predictions[0];
             const recipe = selectedModel.training_config || {};
             const task = recipe.task_type || 'regression';
 
+            // Apply threshold for binary classification
             if (task === 'classification' && data.probabilities && data.probabilities.length) {
                 const probs = data.probabilities[0];
+                if (probs.length === 2) {
+                    const lmap = recipe.label_map || {};
+                    const invMap = {};
+                    for (const [k, v] of Object.entries(lmap)) invMap[v] = k;
+                    pred = probs[1] >= profilerThreshold ? (invMap[1] || '1') : (invMap[0] || '0');
+                }
                 const prob = probs.length === 2 ? probs[1] : Math.max(...probs);
+                document.getElementById('profiler-value').textContent = String(pred);
                 if (!responseCurveReady) {
                     renderResponseCurve(prob);
                 } else {
                     updateResponseMarker(prob);
                 }
-            } else if (task !== 'classification' && typeof pred === 'number') {
-                if (!responseCurveReady) {
-                    renderResponseGauge(pred);
-                } else {
-                    updateResponseGauge(pred);
+            } else {
+                document.getElementById('profiler-value').textContent =
+                    typeof pred === 'number' ? pred.toFixed(4) : String(pred);
+                if (task !== 'classification' && typeof pred === 'number') {
+                    if (!responseCurveReady) {
+                        renderResponseGauge(pred);
+                    } else {
+                        updateResponseGauge(pred);
+                    }
                 }
+            }
+
+            // Show prediction interval
+            const intervalEl = document.getElementById('profiler-interval');
+            if (data.intervals && data.intervals.length && data.intervals[0]) {
+                const [lo, hi] = data.intervals[0];
+                const half = ((hi - lo) / 2).toFixed(2);
+                intervalEl.textContent = `± ${half} (90% interval: ${lo.toFixed(2)} – ${hi.toFixed(2)})`;
+                intervalEl.style.display = '';
+            } else {
+                intervalEl.style.display = 'none';
             }
         }
     } catch (err) {
@@ -1461,7 +1678,7 @@ function updateResponseMarker(prob) {
     });
 }
 
-function renderResponseGauge(val) {
+async function renderResponseGauge(val) {
     const el = document.getElementById('profiler-response-plot');
     const panel = document.getElementById('profiler-response-panel');
     if (!el || !window.Plotly) return;
@@ -1470,31 +1687,125 @@ function renderResponseGauge(val) {
     const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#e0e0e0';
     const recipe = selectedModel.training_config || {};
     const target = recipe.target || selectedModel.target || 'y';
+    const featureInfo = recipe.feature_info || {};
+    const features = selectedModel.features || [];
 
-    // Estimate range from feature_info or use heuristic
-    const margin = Math.abs(val) * 0.5 || 10;
-    const lo = val - margin, hi = val + margin;
-    window._responseGaugeRange = [lo, hi];
+    // Find the top numeric feature to sweep for the response curve
+    // Use first numeric feature as primary driver
+    let sweepFeat = null;
+    let sweepMin = 0, sweepMax = 100;
+    for (const feat of features) {
+        const info = featureInfo[feat] || {};
+        if (info.type === 'numeric' && info.min != null && info.max != null) {
+            sweepFeat = feat;
+            sweepMin = info.min;
+            sweepMax = info.max;
+            break;
+        }
+    }
 
-    Plotly.newPlot(el, [{
+    // Generate response curve by sweeping the primary feature
+    let curveX = [], curveY = [], curveLo = [], curveHi = [];
+    if (sweepFeat) {
+        const nPts = 30;
+        const rows = [];
+        for (let i = 0; i < nPts; i++) {
+            const sv = sweepMin + (sweepMax - sweepMin) * i / (nPts - 1);
+            const row = { ...profilerState };
+            row[sweepFeat] = sv;
+            rows.push(row);
+        }
+        try {
+            const res = await fetch(`/api/dsw/models/${selectedModel.id}/run/`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({ data: rows, intervals: true }),
+            });
+            const data = await res.json();
+            if (res.ok && data.predictions) {
+                curveX = data.predictions;
+                // X-axis is the sweep feature value, Y-axis is the prediction
+                curveY = data.predictions;
+                curveX = rows.map(r => r[sweepFeat]);
+                if (data.intervals) {
+                    curveLo = data.intervals.map(iv => iv[0]);
+                    curveHi = data.intervals.map(iv => iv[1]);
+                }
+            }
+        } catch (err) {
+            console.warn('Response curve sweep error:', err);
+        }
+    }
+
+    // Store curve data for marker updates
+    window._responseCurveData = { sweepFeat, curveX, curveY, curveLo, curveHi };
+
+    // Find current position on curve
+    let markerX = sweepFeat ? (profilerState[sweepFeat] || (sweepMin + sweepMax) / 2) : val;
+    let markerY = val;
+
+    const traces = [];
+
+    // Confidence band
+    if (curveHi.length && curveLo.length) {
+        traces.push({
+            x: [...curveX, ...curveX.slice().reverse()],
+            y: [...curveHi, ...curveLo.slice().reverse()],
+            type: 'scatter', mode: 'lines', line: { width: 0 },
+            fill: 'toself', fillcolor: 'rgba(228,184,75,0.07)',
+            hoverinfo: 'skip', showlegend: false,
+        });
+    }
+
+    // Response curve line
+    if (curveX.length) {
+        traces.push({
+            x: curveX, y: curveY,
+            type: 'scatter', mode: 'lines',
+            line: { color: 'rgba(228,184,75,0.45)', width: 3 },
+            fill: curveHi.length ? undefined : 'tozeroy',
+            fillcolor: curveHi.length ? undefined : 'rgba(228,184,75,0.06)',
+            hoverinfo: 'skip',
+        });
+    }
+
+    // Current value marker
+    const markerIdx = traces.length;
+    traces.push({
         type: 'scatter', mode: 'markers+text',
-        x: [val], y: [0.5],
-        marker: { size: 16, color: '#e4b84b', line: { color: '#fff', width: 2.5 } },
+        x: [markerX], y: [markerY],
+        marker: { size: 14, color: '#e4b84b', line: { color: '#fff', width: 2.5 } },
         text: [val.toFixed(3)],
         textposition: 'top center',
-        textfont: { color: '#e4b84b', size: 12, family: 'monospace' },
+        textfont: { color: '#e4b84b', size: 11, family: 'monospace' },
         hoverinfo: 'text', hovertext: target + ' = ' + val.toFixed(4),
-    }], {
-        title: { text: 'Response: ' + target, font: { size: 11, color: textColor } },
+    });
+    window._responseMarkerIdx = markerIdx;
+
+    const yMin = curveY.length ? Math.min(...curveY, ...(curveLo.length ? curveLo : curveY)) : val - Math.abs(val) * 0.5;
+    const yMax = curveY.length ? Math.max(...curveY, ...(curveHi.length ? curveHi : curveY)) : val + Math.abs(val) * 0.5;
+    const yPad = (yMax - yMin) * 0.12 || 1;
+    const yRange = [yMin - yPad * 0.5, yMax + yPad];
+    if (yRange[0] === yRange[1]) { yRange[0] -= 1; yRange[1] += 1; }
+    window._responseGaugeRange = yRange;
+
+    const xLabel = sweepFeat || '';
+
+    Plotly.newPlot(el, traces, {
+        title: { text: 'Response: ' + target + (sweepFeat ? ' vs ' + sweepFeat : ''), font: { size: 11, color: textColor } },
         paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
         font: { color: textColor, size: 10 },
-        margin: { l: 40, r: 20, t: 28, b: 25 },
-        xaxis: { range: [lo, hi], gridcolor: 'rgba(128,128,128,0.12)' },
-        yaxis: { range: [0, 1], showticklabels: false, showgrid: false, zeroline: false },
+        margin: { l: 50, r: 20, t: 35, b: 30 },
+        xaxis: { title: xLabel, gridcolor: 'rgba(128,128,128,0.12)' },
+        yaxis: { title: target, range: yRange, gridcolor: 'rgba(128,128,128,0.12)' },
         showlegend: false,
         shapes: [{
-            type: 'line', x0: val, x1: val, y0: 0, y1: 1,
+            type: 'line', x0: markerX, x1: markerX, y0: yRange[0], y1: markerY,
             line: { color: 'rgba(228,184,75,0.35)', width: 1.5, dash: 'dot' },
+        }, {
+            type: 'line', x0: curveX.length ? curveX[0] : markerX, x1: markerX,
+            y0: markerY, y1: markerY,
+            line: { color: 'rgba(228,184,75,0.25)', width: 1, dash: 'dot' },
         }],
     }, { responsive: true, displayModeBar: false });
 
@@ -1505,18 +1816,40 @@ function updateResponseGauge(val) {
     const el = document.getElementById('profiler-response-plot');
     if (!el || !window.Plotly) return;
 
-    // Expand range if prediction moves outside
+    const cd = window._responseCurveData || {};
+    const markerIdx = window._responseMarkerIdx || 0;
+    let markerX = val, markerY = val;
+
+    // If we have curve data, find x position on the curve for the current sweep feature value
+    if (cd.sweepFeat && cd.curveX && cd.curveX.length) {
+        markerX = profilerState[cd.sweepFeat] || markerX;
+        // Interpolate y from curve
+        for (let j = 0; j < cd.curveX.length - 1; j++) {
+            if (markerX >= cd.curveX[j] && markerX <= cd.curveX[j + 1]) {
+                const t = (markerX - cd.curveX[j]) / (cd.curveX[j + 1] - cd.curveX[j]);
+                markerY = cd.curveY[j] + t * (cd.curveY[j + 1] - cd.curveY[j]);
+                break;
+            }
+        }
+    }
+
+    // Use actual prediction value for y (more accurate than interpolation)
+    markerY = val;
+
+    // Expand y range if needed
     const range = window._responseGaugeRange || [val - 10, val + 10];
-    if (val < range[0]) range[0] = val - Math.abs(val) * 0.2;
-    if (val > range[1]) range[1] = val + Math.abs(val) * 0.2;
+    if (val < range[0]) range[0] = val - Math.abs(val - range[0]) * 0.3;
+    if (val > range[1]) range[1] = val + Math.abs(val - range[1]) * 0.3;
     window._responseGaugeRange = range;
 
     Plotly.restyle(el, {
-        x: [[val]], text: [val.toFixed(3)],
-    }, [0]);
+        x: [[markerX]], y: [[markerY]],
+        text: [val.toFixed(3)],
+    }, [markerIdx]);
     Plotly.relayout(el, {
-        'xaxis.range': range,
-        'shapes[0].x0': val, 'shapes[0].x1': val,
+        'yaxis.range': range,
+        'shapes[0].x0': markerX, 'shapes[0].x1': markerX, 'shapes[0].y1': markerY,
+        'shapes[1].x1': markerX, 'shapes[1].y0': markerY, 'shapes[1].y1': markerY,
     });
 }
 
@@ -1557,7 +1890,7 @@ async function renderPDPCurves() {
             const res = await fetch(`/api/dsw/models/${selectedModel.id}/run/`, {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-                body: JSON.stringify({ data: rows }),
+                body: JSON.stringify({ data: rows, intervals: true }),
             });
             const data = await res.json();
             if (res.ok && data.predictions) {
@@ -1567,7 +1900,12 @@ async function renderPDPCurves() {
                     const nCls = data.probabilities[0].length;
                     yVals = data.probabilities.map(p => nCls === 2 ? p[1] : Math.max(...p));
                 }
-                plotElements.push({ feat, xVals: info.categories ? sweepVals.map(String) : sweepVals, yVals, isCategorical: !!(info.categories && info.categories.length) });
+                const elem = { feat, xVals: info.categories ? sweepVals.map(String) : sweepVals, yVals, isCategorical: !!(info.categories && info.categories.length) };
+                if (data.intervals && data.intervals.length) {
+                    elem.loVals = data.intervals.map(iv => iv[0]);
+                    elem.hiVals = data.intervals.map(iv => iv[1]);
+                }
+                plotElements.push(elem);
             }
         } catch (err) {
             console.warn('PDP error for', feat, err);
@@ -1602,21 +1940,40 @@ async function renderPDPCurves() {
                 if (curY === null && p.yVals.length) curY = p.yVals[p.yVals.length - 1];
             }
 
-            const traces = [
-                {
-                    x: p.xVals, y: p.yVals,
-                    type: 'scatter', mode: 'lines',
-                    line: { color: 'rgba(74,159,110,0.4)', width: 2.5 },
-                    fill: 'tozeroy', fillcolor: 'rgba(74,159,110,0.06)',
-                    hoverinfo: 'skip',
-                },
-                {
-                    x: [curX], y: [curY],
-                    type: 'scatter', mode: 'markers',
-                    marker: { size: 10, color: '#4a9f6e', line: { color: '#fff', width: 2 } },
-                    hoverinfo: 'y', name: 'Current',
-                },
-            ];
+            const traces = [];
+
+            // Confidence band (if intervals available)
+            if (p.hiVals && p.loVals && !p.isCategorical) {
+                traces.push({
+                    x: [...p.xVals, ...p.xVals.slice().reverse()],
+                    y: [...p.hiVals, ...p.loVals.slice().reverse()],
+                    type: 'scatter', mode: 'lines', line: { width: 0 },
+                    fill: 'toself', fillcolor: 'rgba(74,159,110,0.08)',
+                    hoverinfo: 'skip', showlegend: false,
+                });
+            }
+
+            // Main PDP line
+            traces.push({
+                x: p.xVals, y: p.yVals,
+                type: 'scatter', mode: 'lines',
+                line: { color: 'rgba(74,159,110,0.4)', width: 2.5 },
+                fill: p.hiVals ? undefined : 'tozeroy',
+                fillcolor: p.hiVals ? undefined : 'rgba(74,159,110,0.06)',
+                hoverinfo: 'skip',
+            });
+
+            // Cursor dot
+            const cursorIdx = traces.length;
+            traces.push({
+                x: [curX], y: [curY],
+                type: 'scatter', mode: 'markers',
+                marker: { size: 10, color: '#4a9f6e', line: { color: '#fff', width: 2 } },
+                hoverinfo: 'y', name: 'Current',
+            });
+
+            // Store cursor trace index for restyle
+            p._cursorTraceIdx = cursorIdx;
 
             const shapes = p.isCategorical ? [] : [{
                 type: 'line', x0: curVal, x1: curVal,
@@ -1661,14 +2018,414 @@ function updatePDPCursors() {
             if (curY === null && p.yVals.length) curY = p.yVals[p.yVals.length - 1];
         }
 
-        // Update cursor dot position (trace index 1)
-        Plotly.restyle(el, { x: [[curX]], y: [[curY]] }, [1]);
+        // Update cursor dot position (dynamic trace index)
+        const traceIdx = p._cursorTraceIdx != null ? p._cursorTraceIdx : 1;
+        Plotly.restyle(el, { x: [[curX]], y: [[curY]] }, [traceIdx]);
 
         // Update vertical line
         if (!p.isCategorical) {
             Plotly.relayout(el, { 'shapes[0].x0': curVal, 'shapes[0].x1': curVal });
         }
     });
+}
+
+// =========================================================================
+// THRESHOLD CONTROL (classification profiler)
+// =========================================================================
+let profilerThreshold = 0.5;
+
+function updateThreshold(val) {
+    profilerThreshold = val;
+    document.getElementById('profiler-threshold-val').textContent = val.toFixed(2);
+
+    // Re-classify using threshold vs probability
+    if (!selectedModel) return;
+    const recipe = selectedModel.training_config || {};
+    const ta = recipe.threshold_analysis;
+
+    // Interpolate metrics from stored threshold analysis
+    if (ta && ta.thresholds) {
+        const closest = ta.thresholds.reduce((a, b) =>
+            Math.abs(b.threshold - val) < Math.abs(a.threshold - val) ? b : a);
+        const metricsEl = document.getElementById('profiler-threshold-metrics');
+        metricsEl.textContent = `Precision ${(closest.precision*100).toFixed(0)}% | Recall ${(closest.recall*100).toFixed(0)}% | F1 ${(closest.f1*100).toFixed(0)}%`;
+    }
+
+    // Re-run prediction to update label with new threshold
+    runProfilerPrediction();
+}
+
+// =========================================================================
+// OPTIMIZE (find optimal input combination)
+// =========================================================================
+document.getElementById('opt-goal').addEventListener('change', function() {
+    document.getElementById('opt-target-val').style.display = this.value === 'target' ? '' : 'none';
+});
+
+// =========================================================================
+// OPTIMIZATION SETTINGS (constraints, costs, density)
+// =========================================================================
+let optSumConstraints = []; // [{id, features: [], operator: '<=', limit: 0}]
+let optConstraintId = 0;
+
+function toggleOptSettings() {
+    const panel = document.getElementById('opt-settings-panel');
+    panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+
+function populateOptSettings() {
+    if (!selectedModel) return;
+    const features = selectedModel.features || [];
+    const recipe = selectedModel.training_config || {};
+    const featureInfo = recipe.feature_info || {};
+
+    const tbody = document.getElementById('opt-feature-rows');
+    tbody.innerHTML = '';
+    optSumConstraints = [];
+    document.getElementById('opt-sum-constraints').innerHTML = '';
+
+    features.forEach(feat => {
+        const info = featureInfo[feat] || {};
+        if (info.categories && info.categories.length) return; // skip categoricals
+        const lo = info.min != null ? info.min : 0;
+        const hi = info.max != null ? info.max : 100;
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        tr.innerHTML = `
+            <td style="padding:0.2rem 0.3rem;font-weight:600;">${feat}</td>
+            <td style="padding:0.2rem 0.2rem;text-align:center;">
+                <input type="number" step="any" data-feat="${feat}" data-bound="min" placeholder="${lo.toFixed(1)}"
+                    style="width:55px;font-size:0.65rem;padding:0.15rem 0.2rem;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:3px;text-align:center;">
+            </td>
+            <td style="padding:0.2rem 0.2rem;text-align:center;">
+                <input type="number" step="any" data-feat="${feat}" data-bound="max" placeholder="${hi.toFixed(1)}"
+                    style="width:55px;font-size:0.65rem;padding:0.15rem 0.2rem;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:3px;text-align:center;">
+            </td>
+            <td style="padding:0.2rem 0.2rem;text-align:center;">
+                <input type="number" min="1" max="10" step="1" value="1" data-feat="${feat}" data-role="cost"
+                    style="width:35px;font-size:0.65rem;padding:0.15rem 0.2rem;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:3px;text-align:center;">
+            </td>
+            <td style="padding:0.2rem 0.3rem;font-size:0.6rem;color:var(--text-dim);">${lo.toFixed(1)}–${hi.toFixed(1)}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function addSumConstraint() {
+    if (!selectedModel) return;
+    const features = selectedModel.features || [];
+    const recipe = selectedModel.training_config || {};
+    const featureInfo = recipe.feature_info || {};
+    const numericFeats = features.filter(f => !(featureInfo[f] || {}).categories);
+
+    const id = ++optConstraintId;
+    optSumConstraints.push({ id, features: [], operator: '<=', limit: 0 });
+
+    const container = document.getElementById('opt-sum-constraints');
+    const row = document.createElement('div');
+    row.id = `sc-${id}`;
+    row.style.cssText = 'display:flex;align-items:center;gap:0.3rem;margin-bottom:0.3rem;flex-wrap:wrap;padding:0.3rem;background:var(--bg-primary);border-radius:4px;border:1px solid var(--border);';
+
+    // Feature pills
+    const pillsDiv = document.createElement('div');
+    pillsDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.2rem;flex:1;';
+    numericFeats.forEach(feat => {
+        const pill = document.createElement('button');
+        pill.className = 'btn-sm';
+        pill.style.cssText = 'font-size:0.6rem;padding:0.1rem 0.3rem;opacity:0.4;';
+        pill.textContent = feat;
+        pill.onclick = () => {
+            const sc = optSumConstraints.find(c => c.id === id);
+            if (!sc) return;
+            const idx = sc.features.indexOf(feat);
+            if (idx >= 0) { sc.features.splice(idx, 1); pill.style.opacity = '0.4'; pill.style.background = ''; }
+            else { sc.features.push(feat); pill.style.opacity = '1'; pill.style.background = 'var(--accent-primary)'; pill.style.color = '#fff'; }
+        };
+        pillsDiv.appendChild(pill);
+    });
+    row.appendChild(pillsDiv);
+
+    // Operator
+    const opSel = document.createElement('select');
+    opSel.style.cssText = 'font-size:0.65rem;padding:0.1rem;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:3px;';
+    opSel.innerHTML = '<option value="<=">≤</option><option value=">=">≥</option>';
+    opSel.onchange = () => { const sc = optSumConstraints.find(c => c.id === id); if (sc) sc.operator = opSel.value; };
+    row.appendChild(opSel);
+
+    // Limit value
+    const limInput = document.createElement('input');
+    limInput.type = 'number';
+    limInput.step = 'any';
+    limInput.placeholder = 'limit';
+    limInput.style.cssText = 'width:60px;font-size:0.65rem;padding:0.15rem 0.2rem;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:3px;';
+    limInput.oninput = () => { const sc = optSumConstraints.find(c => c.id === id); if (sc) sc.limit = parseFloat(limInput.value) || 0; };
+    row.appendChild(limInput);
+
+    // Delete button
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-sm';
+    delBtn.style.cssText = 'font-size:0.65rem;padding:0.1rem 0.3rem;color:#ef4444;';
+    delBtn.textContent = '×';
+    delBtn.onclick = () => { optSumConstraints = optSumConstraints.filter(c => c.id !== id); row.remove(); };
+    row.appendChild(delBtn);
+
+    container.appendChild(row);
+}
+
+function getOptSettings() {
+    const settings = {
+        density_penalty: document.getElementById('opt-density').checked,
+        feature_bounds: {},
+        cost_weights: {},
+        sum_constraints: [],
+    };
+
+    // Read feature bounds + costs from table
+    document.querySelectorAll('#opt-feature-rows input[data-feat]').forEach(input => {
+        const feat = input.dataset.feat;
+        if (input.dataset.bound === 'min' && input.value !== '') {
+            if (!settings.feature_bounds[feat]) settings.feature_bounds[feat] = {};
+            settings.feature_bounds[feat].min = parseFloat(input.value);
+        }
+        if (input.dataset.bound === 'max' && input.value !== '') {
+            if (!settings.feature_bounds[feat]) settings.feature_bounds[feat] = {};
+            settings.feature_bounds[feat].max = parseFloat(input.value);
+        }
+        if (input.dataset.role === 'cost') {
+            const cost = parseInt(input.value) || 1;
+            if (cost !== 1) settings.cost_weights[feat] = cost;
+        }
+    });
+
+    // Read sum constraints
+    settings.sum_constraints = optSumConstraints
+        .filter(sc => sc.features.length > 0 && sc.limit !== 0)
+        .map(sc => ({ features: sc.features, operator: sc.operator, limit: sc.limit }));
+
+    return settings;
+}
+
+function renderOptimizeResults(data) {
+    const panel = document.getElementById('optimize-results');
+    panel.style.display = '';
+
+    const goalLabel = data.goal === 'maximize' ? 'Maximized' : data.goal === 'minimize' ? 'Minimized' : 'Targeted';
+
+    // ── Feasibility badge ──
+    const fDiv = document.getElementById('opt-feasibility');
+    const f = data.feasibility || {};
+    const fColor = f.label === 'high' ? '#22c55e' : f.label === 'moderate' ? '#eab308' : f.label === 'low' ? '#ef4444' : 'var(--text-dim)';
+    const fIcon = f.label === 'high' ? '&#10003;' : f.label === 'moderate' ? '&#9888;' : f.label === 'low' ? '&#10007;' : '?';
+    fDiv.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.4rem 0.5rem;background:var(--bg-primary);border-radius:6px;border-left:3px solid ${fColor};">
+            <span style="font-size:1rem;color:${fColor};line-height:1;">${fIcon}</span>
+            <div>
+                <div style="font-size:0.75rem;font-weight:600;color:${fColor};text-transform:uppercase;letter-spacing:0.04em;">Feasibility: ${f.label || 'unknown'}${f.mahalanobis != null ? ' (d=' + f.mahalanobis + ')' : ''}</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.15rem;">${f.details || ''}</div>
+            </div>
+        </div>`;
+
+    // ── Prescription table ──
+    const pDiv = document.getElementById('opt-prescription');
+    const rx = data.prescription || [];
+    if (rx.length) {
+        const hasCosts = rx.some(p => p.cost && p.cost > 1);
+        let rows = rx.map(p => {
+            const costCell = hasCosts ? `<td style="text-align:center;color:var(--text-dim);">${p.cost > 1 ? '&#9679;'.repeat(Math.min(p.cost, 5)) : '—'}</td>` : '';
+            if (p.type === 'switch') {
+                return `<tr><td style="font-weight:600;">${p.feature}</td><td>Switch</td><td>${p.from} &rarr; ${p.to}</td><td>—</td>${costCell}</tr>`;
+            } else if (p.action === 'hold') {
+                return `<tr><td style="font-weight:600;">${p.feature}</td><td style="color:var(--text-dim);">Hold</td><td>${p.value}</td><td>—</td>${costCell}</tr>`;
+            } else {
+                const arrow = p.direction === 'increase' ? '&#9650;' : '&#9660;';
+                const color = p.direction === 'increase' ? '#22c55e' : '#ef4444';
+                return `<tr><td style="font-weight:600;">${p.feature}</td><td><span style="color:${color};">${arrow}</span> ${p.direction}</td><td>${p.from} &rarr; ${p.to}</td><td>${p.magnitude_pct}% of range</td>${costCell}</tr>`;
+            }
+        }).join('');
+        const costHeader = hasCosts ? '<th style="text-align:center;padding:0.2rem 0.3rem;">Cost</th>' : '';
+        pDiv.innerHTML = `
+            <div style="font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">Prescription — ${goalLabel} to ${data.predicted_value}</div>
+            <table style="width:100%;font-size:0.7rem;border-collapse:collapse;">
+                <thead><tr style="color:var(--text-dim);border-bottom:1px solid var(--border);">
+                    <th style="text-align:left;padding:0.2rem 0.3rem;">Feature</th>
+                    <th style="text-align:left;padding:0.2rem 0.3rem;">Action</th>
+                    <th style="text-align:left;padding:0.2rem 0.3rem;">Values</th>
+                    <th style="text-align:left;padding:0.2rem 0.3rem;">Magnitude</th>
+                    ${costHeader}
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    } else {
+        pDiv.innerHTML = '';
+    }
+
+    // ── Edge warnings ──
+    const eDiv = document.getElementById('opt-edge-warnings');
+    const edges = data.edge_warnings || [];
+    if (edges.length) {
+        const items = edges.map(e =>
+            `<span style="display:inline-block;padding:0.15rem 0.4rem;margin:0.1rem;background:#eab30822;border:1px solid #eab30855;border-radius:4px;font-size:0.65rem;color:#eab308;">&#9888; <b>${e.feature}</b> at ${e.edge} bound (${e.value} &asymp; ${e.bound})</span>`
+        ).join('');
+        eDiv.innerHTML = `<div style="font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.15rem;">Edge Warnings</div>${items}`;
+    } else {
+        eDiv.innerHTML = '';
+    }
+
+    // ── Correlation warnings ──
+    const cDiv = document.getElementById('opt-corr-warnings');
+    const corrWarnings = (f.correlation_warnings || []);
+    if (corrWarnings.length) {
+        const items = corrWarnings.map(w =>
+            `<div style="font-size:0.65rem;color:#ef4444;padding:0.15rem 0;">&#10007; ${w}</div>`
+        ).join('');
+        cDiv.innerHTML = `<div style="font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.15rem;">Correlation Conflicts</div>${items}`;
+    } else {
+        cDiv.innerHTML = '';
+    }
+
+    // ── Sensitivity ranking (horizontal bars) ──
+    const sDiv = document.getElementById('opt-sensitivity');
+    const sens = data.sensitivity || [];
+    if (sens.length) {
+        const maxImpact = Math.max(...sens.map(s => Math.abs(s.impact)), 0.001);
+        const bars = sens.slice(0, 8).map(s => {
+            const pct = Math.min(Math.abs(s.impact) / maxImpact * 100, 100);
+            const color = s.gradient > 0 ? '#22c55e' : s.gradient < 0 ? '#ef4444' : 'var(--text-dim)';
+            return `<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.2rem;">
+                <span style="width:80px;font-size:0.65rem;text-align:right;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.feature}">${s.feature}</span>
+                <div style="flex:1;height:10px;background:var(--bg-primary);border-radius:3px;overflow:hidden;">
+                    <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width 0.3s;"></div>
+                </div>
+                <span style="width:45px;font-size:0.6rem;color:var(--text-dim);">${s.impact.toFixed(2)}</span>
+            </div>`;
+        }).join('');
+        sDiv.innerHTML = `<div style="font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">Sensitivity — Feature Impact at Optimum</div>${bars}`;
+    } else {
+        sDiv.innerHTML = '';
+    }
+
+    // ── Diminishing returns ──
+    const drDiv = document.getElementById('opt-diminishing');
+    const dr = data.diminishing_returns || [];
+    if (dr.length) {
+        const items = dr.filter(d => d.knee_pct < 100).map(d => {
+            const savePct = 100 - d.knee_pct;
+            return `<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.2rem;">
+                <span style="width:80px;font-size:0.65rem;text-align:right;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.feature}">${d.feature}</span>
+                <div style="flex:1;height:12px;background:var(--bg-primary);border-radius:3px;overflow:hidden;position:relative;">
+                    <div style="width:${d.knee_pct}%;height:100%;background:#22c55e;border-radius:3px 0 0 3px;"></div>
+                    <div style="position:absolute;left:${d.knee_pct}%;top:0;width:${100 - d.knee_pct}%;height:100%;background:#22c55e33;"></div>
+                    <div style="position:absolute;left:${d.knee_pct - 0.5}%;top:-1px;width:2px;height:14px;background:#eab308;"></div>
+                </div>
+                <span style="width:90px;font-size:0.6rem;color:var(--text-dim);">80% @ ${d.knee_pct}%</span>
+            </div>`;
+        }).join('');
+        if (items) {
+            drDiv.innerHTML = `<div style="font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">Diminishing Returns — Where to stop pushing</div>
+                <div style="font-size:0.6rem;color:var(--text-dim);margin-bottom:0.2rem;">Green = 80% of the gain. Faded = last 20%. Yellow line = knee point.</div>${items}`;
+        } else {
+            drDiv.innerHTML = '';
+        }
+    } else {
+        drDiv.innerHTML = '';
+    }
+
+    // ── Constraint satisfaction ──
+    const csDiv = document.getElementById('opt-constraints-status');
+    const cs = data.constraints || [];
+    if (cs.length) {
+        const items = cs.map(c => {
+            const color = c.satisfied ? '#22c55e' : '#ef4444';
+            const icon = c.satisfied ? '&#10003;' : '&#10007;';
+            const label = c.features.join(' + ') + ' ' + c.operator + ' ' + c.limit;
+            return `<div style="font-size:0.65rem;color:${color};padding:0.1rem 0;">${icon} ${label} (actual: ${c.actual}) — ${c.satisfied ? 'satisfied' : 'violated'}</div>`;
+        }).join('');
+        csDiv.innerHTML = `<div style="font-size:0.65rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.15rem;">Constraint Status</div>${items}`;
+    } else {
+        csDiv.innerHTML = '';
+    }
+
+    // ── Prediction interval at optimal ──
+    const iDiv = document.getElementById('opt-interval');
+    const iv = data.interval;
+    if (iv) {
+        const range = (iv.upper - iv.lower).toFixed(2);
+        iDiv.innerHTML = `<div style="font-size:0.65rem;color:var(--text-dim);padding:0.2rem 0;">90% prediction interval at optimum: <b>${iv.lower}</b> — <b>${iv.upper}</b> (range ${range}, &sigma;=${iv.std})</div>`;
+    } else {
+        iDiv.innerHTML = '';
+    }
+}
+
+async function runOptimize() {
+    if (!selectedModel) { console.warn('Optimize: no model selected'); return; }
+    const btn = document.getElementById('opt-btn');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Optimizing...';
+
+    const goal = document.getElementById('opt-goal').value;
+    const settings = getOptSettings();
+    const body = { goal, ...settings };
+    if (goal === 'target') {
+        body.target_value = parseFloat(document.getElementById('opt-target-val').value) || 0;
+    }
+    body.current_values = { ...profilerState };
+
+    const url = `/api/dsw/models/${selectedModel.id}/optimize/`;
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30000);
+        const res = await fetch(url, {
+            method: 'POST', credentials: 'include', signal: controller.signal,
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(body),
+        });
+        clearTimeout(timer);
+        const data = await res.json();
+        if (res.ok && data.optimal_inputs) {
+            const features = selectedModel.features || [];
+            const recipe = selectedModel.training_config || {};
+            const featureInfo = recipe.feature_info || {};
+
+            // Move sliders to optimal values
+            for (const feat of features) {
+                if (data.optimal_inputs[feat] != null) {
+                    const val = data.optimal_inputs[feat];
+                    updateProfiler(feat, val);
+                    const controls = document.getElementById('profiler-controls');
+                    const info = featureInfo[feat] || {};
+                    if (info.categories && info.categories.length) {
+                        const select = controls.querySelector(`select[onchange*="'${feat}'"]`);
+                        if (select) select.value = val;
+                    } else {
+                        const input = controls.querySelector(`input[oninput*="'${feat}'"]`);
+                        if (input) { input.value = val; }
+                    }
+                }
+            }
+            const pred = typeof data.predicted_value === 'number' ? data.predicted_value.toFixed(4) : data.predicted_value;
+            document.getElementById('profiler-value').textContent = pred;
+
+            // ── Render Optimization Results Panel ──
+            renderOptimizeResults(data);
+
+            btn.textContent = 'Done!';
+            setTimeout(() => { btn.textContent = 'Optimize'; }, 1500);
+            return;
+        } else {
+            console.warn('Optimize returned error:', data.error || data);
+            alert('Optimization failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            alert('Optimization timed out (30s). Try a simpler model or fewer features.');
+        } else {
+            console.warn('Optimize fetch error:', err);
+            alert('Optimization error: ' + err.message);
+        }
+    } finally {
+        btn.disabled = false;
+        if (btn.textContent === 'Optimizing...') btn.textContent = 'Optimize';
+    }
 }
 
 // Load saved models on page load

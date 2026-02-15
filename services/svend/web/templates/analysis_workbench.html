@@ -2520,12 +2520,13 @@ function showTriageInDialog(issues, uploadResult) {
                     <div class="triage-action">
                         Action:
                         <select id="missing-action" style="font-size:10px;padding:2px 4px;background:#1a261a;border:1px solid rgba(74,159,110,0.3);color:var(--aw-text);border-radius:3px;">
-                            <option value="impute_mean">Impute with mean (numeric) / mode (text)</option>
-                            <option value="impute_median">Impute with median (numeric)</option>
-                            <option value="drop_rows">Drop rows with missing values</option>
-                            <option value="leave">Leave as-is (keep NaN)</option>
+                            <option value="impute_mean">Impute mean — fill gaps with column average (numeric) or mode (text)</option>
+                            <option value="impute_median">Impute median — fill gaps with column median, robust to outliers</option>
+                            <option value="drop_rows">Drop empty rows — remove mostly-blank rows, impute the rest</option>
+                            <option value="leave">Leave as-is — keep NaN values; may cause errors in some analyses</option>
                         </select>
                     </div>
+                    <div style="font-size:10px;color:#e89547;margin-top:4px;display:flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 22h20L12 2z"/><line x1="12" y1="10" x2="12" y2="15"/><circle cx="12" cy="18" r="0.5" fill="currentColor"/></svg> NULL values in training data can increase model error rates. Imputing or dropping is recommended before analysis.</div>
                 </div>
             </div>
         `;
@@ -2547,9 +2548,9 @@ function showTriageInDialog(issues, uploadResult) {
                     <div class="triage-action">
                         Action:
                         <select id="outlier-action" style="font-size:10px;padding:2px 4px;background:#1a261a;border:1px solid rgba(74,159,110,0.3);color:var(--aw-text);border-radius:3px;">
-                            <option value="flag">Flag only (add _outlier column)</option>
-                            <option value="remove">Remove outlier rows</option>
-                            <option value="clip">Clip to IQR bounds</option>
+                            <option value="flag">Flag — add _outlier column, keep all data</option>
+                            <option value="remove">Remove — delete outlier rows entirely</option>
+                            <option value="clip">Clip — cap values at IQR bounds</option>
                         </select>
                     </div>
                 </div>
@@ -2684,13 +2685,20 @@ async function cleanAndLoad() {
             if (result.changes) {
                 if (result.changes.excel_errors > 0) summary += `- Replaced ${result.changes.excel_errors} Excel errors with NaN\n`;
                 if (result.changes.missing_filled > 0) summary += `- Filled ${result.changes.missing_filled} missing values\n`;
-                if (result.changes.missing_dropped > 0) summary += `- Dropped ${result.changes.missing_dropped} rows with missing values\n`;
+                if (result.changes.missing_dropped > 0) summary += `- Dropped ${result.changes.missing_dropped} rows (>80% empty)\n`;
                 if (result.changes.outliers_flagged > 0) summary += `- Flagged ${result.changes.outliers_flagged} outliers\n`;
                 if (result.changes.outliers_removed > 0) summary += `- Removed ${result.changes.outliers_removed} outlier rows\n`;
                 if (result.changes.outliers_clipped > 0) summary += `- Clipped ${result.changes.outliers_clipped} outlier values\n`;
                 if (result.changes.types_converted > 0) summary += `- Converted ${result.changes.types_converted} columns to numeric\n`;
             }
+            if (result.warnings && result.warnings.length > 0) {
+                summary += '\n**Warnings:**\n';
+                result.warnings.forEach(w => { summary += `- ⚠ ${w}\n`; });
+            }
             summary += `\nResult: ${result.data.rows} rows × ${result.data.columns?.length || 0} columns`;
+            if (result.rows_removed > 0 || result.cols_removed > 0) {
+                summary += ` (removed ${result.rows_removed} rows, ${result.cols_removed || 0} columns)`;
+            }
             appendSession('result', summary);
         } else {
             throw new Error(result.error || 'Cleaning failed');

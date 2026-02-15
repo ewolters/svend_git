@@ -1,0 +1,280 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Sigma Level Calculator — Free DPMO to Sigma Converter{% endblock %}
+{% block meta_description %}Free sigma level calculator. Convert between DPMO, PPM, sigma level, yield percentage, and Cpk. Includes 1.5 sigma shift. Full reference table included.{% endblock %}
+{% block meta_keywords %}sigma calculator, DPMO calculator, sigma level, Six Sigma, defects per million, PPM, yield, Cpk, process sigma, sigma conversion{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/sigma-calculator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/sigma-calculator/">
+<meta property="og:title" content="Free Sigma Level Calculator — DPMO Converter">
+<meta property="og:description" content="Convert between DPMO, sigma level, yield, and Cpk. Free, instant, no signup required.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Sigma Level Calculator",
+    "url": "https://svend.ai/tools/sigma-calculator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free sigma level calculator. Convert between DPMO, PPM, yield percentage, sigma level, and Cpk equivalent.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is Six Sigma?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Six Sigma is a quality methodology that aims for no more than 3.4 defects per million opportunities (DPMO). The name comes from the statistical concept of 6 standard deviations from the mean, which (with a 1.5 sigma shift) corresponds to 3.4 DPMO or 99.99966% yield."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the 1.5 sigma shift?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The 1.5 sigma shift is a convention in Six Sigma that accounts for long-term process drift. It assumes that over time, a process mean will shift by 1.5 standard deviations from its short-term center. So a '6 sigma' process with 1.5 shift actually performs at 4.5 sigma long-term, yielding 3.4 DPMO."
+            }
+        }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.converter-modes {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+}
+.converter-box {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.25rem;
+}
+.converter-box h3 {
+    font-size: 0.85rem; color: var(--accent-primary); margin-bottom: 1rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+.converter-box .form-group { margin-bottom: 0.75rem; }
+.arrow-divider {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; color: var(--accent-primary);
+}
+@media (max-width: 768px) {
+    .converter-modes { grid-template-columns: 1fr; }
+    .arrow-divider { transform: rotate(90deg); padding: 0.5rem 0; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1>Sigma Level <strong>Calculator</strong></h1>
+    <p>Convert between DPMO, sigma level, yield percentage, and Cpk. Enter any value and get all equivalents instantly.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Convert</h2>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Input Type</label>
+            <select id="input-type" onchange="updateInputLabel()">
+                <option value="dpmo">DPMO (Defects per Million)</option>
+                <option value="sigma">Sigma Level</option>
+                <option value="yield">Yield %</option>
+                <option value="defect-rate">Defect Rate (%)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label id="input-label">DPMO</label>
+            <input type="number" id="input-value" step="any" value="6210" placeholder="e.g. 6210">
+        </div>
+        <div class="form-group">
+            <label>Include 1.5&sigma; shift?</label>
+            <select id="shift">
+                <option value="1.5" selected>Yes (standard Six Sigma convention)</option>
+                <option value="0">No (theoretical / short-term)</option>
+            </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;">
+            <button class="btn-calculate" onclick="calculate()" style="width:100%;">Convert</button>
+        </div>
+    </div>
+</div>
+
+<div id="results" style="display:none;">
+    <div class="tool-card">
+        <h2>Results</h2>
+        <div class="results-grid" id="results-grid"></div>
+        <div id="interpretation" class="interpretation" style="display:none;"></div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Sigma Level Reference Table</h2>
+        <table class="ref-table" id="ref-table"></table>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem;">* With 1.5&sigma; long-term shift applied (industry standard).</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is Six Sigma?</div>
+        <div class="faq-a">Six Sigma is a quality methodology that aims for no more than 3.4 defects per million opportunities (DPMO). The name comes from fitting 6 standard deviations between the process mean and nearest spec limit. With the standard 1.5&sigma; shift for long-term drift, this yields 3.4 DPMO or 99.99966% yield.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the 1.5 sigma shift?</div>
+        <div class="faq-a">The 1.5&sigma; shift accounts for the fact that processes drift over time. Short-term data might show 6&sigma; performance, but long-term you'll see about 4.5&sigma; due to mean shifts, tool wear, material variation, etc. The convention adds 1.5 to the reported sigma level to give a "short-term equivalent."</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How is sigma level related to Cpk?</div>
+        <div class="faq-a">Sigma level = 3 &times; Cpk (approximately). So Cpk = 1.0 &asymp; 3&sigma;, Cpk = 1.33 &asymp; 4&sigma;, Cpk = 1.67 &asymp; 5&sigma;, Cpk = 2.0 &asymp; 6&sigma;. This assumes a normal distribution and that the process is centered between spec limits.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What sigma level should I target?</div>
+        <div class="faq-a">It depends on your industry. 3&sigma; (66,807 DPMO) is a common starting point. 4&sigma; (6,210 DPMO) is considered good. 5&sigma; (233 DPMO) is very good. 6&sigma; (3.4 DPMO) is the gold standard, but may not be cost-effective for all processes.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function normalCDF(x) {
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.SQRT2;
+    const t = 1.0 / (1.0 + 0.3275911 * x);
+    const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1) * t * Math.exp(-x*x);
+    return 0.5 * (1 + sign * y);
+}
+
+function normalPPF(p) {
+    const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
+               1.383577518672690e2, -3.066479806614716e1, 2.506628277459239e0];
+    const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
+               6.680131188771972e1, -1.328068155288572e1];
+    const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838e0,
+               -2.549732539343734e0, 4.374664141464968e0, 2.938163982698783e0];
+    const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996e0, 3.754408661907416e0];
+    const pLow = 0.02425, pHigh = 1 - pLow;
+    let q, r;
+    if (p < pLow) {
+        q = Math.sqrt(-2 * Math.log(p));
+        return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    } else if (p <= pHigh) {
+        q = p - 0.5; r = q * q;
+        return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+    } else {
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    }
+}
+
+function sigmaFromDPMO(dpmo, shift) {
+    const p = dpmo / 1e6;
+    if (p <= 0) return 6 + shift;
+    if (p >= 1) return shift;
+    return normalPPF(1 - p) + shift;
+}
+
+function dpmoFromSigma(sigma, shift) {
+    const z = sigma - shift;
+    return (1 - normalCDF(z)) * 1e6;
+}
+
+function updateInputLabel() {
+    const type = document.getElementById('input-type').value;
+    const labels = { dpmo: 'DPMO', sigma: 'Sigma Level', yield: 'Yield (%)', 'defect-rate': 'Defect Rate (%)' };
+    const placeholders = { dpmo: '6210', sigma: '4.0', yield: '99.379', 'defect-rate': '0.621' };
+    const defaults = { dpmo: '6210', sigma: '4.0', yield: '99.379', 'defect-rate': '0.621' };
+    document.getElementById('input-label').textContent = labels[type];
+    document.getElementById('input-value').placeholder = 'e.g. ' + placeholders[type];
+    document.getElementById('input-value').value = defaults[type];
+}
+
+function calculate() {
+    const type = document.getElementById('input-type').value;
+    const val = parseFloat(document.getElementById('input-value').value);
+    const shift = parseFloat(document.getElementById('shift').value);
+
+    if (isNaN(val)) { alert('Enter a valid number.'); return; }
+
+    let dpmo, sigma;
+
+    if (type === 'dpmo') {
+        dpmo = Math.max(0, Math.min(val, 1e6));
+        sigma = sigmaFromDPMO(dpmo, shift);
+    } else if (type === 'sigma') {
+        sigma = val;
+        dpmo = dpmoFromSigma(sigma, shift);
+    } else if (type === 'yield') {
+        dpmo = (100 - val) / 100 * 1e6;
+        sigma = sigmaFromDPMO(dpmo, shift);
+    } else { // defect-rate
+        dpmo = val / 100 * 1e6;
+        sigma = sigmaFromDPMO(dpmo, shift);
+    }
+
+    dpmo = Math.max(0, dpmo);
+    const yieldPct = (1 - dpmo / 1e6) * 100;
+    const cpk = sigma / 3;
+    const defectRate = dpmo / 1e4;
+
+    document.getElementById('results').style.display = '';
+
+    function sigmaClass(s) {
+        if (s >= 5) return 'result-good';
+        if (s >= 4) return 'result-good';
+        if (s >= 3) return 'result-warn';
+        return 'result-bad';
+    }
+
+    document.getElementById('results-grid').innerHTML = `
+        <div class="result-item ${sigmaClass(sigma)}"><div class="label">Sigma Level</div><div class="value">${sigma.toFixed(2)}&sigma;</div><div class="sub">${shift > 0 ? 'with 1.5σ shift' : 'no shift'}</div></div>
+        <div class="result-item result-neutral"><div class="label">DPMO</div><div class="value">${dpmo < 1 ? dpmo.toFixed(2) : Math.round(dpmo).toLocaleString()}</div><div class="sub">Defects per million</div></div>
+        <div class="result-item result-neutral"><div class="label">Yield</div><div class="value">${yieldPct >= 99.99 ? yieldPct.toFixed(4) : yieldPct.toFixed(3)}%</div></div>
+        <div class="result-item result-neutral"><div class="label">Defect Rate</div><div class="value">${defectRate < 0.01 ? defectRate.toFixed(4) : defectRate.toFixed(3)}%</div></div>
+        <div class="result-item result-neutral"><div class="label">Cpk Equiv.</div><div class="value">${cpk.toFixed(2)}</div></div>
+        <div class="result-item result-neutral"><div class="label">PPM</div><div class="value">${dpmo < 1 ? dpmo.toFixed(2) : Math.round(dpmo).toLocaleString()}</div></div>
+    `;
+
+    const interp = document.getElementById('interpretation');
+    interp.style.display = '';
+    let msg = `<strong>${sigma.toFixed(2)} sigma</strong> = ${Math.round(dpmo).toLocaleString()} DPMO = ${yieldPct.toFixed(3)}% yield. `;
+    if (sigma >= 6) msg += 'This is <strong>Six Sigma or better</strong> — world-class performance.';
+    else if (sigma >= 5) msg += 'Excellent performance — near Six Sigma.';
+    else if (sigma >= 4) msg += 'Good performance — meets most industry standards.';
+    else if (sigma >= 3) msg += 'Average performance — significant defect rate. Typical for unmanaged processes.';
+    else msg += 'Below average — high defect rate. Process improvement is critical.';
+    interp.innerHTML = msg;
+
+    // Reference table
+    const refSigmas = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6];
+    let html = '<thead><tr><th>Sigma</th><th>DPMO</th><th>Yield</th><th>Cpk</th></tr></thead><tbody>';
+    refSigmas.forEach(s => {
+        const d = dpmoFromSigma(s, shift);
+        const y = (1 - d / 1e6) * 100;
+        const cp = s / 3;
+        const isMatch = Math.abs(s - Math.round(sigma * 2) / 2) < 0.01;
+        html += `<tr${isMatch ? ' class="highlight"' : ''}><td>${s.toFixed(1)}σ</td><td>${d < 1 ? d.toFixed(2) : Math.round(d).toLocaleString()}</td><td>${y >= 99.99 ? y.toFixed(5) : y.toFixed(3)}%</td><td>${cp.toFixed(2)}</td></tr>`;
+    });
+    html += '</tbody>';
+    document.getElementById('ref-table').innerHTML = html;
+}
+
+document.addEventListener('DOMContentLoaded', calculate);
+</script>
+{% endblock %}

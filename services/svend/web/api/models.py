@@ -85,6 +85,81 @@ class BlogView(models.Model):
         return f"View: {self.post.title} @ {self.viewed_at}"
 
 
+class WhitePaper(models.Model):
+    """White paper / long-form gated content for SEO and lead generation."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PUBLISHED = "published", "Published"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
+    description = models.TextField(blank=True, help_text="Short marketing copy / abstract")
+    body = models.TextField(blank=True, help_text="Full markdown content")
+    meta_description = models.CharField(max_length=160, blank=True)
+    topic = models.CharField(max_length=100, blank=True, db_index=True)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
+    gated = models.BooleanField(default=True, help_text="Require email to download")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="white_papers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        db_table = "white_papers"
+        ordering = ["-published_at", "-created_at"]
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)[:200]
+            base_slug = self.slug
+            counter = 1
+            while WhitePaper.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base_slug[:190]}-{counter}"
+                counter += 1
+        super().save(*args, **kwargs)
+
+
+class WhitePaperDownload(models.Model):
+    """Tracks individual white paper downloads/views for analytics."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    paper = models.ForeignKey(
+        WhitePaper,
+        on_delete=models.CASCADE,
+        related_name="downloads",
+    )
+    downloaded_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    referrer_domain = models.CharField(max_length=200, blank=True, db_index=True)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    email = models.EmailField(blank=True)  # Captured if gated
+    is_bot = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "whitepaper_downloads"
+        ordering = ["-downloaded_at"]
+        indexes = [
+            models.Index(fields=["paper", "downloaded_at"]),
+            models.Index(fields=["referrer_domain", "downloaded_at"]),
+        ]
+
+    def __str__(self):
+        return f"Download: {self.paper.title} @ {self.downloaded_at}"
+
+
 class OnboardingSurvey(models.Model):
     """Stores onboarding survey responses per user."""
 
@@ -313,6 +388,9 @@ class AutomationRule(models.Model):
     description = models.TextField(blank=True)
     trigger = models.CharField(max_length=20, choices=Trigger.choices)
     trigger_config = models.JSONField(default=dict)  # {"days": 7}, {"threshold": 80}, etc.
+    trigger_2 = models.CharField(max_length=20, choices=Trigger.choices, blank=True, default="")
+    trigger_2_config = models.JSONField(null=True, blank=True)
+    trigger_logic = models.CharField(max_length=3, default="and", choices=[("and", "AND"), ("or", "OR")])
     action = models.CharField(max_length=20, choices=Action.choices)
     action_config = models.JSONField(default=dict)  # {"template": "inactive_nudge"}
     is_active = models.BooleanField(default=True)
@@ -390,6 +468,7 @@ class Feedback(models.Model):
     message = models.TextField()
     page = models.CharField(max_length=200, blank=True)  # URL path where feedback was submitted
     status = models.CharField(max_length=10, default="new")  # new / reviewed / resolved
+    internal_notes = models.TextField(blank=True, default="")  # Staff-only annotations
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
