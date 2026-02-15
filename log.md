@@ -15,6 +15,27 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-14 — Landing Page Repositioning: "Experimentation Platform for Quality & Operations"
+
+**What:** Full repositioning of svend.ai landing page from "Statistical Analysis & SPC Software | Minitab Alternative" to "Continuous Improvement & DOE Software | Experiment Tracking for Quality Teams." Motivated by SEO research showing head terms (statistical analysis software, SPC software) are unwinnable against Minitab/JMP/SAS with decades of backlinks, while "continuous improvement software" ($1.85B market), "DOE software" (new entrants breaking through), and "hypothesis tracking" (zero competition) are realistic targets.
+
+**Changes:**
+- Title/meta/OG/Twitter repositioned to target CI, DOE, experiment tracking keywords
+- Hero: "Minitab + AI at 68% less" → "From signal to verified improvement"
+- Features grid reframed as experimentation lifecycle (Measure, Design, Analyze, Investigate, Track Hypotheses, Deploy)
+- "How it works" 4-card grid replaced with 7-step Insight Spine vertical timeline (CSS already existed)
+- Pricing: "Choose your plan" → "One platform, not five subscriptions" with tool stack cost comparison ($3K-$10K vs $588/yr)
+- FAQ expanded from 4→6 questions targeting "continuous improvement software" and "hypothesis tracking" search intent
+- Footer expanded from 3-link row to 4-column grid with Product/Resources/Company sections
+- All 11 Minitab/JMP name references removed
+- Structured data: lowPrice 19→0, highPrice 199→299, aggregateRating deleted (unverifiable)
+- Dead CSS cleaned up (tool-badge--python/sympy/z3/verify, tools-grid, tool-card)
+- Contact email unified to hello@svend.ai
+
+**Files changed:** `templates/landing.html`
+
+---
+
 ### 2026-02-14 — Whitepaper Management + Content Tab Split
 
 **What:** Added whitepaper CRUD and analytics to the Internal dashboard, separated from blog management with sub-tab navigation.
