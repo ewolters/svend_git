@@ -15,6 +15,32 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-15 — Concept Drift Detection (3-lane diagnostic)
+
+**What:** Three-lane drift diagnostic suite for ML model health monitoring. Detects what drifted, how, and whether it matters to performance.
+
+**Architecture:**
+- `drift_detection.py` — new module with three detectors:
+  - **PSI** (Population Stability Index): quantile-based binning from reference, epsilon smoothing, per-feature table. Thresholds: negligible/<0.10/low/<0.20/moderate/<0.25/high
+  - **ADWIN** (Adaptive Windowing): normalizes stream to [0,1], scans all possible cut points, Hoeffding bound ε=√(1/(2m)·ln(4n/δ)). Reports change index, mean before/after, shift magnitude
+  - **Page-Hinkley**: cumulative deviation from running mean on standardized stream, two-sided (up+down), reports direction, cumulative stat, threshold
+
+**Three lanes:**
+- Lane A (Data Drift): PSI per feature + ADWIN on top 3 drifting features
+- Lane B (Prediction Drift): PSI on predicted scores + ADWIN on prediction stream mean
+- Lane C (Error Drift): ADWIN on squared-error loss + Page-Hinkley (up/down) on loss. Only available when both target and prediction columns are specified
+
+**Frontend:** "Health" group in ML ribbon with Drift button. Config dialog: feature selection, prediction col, target col, reference/current split %. Three-lane explanation shown before running.
+
+**Files changed:**
+- `services/svend/web/agents_api/drift_detection.py` — NEW, ~420 lines
+- `services/svend/web/agents_api/dsw_views.py` — added `elif analysis_type == "drift"` route
+- `services/svend/web/templates/workbench_new.html` — Health ribbon group + openDriftDialog()
+
+**Verification:** Upload time-ordered CSV → ML tab → Health → Drift → select features, set split % → Run. Should produce PSI bar chart, distribution comparison, rolling loss plot with annotated change points.
+
+---
+
 ### 2026-02-15 — Causal Discovery (PC + LiNGAM)
 
 **What:** New causal discovery module — discover causal structure from observational data. Two algorithms: PC (constraint-based via conditional independence) and LiNGAM (ICA-based, non-Gaussian). Outputs: directed DAG (Plotly), edge stability (bootstrap), separating-set explanations, assumptions panel.

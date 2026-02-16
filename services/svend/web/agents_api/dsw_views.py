@@ -2641,6 +2641,9 @@ def run_analysis(request):
         elif analysis_type == "causal":
             from .causal_discovery import run_causal_discovery
             result = run_causal_discovery(df, analysis_id, config)
+        elif analysis_type == "drift":
+            from .drift_detection import run_drift_detection
+            result = run_drift_detection(df, analysis_id, config)
         else:
             return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
 

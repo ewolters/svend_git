@@ -784,6 +784,19 @@
             </div>
             <div class="ribbon-divider"></div>
             <div class="ribbon-group">
+                <div class="ribbon-group-label">Health</div>
+                <div class="ribbon-buttons" style="gap:0.15rem;">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openDriftDialog()" title="Concept drift diagnostic — detect data, prediction, and error drift across three lanes">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M2 12h4l3-9 4 18 3-9h6"/>
+                            <circle cx="20" cy="12" r="2" fill="currentColor" opacity="0.5"/>
+                        </svg>
+                        <span>Drift</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
                 <div class="ribbon-group-label">Autopilot</div>
                 <div class="ribbon-buttons">
                     <button class="ribbon-btn ribbon-btn-lg" onclick="openAutopilotDialog('clean_train')" title="Triage clean + auto-train best model">
@@ -2640,6 +2653,47 @@ function openSPCExtDialog(chartId) {
         };
     }
     openModal(title, html, 'Create Chart', onRun);
+}
+
+// =============================================================================
+// Concept Drift Detection dialog
+// =============================================================================
+function openDriftDialog() {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const allCols = Object.keys(uploadedData[0] || {});
+    const multiOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const colOpts = `<option value="">— none —</option>` + numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    const html = `
+        <div class="form-row"><label>Features to monitor</label><select id="dlg-drift-feats" multiple size="5" style="min-height:100px;">${multiOpts}</select></div>
+        <div class="form-row"><label>Prediction column (for Lane B)</label><select id="dlg-drift-pred">${colOpts}</select></div>
+        <div class="form-row"><label>Actual/target column (for Lane C)</label><select id="dlg-drift-target">${colOpts}</select></div>
+        <div class="form-row"><label>Reference/current split (%)</label><input type="number" id="dlg-drift-split" value="50" min="10" max="90" step="5">
+            <span style="font-size:0.8em;color:#aaa;margin-left:6px;">First N% = reference, rest = current</span></div>
+        <div style="background:rgba(74,159,110,0.08);border-left:3px solid #4a9f6e;padding:8px 12px;margin-top:10px;border-radius:2px;font-size:0.85em;color:#bba;">
+            <strong>Three diagnostic lanes:</strong><br>
+            A) <strong>Data drift</strong> — PSI + ADWIN on features<br>
+            B) <strong>Prediction drift</strong> — PSI + ADWIN on model outputs<br>
+            C) <strong>Error drift</strong> — ADWIN + Page-Hinkley on loss (needs target + prediction)
+        </div>`;
+
+    const onRun = () => {
+        const sel = document.getElementById('dlg-drift-feats');
+        const feats = Array.from(sel.selectedOptions).map(o => o.value);
+        if (feats.length < 1) { alert('Select at least 1 feature to monitor'); return; }
+        const pred = document.getElementById('dlg-drift-pred').value;
+        const target = document.getElementById('dlg-drift-target').value;
+        const split = parseInt(document.getElementById('dlg-drift-split').value) || 50;
+        closeModal();
+        runStatsAnalysis('drift', 'drift_report', {
+            features: feats,
+            prediction_col: pred || undefined,
+            target: target || undefined,
+            split_pct: split,
+        }, 'Concept Drift Diagnostic');
+    };
+    openModal('Concept Drift Diagnostic', html, 'Run Drift Analysis', onRun);
 }
 
 // =============================================================================
