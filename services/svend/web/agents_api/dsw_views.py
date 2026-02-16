@@ -21424,6 +21424,9 @@ def run_spc_analysis(df, analysis_id, config):
 
 def run_visualization(df, analysis_id, config):
     """Create visualizations."""
+    import numpy as np
+    import pandas as pd
+
     result = {"plots": [], "summary": ""}
 
     # SVEND theme colors
@@ -22356,8 +22359,8 @@ def run_visualization(df, analysis_id, config):
     elif analysis_id == "bayes_spc_capability":
         # Bayesian Capability Analysis — eliminates the 1.5σ assumption
         from scipy.stats import t as tdist
-        col = config.get("measurement") or measurement
-        data = df[col].dropna().values.astype(float) if col in df.columns else df.select_dtypes(include="number").iloc[:, 0].dropna().values.astype(float)
+        col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
+        data = df[col].dropna().values.astype(float)
         usl_raw = config.get("usl")
         lsl_raw = config.get("lsl")
         usl = float(usl_raw) if usl_raw not in (None, "", "null") else None
@@ -22589,8 +22592,8 @@ def run_visualization(df, analysis_id, config):
     elif analysis_id == "bayes_spc_changepoint":
         # Bayesian Online Change Point Detection (Adams & MacKay 2007)
         from scipy.special import logsumexp, gammaln
-        col = config.get("measurement") or measurement
-        data = df[col].dropna().values.astype(float) if col in df.columns else df.select_dtypes(include="number").iloc[:, 0].dropna().values.astype(float)
+        col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
+        data = df[col].dropna().values.astype(float)
         hazard_rate = float(config.get("hazard_rate", 0.01))
         min_seg = int(config.get("min_segment_length", 5))
 
@@ -22770,8 +22773,8 @@ def run_visualization(df, analysis_id, config):
 
     elif analysis_id == "bayes_spc_control":
         # Bayesian Control Chart — two-state HMM forward filter
-        col = config.get("measurement") or measurement
-        data = df[col].dropna().values.astype(float) if col in df.columns else df.select_dtypes(include="number").iloc[:, 0].dropna().values.astype(float)
+        col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
+        data = df[col].dropna().values.astype(float)
         ref_mean = config.get("reference_mean")
         ref_std = config.get("reference_std")
         shift_size = float(config.get("shift_size", 1.5))
@@ -22926,8 +22929,8 @@ def run_visualization(df, analysis_id, config):
     elif analysis_id == "bayes_spc_acceptance":
         # Bayesian Acceptance Sampling — Beta-Binomial conjugate
         from scipy.stats import beta as betadist
-        col = config.get("measurement") or measurement
-        data = df[col].dropna().values.astype(float) if col in df.columns else df.select_dtypes(include="number").iloc[:, 0].dropna().values.astype(float)
+        col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
+        data = df[col].dropna().values.astype(float)
 
         aql = float(config.get("aql", 0.01))
         threshold = float(config.get("acceptance_threshold", 0.95))
