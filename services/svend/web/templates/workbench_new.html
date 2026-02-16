@@ -793,6 +793,21 @@
                         </svg>
                         <span>Drift</span>
                     </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openAnytimeDialog('ab')" title="Anytime-valid A/B test — peek at results any time without inflating error rates">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M3 20V8l4 12L11 4l4 16 4-12v12"/>
+                            <line x1="1" y1="20" x2="23" y2="20" stroke-dasharray="3,2" opacity="0.4"/>
+                        </svg>
+                        <span>A/B Test</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openAnytimeDialog('onesample')" title="Anytime-valid one-sample test — is the mean different from a target?">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M4 20l4-8 4 4 4-12 4 8"/>
+                            <line x1="1" y1="10" x2="23" y2="10" stroke-dasharray="3,2" opacity="0.4"/>
+                            <circle cx="20" cy="16" r="1.5" fill="currentColor" opacity="0.5"/>
+                        </svg>
+                        <span>E-Test</span>
+                    </button>
                 </div>
             </div>
             <div class="ribbon-divider"></div>
@@ -2694,6 +2709,79 @@ function openDriftDialog() {
         }, 'Concept Drift Diagnostic');
     };
     openModal('Concept Drift Diagnostic', html, 'Run Drift Analysis', onRun);
+}
+
+// =============================================================================
+// Anytime-Valid Inference dialogs
+// =============================================================================
+function openAnytimeDialog(mode) {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const allCols = Object.keys(uploadedData[0] || {});
+    const numOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const catOpts = allCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    let html = '', title = '', onRun;
+
+    if (mode === 'ab') {
+        title = 'Anytime-Valid A/B Test';
+        html = `
+            <div class="form-row"><label>Value column (metric)</label><select id="dlg-av-val">${numOpts}</select></div>
+            <div class="form-row"><label>Group column (A/B label)</label><select id="dlg-av-group">${catOpts}</select></div>
+            <div class="form-row"><label>Group A label</label><input type="text" id="dlg-av-ga" placeholder="auto-detect"></div>
+            <div class="form-row"><label>Group B label</label><input type="text" id="dlg-av-gb" placeholder="auto-detect"></div>
+            <div class="form-row"><label>Expected effect size (ρ)</label><input type="number" id="dlg-av-rho" value="1.0" step="0.1" min="0.01">
+                <span style="font-size:0.8em;color:#aaa;margin-left:6px;">Mixing prior — larger ρ = more sensitive to large effects</span></div>
+            <div class="form-row"><label>Significance α</label><input type="number" id="dlg-av-alpha" value="0.05" step="0.01" min="0.001" max="0.5"></div>
+            <div style="background:rgba(74,159,110,0.08);border-left:3px solid #4a9f6e;padding:8px 12px;margin-top:10px;border-radius:2px;font-size:0.85em;color:#bba;">
+                <strong>Anytime-valid:</strong> You can peek at results at any sample size without inflating your error rate.
+                The e-process is a supermartingale under H₀ — no need for fixed stopping rules.<br>
+                Observations are paired FIFO (1st A with 1st B, etc.) and fed to a self-normalized e-process.
+            </div>`;
+
+        onRun = () => {
+            const val = document.getElementById('dlg-av-val').value;
+            const grp = document.getElementById('dlg-av-group').value;
+            if (!val || !grp) { alert('Select both value and group columns'); return; }
+            closeModal();
+            runStatsAnalysis('anytime', 'anytime_ab', {
+                value_col: val,
+                group_col: grp,
+                group_a: document.getElementById('dlg-av-ga').value || '',
+                group_b: document.getElementById('dlg-av-gb').value || '',
+                rho: parseFloat(document.getElementById('dlg-av-rho').value) || 1.0,
+                alpha: parseFloat(document.getElementById('dlg-av-alpha').value) || 0.05,
+            }, title);
+        };
+    } else {
+        title = 'Anytime-Valid One-Sample E-Test';
+        html = `
+            <div class="form-row"><label>Value column</label><select id="dlg-av-val">${numOpts}</select></div>
+            <div class="form-row"><label>Null hypothesis mean (μ₀)</label><input type="number" id="dlg-av-mu0" value="0" step="any"></div>
+            <div class="form-row"><label>Known σ (leave blank for unknown)</label><input type="number" id="dlg-av-sigma" placeholder="unknown — will estimate" step="any" min="0"></div>
+            <div class="form-row"><label>Mixing prior ρ</label><input type="number" id="dlg-av-rho" value="1.0" step="0.1" min="0.01">
+                <span style="font-size:0.8em;color:#aaa;margin-left:6px;">Expected effect size</span></div>
+            <div class="form-row"><label>Significance α</label><input type="number" id="dlg-av-alpha" value="0.05" step="0.01" min="0.001" max="0.5"></div>
+            <div style="background:rgba(74,159,110,0.08);border-left:3px solid #4a9f6e;padding:8px 12px;margin-top:10px;border-radius:2px;font-size:0.85em;color:#bba;">
+                <strong>E-process test:</strong> Tests H₀: μ = μ₀ using a mixture likelihood ratio.<br>
+                If σ is known, uses the exact Gaussian mixture. If unknown, uses self-normalized construction.<br>
+                The confidence sequence is valid at every sample size simultaneously.
+            </div>`;
+
+        onRun = () => {
+            const val = document.getElementById('dlg-av-val').value;
+            if (!val) { alert('Select a value column'); return; }
+            const sigmaRaw = document.getElementById('dlg-av-sigma').value;
+            closeModal();
+            runStatsAnalysis('anytime', 'anytime_onesample', {
+                value_col: val,
+                mu0: parseFloat(document.getElementById('dlg-av-mu0').value) || 0,
+                sigma: sigmaRaw ? parseFloat(sigmaRaw) : undefined,
+                rho: parseFloat(document.getElementById('dlg-av-rho').value) || 1.0,
+                alpha: parseFloat(document.getElementById('dlg-av-alpha').value) || 0.05,
+            }, title);
+        };
+    }
+    openModal(title, html, 'Run E-Test', onRun);
 }
 
 // =============================================================================

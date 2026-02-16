@@ -2644,6 +2644,9 @@ def run_analysis(request):
         elif analysis_type == "drift":
             from .drift_detection import run_drift_detection
             result = run_drift_detection(df, analysis_id, config)
+        elif analysis_type == "anytime":
+            from .anytime_valid import run_anytime_valid
+            result = run_anytime_valid(df, analysis_id, config)
         else:
             return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
 

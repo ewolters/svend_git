@@ -3685,6 +3685,33 @@ Backend: 6 new analysis_ids in run_statistical_analysis + 3 new tools in transfo
 - Whiteboard accessible at `/app/whiteboard/` and `/app/whiteboard/<ROOM_CODE>/`
 **Commit:** pending
 
+## 2026-02-14 - Anytime-Valid Inference (E-processes & Confidence Sequences)
+
+**What:** New anytime-valid sequential testing module — peek at A/B test results at any sample size without inflating error rates. Based on Grünwald et al. (JRSS-B 2024), Howard et al. (2021), Waudby-Smith & Ramdas (2024).
+
+**Core objects:**
+- **GaussianMeanEProcess** — known σ, closed-form mixture likelihood ratio: logE_t = -½ log(1 + tρ²/σ²) + ρ²S_t²/(2σ²(σ² + tρ²))
+- **SelfNormalizedMeanEProcess** — unknown σ, empirical variance with self-normalized mixture
+- **TwoSampleEProcess** — A/B test wrapper, pairs observations FIFO and delegates to self-normalized engine on paired differences d_i = x_{A,i} - x_{B,i}
+
+**Key properties:**
+- Each E-process is a supermartingale under H₀ (verified via Monte Carlo: E̅[E_t|H₀] ≤ 1)
+- Confidence sequences valid at every sample size simultaneously (wider than fixed-sample CI, but never lie)
+- All arithmetic in log-space for numerical stability
+- Pure numpy/scipy — no additional dependencies
+
+**DSW integration:**
+- `anytime_ab` — two-sample A/B test with e-process evidence plot, CS narrowing plot, and fixed-sample t-test comparison
+- `anytime_onesample` — one-sample test against μ₀ with known-σ or unknown-σ engine
+- Frontend: "A/B Test" and "E-Test" buttons in Health group of ML ribbon
+
+**Files:**
+- `agents_api/anytime_valid.py` — NEW (~840 lines), e-process classes + DSW integration
+- `agents_api/dsw_views.py` — `elif analysis_type == "anytime"` route
+- `templates/workbench_new.html` — ribbon buttons + `openAnytimeDialog()` with A/B and one-sample config dialogs
+
+**Commit:** pending
+
 ## 2026-02-14 - Bayesian SPC Suite (4 tools)
 
 **What:** Added 4 Bayesian SPC tools to DSW — no competitor offers these as click-and-run.
