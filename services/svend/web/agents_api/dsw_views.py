@@ -22546,7 +22546,7 @@ def run_visualization(df, analysis_id, config):
         result["plots"].append({
             "title": "Posterior Predictive vs Spec Limits",
             "data": pred_traces,
-            "layout": {"height": 300, "xaxis": {"title": measurement},
+            "layout": {"height": 300, "xaxis": {"title": col},
                         "annotations": [{"x": ann_x, "y": max(pp_pdf) * 0.95,
                                          "text": f"DPMO: {dpmo:.0f}", "showarrow": False,
                                          "font": {"color": "#e89547", "size": 13}}]}
@@ -22584,7 +22584,7 @@ def run_visualization(df, analysis_id, config):
         result["plots"].append({
             "title": "Data vs Predictive Distribution",
             "data": overlay_traces,
-            "layout": {"height": 300, "xaxis": {"title": measurement}, "yaxis": {"title": "Density"}}
+            "layout": {"height": 300, "xaxis": {"title": col}, "yaxis": {"title": "Density"}}
         })
 
         result["guide_observation"] = f"Bayesian capability: Cpk median {cpk_median:.3f} [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}], P(Cpk>1.33)={p_gt_133:.1%}, DPMO={dpmo:.0f}"
@@ -22755,7 +22755,7 @@ def run_visualization(df, analysis_id, config):
 
         # Plot 3: Process data with detected changes
         proc_data = [{"type": "scatter", "y": data.tolist(), "mode": "lines+markers",
-                       "marker": {"size": 4, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e"}, "name": measurement}]
+                       "marker": {"size": 4, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e"}, "name": col}]
         for i, cp in enumerate(changepoints):
             proc_data.append({"type": "scatter", "x": [cp, cp], "y": [float(data.min()), float(data.max())],
                               "mode": "lines", "line": {"color": "#e85747", "width": 2, "dash": "dash"}, "name": f"Change {i+1}"})
@@ -22766,7 +22766,7 @@ def run_visualization(df, analysis_id, config):
         result["plots"].append({
             "title": "Process Data with Change Points",
             "data": proc_data,
-            "layout": {"height": 350, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}}
+            "layout": {"height": 350, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}}
         })
 
         result["guide_observation"] = f"BOCPD detected {len(changepoints)} change point(s) in {n} observations"
@@ -22885,13 +22885,13 @@ def run_visualization(df, analysis_id, config):
             "data": [
                 {"type": "scatter", "y": data.tolist(), "mode": "markers",
                  "marker": {"color": colors, "size": 6, "line": {"color": "#333", "width": 0.5}},
-                 "name": measurement, "showlegend": False},
+                 "name": col, "showlegend": False},
                 {"type": "scatter", "y": data.tolist(), "mode": "lines",
                  "line": {"color": "rgba(150,150,150,0.3)", "width": 1}, "showlegend": False},
                 {"type": "scatter", "x": [0, n - 1], "y": [ref_mean, ref_mean], "mode": "lines",
                  "line": {"color": "#5b9bd5", "dash": "dash"}, "name": "Reference μ"},
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}}
+            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}}
         })
 
         # Plot 2: Sequential posterior for μ
