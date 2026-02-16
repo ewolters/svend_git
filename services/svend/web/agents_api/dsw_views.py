@@ -22499,21 +22499,22 @@ def run_visualization(df, analysis_id, config):
         cpk_hist_vals, cpk_hist_edges = np.histogram(cpk_samples, bins=80)
         cpk_hist_centers = (cpk_hist_edges[:-1] + cpk_hist_edges[1:]) / 2
         ci_mask = (cpk_hist_centers >= cpk_ci[0]) & (cpk_hist_centers <= cpk_ci[1])
+        cpk_ymax = int(max(cpk_hist_vals))
         result["plots"].append({
             "title": "Posterior Distribution of Cpk",
             "data": [
                 {"type": "bar", "x": cpk_hist_centers.tolist(), "y": cpk_hist_vals.tolist(),
                  "marker": {"color": ["rgba(74,159,110,0.7)" if m else "rgba(74,159,110,0.2)" for m in ci_mask]},
                  "name": "Posterior", "showlegend": False},
-                {"type": "scatter", "x": [1.0, 1.0], "y": [0, max(cpk_hist_vals)], "mode": "lines",
+                {"type": "scatter", "x": [1.0, 1.0], "y": [0, cpk_ymax], "mode": "lines",
                  "line": {"color": "#e89547", "dash": "dash", "width": 2}, "name": "Cpk = 1.0"},
-                {"type": "scatter", "x": [1.33, 1.33], "y": [0, max(cpk_hist_vals)], "mode": "lines",
+                {"type": "scatter", "x": [1.33, 1.33], "y": [0, cpk_ymax], "mode": "lines",
                  "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": "Cpk = 1.33"},
-                {"type": "scatter", "x": [cpk_freq, cpk_freq], "y": [0, max(cpk_hist_vals)], "mode": "lines",
+                {"type": "scatter", "x": [cpk_freq, cpk_freq], "y": [0, cpk_ymax], "mode": "lines",
                  "line": {"color": "#5b9bd5", "width": 2}, "name": "Frequentist"},
             ],
             "layout": {"height": 300, "xaxis": {"title": "Cpk"}, "yaxis": {"title": "Count"},
-                        "annotations": [{"x": cpk_median, "y": max(cpk_hist_vals) * 0.9,
+                        "annotations": [{"x": cpk_median, "y": cpk_ymax * 0.9,
                                          "text": f"Median: {cpk_median:.3f}", "showarrow": True,
                                          "arrowhead": 2, "font": {"color": "#4a9f6e"}}]}
         })
