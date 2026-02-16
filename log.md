@@ -15,6 +15,44 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-16 — Bayesian Gage R&R (MSA 2.0)
+
+**What:** Full Bayesian replacement for ANOVA-based Gage R&R. Gives posterior distributions for every variance component and probability-driven verdicts instead of point estimates.
+
+**Architecture:**
+- `msa_bayes.py` — new module with:
+  - **BayesianGageRR** class: Gibbs sampler for crossed random effects model (y_ijk = mu + a_i + b_j + c_ij + eps_ijk)
+  - InvGamma(alpha, beta) conjugate priors on all 4 variance components
+  - Derived posteriors: %GRR, NDC, %Repeatability, %Reproducibility, %Part-to-Part
+  - Probability-driven verdicts: P(%GRR<10%)>0.9 → Acceptable, P(%GRR<30%)>0.9 → Marginal, else Unacceptable
+  - Sequential updating: `prior_for_next_study()` exports posterior as InvGamma hyperparameters for the next study
+
+**DSW integration:**
+- `run_bayes_msa(df, analysis_id, config)` with 4 plots:
+  1. %GRR posterior with 10%/30% threshold lines
+  2. Variance component box plots (Part, Operator, Interaction, Repeatability)
+  3. NDC posterior histogram (green >=5, red <5)
+  4. % Study Variation stacked breakdown
+- Dispatcher: `elif analysis_type == "bayes_msa"` in dsw_views.py
+
+**Frontend:**
+- "Bayes R&R" button in MSA ribbon group
+- `openBayesMSADialog()` with measurement/part/operator/tolerance fields
+- Added to analysis catalog dropdown
+
+**Verification:**
+- Posterior CIs cover true variance components (balanced 10x3x2 design)
+- Sequential updating: 33% CI shrinkage for sigma^2_E, 43% for %GRR
+- Good gage (true %GRR=4.4%) → Acceptable, bad gage (true %GRR=91.3%) → Unacceptable
+- No-operator mode (single operator fallback) works correctly
+
+**Files changed:**
+- `services/svend/web/agents_api/msa_bayes.py` — new module (570 lines)
+- `services/svend/web/agents_api/dsw_views.py` — added bayes_msa dispatcher route
+- `services/svend/web/templates/workbench_new.html` — Bayes R&R button + dialog
+
+---
+
 ### 2026-02-15 — Concept Drift Detection (3-lane diagnostic)
 
 **What:** Three-lane drift diagnostic suite for ML model health monitoring. Detects what drifted, how, and whether it matters to performance.

@@ -451,6 +451,7 @@
                 <div class="ribbon-group-label">MSA</div>
                 <div class="ribbon-buttons" style="gap:0.15rem;">
                     <button class="ribbon-btn" onclick="openGageRRDialog()" title="Gage Repeatability & Reproducibility"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 1.5"/></svg><span>Gage R&R</span></button>
+                    <button class="ribbon-btn" onclick="openBayesMSADialog()" title="Bayesian Gage R&R — posterior distributions for variance components, probability-driven verdicts, sequential updating"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8" opacity="0.3"/><path d="M8 15 Q10 8 12 8 Q14 8 16 15" fill="currentColor" opacity="0.4"/><path d="M12 8v4l3 1.5"/></svg><span>Bayes R&R</span></button>
                     <button class="ribbon-btn" onclick="openStatsDialog('acceptance')" title="Acceptance Sampling Plans"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg><span>Sampling</span></button>
                 </div>
             </div>
@@ -3743,6 +3744,47 @@ function openGageRRDialog() {
 }
 
 // =============================================================================
+// Bayesian Gage R&R dialog
+// =============================================================================
+function openBayesMSADialog() {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const allCols = getAllColumns();
+    const numOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const allOpts = allCols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    const html = `
+        <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;">
+            Gibbs sampler for random-effects model — gives posterior distributions
+            for all variance components and probability-driven verdicts.
+        </p>
+        <div class="form-row"><label>Measurement Column</label>
+            <select id="dlg-bmsa-meas">${numOpts}</select>
+        </div>
+        <div class="form-row"><label>Part Column</label>
+            <select id="dlg-bmsa-part">${allOpts}</select>
+        </div>
+        <div class="form-row"><label>Operator Column (optional)</label>
+            <select id="dlg-bmsa-op"><option value="">— none —</option>${allOpts}</select>
+        </div>
+        <div class="form-row"><label>Process Tolerance (optional)</label>
+            <input type="number" id="dlg-bmsa-tol" step="any" placeholder="USL - LSL">
+            <small>For %Tolerance calculation</small>
+        </div>`;
+    openModal('Bayesian Gage R&R', html, 'Run Analysis', () => {
+        const config = {
+            measurement: document.getElementById('dlg-bmsa-meas').value,
+            part: document.getElementById('dlg-bmsa-part').value,
+            operator: document.getElementById('dlg-bmsa-op').value
+        };
+        const tol = document.getElementById('dlg-bmsa-tol').value;
+        if (tol) config.tolerance = parseFloat(tol);
+        closeModal();
+        runStatsAnalysis('bayes_msa', 'bayes_msa', config, 'Bayesian Gage R&R');
+    });
+}
+
+// =============================================================================
 // SPC: Data Summary
 // =============================================================================
 async function runSummary() {
@@ -4644,6 +4686,7 @@ function openStatsDialog(type) {
                     <option value="gage_type1">Type 1 Gage Study</option>
                     <option value="attribute_gage">Attribute Gage (Pass/Fail)</option>
                     <option value="attribute_agreement">Attribute Agreement (Kappa)</option>
+                    <option value="bayes_msa">Bayesian Gage R&R</option>
                 </optgroup>
                 <optgroup label="Power & Sample Size">
                     <option value="power_z">1-Sample Z Power</option>
