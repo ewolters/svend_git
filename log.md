@@ -64,6 +64,25 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-15 — Analysis Workbench UX Round 2: Icons, Grid, Next Steps, Smart Select
+
+**What:** Continued UX polish pass. Uniform analysis grid items, category icons, next-steps suggestions, smart column pre-selection, toolbar expansion.
+
+**Changes:**
+1. **Uniform grid items:** Fixed height (48px), consistent `minmax(150px, 1fr)` columns, text overflow with ellipsis + title tooltips
+2. **Category icons:** Each analysis item gets a small 14x14 SVG icon matching its category (stats=bar chart, SPC=pulse, viz=chart, ML=sun, Bayesian=layers, etc.)
+3. **Next steps suggestions:** After ~15 common analyses, shows clickable "Next:" links for logical follow-up analyses (e.g., ANOVA → Tukey HSD / Main Effects / Interval Plot). Includes "Re-run" link.
+4. **Smart column pre-selection:** When no saved config exists, auto-picks columns by name pattern matching (e.g., "response" → response field, "operator" → operator field, "part" → part field)
+5. **Toolbar expansion:** Added Reliability, MSA, and Time Series shortcuts to toolbar ribbon (previously only Stats, SPC, Viz, ML, Bayesian had toolbar buttons)
+6. **Removed inline SVG style** on chart settings gear (CSS rule already handles it)
+
+**Files changed:**
+- `services/svend/web/templates/analysis_workbench.html` — grid CSS, icon rendering, next steps, smart select, toolbar
+
+**Verification:** JS braces balanced (1386 pairs), div tags balanced (747 pairs).
+
+---
+
 ### 2026-02-15 — Analysis Workbench UX: Config Forms + Convenience Features
 
 **What:** Comprehensive UX pass on the analysis workbench. Added config forms for all 36 Sprint 2+3 analyses that were missing frontend forms, plus 8 convenience features.

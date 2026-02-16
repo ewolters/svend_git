@@ -884,8 +884,8 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 /* Analysis Menu Grid */
 .aw-analysis-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 6px;
 }
 
 .aw-analysis-item {
@@ -893,17 +893,28 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: #121a12;
     border: 1px solid rgba(74, 159, 110, 0.25);
     cursor: pointer;
     text-align: left;
     border-radius: 3px;
+    height: 48px;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .aw-analysis-item:hover {
     background: rgba(74, 159, 110, 0.15);
     border-color: #4a9f6e;
+}
+
+.aw-analysis-item .icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--aw-accent);
+    opacity: 0.7;
 }
 
 .aw-analysis-item .name {
@@ -912,13 +923,25 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     color: #e8efe8;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.aw-analysis-item .name > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .aw-analysis-item .desc {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--aw-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    padding-left: 19px;
 }
 
 /* Search input in analysis dialog */
@@ -1179,11 +1202,34 @@ div:hover > .aw-copy-btn { opacity: 1; }
             </button>
         </div>
 
+        <div class="aw-toolbar-sep"></div>
+
+        <div class="aw-toolbar-group">
+            <button class="aw-toolbar-btn" onclick="showAnalysisMenu('reliability')" title="Reliability">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+            </button>
+            <button class="aw-toolbar-btn" onclick="showAnalysisMenu('msa')" title="MSA / Gage Studies">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="6"/>
+                    <circle cx="12" cy="12" r="2"/>
+                </svg>
+            </button>
+            <button class="aw-toolbar-btn" onclick="showAnalysisMenu('timeseries')" title="Time Series">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 17 9 11 13 15 21 7"/>
+                    <polyline points="17 7 21 7 21 11"/>
+                </svg>
+            </button>
+        </div>
+
         <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
             <!-- Chart Settings -->
             <div class="aw-toolbar-dropdown" style="position:relative;">
                 <button class="aw-toolbar-btn" onclick="toggleChartSettings()" title="Chart Settings">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"/>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
@@ -3270,6 +3316,20 @@ function showAnalysisMenu(type) {
     // Get favorites from localStorage
     const favorites = JSON.parse(localStorage.getItem('awFavorites') || '[]');
 
+    const categoryIcons = {
+        stats: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+        spc: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+        viz: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 8-8"/></svg>',
+        ml: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4"/></svg>',
+        bayesian: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+        timeseries: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="17 7 21 7 21 11"/></svg>',
+        reliability: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+        msa: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+        tools: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+        simulate: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+    };
+    const icon = categoryIcons[type] || '';
+
     function renderItems(filterText) {
         const filter = (filterText || '').toLowerCase();
         const filtered = menu.items.filter(item =>
@@ -3277,8 +3337,8 @@ function showAnalysisMenu(type) {
         );
         return filtered.map(item => {
             const isFav = favorites.includes(item.id);
-            return `<div class="aw-analysis-item" onclick="configureAnalysis('${type}', '${item.id}')">
-                <span class="name">${item.name}<button class="aw-fav-btn${isFav ? ' active' : ''}" onclick="event.stopPropagation();toggleFavorite('${item.id}','${type}')" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">★</button></span>
+            return `<div class="aw-analysis-item" onclick="configureAnalysis('${type}', '${item.id}')" title="${item.name}: ${item.desc}">
+                <span class="name">${icon}<span>${item.name}</span><button class="aw-fav-btn${isFav ? ' active' : ''}" onclick="event.stopPropagation();toggleFavorite('${item.id}','${type}')" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">★</button></span>
                 <span class="desc">${item.desc}</span>
             </div>`;
         }).join('');
@@ -3328,10 +3388,12 @@ function configureAnalysis(type, id) {
     document.getElementById('config-dialog-body').innerHTML = generateConfigForm(type, id);
     document.getElementById('config-dialog').classList.add('active');
 
-    // Restore last-used config values
+    // Restore last-used config values, or smart-select columns
+    let restored = false;
     try {
         const saved = JSON.parse(localStorage.getItem('awLastConfig_' + id) || '{}');
         if (Object.keys(saved).length > 0) {
+            restored = true;
             document.querySelectorAll('#config-dialog-body input[id], #config-dialog-body select').forEach(el => {
                 if (el.id && saved[el.id] !== undefined) {
                     if (el.type === 'checkbox') {
@@ -3343,6 +3405,32 @@ function configureAnalysis(type, id) {
             });
         }
     } catch (e) { /* ignore */ }
+
+    // Smart column pre-selection: pick most likely column by label pattern
+    if (!restored && columns.length > 0) {
+        const hints = {
+            'cfg-response': /response|y|output|result|measure|value|yield|strength|weight/i,
+            'cfg-var': /response|y|value|measure|result|data|output|yield/i,
+            'cfg-var1': /x|before|method.?1|sample.?1|reference/i,
+            'cfg-var2': /y|after|method.?2|sample.?2/i,
+            'cfg-factor': /factor|group|treatment|category|type|machine|operator|batch/i,
+            'cfg-group': /group|factor|category|treatment|type|batch/i,
+            'cfg-measurement': /measurement|value|reading|data|response|result/i,
+            'cfg-part': /part|sample|item|unit|piece/i,
+            'cfg-operator': /operator|appraiser|inspector|rater|judge/i,
+            'cfg-subject': /subject|id|patient|participant|person/i,
+            'cfg-x': /x|factor.?1|temp|pressure|time|speed/i,
+            'cfg-y': /y|factor.?2|flow|force|voltage/i,
+            'cfg-z': /z|response|output|result|yield/i,
+        };
+        document.querySelectorAll('#config-dialog-body select[id]').forEach(sel => {
+            const pattern = hints[sel.id];
+            if (!pattern) return;
+            const opts = Array.from(sel.options);
+            const match = opts.find(o => pattern.test(o.value));
+            if (match) sel.value = match.value;
+        });
+    }
 }
 
 function generateConfigForm(type, id) {
@@ -6326,9 +6414,106 @@ async function executeAnalysis() {
 
         addToHistory(currentAnalysis, item?.name, result.summary || '', result.plots || []);
 
+        // Next steps suggestions
+        showNextSteps(currentAnalysis.id, currentAnalysis.type);
+
     } catch (err) {
         appendSession('error', `Error: ${err.message}`);
     }
+}
+
+function showNextSteps(analysisId, analysisType) {
+    const nextMap = {
+        // After normality → suggest appropriate test
+        'normality': [
+            { id: 'ttest', type: 'stats', label: '1-Sample t-Test' },
+            { id: 'box_cox', type: 'tools', label: 'Box-Cox Transform' },
+            { id: 'mann_whitney', type: 'stats', label: 'Mann-Whitney U (if non-normal)' },
+        ],
+        // After descriptive → deeper analysis
+        'descriptive': [
+            { id: 'normality', type: 'stats', label: 'Normality Test' },
+            { id: 'graphical_summary', type: 'tools', label: 'Graphical Summary' },
+            { id: 'correlation', type: 'stats', label: 'Correlation Matrix' },
+        ],
+        // After ANOVA → post-hoc or residuals
+        'anova': [
+            { id: 'tukey_hsd', type: 'stats', label: 'Tukey HSD Post-Hoc' },
+            { id: 'main_effects', type: 'stats', label: 'Main Effects Plot' },
+            { id: 'interval_plot', type: 'viz', label: 'Interval Plot' },
+        ],
+        'anova2': [
+            { id: 'tukey_hsd', type: 'stats', label: 'Tukey HSD Post-Hoc' },
+            { id: 'interaction', type: 'stats', label: 'Interaction Plot' },
+        ],
+        // After t-test → effect size or nonparametric
+        'ttest': [
+            { id: 'mann_whitney', type: 'stats', label: 'Mann-Whitney (nonparametric)' },
+            { id: 'equivalence', type: 'stats', label: 'Equivalence Test (TOST)' },
+        ],
+        'ttest2': [
+            { id: 'individual_value_plot', type: 'viz', label: 'Individual Value Plot' },
+            { id: 'f_test', type: 'stats', label: 'F-Test (equal variances?)' },
+            { id: 'mann_whitney', type: 'stats', label: 'Mann-Whitney (nonparametric)' },
+        ],
+        // After regression → diagnostics
+        'regression': [
+            { id: 'normality', type: 'stats', label: 'Residual Normality' },
+            { id: 'scatter', type: 'viz', label: 'Residual Plot' },
+            { id: 'regularized_regression', type: 'ml', label: 'Ridge/LASSO (regularized)' },
+        ],
+        // After capability → SPC
+        'capability': [
+            { id: 'capability_sixpack', type: 'spc', label: 'Capability Sixpack' },
+            { id: 'imr', type: 'spc', label: 'I-MR Chart' },
+            { id: 'normality', type: 'stats', label: 'Normality Test' },
+        ],
+        'imr': [
+            { id: 'capability', type: 'spc', label: 'Capability Analysis' },
+            { id: 'runs_test', type: 'stats', label: 'Runs Test' },
+            { id: 'changepoint', type: 'stats', label: 'Change Point Detection' },
+        ],
+        // After Gage R&R → capability
+        'gage_rr': [
+            { id: 'capability', type: 'spc', label: 'Capability Analysis' },
+            { id: 'gage_linearity_bias', type: 'msa', label: 'Linearity & Bias' },
+        ],
+        // After correlation → regression
+        'correlation': [
+            { id: 'regression', type: 'stats', label: 'Regression' },
+            { id: 'scatter', type: 'viz', label: 'Scatterplot' },
+            { id: 'granger', type: 'stats', label: 'Granger Causality' },
+        ],
+        // After classification → feature importance
+        'classification': [
+            { id: 'feature', type: 'ml', label: 'Feature Importance' },
+            { id: 'pca', type: 'ml', label: 'PCA (dimensionality)' },
+        ],
+        // After graphical_summary
+        'graphical_summary': [
+            { id: 'normality', type: 'stats', label: 'Normality Test' },
+            { id: 'box_cox', type: 'tools', label: 'Box-Cox Transform' },
+            { id: 'grubbs_test', type: 'tools', label: "Grubbs' Outlier Test" },
+        ],
+        // After chi2
+        'chi2': [
+            { id: 'fisher_exact', type: 'stats', label: "Fisher's Exact Test" },
+            { id: 'correspondence_analysis', type: 'ml', label: 'Correspondence Analysis' },
+        ],
+    };
+
+    const suggestions = nextMap[analysisId];
+    if (!suggestions || suggestions.length === 0) return;
+
+    const session = document.getElementById('session-output');
+    const div = document.createElement('div');
+    div.style.cssText = 'margin:4px 0 8px;padding:6px 10px;font-size:10px;color:var(--aw-text-muted);';
+    div.innerHTML = '<a href="#" onclick="event.preventDefault();configureAnalysis(\'' + analysisType + '\',\'' + analysisId + '\')" style="color:#7a8f7a;text-decoration:none;margin-right:14px;" title="Re-run with different settings">Re-run</a>' +
+        '<span style="color:#5a6a5a;">|</span> <span style="color:#7a8f7a;margin-left:4px;">Next: </span>' +
+        suggestions.map(s =>
+            `<a href="#" onclick="event.preventDefault();configureAnalysis('${s.type}','${s.id}')" style="color:var(--aw-accent);text-decoration:none;margin-right:10px;">${s.label}</a>`
+        ).join('');
+    session.appendChild(div);
 }
 
 // Show save model button in session output
