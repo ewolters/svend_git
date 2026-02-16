@@ -468,6 +468,24 @@
                     <button class="ribbon-btn" onclick="openReliabilityDialog('reliability_test_plan')" title="Reliability Test Planning (sample size)"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 10h8M8 14h5"/><path d="M16 17l1 1 2-2"/></svg><span>Plan</span></button>
                 </div>
             </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Bayesian Sigma</div>
+                <div class="ribbon-buttons" style="gap:0.15rem;">
+                    <button class="ribbon-btn" onclick="openBayesSigmaDialog('capability')" title="Bayesian Cpk — posterior distribution, no 1.5&sigma; shift"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><path d="M8 15c0 1.7 1.8 3 4 3s4-1.3 4-3"/><path d="M12 6v6"/></svg><span>Cpk</span></button>
+                    <button class="ribbon-btn" onclick="openBayesSigmaDialog('changepoint')" title="Bayesian Change Point Detection (Adams &amp; MacKay BOCPD)"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2 16 7 15 10 14 11 8 14 7 18 6 22 5"/><line x1="11" y1="4" x2="11" y2="20" stroke="#e74c3c" stroke-dasharray="3,2"/></svg><span>CP</span></button>
+                    <button class="ribbon-btn" onclick="openBayesSigmaDialog('control')" title="Bayesian Control Chart — HMM forward filter with P(shifted)"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2 14 6 12 10 16 14 10 18 13 22 8"/><rect x="2" y="6" width="20" height="12" rx="1" fill="rgba(74,159,110,0.15)" stroke="none"/></svg><span>Ctrl</span></button>
+                    <button class="ribbon-btn" onclick="openBayesSigmaDialog('acceptance')" title="Bayesian Acceptance Sampling — Beta-Binomial sequential decisions"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/><path d="M3 15h18" opacity="0.3"/></svg><span>Accept</span></button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
+                <div class="ribbon-group-label">Conformal SPC</div>
+                <div class="ribbon-buttons" style="gap:0.15rem;">
+                    <button class="ribbon-btn" onclick="openConformalDialog('control')" title="Conformal Control Chart — distribution-free, guaranteed false alarm rate (Burger et al. 2025)"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2 14 6 11 10 15 14 9 18 12 22 10"/><rect x="2" y="7" width="20" height="10" fill="rgba(74,144,217,0.12)" stroke="rgba(74,144,217,0.4)" stroke-dasharray="3,2" rx="1"/></svg><span>Control</span></button>
+                    <button class="ribbon-btn" onclick="openConformalDialog('monitor')" title="Conformal P-Value Chart — multivariate anomaly monitoring (Burger et al. 2025)"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="14" r="2" fill="#4a9f6e" opacity="0.6"/><circle cx="10" cy="10" r="2" fill="#4a9f6e" opacity="0.6"/><circle cx="14" cy="16" r="2" fill="#e74c3c" opacity="0.6"/><circle cx="18" cy="8" r="2" fill="#4a9f6e" opacity="0.6"/><line x1="2" y1="18" x2="22" y2="18" stroke="#e74c3c" stroke-dasharray="3,2" opacity="0.5"/></svg><span>Monitor</span></button>
+                </div>
+            </div>
         </div>
 
         <!-- Experiment Tab -->
@@ -2600,6 +2618,154 @@ function openSPCExtDialog(chartId) {
         };
     }
     openModal(title, html, 'Create Chart', onRun);
+}
+
+// =============================================================================
+// Bayesian Sigma dialogs
+// =============================================================================
+function openBayesSigmaDialog(mode) {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const numOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    let html = '', title = '', onRun;
+
+    if (mode === 'capability') {
+        title = 'Bayesian Capability (Cpk)';
+        html = `<div class="form-row"><label>Measurement Column</label><select id="dlg-bs-meas">${numOpts}</select></div>
+            <div class="form-row"><label>USL</label><input type="number" id="dlg-bs-usl" step="any" placeholder="Upper spec limit"></div>
+            <div class="form-row"><label>LSL</label><input type="number" id="dlg-bs-lsl" step="any" placeholder="Lower spec limit"></div>
+            <div class="form-row"><label>Target (optional)</label><input type="number" id="dlg-bs-target" step="any" placeholder="Process target"></div>
+            <div class="form-row"><label>Prior</label><select id="dlg-bs-prior">
+                <option value="weakly_informative">Weakly Informative (default)</option>
+                <option value="historical">Historical</option>
+                <option value="informative">Engineering Prior</option>
+            </select></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">Posterior Cpk distribution — no 1.5&sigma; shift assumption. Uncertainty is a first-class citizen.</p>`;
+        onRun = () => {
+            const usl = document.getElementById('dlg-bs-usl').value;
+            const lsl = document.getElementById('dlg-bs-lsl').value;
+            if (!usl && !lsl) { alert('At least one spec limit (USL or LSL) required'); return; }
+            const config = { measurement: document.getElementById('dlg-bs-meas').value, prior_type: document.getElementById('dlg-bs-prior').value };
+            if (usl) config.usl = parseFloat(usl);
+            if (lsl) config.lsl = parseFloat(lsl);
+            const tgt = document.getElementById('dlg-bs-target').value;
+            if (tgt) config.target = parseFloat(tgt);
+            closeModal();
+            runStatsAnalysis('spc', 'bayes_spc_capability', config, 'Bayesian Cpk');
+        };
+    } else if (mode === 'changepoint') {
+        title = 'Bayesian Change Point Detection';
+        html = `<div class="form-row"><label>Measurement Column</label><select id="dlg-bs-meas">${numOpts}</select></div>
+            <div class="form-row"><label>Hazard Rate (expected change freq)</label><input type="number" id="dlg-bs-hazard" step="0.001" value="0.01" min="0.001" max="0.5"></div>
+            <div class="form-row"><label>Min Segment Length</label><input type="number" id="dlg-bs-minseg" value="5" min="2" max="50"></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">Adams &amp; MacKay (2007) online algorithm. Finds process shifts without CUSUM/EWMA tuning.</p>`;
+        onRun = () => {
+            closeModal();
+            runStatsAnalysis('spc', 'bayes_spc_changepoint', {
+                measurement: document.getElementById('dlg-bs-meas').value,
+                hazard_rate: parseFloat(document.getElementById('dlg-bs-hazard').value) || 0.01,
+                min_segment_length: parseInt(document.getElementById('dlg-bs-minseg').value) || 5
+            }, 'Bayesian Change Point');
+        };
+    } else if (mode === 'control') {
+        title = 'Bayesian Control Chart';
+        html = `<div class="form-row"><label>Measurement Column</label><select id="dlg-bs-meas">${numOpts}</select></div>
+            <div class="form-row"><label>Reference Mean (blank = auto from first 20)</label><input type="number" id="dlg-bs-refmean" step="any" placeholder="Auto"></div>
+            <div class="form-row"><label>Reference Std (blank = auto)</label><input type="number" id="dlg-bs-refstd" step="any" placeholder="Auto"></div>
+            <div class="form-row"><label>Shift Size (&sigma; units)</label><input type="number" id="dlg-bs-shift" step="0.1" value="1.5" min="0.5" max="5"></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">HMM forward filter with P(shifted). Works with short runs (n&ge;10) — no 25-subgroup requirement.</p>`;
+        onRun = () => {
+            const config = { measurement: document.getElementById('dlg-bs-meas').value, shift_size: parseFloat(document.getElementById('dlg-bs-shift').value) || 1.5 };
+            const rm = document.getElementById('dlg-bs-refmean').value;
+            const rs = document.getElementById('dlg-bs-refstd').value;
+            if (rm) config.reference_mean = parseFloat(rm);
+            if (rs) config.reference_std = parseFloat(rs);
+            closeModal();
+            runStatsAnalysis('spc', 'bayes_spc_control', config, 'Bayesian Control Chart');
+        };
+    } else if (mode === 'acceptance') {
+        title = 'Bayesian Acceptance Sampling';
+        html = `<div class="form-row"><label>Measurement Column</label><select id="dlg-bs-meas">${numOpts}</select></div>
+            <div class="form-row"><label>AQL (acceptable quality level)</label><input type="number" id="dlg-bs-aql" step="0.001" value="0.01" min="0.001" max="0.5"></div>
+            <div class="form-row"><label>USL (to classify defects)</label><input type="number" id="dlg-bs-usl" step="any" placeholder="Upper spec"></div>
+            <div class="form-row"><label>LSL (to classify defects)</label><input type="number" id="dlg-bs-lsl" step="any" placeholder="Lower spec"></div>
+            <div class="form-row"><label>Acceptance Threshold</label><input type="number" id="dlg-bs-thresh" step="0.01" value="0.95" min="0.5" max="0.999"></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">Beta-Binomial sequential decisions. Shows earliest stopping point — stop inspecting earlier.</p>`;
+        onRun = () => {
+            const config = {
+                measurement: document.getElementById('dlg-bs-meas').value,
+                aql: parseFloat(document.getElementById('dlg-bs-aql').value) || 0.01,
+                acceptance_threshold: parseFloat(document.getElementById('dlg-bs-thresh').value) || 0.95
+            };
+            const usl = document.getElementById('dlg-bs-usl').value;
+            const lsl = document.getElementById('dlg-bs-lsl').value;
+            if (usl) config.usl = parseFloat(usl);
+            if (lsl) config.lsl = parseFloat(lsl);
+            closeModal();
+            runStatsAnalysis('spc', 'bayes_spc_acceptance', config, 'Bayesian Acceptance');
+        };
+    }
+    openModal(title, html, 'Run Analysis', onRun);
+}
+
+// =============================================================================
+// Conformal SPC dialogs (Burger et al. 2025, arXiv:2512.23602)
+// =============================================================================
+function openConformalDialog(mode) {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const numOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    let html = '', title = '', onRun;
+
+    if (mode === 'control') {
+        title = 'Conformal Control Chart';
+        html = `<div class="form-row"><label>Measurement Column</label><select id="dlg-cf-meas">${numOpts}</select></div>
+            <div class="form-row"><label>Chart Type</label><select id="dlg-cf-subtype">
+                <option value="individuals">Individual Values</option>
+                <option value="subgroup_mean">Subgroup Mean</option>
+                <option value="subgroup_range">Subgroup Range</option>
+            </select></div>
+            <div class="form-row"><label>Subgroup Size</label><input type="number" id="dlg-cf-sgsize" value="5" min="2" max="25"></div>
+            <div class="form-row"><label>False Alarm Rate (&alpha;)</label><input type="number" id="dlg-cf-alpha" step="0.01" value="0.05" min="0.001" max="0.5"></div>
+            <div class="form-row"><label>Calibration Fraction (Phase I split)</label><input type="number" id="dlg-cf-calfrac" step="0.05" value="0.5" min="0.1" max="0.9"></div>
+            <div class="form-row"><label>Spike Threshold (x median width)</label><input type="number" id="dlg-cf-spike" step="0.5" value="2.0" min="1" max="5"></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">Distribution-free control chart with guaranteed false alarm rate. No normality assumption. Includes adaptive prediction intervals and uncertainty spike detection. <em>Burger et al. (2025)</em></p>`;
+        onRun = () => {
+            closeModal();
+            runStatsAnalysis('spc', 'conformal_control', {
+                measurement: document.getElementById('dlg-cf-meas').value,
+                chart_type: document.getElementById('dlg-cf-subtype').value,
+                subgroup_size: parseInt(document.getElementById('dlg-cf-sgsize').value) || 5,
+                alpha: parseFloat(document.getElementById('dlg-cf-alpha').value) || 0.05,
+                calibration_fraction: parseFloat(document.getElementById('dlg-cf-calfrac').value) || 0.5,
+                spike_threshold: parseFloat(document.getElementById('dlg-cf-spike').value) || 2.0
+            }, 'Conformal Control Chart');
+        };
+    } else if (mode === 'monitor') {
+        title = 'Conformal P-Value Monitor (Multivariate)';
+        const multiOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+        html = `<div class="form-row"><label>Variables (select 2+)</label><select id="dlg-cf-vars" multiple size="5" style="min-height:100px;">${multiOpts}</select></div>
+            <div class="form-row"><label>Anomaly Model</label><select id="dlg-cf-model">
+                <option value="isolation_forest">Isolation Forest</option>
+                <option value="mahalanobis">Mahalanobis Distance</option>
+            </select></div>
+            <div class="form-row"><label>False Alarm Rate (&alpha;)</label><input type="number" id="dlg-cf-alpha" step="0.01" value="0.05" min="0.001" max="0.5"></div>
+            <div class="form-row"><label>Calibration Fraction (Phase I split)</label><input type="number" id="dlg-cf-calfrac" step="0.05" value="0.5" min="0.1" max="0.9"></div>
+            <p style="color:#aaa;font-size:0.85em;margin-top:8px">Multivariate anomaly detection with conformal p-values. Guaranteed false alarm rate. Variable contribution heatmap shows which dimension drives each anomaly. <em>Burger et al. (2025)</em></p>`;
+        onRun = () => {
+            const sel = document.getElementById('dlg-cf-vars');
+            const vars = Array.from(sel.selectedOptions).map(o => o.value);
+            if (vars.length < 2) { alert('Select at least 2 variables'); return; }
+            closeModal();
+            runStatsAnalysis('spc', 'conformal_monitor', {
+                variables: vars,
+                model: document.getElementById('dlg-cf-model').value,
+                alpha: parseFloat(document.getElementById('dlg-cf-alpha').value) || 0.05,
+                calibration_fraction: parseFloat(document.getElementById('dlg-cf-calfrac').value) || 0.5
+            }, 'Conformal P-Value Monitor');
+        };
+    }
+    openModal(title, html, 'Run Analysis', onRun);
 }
 
 // =============================================================================

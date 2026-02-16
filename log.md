@@ -15,15 +15,43 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
-### 2026-02-15 — Wire all SPC + Bayesian + Conformal to frontend
+### 2026-02-15 — Bayesian DOE Suite (5 tools)
 
-**What:** Expanded SPC control charts dropdown from 4 to 18 chart types (optgroups: Variable, Attribute, Advanced). Added Conformal SPC sub-tab with univariate and multivariate analysis forms. Fixed backend routing so `bayes_spc_*` analyses are accessible (bridge from `run_spc_analysis` to `run_visualization`). Advanced charts route through DSW analysis endpoint with dynamic config (lambda, span, variables, subgroup column).
+**What:** Added Bayesian DOE suite to Bayesian Sigma — 5 tools for designed experiments using conjugate Normal-Inverse-Gamma linear model. All closed-form (no MCMC), O(p³). No competitor offers Bayesian DOE as click-and-run.
+
+**Architecture:**
+- `bayes_core.py` — 4 shared posterior routines (precision form, Cholesky decomposition): `bayesian_linear_posterior()`, `contrast_posterior()`, `predictive_posterior()`, `marginal_log_likelihood()`
+- `bayes_doe.py` — Design matrix builder with stored coding metadata + 5 analysis handlers
+- Separated from SPC: DOE operates on multivariate linear models, SPC on scalar process statistics
+
+**Tools:**
+1. **Effect Screening** — P(practical significance) per factor via Student-t contrast posteriors. Verdicts: ACTIVE/POSSIBLY ACTIVE/INERT. 3 plots.
+2. **Model Selection** — Compare main effects / +interactions / +quadratic via exact marginal likelihood (not AIC/BIC). Log-softmax for model probabilities.
+3. **Sample Size** — Pre-posterior simulation (no data needed). Finds minimum n for 90% detection probability.
+4. **Response Optimization** — Grid search with full posterior predictive uncertainty propagation. Not frequentist point estimates.
+5. **Next Experiment** — Sequential DOE via expected predictive variance reduction. Rank-1 precision updates.
 
 **Files changed:**
-- `templates/dsw.html` — Expanded SPC chart dropdown (18 types with optgroups), added dynamic config fields (EWMA lambda, MA span, multivariate variables, subgroup column), new Conformal SPC sub-tab with forms for conformal_control and conformal_monitor, updated `createControlChart()` to route advanced charts through DSW endpoint, added `runConformalSpc()` and `updateConformalForm()` functions
-- `agents_api/dsw_views.py` — Added `bayes_spc_*` bridge in `run_spc_analysis()` to forward to `run_visualization()`
+- `agents_api/bayes_core.py` — NEW: shared conjugate posterior math (Zellner g-prior, Cholesky, precision form)
+- `agents_api/bayes_doe.py` — NEW: design matrix builder + 5 DOE tool handlers
+- `agents_api/dsw_views.py` — Added `bayes_doe_*` dispatch bridge to `run_bayesian_doe()`
+- `agents_api/spc_views.py` — Added DOE bridge for uploaded file path (multi-column extraction)
+- `templates/dsw.html` — Added 5 DOE sub-tabs to Bayesian Sigma ribbon (with CSS divider), `runBayesDOE()` JS function, dynamic table inputs
 
-**Verification:** Open DSW → SPC tab. Chart dropdown now shows 18 options in 3 groups. Conformal SPC sub-tab shows univariate/multivariate analysis forms.
+**Verification:** Django check: 0 issues. Smoke tests pass: effect screening correctly identifies A=2.0 as ACTIVE, B=0 as INERT. Model selection prefers main effects (97.2%). Sample size recommends 8 runs for large effect (σ=1, effect=2). Optimizer finds correct corner.
+
+---
+
+### 2026-02-15 — Add Bayesian Sigma + Conformal SPC to workbench ribbon, cleanup duplicates
+
+**What:** Added 6 new analysis buttons to Quality ribbon in workbench_new.html (the live DSW template): 4 Bayesian Sigma (Cpk, Change Point, Control, Acceptance) and 2 Conformal SPC (Control Chart, P-Value Monitor). Each opens a config dialog and dispatches through `runStatsAnalysis('spc', ...)`. Deleted orphan `dsw.html` (not served by any URL). Removed 529 lines of duplicate Bayesian SPC blocks from `run_spc_analysis()`.
+
+**Files changed:**
+- `templates/workbench_new.html` — 2 new ribbon groups in Quality tab: Bayesian Sigma (4 buttons) and Conformal SPC (2 buttons); `openBayesSigmaDialog()` and `openConformalDialog()` JS functions with full config dialogs
+- `agents_api/dsw_views.py` — Removed duplicate bayes_changepoint/control/acceptance from run_spc_analysis(); kept bridge routing for bayes_spc_*
+- `templates/dsw.html` — **Deleted** (orphan, not served anywhere)
+
+**Verification:** `/app/dsw/` → Quality tab → scroll right to see Bayesian Sigma and Conformal SPC groups. Import data, click button, config dialog opens.
 
 ---
 
