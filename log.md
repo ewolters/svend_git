@@ -3685,6 +3685,17 @@ Backend: 6 new analysis_ids in run_statistical_analysis + 3 new tools in transfo
 - Whiteboard accessible at `/app/whiteboard/` and `/app/whiteboard/<ROOM_CODE>/`
 **Commit:** pending
 
+## 2026-02-14 - Interventional SHAP (SCM-based causal feature attribution)
+
+**What:** Replaces SHAP's observational value function with the interventional E[f(X)|do(X_S=x_S)] via a linear SCM. Separates genuine causal drivers from correlated proxies. Row-resample + overwrite + propagate descendants (residual-preserving). Adaptive convergence. Compares standard vs interventional Shapley values side-by-side with causal role classification, confounding/collider alerts.
+
+**Files:**
+- `agents_api/interventional_shap.py` — NEW (~480 lines), LinearSCM + Shapley computation + DSW integration
+- `agents_api/dsw_views.py` — `elif analysis_type == "ishap"` route
+- `templates/workbench_new.html` — "Interv. SHAP" button in Causal group + dialog
+
+**Commit:** pending
+
 ## 2026-02-14 - Anytime-Valid Inference (E-processes & Confidence Sequences)
 
 **What:** New anytime-valid sequential testing module — peek at A/B test results at any sample size without inflating error rates. Based on Grünwald et al. (JRSS-B 2024), Howard et al. (2021), Waudby-Smith & Ramdas (2024).

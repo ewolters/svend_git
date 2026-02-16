@@ -780,6 +780,16 @@
                         </svg>
                         <span>LiNGAM</span>
                     </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openISHAPDialog()" title="Interventional SHAP — causal feature attribution via do-calculus (requires trained model)">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="14" width="3" height="7" rx="0.5" fill="currentColor" opacity="0.3"/>
+                            <rect x="8" y="8" width="3" height="13" rx="0.5" fill="currentColor" opacity="0.5"/>
+                            <rect x="13" y="4" width="3" height="17" rx="0.5" fill="currentColor" opacity="0.7"/>
+                            <rect x="18" y="10" width="3" height="11" rx="0.5" fill="currentColor" opacity="0.4"/>
+                            <path d="M4.5 12L9.5 6L14.5 2L19.5 8" stroke-dasharray="2,2" opacity="0.6"/>
+                        </svg>
+                        <span>Interv. SHAP</span>
+                    </button>
                 </div>
             </div>
             <div class="ribbon-divider"></div>
@@ -2837,6 +2847,59 @@ function openCausalDialog(mode) {
         };
     }
     openModal(title, html, 'Discover Causal Structure', onRun);
+}
+
+// =============================================================================
+// Interventional SHAP dialog
+// =============================================================================
+function openISHAPDialog() {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const allCols = Object.keys(uploadedData[0] || {});
+    const multiOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const targetOpts = allCols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    // Get saved model keys from cache (if available)
+    let modelOpts = '<option value="">— select trained model —</option>';
+    if (window._savedModelKeys && window._savedModelKeys.length) {
+        modelOpts += window._savedModelKeys.map(k =>
+            `<option value="${k.key}">${k.label || k.key}</option>`
+        ).join('');
+    }
+
+    const html = `
+        <div class="form-row"><label>Saved model</label><select id="dlg-ishap-model">${modelOpts}</select>
+            <span style="font-size:0.8em;color:#aaa;margin-left:6px;">Train a model first in ML Hub</span></div>
+        <div class="form-row"><label>Feature columns</label><select id="dlg-ishap-feats" multiple size="5" style="min-height:100px;">${multiOpts}</select></div>
+        <div class="form-row"><label>Target column</label><select id="dlg-ishap-target">${targetOpts}</select></div>
+        <div class="form-row"><label>SCM estimation</label><select id="dlg-ishap-scm">
+            <option value="lingam">LiNGAM (requires non-Gaussian noise)</option>
+            <option value="pc">PC algorithm + OLS</option></select></div>
+        <div class="form-row"><label>Instances to explain</label><input type="number" id="dlg-ishap-nexp" value="20" min="5" max="100" step="5"></div>
+        <div style="background:rgba(74,159,110,0.08);border-left:3px solid #4a9f6e;padding:8px 12px;margin-top:10px;border-radius:2px;font-size:0.85em;color:#bba;">
+            <strong>Interventional SHAP:</strong> Learns a causal DAG from the data, then computes
+            Shapley values using do-calculus interventions instead of observational conditionals.<br>
+            Separates genuine causal drivers from correlated proxies. Flags confounders and colliders.<br>
+            <em>Assumes linear SCM, acyclic, no hidden confounders.</em>
+        </div>`;
+
+    const onRun = () => {
+        const modelKey = document.getElementById('dlg-ishap-model').value;
+        const sel = document.getElementById('dlg-ishap-feats');
+        const feats = Array.from(sel.selectedOptions).map(o => o.value);
+        const target = document.getElementById('dlg-ishap-target').value;
+        if (feats.length < 2) { alert('Select at least 2 features'); return; }
+        if (!target) { alert('Select a target column'); return; }
+        closeModal();
+        runStatsAnalysis('ishap', 'interventional_shap', {
+            model_key: modelKey,
+            features: feats,
+            target: target,
+            scm_method: document.getElementById('dlg-ishap-scm').value,
+            n_explain: parseInt(document.getElementById('dlg-ishap-nexp').value) || 20,
+        }, 'Interventional SHAP (SCM-based)');
+    };
+    openModal('Interventional SHAP (SCM-based)', html, 'Run Analysis', onRun);
 }
 
 // =============================================================================

@@ -2647,6 +2647,17 @@ def run_analysis(request):
         elif analysis_type == "anytime":
             from .anytime_valid import run_anytime_valid
             result = run_anytime_valid(df, analysis_id, config)
+        elif analysis_type == "ishap":
+            from .interventional_shap import run_interventional_shap
+            model_key = config.get("model_key", "")
+            model_obj, model_feats = None, []
+            if model_key:
+                cached = get_cached_model(request.user.id if request.user else 0, model_key)
+                if cached:
+                    model_obj = cached.get("model")
+                    model_feats = cached.get("meta", {}).get("features", [])
+            result = run_interventional_shap(df, analysis_id, config,
+                                            model=model_obj, model_features=model_feats)
         else:
             return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
 
