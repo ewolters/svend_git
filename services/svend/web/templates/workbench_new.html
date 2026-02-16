@@ -762,6 +762,28 @@
             </div>
             <div class="ribbon-divider"></div>
             <div class="ribbon-group">
+                <div class="ribbon-group-label">Causal</div>
+                <div class="ribbon-buttons" style="gap:0.15rem;">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openCausalDialog('pc')" title="PC Algorithm — discover causal structure via conditional independence tests">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/>
+                            <line x1="8" y1="7.5" x2="10.5" y2="16"/><line x1="16" y1="7.5" x2="13.5" y2="16"/>
+                        </svg>
+                        <span>PC (DAG)</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openCausalDialog('lingam')" title="LiNGAM — ICA-based causal discovery (requires non-Gaussian noise)">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/>
+                            <path d="M8 7.5L10.5 16" marker-end="url(#arrowhead)"/>
+                            <path d="M16 7.5L13.5 16" marker-end="url(#arrowhead)"/>
+                            <path d="M8.5 6H15.5" marker-end="url(#arrowhead)"/>
+                        </svg>
+                        <span>LiNGAM</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
                 <div class="ribbon-group-label">Autopilot</div>
                 <div class="ribbon-buttons">
                     <button class="ribbon-btn ribbon-btn-lg" onclick="openAutopilotDialog('clean_train')" title="Triage clean + auto-train best model">
@@ -2618,6 +2640,61 @@ function openSPCExtDialog(chartId) {
         };
     }
     openModal(title, html, 'Create Chart', onRun);
+}
+
+// =============================================================================
+// Causal Discovery dialogs
+// =============================================================================
+function openCausalDialog(mode) {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const multiOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+    let html = '', title = '', onRun;
+
+    if (mode === 'pc') {
+        title = 'Causal Discovery — PC Algorithm';
+        html = `<div class="form-row"><label>Variables (select 3+)</label><select id="dlg-cd-vars" multiple size="6" style="min-height:120px;">${multiOpts}</select></div>
+            <div class="form-row"><label>Significance level (α)</label><select id="dlg-cd-alpha">
+                <option value="0.01">0.01 (strict — sparser graph)</option>
+                <option value="0.05" selected>0.05 (default)</option>
+                <option value="0.10">0.10 (permissive — denser graph)</option>
+            </select></div>
+            <div class="form-row"><label>Max conditioning set size</label><input type="number" id="dlg-cd-maxcond" value="3" min="0" max="8"></div>
+            <div class="form-row"><label>Bootstrap resamples</label><input type="number" id="dlg-cd-nboot" value="100" min="10" max="500"></div>
+            <div style="background:rgba(200,170,60,0.1);border-left:3px solid #c8973e;padding:8px 12px;margin-top:10px;border-radius:2px;font-size:0.85em;color:#bba;">
+                <strong>Assumptions:</strong> Causal sufficiency (no hidden confounders), faithfulness, i.i.d. sampling. Results are <em>candidate causal structure</em>, not ground truth. Try different α values to assess stability.
+            </div>`;
+        onRun = () => {
+            const sel = document.getElementById('dlg-cd-vars');
+            const vars = Array.from(sel.selectedOptions).map(o => o.value);
+            if (vars.length < 3) { alert('Select at least 3 variables'); return; }
+            closeModal();
+            runStatsAnalysis('causal', 'causal_pc', {
+                variables: vars,
+                alpha: parseFloat(document.getElementById('dlg-cd-alpha').value),
+                max_cond_size: parseInt(document.getElementById('dlg-cd-maxcond').value),
+                n_bootstraps: parseInt(document.getElementById('dlg-cd-nboot').value),
+            }, 'Causal Discovery (PC)');
+        };
+    } else if (mode === 'lingam') {
+        title = 'Causal Discovery — LiNGAM';
+        html = `<div class="form-row"><label>Variables (select 3+)</label><select id="dlg-cd-vars" multiple size="6" style="min-height:120px;">${multiOpts}</select></div>
+            <div class="form-row"><label>Bootstrap resamples</label><input type="number" id="dlg-cd-nboot" value="100" min="10" max="500"></div>
+            <div style="background:rgba(200,170,60,0.1);border-left:3px solid #c8973e;padding:8px 12px;margin-top:10px;border-radius:2px;font-size:0.85em;color:#bba;">
+                <strong>Assumptions:</strong> Linear relationships, <em>non-Gaussian</em> error terms, acyclicity, causal sufficiency. Variables with Gaussian noise will be flagged. Compare with PC to cross-validate.
+            </div>`;
+        onRun = () => {
+            const sel = document.getElementById('dlg-cd-vars');
+            const vars = Array.from(sel.selectedOptions).map(o => o.value);
+            if (vars.length < 3) { alert('Select at least 3 variables'); return; }
+            closeModal();
+            runStatsAnalysis('causal', 'causal_lingam', {
+                variables: vars,
+                n_bootstraps: parseInt(document.getElementById('dlg-cd-nboot').value),
+            }, 'Causal Discovery (LiNGAM)');
+        };
+    }
+    openModal(title, html, 'Discover Causal Structure', onRun);
 }
 
 // =============================================================================

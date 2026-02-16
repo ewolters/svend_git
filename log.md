@@ -15,6 +15,50 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-15 — Causal Discovery (PC + LiNGAM)
+
+**What:** New causal discovery module — discover causal structure from observational data. Two algorithms: PC (constraint-based via conditional independence) and LiNGAM (ICA-based, non-Gaussian). Outputs: directed DAG (Plotly), edge stability (bootstrap), separating-set explanations, assumptions panel.
+
+**Architecture:**
+- `causal_discovery.py` — clean wrapper around `causal-learn` (CMU). Functions: `run_causal_discovery()`, `_run_pc_core()`, `_run_lingam_analysis()`, `_bootstrap_pc()`, `_bootstrap_lingam()`
+- Partial correlation CI test via regression residuals (not single-variable formula), Fisher z-transform with n > |S| + 3 guard
+- Bootstrap stability: edge frequency + coefficient CIs (LiNGAM), configurable 10-500 resamples
+- Separating-set explanations: "Removed X–Y because X ⊥ Y | {Z1, Z4} (p=0.21, ρ=0.03)"
+- Gaussianity warnings (LiNGAM): Shapiro-Wilk test per variable, flags those that may violate non-Gaussian assumption
+- Routed via `analysis_type='causal'` in dsw_views.py dispatcher
+
+**Frontend:** Two buttons in ML tab ribbon "Causal" group (PC DAG, LiNGAM). Config dialogs expose α, max conditioning set, bootstrap count. Assumptions panel shown in dialog before running. Dispatches via `runStatsAnalysis('causal', 'causal_pc'|'causal_lingam', config)`.
+
+**Files changed:**
+- `services/svend/web/agents_api/causal_discovery.py` — NEW, ~460 lines
+- `services/svend/web/agents_api/dsw_views.py` — added `elif analysis_type == "causal"` route
+- `services/svend/web/templates/workbench_new.html` — Causal ribbon group + openCausalDialog()
+
+**Verification:** Upload CSV with correlated numeric columns → ML tab → Causal group → PC (DAG) or LiNGAM → config → Run. Should produce DAG plot, stability bar chart, and detailed summary with edge explanations.
+
+---
+
+### 2026-02-15 — Conformal Prediction Intervals on ML Hub
+
+**What:** Every supervised ML model (classification, regression_ml, xgboost, lightgbm, model_compare) now wraps predictions in split conformal prediction intervals/sets with finite-sample marginal coverage guarantees under exchangeability — no distributional assumptions.
+
+**Architecture:**
+- `conformal.py` — `_conformal_qhat()` (order statistic, NOT np.quantile interpolation), `ConformalRegressor` (absolute residual scores), `ConformalClassifier` (softmax nonconformity scores), `compute_conformal()` wrapper
+- Data split changed from 80/20 train/test → 70/15/15 train/calibration/test. Added `_stratified_split_3way()` helper
+- Calibration predictions computed on X_cal only (no leakage). Metrics still on test set only
+- Conformal state persisted as compact `{type, method, n_cal, qhats}` — not full scores
+
+**Regression output:** Interval half-width (±qhat), empirical test coverage, conformal interval scatter plot (green=inside, red=outside)
+**Classification output:** Average prediction set size, single-class %, empirical coverage, prediction set size histogram
+**Inference (`run_model()`):** Conformal intervals/sets from saved state. Tree-quantile fallback for pre-conformal models
+
+**Files changed:**
+- `agents_api/conformal.py` — NEW: split conformal prediction module
+- `agents_api/dsw_views.py` — 3-way split, conformal hooks in 5 ML blocks, `run_model()` updated
+**Verification:** Train any supervised model → summary shows "Conformal Prediction Intervals/Sets (90% nominal)" with empirical test coverage. Save model → run inference → conformal intervals in response.
+
+---
+
 ### 2026-02-15 — Bayesian DOE Suite (5 tools)
 
 **What:** Added Bayesian DOE suite to Bayesian Sigma — 5 tools for designed experiments using conjugate Normal-Inverse-Gamma linear model. All closed-form (no MCMC), O(p³). No competitor offers Bayesian DOE as click-and-run.

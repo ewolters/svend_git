@@ -830,6 +830,31 @@ def _stratified_split(X, y, test_size=0.2, base_seed=42, max_retries=10):
         return train_test_split(X, y, test_size=test_size, random_state=base_seed)
 
 
+def _stratified_split_3way(X, y, base_seed=42):
+    """Stratified 3-way split: train 70% / calibration 15% / test 15%.
+
+    Used for conformal prediction — calibration set is never seen during training.
+    """
+    from sklearn.model_selection import train_test_split
+
+    try:
+        X_train, X_temp, y_train, y_temp = train_test_split(
+            X, y, test_size=0.30, random_state=base_seed, stratify=y
+        )
+        X_cal, X_test, y_cal, y_test = train_test_split(
+            X_temp, y_temp, test_size=0.50, random_state=base_seed, stratify=y_temp
+        )
+    except ValueError:
+        # Fallback: unstratified if classes too small
+        X_train, X_temp, y_train, y_temp = train_test_split(
+            X, y, test_size=0.30, random_state=base_seed
+        )
+        X_cal, X_test, y_cal, y_test = train_test_split(
+            X_temp, y_temp, test_size=0.50, random_state=base_seed
+        )
+    return X_train, X_cal, X_test, y_train, y_cal, y_test
+
+
 def _classification_reliability(y_full, y_test, y_pred, metrics):
     """Compute reliability warnings and enriched metrics for a classification result.
 
@@ -1690,24 +1715,42 @@ def run_model(request, model_id):
             except Exception:
                 pass
 
-        # Prediction intervals (RandomForest/ensemble tree models)
+        # Conformal prediction intervals / sets from calibration state
         intervals = None
-        want_intervals = False
-        if request.body:
+        prediction_sets = None
+        conformal_state = training_config.get("conformal_state")
+        if conformal_state:
             try:
-                body_data = json.loads(request.body)
-                want_intervals = body_data.get("intervals", False)
-            except (json.JSONDecodeError, AttributeError):
-                pass
-
-        if want_intervals and hasattr(model, "estimators_"):
-            try:
-                tree_preds = np.array([t.predict(X) for t in model.estimators_])
-                lo = np.percentile(tree_preds, 5, axis=0)
-                hi = np.percentile(tree_preds, 95, axis=0)
-                intervals = [[round(float(lo[i]), 4), round(float(hi[i]), 4)] for i in range(len(lo))]
+                from .conformal import ConformalRegressor, ConformalClassifier
+                if conformal_state["type"] == "regression":
+                    cf = ConformalRegressor.from_state(conformal_state)
+                    pred_arr = np.array(predictions if isinstance(predictions, list) else predictions.tolist(), dtype=np.float64)
+                    lo, hi = cf.predict_interval(pred_arr, alpha=0.10)
+                    intervals = [[round(float(lo[i]), 4), round(float(hi[i]), 4)] for i in range(len(lo))]
+                elif conformal_state["type"] == "classification" and probabilities is not None:
+                    cf = ConformalClassifier.from_state(conformal_state)
+                    sets, meta = cf.predict_sets(np.array(probabilities), alpha=0.10)
+                    prediction_sets = sets
             except Exception:
                 pass
+
+        # Fallback: tree-quantile intervals for pre-conformal models
+        if intervals is None:
+            want_intervals = False
+            if request.body:
+                try:
+                    body_data = json.loads(request.body)
+                    want_intervals = body_data.get("intervals", False)
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+            if want_intervals and hasattr(model, "estimators_"):
+                try:
+                    tree_preds = np.array([t.predict(X) for t in model.estimators_])
+                    lo = np.percentile(tree_preds, 5, axis=0)
+                    hi = np.percentile(tree_preds, 95, axis=0)
+                    intervals = [[round(float(lo[i]), 4), round(float(hi[i]), 4)] for i in range(len(lo))]
+                except Exception:
+                    pass
 
         # Track query usage
         request.user.increment_queries()
@@ -1720,6 +1763,11 @@ def run_model(request, model_id):
         }
         if intervals:
             result["intervals"] = intervals
+            if conformal_state:
+                result["interval_coverage"] = "90% nominal (split conformal)"
+        if prediction_sets:
+            result["prediction_sets"] = prediction_sets
+            result["conformal_info"] = "90% nominal coverage (split conformal)"
         return JsonResponse(result)
 
     except SavedModel.DoesNotExist:
@@ -2590,6 +2638,9 @@ def run_analysis(request):
             result = run_reliability_analysis(df, analysis_id, config)
         elif analysis_type == "simulation":
             result = run_simulation(df, analysis_id, config, request.user)
+        elif analysis_type == "causal":
+            from .causal_discovery import run_causal_discovery
+            result = run_causal_discovery(df, analysis_id, config)
         else:
             return JsonResponse({"error": f"Unknown analysis type: {analysis_type}"}, status=400)
 
@@ -14736,7 +14787,9 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         X = df[features].dropna()
         y = df[target].loc[X.index]
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_split, random_state=42)
+        # 3-way split for conformal prediction: train 70% / calibration 15% / test 15%
+        X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.30, random_state=42)
+        X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
 
     if analysis_id == "classification":
         if algorithm == "rf":
@@ -14829,15 +14882,82 @@ def run_ml_analysis(df, analysis_id, config, user):
         except Exception:
             pass
 
+        # Conformal prediction sets
+        conformal_state = None
+        try:
+            from .conformal import compute_conformal
+            # Need integer-encoded y for conformal classifier
+            y_cal_int = y_cal.copy()
+            if y_cal_int.dtype == object or y_cal_int.dtype.name == "category":
+                from sklearn.preprocessing import LabelEncoder
+                _le_cf = LabelEncoder()
+                _le_cf.fit(y)
+                y_cal_int = _le_cf.transform(y_cal)
+                y_test_int = _le_cf.transform(y_test)
+            else:
+                y_cal_int = np.asarray(y_cal).astype(int)
+                y_test_int = np.asarray(y_test).astype(int)
+
+            if hasattr(model, 'predict_proba'):
+                cf = compute_conformal(model, X_cal, y_cal_int, task_type="classification")
+                conformal_state = cf.get_state()
+
+                # Empirical coverage on test set
+                proba_test = model.predict_proba(X_test)
+                pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
+                covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test_int[i]) in ps)
+                emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
+                set_sizes = [len(ps) for ps in pred_sets]
+                avg_set_size = float(np.mean(set_sizes))
+                single_class_pct = sum(1 for s in set_sizes if s == 1) / len(set_sizes) if set_sizes else 0
+
+                result["summary"] += f"\n\n<<COLOR:accent>>── Conformal Prediction Sets (90% nominal) ──<</COLOR>>\n"
+                result["summary"] += f"<<COLOR:highlight>>Average set size:<</COLOR>> {avg_set_size:.2f} classes\n"
+                result["summary"] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
+                result["summary"] += f"<<COLOR:highlight>>Single-class predictions:<</COLOR>> {single_class_pct:.1%}\n"
+                result["summary"] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
+                result["summary"] += f"<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>\n"
+                result["summary"] += f"<<COLOR:text>>When the model is confident, you get 1 class. When uncertain, you get 2+.<</COLOR>>"
+
+                # Prediction set size histogram
+                max_size = max(set_sizes) if set_sizes else 1
+                result["plots"].append({
+                    "title": f"Conformal Prediction Set Size (coverage: {emp_coverage:.1%})",
+                    "data": [{
+                        "type": "histogram",
+                        "x": set_sizes,
+                        "marker": {"color": "rgba(74, 159, 110, 0.6)", "line": {"color": "#4a9f6e", "width": 1}},
+                        "name": "Set Size",
+                    }],
+                    "layout": {"template": "plotly_dark", "height": 250,
+                               "xaxis": {"title": "Number of Classes in Set", "dtick": 1},
+                               "yaxis": {"title": "Count"}},
+                })
+
+                result["statistics"] = result.get("statistics", {})
+                result["statistics"]["conformal"] = {
+                    "alpha": 0.10, "nominal_coverage": 0.90,
+                    "empirical_coverage": round(float(emp_coverage), 4),
+                    "avg_set_size": round(avg_set_size, 4),
+                    "single_class_pct": round(single_class_pct, 4),
+                    "n_calibration": cf.n_cal, "split_seed": 42,
+                }
+        except Exception as e:
+            logger.warning(f"Conformal prediction failed for classification: {e}")
+
         # Cache model for saving
         model_key = str(uuid.uuid4())
         if user and user.is_authenticated:
-            cache_model(user.id, model_key, model, {
+            cache_meta = {
                 'model_type': f"Classification ({algorithm.upper()})",
                 'features': features,
                 'target': target,
-                'metrics': {'accuracy': float(accuracy)}
-            })
+                'metrics': {'accuracy': float(accuracy)},
+            }
+            if conformal_state:
+                cache_meta['conformal_state'] = conformal_state
+                cache_meta['split_seed'] = 42
+            cache_model(user.id, model_key, model, cache_meta)
             result["model_key"] = model_key
             result["can_save"] = True
 
@@ -14900,15 +15020,70 @@ def run_ml_analysis(df, analysis_id, config, user):
             "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Residual"}}
         })
 
+        # Conformal prediction intervals
+        conformal_state = None
+        try:
+            from .conformal import compute_conformal
+            cf = compute_conformal(model, X_cal, y_cal, task_type="regression")
+            conformal_state = cf.get_state()
+            qhat_90 = cf.qhats.get("0.1", 0)
+            qhat_95 = cf.qhats.get("0.05", 0)
+
+            # Empirical coverage on test set
+            y_lo, y_hi = cf.predict_interval(y_pred, alpha=0.10)
+            covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
+            emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
+
+            result["summary"] += f"\n\n<<COLOR:accent>>── Conformal Prediction Intervals (90% nominal) ──<</COLOR>>\n"
+            result["summary"] += f"<<COLOR:highlight>>Interval half-width:<</COLOR>> ±{qhat_90:.4f}\n"
+            result["summary"] += f"<<COLOR:highlight>>Empirical test coverage:<</COLOR>> {emp_coverage:.1%}\n"
+            result["summary"] += f"<<COLOR:highlight>>Calibration set:<</COLOR>> {cf.n_cal} observations\n"
+            result["summary"] += f"<<COLOR:highlight>>95% interval half-width:<</COLOR>> ±{qhat_95:.4f}\n"
+            result["summary"] += f"<<COLOR:text>>Nominal coverage: 90% (finite-sample marginal guarantee under exchangeability)<</COLOR>>"
+
+            # Conformal interval plot
+            sort_idx = np.argsort(y_pred)
+            y_pred_s = y_pred[sort_idx]
+            y_test_s = y_test.values[sort_idx]
+            y_lo_s = y_lo[sort_idx]
+            y_hi_s = y_hi[sort_idx]
+            inside = ((y_test_s >= y_lo_s) & (y_test_s <= y_hi_s))
+            result["plots"].append({
+                "title": f"Conformal Prediction Intervals (coverage: {emp_coverage:.1%})",
+                "data": [
+                    {"type": "scatter", "x": list(range(len(y_pred_s))), "y": y_hi_s.tolist(), "mode": "lines", "line": {"width": 0}, "showlegend": False},
+                    {"type": "scatter", "x": list(range(len(y_pred_s))), "y": y_lo_s.tolist(), "mode": "lines", "fill": "tonexty", "fillcolor": "rgba(74, 159, 110, 0.15)", "line": {"width": 0}, "name": "90% interval"},
+                    {"type": "scatter", "x": list(range(len(y_pred_s))), "y": y_pred_s.tolist(), "mode": "lines", "line": {"color": "#4a9f6e", "width": 1.5}, "name": "Predicted"},
+                    {"type": "scatter", "x": [i for i, v in enumerate(inside) if v], "y": [y_test_s[i] for i, v in enumerate(inside) if v], "mode": "markers", "marker": {"color": "#2ecc71", "size": 5}, "name": "Inside"},
+                    {"type": "scatter", "x": [i for i, v in enumerate(inside) if not v], "y": [y_test_s[i] for i, v in enumerate(inside) if not v], "mode": "markers", "marker": {"color": "#e74c3c", "size": 7, "symbol": "x"}, "name": "Outside"},
+                ],
+                "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": "Observation (sorted by prediction)"}, "yaxis": {"title": target}},
+            })
+
+            result["statistics"] = result.get("statistics", {})
+            result["statistics"]["conformal"] = {
+                "alpha": 0.10, "nominal_coverage": 0.90,
+                "empirical_coverage": round(float(emp_coverage), 4),
+                "qhat_90": round(qhat_90, 4), "qhat_95": round(qhat_95, 4),
+                "median_width": round(2 * qhat_90, 4),
+                "n_calibration": cf.n_cal, "split_seed": 42,
+            }
+        except Exception as e:
+            logger.warning(f"Conformal prediction failed for regression: {e}")
+
         # Cache model for saving
         model_key = str(uuid.uuid4())
         if user and user.is_authenticated:
-            cache_model(user.id, model_key, model, {
+            cache_meta = {
                 'model_type': "Random Forest Regressor",
                 'features': features,
                 'target': target,
-                'metrics': {'r2': float(r2), 'rmse': float(rmse)}
-            })
+                'metrics': {'r2': float(r2), 'rmse': float(rmse)},
+            }
+            if conformal_state:
+                cache_meta['conformal_state'] = conformal_state
+                cache_meta['split_seed'] = 42
+            cache_model(user.id, model_key, model, cache_meta)
             result["model_key"] = model_key
             result["can_save"] = True
 
@@ -15262,18 +15437,42 @@ def run_ml_analysis(df, analysis_id, config, user):
                     }
                 })
 
-        # Train & cache best model on full data
+        # Train best model with conformal calibration (70/15/15 split)
         if best_model_obj is not None and user and user.is_authenticated:
             try:
+                # Split for conformal: train on 70%, calibrate on 15%, evaluate on 15%
+                if task_type == "classification":
+                    Xc_train, Xc_cal, Xc_test, yc_train, yc_cal, yc_test = _stratified_split_3way(
+                        pd.DataFrame(X_enc.values, columns=X_enc.columns),
+                        pd.Series(y_enc.values, name=y_enc.name) if hasattr(y_enc, 'name') else pd.Series(y_enc.values),
+                    )
+                else:
+                    Xc_train, Xc_temp, yc_train, yc_temp = train_test_split(X_enc, y_enc, test_size=0.30, random_state=42)
+                    Xc_cal, Xc_test, yc_cal, yc_test = train_test_split(Xc_temp, yc_temp, test_size=0.50, random_state=42)
+
                 best_clone = best_model_obj.__class__(**best_model_obj.get_params()) if not isinstance(best_model_obj, Pipeline) else best_model_obj
-                best_clone.fit(X_enc.values, y_enc.values)
+                best_clone.fit(Xc_train.values if hasattr(Xc_train, 'values') else Xc_train,
+                               yc_train.values if hasattr(yc_train, 'values') else yc_train)
+
+                conformal_state = None
+                try:
+                    from .conformal import compute_conformal
+                    cf = compute_conformal(best_clone, Xc_cal, yc_cal, task_type=task_type)
+                    conformal_state = cf.get_state()
+                except Exception:
+                    pass
+
                 model_key = str(uuid.uuid4())
-                cache_model(user.id, model_key, best_clone, {
+                cache_meta = {
                     'model_type': f"Best: {best_model_name}",
                     'features': features,
                     'target': target,
                     'metrics': {primary_metric: best_score},
-                })
+                }
+                if conformal_state:
+                    cache_meta['conformal_state'] = conformal_state
+                    cache_meta['split_seed'] = 42
+                cache_model(user.id, model_key, best_clone, cache_meta)
                 result["model_key"] = model_key
                 result["can_save"] = True
             except Exception:
@@ -15323,10 +15522,12 @@ def run_ml_analysis(df, analysis_id, config, user):
             X_enc[col] = pd.Categorical(X_enc[col]).codes.astype(int)
         X_enc = X_enc.fillna(X_enc.median(numeric_only=True))
 
+        # 3-way split for conformal prediction
         if task_type == "classification":
-            X_train, X_test, y_train, y_test = _stratified_split(X_enc, y_work)
+            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(X_enc, y_work)
         else:
-            X_train, X_test, y_train, y_test = train_test_split(X_enc, y_work, test_size=0.2, random_state=42)
+            X_train, X_temp, y_train, y_temp = train_test_split(X_enc, y_work, test_size=0.30, random_state=42)
+            X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
 
         with GPUTrainingContext() as gpu:
             params = {
@@ -15389,13 +15590,44 @@ def run_ml_analysis(df, analysis_id, config, user):
             label_map=label_map, model_name=f"XGBoost ({'GPU' if gpu_used else 'CPU'})",
         ))
 
+        # Conformal prediction
+        conformal_state = None
+        try:
+            from .conformal import compute_conformal
+            cf = compute_conformal(model, X_cal, y_cal, task_type=task_type)
+            conformal_state = cf.get_state()
+
+            if task_type == "regression":
+                qhat_90 = cf.qhats.get("0.1", 0)
+                y_lo, y_hi = cf.predict_interval(y_pred, alpha=0.10)
+                covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
+                emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
+                result["summary"] += f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
+            else:
+                if hasattr(model, 'predict_proba'):
+                    proba_test = model.predict_proba(X_test)
+                    pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
+                    covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps)
+                    emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
+                    avg_ss = float(np.mean([len(ps) for ps in pred_sets]))
+                    result["summary"] += f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
+
+            result["statistics"] = result.get("statistics", {})
+            result["statistics"]["conformal"] = conformal_state
+        except Exception as e:
+            logger.warning(f"Conformal prediction failed for XGBoost: {e}")
+
         # Cache model
         if user and user.is_authenticated:
             model_key = str(uuid.uuid4())
-            cache_model(user.id, model_key, model, {
+            cache_meta = {
                 'model_type': f"XGBoost ({'GPU' if gpu_used else 'CPU'})",
                 'features': features, 'target': target, 'metrics': metrics_dict,
-            })
+            }
+            if conformal_state:
+                cache_meta['conformal_state'] = conformal_state
+                cache_meta['split_seed'] = 42
+            cache_model(user.id, model_key, model, cache_meta)
             result["model_key"] = model_key
             result["can_save"] = True
 
@@ -15432,10 +15664,12 @@ def run_ml_analysis(df, analysis_id, config, user):
             X_enc[col] = pd.Categorical(X_enc[col]).codes.astype(int)
         X_enc = X_enc.fillna(X_enc.median(numeric_only=True))
 
+        # 3-way split for conformal prediction
         if task_type == "classification":
-            X_train, X_test, y_train, y_test = _stratified_split(X_enc, y_work)
+            X_train, X_cal, X_test, y_train, y_cal, y_test = _stratified_split_3way(X_enc, y_work)
         else:
-            X_train, X_test, y_train, y_test = train_test_split(X_enc, y_work, test_size=0.2, random_state=42)
+            X_train, X_temp, y_train, y_temp = train_test_split(X_enc, y_work, test_size=0.30, random_state=42)
+            X_cal, X_test, y_cal, y_test = train_test_split(X_temp, y_temp, test_size=0.50, random_state=42)
 
         with GPUTrainingContext() as gpu:
             params = {
@@ -15487,12 +15721,43 @@ def run_ml_analysis(df, analysis_id, config, user):
             label_map=label_map, model_name=f"LightGBM ({'GPU' if gpu_used else 'CPU'})",
         ))
 
+        # Conformal prediction
+        conformal_state = None
+        try:
+            from .conformal import compute_conformal
+            cf = compute_conformal(model, X_cal, y_cal, task_type=task_type)
+            conformal_state = cf.get_state()
+
+            if task_type == "regression":
+                qhat_90 = cf.qhats.get("0.1", 0)
+                y_lo, y_hi = cf.predict_interval(y_pred, alpha=0.10)
+                covered = np.sum((y_test.values >= y_lo) & (y_test.values <= y_hi))
+                emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
+                result["summary"] += f"\n\nConformal 90% interval: ±{qhat_90:.4f} (empirical coverage: {emp_coverage:.1%}, n_cal={cf.n_cal})"
+            else:
+                if hasattr(model, 'predict_proba'):
+                    proba_test = model.predict_proba(X_test)
+                    pred_sets, meta = cf.predict_sets(proba_test, alpha=0.10)
+                    covered = sum(1 for i, ps in enumerate(pred_sets) if int(y_test.iloc[i]) in ps)
+                    emp_coverage = covered / len(y_test) if len(y_test) > 0 else 0
+                    avg_ss = float(np.mean([len(ps) for ps in pred_sets]))
+                    result["summary"] += f"\n\nConformal 90% prediction sets: avg size={avg_ss:.2f}, coverage={emp_coverage:.1%}, n_cal={cf.n_cal}"
+
+            result["statistics"] = result.get("statistics", {})
+            result["statistics"]["conformal"] = conformal_state
+        except Exception as e:
+            logger.warning(f"Conformal prediction failed for LightGBM: {e}")
+
         if user and user.is_authenticated:
             model_key = str(uuid.uuid4())
-            cache_model(user.id, model_key, model, {
+            cache_meta = {
                 'model_type': f"LightGBM ({'GPU' if gpu_used else 'CPU'})",
                 'features': features, 'target': target, 'metrics': metrics_dict,
-            })
+            }
+            if conformal_state:
+                cache_meta['conformal_state'] = conformal_state
+                cache_meta['split_seed'] = 42
+            cache_model(user.id, model_key, model, cache_meta)
             result["model_key"] = model_key
             result["can_save"] = True
 
