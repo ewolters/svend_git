@@ -15,6 +15,27 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-16 — Process Belief System ribbon tab
+
+**What:** Created new "Belief" ribbon tab to consolidate all Bayesian/frontier methods under a unified "Process Belief System" identity, separating them from traditional frequentist Quality tools.
+
+**Moved into Belief tab:**
+- Bayesian SPC group (Bayes Cpk, Changepoint, Bayes Ctrl, Bayes Accept) — from Quality
+- Conformal group (Control, Monitor) — from Quality
+- Monitoring group (Drift, A/B Test, E-Test) — from ML
+- Causal group (PC DAG, LiNGAM, Interv. SHAP) — from ML
+- Measurement group (Bayes R&R) — from Quality/MSA
+- Decisions group (Taguchi, Decision, Lot $, CoQ) — from Quality
+
+**Kept in place:**
+- Quality tab: Variables Charts, Attributes Charts, Capability, MSA (ANOVA Gage R&R), Reliability
+- ML tab: Predict, Explore, Advanced, Auto ML, SHAP (Explain), Tune, Autopilot, Time Series, Models
+
+**Files changed:**
+- `services/svend/web/templates/workbench_new.html` — new Belief tab, groups relocated
+
+---
+
 ### 2026-02-16 — Decision-Theoretic Quality Economics
 
 **What:** Bayesian decision theory + Taguchi loss functions for optimal quality decisions. Answers "what is the expected cost of each possible action?" instead of just "is the process in control?"
