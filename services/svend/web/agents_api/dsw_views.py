@@ -2653,6 +2653,9 @@ def run_analysis(request):
         elif analysis_type == "quality_econ":
             from .quality_economics import run_quality_econ
             result = run_quality_econ(df, analysis_id, config)
+        elif analysis_type == "pbs":
+            from .pbs_engine import run_pbs
+            result = run_pbs(df, analysis_id, config)
         elif analysis_type == "ishap":
             from .interventional_shap import run_interventional_shap
             model_key = config.get("model_key", "")

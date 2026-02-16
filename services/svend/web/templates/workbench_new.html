@@ -508,6 +508,75 @@
             </div>
             <div class="ribbon-divider"></div>
             <div class="ribbon-group">
+                <div class="ribbon-group-label">Process Belief</div>
+                <div class="ribbon-buttons" style="gap:0.15rem;">
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('full')" title="Full Process Belief System — belief chart, evidence, adaptive limits, predictive, Cpk, health, narrative">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="9" opacity="0.2"/>
+                            <path d="M12 3v18M3 12h18" opacity="0.15"/>
+                            <path d="M4 16l4-4 4 2 4-6 4-1" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.3"/>
+                        </svg>
+                        <span>Full PBS</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('belief')" title="Belief Chart — BOCPD shift probability over time">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="2 18 6 16 10 14 13 6 16 4 20 3"/>
+                            <rect x="2" y="2" width="20" height="18" fill="rgba(217,74,74,0.08)" rx="1"/>
+                            <line x1="2" y1="11" x2="22" y2="11" stroke-dasharray="3,2" opacity="0.4"/>
+                        </svg>
+                        <span>Belief</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('evidence')" title="Evidence Accumulation — anytime-valid e-values against in-control hypothesis">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M3 20L8 16L13 12L18 6L22 3" stroke-width="2"/>
+                            <line x1="2" y1="8" x2="22" y2="8" stroke="#4a9f6e" stroke-dasharray="3,2" opacity="0.5"/>
+                            <text x="22" y="7" font-size="5" fill="currentColor" opacity="0.5">20:1</text>
+                        </svg>
+                        <span>Evidence</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('adaptive')" title="Adaptive Control Limits — posterior predictive limits that narrow with data">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M2 4Q6 6 10 7Q14 8 18 9Q22 9.5 22 10" stroke="#d94a4a" stroke-dasharray="3,2"/>
+                            <path d="M2 20Q6 18 10 17Q14 16 18 15Q22 14.5 22 14" stroke="#d94a4a" stroke-dasharray="3,2"/>
+                            <polyline points="2 12 6 10 10 14 14 11 18 13 22 12" stroke="#4a9f6e"/>
+                        </svg>
+                        <span>Adaptive</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('predictive')" title="Predictive Chart — Bayesian trend with prediction fan and spec exceedance probability">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="2 16 6 14 10 12 14 10"/>
+                            <path d="M14 10L22 6" stroke-dasharray="3,2" opacity="0.6"/>
+                            <path d="M14 6L22 2M14 14L22 10" fill="rgba(212,162,74,0.15)" stroke="rgba(212,162,74,0.4)" stroke-dasharray="2,2"/>
+                        </svg>
+                        <span>Predict</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('cpk')" title="Bayesian Cpk — full posterior distribution via ancestral sampling from Normal-Gamma">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M3 20Q6 18 9 10Q12 2 15 10Q18 18 21 20" fill="rgba(74,159,110,0.2)"/>
+                            <line x1="13" y1="3" x2="13" y2="20" stroke="#d4a24a" stroke-dasharray="3,2"/>
+                        </svg>
+                        <span>Cpk</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('cpk_traj')" title="Cpk Trajectory — rolling Bayesian Cpk with trend projection">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="2 8 6 7 10 9 14 10 18 12 22 14" stroke="#4a9f6e" stroke-width="2"/>
+                            <line x1="2" y1="11" x2="22" y2="11" stroke="#d4a24a" stroke-dasharray="3,2"/>
+                            <path d="M18 12L22 14" stroke-dasharray="3,2" opacity="0.5"/>
+                        </svg>
+                        <span>Cpk Trend</span>
+                    </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('health')" title="Multi-Stream Health — log-linear fusion of SPC, capability, and trend streams">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 4L14 9L20 9L15 13L17 19L12 15L7 19L9 13L4 9L10 9Z" fill="rgba(74,159,110,0.3)"/>
+                            <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.4"/>
+                        </svg>
+                        <span>Health</span>
+                    </button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
                 <div class="ribbon-group-label">Conformal</div>
                 <div class="ribbon-buttons" style="gap:0.15rem;">
                     <button class="ribbon-btn ribbon-btn-lg" onclick="openConformalDialog('control')" title="Conformal Control Chart — distribution-free, guaranteed false alarm rate (Burger et al. 2025)">
@@ -4034,6 +4103,74 @@ function openQualEconDialog(mode) {
 }
 
 // =============================================================================
+// PBS: Process Belief System Dialogs
+// =============================================================================
+function openPBSDialog(mode) {
+    if (!uploadedData) { alert('Please import a data file first'); return; }
+    const numCols = getNumericColumns();
+    const numOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    const titles = {
+        full: 'Process Belief System — Full Analysis',
+        belief: 'Belief Chart — Shift Detection',
+        evidence: 'Evidence Accumulation — E-values',
+        predictive: 'Predictive Chart — Trend Projection',
+        adaptive: 'Adaptive Control Limits',
+        cpk: 'Bayesian Cpk',
+        cpk_traj: 'Cpk Trajectory',
+        health: 'Multi-Stream Health'
+    };
+    const descs = {
+        full: 'All charts: belief, evidence, adaptive limits, predictive, Cpk, health gauge, and narrative.',
+        belief: 'BOCPD (Adams & MacKay 2007) — posterior probability of process shift at each time step.',
+        evidence: 'Anytime-valid e-values accumulate evidence against the in-control hypothesis. Peek freely.',
+        predictive: 'Bayesian linear trend on rolling window with prediction fan and spec exceedance probability.',
+        adaptive: 'Control limits derived from the posterior predictive Student-t. Narrows as data arrives.',
+        cpk: 'Full posterior distribution of Cpk via ancestral sampling from Normal-Gamma.',
+        cpk_traj: 'Rolling Bayesian Cpk over time with trend detection and threshold crossing estimate.',
+        health: 'Log-linear opinion pool fusing SPC stability, capability, and trend into a single health score.'
+    };
+
+    let specFields = '';
+    if (['full', 'predictive', 'cpk', 'cpk_traj', 'health'].includes(mode)) {
+        specFields = `
+            <div class="form-row"><label>USL</label><input type="number" id="dlg-pbs-usl" step="any" placeholder="Upper spec limit"></div>
+            <div class="form-row"><label>LSL</label><input type="number" id="dlg-pbs-lsl" step="any" placeholder="Lower spec limit"></div>`;
+    }
+    let targetField = '';
+    if (['full', 'belief', 'evidence', 'adaptive'].includes(mode)) {
+        targetField = `<div class="form-row"><label>Target (optional)</label><input type="number" id="dlg-pbs-target" step="any" placeholder="Process target"></div>`;
+    }
+    let hazardField = '';
+    if (['full', 'belief', 'health'].includes(mode)) {
+        hazardField = `<div class="form-row"><label>Hazard λ</label><input type="number" id="dlg-pbs-hazard" step="1" value="200" min="10" max="10000">
+            <small>Expected observations between changes (higher = more stable expectation)</small></div>`;
+    }
+
+    const html = `
+        <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;">${descs[mode]}</p>
+        <div class="form-row"><label>Measurement Column</label><select id="dlg-pbs-col">${numOpts}</select></div>
+        ${specFields}${targetField}${hazardField}`;
+
+    openModal(titles[mode], html, 'Analyze', () => {
+        const config = { column: document.getElementById('dlg-pbs-col').value };
+        const uslEl = document.getElementById('dlg-pbs-usl');
+        const lslEl = document.getElementById('dlg-pbs-lsl');
+        const tgtEl = document.getElementById('dlg-pbs-target');
+        const hazEl = document.getElementById('dlg-pbs-hazard');
+        if (uslEl && uslEl.value) config.USL = parseFloat(uslEl.value);
+        if (lslEl && lslEl.value) config.LSL = parseFloat(lslEl.value);
+        if (tgtEl && tgtEl.value) config.target = parseFloat(tgtEl.value);
+        if (hazEl && hazEl.value) config.hazard_lambda = parseFloat(hazEl.value);
+        if (['cpk', 'cpk_traj'].includes(mode) && (!config.USL || !config.LSL)) {
+            alert('Both USL and LSL are required for Cpk analysis'); return;
+        }
+        closeModal();
+        runStatsAnalysis('pbs', 'pbs_' + mode, config, titles[mode]);
+    });
+}
+
+// =============================================================================
 // SPC: Data Summary
 // =============================================================================
 async function runSummary() {
@@ -4947,6 +5084,16 @@ function openStatsDialog(type) {
                     <option value="power_doe">DOE Factorial Power</option>
                     <option value="sample_size_ci">Sample Size for CI</option>
                     <option value="sample_size_tolerance">Sample Size for Tolerance</option>
+                </optgroup>
+                <optgroup label="Process Belief System">
+                    <option value="pbs_full">Full PBS Analysis</option>
+                    <option value="pbs_belief">Belief Chart (BOCPD)</option>
+                    <option value="pbs_evidence">Evidence Accumulation (E-values)</option>
+                    <option value="pbs_predictive">Predictive Chart</option>
+                    <option value="pbs_adaptive">Adaptive Control Limits</option>
+                    <option value="pbs_cpk">Bayesian Cpk</option>
+                    <option value="pbs_cpk_traj">Cpk Trajectory</option>
+                    <option value="pbs_health">Multi-Stream Health</option>
                 </optgroup>
                 <optgroup label="Time Series">
                     <option value="ccf">Cross-Correlation Function (CCF)</option>

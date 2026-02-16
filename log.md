@@ -15,6 +15,36 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-16 — Process Belief System engine (pbs_engine.py)
+
+**What:** Full implementation of the Process Belief System — 12 computational sections implementing a unified Bayesian process monitoring framework. Every chart reads from a shared Normal-Gamma conjugate posterior.
+
+**Components:**
+1. NormalGammaPosterior — O(1) updates, Student-t marginals & predictives
+2. BeliefChart — Adams & MacKay BOCPD with log-space run length distribution
+3. UncertaintyFusion — gage variance InvGamma posterior, fused credible intervals
+4. EvidenceAccumulation — anytime-valid e-values via Normal mixture alternative
+5. PredictiveChart — Bayesian linear trend on rolling window, prediction fan
+6. AdaptiveControlLimits — posterior predictive Student-t limits that narrow over time
+7. BayesianCpk — ancestral sampling from Normal-Gamma, process-specific shift
+8. CpkTrajectory — rolling Cpk with Bayesian trend projection
+9. MultiStreamHealth — log-linear opinion pool fusion
+10. ProcessNarrative — deterministic template-based summary (NO LLM)
+11. ProbabilisticAlarms — decision-theoretic threshold
+12. ChartGenealogy — prior inheritance, multi-parent pooling
+
+**Files changed:**
+- `services/svend/web/agents_api/pbs_engine.py` — NEW, ~1950 lines, all 12 sections + DSW integration
+- `services/svend/web/agents_api/dsw_views.py` — added `elif analysis_type == "pbs"` route
+- `services/svend/web/templates/workbench_new.html` — added 8 PBS buttons in new "Process Belief" ribbon group, `openPBSDialog()` JS function, catalog dropdown entries
+
+**Testing:** 41/41 tests passed — posterior convergence, BOCPD shift detection, gage fusion, e-value supermartingale, predictive trend, adaptive narrowing, Cpk posterior, trajectory, health fusion, narrative, alarms, genealogy, full integration, all 7 individual analysis IDs.
+
+**Verification:** Open workbench → Belief tab → Process Belief group → Full PBS with spec limits
+**Commit:** (pending)
+
+---
+
 ### 2026-02-16 — Process Belief System ribbon tab
 
 **What:** Created new "Belief" ribbon tab to consolidate all Bayesian/frontier methods under a unified "Process Belief System" identity, separating them from traditional frequentist Quality tools.
