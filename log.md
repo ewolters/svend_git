@@ -15,6 +15,74 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-15 — Bayesian SPC Blocks + Conformal Prediction Control Charts
+
+**What:** Added 3 Bayesian SPC analysis blocks and 2 conformal prediction control chart blocks to `run_spc_analysis()` in dsw_views.py.
+
+Bayesian SPC (Bayesian Sigma suite):
+- `bayes_changepoint` — Adams & MacKay (2007) BOCPD with NIG conjugate, run-length heatmap, segment means
+- `bayes_control` — Two-state HMM forward filter with sequential NIG posterior, credible interval ribbon
+- `bayes_acceptance` — Beta-Binomial conjugate with sequential decision boundaries, posterior PDF
+
+Conformal Prediction SPC (Burger et al., Dec 2025, arXiv:2512.23602):
+- `conformal_control` — Distribution-free control chart with conformal prediction intervals. Phase I/II split, nonconformity scores, adaptive prediction intervals, uncertainty spike detection, Shewhart comparison overlay. Supports individuals, subgroup mean, subgroup range.
+- `conformal_monitor` — Multivariate conformal p-value chart. Isolation Forest or Mahalanobis anomaly scoring, conformal p-values with guaranteed false alarm rate, variable contribution heatmap.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — 5 new `elif analysis_id ==` blocks in `run_spc_analysis()`
+
+**Verification:** `python3 -m py_compile dsw_views.py` passes. Each block accepts standard SPC dispatch config.
+
+---
+
+### 2026-02-15 — Bayesian SPC Landing Section + Free Bayesian Cpk Calculator
+
+**What:** Added Bayesian SPC section to the landing page for SEO and product positioning. Created a free Bayesian Cpk Calculator tool — Monte Carlo posterior sampling, side-by-side traditional vs Bayesian comparison, probability bars for P(Cpk > threshold), posterior histogram with credible intervals. Full structured data and FAQ for SEO.
+
+**Files changed:**
+- `templates/landing.html` — New Bayesian SPC section with 4 cards (Cpk, Control Chart, Change Point, Acceptance Sampling), grouped "Also in the suite" chips (Inference/Modeling/Evidence), SEO keywords, FAQ, structured data
+- `templates/tools/bayesian_cpk_calculator.html` — New free tool: Bayesian Cpk calculator with Normal-Inverse-Gamma conjugate model, Monte Carlo sampling (10K draws), probability bars, posterior histogram, insight interpretation, comprehensive SEO
+- `templates/tools/index.html` — Added Bayesian Cpk Calculator card + structured data entry + updated meta keywords
+- `templates/tool_base.html` — Added Bayesian Cpk Calculator to footer links
+- `svend/urls.py` — Added route `/tools/bayesian-cpk-calculator/` + sitemap entry
+
+**Verification:** Visit `/tools/bayesian-cpk-calculator/` — calculator loads with default data, shows traditional vs Bayesian comparison, probability bars, and posterior histogram.
+
+---
+
+### 2026-02-15 — 5S Cleanup: Remove Reasoning-Era Artifacts
+
+**What:** Removed all stale references to Svend's old identity as a "reasoning system" / "tool-augmented reasoning system." Svend is a decision science platform. Deleted old mockups, stale docs, and updated descriptions in active config files.
+
+**Files deleted:**
+- `svend-sea-india-distribution-plan.html` — old distribution plan with "reasoning system" branding
+- `svend-whitepaper-insight-spine.html` — old whitepaper draft with "reasoning system" branding
+- `svend-seo-strategy.html` — old SEO strategy document
+- `services/svend/site/mockups/` — 25 HTML files of old reasoning chat mockups (math, chemistry, physics, logic)
+- `services/svend/reference_docs/ROADMAP.md` — stale roadmap describing training a 374M reasoning model
+- `services/svend/agents/agents/site/` — 9 old pre-Django agent site templates
+- `services/svend/data/` — empty directory from prior cleanup
+
+**Files updated:**
+- `services/svend/web/pyproject.toml` — "Tool-augmented reasoning system" → "Hypothesis-driven decision science platform"
+- `services/svend/web/svend/__init__.py` — same
+- `services/svend/requirements.txt` — "Tool-Augmented Reasoning System" → "Decision Science Platform"
+- `services/svend/web/.env.example` — "Synara reasoning engine" → "Synara belief engine"
+- `services/svend/site/STYLE_GUIDE.md` — updated brand identity, tool indicators, file structure
+- `services/svend/reference_docs/ARCHITECTURE.md` — "Reasoning Engine" → "Belief Engine (Synara)"
+- `services/svend/reference_docs/SYNARA_WHITEPAPER.md` — acknowledgments updated
+- `services/svend/web/agents_api/experimenter_views.py` — "reasoning model" → "language model"
+
+**Left alone (legitimate uses):**
+- `core/synara.py` — "Bayesian reasoning engine" describes what Synara actually does
+- `log.md` — historical entries preserved
+- `agents/agents/docs/*.py` — clarifying comments ("not reasoning engines")
+- `core/llm.py` — technical description of r1-1.5b model category
+
+**Verification:** `grep -ri "reasoning system\|reasoning model\|tool-augmented reasoning" --include="*.py" --include="*.toml" --include="*.md" services/svend/ | grep -v log.md | grep -v SYNARA_WHITEPAPER`
+
+---
+
 ### 2026-02-13 — New Statistics: Confidence Intervals for 14 Core DSW Analyses
 
 **What:** Added confidence intervals to the 14 most-used statistical analyses in the DSW, embracing New Statistics (estimation over naked p-values). Every core analysis now reports CIs alongside effect sizes and p-values.
@@ -3506,6 +3574,30 @@ Backend: 6 new analysis_ids in run_statistical_analysis + 3 new tools in transfo
 - Models import correctly in Django shell
 - Whiteboard accessible at `/app/whiteboard/` and `/app/whiteboard/<ROOM_CODE>/`
 **Commit:** pending
+
+## 2026-02-14 - Bayesian SPC Suite (4 tools)
+
+**What:** Added 4 Bayesian SPC tools to DSW — no competitor offers these as click-and-run.
+- **Bayesian Capability (`bayes_spc_capability`)** — eliminates the 1.5σ shift assumption. Uses NIG conjugate posterior + Monte Carlo for Cpk posterior distribution, predictive DPMO, and probability-driven verdicts. Supports one-sided specs (USL-only or LSL-only). 4 plots.
+- **Bayesian Change Point Detection (`bayes_spc_changepoint`)** — Adams & MacKay (2007) BOCPD with NIG predictive. Run-length posterior heatmap, change probability timeline, annotated process data. 3 plots.
+- **Bayesian Control Chart (`bayes_spc_control`)** — Two-state HMM forward filter with proper shift model (marginalized ±δ). Sequential NIG posterior for μ. Works with short runs (n=10-15). 3 plots.
+- **Bayesian Acceptance Sampling (`bayes_spc_acceptance`)** — Beta-Binomial conjugate. Sequential P(p<AQL), earliest stopping, decision boundaries. 3 plots.
+- 3 shared NIG helpers: `_nig_posterior_update()`, `_nig_sample()`, `_cpk_from_params()`
+- SPC bridge in `spc_views.py` routes Bayesian types through `run_spc_analysis()`
+- Frontend sub-tab "Bayesian SPC" in dsw.html with analysis selector, conditional config forms, prior presets
+
+**Mathematical notes:**
+- Weakly informative prior uses α₀=2 (finite σ² mean), β₀=(α₀-1)·s² (centered on sample variance)
+- Predictive P(OOS) computed via Monte Carlo (not hardcoded Student-t parameterization)
+- σ posterior sanity check warns about non-normal/mixed/outlier data
+- Prior presets with plain English: "Default (weak)", "Historical", "Engineering"
+
+**Files:**
+- `agents_api/dsw_views.py` — 3 helpers + 4 analysis blocks (~480 lines)
+- `agents_api/spc_views.py` — Bayesian SPC bridge in `analyze_uploaded()`
+- `templates/dsw.html` — Bayesian SPC sub-tab, `updateBayesSPCForm()`, `runBayesSPC()`
+**Update:** Moved to standalone "Bayesian Sigma" ribbon component (separate from SPC). Each tool gets its own sub-tab with dedicated form and results panel. Fixed `<<COLOR:error>>` handler in `displayStatsResults()`.
+**Verified:** `python manage.py check` — 0 issues, gunicorn reloaded
 
 ## 2026-02-14 - Whitepaper PDF download infrastructure (WeasyPrint)
 

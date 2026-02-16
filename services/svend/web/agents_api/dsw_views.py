@@ -19149,6 +19149,44 @@ def _spc_add_ooc_markers(plot_data, data, ooc_indices):
     })
 
 
+def _nig_posterior_update(data, mu0, nu0, alpha0, beta0):
+    """Normal-Inverse-Gamma conjugate posterior update."""
+    import numpy as np
+    n = len(data)
+    x_bar = np.mean(data)
+    nu_n = nu0 + n
+    mu_n = (nu0 * mu0 + n * x_bar) / nu_n
+    alpha_n = alpha0 + n / 2.0
+    beta_n = beta0 + 0.5 * np.sum((data - x_bar) ** 2) + (n * nu0 * (x_bar - mu0) ** 2) / (2.0 * nu_n)
+    return mu_n, nu_n, alpha_n, beta_n
+
+
+def _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_samples=10000):
+    """Draw (mu, sigma) samples from NIG posterior."""
+    import numpy as np
+    from scipy.stats import invgamma
+    rng = np.random.default_rng(42)
+    sigma2_samples = invgamma.rvs(a=alpha_n, scale=beta_n, size=n_samples, random_state=rng)
+    mu_samples = rng.normal(loc=mu_n, scale=np.sqrt(sigma2_samples / nu_n))
+    sigma_samples = np.sqrt(sigma2_samples)
+    return mu_samples, sigma_samples
+
+
+def _cpk_from_params(mu, sigma, usl=None, lsl=None):
+    """Vectorized Cpk from arrays of mu and sigma. Supports one-sided specs."""
+    import numpy as np
+    if usl is not None and lsl is not None:
+        cpu = (usl - mu) / (3.0 * sigma)
+        cpl = (mu - lsl) / (3.0 * sigma)
+        return np.minimum(cpu, cpl)
+    elif usl is not None:
+        return (usl - mu) / (3.0 * sigma)
+    elif lsl is not None:
+        return (mu - lsl) / (3.0 * sigma)
+    else:
+        return np.zeros_like(mu)
+
+
 def run_spc_analysis(df, analysis_id, config):
     """Run SPC analysis."""
     import numpy as np
@@ -20597,6 +20635,1024 @@ def run_spc_analysis(df, analysis_id, config):
             "ooc_count": len(ooc_gv), "p": p_gv,
         }
 
+    # ══════════════════════════════════════════════════════════════════════
+    # BAYESIAN SPC SUITE
+    # ══════════════════════════════════════════════════════════════════════
+
+    elif analysis_id == "bayes_changepoint":
+        """
+        Bayesian Online Change Point Detection (Adams & MacKay, 2007).
+        Uses Normal-Inverse-Gamma conjugate prior per segment.
+        Maintains posterior over run length at each time step.
+        """
+        from scipy.special import logsumexp
+        from scipy.stats import t as t_dist
+
+        hazard_rate = float(config.get("hazard_rate", 0.01))
+        min_seg = int(config.get("min_segment_length", 5))
+        n = len(data)
+
+        if n < 10:
+            result["summary"] = "Need at least 10 observations for change point detection."
+            return result
+
+        # NIG prior hyperparameters (weakly informative)
+        mu0 = float(np.mean(data))
+        nu0 = 0.01
+        alpha0 = 0.01
+        beta0 = 0.01
+
+        H = hazard_rate
+        max_rl = min(500, n)
+
+        # NIG sufficient statistics per run length
+        mus = np.full(max_rl + 1, mu0)
+        nus = np.full(max_rl + 1, nu0)
+        alphas = np.full(max_rl + 1, alpha0)
+        betas = np.full(max_rl + 1, beta0)
+
+        # Run-length log-probabilities
+        log_R = np.full(max_rl + 1, -np.inf)
+        log_R[0] = 0.0
+
+        cp_prob = np.zeros(n)
+        rl_posterior = np.zeros((n, min(max_rl, n + 1)))
+
+        for t in range(n):
+            x = data[t]
+            active = min(t + 1, max_rl)
+
+            # Predictive probability (Student-t)
+            df_t = 2 * alphas[:active + 1]
+            scale_t = np.sqrt(betas[:active + 1] * (nus[:active + 1] + 1) / (alphas[:active + 1] * nus[:active + 1]))
+            scale_t = np.maximum(scale_t, 1e-10)
+            log_pred = t_dist.logpdf(x, df=df_t, loc=mus[:active + 1], scale=scale_t)
+
+            # Growth and changepoint probabilities
+            log_growth = log_R[:active + 1] + log_pred + np.log(1 - H)
+            log_cp = logsumexp(log_R[:active + 1] + log_pred + np.log(H))
+
+            new_log_R = np.full(max_rl + 1, -np.inf)
+            new_log_R[0] = log_cp
+            end = min(active + 1, max_rl)
+            new_log_R[1:end + 1] = log_growth[:end]
+
+            log_evidence = logsumexp(new_log_R[:end + 2])
+            new_log_R[:end + 2] -= log_evidence
+            log_R = new_log_R
+
+            cp_prob[t] = np.exp(log_R[0])
+            rl_width = min(max_rl, n + 1)
+            rl_posterior[t, :min(end + 2, rl_width)] = np.exp(log_R[:min(end + 2, rl_width)])
+
+            # Update NIG sufficient statistics
+            new_mus = np.full(max_rl + 1, mu0)
+            new_nus = np.full(max_rl + 1, nu0)
+            new_alphas = np.full(max_rl + 1, alpha0)
+            new_betas = np.full(max_rl + 1, beta0)
+
+            nu_new = nus[:active + 1] + 1
+            mu_new = (nus[:active + 1] * mus[:active + 1] + x) / nu_new
+            alpha_new = alphas[:active + 1] + 0.5
+            beta_new = betas[:active + 1] + 0.5 * nus[:active + 1] * (x - mus[:active + 1])**2 / nu_new
+
+            new_mus[1:end + 1] = mu_new[:end]
+            new_nus[1:end + 1] = nu_new[:end]
+            new_alphas[1:end + 1] = alpha_new[:end]
+            new_betas[1:end + 1] = beta_new[:end]
+
+            mus, nus, alphas, betas = new_mus, new_nus, new_alphas, new_betas
+
+        # Detect changepoints with min segment enforcement
+        raw_cps = np.where(cp_prob > 0.5)[0]
+        changepoints = []
+        for cp in raw_cps:
+            if cp < min_seg:
+                continue
+            if changepoints and cp - changepoints[-1] < min_seg:
+                continue
+            changepoints.append(int(cp))
+
+        # Segment statistics
+        segments = []
+        boundaries = [0] + changepoints + [n]
+        for i in range(len(boundaries) - 1):
+            seg_data = data[boundaries[i]:boundaries[i + 1]]
+            if len(seg_data) > 0:
+                segments.append({
+                    "start": boundaries[i], "end": boundaries[i + 1],
+                    "mean": float(np.mean(seg_data)),
+                    "std": float(np.std(seg_data, ddof=1)) if len(seg_data) > 1 else 0,
+                    "n": len(seg_data),
+                })
+
+        summary_cp = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_cp += f"<<COLOR:title>>BAYESIAN ONLINE CHANGE POINT DETECTION<</COLOR>>\n"
+        summary_cp += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary_cp += f"<<COLOR:highlight>>Variable:<</COLOR>> {measurement}\n"
+        summary_cp += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n"
+        summary_cp += f"<<COLOR:highlight>>Prior hazard rate:<</COLOR>> {hazard_rate} (expect change every ~{int(1/hazard_rate)} obs)\n"
+        summary_cp += f"<<COLOR:highlight>>Method:<</COLOR>> Adams & MacKay (2007) with NIG conjugate prior\n\n"
+
+        if changepoints:
+            summary_cp += f"<<COLOR:good>>Detected {len(changepoints)} change point(s):<</COLOR>>\n\n"
+            for i, cp in enumerate(changepoints):
+                p_cp = cp_prob[cp]
+                before = segments[i] if i < len(segments) else None
+                after = segments[i + 1] if i + 1 < len(segments) else None
+                summary_cp += f"  <<COLOR:highlight>>Change Point {i+1}:<</COLOR>> observation {cp}, P(change) = {p_cp:.3f}\n"
+                if before and after:
+                    shift = after["mean"] - before["mean"]
+                    shift_sigma = abs(shift) / before["std"] if before["std"] > 0 else 0
+                    summary_cp += f"    Before: μ = {before['mean']:.4f}, σ = {before['std']:.4f} (n={before['n']})\n"
+                    summary_cp += f"    After:  μ = {after['mean']:.4f}, σ = {after['std']:.4f} (n={after['n']})\n"
+                    summary_cp += f"    Shift:  {shift:+.4f} ({shift_sigma:.1f}σ)\n\n"
+        else:
+            summary_cp += f"<<COLOR:text>>No significant change points detected (all P(change) < 0.5).<</COLOR>>\n"
+            summary_cp += f"  Maximum P(change) = {np.max(cp_prob):.3f} at observation {int(np.argmax(cp_prob))}\n"
+
+        result["summary"] = summary_cp
+
+        # Plot 1: Run-length posterior heatmap
+        rl_display = min(50, max_rl)
+        rl_matrix = rl_posterior[:, :rl_display].T
+        result["plots"].append({
+            "title": "Run-Length Posterior (belief about time since last change)",
+            "data": [{"type": "heatmap", "z": rl_matrix.tolist(), "x": list(range(n)),
+                       "y": list(range(rl_display)), "colorscale": "Viridis",
+                       "colorbar": {"title": "P(r)"}}],
+            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Run Length"}, "template": "plotly_white"}
+        })
+
+        # Plot 2: Change point probability timeline
+        cp_colors = [f"rgba({int(255*p)}, {int(255*(1-p)*0.6)}, {int(80*(1-p))}, 0.8)" for p in cp_prob]
+        result["plots"].append({
+            "title": "Change Point Probability Over Time",
+            "data": [{"type": "bar", "x": list(range(n)), "y": cp_prob.tolist(), "marker": {"color": cp_colors}, "name": "P(change)"}],
+            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "P(changepoint)", "range": [0, 1]},
+                       "shapes": [{"type": "line", "x0": 0, "x1": n, "y0": 0.5, "y1": 0.5,
+                                   "line": {"color": "#e85747", "dash": "dash", "width": 1.5}}], "template": "plotly_white"}
+        })
+
+        # Plot 3: Process data with detected changes
+        traces_cp = [{"type": "scatter", "x": list(range(n)), "y": data.tolist(), "mode": "lines+markers",
+                       "marker": {"size": 4, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e", "width": 1}, "name": measurement}]
+        for seg in segments:
+            traces_cp.append({"type": "scatter", "x": [seg["start"], seg["end"] - 1], "y": [seg["mean"], seg["mean"]],
+                               "mode": "lines", "line": {"color": "#4a90d9", "width": 2.5}, "name": f"μ={seg['mean']:.3f}", "showlegend": False})
+        for cp in changepoints:
+            traces_cp.append({"type": "scatter", "x": [cp, cp], "y": [float(np.min(data)), float(np.max(data))],
+                               "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": f"CP @ {cp}"})
+        result["plots"].append({
+            "title": "Process Data with Detected Change Points",
+            "data": traces_cp,
+            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}, "template": "plotly_white"}
+        })
+
+        result["guide_observation"] = f"Bayesian change point detection: {len(changepoints)} change(s) detected in {n} observations."
+        result["statistics"] = {
+            "n": n, "n_changepoints": len(changepoints), "changepoint_indices": changepoints,
+            "segments": segments, "max_cp_probability": float(np.max(cp_prob)), "hazard_rate": hazard_rate,
+        }
+
+    elif analysis_id == "bayes_control":
+        """
+        Bayesian Control Chart — Two-state HMM forward filter.
+        Solves the short-run problem: no 25-subgroup minimum required.
+        State 0 = in-control, State 1 = shifted.
+        Sequential NIG posterior for μ provides credible interval ribbon.
+        """
+        from scipy.special import logsumexp
+        from scipy.stats import norm as norm_dist, t as t_dist
+
+        ref_mean = float(config.get("reference_mean", 0)) or float(np.mean(data[:min(20, len(data))]))
+        ref_std = float(config.get("reference_std", 0)) or float(np.std(data[:min(20, len(data))], ddof=1))
+        shift_size = float(config.get("shift_size", 1.5))
+        trans_prob = float(config.get("transition_prob", 0.01))
+        recover_prob = 0.05
+        n = len(data)
+
+        if ref_std <= 0:
+            ref_std = 1.0
+
+        # Transition matrix (log-space)
+        log_trans = np.log(np.array([[1 - trans_prob, trans_prob], [recover_prob, 1 - recover_prob]]))
+
+        shifted_mean_pos = ref_mean + shift_size * ref_std
+        shifted_mean_neg = ref_mean - shift_size * ref_std
+
+        log_alpha = np.zeros((n, 2))
+        p_shifted = np.zeros(n)
+
+        # Sequential NIG posterior for μ
+        mu_n = ref_mean
+        nu_n = 1.0
+        alpha_n = 1.0
+        beta_n = ref_std**2 / 2
+        seq_mu = np.zeros(n)
+        seq_ci_lo = np.zeros(n)
+        seq_ci_hi = np.zeros(n)
+
+        for t in range(n):
+            x = data[t]
+
+            # Emission log-likelihoods
+            log_lik_0 = norm_dist.logpdf(x, loc=ref_mean, scale=ref_std)
+            log_lik_1_pos = norm_dist.logpdf(x, loc=shifted_mean_pos, scale=ref_std)
+            log_lik_1_neg = norm_dist.logpdf(x, loc=shifted_mean_neg, scale=ref_std)
+            log_lik_1 = np.logaddexp(log_lik_1_pos, log_lik_1_neg) - np.log(2)
+
+            if t == 0:
+                log_alpha[0, 0] = np.log(0.99) + log_lik_0
+                log_alpha[0, 1] = np.log(0.01) + log_lik_1
+            else:
+                for s in range(2):
+                    log_transition = np.array([log_alpha[t - 1, j] + log_trans[j, s] for j in range(2)])
+                    log_alpha[t, s] = logsumexp(log_transition) + (log_lik_0 if s == 0 else log_lik_1)
+
+            log_evidence = logsumexp(log_alpha[t])
+            log_alpha[t] -= log_evidence
+            p_shifted[t] = np.exp(log_alpha[t, 1])
+
+            # Sequential NIG update for μ
+            nu_new = nu_n + 1
+            mu_new = (nu_n * mu_n + x) / nu_new
+            alpha_new = alpha_n + 0.5
+            beta_new = beta_n + 0.5 * nu_n * (x - mu_n)**2 / nu_new
+            mu_n, nu_n, alpha_n, beta_n = mu_new, nu_new, alpha_new, beta_new
+            seq_mu[t] = mu_n
+
+            df_ci = 2 * alpha_n
+            scale_ci = np.sqrt(beta_n / (alpha_n * nu_n))
+            ci_half = t_dist.ppf(0.975, df=df_ci) * scale_ci
+            seq_ci_lo[t] = mu_n - ci_half
+            seq_ci_hi[t] = mu_n + ci_half
+
+        alarm_indices = np.where(p_shifted > 0.5)[0]
+        n_alarms = len(alarm_indices)
+        first_alarm = int(alarm_indices[0]) if n_alarms > 0 else None
+
+        summary_bc = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_bc += f"<<COLOR:title>>BAYESIAN CONTROL CHART<</COLOR>>\n"
+        summary_bc += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary_bc += f"<<COLOR:highlight>>Variable:<</COLOR>> {measurement}\n"
+        summary_bc += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n"
+        summary_bc += f"<<COLOR:highlight>>Reference:<</COLOR>> μ₀ = {ref_mean:.4f}, σ₀ = {ref_std:.4f}\n"
+        summary_bc += f"<<COLOR:highlight>>Shift sensitivity:<</COLOR>> {shift_size}σ ({shift_size * ref_std:.4f} units)\n"
+        summary_bc += f"<<COLOR:highlight>>Model:<</COLOR>> Two-state HMM, P(shift) = {trans_prob}\n\n"
+
+        summary_bc += f"<<COLOR:text>>Sequential Posterior for μ (final):<</COLOR>>\n"
+        summary_bc += f"  μ posterior mean: {seq_mu[-1]:.4f}\n"
+        summary_bc += f"  95% credible interval: [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n\n"
+
+        if n_alarms > 0:
+            summary_bc += f"<<COLOR:warning>>⚠ {n_alarms} observation(s) flagged as likely shifted (P > 0.5)<</COLOR>>\n"
+            summary_bc += f"  First alarm at observation {first_alarm}\n"
+            if n_alarms <= 10:
+                summary_bc += f"  Alarm indices: {alarm_indices.tolist()}\n"
+            summary_bc += f"  Max P(shifted) = {np.max(p_shifted):.3f} at observation {int(np.argmax(p_shifted))}\n"
+        else:
+            summary_bc += f"<<COLOR:good>>Process appears in control — no observations with P(shifted) > 0.5<</COLOR>>\n"
+            summary_bc += f"  Max P(shifted) = {np.max(p_shifted):.3f} at observation {int(np.argmax(p_shifted))}\n"
+
+        summary_bc += f"\n<<COLOR:text>>Advantage over traditional charts:<</COLOR>>\n"
+        summary_bc += f"  • No 25-subgroup minimum — works from observation 1\n"
+        summary_bc += f"  • Probabilistic alarms — not just binary in/out of control\n"
+        summary_bc += f"  • Credible interval for μ narrows as evidence accumulates\n"
+
+        result["summary"] = summary_bc
+
+        # Plot 1: Process data colored by P(shifted)
+        result["plots"].append({
+            "title": "Process Data — Color = P(shifted)",
+            "data": [
+                {"type": "scatter", "x": list(range(n)), "y": data.tolist(), "mode": "markers",
+                 "marker": {"size": 6, "color": p_shifted.tolist(),
+                            "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                            "showscale": True, "colorbar": {"title": "P(shifted)"}},
+                 "name": measurement},
+                {"type": "scatter", "x": list(range(n)), "y": [ref_mean] * n, "mode": "lines",
+                 "line": {"color": "#4a90d9", "dash": "dash", "width": 1.5}, "name": "Reference μ"},
+            ],
+            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}, "template": "plotly_white"}
+        })
+
+        # Plot 2: Sequential posterior for μ (ribbon)
+        result["plots"].append({
+            "title": "Sequential Posterior for Process Mean (μ)",
+            "data": [
+                {"type": "scatter", "x": list(range(n)) + list(range(n - 1, -1, -1)),
+                 "y": seq_ci_hi.tolist() + seq_ci_lo[::-1].tolist(), "fill": "toself",
+                 "fillcolor": "rgba(74, 144, 217, 0.2)", "line": {"color": "transparent"}, "name": "95% Credible Interval"},
+                {"type": "scatter", "x": list(range(n)), "y": seq_mu.tolist(), "mode": "lines",
+                 "line": {"color": "#4a90d9", "width": 2}, "name": "Posterior Mean"},
+                {"type": "scatter", "x": list(range(n)), "y": [ref_mean] * n, "mode": "lines",
+                 "line": {"color": "#e89547", "dash": "dash", "width": 1}, "name": "Reference μ₀"},
+            ],
+            "layout": {"height": 280, "xaxis": {"title": "Observation"}, "yaxis": {"title": "μ"}, "template": "plotly_white"}
+        })
+
+        # Plot 3: Alarm timeline
+        alarm_colors = [f"rgba({int(255*p)}, {int(200*(1-p))}, 50, 0.8)" for p in p_shifted]
+        result["plots"].append({
+            "title": "Alarm Probability Over Time",
+            "data": [{"type": "bar", "x": list(range(n)), "y": p_shifted.tolist(), "marker": {"color": alarm_colors}, "name": "P(shifted)"}],
+            "layout": {"height": 220, "xaxis": {"title": "Observation"}, "yaxis": {"title": "P(shifted)", "range": [0, 1]},
+                       "shapes": [{"type": "line", "x0": 0, "x1": n, "y0": 0.5, "y1": 0.5,
+                                   "line": {"color": "#e85747", "dash": "dash", "width": 1.5}}], "template": "plotly_white"}
+        })
+
+        result["guide_observation"] = f"Bayesian control chart: {n_alarms} alarm(s) in {n} observations. Max P(shifted) = {np.max(p_shifted):.3f}."
+        result["statistics"] = {
+            "n": n, "n_alarms": n_alarms, "alarm_indices": alarm_indices.tolist(), "first_alarm": first_alarm,
+            "max_p_shifted": float(np.max(p_shifted)), "reference_mean": ref_mean, "reference_std": ref_std,
+            "shift_size_sigma": shift_size, "posterior_mu": float(seq_mu[-1]),
+            "posterior_ci": [float(seq_ci_lo[-1]), float(seq_ci_hi[-1])],
+        }
+
+    elif analysis_id == "bayes_acceptance":
+        """
+        Bayesian Acceptance Sampling — Beta-Binomial conjugate.
+        Replace rigid AQL/LTPD sampling plans with probabilistic decisions.
+        Sequential: can stop inspecting as soon as posterior confidence is reached.
+        """
+        from scipy.stats import beta as beta_dist
+
+        usl = float(config.get("usl")) if config.get("usl") else None
+        lsl = float(config.get("lsl")) if config.get("lsl") else None
+
+        if (usl is not None or lsl is not None) and len(data) > 0:
+            defective = np.zeros(len(data), dtype=bool)
+            if usl is not None:
+                defective |= data > usl
+            if lsl is not None:
+                defective |= data < lsl
+            total_defectives = int(defective.sum())
+            total_n = len(data)
+            inspection_sequence = defective.astype(int)
+        else:
+            total_defectives = int(config.get("defectives", 0))
+            total_n = int(config.get("sample_size", max(len(data), 1)))
+            inspection_sequence = None
+
+        aql = float(config.get("aql", 0.01))
+        accept_threshold = float(config.get("acceptance_threshold", 0.95))
+        prior_a = float(config.get("prior_alpha", 1.0))
+        prior_b = float(config.get("prior_beta", 1.0))
+
+        # Posterior: Beta(α + k, β + n - k)
+        post_a = prior_a + total_defectives
+        post_b = prior_b + total_n - total_defectives
+        post_mean = post_a / (post_a + post_b)
+        post_ci_lo = float(beta_dist.ppf(0.025, post_a, post_b))
+        post_ci_hi = float(beta_dist.ppf(0.975, post_a, post_b))
+
+        # P(p < AQL | data)
+        p_acceptable = float(beta_dist.cdf(aql, post_a, post_b))
+
+        if p_acceptable >= accept_threshold:
+            decision, decision_color = "ACCEPT", "good"
+        elif p_acceptable <= 1 - accept_threshold:
+            decision, decision_color = "REJECT", "bad"
+        else:
+            decision, decision_color = "CONTINUE INSPECTION", "warning"
+
+        # Sequential analysis
+        seq_p_accept = np.zeros(total_n)
+        earliest_accept = None
+        earliest_reject = None
+
+        if inspection_sequence is not None:
+            cum_def = 0
+            for i in range(total_n):
+                cum_def += inspection_sequence[i]
+                _a = prior_a + cum_def
+                _b = prior_b + (i + 1) - cum_def
+                seq_p_accept[i] = beta_dist.cdf(aql, _a, _b)
+                if earliest_accept is None and seq_p_accept[i] >= accept_threshold:
+                    earliest_accept = i + 1
+                if earliest_reject is None and seq_p_accept[i] <= 1 - accept_threshold:
+                    earliest_reject = i + 1
+        else:
+            for i in range(total_n):
+                cum_def = int(total_defectives * (i + 1) / total_n)
+                _a = prior_a + cum_def
+                _b = prior_b + (i + 1) - cum_def
+                seq_p_accept[i] = beta_dist.cdf(aql, _a, _b)
+                if earliest_accept is None and seq_p_accept[i] >= accept_threshold:
+                    earliest_accept = i + 1
+                if earliest_reject is None and seq_p_accept[i] <= 1 - accept_threshold:
+                    earliest_reject = i + 1
+
+        # Decision boundary curves
+        max_n_plot = min(total_n * 2, 500)
+        boundary_n = np.arange(1, max_n_plot + 1)
+        accept_boundary = np.zeros(len(boundary_n))
+        reject_boundary = np.zeros(len(boundary_n))
+        for i, bn in enumerate(boundary_n):
+            for k in range(bn + 1):
+                if beta_dist.cdf(aql, prior_a + k, prior_b + bn - k) >= accept_threshold:
+                    accept_boundary[i] = k
+                else:
+                    break
+            for k in range(bn, -1, -1):
+                if beta_dist.cdf(aql, prior_a + k, prior_b + bn - k) <= 1 - accept_threshold:
+                    reject_boundary[i] = k
+                else:
+                    break
+
+        summary_ba = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_ba += f"<<COLOR:title>>BAYESIAN ACCEPTANCE SAMPLING<</COLOR>>\n"
+        summary_ba += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary_ba += f"<<COLOR:highlight>>Sample size:<</COLOR>> {total_n}\n"
+        summary_ba += f"<<COLOR:highlight>>Defectives found:<</COLOR>> {total_defectives} ({total_defectives/total_n*100:.1f}%)\n"
+        summary_ba += f"<<COLOR:highlight>>AQL:<</COLOR>> {aql*100:.2f}% ({aql})\n"
+        summary_ba += f"<<COLOR:highlight>>Acceptance threshold:<</COLOR>> P(p < AQL) ≥ {accept_threshold:.0%}\n"
+        summary_ba += f"<<COLOR:highlight>>Prior:<</COLOR>> Beta({prior_a}, {prior_b})"
+        if prior_a == 1 and prior_b == 1:
+            summary_ba += " (uniform — no prior information)\n\n"
+        elif prior_a == 0.5 and prior_b == 0.5:
+            summary_ba += " (Jeffreys non-informative)\n\n"
+        else:
+            summary_ba += f" (prior mean = {prior_a/(prior_a+prior_b):.3f})\n\n"
+
+        summary_ba += f"<<COLOR:text>>Posterior for Defect Rate p:<</COLOR>>\n"
+        summary_ba += f"  Distribution: Beta({post_a:.1f}, {post_b:.1f})\n"
+        summary_ba += f"  Mean: {post_mean:.4f} ({post_mean*100:.2f}%)\n"
+        summary_ba += f"  95% Credible Interval: [{post_ci_lo:.4f}, {post_ci_hi:.4f}]\n"
+        summary_ba += f"  P(p < {aql}) = {p_acceptable:.4f} ({p_acceptable*100:.1f}%)\n\n"
+
+        summary_ba += f"<<COLOR:{decision_color}>>Decision: {decision}<</COLOR>>\n"
+        if decision == "ACCEPT":
+            summary_ba += f"  We are {p_acceptable*100:.1f}% confident the defect rate is below {aql*100:.2f}%.\n"
+        elif decision == "REJECT":
+            summary_ba += f"  Only {p_acceptable*100:.1f}% confidence that defect rate is below {aql*100:.2f}% — insufficient.\n"
+        else:
+            summary_ba += f"  {p_acceptable*100:.1f}% confidence — need more evidence. Continue inspecting.\n"
+
+        if earliest_accept:
+            saved = total_n - earliest_accept
+            summary_ba += f"\n<<COLOR:highlight>>Earliest acceptance possible:<</COLOR>> after {earliest_accept} inspections"
+            summary_ba += f" (saves {saved} = {saved/total_n*100:.0f}% reduction)\n" if saved > 0 else "\n"
+
+        summary_ba += f"\n<<COLOR:text>>Advantage over traditional sampling:<</COLOR>>\n"
+        summary_ba += f"  • No fixed accept/reject numbers — probabilistic decision\n"
+        summary_ba += f"  • Can stop inspecting early when evidence is sufficient\n"
+        summary_ba += f"  • Prior information reduces required sample size\n"
+
+        result["summary"] = summary_ba
+
+        # Plot 1: Posterior for defect rate
+        p_range = np.linspace(0, min(max(aql * 5, post_ci_hi * 2), 1), 500)
+        prior_pdf = beta_dist.pdf(p_range, prior_a, prior_b)
+        post_pdf = beta_dist.pdf(p_range, post_a, post_b)
+        result["plots"].append({
+            "title": "Posterior Distribution for Defect Rate",
+            "data": [
+                {"type": "scatter", "x": p_range.tolist(), "y": post_pdf.tolist(), "mode": "lines", "fill": "tozeroy",
+                 "fillcolor": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 2},
+                 "name": f"Posterior Beta({post_a:.0f},{post_b:.0f})"},
+                {"type": "scatter", "x": p_range.tolist(), "y": prior_pdf.tolist(), "mode": "lines",
+                 "line": {"color": "#9aaa9a", "dash": "dash", "width": 1.5}, "name": f"Prior Beta({prior_a},{prior_b})"},
+            ],
+            "layout": {"height": 300, "xaxis": {"title": "Defect Rate (p)"}, "yaxis": {"title": "Density"},
+                       "shapes": [{"type": "line", "x0": aql, "x1": aql, "y0": 0, "y1": float(max(post_pdf.max(), 1)),
+                                   "line": {"color": "#e85747", "dash": "dash", "width": 2}}],
+                       "annotations": [{"x": aql, "y": float(post_pdf.max() * 0.9), "text": f"AQL={aql}",
+                                        "showarrow": False, "xanchor": "left", "font": {"color": "#e85747"}}],
+                       "template": "plotly_white"}
+        })
+
+        # Plot 2: Sequential posterior evolution
+        seq_annotations = []
+        if earliest_accept:
+            seq_annotations.append({"x": earliest_accept, "y": accept_threshold, "text": f"Earliest accept: n={earliest_accept}",
+                                     "showarrow": True, "arrowhead": 2, "ax": 40, "ay": -30, "font": {"color": "#4a9f6e", "size": 10}})
+        result["plots"].append({
+            "title": "Sequential Decision — P(p < AQL) vs Inspections",
+            "data": [{"type": "scatter", "x": list(range(1, total_n + 1)), "y": seq_p_accept.tolist(),
+                       "mode": "lines", "line": {"color": "#4a90d9", "width": 2}, "name": f"P(p < {aql})"}],
+            "layout": {"height": 280, "xaxis": {"title": "Items Inspected"}, "yaxis": {"title": f"P(p < {aql})", "range": [0, 1]},
+                       "shapes": [
+                           {"type": "line", "x0": 1, "x1": total_n, "y0": accept_threshold, "y1": accept_threshold,
+                            "line": {"color": "#4a9f6e", "dash": "dash"}},
+                           {"type": "line", "x0": 1, "x1": total_n, "y0": 1 - accept_threshold, "y1": 1 - accept_threshold,
+                            "line": {"color": "#e85747", "dash": "dash"}},
+                       ],
+                       "annotations": seq_annotations, "template": "plotly_white"}
+        })
+
+        # Plot 3: Decision boundary
+        result["plots"].append({
+            "title": "Decision Boundaries — Accept/Reject vs Sample Size",
+            "data": [
+                {"type": "scatter", "x": boundary_n.tolist(), "y": accept_boundary.tolist(), "mode": "lines",
+                 "fill": "tozeroy", "fillcolor": "rgba(74, 159, 110, 0.15)", "line": {"color": "#4a9f6e", "width": 2}, "name": "Accept region"},
+                {"type": "scatter", "x": boundary_n.tolist(), "y": reject_boundary.tolist(), "mode": "lines",
+                 "fill": "tonexty", "fillcolor": "rgba(232, 197, 71, 0.1)", "line": {"color": "#e85747", "width": 2}, "name": "Reject region"},
+                {"type": "scatter", "x": [total_n], "y": [total_defectives], "mode": "markers",
+                 "marker": {"size": 12, "color": "#4a90d9", "symbol": "diamond", "line": {"color": "white", "width": 2}},
+                 "name": f"Observed ({total_n}, {total_defectives})"},
+            ],
+            "layout": {"height": 280, "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Defectives (k)"}, "template": "plotly_white"}
+        })
+
+        result["guide_observation"] = f"Bayesian acceptance: {total_defectives}/{total_n} defective, P(p<{aql})={p_acceptable:.3f}. Decision: {decision}."
+        result["statistics"] = {
+            "sample_size": total_n, "defectives": total_defectives,
+            "defect_rate": total_defectives / total_n if total_n > 0 else 0, "aql": aql,
+            "posterior_alpha": post_a, "posterior_beta": post_b, "posterior_mean": post_mean,
+            "posterior_ci": [post_ci_lo, post_ci_hi], "p_acceptable": p_acceptable,
+            "decision": decision, "earliest_accept": earliest_accept, "earliest_reject": earliest_reject,
+        }
+
+
+
+    # ══════════════════════════════════════════════════════════════════════
+    # CONFORMAL PREDICTION SPC (Burger et al., Dec 2025 — arXiv:2512.23602)
+    # First commercial implementation. Distribution-free, model-agnostic.
+    # ══════════════════════════════════════════════════════════════════════
+
+    elif analysis_id == "conformal_control":
+        """
+        Conformal-Enhanced Control Chart — distribution-free alternative to Shewhart.
+        No normality assumption. Guaranteed false alarm rate.
+        Adaptive prediction intervals + uncertainty spike detection.
+
+        Reference: Burger et al. (2025) "Distribution-Free Process Monitoring
+        with Conformal Prediction", arXiv:2512.23602
+        """
+        n = len(data)
+        alpha_conf = float(config.get("alpha", 0.05))  # False alarm rate
+        cal_fraction = float(config.get("calibration_fraction", 0.5))
+        spike_threshold = float(config.get("spike_threshold", 2.0))  # Multiple of median width for spike detection
+        chart_type = config.get("chart_type", "individuals")  # individuals, subgroup_mean, subgroup_range
+        subgroup_size = int(config.get("subgroup_size", 5))
+
+        if n < 20:
+            result["summary"] = "Need at least 20 observations for conformal control chart (calibration + monitoring)."
+            return result
+
+        # Phase I / Phase II split
+        n_cal = max(10, int(n * cal_fraction))
+        cal_data = data[:n_cal]
+        mon_data = data[n_cal:]
+        n_mon = len(mon_data)
+
+        if chart_type == "subgroup_mean" and n_cal >= subgroup_size * 2:
+            # Subgroup means
+            n_sg_cal = n_cal // subgroup_size
+            cal_subgroups = [cal_data[i*subgroup_size:(i+1)*subgroup_size] for i in range(n_sg_cal)]
+            cal_values = np.array([np.mean(sg) for sg in cal_subgroups])
+            center = np.median(cal_values)
+
+            n_sg_mon = n_mon // subgroup_size
+            mon_values = np.array([np.mean(mon_data[i*subgroup_size:(i+1)*subgroup_size]) for i in range(n_sg_mon)])
+            x_labels = [f"SG {i+1}" for i in range(n_sg_cal + n_sg_mon)]
+            all_values = np.concatenate([cal_values, mon_values])
+            chart_label = f"Subgroup Mean (n={subgroup_size})"
+        elif chart_type == "subgroup_range" and n_cal >= subgroup_size * 2:
+            # Subgroup ranges
+            n_sg_cal = n_cal // subgroup_size
+            cal_subgroups = [cal_data[i*subgroup_size:(i+1)*subgroup_size] for i in range(n_sg_cal)]
+            cal_values = np.array([np.ptp(sg) for sg in cal_subgroups])
+            center = np.median(cal_values)
+
+            n_sg_mon = n_mon // subgroup_size
+            mon_values = np.array([np.ptp(mon_data[i*subgroup_size:(i+1)*subgroup_size]) for i in range(n_sg_mon)])
+            x_labels = [f"SG {i+1}" for i in range(n_sg_cal + n_sg_mon)]
+            all_values = np.concatenate([cal_values, mon_values])
+            chart_label = f"Subgroup Range (n={subgroup_size})"
+        else:
+            # Individual observations
+            cal_values = cal_data
+            center = np.median(cal_values)
+            mon_values = mon_data
+            x_labels = list(range(n))
+            all_values = data
+            chart_label = "Individual Values"
+
+        # Nonconformity scores (calibration): |Xi - median| (robust to outliers)
+        cal_scores = np.abs(cal_values - center)
+
+        # Conformal threshold: ⌈(1-α)(n_cal+1)⌉-th smallest score
+        sorted_scores = np.sort(cal_scores)
+        q_index = int(np.ceil((1 - alpha_conf) * (len(cal_scores) + 1))) - 1
+        q_index = min(q_index, len(sorted_scores) - 1)
+        q = float(sorted_scores[q_index])
+
+        # Prediction interval (distribution-free)
+        pi_lower = center - q
+        pi_upper = center + q
+
+        # Phase II: compute scores and flag OOC
+        mon_scores = np.abs(mon_values - center)
+        ooc_mask = mon_scores > q
+        ooc_indices = np.where(ooc_mask)[0]
+        n_ooc = len(ooc_indices)
+
+        # All scores for plotting
+        all_scores = np.abs(all_values - center)
+
+        # ── Adaptive Prediction Intervals (model-based variant) ──
+        # Use a simple rolling local model: for each monitoring point,
+        # fit prediction based on recent window → normalized residuals → adaptive width
+        window = min(20, n_cal)
+        adaptive_widths = np.zeros(n)
+        adaptive_lower = np.zeros(n)
+        adaptive_upper = np.zeros(n)
+
+        for i in range(n):
+            if i < window:
+                # Use calibration statistics for early points
+                local_std = np.std(data[:max(i + 1, 2)], ddof=1) if i > 0 else np.std(cal_data, ddof=1)
+                local_center = np.median(data[:max(i + 1, 2)])
+            else:
+                local_window = data[i - window:i]
+                local_std = np.std(local_window, ddof=1)
+                local_center = np.median(local_window)
+
+            # Normalized score: accounts for local variability
+            adaptive_widths[i] = q * max(local_std / np.std(cal_data, ddof=1), 0.5) if np.std(cal_data, ddof=1) > 0 else q
+            adaptive_lower[i] = local_center - adaptive_widths[i]
+            adaptive_upper[i] = local_center + adaptive_widths[i]
+
+        # ── Uncertainty Spike Detection ──
+        # Spike = adaptive width exceeds spike_threshold × median(adaptive width over calibration)
+        median_width = np.median(adaptive_widths[:n_cal])
+        spike_mask = adaptive_widths > spike_threshold * median_width
+        spike_indices = np.where(spike_mask)[0]
+        # Only count spikes in monitoring phase
+        spike_indices_mon = spike_indices[spike_indices >= n_cal]
+
+        # For Shewhart comparison
+        shewhart_mean = np.mean(cal_data)
+        shewhart_std = np.std(cal_data, ddof=1)
+        shewhart_ucl = shewhart_mean + 3 * shewhart_std
+        shewhart_lcl = shewhart_mean - 3 * shewhart_std
+
+        # Summary
+        summary_cc = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_cc += f"<<COLOR:title>>CONFORMAL-ENHANCED CONTROL CHART<</COLOR>>\n"
+        summary_cc += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_cc += f"<<COLOR:dim>>Burger et al. (2025) — Distribution-free, guaranteed coverage<</COLOR>>\n\n"
+        summary_cc += f"<<COLOR:highlight>>Variable:<</COLOR>> {measurement}\n"
+        summary_cc += f"<<COLOR:highlight>>Chart type:<</COLOR>> {chart_label}\n"
+        summary_cc += f"<<COLOR:highlight>>N:<</COLOR>> {n} ({n_cal} calibration + {n_mon} monitoring)\n"
+        summary_cc += f"<<COLOR:highlight>>Significance level:<</COLOR>> α = {alpha_conf} (guaranteed ≤ {alpha_conf*100:.0f}% false alarm rate)\n\n"
+
+        summary_cc += f"<<COLOR:text>>Conformal Control Limits (distribution-free):<</COLOR>>\n"
+        summary_cc += f"  Center (median): {center:.4f}\n"
+        summary_cc += f"  Conformal threshold (q): {q:.4f}\n"
+        summary_cc += f"  Prediction interval: [{pi_lower:.4f}, {pi_upper:.4f}]\n\n"
+
+        summary_cc += f"<<COLOR:text>>Traditional Shewhart Limits (for comparison):<</COLOR>>\n"
+        summary_cc += f"  Mean ± 3σ: [{shewhart_lcl:.4f}, {shewhart_ucl:.4f}]\n\n"
+
+        # Compare the two approaches
+        conformal_width = pi_upper - pi_lower
+        shewhart_width = shewhart_ucl - shewhart_lcl
+        if conformal_width < shewhart_width:
+            summary_cc += f"<<COLOR:good>>Conformal limits are {(1 - conformal_width/shewhart_width)*100:.0f}% tighter than Shewhart — more sensitive to shifts.<</COLOR>>\n\n"
+        elif conformal_width > shewhart_width * 1.1:
+            summary_cc += f"<<COLOR:text>>Conformal limits are wider than Shewhart — data may be non-normal (heavy tails). This is the correct adjustment.<</COLOR>>\n\n"
+        else:
+            summary_cc += f"<<COLOR:text>>Conformal and Shewhart limits are similar — data is approximately normal.<</COLOR>>\n\n"
+
+        if n_ooc > 0:
+            summary_cc += f"<<COLOR:warning>>⚠ {n_ooc} out-of-control point(s) in monitoring phase<</COLOR>>\n"
+            if n_ooc <= 10:
+                for idx in ooc_indices:
+                    summary_cc += f"  Observation {n_cal + idx}: value = {mon_values[idx]:.4f}, score = {mon_scores[idx]:.4f} > q = {q:.4f}\n"
+        else:
+            summary_cc += f"<<COLOR:good>>No out-of-control points in monitoring phase<</COLOR>>\n"
+
+        if len(spike_indices_mon) > 0:
+            summary_cc += f"\n<<COLOR:warning>>⚠ {len(spike_indices_mon)} uncertainty spike(s) detected — leading indicators of instability<</COLOR>>\n"
+            summary_cc += f"  Spike threshold: {spike_threshold}× median interval width\n"
+            if len(spike_indices_mon) <= 10:
+                for idx in spike_indices_mon:
+                    summary_cc += f"  Observation {idx}: width = {adaptive_widths[idx]:.4f} ({adaptive_widths[idx]/median_width:.1f}× normal)\n"
+        else:
+            summary_cc += f"\n<<COLOR:good>>No uncertainty spikes detected<</COLOR>>\n"
+
+        summary_cc += f"\n<<COLOR:text>>Key advantages:<</COLOR>>\n"
+        summary_cc += f"  • Distribution-free: no normality assumption required\n"
+        summary_cc += f"  • Guaranteed false alarm rate ≤ α = {alpha_conf}\n"
+        summary_cc += f"  • Uncertainty spikes provide early warning before limits are breached\n"
+        summary_cc += f"  • Adaptive intervals respond to changing process conditions\n"
+
+        result["summary"] = summary_cc
+
+        # Plot 1: Conformal control chart (main)
+        n_total = len(all_values)
+        point_colors = []
+        for i in range(n_total):
+            if i < len(cal_values):
+                point_colors.append("#4a9f6e")  # Calibration = green
+            elif all_scores[i] > q:
+                point_colors.append("#e85747")  # OOC = red
+            else:
+                point_colors.append("#4a90d9")  # In-control monitoring = blue
+
+        result["plots"].append({
+            "title": "Conformal-Enhanced Control Chart",
+            "data": [
+                {"type": "scatter", "x": list(range(n_total)), "y": all_values.tolist(), "mode": "lines+markers",
+                 "marker": {"size": 5, "color": point_colors}, "line": {"color": "rgba(74, 159, 110, 0.3)", "width": 1}, "name": measurement},
+                {"type": "scatter", "x": list(range(n_total)), "y": [center] * n_total, "mode": "lines",
+                 "line": {"color": "#00b894", "width": 1.5}, "name": f"Center (median={center:.3f})"},
+                {"type": "scatter", "x": list(range(n_total)), "y": [pi_upper] * n_total, "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash", "width": 1.5}, "name": f"Conformal UCL ({pi_upper:.3f})"},
+                {"type": "scatter", "x": list(range(n_total)), "y": [pi_lower] * n_total, "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash", "width": 1.5}, "name": f"Conformal LCL ({pi_lower:.3f})"},
+                {"type": "scatter", "x": list(range(n_total)), "y": [shewhart_ucl] * n_total, "mode": "lines",
+                 "line": {"color": "#9aaa9a", "dash": "dot", "width": 1}, "name": f"Shewhart ±3σ", "showlegend": True},
+                {"type": "scatter", "x": list(range(n_total)), "y": [shewhart_lcl] * n_total, "mode": "lines",
+                 "line": {"color": "#9aaa9a", "dash": "dot", "width": 1}, "showlegend": False},
+            ],
+            "layout": {
+                "height": 350,
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": measurement},
+                "shapes": [{"type": "line", "x0": n_cal, "x1": n_cal, "y0": float(np.min(all_values)) - 0.1 * float(np.ptp(all_values)),
+                            "y1": float(np.max(all_values)) + 0.1 * float(np.ptp(all_values)),
+                            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5}}],
+                "annotations": [{"x": n_cal, "y": float(np.max(all_values)), "text": "← Cal | Mon →",
+                                 "showarrow": False, "font": {"color": "#e8c547", "size": 10}}],
+                "template": "plotly_white",
+            }
+        })
+
+        # Plot 2: Adaptive prediction interval (ribbon)
+        result["plots"].append({
+            "title": "Adaptive Prediction Interval (uncertainty-aware)",
+            "data": [
+                {"type": "scatter", "x": list(range(n)) + list(range(n - 1, -1, -1)),
+                 "y": adaptive_upper.tolist() + adaptive_lower[::-1].tolist(),
+                 "fill": "toself", "fillcolor": "rgba(74, 144, 217, 0.15)", "line": {"color": "transparent"},
+                 "name": "Adaptive PI"},
+                {"type": "scatter", "x": list(range(n)), "y": data.tolist(), "mode": "lines+markers",
+                 "marker": {"size": 3, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e", "width": 1}, "name": measurement},
+            ] + ([
+                {"type": "scatter", "x": spike_indices_mon.tolist(),
+                 "y": data[spike_indices_mon].tolist() if len(spike_indices_mon) > 0 else [],
+                 "mode": "markers", "marker": {"size": 10, "color": "#e8c547", "symbol": "triangle-up", "line": {"color": "#e89547", "width": 1.5}},
+                 "name": "Uncertainty Spike"}
+            ] if len(spike_indices_mon) > 0 else []),
+            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}, "template": "plotly_white"}
+        })
+
+        # Plot 3: Nonconformity score chart
+        score_colors = ["#e85747" if s > q else "#4a9f6e" for s in all_scores]
+        result["plots"].append({
+            "title": "Nonconformity Scores vs Threshold",
+            "data": [
+                {"type": "bar", "x": list(range(n_total)), "y": all_scores.tolist(), "marker": {"color": score_colors}, "name": "Score"},
+                {"type": "scatter", "x": list(range(n_total)), "y": [q] * n_total, "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": f"Threshold q={q:.3f}"},
+            ],
+            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "|X - median|"}, "template": "plotly_white"}
+        })
+
+        # Plot 4: Interval width over time (spike detection)
+        width_colors = ["#e8c547" if spike_mask[i] else "#4a90d9" for i in range(n)]
+        result["plots"].append({
+            "title": "Prediction Interval Width (spike = leading indicator)",
+            "data": [
+                {"type": "bar", "x": list(range(n)), "y": (adaptive_widths * 2).tolist(), "marker": {"color": width_colors, "opacity": 0.7}, "name": "Width"},
+                {"type": "scatter", "x": list(range(n)), "y": [spike_threshold * median_width * 2] * n, "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash", "width": 1.5}, "name": f"Spike threshold ({spike_threshold}× median)"},
+            ],
+            "layout": {"height": 220, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Interval Width"}, "template": "plotly_white"}
+        })
+
+        result["guide_observation"] = f"Conformal control chart (distribution-free): {n_ooc} OOC, {len(spike_indices_mon)} uncertainty spikes in {n_mon} monitoring observations."
+        result["statistics"] = {
+            "n": n, "n_calibration": n_cal, "n_monitoring": n_mon,
+            "center": float(center), "conformal_threshold": float(q),
+            "pi_lower": float(pi_lower), "pi_upper": float(pi_upper),
+            "shewhart_ucl": float(shewhart_ucl), "shewhart_lcl": float(shewhart_lcl),
+            "n_ooc": n_ooc, "ooc_indices": [int(n_cal + i) for i in ooc_indices],
+            "n_spikes": len(spike_indices_mon),
+            "spike_indices": spike_indices_mon.tolist(),
+            "alpha": alpha_conf,
+            "method": "Burger et al. (2025) arXiv:2512.23602",
+        }
+
+    elif analysis_id == "conformal_monitor":
+        """
+        Conformal P-Value Chart — multivariate process monitoring.
+        Model-agnostic anomaly detection with conformal p-values.
+        Distribution-free guaranteed false alarm rate.
+
+        Reference: Burger et al. (2025) "Distribution-Free Process Monitoring
+        with Conformal Prediction", arXiv:2512.23602
+        """
+        from sklearn.ensemble import IsolationForest
+        from sklearn.preprocessing import StandardScaler
+
+        alpha_conf = float(config.get("alpha", 0.05))
+        cal_fraction = float(config.get("calibration_fraction", 0.5))
+        model_type = config.get("model", "isolation_forest")  # isolation_forest, mahalanobis
+
+        # Get numeric columns
+        variables = config.get("variables", [])
+        if not variables:
+            variables = df.select_dtypes(include="number").columns.tolist()
+        if len(variables) < 2:
+            result["summary"] = "Conformal monitoring requires at least 2 numeric variables for multivariate analysis."
+            return result
+
+        X = df[variables].dropna().values
+        n = len(X)
+
+        if n < 30:
+            result["summary"] = "Need at least 30 observations for conformal multivariate monitoring."
+            return result
+
+        # Phase I / Phase II split
+        n_cal = max(15, int(n * cal_fraction))
+        X_cal = X[:n_cal]
+        X_mon = X[n_cal:]
+        n_mon = len(X_mon)
+
+        # Standardize using calibration data
+        scaler = StandardScaler()
+        X_cal_scaled = scaler.fit_transform(X_cal)
+        X_mon_scaled = scaler.transform(X_mon) if n_mon > 0 else np.array([]).reshape(0, len(variables))
+
+        # Compute nonconformity scores
+        if model_type == "mahalanobis":
+            # Mahalanobis distance from calibration centroid
+            cov_cal = np.cov(X_cal_scaled.T)
+            try:
+                cov_inv = np.linalg.inv(cov_cal)
+            except np.linalg.LinAlgError:
+                cov_inv = np.linalg.pinv(cov_cal)
+            mean_cal = np.mean(X_cal_scaled, axis=0)
+
+            cal_scores = np.array([np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_cal_scaled])
+            mon_scores = np.array([np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_mon_scaled]) if n_mon > 0 else np.array([])
+            model_label = "Mahalanobis Distance"
+        else:
+            # Isolation Forest anomaly scores
+            iso = IsolationForest(random_state=42, contamination="auto")
+            iso.fit(X_cal_scaled)
+
+            # Score = -decision_function (higher = more anomalous)
+            cal_scores = -iso.decision_function(X_cal_scaled)
+            mon_scores = -iso.decision_function(X_mon_scaled) if n_mon > 0 else np.array([])
+            model_label = "Isolation Forest"
+
+        all_scores = np.concatenate([cal_scores, mon_scores])
+
+        # Conformal p-values for monitoring observations
+        # p-value = (# calibration scores >= current score + 1) / (n_cal + 1)
+        sorted_cal = np.sort(cal_scores)
+        cal_p_values = np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in cal_scores])
+        mon_p_values = np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in mon_scores]) if n_mon > 0 else np.array([])
+        all_p_values = np.concatenate([cal_p_values, mon_p_values])
+
+        # Anomalies: p-value < alpha
+        if n_mon > 0:
+            anomaly_mask = mon_p_values < alpha_conf
+            anomaly_indices = np.where(anomaly_mask)[0]
+            n_anomalies = len(anomaly_indices)
+        else:
+            anomaly_indices = np.array([])
+            n_anomalies = 0
+
+        # Variable contributions for flagged points (which variable drives the anomaly?)
+        contributions = []
+        if n_anomalies > 0 and n_anomalies <= 20:
+            mean_cal_raw = np.mean(X_cal, axis=0)
+            std_cal_raw = np.std(X_cal, axis=0, ddof=1)
+            std_cal_raw[std_cal_raw == 0] = 1
+            for idx in anomaly_indices[:10]:
+                z_scores = np.abs((X_mon[idx] - mean_cal_raw) / std_cal_raw)
+                top_var = variables[np.argmax(z_scores)]
+                contributions.append((int(idx), top_var, float(np.max(z_scores))))
+
+        # Summary
+        summary_cm = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_cm += f"<<COLOR:title>>CONFORMAL P-VALUE CHART (Multivariate Monitor)<</COLOR>>\n"
+        summary_cm += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_cm += f"<<COLOR:dim>>Burger et al. (2025) — Distribution-free anomaly detection<</COLOR>>\n\n"
+        summary_cm += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables)} ({len(variables)} dimensions)\n"
+        summary_cm += f"<<COLOR:highlight>>N:<</COLOR>> {n} ({n_cal} calibration + {n_mon} monitoring)\n"
+        summary_cm += f"<<COLOR:highlight>>Anomaly model:<</COLOR>> {model_label}\n"
+        summary_cm += f"<<COLOR:highlight>>Significance level:<</COLOR>> α = {alpha_conf}\n\n"
+
+        summary_cm += f"<<COLOR:text>>Conformal P-Value Distribution (monitoring):<</COLOR>>\n"
+        if n_mon > 0:
+            summary_cm += f"  Mean p-value: {np.mean(mon_p_values):.4f}\n"
+            summary_cm += f"  Min p-value: {np.min(mon_p_values):.4f} at observation {n_cal + int(np.argmin(mon_p_values))}\n"
+            summary_cm += f"  % below α: {np.mean(mon_p_values < alpha_conf)*100:.1f}%\n\n"
+
+        if n_anomalies > 0:
+            summary_cm += f"<<COLOR:warning>>⚠ {n_anomalies} anomalous observation(s) detected (p < {alpha_conf})<</COLOR>>\n"
+            if contributions:
+                summary_cm += f"\n  <<COLOR:text>>Top contributing variables:<</COLOR>>\n"
+                for idx, var, z in contributions:
+                    summary_cm += f"    Obs {n_cal + idx}: driven by '{var}' (z = {z:.2f}σ from calibration mean)\n"
+        else:
+            summary_cm += f"<<COLOR:good>>No anomalies detected — all p-values ≥ {alpha_conf}<</COLOR>>\n"
+
+        summary_cm += f"\n<<COLOR:text>>Key advantages:<</COLOR>>\n"
+        summary_cm += f"  • Monitors {len(variables)} variables simultaneously\n"
+        summary_cm += f"  • No distributional assumptions on joint variable behavior\n"
+        summary_cm += f"  • Guaranteed false alarm rate ≤ α = {alpha_conf}\n"
+        summary_cm += f"  • Intuitive p-value scale (0 = most anomalous, 1 = most normal)\n"
+
+        result["summary"] = summary_cm
+
+        # Plot 1: P-value chart (the main chart)
+        p_colors = []
+        for i, p in enumerate(all_p_values):
+            if i < n_cal:
+                p_colors.append("#4a9f6e")  # Calibration
+            elif p < alpha_conf:
+                p_colors.append("#e85747")  # Anomaly
+            else:
+                p_colors.append("#4a90d9")  # Normal monitoring
+
+        result["plots"].append({
+            "title": "Conformal P-Value Chart",
+            "data": [
+                {"type": "scatter", "x": list(range(n)), "y": all_p_values.tolist(), "mode": "markers",
+                 "marker": {"size": 6, "color": p_colors}, "name": "Conformal p-value"},
+                {"type": "scatter", "x": list(range(n)), "y": [alpha_conf] * n, "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": f"α = {alpha_conf}"},
+            ],
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": "Conformal p-value", "range": [0, 1]},
+                "shapes": [
+                    {"type": "line", "x0": n_cal, "x1": n_cal, "y0": 0, "y1": 1,
+                     "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5}},
+                    {"type": "rect", "x0": 0, "x1": n, "y0": 0, "y1": alpha_conf,
+                     "fillcolor": "rgba(232, 87, 71, 0.05)", "line": {"width": 0}},
+                ],
+                "annotations": [{"x": n_cal, "y": 0.95, "text": "← Cal | Mon →",
+                                 "showarrow": False, "font": {"color": "#e8c547", "size": 10}}],
+                "template": "plotly_white",
+            }
+        })
+
+        # Plot 2: Anomaly scores over time
+        score_colors_2 = ["#e85747" if (i >= n_cal and all_p_values[i] < alpha_conf) else "#4a9f6e" for i in range(n)]
+        result["plots"].append({
+            "title": f"Nonconformity Scores ({model_label})",
+            "data": [
+                {"type": "bar", "x": list(range(n)), "y": all_scores.tolist(),
+                 "marker": {"color": score_colors_2, "opacity": 0.7}, "name": "Score"},
+            ],
+            "layout": {
+                "height": 250,
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": "Anomaly Score"},
+                "shapes": [{"type": "line", "x0": n_cal, "x1": n_cal, "y0": 0, "y1": float(np.max(all_scores)),
+                            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1}}],
+                "template": "plotly_white",
+            }
+        })
+
+        # Plot 3: Variable-level view (parallel coordinates or heatmap of z-scores)
+        if n_mon > 0:
+            mean_cal_raw = np.mean(X_cal, axis=0)
+            std_cal_raw = np.std(X_cal, axis=0, ddof=1)
+            std_cal_raw[std_cal_raw == 0] = 1
+            z_matrix = np.abs((X_mon - mean_cal_raw) / std_cal_raw)
+
+            # Show z-scores for monitoring observations (heatmap)
+            result["plots"].append({
+                "title": "Variable Contribution Heatmap (|z-score| from calibration)",
+                "data": [{
+                    "type": "heatmap",
+                    "z": z_matrix.T.tolist(),
+                    "x": [f"{n_cal + i}" for i in range(n_mon)],
+                    "y": variables,
+                    "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                    "colorbar": {"title": "|z|"},
+                }],
+                "layout": {"height": max(200, 40 * len(variables)), "xaxis": {"title": "Observation"}, "template": "plotly_white"}
+            })
+
+        result["guide_observation"] = f"Conformal multivariate monitor: {n_anomalies} anomalies in {n_mon} monitoring observations across {len(variables)} variables."
+        result["statistics"] = {
+            "n": n, "n_calibration": n_cal, "n_monitoring": n_mon,
+            "n_variables": len(variables), "variables": variables,
+            "model": model_label, "alpha": alpha_conf,
+            "n_anomalies": n_anomalies,
+            "anomaly_indices": [int(n_cal + i) for i in anomaly_indices],
+            "mean_p_value": float(np.mean(mon_p_values)) if n_mon > 0 else None,
+            "min_p_value": float(np.min(mon_p_values)) if n_mon > 0 else None,
+            "method": "Burger et al. (2025) arXiv:2512.23602",
+        }
+
+
     return result
 
 
@@ -21528,6 +22584,746 @@ def run_visualization(df, analysis_id, config):
             f"Total: {grand_total} observations\n\n"
             f"Tile widths proportional to row totals. Heights proportional to column distribution within each row."
         )
+
+    # ── Bayesian SPC Suite ────────────────────────────────────────────────
+
+    elif analysis_id == "bayes_spc_capability":
+        # Bayesian Capability Analysis — eliminates the 1.5σ assumption
+        from scipy.stats import t as tdist
+        usl_raw = config.get("usl")
+        lsl_raw = config.get("lsl")
+        usl = float(usl_raw) if usl_raw not in (None, "", "null") else None
+        lsl = float(lsl_raw) if lsl_raw not in (None, "", "null") else None
+        if usl is None and lsl is None:
+            result["summary"] = "<<COLOR:error>>At least one spec limit (USL or LSL) is required<</COLOR>>"
+            return result
+        if usl is not None and lsl is not None and usl <= lsl:
+            result["summary"] = "<<COLOR:error>>USL must be greater than LSL<</COLOR>>"
+            return result
+        target = config.get("target")
+        if target not in (None, "", "null"):
+            target = float(target)
+        elif usl is not None and lsl is not None:
+            target = (usl + lsl) / 2.0
+        elif usl is not None:
+            target = usl
+        else:
+            target = lsl
+        spec_label = f"USL={usl}" if lsl is None else (f"LSL={lsl}" if usl is None else f"USL={usl}, LSL={lsl}")
+        n_mc = int(config.get("n_mc", 10000))
+        prior_type = config.get("prior_type", "weakly_informative")
+
+        n = len(data)
+        x_bar = float(np.mean(data))
+        s = float(np.std(data, ddof=1)) if n > 1 else 0.01
+
+        # Set prior
+        if prior_type == "informative":
+            pp = config.get("prior_params", {})
+            mu0 = float(pp.get("mu0", x_bar))
+            nu0 = float(pp.get("nu0", 5))
+            alpha0 = float(pp.get("alpha0", 3))
+            beta0 = float(pp.get("beta0", s**2 * 2))
+        elif prior_type == "historical":
+            pp = config.get("prior_params", {})
+            hist_mean = float(pp.get("hist_mean", x_bar))
+            hist_std = float(pp.get("hist_std", s))
+            hist_n = int(pp.get("hist_n", 30))
+            mu0, nu0, alpha0, beta0 = hist_mean, float(hist_n), hist_n / 2.0, hist_n / 2.0 * hist_std**2
+        else:  # weakly_informative — α₀=2 for finite σ² mean, β₀ centered on sample variance
+            s2 = float(np.var(data, ddof=1)) if n > 1 else 1.0
+            mu0, nu0, alpha0, beta0 = x_bar, 1.0, 2.0, max(s2, 1e-10)
+
+        # Posterior update
+        mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(data, mu0, nu0, alpha0, beta0)
+
+        # Monte Carlo sampling
+        mu_samples, sigma_samples = _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_mc)
+        cpk_samples = _cpk_from_params(mu_samples, sigma_samples, usl, lsl)
+
+        cpk_median = float(np.median(cpk_samples))
+        cpk_ci = (float(np.percentile(cpk_samples, 2.5)), float(np.percentile(cpk_samples, 97.5)))
+        p_gt_1 = float(np.mean(cpk_samples > 1.0))
+        p_gt_133 = float(np.mean(cpk_samples > 1.33))
+        p_gt_167 = float(np.mean(cpk_samples > 1.67))
+        p_gt_2 = float(np.mean(cpk_samples > 2.0))
+
+        # Frequentist point estimate for comparison
+        # Frequentist point estimate
+        if s > 0:
+            if usl is not None and lsl is not None:
+                cpk_freq = float(min((usl - x_bar) / (3 * s), (x_bar - lsl) / (3 * s)))
+            elif usl is not None:
+                cpk_freq = float((usl - x_bar) / (3 * s))
+            else:
+                cpk_freq = float((x_bar - lsl) / (3 * s))
+        else:
+            cpk_freq = 0.0
+
+        # Posterior predictive via Monte Carlo (robust — no parameterization traps)
+        rng_pp = np.random.default_rng(123)
+        x_pred = rng_pp.normal(loc=mu_samples, scale=sigma_samples)
+        oos_mask = np.zeros(len(x_pred), dtype=bool)
+        if lsl is not None:
+            oos_mask |= (x_pred < lsl)
+        if usl is not None:
+            oos_mask |= (x_pred > usl)
+        p_oos = float(np.mean(oos_mask))
+
+        # Student-t curve for display only
+        df_t = 2 * alpha_n
+        loc_t = mu_n
+        scale_t = float(np.sqrt(beta_n * (nu_n + 1) / (alpha_n * nu_n)))
+        pp_dist = tdist(df=df_t, loc=loc_t, scale=scale_t)
+        dpmo = p_oos * 1e6
+
+        # σ posterior sanity check
+        sigma_99 = float(np.percentile(sigma_samples, 99))
+        sigma_iqr = float(np.percentile(sigma_samples, 75) - np.percentile(sigma_samples, 25))
+        sigma_warning = ""
+        if sigma_iqr > 0 and sigma_99 > 5 * sigma_iqr + float(np.median(sigma_samples)):
+            sigma_warning = "Data may be non-normal, from mixed processes, or contain outliers. Consider transformations or a mixture model."
+
+        # Verdict (probability-driven, not point-estimate)
+        if p_gt_133 >= 0.95:
+            verdict_color, verdict = "success", "CAPABLE — P(Cpk > 1.33) ≥ 95%"
+        elif p_gt_133 >= 0.80:
+            verdict_color, verdict = "highlight", "MARGINAL — P(Cpk > 1.33) between 80–95%"
+        else:
+            verdict_color, verdict = "error", "NOT CAPABLE — P(Cpk > 1.33) < 80%"
+
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>BAYESIAN PROCESS CAPABILITY<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Spec:<</COLOR>> {spec_label}    <<COLOR:highlight>>Target:<</COLOR>> {target}\n\n"
+        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>Posterior Cpk<</COLOR>>\n"
+        summary += f"  Median: <<COLOR:highlight>>{cpk_median:.4f}<</COLOR>>    95% CI: [{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]\n"
+        summary += f"  Frequentist Cpk (point estimate): {cpk_freq:.4f}\n\n"
+        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>Probability Table<</COLOR>>\n"
+        summary += f"  P(Cpk > 1.00) = <<COLOR:{'success' if p_gt_1 > 0.9 else 'error'}>>{p_gt_1:.1%}<</COLOR>>\n"
+        summary += f"  P(Cpk > 1.33) = <<COLOR:{'success' if p_gt_133 > 0.9 else 'error'}>>{p_gt_133:.1%}<</COLOR>>\n"
+        summary += f"  P(Cpk > 1.67) = <<COLOR:{'success' if p_gt_167 > 0.9 else 'text'}>>{p_gt_167:.1%}<</COLOR>>\n"
+        summary += f"  P(Cpk > 2.00) = {p_gt_2:.1%}\n\n"
+        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>Posterior Predictive<</COLOR>>\n"
+        summary += f"  P(out of spec) = {p_oos:.6f}    DPMO = <<COLOR:highlight>>{dpmo:.0f}<</COLOR>>\n"
+        summary += f"  (No 1.5σ shift assumption — uncertainty is a first-class citizen)\n\n"
+        summary += f"<<COLOR:{verdict_color}>>{verdict}<</COLOR>>\n\n"
+        if sigma_warning:
+            summary += f"<<COLOR:error>>Warning: {sigma_warning}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Accounts for parameter uncertainty; no long-term shift assumption needed.\n"
+        summary += f"When n is small, uncertainty is large — this is reflected in the credible interval.<</COLOR>>\n"
+
+        result["summary"] = summary
+        result["statistics"] = {
+            "cpk_median": cpk_median, "cpk_ci_lower": cpk_ci[0], "cpk_ci_upper": cpk_ci[1],
+            "cpk_frequentist": cpk_freq, "p_cpk_gt_1": p_gt_1, "p_cpk_gt_133": p_gt_133, "p_cpk_gt_167": p_gt_167,
+            "p_cpk_gt_2": p_gt_2, "dpmo": dpmo, "p_out_of_spec": p_oos,
+        }
+
+        # Plot 1: Posterior Cpk histogram
+        cpk_hist_vals, cpk_hist_edges = np.histogram(cpk_samples, bins=80)
+        cpk_hist_centers = (cpk_hist_edges[:-1] + cpk_hist_edges[1:]) / 2
+        ci_mask = (cpk_hist_centers >= cpk_ci[0]) & (cpk_hist_centers <= cpk_ci[1])
+        result["plots"].append({
+            "title": "Posterior Distribution of Cpk",
+            "data": [
+                {"type": "bar", "x": cpk_hist_centers.tolist(), "y": cpk_hist_vals.tolist(),
+                 "marker": {"color": ["rgba(74,159,110,0.7)" if m else "rgba(74,159,110,0.2)" for m in ci_mask]},
+                 "name": "Posterior", "showlegend": False},
+                {"type": "scatter", "x": [1.0, 1.0], "y": [0, max(cpk_hist_vals)], "mode": "lines",
+                 "line": {"color": "#e89547", "dash": "dash", "width": 2}, "name": "Cpk = 1.0"},
+                {"type": "scatter", "x": [1.33, 1.33], "y": [0, max(cpk_hist_vals)], "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": "Cpk = 1.33"},
+                {"type": "scatter", "x": [cpk_freq, cpk_freq], "y": [0, max(cpk_hist_vals)], "mode": "lines",
+                 "line": {"color": "#5b9bd5", "width": 2}, "name": "Frequentist"},
+            ],
+            "layout": {"height": 300, "xaxis": {"title": "Cpk"}, "yaxis": {"title": "Count"},
+                        "annotations": [{"x": cpk_median, "y": max(cpk_hist_vals) * 0.9,
+                                         "text": f"Median: {cpk_median:.3f}", "showarrow": True,
+                                         "arrowhead": 2, "font": {"color": "#4a9f6e"}}]}
+        })
+
+        # Plot 2: Posterior predictive vs spec limits
+        lo_bound = (lsl - 3 * s) if lsl is not None else (data.min() - 3 * s)
+        hi_bound = (usl + 3 * s) if usl is not None else (data.max() + 3 * s)
+        x_range = np.linspace(min(lo_bound, data.min()), max(hi_bound, data.max()), 300)
+        pp_pdf = pp_dist.pdf(x_range)
+        from scipy.stats import norm
+        norm_pdf = norm.pdf(x_range, loc=x_bar, scale=s) if s > 0 else np.zeros_like(x_range)
+        data_hist_vals, data_hist_edges = np.histogram(data, bins=40, density=True)
+        data_hist_centers = (data_hist_edges[:-1] + data_hist_edges[1:]) / 2
+        peak_y = max(max(pp_pdf), max(norm_pdf)) if len(pp_pdf) > 0 else 1
+        pred_traces = [
+            {"type": "bar", "x": data_hist_centers.tolist(), "y": data_hist_vals.tolist(),
+             "marker": {"color": "rgba(74,159,110,0.3)"}, "name": "Data", "showlegend": True},
+            {"type": "scatter", "x": x_range.tolist(), "y": pp_pdf.tolist(), "mode": "lines",
+             "line": {"color": "#e89547", "width": 2}, "name": "Predictive (Student-t)"},
+            {"type": "scatter", "x": x_range.tolist(), "y": norm_pdf.tolist(), "mode": "lines",
+             "line": {"color": "#5b9bd5", "dash": "dash", "width": 1.5}, "name": "Normal fit"},
+        ]
+        if lsl is not None:
+            pred_traces.append({"type": "scatter", "x": [lsl, lsl], "y": [0, peak_y], "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dot", "width": 2}, "name": "LSL"})
+        if usl is not None:
+            pred_traces.append({"type": "scatter", "x": [usl, usl], "y": [0, peak_y], "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dot", "width": 2}, "name": "USL"})
+        ann_x = (usl + lsl) / 2 if (usl is not None and lsl is not None) else (usl if usl is not None else lsl)
+        result["plots"].append({
+            "title": "Posterior Predictive vs Spec Limits",
+            "data": pred_traces,
+            "layout": {"height": 300, "xaxis": {"title": measurement},
+                        "annotations": [{"x": ann_x, "y": max(pp_pdf) * 0.95,
+                                         "text": f"DPMO: {dpmo:.0f}", "showarrow": False,
+                                         "font": {"color": "#e89547", "size": 13}}]}
+        })
+
+        # Plot 3: P(Cpk > threshold) curve
+        thresholds = np.linspace(0.5, 3.0, 100)
+        p_above = [float(np.mean(cpk_samples > t)) for t in thresholds]
+        result["plots"].append({
+            "title": "P(Cpk > Threshold)",
+            "data": [
+                {"type": "scatter", "x": thresholds.tolist(), "y": p_above, "mode": "lines",
+                 "line": {"color": "#4a9f6e", "width": 2.5}, "name": "P(Cpk > threshold)"},
+                {"type": "scatter", "x": [0.5, 3.0], "y": [0.95, 0.95], "mode": "lines",
+                 "line": {"color": "#e89547", "dash": "dash"}, "name": "95% confidence"},
+            ],
+            "layout": {"height": 250, "xaxis": {"title": "Threshold"}, "yaxis": {"title": "Probability", "range": [0, 1.05]}}
+        })
+
+        # Plot 4: Data histogram with predictive overlay
+        overlay_traces = [
+            {"type": "histogram", "x": data.tolist(), "nbinsx": 40, "histnorm": "probability density",
+             "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}}, "name": "Data"},
+            {"type": "scatter", "x": x_range.tolist(), "y": pp_pdf.tolist(), "mode": "lines",
+             "line": {"color": "#e89547", "width": 2.5}, "name": "Posterior Predictive"},
+            {"type": "scatter", "x": x_range.tolist(), "y": norm_pdf.tolist(), "mode": "lines",
+             "line": {"color": "#5b9bd5", "dash": "dash", "width": 1.5}, "name": "Normal Fit"},
+        ]
+        if lsl is not None:
+            overlay_traces.append({"type": "scatter", "x": [lsl, lsl], "y": [0, peak_y], "mode": "lines",
+                 "line": {"color": "#e85747", "width": 2}, "name": "LSL", "showlegend": False})
+        if usl is not None:
+            overlay_traces.append({"type": "scatter", "x": [usl, usl], "y": [0, peak_y], "mode": "lines",
+                 "line": {"color": "#e85747", "width": 2}, "name": "USL", "showlegend": False})
+        result["plots"].append({
+            "title": "Data vs Predictive Distribution",
+            "data": overlay_traces,
+            "layout": {"height": 300, "xaxis": {"title": measurement}, "yaxis": {"title": "Density"}}
+        })
+
+        result["guide_observation"] = f"Bayesian capability: Cpk median {cpk_median:.3f} [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}], P(Cpk>1.33)={p_gt_133:.1%}, DPMO={dpmo:.0f}"
+
+    elif analysis_id == "bayes_spc_changepoint":
+        # Bayesian Online Change Point Detection (Adams & MacKay 2007)
+        from scipy.special import logsumexp, gammaln
+        hazard_rate = float(config.get("hazard_rate", 0.01))
+        min_seg = int(config.get("min_segment_length", 5))
+
+        n = len(data)
+        max_rl = min(500, n)  # truncate run-length window for performance
+
+        # NIG sufficient statistics per run length
+        log_H = np.log(hazard_rate)
+        log_1mH = np.log(1 - hazard_rate)
+
+        # Priors (weakly informative per segment)
+        s2_cp = float(np.var(data, ddof=1)) if len(data) > 1 else 1.0
+        mu0_cp, nu0_cp, alpha0_cp, beta0_cp = float(np.mean(data)), 1.0, 2.0, max(s2_cp, 1e-10)
+
+        # Forward pass
+        # run_length_probs[t] = log P(r_t = r | x_{1:t})
+        log_R = -np.inf * np.ones((n + 1, max_rl + 1))
+        log_R[0, 0] = 0.0  # P(r_0 = 0) = 1
+
+        # Track sufficient stats: sum_x, sum_x2, count per run length
+        ss_n = np.zeros(max_rl + 1)
+        ss_sum = np.zeros(max_rl + 1)
+        ss_sum2 = np.zeros(max_rl + 1)
+
+        cp_prob = np.zeros(n)  # P(r_t = 0) at each step
+
+        for t in range(n):
+            x = data[t]
+
+            # Predictive probability for each run length (Student-t)
+            # NIG predictive: t-distribution with updated params
+            rl_range = min(t + 1, max_rl)
+            log_pred = np.full(rl_range + 1, -np.inf)
+
+            for r in range(rl_range + 1):
+                nn = ss_n[r]
+                if nn == 0:
+                    # Prior predictive
+                    nu_r = nu0_cp
+                    alpha_r = alpha0_cp
+                    mu_r = mu0_cp
+                    beta_r = beta0_cp
+                else:
+                    xbar_r = ss_sum[r] / nn
+                    nu_r = nu0_cp + nn
+                    mu_r = (nu0_cp * mu0_cp + nn * xbar_r) / nu_r
+                    alpha_r = alpha0_cp + nn / 2.0
+                    beta_r = beta0_cp + 0.5 * (ss_sum2[r] - nn * xbar_r**2) + \
+                             (nn * nu0_cp * (xbar_r - mu0_cp)**2) / (2.0 * nu_r)
+                    beta_r = max(beta_r, 1e-10)
+
+                # Student-t log pdf
+                df_r = 2 * alpha_r
+                scale_r = np.sqrt(beta_r * (nu_r + 1) / (alpha_r * nu_r))
+                scale_r = max(scale_r, 1e-10)
+                z = (x - mu_r) / scale_r
+                log_pred[r] = (gammaln((df_r + 1) / 2) - gammaln(df_r / 2) -
+                               0.5 * np.log(df_r * np.pi) - np.log(scale_r) -
+                               ((df_r + 1) / 2) * np.log(1 + z**2 / df_r))
+
+            # Growth: P(r_{t+1} = r+1) ∝ P(r_t = r) * pred(x) * (1-H)
+            log_growth = np.full(max_rl + 1, -np.inf)
+            for r in range(rl_range + 1):
+                if r < max_rl and log_R[t, r] > -1e300:
+                    log_growth[r + 1] = log_R[t, r] + log_pred[r] + log_1mH
+
+            # Changepoint: P(r_{t+1} = 0) = sum P(r_t = r) * pred(x) * H
+            log_cp_terms = []
+            for r in range(rl_range + 1):
+                if log_R[t, r] > -1e300:
+                    log_cp_terms.append(log_R[t, r] + log_pred[r] + log_H)
+            log_cp = logsumexp(log_cp_terms) if log_cp_terms else -np.inf
+
+            # Combine and normalize
+            log_R[t + 1, 0] = log_cp
+            for r in range(1, max_rl + 1):
+                log_R[t + 1, r] = log_growth[r]
+
+            # Normalize
+            log_evidence = logsumexp(log_R[t + 1, :max_rl + 1])
+            log_R[t + 1, :max_rl + 1] -= log_evidence
+
+            cp_prob[t] = np.exp(log_R[t + 1, 0])
+
+            # Update sufficient stats
+            new_ss_n = np.zeros(max_rl + 1)
+            new_ss_sum = np.zeros(max_rl + 1)
+            new_ss_sum2 = np.zeros(max_rl + 1)
+            for r in range(1, min(t + 2, max_rl + 1)):
+                new_ss_n[r] = ss_n[r - 1] + 1
+                new_ss_sum[r] = ss_sum[r - 1] + x
+                new_ss_sum2[r] = ss_sum2[r - 1] + x**2
+            new_ss_n[0] = 0
+            new_ss_sum[0] = 0
+            new_ss_sum2[0] = 0
+            ss_n, ss_sum, ss_sum2 = new_ss_n, new_ss_sum, new_ss_sum2
+
+        # Detect changepoints
+        changepoints = []
+        for t in range(min_seg, n - min_seg):
+            if cp_prob[t] > 0.5:
+                # Ensure minimum distance between changepoints
+                if not changepoints or (t - changepoints[-1]) >= min_seg:
+                    changepoints.append(t)
+
+        # Segment statistics
+        boundaries = [0] + changepoints + [n]
+        segments = []
+        for i in range(len(boundaries) - 1):
+            seg_data = data[boundaries[i]:boundaries[i + 1]]
+            segments.append({
+                "start": int(boundaries[i]), "end": int(boundaries[i + 1]),
+                "mean": float(np.mean(seg_data)), "std": float(np.std(seg_data, ddof=1)) if len(seg_data) > 1 else 0,
+                "n": len(seg_data)
+            })
+
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>BAYESIAN CHANGE POINT DETECTION (BOCPD)<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Hazard rate:<</COLOR>> {hazard_rate}\n\n"
+
+        if changepoints:
+            summary += f"<<COLOR:success>>Detected {len(changepoints)} change point(s):<</COLOR>>\n\n"
+            for i, cp in enumerate(changepoints):
+                seg_before = segments[i]
+                seg_after = segments[i + 1]
+                summary += f"  <<COLOR:highlight>>Change {i+1}:<</COLOR>> observation {cp}, P(change) = {cp_prob[cp]:.3f}\n"
+                summary += f"    Before: μ = {seg_before['mean']:.4f}, σ = {seg_before['std']:.4f} (n={seg_before['n']})\n"
+                summary += f"    After:  μ = {seg_after['mean']:.4f}, σ = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
+        else:
+            summary += f"<<COLOR:text>>No significant change points detected (threshold: P > 0.5)<</COLOR>>\n"
+
+        result["summary"] = summary
+        result["statistics"] = {"n_changepoints": len(changepoints), "changepoints": changepoints, "segments": segments}
+
+        # Plot 1: Run-length posterior heatmap
+        rl_display = min(max_rl, 100)
+        heatmap_data = np.exp(log_R[1:n + 1, :rl_display]).T
+        result["plots"].append({
+            "title": "Run-Length Posterior",
+            "data": [{"type": "heatmap", "z": heatmap_data.tolist(),
+                       "colorscale": "Viridis", "showscale": True,
+                       "colorbar": {"title": "P(r)"}}],
+            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Run Length"}}
+        })
+
+        # Plot 2: Change point probability
+        colors = [f"rgba({int(255*p)},{int(255*(1-p))},80,0.8)" for p in cp_prob]
+        result["plots"].append({
+            "title": "Change Point Probability",
+            "data": [
+                {"type": "bar", "y": cp_prob.tolist(), "marker": {"color": colors}, "name": "P(change)", "showlegend": False},
+                {"type": "scatter", "x": [0, n], "y": [0.5, 0.5], "mode": "lines",
+                 "line": {"color": "#e89547", "dash": "dash"}, "name": "Threshold"},
+            ],
+            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "P(r=0)", "range": [0, 1.05]}}
+        })
+
+        # Plot 3: Process data with detected changes
+        proc_data = [{"type": "scatter", "y": data.tolist(), "mode": "lines+markers",
+                       "marker": {"size": 4, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e"}, "name": measurement}]
+        for i, cp in enumerate(changepoints):
+            proc_data.append({"type": "scatter", "x": [cp, cp], "y": [float(data.min()), float(data.max())],
+                              "mode": "lines", "line": {"color": "#e85747", "width": 2, "dash": "dash"}, "name": f"Change {i+1}"})
+        for seg in segments:
+            proc_data.append({"type": "scatter", "x": [seg["start"], seg["end"] - 1],
+                              "y": [seg["mean"], seg["mean"]], "mode": "lines",
+                              "line": {"color": "#e89547", "width": 2}, "name": f"μ={seg['mean']:.2f}", "showlegend": False})
+        result["plots"].append({
+            "title": "Process Data with Change Points",
+            "data": proc_data,
+            "layout": {"height": 350, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}}
+        })
+
+        result["guide_observation"] = f"BOCPD detected {len(changepoints)} change point(s) in {n} observations"
+
+    elif analysis_id == "bayes_spc_control":
+        # Bayesian Control Chart — two-state HMM forward filter
+        ref_mean = config.get("reference_mean")
+        ref_std = config.get("reference_std")
+        shift_size = float(config.get("shift_size", 1.5))
+        trans_prob = float(config.get("transition_prob", 0.01))
+
+        n = len(data)
+        # Auto-estimate reference from first 20 obs if not provided
+        n_ref = min(20, n)
+        if ref_mean is None or ref_mean == "" or ref_mean == "null":
+            ref_mean = float(np.mean(data[:n_ref]))
+        else:
+            ref_mean = float(ref_mean)
+        if ref_std is None or ref_std == "" or ref_std == "null":
+            ref_std = float(np.std(data[:n_ref], ddof=1)) if n_ref > 1 else float(np.std(data, ddof=1))
+        else:
+            ref_std = float(ref_std)
+        ref_std = max(ref_std, 1e-10)
+
+        # HMM parameters
+        # State 0 (in-control): X ~ N(ref_mean, ref_std)
+        # State 1 (shifted): marginalized over +δ and -δ shift direction
+        delta = shift_size * ref_std
+        p_recover = 0.05
+
+        from scipy.stats import norm
+
+        # Forward filter in log-space
+        log_p_ic = np.zeros(n)  # P(in-control | data_{1:t})
+        log_alpha_ic = 0.0  # log P(state=IC, data_{1:t})
+        log_alpha_sh = np.log(1e-10)  # log P(state=shifted, data_{1:t})
+
+        # Sequential NIG posterior for mu
+        seq_mu = np.zeros(n)
+        seq_ci_lo = np.zeros(n)
+        seq_ci_hi = np.zeros(n)
+        from scipy.stats import t as tdist_sc
+        mu0_s, nu0_s, alpha0_s, beta0_s = ref_mean, 1.0, 2.0, max(ref_std**2, 1e-10)
+
+        for t in range(n):
+            x = data[t]
+
+            # Emission likelihoods
+            ll_ic = norm.logpdf(x, loc=ref_mean, scale=ref_std)
+            # Shifted state: marginalize over +δ and -δ (equal probability)
+            ll_sh_plus = norm.logpdf(x, loc=ref_mean + delta, scale=ref_std)
+            ll_sh_minus = norm.logpdf(x, loc=ref_mean - delta, scale=ref_std)
+            ll_sh = np.logaddexp(ll_sh_plus, ll_sh_minus) - np.log(2)
+
+            # Transition
+            log_t_ic_ic = np.log(1 - trans_prob)
+            log_t_ic_sh = np.log(trans_prob)
+            log_t_sh_ic = np.log(p_recover)
+            log_t_sh_sh = np.log(1 - p_recover)
+
+            # Forward step
+            from scipy.special import logsumexp as _lse
+            new_log_alpha_ic = _lse([log_alpha_ic + log_t_ic_ic, log_alpha_sh + log_t_sh_ic]) + ll_ic
+            new_log_alpha_sh = _lse([log_alpha_ic + log_t_ic_sh, log_alpha_sh + log_t_sh_sh]) + ll_sh
+
+            # Normalize
+            log_evidence = _lse([new_log_alpha_ic, new_log_alpha_sh])
+            log_alpha_ic = new_log_alpha_ic - log_evidence
+            log_alpha_sh = new_log_alpha_sh - log_evidence
+
+            log_p_ic[t] = log_alpha_ic
+            p_shifted = 1.0 - np.exp(log_alpha_ic)
+
+            # Sequential NIG for mu
+            seg_data = data[:t + 1]
+            mu_n_s, nu_n_s, alpha_n_s, beta_n_s = _nig_posterior_update(seg_data, mu0_s, nu0_s, alpha0_s, beta0_s)
+            seq_mu[t] = mu_n_s
+            if alpha_n_s > 0 and nu_n_s > 0 and beta_n_s > 0:
+                scale_s = np.sqrt(beta_n_s / (alpha_n_s * nu_n_s))
+                ci_half = tdist_sc.ppf(0.975, df=2 * alpha_n_s) * scale_s
+                seq_ci_lo[t] = mu_n_s - ci_half
+                seq_ci_hi[t] = mu_n_s + ci_half
+            else:
+                seq_ci_lo[t] = mu_n_s
+                seq_ci_hi[t] = mu_n_s
+
+        p_shifted_arr = 1.0 - np.exp(log_p_ic)
+        n_alarms = int(np.sum(p_shifted_arr > 0.5))
+
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>BAYESIAN CONTROL CHART<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Ref μ:<</COLOR>> {ref_mean:.4f}    <<COLOR:highlight>>Ref σ:<</COLOR>> {ref_std:.4f}\n"
+        summary += f"<<COLOR:highlight>>Shift size:<</COLOR>> {shift_size}σ    <<COLOR:highlight>>P(shift):<</COLOR>> {trans_prob}\n\n"
+
+        if n_alarms > 0:
+            first_alarm = int(np.argmax(p_shifted_arr > 0.5))
+            summary += f"<<COLOR:error>>ALERT: {n_alarms} observations with P(shifted) > 0.5<</COLOR>>\n"
+            summary += f"<<COLOR:highlight>>First alarm at observation {first_alarm}<</COLOR>>\n\n"
+            summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
+        else:
+            summary += f"<<COLOR:success>>Process appears in control — no observations with P(shifted) > 0.5<</COLOR>>\n\n"
+            summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
+
+        result["summary"] = summary
+        result["statistics"] = {"n_alarms": n_alarms, "ref_mean": ref_mean, "ref_std": ref_std,
+                                 "final_mu": float(seq_mu[-1]), "final_ci": [float(seq_ci_lo[-1]), float(seq_ci_hi[-1])]}
+
+        # Plot 1: Process data colored by P(shifted)
+        colors = [f"rgb({int(255*p)},{int(255*(1-p))},80)" for p in p_shifted_arr]
+        result["plots"].append({
+            "title": "Process Data — Colored by P(shifted)",
+            "data": [
+                {"type": "scatter", "y": data.tolist(), "mode": "markers",
+                 "marker": {"color": colors, "size": 6, "line": {"color": "#333", "width": 0.5}},
+                 "name": measurement, "showlegend": False},
+                {"type": "scatter", "y": data.tolist(), "mode": "lines",
+                 "line": {"color": "rgba(150,150,150,0.3)", "width": 1}, "showlegend": False},
+                {"type": "scatter", "x": [0, n - 1], "y": [ref_mean, ref_mean], "mode": "lines",
+                 "line": {"color": "#5b9bd5", "dash": "dash"}, "name": "Reference μ"},
+            ],
+            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}}
+        })
+
+        # Plot 2: Sequential posterior for μ
+        x_idx = list(range(n))
+        result["plots"].append({
+            "title": "Sequential Posterior for μ",
+            "data": [
+                {"type": "scatter", "x": x_idx, "y": seq_ci_hi.tolist(), "mode": "lines",
+                 "line": {"color": "rgba(74,159,110,0.2)", "width": 0}, "showlegend": False},
+                {"type": "scatter", "x": x_idx, "y": seq_ci_lo.tolist(), "mode": "lines",
+                 "line": {"color": "rgba(74,159,110,0.2)", "width": 0}, "fill": "tonexty",
+                 "fillcolor": "rgba(74,159,110,0.15)", "name": "95% CI"},
+                {"type": "scatter", "x": x_idx, "y": seq_mu.tolist(), "mode": "lines",
+                 "line": {"color": "#4a9f6e", "width": 2}, "name": "Posterior μ"},
+                {"type": "scatter", "x": [0, n - 1], "y": [ref_mean, ref_mean], "mode": "lines",
+                 "line": {"color": "#5b9bd5", "dash": "dash"}, "name": "Reference"},
+            ],
+            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "μ"}}
+        })
+
+        # Plot 3: Alarm timeline
+        alarm_colors = [f"rgba({int(255*p)},{int(255*(1-p))},80,0.8)" for p in p_shifted_arr]
+        result["plots"].append({
+            "title": "Shift Probability Timeline",
+            "data": [
+                {"type": "bar", "y": p_shifted_arr.tolist(), "marker": {"color": alarm_colors}, "name": "P(shifted)", "showlegend": False},
+                {"type": "scatter", "x": [0, n - 1], "y": [0.5, 0.5], "mode": "lines",
+                 "line": {"color": "#e89547", "dash": "dash", "width": 2}, "name": "Alarm threshold"},
+            ],
+            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "P(shifted)", "range": [0, 1.05]}}
+        })
+
+        result["guide_observation"] = f"Bayesian control chart: {n_alarms} alarms in {n} observations (shift={shift_size}σ)"
+
+    elif analysis_id == "bayes_spc_acceptance":
+        # Bayesian Acceptance Sampling — Beta-Binomial conjugate
+        from scipy.stats import beta as betadist
+
+        aql = float(config.get("aql", 0.01))
+        threshold = float(config.get("acceptance_threshold", 0.95))
+        prior_alpha = float(config.get("prior_alpha", 1))
+        prior_beta = float(config.get("prior_beta", 1))
+
+        # Determine defectives: either from manual input or classify from spec limits
+        manual_defectives = config.get("defectives")
+        manual_sample = config.get("sample_size")
+        if manual_defectives is not None and manual_sample is not None:
+            k = int(manual_defectives)
+            n_total = int(manual_sample)
+        else:
+            # Classify from measurements + spec limits
+            usl_a = config.get("usl")
+            lsl_a = config.get("lsl")
+            n_total = len(data)
+            k = 0
+            if usl_a is not None and usl_a != "" and usl_a != "null":
+                k += int(np.sum(data > float(usl_a)))
+            if lsl_a is not None and lsl_a != "" and lsl_a != "null":
+                k += int(np.sum(data < float(lsl_a)))
+
+        # Posterior
+        post_alpha = prior_alpha + k
+        post_beta_param = prior_beta + n_total - k
+        p_accept = float(betadist.cdf(aql, post_alpha, post_beta_param))
+        post_mean = post_alpha / (post_alpha + post_beta_param)
+        post_ci = (float(betadist.ppf(0.025, post_alpha, post_beta_param)),
+                   float(betadist.ppf(0.975, post_alpha, post_beta_param)))
+
+        # Decision
+        if p_accept >= threshold:
+            decision = "ACCEPT"
+            decision_color = "success"
+        elif p_accept <= (1 - threshold):
+            decision = "REJECT"
+            decision_color = "error"
+        else:
+            decision = "CONTINUE SAMPLING"
+            decision_color = "highlight"
+
+        # Sequential analysis: P(p<AQL) at each cumulative inspection
+        seq_p_accept = []
+        seq_k = 0
+        earliest_accept = None
+        earliest_reject = None
+        for i in range(n_total):
+            if manual_defectives is not None:
+                # Simulate sequentially from overall rate
+                seq_k_i = int(round(k * (i + 1) / n_total))
+            else:
+                # From actual data classification
+                val = data[i] if i < len(data) else data[-1]
+                is_def = False
+                usl_a = config.get("usl")
+                lsl_a = config.get("lsl")
+                if usl_a is not None and usl_a != "" and usl_a != "null" and val > float(usl_a):
+                    is_def = True
+                if lsl_a is not None and lsl_a != "" and lsl_a != "null" and val < float(lsl_a):
+                    is_def = True
+                seq_k += int(is_def)
+                seq_k_i = seq_k
+
+            pa_i = float(betadist.cdf(aql, prior_alpha + seq_k_i, prior_beta + (i + 1) - seq_k_i))
+            seq_p_accept.append(pa_i)
+
+            if earliest_accept is None and pa_i >= threshold:
+                earliest_accept = i + 1
+            if earliest_reject is None and pa_i <= (1 - threshold):
+                earliest_reject = i + 1
+
+        # Decision boundaries: max k giving acceptance at each n
+        boundary_n = list(range(1, n_total + 1))
+        accept_boundary = []
+        reject_boundary = []
+        for ni in boundary_n:
+            # Find max k where P(p<AQL) >= threshold
+            max_k_accept = -1
+            min_k_reject = ni + 1
+            for ki in range(ni + 1):
+                pa = betadist.cdf(aql, prior_alpha + ki, prior_beta + ni - ki)
+                if pa >= threshold:
+                    max_k_accept = ki
+                if pa <= (1 - threshold) and ki < min_k_reject:
+                    min_k_reject = ki
+            accept_boundary.append(max_k_accept if max_k_accept >= 0 else None)
+            reject_boundary.append(min_k_reject if min_k_reject <= ni else None)
+
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>BAYESIAN ACCEPTANCE SAMPLING<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Sample size:<</COLOR>> {n_total}    <<COLOR:highlight>>Defectives:<</COLOR>> {k}    <<COLOR:highlight>>AQL:<</COLOR>> {aql}\n"
+        summary += f"<<COLOR:highlight>>Prior:<</COLOR>> Beta({prior_alpha}, {prior_beta})    <<COLOR:highlight>>Threshold:<</COLOR>> {threshold}\n\n"
+        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>Posterior for Defect Rate<</COLOR>>\n"
+        summary += f"  Mean: <<COLOR:highlight>>{post_mean:.6f}<</COLOR>>    95% CI: [{post_ci[0]:.6f}, {post_ci[1]:.6f}]\n"
+        summary += f"  P(p < AQL) = <<COLOR:{'success' if p_accept > threshold else 'error'}>>{p_accept:.4f}<</COLOR>>\n\n"
+        summary += f"<<COLOR:{decision_color}>>Decision: {decision}<</COLOR>>\n\n"
+
+        if earliest_accept:
+            summary += f"<<COLOR:success>>Earliest acceptance possible at n = {earliest_accept}<</COLOR>>\n"
+        if earliest_reject:
+            summary += f"<<COLOR:error>>Earliest rejection at n = {earliest_reject}<</COLOR>>\n"
+
+        result["summary"] = summary
+        result["statistics"] = {
+            "defectives": k, "sample_size": n_total, "defect_rate_mean": post_mean,
+            "defect_rate_ci": list(post_ci), "p_accept": p_accept, "decision": decision,
+            "earliest_accept": earliest_accept, "earliest_reject": earliest_reject,
+        }
+
+        # Plot 1: Posterior for defect rate
+        x_range = np.linspace(0, min(max(post_ci[1] * 3, aql * 5), 1.0), 300)
+        post_pdf = betadist.pdf(x_range, post_alpha, post_beta_param)
+        prior_pdf = betadist.pdf(x_range, prior_alpha, prior_beta) if prior_alpha > 0 and prior_beta > 0 else np.zeros_like(x_range)
+        result["plots"].append({
+            "title": "Posterior for Defect Rate",
+            "data": [
+                {"type": "scatter", "x": x_range.tolist(), "y": post_pdf.tolist(), "mode": "lines",
+                 "fill": "tozeroy", "fillcolor": "rgba(74,159,110,0.2)",
+                 "line": {"color": "#4a9f6e", "width": 2}, "name": "Posterior"},
+                {"type": "scatter", "x": x_range.tolist(), "y": prior_pdf.tolist(), "mode": "lines",
+                 "line": {"color": "#888", "dash": "dash", "width": 1.5}, "name": "Prior"},
+                {"type": "scatter", "x": [aql, aql], "y": [0, max(post_pdf) if len(post_pdf) > 0 else 1],
+                 "mode": "lines", "line": {"color": "#e85747", "width": 2}, "name": f"AQL = {aql}"},
+            ],
+            "layout": {"height": 300, "xaxis": {"title": "Defect Rate (p)"}, "yaxis": {"title": "Density"},
+                        "annotations": [{"x": post_mean, "y": max(post_pdf) * 0.9 if len(post_pdf) > 0 else 0.5,
+                                         "text": f"P(p<AQL)={p_accept:.3f}", "showarrow": True,
+                                         "font": {"color": "#4a9f6e"}}]}
+        })
+
+        # Plot 2: Sequential posterior evolution
+        result["plots"].append({
+            "title": "Sequential P(p < AQL) — Earliest Stopping",
+            "data": [
+                {"type": "scatter", "x": list(range(1, n_total + 1)), "y": seq_p_accept, "mode": "lines",
+                 "line": {"color": "#4a9f6e", "width": 2}, "name": "P(p < AQL)"},
+                {"type": "scatter", "x": [1, n_total], "y": [threshold, threshold], "mode": "lines",
+                 "line": {"color": "#4a9f6e", "dash": "dash"}, "name": f"Accept ({threshold})"},
+                {"type": "scatter", "x": [1, n_total], "y": [1 - threshold, 1 - threshold], "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash"}, "name": f"Reject ({1-threshold:.2f})"},
+            ],
+            "layout": {"height": 250, "xaxis": {"title": "Items Inspected"}, "yaxis": {"title": "P(p < AQL)", "range": [0, 1.05]},
+                        "annotations": ([{"x": earliest_accept, "y": threshold, "text": f"Accept @ n={earliest_accept}",
+                                          "showarrow": True, "font": {"color": "#4a9f6e"}}] if earliest_accept else [])}
+        })
+
+        # Plot 3: Decision boundary
+        accept_y = [b if b is not None else None for b in accept_boundary]
+        reject_y = [b if b is not None else None for b in reject_boundary]
+        boundary_plots = [
+            {"type": "scatter", "x": boundary_n, "y": accept_y, "mode": "lines",
+             "line": {"color": "#4a9f6e", "width": 2}, "name": "Accept boundary", "connectgaps": False},
+            {"type": "scatter", "x": boundary_n, "y": reject_y, "mode": "lines",
+             "line": {"color": "#e85747", "width": 2}, "name": "Reject boundary", "connectgaps": False},
+        ]
+        # Add actual trajectory point
+        boundary_plots.append({"type": "scatter", "x": [n_total], "y": [k], "mode": "markers",
+                                "marker": {"color": "#e89547", "size": 12, "symbol": "star"},
+                                "name": f"Observed ({n_total}, {k})"})
+        result["plots"].append({
+            "title": "Decision Boundaries",
+            "data": boundary_plots,
+            "layout": {"height": 300, "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Defectives (k)"}}
+        })
+
+        result["guide_observation"] = f"Bayesian acceptance: {k}/{n_total} defectives, P(p<AQL)={p_accept:.3f}, decision={decision}"
 
     return result
 
