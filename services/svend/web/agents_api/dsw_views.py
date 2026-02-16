@@ -21652,6 +21652,14 @@ def run_spc_analysis(df, analysis_id, config):
             "method": "Burger et al. (2025) arXiv:2512.23602",
         }
 
+    # ── Bridge: Bayesian SPC suite lives in run_visualization ──
+    elif analysis_id.startswith("bayes_spc_"):
+        return run_visualization(df, analysis_id, config)
+
+    # ── Bridge: Bayesian DOE suite ──
+    elif analysis_id.startswith("bayes_doe_"):
+        from .bayes_doe import run_bayesian_doe
+        return run_bayesian_doe(df, analysis_id, config)
 
     return result
 

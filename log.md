@@ -15,6 +15,18 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-15 — Wire all SPC + Bayesian + Conformal to frontend
+
+**What:** Expanded SPC control charts dropdown from 4 to 18 chart types (optgroups: Variable, Attribute, Advanced). Added Conformal SPC sub-tab with univariate and multivariate analysis forms. Fixed backend routing so `bayes_spc_*` analyses are accessible (bridge from `run_spc_analysis` to `run_visualization`). Advanced charts route through DSW analysis endpoint with dynamic config (lambda, span, variables, subgroup column).
+
+**Files changed:**
+- `templates/dsw.html` — Expanded SPC chart dropdown (18 types with optgroups), added dynamic config fields (EWMA lambda, MA span, multivariate variables, subgroup column), new Conformal SPC sub-tab with forms for conformal_control and conformal_monitor, updated `createControlChart()` to route advanced charts through DSW endpoint, added `runConformalSpc()` and `updateConformalForm()` functions
+- `agents_api/dsw_views.py` — Added `bayes_spc_*` bridge in `run_spc_analysis()` to forward to `run_visualization()`
+
+**Verification:** Open DSW → SPC tab. Chart dropdown now shows 18 options in 3 groups. Conformal SPC sub-tab shows univariate/multivariate analysis forms.
+
+---
+
 ### 2026-02-15 — Bayesian SPC Blocks + Conformal Prediction Control Charts
 
 **What:** Added 3 Bayesian SPC analysis blocks and 2 conformal prediction control chart blocks to `run_spc_analysis()` in dsw_views.py.

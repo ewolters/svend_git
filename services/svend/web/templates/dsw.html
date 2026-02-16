@@ -41,6 +41,15 @@
             <span class="component-label">OpEx</span>
             <span class="component-desc">DOE & Process Improvement</span>
         </button>
+        <button class="component-btn" onclick="showComponent('bayesian')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/>
+                <path d="M12 6v12M8 9c0-1.7 1.8-3 4-3s4 1.3 4 3-1.8 3-4 3"/>
+                <path d="M8 15c0 1.7 1.8 3 4 3s4-1.3 4-3"/>
+            </svg>
+            <span class="component-label">Bayesian Sigma</span>
+            <span class="component-desc">Bayesian SPC & Capability</span>
+        </button>
         <button class="component-btn" onclick="showComponent('stats')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
                 <path d="M3 3v18h18"/>
@@ -232,6 +241,7 @@
             <button class="sub-tab active" onclick="showSubTab('spc', 'charts')">Control Charts</button>
             <button class="sub-tab" onclick="showSubTab('spc', 'capability')">Process Capability</button>
             <button class="sub-tab" onclick="showSubTab('spc', 'msa')">MSA (Gage R&R)</button>
+            <button class="sub-tab" onclick="showSubTab('spc', 'conformal')">Conformal SPC</button>
             <button class="sub-tab" onclick="showSubTab('spc', 'summary')">Data Summary</button>
         </div>
 
@@ -244,10 +254,28 @@
                     <div class="form-group">
                         <label>Chart Type</label>
                         <select id="chart-type" onchange="updateChartHelp()">
-                            <option value="I-MR">I-MR (Individuals & Moving Range)</option>
-                            <option value="X-bar R">X-bar R (Subgroup Means & Range)</option>
-                            <option value="p">p-Chart (Proportion Defective)</option>
-                            <option value="c">c-Chart (Defect Count)</option>
+                            <optgroup label="Variable Charts (Continuous Data)">
+                                <option value="I-MR">I-MR (Individuals & Moving Range)</option>
+                                <option value="X-bar R">X-bar R (Subgroup Means & Range)</option>
+                                <option value="xbar_s">X-bar S (Subgroup Means & Std Dev)</option>
+                                <option value="between_within">Between/Within (I-MR-R/S)</option>
+                                <option value="moving_average">Moving Average</option>
+                                <option value="zone_chart">Zone Chart (cumulative scoring)</option>
+                            </optgroup>
+                            <optgroup label="Attribute Charts (Count Data)">
+                                <option value="p">p-Chart (Proportion Defective)</option>
+                                <option value="np_chart">np-Chart (Count Defective)</option>
+                                <option value="c">c-Chart (Defect Count)</option>
+                                <option value="u_chart">u-Chart (Defects per Unit)</option>
+                                <option value="laney_p">Laney P' (overdispersion-adjusted p)</option>
+                                <option value="laney_u">Laney U' (overdispersion-adjusted u)</option>
+                            </optgroup>
+                            <optgroup label="Advanced / Time-Weighted">
+                                <option value="cusum">CUSUM (Cumulative Sum)</option>
+                                <option value="ewma">EWMA (Exponentially Weighted)</option>
+                                <option value="mewma">MEWMA (Multivariate EWMA)</option>
+                                <option value="generalized_variance">Generalized Variance (|S|)</option>
+                            </optgroup>
                         </select>
                         <small id="chart-help" class="help-text">For continuous data with sample size of 1</small>
                     </div>
@@ -262,8 +290,31 @@ For subgroups: one row per subgroup
                     </div>
 
                     <div id="sample-sizes-group" class="form-group" style="display: none;">
-                        <label>Sample Sizes (for p-chart)</label>
+                        <label>Sample Sizes (for p/np chart)</label>
                         <textarea id="sample-sizes" rows="2" placeholder="50, 50, 48, 52..."></textarea>
+                    </div>
+
+                    <div id="subgroup-col-group" class="form-group" style="display: none;">
+                        <label>Subgroup Column</label>
+                        <input type="text" id="chart-subgroup-col" placeholder="Column name for subgroups">
+                        <small class="help-text">Required for between/within chart</small>
+                    </div>
+
+                    <div id="ewma-lambda-group" class="form-group" style="display: none;">
+                        <label>Lambda (smoothing weight)</label>
+                        <input type="number" id="chart-lambda" step="0.01" value="0.2" min="0.01" max="1">
+                        <small class="help-text">0.05-0.25 typical; lower = more smoothing</small>
+                    </div>
+
+                    <div id="ma-span-group" class="form-group" style="display: none;">
+                        <label>Moving Average Span</label>
+                        <input type="number" id="chart-ma-span" step="1" value="4" min="2">
+                    </div>
+
+                    <div id="multivar-group" class="form-group" style="display: none;">
+                        <label>Variables (comma-separated column names)</label>
+                        <input type="text" id="chart-variables" placeholder="e.g. temp, pressure, humidity">
+                        <small class="help-text">Requires uploaded file with named columns</small>
                     </div>
 
                     <div class="form-row">
@@ -445,6 +496,87 @@ Or paste from spreadsheet (tab-separated)"></textarea>
             </div>
         </div>
 
+        <!-- Conformal SPC -->
+        <div id="spc-conformal" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Conformal Prediction SPC</h3>
+                    <p class="help-text" style="margin-bottom:12px;">Burger et al. (2025) — distribution-free process monitoring with guaranteed false alarm rate. No normality assumption.</p>
+
+                    <div class="form-group">
+                        <label>Analysis Type</label>
+                        <select id="conformal-type" onchange="updateConformalForm()">
+                            <option value="conformal_control">Control Chart (univariate)</option>
+                            <option value="conformal_monitor">P-Value Chart (multivariate)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Data</label>
+                        <textarea id="conformal-data" rows="5" placeholder="Enter measurements (comma or newline separated)"></textarea>
+                    </div>
+
+                    <div id="conformal-univariate-opts">
+                        <div class="form-group">
+                            <label>Chart Subtype</label>
+                            <select id="conformal-chart-subtype">
+                                <option value="individuals">Individual Values</option>
+                                <option value="subgroup_mean">Subgroup Mean</option>
+                                <option value="subgroup_range">Subgroup Range</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Subgroup Size</label>
+                                <input type="number" id="conformal-subgroup" value="5" min="2">
+                            </div>
+                            <div class="form-group">
+                                <label>Spike Threshold</label>
+                                <input type="number" id="conformal-spike" step="0.1" value="2.0">
+                                <small class="help-text">Multiplier for uncertainty spike detection</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="conformal-multivariate-opts" style="display:none;">
+                        <div class="form-group">
+                            <label>Variables (comma-separated column names)</label>
+                            <input type="text" id="conformal-variables" placeholder="e.g. temp, pressure, humidity">
+                            <small class="help-text">Requires uploaded file with named columns</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Anomaly Model</label>
+                            <select id="conformal-model">
+                                <option value="isolation_forest">Isolation Forest</option>
+                                <option value="mahalanobis">Mahalanobis Distance</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>False Alarm Rate (&alpha;)</label>
+                            <input type="number" id="conformal-alpha" step="0.01" value="0.05" min="0.001" max="0.5">
+                        </div>
+                        <div class="form-group">
+                            <label>Calibration Fraction</label>
+                            <input type="number" id="conformal-cal-frac" step="0.05" value="0.5" min="0.1" max="0.9">
+                            <small class="help-text">Phase I split (0.3-0.7 typical)</small>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="runConformalSpc()">Run Analysis</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="conformal-results">
+                        <p class="empty-text">Distribution-free control chart with guaranteed coverage</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Data Summary -->
         <div id="spc-summary" class="sub-content">
             <div class="two-column">
@@ -463,6 +595,361 @@ Or paste from spreadsheet (tab-separated)"></textarea>
                     <h3>Summary Statistics</h3>
                     <div id="summary-results">
                         <p class="empty-text">Enter data to calculate statistics</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- BAYESIAN SIGMA COMPONENT -->
+    <!-- ================================================================== -->
+    <div id="bayesian-component" class="component-content">
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showSubTab('bayesian', 'capability')">Capability (Cpk)</button>
+            <button class="sub-tab" onclick="showSubTab('bayesian', 'changepoint')">Change Point</button>
+            <button class="sub-tab" onclick="showSubTab('bayesian', 'control')">Control Chart</button>
+            <button class="sub-tab" onclick="showSubTab('bayesian', 'acceptance')">Acceptance Sampling</button>
+            <span style="border-left:1px solid var(--border);margin:0 6px;height:20px;display:inline-block;vertical-align:middle;"></span>
+            <button class="sub-tab" onclick="showSubTab('bayesian', 'doe-effects')">Effect Screen</button>
+            <button class="sub-tab" onclick="showSubTab('bayesian', 'doe-model')">Model Select</button>
+            <button class="sub-tab" onclick="showSubTab('bayesian', 'doe-samplesize')">DOE Sample Size</button>
+            <button class="sub-tab" onclick="showSubTab('bayesian', 'doe-optimize')">Optimize</button>
+            <button class="sub-tab" onclick="showSubTab('bayesian', 'doe-next')">Next Experiment</button>
+        </div>
+
+        <!-- Bayesian Capability -->
+        <div id="bayesian-capability" class="sub-content active">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Bayesian Process Capability</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">Posterior Cpk distribution — no 1.5&sigma; shift assumption. Uncertainty is a first-class citizen.</p>
+
+                    <div class="form-group">
+                        <label>Data</label>
+                        <textarea id="bayes-cap-data" rows="4" placeholder="Enter measurements (comma or newline separated)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>USL (leave blank for LSL-only)</label>
+                        <input type="number" id="bayes-usl" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>LSL (leave blank for USL-only)</label>
+                        <input type="number" id="bayes-lsl" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>Target (optional)</label>
+                        <input type="number" id="bayes-target" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>Prior</label>
+                        <select id="bayes-prior-type">
+                            <option value="weakly_informative">Default (weak) — relies mostly on your data</option>
+                            <option value="historical">Historical — uses previous period as prior</option>
+                            <option value="informative">Engineering — uses expected mean/variation</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesSigma('bayes_spc_capability', 'bayes-cap-data')">Run Analysis</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="bayes-cap-results">
+                        <p class="empty-text">Enter measurement data and at least one spec limit</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bayesian Change Point -->
+        <div id="bayesian-changepoint" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Bayesian Change Point Detection</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">Adams & MacKay (2007) online algorithm. Finds process shifts without CUSUM/EWMA tuning.</p>
+
+                    <div class="form-group">
+                        <label>Data</label>
+                        <textarea id="bayes-cp-data" rows="4" placeholder="Enter time-ordered values (comma or newline separated)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Hazard Rate (expected change frequency)</label>
+                        <input type="number" id="bayes-hazard" step="any" value="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Min Segment Length</label>
+                        <input type="number" id="bayes-min-seg" step="1" value="5">
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesSigma('bayes_spc_changepoint', 'bayes-cp-data')">Run Analysis</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="bayes-cp-results">
+                        <p class="empty-text">Enter time-ordered data to detect process changes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bayesian Control Chart -->
+        <div id="bayesian-control" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Bayesian Control Chart</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">HMM forward filter with P(shifted). Works with short runs (n&ge;10) — no 25-subgroup requirement.</p>
+
+                    <div class="form-group">
+                        <label>Data</label>
+                        <textarea id="bayes-ctrl-data" rows="4" placeholder="Enter time-ordered values (comma or newline separated)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Reference Mean (auto from first 20 obs if blank)</label>
+                        <input type="number" id="bayes-ref-mean" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>Reference Std (auto if blank)</label>
+                        <input type="number" id="bayes-ref-std" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>Shift Size (in &sigma; units)</label>
+                        <input type="number" id="bayes-shift" step="any" value="1.5">
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesSigma('bayes_spc_control', 'bayes-ctrl-data')">Run Analysis</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="bayes-ctrl-results">
+                        <p class="empty-text">Enter process data to monitor for shifts</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bayesian Acceptance Sampling -->
+        <div id="bayesian-acceptance" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Bayesian Acceptance Sampling</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">Beta-Binomial sequential decisions. Shows earliest stopping point — stop inspecting earlier.</p>
+
+                    <div class="form-group">
+                        <label>Data</label>
+                        <textarea id="bayes-acc-data" rows="4" placeholder="Enter measurements (comma or newline separated)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>AQL (acceptable quality level)</label>
+                        <input type="number" id="bayes-aql" step="any" value="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>USL (to classify defects from measurements)</label>
+                        <input type="number" id="bayes-accept-usl" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>LSL (to classify defects from measurements)</label>
+                        <input type="number" id="bayes-accept-lsl" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>Acceptance Threshold</label>
+                        <input type="number" id="bayes-threshold" step="any" value="0.95">
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesSigma('bayes_spc_acceptance', 'bayes-acc-data')">Run Analysis</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="bayes-acc-results">
+                        <p class="empty-text">Enter measurement data with spec limits, or provide defect count</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- BAYESIAN DOE SUB-TABS -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+
+        <!-- DOE Effect Screening -->
+        <div id="bayesian-doe-effects" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Bayesian Effect Screening</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">P(practical significance) for each factor — no arbitrary p-value cutoffs. Directly answers: is this effect meaningful?</p>
+
+                    <div class="form-group">
+                        <label>DOE Data (paste table: factor columns + response)</label>
+                        <textarea id="doe-effects-data" rows="6" placeholder="Temp,Pressure,Time,Yield&#10;150,10,30,85.2&#10;170,10,30,92.1&#10;150,20,30,88.4&#10;170,20,30,95.7&#10;150,10,60,87.1&#10;170,10,60,93.8&#10;150,20,60,91.2&#10;170,20,60,98.3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Factor Columns (comma-separated)</label>
+                        <input type="text" id="doe-effects-factors" placeholder="e.g. Temp,Pressure,Time">
+                    </div>
+                    <div class="form-group">
+                        <label>Response Column</label>
+                        <input type="text" id="doe-effects-response" placeholder="e.g. Yield">
+                    </div>
+                    <div class="form-group">
+                        <label>Practical Threshold (auto = 10% of range)</label>
+                        <input type="number" id="doe-effects-threshold" step="any" placeholder="Auto">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="doe-effects-2fi" checked> Include two-factor interactions
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesDOE('bayes_doe_effects')">Screen Effects</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="doe-effects-results">
+                        <p class="empty-text">Paste DOE data with factor and response columns</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOE Model Selection -->
+        <div id="bayesian-doe-model" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Bayesian Model Selection</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">Compare main effects, interaction, and quadratic models via exact marginal likelihood — no AIC/BIC approximations.</p>
+
+                    <div class="form-group">
+                        <label>DOE Data</label>
+                        <textarea id="doe-model-data" rows="6" placeholder="Paste table: factor columns + response"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Factor Columns (comma-separated)</label>
+                        <input type="text" id="doe-model-factors" placeholder="e.g. Temp,Pressure,Time">
+                    </div>
+                    <div class="form-group">
+                        <label>Response Column</label>
+                        <input type="text" id="doe-model-response" placeholder="e.g. Yield">
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesDOE('bayes_doe_model')">Compare Models</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="doe-model-results">
+                        <p class="empty-text">Paste DOE data to compare model families</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOE Sample Size -->
+        <div id="bayesian-doe-samplesize" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>DOE Sample Size (Pre-Posterior)</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">How many runs do you need? Simulates the experiment before you run it.</p>
+
+                    <div class="form-group">
+                        <label>Number of Factors</label>
+                        <input type="number" id="doe-ss-factors" min="1" max="10" value="3">
+                    </div>
+                    <div class="form-group">
+                        <label>Expected Effect Size</label>
+                        <input type="number" id="doe-ss-effect" step="any" value="1.0" placeholder="How big is the effect you expect?">
+                    </div>
+                    <div class="form-group">
+                        <label>Expected Noise (σ)</label>
+                        <input type="number" id="doe-ss-sigma" step="any" value="1.0" placeholder="Background variation">
+                    </div>
+                    <div class="form-group">
+                        <label>Simulations</label>
+                        <input type="number" id="doe-ss-nsim" min="50" max="2000" value="500">
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesDOE('bayes_doe_samplesize')">Analyze Sample Size</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="doe-samplesize-results">
+                        <p class="empty-text">Set your scenario to find the right number of runs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOE Optimize -->
+        <div id="bayesian-doe-optimize" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Bayesian Response Optimization</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">Find optimal factor settings with full uncertainty propagation — not just point estimates.</p>
+
+                    <div class="form-group">
+                        <label>DOE Data</label>
+                        <textarea id="doe-opt-data" rows="6" placeholder="Paste table: factor columns + response"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Factor Columns (comma-separated)</label>
+                        <input type="text" id="doe-opt-factors" placeholder="e.g. Temp,Pressure,Time">
+                    </div>
+                    <div class="form-group">
+                        <label>Response Column</label>
+                        <input type="text" id="doe-opt-response" placeholder="e.g. Yield">
+                    </div>
+                    <div class="form-group">
+                        <label>Goal</label>
+                        <select id="doe-opt-goal">
+                            <option value="maximize">Maximize response</option>
+                            <option value="minimize">Minimize response</option>
+                            <option value="target">Hit target value</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="doe-opt-target-group" style="display:none;">
+                        <label>Target Value</label>
+                        <input type="number" id="doe-opt-target" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="doe-opt-2fi" checked> Include interactions
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesDOE('bayes_doe_optimize')">Find Optimum</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="doe-optimize-results">
+                        <p class="empty-text">Paste DOE data and select your optimization goal</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOE Next Experiment -->
+        <div id="bayesian-doe-next" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Next Experiment Suggestion</h3>
+                    <p class="empty-text" style="margin-bottom:12px;font-size:0.82rem;">Sequential DOE: suggests runs that maximally reduce prediction uncertainty across your factor space.</p>
+
+                    <div class="form-group">
+                        <label>Current DOE Data</label>
+                        <textarea id="doe-next-data" rows="6" placeholder="Paste your existing experimental data"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Factor Columns (comma-separated)</label>
+                        <input type="text" id="doe-next-factors" placeholder="e.g. Temp,Pressure,Time">
+                    </div>
+                    <div class="form-group">
+                        <label>Response Column</label>
+                        <input type="text" id="doe-next-response" placeholder="e.g. Yield">
+                    </div>
+                    <div class="form-group">
+                        <label>Number of Suggestions</label>
+                        <input type="number" id="doe-next-nsugg" min="1" max="20" value="4">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="doe-next-2fi" checked> Include interactions
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" onclick="runBayesDOE('bayes_doe_next')">Suggest Next Runs</button>
+                </div>
+                <div class="panel">
+                    <h3>Results</h3>
+                    <div id="doe-next-results">
+                        <p class="empty-text">Paste existing data to get optimal next experiments</p>
                     </div>
                 </div>
             </div>
@@ -1573,17 +2060,35 @@ function displayDSResults(result) {
 function updateChartHelp() {
     const type = document.getElementById('chart-type').value;
     const help = document.getElementById('chart-help');
-    const sampleSizesGroup = document.getElementById('sample-sizes-group');
 
     const helpTexts = {
         'I-MR': 'For continuous data with sample size of 1',
         'X-bar R': 'For continuous data with subgroups of 2-10',
+        'xbar_s': 'Like X-bar R but uses standard deviation (subgroups > 10)',
+        'between_within': 'Separates between-subgroup and within-subgroup variation',
+        'moving_average': 'Smoothed trend line with configurable span',
+        'zone_chart': 'Cumulative scoring with colored A/B/C zones',
         'p': 'For proportion defective (requires sample sizes)',
+        'np_chart': 'For count of defective items (fixed sample size)',
         'c': 'For counting defects per unit',
+        'u_chart': 'Defects per unit with varying sample sizes',
+        'laney_p': 'P-chart adjusted for overdispersion (large samples)',
+        'laney_u': 'U-chart adjusted for overdispersion (large samples)',
+        'cusum': 'Sensitive to small sustained shifts in the mean',
+        'ewma': 'Exponentially weighted — detects gradual drift',
+        'mewma': 'Multivariate EWMA — monitors multiple variables simultaneously',
+        'generalized_variance': 'Monitors |S| determinant for multivariate dispersion',
     };
 
     help.textContent = helpTexts[type] || '';
-    sampleSizesGroup.style.display = type === 'p' ? 'block' : 'none';
+
+    // Show/hide conditional fields
+    const show = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? 'block' : 'none'; };
+    show('sample-sizes-group', type === 'p' || type === 'np_chart' || type === 'laney_p');
+    show('subgroup-col-group', type === 'between_within');
+    show('ewma-lambda-group', type === 'ewma' || type === 'mewma');
+    show('ma-span-group', type === 'moving_average');
+    show('multivar-group', type === 'mewma' || type === 'generalized_variance');
 }
 
 function parseChartData(text) {
@@ -1613,10 +2118,93 @@ async function createControlChart() {
     const lsl = document.getElementById('chart-lsl').value;
     const problemId = document.getElementById('problem-selector').value;
 
+    // Advanced chart types route through DSW analysis endpoint
+    const legacyCharts = ['I-MR', 'X-bar R', 'p', 'c'];
+    const isAdvanced = !legacyCharts.includes(chartType);
+
     // Check if using uploaded file data
     const uploadData = getDataFromUpload();
+
+    if (isAdvanced) {
+        // ── Advanced SPC charts → /api/dsw/analysis/ with type='spc' ──
+        let payload;
+
+        if (uploadData) {
+            // File upload: build config from upload metadata
+            const config = { measurement: uploadData.value_column || 'value' };
+            if (usl) config.usl = parseFloat(usl);
+            if (lsl) config.lsl = parseFloat(lsl);
+            if (chartType === 'ewma' || chartType === 'mewma') {
+                config.lambda_weight = parseFloat(document.getElementById('chart-lambda').value) || 0.2;
+            }
+            if (chartType === 'moving_average') {
+                config.span = parseInt(document.getElementById('chart-ma-span').value) || 4;
+            }
+            if (chartType === 'between_within') {
+                config.subgroup_col = document.getElementById('chart-subgroup-col').value;
+            }
+            if (chartType === 'mewma' || chartType === 'generalized_variance') {
+                const vars = document.getElementById('chart-variables').value;
+                if (vars) config.variables = vars.split(',').map(v => v.trim()).filter(v => v);
+            }
+
+            payload = {
+                type: 'spc',
+                analysis: chartType,
+                config: config,
+                data_id: uploadData.cache_key,
+            };
+        } else {
+            // Manual data entry
+            if (!dataText.trim()) { alert('Please enter data or upload a file'); return; }
+            const data = parseChartData(dataText);
+            const dataObj = { value: Array.isArray(data[0]) ? data.flat() : data };
+            const config = { measurement: 'value' };
+            if (usl) config.usl = parseFloat(usl);
+            if (lsl) config.lsl = parseFloat(lsl);
+            if (chartType === 'ewma' || chartType === 'mewma') {
+                config.lambda_weight = parseFloat(document.getElementById('chart-lambda').value) || 0.2;
+            }
+            if (chartType === 'moving_average') {
+                config.span = parseInt(document.getElementById('chart-ma-span').value) || 4;
+            }
+
+            payload = {
+                type: 'spc',
+                analysis: chartType,
+                config: config,
+                data: dataObj,
+            };
+        }
+
+        try {
+            showLoading(true);
+            const response = await fetch('/api/dsw/analysis/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload),
+            });
+            const result = await response.json();
+            showLoading(false);
+
+            if (result.error) {
+                alert(result.error);
+            } else {
+                displayStatsResults(result, 'chart-results');
+                // Hide legacy canvas containers
+                document.getElementById('chart-container').style.display = 'none';
+                document.getElementById('secondary-chart-container').style.display = 'none';
+            }
+        } catch (err) {
+            showLoading(false);
+            alert('Error: ' + err.message);
+        }
+        return;
+    }
+
+    // ── Legacy charts → /api/spc/ endpoints ──
     if (uploadData) {
-        // Use uploaded file
         const body = {
             ...uploadData,
             analysis_type: 'control_chart',
@@ -1653,7 +2241,7 @@ async function createControlChart() {
         return;
     }
 
-    // Manual data entry
+    // Manual data entry (legacy)
     if (!dataText.trim()) {
         alert('Please enter data or upload a file');
         return;
@@ -1687,6 +2275,80 @@ async function createControlChart() {
         }
     } catch (err) {
         alert('Error: ' + err.message);
+    }
+}
+
+// Conformal SPC form toggle
+function updateConformalForm() {
+    const type = document.getElementById('conformal-type').value;
+    document.getElementById('conformal-univariate-opts').style.display = type === 'conformal_control' ? 'block' : 'none';
+    document.getElementById('conformal-multivariate-opts').style.display = type === 'conformal_monitor' ? 'block' : 'none';
+}
+
+// Conformal SPC dispatch
+async function runConformalSpc() {
+    const analysisType = document.getElementById('conformal-type').value;
+    const alpha = parseFloat(document.getElementById('conformal-alpha').value) || 0.05;
+    const calFrac = parseFloat(document.getElementById('conformal-cal-frac').value) || 0.5;
+    const resultsDiv = document.getElementById('conformal-results');
+
+    const uploadData = getDataFromUpload();
+    let payload;
+
+    if (uploadData) {
+        const config = {
+            measurement: uploadData.value_column || 'value',
+            alpha: alpha,
+            calibration_fraction: calFrac,
+        };
+        if (analysisType === 'conformal_control') {
+            config.chart_type = document.getElementById('conformal-chart-subtype').value;
+            config.subgroup_size = parseInt(document.getElementById('conformal-subgroup').value) || 5;
+            config.spike_threshold = parseFloat(document.getElementById('conformal-spike').value) || 2.0;
+        } else {
+            const vars = document.getElementById('conformal-variables').value;
+            if (vars) config.variables = vars.split(',').map(v => v.trim()).filter(v => v);
+            config.model = document.getElementById('conformal-model').value;
+        }
+        payload = { type: 'spc', analysis: analysisType, config: config, data_id: uploadData.cache_key };
+    } else {
+        const dataText = document.getElementById('conformal-data').value.trim();
+        if (!dataText) { alert('Please enter data or upload a file'); return; }
+        const data = dataText.split(/[,\n]/).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+        if (data.length < 20) { alert('Need at least 20 data points for conformal SPC'); return; }
+
+        const config = {
+            measurement: 'value',
+            alpha: alpha,
+            calibration_fraction: calFrac,
+        };
+        if (analysisType === 'conformal_control') {
+            config.chart_type = document.getElementById('conformal-chart-subtype').value;
+            config.subgroup_size = parseInt(document.getElementById('conformal-subgroup').value) || 5;
+            config.spike_threshold = parseFloat(document.getElementById('conformal-spike').value) || 2.0;
+        }
+
+        payload = { type: 'spc', analysis: analysisType, config: config, data: { value: data } };
+    }
+
+    resultsDiv.innerHTML = '<p class="empty-text">Running conformal analysis...</p>';
+
+    try {
+        const response = await fetch('/api/dsw/analysis/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+
+        if (result.error) {
+            resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">${result.error}</p>`;
+        } else {
+            displayStatsResults(result, 'conformal-results');
+        }
+    } catch (err) {
+        resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">Error: ${err.message}</p>`;
     }
 }
 
@@ -1923,6 +2585,287 @@ async function runSummary() {
         }
     } catch (err) {
         alert('Error: ' + err.message);
+    }
+}
+
+async function runBayesSigma(analysisType, dataTextareaId) {
+    // Map analysis type to results container
+    const resultsMap = {
+        'bayes_spc_capability': 'bayes-cap-results',
+        'bayes_spc_changepoint': 'bayes-cp-results',
+        'bayes_spc_control': 'bayes-ctrl-results',
+        'bayes_spc_acceptance': 'bayes-acc-results',
+    };
+    const resultsDiv = document.getElementById(resultsMap[analysisType]);
+
+    // Try uploaded file first
+    const uploadData = getDataFromUpload();
+    let body;
+
+    if (uploadData) {
+        body = { ...uploadData, analysis_type: analysisType };
+    } else {
+        const dataText = document.getElementById(dataTextareaId).value.trim();
+        if (!dataText) { alert('Please enter data or upload a file'); return; }
+        const data = dataText.split(/[,\n]/).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+        if (data.length < 5) { alert('Need at least 5 data points'); return; }
+        body = { data, analysis_type: analysisType, measurement: 'value' };
+    }
+
+    // Add type-specific config
+    if (analysisType === 'bayes_spc_capability') {
+        const usl = document.getElementById('bayes-usl').value;
+        const lsl = document.getElementById('bayes-lsl').value;
+        if (!usl && !lsl) { alert('At least one spec limit (USL or LSL) is required'); return; }
+        if (usl) body.usl = parseFloat(usl);
+        if (lsl) body.lsl = parseFloat(lsl);
+        const target = document.getElementById('bayes-target').value;
+        if (target) body.target = parseFloat(target);
+        body.prior_type = document.getElementById('bayes-prior-type').value;
+    } else if (analysisType === 'bayes_spc_changepoint') {
+        body.hazard_rate = parseFloat(document.getElementById('bayes-hazard').value) || 0.01;
+        body.min_segment_length = parseInt(document.getElementById('bayes-min-seg').value) || 5;
+    } else if (analysisType === 'bayes_spc_control') {
+        const refMean = document.getElementById('bayes-ref-mean').value;
+        const refStd = document.getElementById('bayes-ref-std').value;
+        if (refMean) body.reference_mean = parseFloat(refMean);
+        if (refStd) body.reference_std = parseFloat(refStd);
+        body.shift_size = parseFloat(document.getElementById('bayes-shift').value) || 1.5;
+    } else if (analysisType === 'bayes_spc_acceptance') {
+        body.aql = parseFloat(document.getElementById('bayes-aql').value) || 0.01;
+        body.acceptance_threshold = parseFloat(document.getElementById('bayes-threshold').value) || 0.95;
+        const aUsl = document.getElementById('bayes-accept-usl').value;
+        const aLsl = document.getElementById('bayes-accept-lsl').value;
+        if (aUsl) body.usl = parseFloat(aUsl);
+        if (aLsl) body.lsl = parseFloat(aLsl);
+    }
+
+    resultsDiv.innerHTML = '<p class="empty-text">Running analysis...</p>';
+
+    try {
+        let endpoint, payload;
+        if (uploadData) {
+            endpoint = '/api/spc/analyze/';
+            payload = body;
+        } else {
+            endpoint = '/api/dsw/analysis/';
+            const dataArr = body.data;
+            const dataObj = { value: dataArr };
+            payload = {
+                type: 'spc',
+                analysis: analysisType,
+                config: { ...body, measurement: 'value' },
+                data: dataObj,
+            };
+            delete payload.config.data;
+        }
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+
+        if (response.ok && (result.success !== false)) {
+            displayStatsResults(result, resultsMap[analysisType]);
+        } else {
+            resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">${result.error || 'Analysis failed'}</p>`;
+        }
+    } catch (err) {
+        resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">Error: ${err.message}</p>`;
+    }
+}
+
+// Target value toggle for DOE optimize
+document.getElementById('doe-opt-goal')?.addEventListener('change', function() {
+    document.getElementById('doe-opt-target-group').style.display =
+        this.value === 'target' ? '' : 'none';
+});
+
+async function runBayesDOE(analysisType) {
+    const resultsMap = {
+        'bayes_doe_effects': 'doe-effects-results',
+        'bayes_doe_model': 'doe-model-results',
+        'bayes_doe_samplesize': 'doe-samplesize-results',
+        'bayes_doe_optimize': 'doe-optimize-results',
+        'bayes_doe_next': 'doe-next-results',
+    };
+    const resultsDiv = document.getElementById(resultsMap[analysisType]);
+    if (!resultsDiv) { alert('Unknown DOE analysis type'); return; }
+
+    // Sample size tool has no data input
+    if (analysisType === 'bayes_doe_samplesize') {
+        resultsDiv.innerHTML = '<p class="empty-text">Running simulation...</p>';
+        const body = {
+            analysis_type: analysisType,
+            n_factors: parseInt(document.getElementById('doe-ss-factors').value) || 3,
+            expected_effect: parseFloat(document.getElementById('doe-ss-effect').value) || 1.0,
+            expected_sigma: parseFloat(document.getElementById('doe-ss-sigma').value) || 1.0,
+            n_simulations: parseInt(document.getElementById('doe-ss-nsim').value) || 500,
+        };
+        try {
+            const response = await fetch('/api/dsw/analysis/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    type: 'spc',
+                    analysis: analysisType,
+                    config: body,
+                    data: { value: [0] },  // dummy — sample size needs no data
+                }),
+            });
+            const result = await response.json();
+            if (response.ok && result.success !== false) {
+                displayStatsResults(result, resultsMap[analysisType]);
+            } else {
+                resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">${result.error || 'Analysis failed'}</p>`;
+            }
+        } catch (err) {
+            resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">Error: ${err.message}</p>`;
+        }
+        return;
+    }
+
+    // Data-based DOE tools
+    const prefixMap = {
+        'bayes_doe_effects': 'doe-effects',
+        'bayes_doe_model': 'doe-model',
+        'bayes_doe_optimize': 'doe-opt',
+        'bayes_doe_next': 'doe-next',
+    };
+    const prefix = prefixMap[analysisType];
+
+    // Try uploaded file first
+    const uploadData = getDataFromUpload();
+    let factorCols, responseCols;
+
+    if (uploadData) {
+        factorCols = document.getElementById(prefix + '-factors').value
+            .split(',').map(s => s.trim()).filter(Boolean);
+        responseCols = document.getElementById(prefix + '-response').value.trim();
+    } else {
+        // Parse from textarea
+        const dataText = document.getElementById(prefix + '-data').value.trim();
+        if (!dataText) { alert('Please enter DOE data or upload a file'); return; }
+
+        factorCols = document.getElementById(prefix + '-factors').value
+            .split(',').map(s => s.trim()).filter(Boolean);
+        responseCols = document.getElementById(prefix + '-response').value.trim();
+
+        if (!factorCols.length || !responseCols) {
+            alert('Please specify factor columns and a response column');
+            return;
+        }
+
+        // Parse CSV from textarea into object-of-arrays
+        const lines = dataText.split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length < 2) { alert('Need header row + at least 1 data row'); return; }
+        const headers = lines[0].split(',').map(h => h.trim());
+        const allCols = [...factorCols, responseCols];
+        const colIdx = {};
+        for (const c of allCols) {
+            const idx = headers.indexOf(c);
+            if (idx === -1) { alert(`Column "${c}" not found in header: ${headers.join(', ')}`); return; }
+            colIdx[c] = idx;
+        }
+
+        const dataObj = {};
+        for (const c of allCols) dataObj[c] = [];
+        for (let i = 1; i < lines.length; i++) {
+            const vals = lines[i].split(',').map(v => v.trim());
+            for (const c of allCols) {
+                const v = vals[colIdx[c]];
+                dataObj[c].push(isNaN(parseFloat(v)) ? v : parseFloat(v));
+            }
+        }
+
+        resultsDiv.innerHTML = '<p class="empty-text">Running analysis...</p>';
+
+        const body = {
+            type: 'spc',
+            analysis: analysisType,
+            config: {
+                analysis_type: analysisType,
+                factor_columns: factorCols,
+                response_column: responseCols,
+            },
+            data: dataObj,
+        };
+
+        // Add tool-specific config
+        if (analysisType === 'bayes_doe_effects') {
+            const thresh = document.getElementById('doe-effects-threshold').value;
+            if (thresh) body.config.threshold = parseFloat(thresh);
+            body.config.include_2fi = document.getElementById('doe-effects-2fi').checked;
+        } else if (analysisType === 'bayes_doe_optimize') {
+            body.config.goal = document.getElementById('doe-opt-goal').value;
+            const target = document.getElementById('doe-opt-target').value;
+            if (target) body.config.target_value = parseFloat(target);
+            body.config.include_2fi = document.getElementById('doe-opt-2fi').checked;
+        } else if (analysisType === 'bayes_doe_next') {
+            body.config.n_suggest = parseInt(document.getElementById('doe-next-nsugg').value) || 4;
+            body.config.include_2fi = document.getElementById('doe-next-2fi').checked;
+        }
+
+        try {
+            const response = await fetch('/api/dsw/analysis/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+            });
+            const result = await response.json();
+            if (response.ok && result.success !== false) {
+                displayStatsResults(result, resultsMap[analysisType]);
+            } else {
+                resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">${result.error || 'Analysis failed'}</p>`;
+            }
+        } catch (err) {
+            resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">Error: ${err.message}</p>`;
+        }
+        return;
+    }
+
+    // Uploaded file path — route through SPC bridge
+    resultsDiv.innerHTML = '<p class="empty-text">Running analysis...</p>';
+    const body = {
+        ...uploadData,
+        analysis_type: analysisType,
+        factor_columns: factorCols,
+        response_column: responseCols,
+    };
+    if (analysisType === 'bayes_doe_effects') {
+        const thresh = document.getElementById('doe-effects-threshold').value;
+        if (thresh) body.threshold = parseFloat(thresh);
+        body.include_2fi = document.getElementById('doe-effects-2fi').checked;
+    } else if (analysisType === 'bayes_doe_optimize') {
+        body.goal = document.getElementById('doe-opt-goal').value;
+        const target = document.getElementById('doe-opt-target').value;
+        if (target) body.target_value = parseFloat(target);
+        body.include_2fi = document.getElementById('doe-opt-2fi').checked;
+    } else if (analysisType === 'bayes_doe_next') {
+        body.n_suggest = parseInt(document.getElementById('doe-next-nsugg').value) || 4;
+        body.include_2fi = document.getElementById('doe-next-2fi').checked;
+    }
+
+    try {
+        const response = await fetch('/api/spc/analyze/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+        const result = await response.json();
+        if (response.ok && result.success !== false) {
+            displayStatsResults(result, resultsMap[analysisType]);
+        } else {
+            resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">${result.error || 'Analysis failed'}</p>`;
+        }
+    } catch (err) {
+        resultsDiv.innerHTML = `<p class="empty-text" style="color:#e85747;">Error: ${err.message}</p>`;
     }
 }
 
@@ -2936,6 +3879,7 @@ function displayStatsResults(result, containerId) {
             .replace(/<<COLOR:good>>(.*?)<<\/COLOR>>/g, '<span class="color-success">$1</span>')
             .replace(/<<COLOR:warning>>(.*?)<<\/COLOR>>/g, '<span class="color-warning">$1</span>')
             .replace(/<<COLOR:danger>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>')
+            .replace(/<<COLOR:error>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>')
             .replace(/<<COLOR:bad>>(.*?)<<\/COLOR>>/g, '<span class="color-danger">$1</span>');
 
         html += `<pre class="stats-summary">${formatted}</pre>`;
