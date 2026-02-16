@@ -15,6 +15,65 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-13 — New Statistics: Confidence Intervals for 14 Core DSW Analyses
+
+**What:** Added confidence intervals to the 14 most-used statistical analyses in the DSW, embracing New Statistics (estimation over naked p-values). Every core analysis now reports CIs alongside effect sizes and p-values.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — 14 analysis blocks updated:
+  - `ttest2`: 95% CI for mean difference (pooled SE)
+  - `paired_t`: 95% CI for mean difference (paired SE)
+  - `anova`: 95% CI for each group mean (t-based)
+  - `regression`: 95% CI for every coefficient (t-critical × SE)
+  - `correlation`: 95% CI for r via Fisher z-transform
+  - `chi2`: Odds ratio + 95% CI for 2×2 tables (Woolf log-OR method)
+  - `mann_whitney`: Hodges-Lehmann median difference + 95% CI
+  - `kruskal`: 95% CI for each group median (order statistic method)
+  - `logistic`: 95% CI for odds ratios (Fisher information matrix)
+  - `f_test`: 95% CI for variance ratio + log variance ratio effect size
+  - `equivalence`: Explicit 90% CI (TOST standard) + 95% CI for difference
+  - `ordinal_logistic`: 95% CI for odds ratios (Wald SE)
+  - `glm` (fixed + mixed): CIs for all coefficients (model.conf_int / Wald)
+  - `nominal_logistic`: Approximate 95% CI for odds ratios (Fisher info per class)
+
+**Verification:** Run any of the 14 analyses — output now includes CI lines.
+
+---
+
+### 2026-02-15 — Learn Module Phase 1: ML + Advanced Statistics Expansion
+
+**What:** Expanded the Learn module from 10 modules / 47 sections to 12 modules / 58 sections. Added Machine Learning (7 sections) and Advanced Statistics (6 sections) with full interactive widgets, hybrid datasets, and Forge integration.
+
+**Architecture change:** Refactored monolithic `learn_content.py` (6,511 lines) into a `learn_content/` package with 14 topic files. Backward-compatible shim preserves existing imports.
+
+**Files changed:**
+- `agents_api/learn_content.py` — converted to thin re-export shim (imports from package)
+- `agents_api/learn_content/__init__.py` — new package entry point
+- `agents_api/learn_content/_registry.py` — central SECTION_CONTENT dict (58 sections), get_section_content(), get_all_topics()
+- `agents_api/learn_content/_datasets.py` — SHARED_DATASET (original) + CHURN_DATASET (200 telecom records, 27% churn) + CLINICAL_DATASET (200 patients, 5 sites, 15% dropout)
+- `agents_api/learn_content/machine_learning.py` — 7 sections: supervised classification/regression, unsupervised, model validation, feature engineering, ensemble methods, interpretability
+- `agents_api/learn_content/advanced_statistics.py` — 6 sections: multivariate analysis, categorical data, Bayesian depth, mixed models, response surface, regression diagnostics
+- `agents_api/learn_content/foundations.py` — extracted (5 sections, unchanged content)
+- `agents_api/learn_content/experimental_design.py` — extracted (4 sections)
+- `agents_api/learn_content/data_fundamentals.py` — extracted (4 sections)
+- `agents_api/learn_content/statistical_inference.py` — extracted (6 sections)
+- `agents_api/learn_content/causal_inference.py` — extracted (4 sections)
+- `agents_api/learn_content/critical_evaluation.py` — extracted (4 sections)
+- `agents_api/learn_content/dsw_mastery.py` — extracted (7 sections)
+- `agents_api/learn_content/case_studies.py` — extracted (4 sections)
+- `agents_api/learn_content/advanced_methods.py` — extracted (5 sections)
+- `agents_api/learn_content/capstone.py` — extracted (2 sections)
+- `agents_api/learn_views.py` — added Machine Learning (module 11) and Advanced Statistics (module 12) to COURSE_MODULES
+- `templates/learn.html` — added 13 new interactive widget render functions (classifier_playground, regression_playground, validation_visualizer, feature_transformer, ensemble_builder, shap_explorer, pca_explorer, contingency_explorer, posterior_visualizer, random_effects_demo, rsm_contour_explorer, diagnostic_dashboard, clustering_explorer update), "Practice with Fresh Data" Forge button, getForgeTemplate() mapping, generateFreshData() async function
+- `forge/migrations/0005_learning_templates.py` — 6 new Forge schema templates (customer_churn, clinical_trial, manufacturing_quality, assembly_line_production, supply_chain_orders, product_launches)
+
+**Verification:**
+- `python3 -c "import sys; sys.path.insert(0,'.'); from agents_api.learn_content import SECTION_CONTENT; print(len(SECTION_CONTENT))"` → 58
+- Navigate to Learn page → verify 12 modules render → click ML/Stats sections → verify content + widgets load
+- Click "Practice with Fresh Data" → verify Forge generates and reloads widget data
+
+---
+
 ### 2026-02-15 — ML Hub: Class Imbalance Handling & Reliability Governance
 
 **What:** A 97/3 imbalanced dataset produced 1.000 accuracy and 1.000 F1 — the model was either predicting all-majority or the test set had no minority samples. Fixed the pipeline to produce honest, decision-grade metrics.

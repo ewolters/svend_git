@@ -3385,7 +3385,12 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
         summary += f"  Difference of means: {x.mean() - y.mean():.4f}\n"
         summary += f"  t-statistic: {stat:.4f}\n"
-        summary += f"  p-value: {pval:.4f}\n\n"
+        summary += f"  p-value: {pval:.4f}\n"
+        _se_diff = np.sqrt(x.std()**2/len(x) + y.std()**2/len(y))
+        _t_crit = stats.t.ppf(1 - alpha/2, len(x) + len(y) - 2)
+        _ci_lo = (x.mean() - y.mean()) - _t_crit * _se_diff
+        _ci_hi = (x.mean() - y.mean()) + _t_crit * _se_diff
+        summary += f"  {conf}% CI for difference: [{_ci_lo:.4f}, {_ci_hi:.4f}]\n\n"
 
         if pval < alpha:
             summary += f"<<COLOR:good>>Means are significantly different (p < {alpha})<</COLOR>>"
@@ -3484,7 +3489,12 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"  Std of differences: {diff.std():.4f}\n\n"
         summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
         summary += f"  t-statistic: {stat:.4f}\n"
-        summary += f"  p-value: {pval:.4f}\n\n"
+        summary += f"  p-value: {pval:.4f}\n"
+        _se_diff = diff.std() / np.sqrt(len(diff))
+        _t_crit = stats.t.ppf(1 - alpha/2, len(diff) - 1)
+        _ci_lo = diff.mean() - _t_crit * _se_diff
+        _ci_hi = diff.mean() + _t_crit * _se_diff
+        summary += f"  {conf}% CI for mean difference: [{_ci_lo:.4f}, {_ci_hi:.4f}]\n\n"
 
         if pval < alpha:
             summary += f"<<COLOR:good>>Significant difference between paired observations (p < {alpha})<</COLOR>>"
@@ -3564,7 +3574,8 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += f"<<COLOR:text>>Group Statistics:<</COLOR>>\n"
             for level in df[factor_col].unique():
                 grp = df[df[factor_col] == level][response].dropna()
-                summary += f"  {level}: n={len(grp)}, mean={grp.mean():.4f}, std={grp.std():.4f}\n"
+                _ci = stats.t.interval(0.95, len(grp)-1, loc=grp.mean(), scale=grp.std()/np.sqrt(len(grp))) if len(grp) > 1 else (grp.mean(), grp.mean())
+                summary += f"  {level}: n={len(grp)}, mean={grp.mean():.4f}, std={grp.std():.4f}, 95% CI [{_ci[0]:.4f}, {_ci[1]:.4f}]\n"
 
             # Compute eta-squared
             grand_mean = df[response].dropna().mean()
@@ -3824,7 +3835,8 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n"
         summary += "<<COLOR:accent>>                              COEFFICIENTS<</COLOR>>\n"
         summary += "<<COLOR:accent>>════════════════════════════════════════════════════════════════════════════<</COLOR>>\n"
-        summary += "<<COLOR:dim>>                            Estimate    Std.Err    t value    Pr(>|t|)     <</COLOR>>\n"
+        _t_crit_reg = stats.t.ppf(0.975, n - p - 1)
+        summary += "<<COLOR:dim>>                            Estimate    Std.Err    t value    Pr(>|t|)          [95% CI]<</COLOR>>\n"
 
         names = ["(Intercept)"] + feature_names
         non_sig_predictors = []
@@ -3832,7 +3844,9 @@ def run_statistical_analysis(df, analysis_id, config):
             pv = p_values[i]
             sig = "***" if pv < 0.001 else "** " if pv < 0.01 else "*  " if pv < 0.05 else ".  " if pv < 0.1 else "   "
             p_color = "success" if pv < 0.05 else "warning" if pv < 0.1 else "dim"
-            summary += f"<<COLOR:text>>{name:<24}<</COLOR>> {coefs[i]:>10.4f}   {se[i]:>9.4f}   {t_stats[i]:>8.3f}    <<COLOR:{p_color}>>{pv:>9.4f}  {sig}<</COLOR>>\n"
+            _ci_lo = coefs[i] - _t_crit_reg * se[i]
+            _ci_hi = coefs[i] + _t_crit_reg * se[i]
+            summary += f"<<COLOR:text>>{name:<24}<</COLOR>> {coefs[i]:>10.4f}   {se[i]:>9.4f}   {t_stats[i]:>8.3f}    <<COLOR:{p_color}>>{pv:>9.4f}  {sig}<</COLOR>>  [{_ci_lo:.4f}, {_ci_hi:.4f}]\n"
             if i > 0 and pv >= 0.1:  # Track non-significant predictors (excluding intercept)
                 non_sig_predictors.append(name)
 
@@ -4117,18 +4131,22 @@ def run_statistical_analysis(df, analysis_id, config):
                     stat_dict[f"r({col1},{col2})"] = float(r_val)
                     stat_dict[f"p({col1},{col2})"] = float(p_val)
                     if abs(r_val) >= 0.3:
-                        strong_pairs.append((col1, col2, float(r_val), float(p_val), label))
+                        strong_pairs.append((col1, col2, float(r_val), float(p_val), label, len(pair_data)))
 
         if strong_pairs:
             strong_pairs.sort(key=lambda x: abs(x[2]), reverse=True)
             summary += f"\n<<COLOR:accent>>{'─' * 70}<</COLOR>>\n"
             summary += f"<<COLOR:title>>KEY RELATIONSHIPS<</COLOR>>\n"
             summary += f"<<COLOR:accent>>{'─' * 70}<</COLOR>>\n\n"
-            for col1, col2, r_val, p_val, label in strong_pairs[:8]:
+            for col1, col2, r_val, p_val, label, n_pair in strong_pairs[:8]:
                 direction = "positive" if r_val > 0 else "negative"
                 sig = "**" if p_val < 0.01 else "*" if p_val < 0.05 else ""
                 r2_pct = r_val**2 * 100
-                summary += f"<<COLOR:highlight>>{col1} ↔ {col2}:<</COLOR>> r = {r_val:+.3f} {sig} — {label} {direction} ({r2_pct:.0f}% shared variance)\n"
+                # Fisher z-transform CI for r
+                _z_r = np.arctanh(r_val) if abs(r_val) < 0.9999 else np.sign(r_val) * 3
+                _se_z = 1 / np.sqrt(n_pair - 3) if n_pair > 3 else 1
+                _ci_r = (np.tanh(_z_r - 1.96 * _se_z), np.tanh(_z_r + 1.96 * _se_z))
+                summary += f"<<COLOR:highlight>>{col1} ↔ {col2}:<</COLOR>> r = {r_val:+.3f} {sig} 95% CI [{_ci_r[0]:+.3f}, {_ci_r[1]:+.3f}] — {label} {direction} ({r2_pct:.0f}% shared variance)\n"
             summary += f"\n<<COLOR:text>>Strongest: {strong_pairs[0][0]} and {strong_pairs[0][1]} share {strong_pairs[0][2]**2*100:.0f}% of their variation.<</COLOR>>"
         else:
             summary += f"\n<<COLOR:text>>No strong correlations found (all |r| < 0.3).<</COLOR>>"
@@ -4270,7 +4288,15 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"  Chi-square statistic: {chi2:.4f}\n"
         summary += f"  Degrees of freedom: {dof}\n"
         summary += f"  p-value: {pval:.4f}\n"
-        summary += f"  Cramér's V: {cramers_v:.3f} ({v_label} association)\n\n"
+        summary += f"  Cramér's V: {cramers_v:.3f} ({v_label} association)\n"
+        if contingency.shape == (2, 2):
+            _a, _b, _c, _d = contingency.iloc[0, 0], contingency.iloc[0, 1], contingency.iloc[1, 0], contingency.iloc[1, 1]
+            if min(_a, _b, _c, _d) > 0:
+                _or = (_a * _d) / (_b * _c)
+                _log_se = np.sqrt(1/_a + 1/_b + 1/_c + 1/_d)
+                _or_lo, _or_hi = np.exp(np.log(_or) - 1.96 * _log_se), np.exp(np.log(_or) + 1.96 * _log_se)
+                summary += f"  Odds Ratio: {_or:.3f}, 95% CI [{_or_lo:.3f}, {_or_hi:.3f}]\n"
+        summary += "\n"
 
         if pval < 0.05:
             summary += f"<<COLOR:good>>Variables are significantly associated (p < 0.05)<</COLOR>>"
@@ -5369,18 +5395,38 @@ def run_statistical_analysis(df, analysis_id, config):
                 summary += f" {coef:>12.4f}"
             summary += "\n"
 
-        # Odds ratios
+        # Odds ratios with CIs (approximate SEs via Fisher information)
+        _nom_se = {}
+        try:
+            _probs = model.predict_proba(X)
+            for _ki in range(1, len(class_names)):
+                _wk = _probs[:, _ki] * (1 - _probs[:, _ki])
+                _Xv = X.values
+                _info = _Xv.T @ (_wk[:, None] * _Xv)
+                _nom_se[_ki] = np.sqrt(np.diag(np.linalg.inv(_info)))
+        except Exception:
+            pass
+
         summary += f"\n<<COLOR:text>>Odds Ratios (exp(coef)):<</COLOR>>\n"
+        _has_ci = len(_nom_se) > 0
         summary += f"  {'Predictor':<25}"
         for cls in class_names[1:]:
             summary += f" {str(cls):>12}"
+            if _has_ci:
+                summary += f" {'95% CI':>22}"
         summary += "\n"
-        summary += f"  {'─' * (25 + 13 * (len(class_names) - 1))}\n"
+        _col_w = (13 + (23 if _has_ci else 0)) * (len(class_names) - 1)
+        summary += f"  {'─' * (25 + _col_w)}\n"
         for j, pred in enumerate(pred_names):
             summary += f"  {pred:<25}"
             for i in range(1, len(class_names)):
                 coef = model.coef_[i][j] if i < len(model.coef_) else 0
                 summary += f" {np.exp(coef):>12.4f}"
+                if _has_ci and i in _nom_se and j < len(_nom_se[i]):
+                    _se_j = _nom_se[i][j]
+                    summary += f" [{np.exp(coef - 1.96*_se_j):>8.4f}, {np.exp(coef + 1.96*_se_j):>8.4f}]"
+                elif _has_ci:
+                    summary += f" {'':>22}"
             summary += "\n"
 
         # Confusion matrix
@@ -7611,7 +7657,17 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
         summary += f"  U statistic: {stat:.2f}\n"
         summary += f"  p-value: {pval:.4f}\n"
-        summary += f"  Effect size (r): {effect_size:.3f}\n\n"
+        summary += f"  Effect size (r): {effect_size:.3f}\n"
+        # Hodges-Lehmann median difference + CI
+        if n1 * n2 <= 500000:
+            _all_diffs = np.subtract.outer(group1.values, group2.values).ravel()
+            _hl_med = float(np.median(_all_diffs))
+            _sorted_d = np.sort(_all_diffs)
+            _C_a = stats.norm.ppf(0.975) * np.sqrt(n1 * n2 * (n1 + n2 + 1) / 12)
+            _lo_i = max(0, int(np.floor(n1 * n2 / 2 - _C_a)))
+            _hi_i = min(len(_sorted_d) - 1, int(np.ceil(n1 * n2 / 2 + _C_a)))
+            summary += f"  Hodges-Lehmann median diff: {_hl_med:.4f}, 95% CI [{_sorted_d[_lo_i]:.4f}, {_sorted_d[_hi_i]:.4f}]\n"
+        summary += "\n"
 
         if pval < 0.05:
             summary += f"<<COLOR:good>>Groups differ significantly (p < 0.05)<</COLOR>>\n"
@@ -7658,8 +7714,16 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Total N:<</COLOR>> {n_total}\n\n"
 
         summary += f"<<COLOR:text>>Group Statistics:<</COLOR>>\n"
-        for g, data in zip(groups, group_data):
-            summary += f"  {g}: n={len(data)}, median={np.median(data):.4f}\n"
+        for g, gdata in zip(groups, group_data):
+            _n_g = len(gdata)
+            _med = np.median(gdata)
+            if _n_g > 1:
+                _sorted_g = np.sort(gdata)
+                _j = max(0, int(np.floor(_n_g / 2 - 1.96 * np.sqrt(_n_g) / 2)))
+                _k = min(_n_g - 1, int(np.ceil(_n_g / 2 + 1.96 * np.sqrt(_n_g) / 2)))
+                summary += f"  {g}: n={_n_g}, median={_med:.4f}, 95% CI [{_sorted_g[_j]:.4f}, {_sorted_g[_k]:.4f}]\n"
+            else:
+                summary += f"  {g}: n={_n_g}, median={_med:.4f}\n"
 
         summary += f"\n<<COLOR:text>>Test Results:<</COLOR>>\n"
         summary += f"  H statistic: {stat:.4f}\n"
@@ -8112,11 +8176,29 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors)}\n"
         summary += f"<<COLOR:highlight>>AUC (ROC):<</COLOR>> {roc_auc:.4f}\n\n"
 
+        # Approximate SEs via Fisher information matrix
+        _p_hat = model.predict_proba(X_train)[:, 1]
+        _W = _p_hat * (1 - _p_hat)
+        _X_mat = X_train.values
+        try:
+            _XWX = _X_mat.T @ (_W[:, None] * _X_mat)
+            _se_coefs = np.sqrt(np.diag(np.linalg.inv(_XWX)))
+        except Exception:
+            _se_coefs = None
+
         summary += f"<<COLOR:text>>Coefficients & Odds Ratios:<</COLOR>>\n"
-        summary += f"  {'Predictor':<20} {'Coef':>10} {'Odds Ratio':>12}\n"
-        summary += f"  {'-'*44}\n"
-        for pred, coef, odds in zip(predictors, coefs, odds_ratios):
-            summary += f"  {pred:<20} {coef:>10.4f} {odds:>12.4f}\n"
+        if _se_coefs is not None:
+            summary += f"  {'Predictor':<20} {'Coef':>10} {'SE':>10} {'OR':>10} {'95% CI for OR':>22}\n"
+            summary += f"  {'-'*74}\n"
+            for i, (pred, coef, odds) in enumerate(zip(predictors, coefs, odds_ratios)):
+                _or_lo = np.exp(coef - 1.96 * _se_coefs[i])
+                _or_hi = np.exp(coef + 1.96 * _se_coefs[i])
+                summary += f"  {pred:<20} {coef:>10.4f} {_se_coefs[i]:>10.4f} {odds:>10.4f} [{_or_lo:>8.4f}, {_or_hi:>8.4f}]\n"
+        else:
+            summary += f"  {'Predictor':<20} {'Coef':>10} {'Odds Ratio':>12}\n"
+            summary += f"  {'-'*44}\n"
+            for pred, coef, odds in zip(predictors, coefs, odds_ratios):
+                summary += f"  {pred:<20} {coef:>10.4f} {odds:>12.4f}\n"
 
         summary += f"\n<<COLOR:text>>Confusion Matrix:<</COLOR>>\n"
         summary += f"  Predicted:    0      1\n"
@@ -8212,7 +8294,12 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"  {groups[0]}: n={n1}, variance={var1:.4f}, StDev={np.sqrt(var1):.4f}\n"
         summary += f"  {groups[1]}: n={n2}, variance={var2:.4f}, StDev={np.sqrt(var2):.4f}\n\n"
         summary += f"<<COLOR:highlight>>F statistic:<</COLOR>> {F:.4f}\n"
-        summary += f"<<COLOR:highlight>>p-value:<</COLOR>> {p_value:.4f}\n\n"
+        summary += f"<<COLOR:highlight>>p-value:<</COLOR>> {p_value:.4f}\n"
+        _f_ci_lo = F / stats.f.ppf(0.975, df1, df2)
+        _f_ci_hi = F / stats.f.ppf(0.025, df1, df2)
+        summary += f"<<COLOR:highlight>>95% CI for variance ratio:<</COLOR>> [{_f_ci_lo:.4f}, {_f_ci_hi:.4f}]\n"
+        _ln_ratio = np.log(max(var1, var2) / min(var1, var2))
+        summary += f"<<COLOR:highlight>>Log variance ratio:<</COLOR>> {_ln_ratio:.4f} (0 = equal variances)\n\n"
 
         if p_value < 0.05:
             summary += f"<<COLOR:warning>>Variances are SIGNIFICANTLY DIFFERENT (p < 0.05)<</COLOR>>\n"
@@ -8287,7 +8374,13 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"  {groups[0]}: {mean1:.4f} (n={n1})\n"
         summary += f"  {groups[1]}: {mean2:.4f} (n={n2})\n"
         summary += f"  Difference: {diff:.4f}\n\n"
-        summary += f"<<COLOR:highlight>>TOST p-value:<</COLOR>> {p_tost:.4f}\n\n"
+        summary += f"<<COLOR:highlight>>TOST p-value:<</COLOR>> {p_tost:.4f}\n"
+        _ci90_lo = diff - stats.t.ppf(0.95, df_val) * se
+        _ci90_hi = diff + stats.t.ppf(0.95, df_val) * se
+        summary += f"<<COLOR:highlight>>90% CI for difference:<</COLOR>> [{_ci90_lo:.4f}, {_ci90_hi:.4f}]  (must fall within ±{margin} for equivalence)\n"
+        _ci95_lo = diff - stats.t.ppf(0.975, df_val) * se
+        _ci95_hi = diff + stats.t.ppf(0.975, df_val) * se
+        summary += f"<<COLOR:highlight>>95% CI for difference:<</COLOR>> [{_ci95_lo:.4f}, {_ci95_hi:.4f}]\n\n"
 
         if p_tost < 0.05:
             summary += f"<<COLOR:good>>EQUIVALENT within ±{margin} (p < 0.05)<</COLOR>>\n"
@@ -12836,8 +12929,8 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
                 summary_text += f"<<COLOR:text>>Fixed Effects:<</COLOR>>\n"
-                summary_text += f"{'Term':<35} {'Coef':>10} {'SE':>10} {'z':>8} {'p-value':>10} {'Sig':>5}\n"
-                summary_text += f"{'─' * 80}\n"
+                summary_text += f"{'Term':<35} {'Coef':>10} {'SE':>10} {'z':>8} {'p-value':>10} {'Sig':>5} {f'{int((1-alpha)*100)}% CI':>22}\n"
+                summary_text += f"{'─' * 105}\n"
                 for name in fit.fe_params.index:
                     coef = float(fit.fe_params[name])
                     se = float(fit.bse[name]) if name in fit.bse.index else None
@@ -12846,7 +12939,8 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     sig = "<<COLOR:good>>*<</COLOR>>" if pv is not None and pv < alpha else ""
                     p_str = f"{pv:.4f}" if pv is not None else "N/A"
                     se_str = f"{se:.4f}" if se is not None else "N/A"
-                    summary_text += f"{str(name):<35} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {sig:>5}\n"
+                    _ci_str = f"[{coef - 1.96 * se:.4f}, {coef + 1.96 * se:.4f}]" if se else ""
+                    summary_text += f"{str(name):<35} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {sig:>5} {_ci_str:>22}\n"
 
                 summary_text += f"\n<<COLOR:text>>Variance Components:<</COLOR>>\n"
                 summary_text += f"  {group_var} (random): {var_random:.4f} ({icc*100:.1f}% of total)\n"
@@ -12928,16 +13022,19 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 summary_text += f"  R²: {model.rsquared:.4f}  Adj R²: {model.rsquared_adj:.4f}\n"
                 summary_text += f"  AIC: {model.aic:.1f}  BIC: {model.bic:.1f}\n"
 
-                # Coefficients table
+                # Coefficients table with CIs
+                _glm_ci = model.conf_int(alpha=alpha)
                 summary_text += f"\n<<COLOR:text>>Coefficients:<</COLOR>>\n"
-                summary_text += f"{'Term':<35} {'Coef':>10} {'SE':>10} {'t':>8} {'p-value':>10}\n"
-                summary_text += f"{'─' * 75}\n"
+                summary_text += f"{'Term':<35} {'Coef':>10} {'SE':>10} {'t':>8} {'p-value':>10} {f'{int((1-alpha)*100)}% CI':>22}\n"
+                summary_text += f"{'─' * 97}\n"
                 for name in model.params.index:
                     coef = float(model.params[name])
                     se = float(model.bse[name])
                     t = float(model.tvalues[name])
                     pv = float(model.pvalues[name])
-                    summary_text += f"{str(name):<35} {coef:>10.4f} {se:>10.4f} {t:>8.2f} {pv:>10.4f}\n"
+                    _ci_lo = float(_glm_ci.loc[name, 0])
+                    _ci_hi = float(_glm_ci.loc[name, 1])
+                    summary_text += f"{str(name):<35} {coef:>10.4f} {se:>10.4f} {t:>8.2f} {pv:>10.4f} [{_ci_lo:.4f}, {_ci_hi:.4f}]\n"
 
                 # ── LS-Means (Adjusted Means) for ANCOVA ──
                 if has_factors and has_covariates:
@@ -13543,8 +13640,8 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
             summary_text += f"<<COLOR:text>>Coefficients:<</COLOR>>\n"
-            summary_text += f"{'Parameter':<25} {'Coef':>10} {'SE':>10} {'z':>8} {'p-value':>10} {'OR':>10}\n"
-            summary_text += f"{'─' * 75}\n"
+            summary_text += f"{'Parameter':<25} {'Coef':>10} {'SE':>10} {'z':>8} {'p-value':>10} {'OR':>10} {'95% CI (OR)':>20}\n"
+            summary_text += f"{'─' * 97}\n"
 
             param_names = list(predictors) + [f"threshold_{i}" for i in range(len(categories) - 1)]
             for i, name in enumerate(param_names):
@@ -13557,7 +13654,8 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     se_str = f"{se:.4f}" if se else "N/A"
                     p_str = f"{pv:.4f}" if pv else "N/A"
                     or_str = f"{odds_ratio:.4f}" if odds_ratio else ""
-                    summary_text += f"{name:<25} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {or_str:>10}\n"
+                    ci_str = f"[{np.exp(coef - 1.96 * se):.4f}, {np.exp(coef + 1.96 * se):.4f}]" if odds_ratio and se else ""
+                    summary_text += f"{name:<25} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {or_str:>10} {ci_str:>20}\n"
 
             if hasattr(fit, 'llf'):
                 summary_text += f"\n<<COLOR:text>>Log-Likelihood:<</COLOR>> {fit.llf:.2f}\n"
