@@ -22605,9 +22605,14 @@ def run_visualization(df, analysis_id, config):
         log_H = np.log(hazard_rate)
         log_1mH = np.log(1 - hazard_rate)
 
-        # Priors (weakly informative per segment)
-        s2_cp = float(np.var(data, ddof=1)) if len(data) > 1 else 1.0
-        mu0_cp, nu0_cp, alpha0_cp, beta0_cp = float(np.mean(data)), 1.0, 2.0, max(s2_cp, 1e-10)
+        # Priors from calibration phase (first ~50 obs, not all data)
+        n_cal = min(50, max(10, n // 5))
+        cal_data = data[:n_cal]
+        s2_cal = float(np.var(cal_data, ddof=1)) if n_cal > 1 else 1.0
+        mu0_cp = float(np.mean(cal_data))
+        nu0_cp = 1.0    # kappa: 1 pseudo-observation for mean
+        alpha0_cp = 2.0  # shape: mildly informative
+        beta0_cp = max(s2_cal * alpha0_cp, 1e-10)  # rate matched to calibration variance
 
         # Forward pass
         # run_length_probs[t] = log P(r_t = r | x_{1:t})
@@ -22619,7 +22624,8 @@ def run_visualization(df, analysis_id, config):
         ss_sum = np.zeros(max_rl + 1)
         ss_sum2 = np.zeros(max_rl + 1)
 
-        cp_prob = np.zeros(n)  # P(r_t = 0) at each step
+        cp_prob = np.zeros(n)      # P(r_t = 0) — instantaneous changepoint
+        shift_prob = np.zeros(n)   # 1 - P(r=t+1) — has ANY change occurred?
 
         for t in range(n):
             x = data[t]
@@ -22679,6 +22685,13 @@ def run_visualization(df, analysis_id, config):
 
             cp_prob[t] = np.exp(log_R[t + 1, 0])
 
+            # Shift probability: 1 - P(original run continues from t=0)
+            if t + 1 <= max_rl:
+                shift_prob[t] = float(np.clip(
+                    1.0 - np.exp(log_R[t + 1, t + 1]), 0.0, 1.0))
+            else:
+                shift_prob[t] = 1.0
+
             # Update sufficient stats
             new_ss_n = np.zeros(max_rl + 1)
             new_ss_sum = np.zeros(max_rl + 1)
@@ -22692,11 +22705,11 @@ def run_visualization(df, analysis_id, config):
             new_ss_sum2[0] = 0
             ss_n, ss_sum, ss_sum2 = new_ss_n, new_ss_sum, new_ss_sum2
 
-        # Detect changepoints
+        # Detect changepoints using shift probability (not instantaneous cp_prob)
         changepoints = []
         for t in range(min_seg, n - min_seg):
-            if cp_prob[t] > 0.5:
-                # Ensure minimum distance between changepoints
+            if shift_prob[t] > 0.5 and (t == 0 or shift_prob[t - 1] <= 0.5):
+                # Rising edge: shift just detected
                 if not changepoints or (t - changepoints[-1]) >= min_seg:
                     changepoints.append(t)
 
@@ -22722,7 +22735,7 @@ def run_visualization(df, analysis_id, config):
             for i, cp in enumerate(changepoints):
                 seg_before = segments[i]
                 seg_after = segments[i + 1]
-                summary += f"  <<COLOR:highlight>>Change {i+1}:<</COLOR>> observation {cp}, P(change) = {cp_prob[cp]:.3f}\n"
+                summary += f"  <<COLOR:highlight>>Change {i+1}:<</COLOR>> observation {cp}, P(shifted) = {shift_prob[cp]:.3f}\n"
                 summary += f"    Before: μ = {seg_before['mean']:.4f}, σ = {seg_before['std']:.4f} (n={seg_before['n']})\n"
                 summary += f"    After:  μ = {seg_after['mean']:.4f}, σ = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
         else:
@@ -22742,16 +22755,20 @@ def run_visualization(df, analysis_id, config):
             "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Run Length"}}
         })
 
-        # Plot 2: Change point probability
-        colors = [f"rgba({int(255*p)},{int(255*(1-p))},80,0.8)" for p in cp_prob]
+        # Plot 2: Shift probability (1 - P(original run continues))
+        colors = [f"rgba({int(255*p)},{int(255*(1-p))},80,0.8)" for p in shift_prob]
         result["plots"].append({
-            "title": "Change Point Probability",
+            "title": "Shift Probability — P(process has changed)",
             "data": [
-                {"type": "bar", "y": cp_prob.tolist(), "marker": {"color": colors}, "name": "P(change)", "showlegend": False},
+                {"type": "scatter", "y": shift_prob.tolist(), "mode": "lines",
+                 "line": {"color": "#d94a4a", "width": 2}, "name": "P(shifted)"},
                 {"type": "scatter", "x": [0, n], "y": [0.5, 0.5], "mode": "lines",
-                 "line": {"color": "#e89547", "dash": "dash"}, "name": "Threshold"},
+                 "line": {"color": "#e89547", "dash": "dash"}, "name": "Threshold (50%)"},
+                {"type": "scatter", "x": [0, n], "y": [0.95, 0.95], "mode": "lines",
+                 "line": {"color": "#d94a4a", "dash": "dot", "width": 1}, "name": "Alarm (95%)"},
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "P(r=0)", "range": [0, 1.05]}}
+            "layout": {"height": 250, "xaxis": {"title": "Observation"},
+                        "yaxis": {"title": "P(shifted)", "range": [0, 1.05]}}
         })
 
         # Plot 3: Process data with detected changes
