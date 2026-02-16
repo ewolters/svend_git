@@ -419,36 +419,28 @@ class EvidenceChartPoint:
 class EvidenceAccumulation:
     """
     Anytime-valid e-value accumulation using Normal mixture alternative.
+    Uses FIXED reference parameters from calibration phase (Grünwald 2024).
     """
 
-    def __init__(self, mu_0: float, sigma_mix_ratio: float = 1.0):
+    def __init__(self, mu_0: float, sigma_ref: float,
+                 sigma_mix_ratio: float = 1.0):
         self.mu_0 = mu_0
-        self.sigma_mix_ratio = sigma_mix_ratio
+        self.sigma2 = sigma_ref ** 2
+        self.sigma2_mix = self.sigma2 * sigma_mix_ratio
         self.log_E = 0.0  # accumulated log e-value
         self._t = 0
         self.points: List[EvidenceChartPoint] = []
 
-    def process(self, x: float, posterior: NormalGammaPosterior) -> EvidenceChartPoint:
-        """Compute e-value for observation x against H₀: μ = μ₀."""
+    def process(self, x: float) -> EvidenceChartPoint:
+        """Compute e-value for observation x against H₀: μ = μ₀, σ = σ_ref."""
         self._t += 1
 
-        sigma2_est = posterior.variance_estimate
-        sigma2_mix = sigma2_est * self.sigma_mix_ratio
-
-        # Predictive variance under H0
-        pred_var = posterior.beta * (posterior.kappa + 1) / (
-            posterior.alpha * posterior.kappa)
-        nu = 2 * posterior.alpha
-
-        # E-value via Normal mixture
-        if nu > 10:
-            ratio = pred_var / (pred_var + sigma2_mix)
-            exponent = (sigma2_mix * (x - self.mu_0) ** 2
-                        / (2 * pred_var * (pred_var + sigma2_mix)))
-            log_e_i = 0.5 * math.log(max(ratio, 1e-300)) + exponent
-        else:
-            # Numerical integration for small samples
-            log_e_i = self._numerical_log_e(x, nu, pred_var, sigma2_mix)
+        # Gaussian mixture e-value (Grünwald 2024)
+        # e_t = sqrt(σ²/(σ²+σ²_mix)) · exp(σ²_mix·(x−μ₀)² / (2σ²(σ²+σ²_mix)))
+        ratio = self.sigma2 / (self.sigma2 + self.sigma2_mix)
+        exponent = (self.sigma2_mix * (x - self.mu_0) ** 2
+                    / (2.0 * self.sigma2 * (self.sigma2 + self.sigma2_mix)))
+        log_e_i = 0.5 * math.log(max(ratio, 1e-300)) + exponent
 
         # Accumulate in log space (§4.4)
         self.log_E += log_e_i
@@ -482,24 +474,6 @@ class EvidenceAccumulation:
         """Reset after acknowledged changepoint."""
         self.mu_0 = new_mu_0
         self.log_E = 0.0
-
-    def _numerical_log_e(self, x, nu, pred_var, sigma2_mix) -> float:
-        """Numerical integration for small-sample e-value."""
-        # Integrate likelihood ratio * mixing density
-        # Using Gauss-Hermite quadrature
-        scale = math.sqrt(pred_var)
-        mix_scale = math.sqrt(sigma2_mix)
-
-        # Log predictive under H0 (Student-t)
-        log_f0 = sp_stats.t.logpdf(x, df=nu, loc=self.mu_0, scale=scale)
-
-        # Log predictive under H1 (mixture over delta)
-        # f1(x) = integral N(x; mu0+delta, pred_var) * N(delta; 0, sigma2_mix) d_delta
-        # = N(x; mu0, pred_var + sigma2_mix)
-        log_f1 = sp_stats.norm.logpdf(x, loc=self.mu_0,
-                                       scale=math.sqrt(pred_var + sigma2_mix))
-
-        return log_f1 - log_f0
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -953,7 +927,7 @@ class MultiStreamHealth:
         assert abs(sum(norm_weights.values()) - 1.0) < 1e-6
 
         log_health = sum(
-            norm_weights[k] * math.log(max(available[k], 1e-10))
+            norm_weights[k] * math.log(max(available[k], 0.01))
             for k in available
         )
         overall = math.exp(log_health)
@@ -968,7 +942,7 @@ class MultiStreamHealth:
                     cf = dict(available)
                     cf[key] = previous_streams[key]
                     cf_log = sum(
-                        norm_weights[k] * math.log(max(cf[k], 1e-10))
+                        norm_weights[k] * math.log(max(cf[k], 0.01))
                         for k in available
                     )
                     impacts[key] = math.exp(cf_log) - overall
@@ -1053,6 +1027,16 @@ class ProcessNarrative:
             segments.append(
                 f"Trajectory: {predictive.prob_exceed_spec_10:.0%} "
                 f"probability of spec exceedance within 10 obs.")
+
+        # 4b. Cross-component coherence check
+        belief_stable = belief_pt and belief_pt.shift_probability < 0.20
+        pred_risky = predictive and predictive.prob_exceed_spec_10 > 0.30
+        ev_risky = evidence_pt and evidence_pt.e_value_accumulated > 20
+        if belief_stable and (pred_risky or ev_risky):
+            segments.append(
+                "Caution: Predictive model and/or evidence accumulation "
+                "indicate risk that the shift detector has not confirmed. "
+                "Investigate the trend.")
 
         # 5. Capability
         if cpk:
@@ -1210,22 +1194,32 @@ def run_pbs(df, analysis_id, config):
 
     hazard_lambda = float(config.get("hazard_lambda", 200))
 
-    # Build prior
+    # Calibration phase — first observations set informative prior
+    n_cal = min(50, max(10, n // 5))
+    cal = y[:n_cal]
+    sigma_cal = float(np.std(cal, ddof=1)) if n_cal > 1 else 0.01
+
+    # Build prior — center on target/spec/data
     if target is not None:
         mu_0 = target
     elif USL is not None and LSL is not None:
         mu_0 = (USL + LSL) / 2.0
     else:
-        mu_0 = float(np.mean(y[:5]))
+        mu_0 = float(np.mean(cal))
 
-    prior = NormalGammaPosterior(mu=mu_0, kappa=0.01, alpha=0.01, beta=0.01)
+    # Informative prior: kappa=1 (1 pseudo-obs for mean), alpha=2,
+    # beta matched to calibration variance.  Predictive scale ≈ sigma_cal.
+    prior = NormalGammaPosterior(
+        mu=mu_0, kappa=1.0, alpha=2.0,
+        beta=max(sigma_cal ** 2 * 2.0, 1e-10))
 
     if analysis_id == "pbs_full":
-        return _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config)
+        return _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda,
+                             config, sigma_cal)
     elif analysis_id == "pbs_belief":
         return _run_belief_only(y, prior, hazard_lambda, config)
     elif analysis_id == "pbs_evidence":
-        return _run_evidence_only(y, prior, mu_0, config)
+        return _run_evidence_only(y, prior, mu_0, config, sigma_cal)
     elif analysis_id == "pbs_predictive":
         return _run_predictive_only(y, USL, LSL, config)
     elif analysis_id == "pbs_adaptive":
@@ -1241,7 +1235,8 @@ def run_pbs(df, analysis_id, config):
         return result
 
 
-def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config):
+def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
+                  sigma_ref):
     """Full PBS analysis — all charts."""
     result = {"plots": [], "summary": "", "guide_observation": ""}
     n = len(y)
@@ -1255,13 +1250,11 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config):
     post = prior.copy()
     post.update(y)
 
-    # 3. Evidence accumulation
+    # 3. Evidence accumulation (fixed reference from calibration)
     mu_0 = prior.mu
-    ea = EvidenceAccumulation(mu_0=mu_0)
-    running_post = prior.copy()
+    ea = EvidenceAccumulation(mu_0=mu_0, sigma_ref=sigma_ref)
     for x in y:
-        running_post.update_single(x)
-        ea.process(x, running_post)
+        ea.process(x)
 
     # 4. Adaptive control limits
     acl = AdaptiveControlLimits()
@@ -1639,13 +1632,11 @@ def _run_belief_only(y, prior, hazard_lambda, config):
     return result
 
 
-def _run_evidence_only(y, prior, mu_0, config):
+def _run_evidence_only(y, prior, mu_0, config, sigma_ref):
     result = {"plots": [], "summary": "", "guide_observation": ""}
-    ea = EvidenceAccumulation(mu_0=mu_0)
-    post = prior.copy()
+    ea = EvidenceAccumulation(mu_0=mu_0, sigma_ref=sigma_ref)
     for x in y:
-        post.update_single(x)
-        ea.process(x, post)
+        ea.process(x)
 
     ts = list(range(len(y)))
     log_es = [p.log_e_accumulated for p in ea.points]
