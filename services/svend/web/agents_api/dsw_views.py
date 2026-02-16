@@ -801,6 +801,104 @@ def _clean_for_ml(df, target):
     return X, y, label_map
 
 
+def _stratified_split(X, y, test_size=0.2, base_seed=42, max_retries=10):
+    """Stratified train/test split with retry to ensure all classes appear in test set.
+
+    Uses StratifiedShuffleSplit and retries with different seeds if any class
+    is missing from the test set. Falls back to plain stratified split, then
+    unstratified split if stratification is impossible (e.g. class with 1 sample).
+    """
+    from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
+
+    all_classes = set(y.unique())
+
+    for seed in range(base_seed, base_seed + max_retries):
+        try:
+            sss = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=seed)
+            train_idx, test_idx = next(sss.split(X, y))
+            X_tr, X_te = X.iloc[train_idx], X.iloc[test_idx]
+            y_tr, y_te = y.iloc[train_idx], y.iloc[test_idx]
+            if set(y_te.unique()) == all_classes:
+                return X_tr, X_te, y_tr, y_te
+        except ValueError:
+            pass
+
+    # Fallback: plain stratified split
+    try:
+        return train_test_split(X, y, test_size=test_size, random_state=base_seed, stratify=y)
+    except ValueError:
+        return train_test_split(X, y, test_size=test_size, random_state=base_seed)
+
+
+def _classification_reliability(y_full, y_test, y_pred, metrics):
+    """Compute reliability warnings and enriched metrics for a classification result.
+
+    Mutates `metrics` in place: adds balanced_accuracy, f1_macro, recall_macro,
+    baseline_accuracy, class_balance, per_class, reliability_warnings.
+    For binary tasks with probabilities, call separately for average_precision.
+    """
+    from collections import Counter
+    from sklearn.metrics import (
+        balanced_accuracy_score, f1_score, recall_score,
+        classification_report,
+    )
+
+    counts = Counter(y_full)
+    majority_pct = max(counts.values()) / len(y_full)
+    all_classes = set(y_full.unique())
+
+    # Enriched metrics
+    metrics["balanced_accuracy"] = round(balanced_accuracy_score(y_test, y_pred), 4)
+    metrics["f1_macro"] = round(f1_score(y_test, y_pred, average="macro", zero_division=0), 4)
+    metrics["recall_macro"] = round(recall_score(y_test, y_pred, average="macro", zero_division=0), 4)
+    metrics["baseline_accuracy"] = round(majority_pct, 4)
+    metrics["class_balance"] = {str(k): int(v) for k, v in counts.items()}
+
+    # Per-class breakdown
+    report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
+    metrics["per_class"] = {}
+    for k, vals in report.items():
+        if k not in ("accuracy", "macro avg", "weighted avg") and isinstance(vals, dict):
+            metrics["per_class"][str(k)] = {
+                m: round(float(v), 4) for m, v in vals.items()
+            }
+
+    # Reliability warnings
+    warnings = []
+    test_classes = set(y_test.unique()) if hasattr(y_test, 'unique') else set(y_test)
+    if test_classes != all_classes:
+        missing = all_classes - test_classes
+        warnings.append({"level": "high", "msg": f"Test split is missing classes: {missing}. Metrics are unreliable — all scores reflect majority-class performance only."})
+
+    acc = metrics.get("accuracy", 0)
+
+    if acc >= 0.99:
+        warnings.append({"level": "high", "msg": "Perfect or near-perfect accuracy — check for data leakage or target-derived features."})
+
+    if abs(acc - majority_pct) < 0.01:
+        warnings.append({"level": "high", "msg": f"Model accuracy ({acc:.1%}) matches the majority baseline ({majority_pct:.1%}). The model is not learning from features."})
+    elif abs(acc - majority_pct) < 0.02:
+        warnings.append({"level": "high", "msg": f"Model accuracy ({acc:.1%}) is within 2% of majority baseline ({majority_pct:.1%}). Lift is negligible."})
+
+    if majority_pct > 0.80:
+        warnings.append({"level": "medium", "msg": f"Severe class imbalance ({majority_pct:.0%} majority). Balanced accuracy ({metrics['balanced_accuracy']:.1%}) is more reliable than standard accuracy."})
+
+    if metrics["balanced_accuracy"] < 0.55 and acc > 0.80:
+        warnings.append({"level": "high", "msg": f"High accuracy ({acc:.1%}) but low balanced accuracy ({metrics['balanced_accuracy']:.1%}) — model is biased toward the majority class."})
+
+    # Minority class recall check
+    for cls_key, cls_metrics in metrics["per_class"].items():
+        try:
+            cls_count = counts.get(int(cls_key), counts.get(cls_key, 0))
+        except (ValueError, TypeError):
+            cls_count = counts.get(cls_key, 0)
+        if cls_count / len(y_full) < 0.20 and cls_metrics.get("recall", 1) < 0.50:
+            warnings.append({"level": "high", "msg": f"Minority class '{cls_key}' recall is {cls_metrics['recall']:.0%} — the model fails to detect most instances of this class."})
+
+    metrics["reliability_warnings"] = warnings
+    return metrics
+
+
 def _auto_train(X, y, task=None):
     """Auto-detect task type and train the best available model.
 
@@ -808,10 +906,12 @@ def _auto_train(X, y, task=None):
              X_test, y_test, y_pred) — last 3 for diagnostic plots.
     """
     import numpy as np
+    from collections import Counter
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
     from sklearn.model_selection import train_test_split
     from sklearn.metrics import (
         accuracy_score, precision_score, recall_score, f1_score,
+        average_precision_score,
         r2_score, mean_squared_error, mean_absolute_error,
     )
 
@@ -823,10 +923,19 @@ def _auto_train(X, y, task=None):
         else:
             task = "regression"
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
     if task == "classification":
-        model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        # Stratified split with retry for missing classes
+        X_train, X_test, y_train, y_test = _stratified_split(X, y)
+
+        # Auto class weighting when imbalanced
+        counts = Counter(y)
+        majority_pct = max(counts.values()) / len(y)
+        use_balanced = majority_pct > 0.75
+
+        model = RandomForestClassifier(
+            n_estimators=100, random_state=42, n_jobs=-1,
+            class_weight="balanced" if use_balanced else None,
+        )
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
 
@@ -836,7 +945,23 @@ def _auto_train(X, y, task=None):
             "recall": round(recall_score(y_test, y_pred, average="weighted", zero_division=0), 4),
             "f1": round(f1_score(y_test, y_pred, average="weighted", zero_division=0), 4),
         }
+
+        # Binary: add average_precision (PR AUC)
+        n_classes = y.nunique()
+        if n_classes == 2 and hasattr(model, "predict_proba"):
+            try:
+                y_proba = model.predict_proba(X_test)[:, 1]
+                metrics["average_precision"] = round(average_precision_score(y_test, y_proba), 4)
+            except Exception:
+                pass
+
+        # Reliability: balanced metrics, per-class, warnings
+        _classification_reliability(y, y_test, y_pred, metrics)
+
     else:
+        # --- Regression (unchanged split) ---
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
         model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
@@ -4579,6 +4704,2076 @@ def run_statistical_analysis(df, analysis_id, config):
             "alternative": alt
         }
 
+    elif analysis_id == "variance_test":
+        """
+        Variance Test — compare variability.
+        Modes:
+          1) Single column + sigma0 → chi-square test for σ² = σ₀²
+          2) Two columns (wide) → F-test + Levene's
+          3) Response + grouping factor → Bartlett's + Levene's for 2+ groups
+        Always runs both Bartlett's (assumes normality) and Levene's (robust) so
+        the user doesn't have to check normality first.
+        """
+        var1 = config.get("var1") or config.get("var")
+        var2 = config.get("var2")
+        sigma0 = config.get("sigma0")
+        alpha = 1 - float(config.get("conf", 95)) / 100
+        conf_pct = float(config.get("conf", 95))
+
+        # Detect mode
+        if config.get("data_format") == "factor" or config.get("group_var"):
+            # Mode 3: response + grouping factor
+            response_col = config.get("response") or var1
+            factor_col = config.get("group_var") or config.get("factor") or var2
+            data_clean = df[[response_col, factor_col]].dropna()
+            groups_labels = sorted(data_clean[factor_col].unique().tolist(), key=str)
+            groups_data = [data_clean[data_clean[factor_col] == g][response_col].values for g in groups_labels]
+            mode = "factor"
+        elif var2 and var2 != var1:
+            # Mode 2: two separate columns
+            x = df[var1].dropna().values
+            y = df[var2].dropna().values
+            groups_labels = [str(var1), str(var2)]
+            groups_data = [x, y]
+            mode = "two_col"
+        elif sigma0 is not None:
+            # Mode 1: one-sample chi-square
+            x = df[var1].dropna().values
+            mode = "one_sample"
+        else:
+            result["summary"] = "Please provide either two columns, a response + grouping factor, or a single column with a hypothesized sigma (sigma0)."
+            return result
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+
+        if mode == "one_sample":
+            sigma0 = float(sigma0)
+            n = len(x)
+            s2 = float(np.var(x, ddof=1))
+            s = float(np.sqrt(s2))
+            chi2_stat = (n - 1) * s2 / (sigma0 ** 2) if sigma0 > 0 else 0
+
+            p_val = float(2 * min(
+                stats.chi2.cdf(chi2_stat, n - 1),
+                1 - stats.chi2.cdf(chi2_stat, n - 1),
+            ))
+
+            ci_lo_var = (n - 1) * s2 / stats.chi2.ppf(1 - alpha / 2, n - 1)
+            ci_hi_var = (n - 1) * s2 / stats.chi2.ppf(alpha / 2, n - 1)
+
+            summary += f"<<COLOR:title>>ONE-SAMPLE VARIANCE TEST (Chi-Square)<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+            summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var1}\n"
+            summary += f"<<COLOR:highlight>>H₀:<</COLOR>> σ = {sigma0}\n\n"
+            summary += f"<<COLOR:text>>Sample Results:<</COLOR>>\n"
+            summary += f"  N: {n}\n"
+            summary += f"  Sample std dev: {s:.4f}\n"
+            summary += f"  Sample variance: {s2:.4f}\n\n"
+            summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+            summary += f"  Chi-square statistic: {chi2_stat:.4f}\n"
+            summary += f"  df: {n - 1}\n"
+            summary += f"  p-value: {p_val:.4f}\n"
+            summary += f"  {conf_pct:.0f}% CI for σ²: ({ci_lo_var:.4f}, {ci_hi_var:.4f})\n"
+            summary += f"  {conf_pct:.0f}% CI for σ:  ({np.sqrt(ci_lo_var):.4f}, {np.sqrt(ci_hi_var):.4f})\n\n"
+
+            if p_val < alpha:
+                summary += f"<<COLOR:good>>Variance differs significantly from {sigma0}² = {sigma0**2:.4f} (p < {alpha})<</COLOR>>"
+            else:
+                summary += f"<<COLOR:text>>No significant difference from σ₀ = {sigma0} (p ≥ {alpha})<</COLOR>>"
+
+            result["statistics"] = {
+                "n": n, "sample_std": s, "sample_variance": s2,
+                "chi2_statistic": chi2_stat, "df": n - 1, "p_value": p_val,
+                "ci_variance_lower": ci_lo_var, "ci_variance_upper": ci_hi_var,
+            }
+            result["guide_observation"] = f"One-sample variance test: s={s:.4f} vs σ₀={sigma0}, χ²={chi2_stat:.3f}, p={p_val:.4f}. " + ("Significant." if p_val < alpha else "Not significant.")
+
+        else:
+            # Multi-group: Bartlett's + Levene's (always both)
+            k = len(groups_data)
+            ns = [len(g) for g in groups_data]
+            stds = [float(np.std(g, ddof=1)) for g in groups_data]
+            variances = [float(np.var(g, ddof=1)) for g in groups_data]
+
+            bart_stat, bart_p = stats.bartlett(*groups_data)
+            lev_stat, lev_p = stats.levene(*groups_data, center="median")
+
+            summary += f"<<COLOR:title>>TEST FOR EQUAL VARIANCES<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+
+            if mode == "factor":
+                summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response_col}\n"
+                summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_col}\n\n"
+            else:
+                summary += f"<<COLOR:highlight>>Columns:<</COLOR>> {var1}, {var2}\n\n"
+
+            summary += f"<<COLOR:text>>Sample Statistics:<</COLOR>>\n"
+            summary += f"  {'Group':<20} {'N':>6} {'StDev':>10} {'Variance':>12}\n"
+            summary += f"  {'─' * 50}\n"
+            for lbl, n_i, s_i, v_i in zip(groups_labels, ns, stds, variances):
+                summary += f"  {str(lbl):<20} {n_i:>6} {s_i:>10.4f} {v_i:>12.4f}\n"
+
+            summary += f"\n<<COLOR:text>>Test Results:<</COLOR>>\n"
+            summary += f"  {'Test':<25} {'Statistic':>12} {'p-value':>10}\n"
+            summary += f"  {'─' * 50}\n"
+            summary += f"  {'Bartlett (normal data)':<25} {bart_stat:>12.4f} {bart_p:>10.4f}\n"
+            summary += f"  {'Levene (robust)':<25} {lev_stat:>12.4f} {lev_p:>10.4f}\n"
+
+            # F-test only for exactly 2 groups
+            f_stat, f_p = None, None
+            if k == 2:
+                f_stat = variances[0] / variances[1] if variances[1] > 0 else float("inf")
+                df1, df2 = ns[0] - 1, ns[1] - 1
+                f_p = float(2 * min(
+                    stats.f.cdf(f_stat, df1, df2),
+                    1 - stats.f.cdf(f_stat, df1, df2),
+                ))
+                summary += f"  {'F-test (2-sample)':<25} {f_stat:>12.4f} {f_p:>10.4f}\n"
+
+                # CI for variance ratio
+                f_lo = stats.f.ppf(alpha / 2, df1, df2)
+                f_hi = stats.f.ppf(1 - alpha / 2, df1, df2)
+                ratio_lo = f_stat / f_hi
+                ratio_hi = f_stat / f_lo
+                summary += f"\n  {conf_pct:.0f}% CI for σ₁²/σ₂²: ({ratio_lo:.4f}, {ratio_hi:.4f})\n"
+
+            summary += f"\n<<COLOR:text>>Recommendation:<</COLOR>>\n"
+            summary += f"  Use Levene's test (robust to non-normality).\n"
+            summary += f"  Bartlett's test is more powerful but assumes normal data.\n\n"
+
+            sig = lev_p < alpha
+            if sig:
+                summary += f"<<COLOR:good>>Variances are significantly different (Levene's p = {lev_p:.4f} < {alpha})<</COLOR>>"
+            else:
+                summary += f"<<COLOR:text>>No significant difference in variances (Levene's p = {lev_p:.4f} ≥ {alpha})<</COLOR>>"
+
+            result["statistics"] = {
+                "bartlett_statistic": float(bart_stat), "bartlett_p": float(bart_p),
+                "levene_statistic": float(lev_stat), "levene_p": float(lev_p),
+                "group_stds": dict(zip([str(g) for g in groups_labels], stds)),
+                "group_variances": dict(zip([str(g) for g in groups_labels], variances)),
+            }
+            if f_stat is not None:
+                result["statistics"]["f_statistic"] = float(f_stat)
+                result["statistics"]["f_p_value"] = float(f_p)
+
+            result["guide_observation"] = f"Variance test ({k} groups): Levene's p={lev_p:.4f}, Bartlett's p={bart_p:.4f}. " + ("Variances differ." if sig else "Variances are equal.")
+
+            # Side-by-side box/strip plots showing spread
+            traces = []
+            for i, (lbl, gd) in enumerate(zip(groups_labels, groups_data)):
+                colors = ["#4a9f6e", "#4a90d9", "#e8c547", "#c75a3a", "#7a5fb8", "#5a9fd4", "#d4a05a", "#5ad4a0"]
+                traces.append({
+                    "type": "box", "y": gd.tolist(), "name": str(lbl),
+                    "marker": {"color": colors[i % len(colors)]}, "boxpoints": "outliers",
+                })
+            result["plots"].append({
+                "title": "Variability Comparison",
+                "data": traces,
+                "layout": {"template": "plotly_dark", "height": 300, "yaxis": {"title": "Value"}},
+            })
+
+            # Interval plot of standard deviations
+            result["plots"].append({
+                "data": [{
+                    "type": "bar", "x": [str(g) for g in groups_labels], "y": stds,
+                    "marker": {"color": "#4a9f6e"},
+                    "text": [f"{s:.4f}" for s in stds], "textposition": "outside",
+                }],
+                "layout": {
+                    "title": "Standard Deviations by Group",
+                    "yaxis": {"title": "Std Dev", "rangemode": "tozero"},
+                    "template": "plotly_white", "height": 250,
+                },
+            })
+
+        result["summary"] = summary
+
+    elif analysis_id == "poisson_2sample":
+        """
+        Two-Sample Poisson Rate Test — compare event rates between two groups.
+        Modes:
+          1) Two count columns + optional exposure per group
+          2) Response column + grouping factor (auto-sum per group)
+        Reports exact conditional test, rate ratio with CI.
+        """
+        var1 = config.get("var1") or config.get("var")
+        var2 = config.get("var2")
+        alpha = 1 - float(config.get("conf", 95)) / 100
+        conf_pct = float(config.get("conf", 95))
+        alt = config.get("alternative", "two-sided")
+
+        if config.get("data_format") == "factor" or config.get("group_var"):
+            response_col = config.get("response") or var1
+            factor_col = config.get("group_var") or config.get("factor") or var2
+            data_clean = df[[response_col, factor_col]].dropna()
+            levels = sorted(data_clean[factor_col].unique().tolist(), key=str)
+            if len(levels) != 2:
+                result["summary"] = f"Two-sample Poisson test requires exactly 2 groups. Found {len(levels)}."
+                return result
+            g1 = data_clean[data_clean[factor_col] == levels[0]][response_col]
+            g2 = data_clean[data_clean[factor_col] == levels[1]][response_col]
+            c1, c2 = float(g1.sum()), float(g2.sum())
+            e1 = float(config.get("exposure1", len(g1)))
+            e2 = float(config.get("exposure2", len(g2)))
+            label1, label2 = str(levels[0]), str(levels[1])
+        else:
+            col1 = df[var1].dropna()
+            col2 = df[var2].dropna()
+            c1, c2 = float(col1.sum()), float(col2.sum())
+            e1 = float(config.get("exposure1", len(col1)))
+            e2 = float(config.get("exposure2", len(col2)))
+            label1, label2 = str(var1), str(var2)
+
+        r1 = c1 / e1 if e1 > 0 else 0
+        r2 = c2 / e2 if e2 > 0 else 0
+        rate_ratio = r1 / r2 if r2 > 0 else float("inf")
+
+        # Exact conditional test (condition on total count)
+        total = c1 + c2
+        e_ratio = e1 / (e1 + e2) if (e1 + e2) > 0 else 0.5
+        if total > 0:
+            if alt == "greater":
+                p_val = float(1 - stats.binom.cdf(int(c1) - 1, int(total), e_ratio))
+            elif alt == "less":
+                p_val = float(stats.binom.cdf(int(c1), int(total), e_ratio))
+            else:
+                p_left = stats.binom.cdf(int(c1), int(total), e_ratio)
+                p_right = 1 - stats.binom.cdf(int(c1) - 1, int(total), e_ratio)
+                p_val = float(min(1.0, 2 * min(p_left, p_right)))
+        else:
+            p_val = 1.0
+
+        # CI for rate ratio (log-normal approximation)
+        z_crit = stats.norm.ppf(1 - alpha / 2)
+        if c1 > 0 and c2 > 0:
+            se_ln = np.sqrt(1 / c1 + 1 / c2)
+            ln_rr = np.log(rate_ratio)
+            rr_lo = float(np.exp(ln_rr - z_crit * se_ln))
+            rr_hi = float(np.exp(ln_rr + z_crit * se_ln))
+        else:
+            rr_lo, rr_hi = 0.0, float("inf")
+
+        # CI for rate difference
+        diff = r1 - r2
+        se_diff = np.sqrt(r1 / e1 + r2 / e2) if (e1 > 0 and e2 > 0) else 0
+        diff_lo = diff - z_crit * se_diff
+        diff_hi = diff + z_crit * se_diff
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>TWO-SAMPLE POISSON RATE TEST<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Sample Results:<</COLOR>>\n"
+        summary += f"  {'Group':<20} {'Count':>8} {'Exposure':>10} {'Rate':>10}\n"
+        summary += f"  {'─' * 52}\n"
+        summary += f"  {label1:<20} {c1:>8.0f} {e1:>10.1f} {r1:>10.4f}\n"
+        summary += f"  {label2:<20} {c2:>8.0f} {e2:>10.1f} {r2:>10.4f}\n\n"
+        summary += f"<<COLOR:text>>Rate Ratio (r₁/r₂):<</COLOR>> {rate_ratio:.4f}\n"
+        summary += f"<<COLOR:text>>{conf_pct:.0f}% CI for ratio:<</COLOR>> ({rr_lo:.4f}, {rr_hi:.4f})\n"
+        summary += f"<<COLOR:text>>Rate Difference (r₁ − r₂):<</COLOR>> {diff:.4f}\n"
+        summary += f"<<COLOR:text>>{conf_pct:.0f}% CI for difference:<</COLOR>> ({diff_lo:.4f}, {diff_hi:.4f})\n\n"
+        summary += f"<<COLOR:text>>Exact Conditional Test:<</COLOR>>\n"
+        summary += f"  p-value: {p_val:.4f}\n\n"
+
+        if p_val < alpha:
+            summary += f"<<COLOR:good>>Rates differ significantly (p < {alpha})<</COLOR>>"
+        else:
+            summary += f"<<COLOR:text>>No significant difference in rates (p ≥ {alpha})<</COLOR>>"
+
+        result["summary"] = summary
+
+        result["plots"].append({
+            "data": [{
+                "type": "bar", "x": [label1, label2], "y": [r1, r2],
+                "marker": {"color": ["#4a9f6e", "#4a90d9"]},
+                "text": [f"{r1:.4f}", f"{r2:.4f}"], "textposition": "outside",
+            }],
+            "layout": {
+                "title": "Rates by Group",
+                "yaxis": {"title": "Rate", "rangemode": "tozero"},
+                "template": "plotly_white", "height": 280,
+            },
+        })
+
+        # Rate ratio CI plot
+        if rate_ratio < float("inf"):
+            result["plots"].append({
+                "data": [{
+                    "type": "scatter", "x": [rate_ratio], "y": ["Rate Ratio"], "mode": "markers",
+                    "marker": {"size": 12, "color": "#4a9f6e"},
+                    "error_x": {"type": "data", "symmetric": False,
+                                "array": [rr_hi - rate_ratio], "arrayminus": [rate_ratio - rr_lo],
+                                "color": "#5a6a5a"},
+                }],
+                "layout": {
+                    "title": f"Rate Ratio ({conf_pct:.0f}% CI)",
+                    "xaxis": {"title": "r₁ / r₂", "type": "log"},
+                    "shapes": [{"type": "line", "x0": 1, "x1": 1, "y0": -0.5, "y1": 0.5,
+                                "line": {"color": "#e89547", "dash": "dash"}}],
+                    "height": 180, "template": "plotly_white",
+                },
+            })
+
+        result["guide_observation"] = f"Two-sample Poisson: r₁={r1:.4f} vs r₂={r2:.4f}, ratio={rate_ratio:.3f}, p={p_val:.4f}. " + ("Rates differ." if p_val < alpha else "Not significant.")
+        result["statistics"] = {
+            "count1": c1, "count2": c2, "exposure1": e1, "exposure2": e2,
+            "rate1": r1, "rate2": r2, "rate_ratio": float(rate_ratio),
+            "rate_difference": diff, "p_value": p_val,
+            "ratio_ci_lower": rr_lo, "ratio_ci_upper": rr_hi,
+            "diff_ci_lower": diff_lo, "diff_ci_upper": diff_hi,
+        }
+
+    elif analysis_id == "attribute_capability":
+        """
+        Attribute Capability Analysis — capability for pass/fail or defect count data.
+        Modes:
+          1) Single column of pass/fail values (auto-detect defect = less frequent value)
+          2) Direct counts: defects, units, opportunities
+          3) Response + grouping factor for subgroup-level defect tracking
+        Reports: DPU, DPO, DPMO, yield %, sigma level (with/without 1.5σ shift).
+        """
+        var = config.get("var") or config.get("var1")
+        defects_count = config.get("defects")
+        units_count = config.get("units")
+        opportunities = config.get("opportunities", 1)
+        event = config.get("event")
+
+        if defects_count is not None and units_count is not None:
+            # Direct counts mode
+            d = float(defects_count)
+            n = float(units_count)
+            opp = float(opportunities)
+        elif var:
+            col = df[var].dropna()
+            n = len(col)
+            opp = float(config.get("opportunities", 1))
+            # Auto-detect event (less frequent value = defect)
+            if event is not None:
+                d = float((col.astype(str) == str(event)).sum())
+            else:
+                vc = col.value_counts()
+                if len(vc) == 2:
+                    defect_val = vc.index[-1]  # less frequent
+                    d = float(vc.iloc[-1])
+                    event = str(defect_val)
+                elif col.dtype in ["int64", "float64"]:
+                    d = float(col.sum())
+                    event = "sum"
+                else:
+                    result["summary"] = "Cannot auto-detect defect value. Please specify 'event' in config."
+                    return result
+        else:
+            result["summary"] = "Provide a column name (var) or direct counts (defects, units)."
+            return result
+
+        if n <= 0:
+            result["summary"] = "No valid data to analyze."
+            return result
+
+        dpu = d / n
+        dpo = d / (n * opp) if opp > 0 else 0
+        dpmo = dpo * 1_000_000
+        yield_pct = (1 - dpo) * 100
+
+        # Sigma level (using inverse normal)
+        if 0 < dpo < 1:
+            z_bench = float(stats.norm.ppf(1 - dpo))
+            sigma_st = z_bench + 1.5  # short-term with 1.5σ shift
+        elif dpo == 0:
+            z_bench = 6.0
+            sigma_st = 7.5
+        else:
+            z_bench = 0.0
+            sigma_st = 1.5
+
+        # CI for proportion defective (Wilson)
+        p_hat = dpo
+        z_a = stats.norm.ppf(1 - 0.05 / 2)
+        total_opp = n * opp
+        denom = 1 + z_a ** 2 / total_opp
+        center = (p_hat + z_a ** 2 / (2 * total_opp)) / denom
+        half = z_a * np.sqrt(p_hat * (1 - p_hat) / total_opp + z_a ** 2 / (4 * total_opp ** 2)) / denom
+        ci_lo = max(0, center - half)
+        ci_hi = min(1, center + half)
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>ATTRIBUTE CAPABILITY ANALYSIS<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+
+        if var:
+            summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
+            if event and event != "sum":
+                summary += f"<<COLOR:highlight>>Defect value:<</COLOR>> {event}\n"
+        summary += f"<<COLOR:highlight>>Opportunities per unit:<</COLOR>> {opp:.0f}\n\n"
+
+        summary += f"<<COLOR:text>>Summary:<</COLOR>>\n"
+        summary += f"  Total units inspected: {n:.0f}\n"
+        summary += f"  Total defects: {d:.0f}\n"
+        summary += f"  Total opportunities: {n * opp:.0f}\n\n"
+
+        summary += f"<<COLOR:text>>Capability Metrics:<</COLOR>>\n"
+        summary += f"  {'Metric':<30} {'Value':>12}\n"
+        summary += f"  {'─' * 44}\n"
+        summary += f"  {'DPU (defects per unit)':<30} {dpu:>12.4f}\n"
+        summary += f"  {'DPO (defects per opportunity)':<30} {dpo:>12.6f}\n"
+        summary += f"  {'DPMO':<30} {dpmo:>12.1f}\n"
+        summary += f"  {'Yield %':<30} {yield_pct:>12.2f}%\n"
+        summary += f"  {'Z.bench (long-term)':<30} {z_bench:>12.2f}\n"
+        summary += f"  {'Sigma level (short-term)':<30} {sigma_st:>12.2f}\n"
+        summary += f"  {'95% CI for DPO':<30} ({ci_lo:.6f}, {ci_hi:.6f})\n\n"
+
+        # Interpretation
+        if sigma_st >= 6:
+            interp = "World-class (Six Sigma or better)"
+        elif sigma_st >= 5:
+            interp = "Excellent capability"
+        elif sigma_st >= 4:
+            interp = "Good capability"
+        elif sigma_st >= 3:
+            interp = "Marginal — improvement needed"
+        else:
+            interp = "Poor — significant defect rate"
+        summary += f"<<COLOR:{'good' if sigma_st >= 4 else 'warning'}>>{interp}<</COLOR>>"
+
+        result["summary"] = summary
+
+        # DPMO gauge / sigma chart
+        sigma_levels = [1, 2, 3, 4, 5, 6]
+        dpmo_levels = [691462, 308538, 66807, 6210, 233, 3.4]
+        result["plots"].append({
+            "data": [
+                {"type": "bar", "x": [f"{s}σ" for s in sigma_levels], "y": dpmo_levels,
+                 "marker": {"color": ["#c75a3a" if s < sigma_st else "#4a9f6e" for s in sigma_levels], "opacity": 0.5},
+                 "name": "DPMO by sigma"},
+                {"type": "scatter", "x": [f"{sigma_st:.1f}σ"], "y": [dpmo], "mode": "markers",
+                 "marker": {"size": 14, "color": "#e8c547", "symbol": "diamond"},
+                 "name": f"Your process ({dpmo:.0f} DPMO)"},
+            ],
+            "layout": {
+                "title": "Process Sigma Level",
+                "yaxis": {"title": "DPMO", "type": "log"},
+                "template": "plotly_white", "height": 280,
+            },
+        })
+
+        result["guide_observation"] = f"Attribute capability: DPMO={dpmo:.0f}, Sigma={sigma_st:.1f}, Yield={yield_pct:.2f}%."
+        result["statistics"] = {
+            "defects": d, "units": n, "opportunities": opp,
+            "dpu": dpu, "dpo": dpo, "dpmo": dpmo,
+            "yield_percent": yield_pct, "z_bench": z_bench,
+            "sigma_level": sigma_st, "interpretation": interp,
+        }
+
+    elif analysis_id == "nonnormal_capability_np":
+        """
+        Nonparametric Process Capability — for non-normal data.
+        Uses percentile-based method: Cnpk from 0.135th and 99.865th percentiles
+        (equivalent to ±3σ bounds for normal data).
+        Auto-runs Anderson-Darling normality test for comparison.
+        """
+        var = config.get("var") or config.get("var1")
+        usl = float(config.get("usl"))
+        lsl = float(config.get("lsl"))
+        target = config.get("target")
+        alpha = 1 - float(config.get("conf", 95)) / 100
+        conf_pct = float(config.get("conf", 95))
+
+        data_arr = df[var].dropna().values.astype(float)
+        n = len(data_arr)
+        if n < 10:
+            result["summary"] = "Nonparametric capability requires at least 10 data points."
+            return result
+
+        mean_val = float(np.mean(data_arr))
+        median_val = float(np.median(data_arr))
+        std_val = float(np.std(data_arr, ddof=1))
+
+        if target is None:
+            target = (usl + lsl) / 2
+        else:
+            target = float(target)
+
+        # Percentiles for capability (equivalent to ±3σ for normal)
+        p_low = float(np.percentile(data_arr, 0.135))
+        p_high = float(np.percentile(data_arr, 99.865))
+
+        # Nonparametric capability indices
+        spec_width = usl - lsl
+        np_width = p_high - p_low
+        cnp = spec_width / np_width if np_width > 0 else 0
+
+        cnpk_upper = (usl - median_val) / (p_high - median_val) if (p_high - median_val) > 0 else 0
+        cnpk_lower = (median_val - lsl) / (median_val - p_low) if (median_val - p_low) > 0 else 0
+        cnpk = min(cnpk_upper, cnpk_lower)
+
+        # PPM outside specs (empirical)
+        ppm_below = float(np.sum(data_arr < lsl) / n * 1_000_000)
+        ppm_above = float(np.sum(data_arr > usl) / n * 1_000_000)
+        ppm_total = ppm_below + ppm_above
+
+        # Normal-assumption comparison
+        ad_stat, ad_crit, ad_sig = stats.anderson(data_arr, dist="norm")
+        is_normal = ad_stat < ad_crit[2]  # 5% significance level
+
+        # Normal-based indices for comparison
+        cp_normal = spec_width / (6 * std_val) if std_val > 0 else 0
+        cpk_upper = (usl - mean_val) / (3 * std_val) if std_val > 0 else 0
+        cpk_lower = (mean_val - lsl) / (3 * std_val) if std_val > 0 else 0
+        cpk_normal = min(cpk_upper, cpk_lower)
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>NONPARAMETRIC PROCESS CAPABILITY<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var} (n = {n})\n"
+        summary += f"<<COLOR:highlight>>Specs:<</COLOR>> LSL = {lsl}, USL = {usl}, Target = {target}\n\n"
+
+        summary += f"<<COLOR:text>>Normality Test (Anderson-Darling):<</COLOR>>\n"
+        summary += f"  AD statistic: {ad_stat:.4f}\n"
+        summary += f"  5% critical value: {ad_crit[2]:.4f}\n"
+        summary += f"  Data is {'normal' if is_normal else '<<COLOR:warning>>non-normal<</COLOR>>'}\n\n"
+
+        summary += f"<<COLOR:text>>Comparison — Normal vs Nonparametric:<</COLOR>>\n"
+        summary += f"  {'Method':<25} {'Cp/Cnp':>10} {'Cpk/Cnpk':>10}\n"
+        summary += f"  {'─' * 48}\n"
+        summary += f"  {'Normal assumption':<25} {cp_normal:>10.3f} {cpk_normal:>10.3f}\n"
+        summary += f"  {'Nonparametric (percentile)':<25} {cnp:>10.3f} {cnpk:>10.3f}\n\n"
+
+        summary += f"<<COLOR:text>>Nonparametric Details:<</COLOR>>\n"
+        summary += f"  Median: {median_val:.4f}\n"
+        summary += f"  0.135th percentile: {p_low:.4f}\n"
+        summary += f"  99.865th percentile: {p_high:.4f}\n"
+        summary += f"  Empirical PPM below LSL: {ppm_below:.0f}\n"
+        summary += f"  Empirical PPM above USL: {ppm_above:.0f}\n"
+        summary += f"  Empirical PPM total: {ppm_total:.0f}\n\n"
+
+        if not is_normal:
+            summary += f"<<COLOR:warning>>Data is non-normal. Nonparametric indices (Cnpk = {cnpk:.3f}) are more reliable than normal-based (Cpk = {cpk_normal:.3f}).<</COLOR>>"
+        else:
+            summary += f"<<COLOR:text>>Data appears normal. Both methods should agree. Cnpk = {cnpk:.3f}, Cpk = {cpk_normal:.3f}.<</COLOR>>"
+
+        result["summary"] = summary
+
+        # Histogram with spec limits
+        result["plots"].append({
+            "data": [
+                {"type": "histogram", "x": data_arr.tolist(), "marker": {"color": "#4a9f6e", "opacity": 0.7},
+                 "name": var, "nbinsx": min(30, max(10, n // 5))},
+            ],
+            "layout": {
+                "title": "Distribution with Spec Limits",
+                "xaxis": {"title": var},
+                "yaxis": {"title": "Frequency"},
+                "shapes": [
+                    {"type": "line", "x0": lsl, "x1": lsl, "y0": 0, "y1": 1, "yref": "paper",
+                     "line": {"color": "#e85747", "dash": "dash", "width": 2}},
+                    {"type": "line", "x0": usl, "x1": usl, "y0": 0, "y1": 1, "yref": "paper",
+                     "line": {"color": "#e85747", "dash": "dash", "width": 2}},
+                    {"type": "line", "x0": target, "x1": target, "y0": 0, "y1": 1, "yref": "paper",
+                     "line": {"color": "#e8c547", "dash": "dot", "width": 1}},
+                    {"type": "line", "x0": p_low, "x1": p_low, "y0": 0, "y1": 1, "yref": "paper",
+                     "line": {"color": "#7a5fb8", "dash": "dot", "width": 1}},
+                    {"type": "line", "x0": p_high, "x1": p_high, "y0": 0, "y1": 1, "yref": "paper",
+                     "line": {"color": "#7a5fb8", "dash": "dot", "width": 1}},
+                ],
+                "annotations": [
+                    {"x": lsl, "y": 1.02, "yref": "paper", "text": "LSL", "showarrow": False, "font": {"color": "#e85747", "size": 10}},
+                    {"x": usl, "y": 1.02, "yref": "paper", "text": "USL", "showarrow": False, "font": {"color": "#e85747", "size": 10}},
+                    {"x": p_low, "y": 0.95, "yref": "paper", "text": "0.135%ile", "showarrow": False, "font": {"color": "#7a5fb8", "size": 9}},
+                    {"x": p_high, "y": 0.95, "yref": "paper", "text": "99.865%ile", "showarrow": False, "font": {"color": "#7a5fb8", "size": 9}},
+                ],
+                "template": "plotly_white", "height": 300,
+            },
+        })
+
+        result["guide_observation"] = f"Nonparametric capability: Cnpk={cnpk:.3f}, Empirical PPM={ppm_total:.0f}. Data is {'normal' if is_normal else 'non-normal'}."
+        result["statistics"] = {
+            "cnp": cnp, "cnpk": cnpk, "cnpk_upper": cnpk_upper, "cnpk_lower": cnpk_lower,
+            "cp_normal": cp_normal, "cpk_normal": cpk_normal,
+            "median": median_val, "p_0135": p_low, "p_99865": p_high,
+            "ppm_below_lsl": ppm_below, "ppm_above_usl": ppm_above, "ppm_total": ppm_total,
+            "ad_statistic": float(ad_stat), "is_normal": is_normal,
+        }
+
+    elif analysis_id == "nominal_logistic":
+        """
+        Nominal Logistic Regression — for multi-class categorical outcomes.
+        Uses sklearn's multinomial logistic regression.
+        Auto-excludes response from predictors if accidentally included.
+        If response has only 2 levels, suggests binary logistic instead.
+        """
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.preprocessing import LabelEncoder
+        from sklearn.metrics import classification_report, confusion_matrix
+
+        response = config.get("response")
+        predictors = list(config.get("predictors", []))
+
+        # Convenience: auto-exclude response from predictors
+        if response in predictors:
+            predictors.remove(response)
+
+        if not predictors:
+            result["summary"] = "Please select at least one predictor variable."
+            return result
+
+        data_clean = df[[response] + predictors].dropna()
+        y_raw = data_clean[response]
+        classes = sorted(y_raw.unique().tolist(), key=str)
+
+        if len(classes) < 2:
+            result["summary"] = f"Response '{response}' has only {len(classes)} unique value(s). Need at least 2."
+            return result
+        if len(classes) == 2:
+            result["summary"] = f"<<COLOR:warning>>Response '{response}' has only 2 levels. Consider using binary logistic regression ('logistic') instead for simpler interpretation.<</COLOR>>\n\nProceeding with nominal logistic..."
+
+        le = LabelEncoder()
+        y = le.fit_transform(y_raw)
+        class_names = le.classes_.tolist()
+        ref_class = class_names[0]
+
+        X = data_clean[predictors]
+        # Encode categorical predictors
+        for col in X.columns:
+            if X[col].dtype == "object" or str(X[col].dtype) == "category":
+                X = pd.get_dummies(X, columns=[col], drop_first=True)
+
+        model = LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=1000)
+        model.fit(X, y)
+        y_pred = model.predict(X)
+        accuracy = float((y_pred == y).mean())
+
+        cm = confusion_matrix(y, y_pred)
+
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>NOMINAL LOGISTIC REGRESSION<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response} ({len(classes)} categories)\n"
+        summary += f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors)}\n"
+        summary += f"<<COLOR:highlight>>Reference category:<</COLOR>> {ref_class}\n"
+        summary += f"<<COLOR:highlight>>N:<</COLOR>> {len(data_clean)}\n"
+        summary += f"<<COLOR:highlight>>Accuracy:<</COLOR>> {accuracy:.1%}\n\n"
+
+        # Coefficients per class (vs reference)
+        pred_names = list(X.columns)
+        summary += f"<<COLOR:text>>Coefficients (vs reference '{ref_class}'):<</COLOR>>\n"
+        summary += f"  {'Predictor':<25}"
+        for cls in class_names[1:]:
+            summary += f" {str(cls):>12}"
+        summary += "\n"
+        summary += f"  {'─' * (25 + 13 * (len(class_names) - 1))}\n"
+
+        for j, pred in enumerate(pred_names):
+            summary += f"  {pred:<25}"
+            for i in range(1, len(class_names)):
+                coef = model.coef_[i][j] if i < len(model.coef_) else 0
+                summary += f" {coef:>12.4f}"
+            summary += "\n"
+
+        # Odds ratios
+        summary += f"\n<<COLOR:text>>Odds Ratios (exp(coef)):<</COLOR>>\n"
+        summary += f"  {'Predictor':<25}"
+        for cls in class_names[1:]:
+            summary += f" {str(cls):>12}"
+        summary += "\n"
+        summary += f"  {'─' * (25 + 13 * (len(class_names) - 1))}\n"
+        for j, pred in enumerate(pred_names):
+            summary += f"  {pred:<25}"
+            for i in range(1, len(class_names)):
+                coef = model.coef_[i][j] if i < len(model.coef_) else 0
+                summary += f" {np.exp(coef):>12.4f}"
+            summary += "\n"
+
+        # Confusion matrix
+        summary += f"\n<<COLOR:text>>Confusion Matrix:<</COLOR>>\n"
+        _cm_header = "Actual \\ Pred"
+        summary += f"  {_cm_header:<15}"
+        for cls in class_names:
+            summary += f" {str(cls):>8}"
+        summary += "\n"
+        for i, cls in enumerate(class_names):
+            summary += f"  {str(cls):<15}"
+            for j in range(len(class_names)):
+                summary += f" {cm[i, j]:>8}"
+            summary += "\n"
+
+        result["summary"] = summary
+
+        # Predicted probability heatmap
+        probs = model.predict_proba(X)
+        avg_probs = []
+        for i, cls in enumerate(class_names):
+            avg_probs.append(float(probs[:, i].mean()))
+        result["plots"].append({
+            "data": [{
+                "type": "bar", "x": [str(c) for c in class_names], "y": avg_probs,
+                "marker": {"color": ["#4a9f6e", "#4a90d9", "#e8c547", "#c75a3a", "#7a5fb8", "#5a9fd4", "#d4a05a", "#5ad4a0"][:len(class_names)]},
+                "text": [f"{p:.3f}" for p in avg_probs], "textposition": "outside",
+            }],
+            "layout": {
+                "title": "Average Predicted Probability by Class",
+                "yaxis": {"title": "Avg Probability", "range": [0, max(avg_probs) * 1.2 + 0.05]},
+                "template": "plotly_white", "height": 280,
+            },
+        })
+
+        # Coefficient plot (grouped bar)
+        if len(class_names) > 2:
+            bar_traces = []
+            colors = ["#4a90d9", "#e8c547", "#c75a3a", "#7a5fb8", "#5a9fd4"]
+            for i in range(1, len(class_names)):
+                coefs_i = [float(model.coef_[i][j]) if i < len(model.coef_) and j < len(model.coef_[i]) else 0 for j in range(len(pred_names))]
+                bar_traces.append({
+                    "type": "bar", "x": pred_names, "y": coefs_i,
+                    "name": f"vs {ref_class} → {class_names[i]}",
+                    "marker": {"color": colors[(i - 1) % len(colors)]},
+                })
+            result["plots"].append({
+                "data": bar_traces,
+                "layout": {
+                    "title": "Coefficients by Category",
+                    "barmode": "group",
+                    "yaxis": {"title": "Coefficient"},
+                    "template": "plotly_white", "height": 300,
+                },
+            })
+
+        result["guide_observation"] = f"Nominal logistic: {len(classes)} categories, accuracy={accuracy:.1%}."
+        result["statistics"] = {
+            "n": len(data_clean), "n_classes": len(classes),
+            "classes": [str(c) for c in class_names],
+            "accuracy": accuracy, "reference_class": str(ref_class),
+        }
+
+    elif analysis_id == "orthogonal_regression":
+        """
+        Orthogonal / Deming Regression — minimizes perpendicular distance to line.
+        Used when both X and Y have measurement error (method comparison studies).
+        Error ratio delta = var(eps_x) / var(eps_y), default=1 (equal errors).
+        Includes Bland-Altman plot for method agreement assessment.
+        """
+        var_x = config.get("var1") or config.get("var_x")
+        var_y = config.get("var2") or config.get("var_y")
+        delta = float(config.get("error_ratio", 1.0))
+        alpha = 1 - float(config.get("conf", 95)) / 100
+
+        data_clean = df[[var_x, var_y]].dropna()
+        x = data_clean[var_x].values.astype(float)
+        y = data_clean[var_y].values.astype(float)
+        n = len(x)
+
+        if n < 3:
+            result["summary"] = "Need at least 3 observations for regression."
+            return result
+
+        x_bar = float(np.mean(x))
+        y_bar = float(np.mean(y))
+        sxx = float(np.sum((x - x_bar) ** 2) / (n - 1))
+        syy = float(np.sum((y - y_bar) ** 2) / (n - 1))
+        sxy = float(np.sum((x - x_bar) * (y - y_bar)) / (n - 1))
+
+        # Deming slope
+        discriminant = (syy - delta * sxx) ** 2 + 4 * delta * sxy ** 2
+        b1_deming = float((syy - delta * sxx + np.sqrt(discriminant)) / (2 * sxy)) if sxy != 0 else 1.0
+        b0_deming = float(y_bar - b1_deming * x_bar)
+
+        # OLS for comparison
+        b1_ols = float(sxy / sxx) if sxx > 0 else 0.0
+        b0_ols = float(y_bar - b1_ols * x_bar)
+
+        # Residuals and R-squared
+        y_pred_deming = b0_deming + b1_deming * x
+        ss_total = float(np.sum((y - y_bar) ** 2))
+        ss_resid = float(np.sum((y - y_pred_deming) ** 2))
+        r_squared = 1 - ss_resid / ss_total if ss_total > 0 else 0
+
+        # Bootstrap CI for Deming parameters
+        rng = np.random.RandomState(42)
+        boot_slopes, boot_intercepts = [], []
+        for _ in range(1000):
+            idx = rng.choice(n, n, replace=True)
+            xb, yb = x[idx], y[idx]
+            xb_bar, yb_bar = float(np.mean(xb)), float(np.mean(yb))
+            sxxb = float(np.sum((xb - xb_bar) ** 2) / (n - 1))
+            syyb = float(np.sum((yb - yb_bar) ** 2) / (n - 1))
+            sxyb = float(np.sum((xb - xb_bar) * (yb - yb_bar)) / (n - 1))
+            if sxyb != 0:
+                disc = (syyb - delta * sxxb) ** 2 + 4 * delta * sxyb ** 2
+                b1b = (syyb - delta * sxxb + np.sqrt(disc)) / (2 * sxyb)
+                boot_slopes.append(b1b)
+                boot_intercepts.append(yb_bar - b1b * xb_bar)
+
+        ci_slope = (float(np.percentile(boot_slopes, 100 * alpha / 2)),
+                    float(np.percentile(boot_slopes, 100 * (1 - alpha / 2))))
+        ci_intercept = (float(np.percentile(boot_intercepts, 100 * alpha / 2)),
+                        float(np.percentile(boot_intercepts, 100 * (1 - alpha / 2))))
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>ORTHOGONAL (DEMING) REGRESSION<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>X:<</COLOR>> {var_x}  |  <<COLOR:highlight>>Y:<</COLOR>> {var_y}\n"
+        summary += f"<<COLOR:highlight>>Error ratio (delta):<</COLOR>> {delta}\n"
+        summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
+        summary += f"<<COLOR:text>>Deming Regression Results:<</COLOR>>\n"
+        summary += f"  Slope:     {b1_deming:>10.4f}  ({ci_slope[0]:.4f}, {ci_slope[1]:.4f})\n"
+        summary += f"  Intercept: {b0_deming:>10.4f}  ({ci_intercept[0]:.4f}, {ci_intercept[1]:.4f})\n"
+        summary += f"  R-squared: {r_squared:>10.4f}\n\n"
+        summary += f"<<COLOR:text>>OLS Comparison:<</COLOR>>\n"
+        summary += f"  Slope:     {b1_ols:>10.4f}\n"
+        summary += f"  Intercept: {b0_ols:>10.4f}\n\n"
+        summary += f"<<COLOR:text>>Interpretation:<</COLOR>>\n"
+        if abs(b1_deming - 1.0) < 0.1 and abs(b0_deming) < (np.std(y) * 0.1):
+            summary += f"  <<COLOR:good>>Methods show good agreement (slope ~ 1, intercept ~ 0).<</COLOR>>\n"
+        elif abs(b1_deming - 1.0) < 0.1:
+            summary += f"  <<COLOR:warning>>Proportional agreement but constant bias (intercept = {b0_deming:.4f}).<</COLOR>>\n"
+        else:
+            summary += f"  <<COLOR:warning>>Methods disagree -- both slope and intercept differ from ideal (1, 0).<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        x_line = np.linspace(float(x.min()), float(x.max()), 100)
+        result["plots"].append({
+            "data": [
+                {"type": "scatter", "x": x.tolist(), "y": y.tolist(), "mode": "markers",
+                 "marker": {"color": "#4a9f6e", "size": 5}, "name": "Data"},
+                {"type": "scatter", "x": x_line.tolist(), "y": (b0_deming + b1_deming * x_line).tolist(),
+                 "mode": "lines", "line": {"color": "#e89547", "width": 2}, "name": "Deming"},
+                {"type": "scatter", "x": x_line.tolist(), "y": (b0_ols + b1_ols * x_line).tolist(),
+                 "mode": "lines", "line": {"color": "#47a5e8", "dash": "dash", "width": 2}, "name": "OLS"},
+                {"type": "scatter", "x": x_line.tolist(), "y": x_line.tolist(),
+                 "mode": "lines", "line": {"color": "#888", "dash": "dot", "width": 1}, "name": "Identity (y=x)"},
+            ],
+            "layout": {"title": "Deming vs OLS Regression", "xaxis": {"title": var_x}, "yaxis": {"title": var_y},
+                        "template": "plotly_white", "height": 350}
+        })
+
+        # Bland-Altman plot
+        mean_xy = (x + y) / 2
+        diff_xy = y - x
+        diff_mean = float(np.mean(diff_xy))
+        diff_std = float(np.std(diff_xy, ddof=1))
+        result["plots"].append({
+            "data": [
+                {"type": "scatter", "x": mean_xy.tolist(), "y": diff_xy.tolist(), "mode": "markers",
+                 "marker": {"color": "#4a9f6e", "size": 5}, "name": "Differences"},
+            ],
+            "layout": {"title": "Bland-Altman Plot", "xaxis": {"title": f"Mean of {var_x} and {var_y}"},
+                        "yaxis": {"title": f"{var_y} - {var_x}"},
+                        "shapes": [
+                            {"type": "line", "x0": float(mean_xy.min()), "x1": float(mean_xy.max()),
+                             "y0": diff_mean, "y1": diff_mean, "line": {"color": "#e89547", "width": 2}},
+                            {"type": "line", "x0": float(mean_xy.min()), "x1": float(mean_xy.max()),
+                             "y0": diff_mean + 1.96 * diff_std, "y1": diff_mean + 1.96 * diff_std,
+                             "line": {"color": "#d94a4a", "dash": "dash", "width": 1}},
+                            {"type": "line", "x0": float(mean_xy.min()), "x1": float(mean_xy.max()),
+                             "y0": diff_mean - 1.96 * diff_std, "y1": diff_mean - 1.96 * diff_std,
+                             "line": {"color": "#d94a4a", "dash": "dash", "width": 1}},
+                        ],
+                        "template": "plotly_white", "height": 300}
+        })
+
+        result["guide_observation"] = f"Deming regression: slope={b1_deming:.4f}, intercept={b0_deming:.4f}, R2={r_squared:.4f}."
+        result["statistics"] = {
+            "deming_slope": b1_deming, "deming_intercept": b0_deming,
+            "ols_slope": b1_ols, "ols_intercept": b0_ols,
+            "r_squared": r_squared, "error_ratio": delta, "n": n,
+            "slope_ci": list(ci_slope), "intercept_ci": list(ci_intercept),
+            "bland_altman_bias": diff_mean,
+            "bland_altman_loa": [diff_mean - 1.96 * diff_std, diff_mean + 1.96 * diff_std],
+        }
+
+    elif analysis_id == "nonlinear_regression":
+        """
+        Nonlinear Regression — fit preset or user-specified curve models.
+        Uses scipy.optimize.curve_fit (Levenberg-Marquardt).
+        Presets: exponential, power, logistic, logarithmic, polynomial2, polynomial3,
+                 michaelis_menten, gompertz, hill.
+        """
+        var_x = config.get("var1") or config.get("var_x")
+        var_y = config.get("var2") or config.get("var_y")
+        model_type = config.get("model", "exponential")
+        initial_params = config.get("initial_params")
+        alpha = 1 - float(config.get("conf", 95)) / 100
+
+        data_clean = df[[var_x, var_y]].dropna()
+        x = data_clean[var_x].values.astype(float)
+        y = data_clean[var_y].values.astype(float)
+        n = len(x)
+
+        if n < 3:
+            result["summary"] = "Need at least 3 observations for curve fitting."
+            return result
+
+        from scipy.optimize import curve_fit
+
+        models = {
+            "exponential": (lambda x, a, b: a * np.exp(b * x), ["a", "b"], [1.0, 0.01]),
+            "power": (lambda x, a, b: a * np.power(np.maximum(x, 1e-10), b), ["a", "b"], [1.0, 1.0]),
+            "logistic": (lambda x, L, k, x0: L / (1 + np.exp(-k * (x - x0))), ["L", "k", "x0"],
+                         [float(max(y)), 1.0, float(np.median(x))]),
+            "logarithmic": (lambda x, a, b: a * np.log(np.maximum(x, 1e-10)) + b, ["a", "b"], [1.0, 0.0]),
+            "polynomial2": (lambda x, a, b, c: a * x**2 + b * x + c, ["a", "b", "c"], [0.0, 1.0, 0.0]),
+            "polynomial3": (lambda x, a, b, c, d: a * x**3 + b * x**2 + c * x + d,
+                            ["a", "b", "c", "d"], [0.0, 0.0, 1.0, 0.0]),
+            "michaelis_menten": (lambda x, Vmax, Km: Vmax * x / (Km + x), ["Vmax", "Km"],
+                                 [float(max(y)), float(np.median(x))]),
+            "gompertz": (lambda x, a, b, c: a * np.exp(-b * np.exp(-c * x)), ["a", "b", "c"],
+                         [float(max(y)), 1.0, 0.1]),
+            "hill": (lambda x, Vmax, Kd, n_h: Vmax * x**n_h / (Kd**n_h + x**n_h), ["Vmax", "Kd", "n"],
+                     [float(max(y)), float(np.median(x)), 1.0]),
+        }
+
+        if model_type not in models:
+            result["summary"] = f"Unknown model '{model_type}'. Available: {', '.join(models.keys())}"
+            return result
+
+        func, param_names, p0_default = models[model_type]
+        p0 = initial_params if initial_params and len(initial_params) == len(param_names) else p0_default
+
+        try:
+            popt, pcov = curve_fit(func, x, y, p0=p0, maxfev=10000)
+        except Exception as e:
+            result["summary"] = f"Curve fitting failed: {str(e)}. Try different initial parameters or a different model."
+            return result
+
+        y_pred = func(x, *popt)
+        ss_res = float(np.sum((y - y_pred) ** 2))
+        ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+        r_squared = 1 - ss_res / ss_tot if ss_tot > 0 else 0
+        rmse = float(np.sqrt(ss_res / n))
+
+        perr = np.sqrt(np.diag(pcov)) if pcov is not None else np.zeros(len(popt))
+
+        k_params = len(popt)
+        aic = float(n * np.log(ss_res / n) + 2 * k_params) if ss_res > 0 else 0
+        bic = float(n * np.log(ss_res / n) + k_params * np.log(n)) if ss_res > 0 else 0
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>NONLINEAR REGRESSION<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Model:<</COLOR>> {model_type}\n"
+        summary += f"<<COLOR:highlight>>X:<</COLOR>> {var_x}  |  <<COLOR:highlight>>Y:<</COLOR>> {var_y}\n"
+        summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
+        summary += f"<<COLOR:text>>Fitted Parameters:<</COLOR>>\n"
+        summary += f"  {'Parameter':<12} {'Estimate':>12} {'Std Error':>12}\n"
+        summary += f"  {'-' * 38}\n"
+        for name, val, se in zip(param_names, popt, perr):
+            summary += f"  {name:<12} {float(val):>12.6f} {float(se):>12.6f}\n"
+        summary += f"\n<<COLOR:text>>Goodness of Fit:<</COLOR>>\n"
+        summary += f"  R-squared: {r_squared:.4f}\n"
+        summary += f"  RMSE:      {rmse:.4f}\n"
+        summary += f"  AIC:       {aic:.2f}\n"
+        summary += f"  BIC:       {bic:.2f}\n"
+
+        result["summary"] = summary
+
+        x_smooth = np.linspace(float(x.min()), float(x.max()), 200)
+        y_smooth = func(x_smooth, *popt)
+        result["plots"].append({
+            "data": [
+                {"type": "scatter", "x": x.tolist(), "y": y.tolist(), "mode": "markers",
+                 "marker": {"color": "#4a9f6e", "size": 5}, "name": "Data"},
+                {"type": "scatter", "x": x_smooth.tolist(), "y": y_smooth.tolist(),
+                 "mode": "lines", "line": {"color": "#e89547", "width": 2}, "name": f"Fitted ({model_type})"},
+            ],
+            "layout": {"title": f"Nonlinear Fit: {model_type}", "xaxis": {"title": var_x},
+                        "yaxis": {"title": var_y}, "template": "plotly_white", "height": 350}
+        })
+
+        residuals_nlr = y - y_pred
+        result["plots"].append({
+            "data": [
+                {"type": "scatter", "x": y_pred.tolist(), "y": residuals_nlr.tolist(), "mode": "markers",
+                 "marker": {"color": "#47a5e8", "size": 5}, "name": "Residuals"},
+            ],
+            "layout": {"title": "Residuals vs Fitted", "xaxis": {"title": "Fitted values"},
+                        "yaxis": {"title": "Residual"},
+                        "shapes": [{"type": "line", "x0": float(y_pred.min()), "x1": float(y_pred.max()),
+                                    "y0": 0, "y1": 0, "line": {"color": "#888", "dash": "dash"}}],
+                        "template": "plotly_white", "height": 250}
+        })
+
+        result["guide_observation"] = f"Nonlinear regression ({model_type}): R2={r_squared:.4f}, RMSE={rmse:.4f}."
+        result["statistics"] = {
+            "model": model_type, "n": n,
+            "parameters": {name: float(val) for name, val in zip(param_names, popt)},
+            "parameter_se": {name: float(se) for name, se in zip(param_names, perr)},
+            "r_squared": r_squared, "rmse": rmse, "aic": aic, "bic": bic,
+        }
+
+    elif analysis_id == "variable_acceptance_sampling":
+        """
+        Variables Acceptance Sampling — accept/reject lots based on measured variable data.
+        Uses k-method (MIL-STD-414 / ANSI Z1.9 style):
+          Accept if Z_stat = (xbar - LSL) / s >= k  (or (USL - xbar) / s >= k).
+        Generates the OC curve. Supports single spec, double spec, known/unknown sigma.
+        """
+        aql = float(config.get("aql", 1.0))
+        ltpd = float(config.get("ltpd") or config.get("rql", 5.0))
+        lot_size = int(config.get("lot_size") or config.get("N", 1000))
+        alpha_risk = float(config.get("alpha", 0.05))
+        beta_risk = float(config.get("beta", 0.10))
+        spec_type = config.get("spec_type", "lower")
+        lsl_vs = config.get("lsl")
+        usl_vs = config.get("usl")
+
+        from scipy.stats import norm as norm_dist
+
+        p1 = aql / 100
+        p2 = ltpd / 100
+        z_p1 = float(norm_dist.ppf(1 - p1))
+        z_p2 = float(norm_dist.ppf(1 - p2))
+        z_alpha = float(norm_dist.ppf(1 - alpha_risk))
+        z_beta = float(norm_dist.ppf(1 - beta_risk))
+
+        if z_p1 != z_p2:
+            n_approx = ((z_alpha + z_beta) / (z_p1 - z_p2)) ** 2 + 0.5 * z_alpha ** 2
+            n_sample = max(2, int(np.ceil(n_approx)))
+        else:
+            n_sample = 50
+
+        k_val = float(z_p1 - z_alpha / np.sqrt(n_sample)) if n_sample > 1 else z_p1
+
+        # OC curve
+        p_range = np.linspace(0.001, min(ltpd * 3 / 100, 0.5), 100)
+        pa_values = []
+        for p in p_range:
+            z_p = float(norm_dist.ppf(1 - p))
+            pa = float(norm_dist.cdf((z_p - k_val) * np.sqrt(n_sample)))
+            pa_values.append(max(0.0, min(1.0, pa)))
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>VARIABLES ACCEPTANCE SAMPLING PLAN<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Plan Parameters:<</COLOR>>\n"
+        summary += f"  AQL (Acceptable Quality Level):         {aql}%\n"
+        summary += f"  LTPD (Lot Tolerance Pct Defective):     {ltpd}%\n"
+        summary += f"  Producer's risk (alpha):                {alpha_risk}\n"
+        summary += f"  Consumer's risk (beta):                 {beta_risk}\n"
+        summary += f"  Lot size:                               {lot_size}\n\n"
+        summary += f"<<COLOR:text>>Sampling Plan:<</COLOR>>\n"
+        summary += f"  <<COLOR:highlight>>Sample size (n):<</COLOR>>      {n_sample}\n"
+        summary += f"  <<COLOR:highlight>>Critical value (k):<</COLOR>>   {k_val:.4f}\n\n"
+        summary += f"<<COLOR:text>>Decision Rule ({spec_type} spec):<</COLOR>>\n"
+        if spec_type == "lower" and lsl_vs is not None:
+            summary += f"  Accept if: (xbar - {lsl_vs}) / s >= {k_val:.4f}\n"
+        elif spec_type == "upper" and usl_vs is not None:
+            summary += f"  Accept if: ({usl_vs} - xbar) / s >= {k_val:.4f}\n"
+        elif spec_type == "both" and lsl_vs is not None and usl_vs is not None:
+            summary += f"  Accept if: (xbar - {lsl_vs})/s >= {k_val:.4f} AND ({usl_vs} - xbar)/s >= {k_val:.4f}\n"
+        else:
+            summary += f"  Accept if: Z.LSL or Z.USL >= {k_val:.4f}\n"
+
+        # Evaluate data if provided
+        var_vs = config.get("var") or config.get("var1")
+        if var_vs and var_vs in df.columns:
+            col_vs = df[var_vs].dropna().values.astype(float)
+            x_bar_vs = float(np.mean(col_vs))
+            s_vs = float(np.std(col_vs, ddof=1))
+            summary += f"\n<<COLOR:text>>Sample Evaluation:<</COLOR>>\n"
+            summary += f"  n: {len(col_vs)},  xbar: {x_bar_vs:.4f},  s: {s_vs:.4f}\n"
+            if lsl_vs is not None:
+                z_lsl = (x_bar_vs - float(lsl_vs)) / s_vs if s_vs > 0 else 0
+                accept_lsl = z_lsl >= k_val
+                summary += f"  Z.LSL = {z_lsl:.4f}  {'<<COLOR:good>>ACCEPT' if accept_lsl else '<<COLOR:warning>>REJECT'}<</COLOR>>\n"
+            if usl_vs is not None:
+                z_usl = (float(usl_vs) - x_bar_vs) / s_vs if s_vs > 0 else 0
+                accept_usl = z_usl >= k_val
+                summary += f"  Z.USL = {z_usl:.4f}  {'<<COLOR:good>>ACCEPT' if accept_usl else '<<COLOR:warning>>REJECT'}<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        result["plots"].append({
+            "data": [
+                {"type": "scatter", "x": (p_range * 100).tolist(), "y": pa_values,
+                 "mode": "lines", "line": {"color": "#4a9f6e", "width": 2}, "name": "OC Curve"},
+                {"type": "scatter", "x": [aql], "y": [1 - alpha_risk], "mode": "markers",
+                 "marker": {"color": "#47a5e8", "size": 10, "symbol": "diamond"}, "name": f"AQL ({aql}%)"},
+                {"type": "scatter", "x": [ltpd], "y": [beta_risk], "mode": "markers",
+                 "marker": {"color": "#e85747", "size": 10, "symbol": "diamond"}, "name": f"LTPD ({ltpd}%)"},
+            ],
+            "layout": {"title": f"OC Curve (n={n_sample}, k={k_val:.3f})", "xaxis": {"title": "Percent Defective (%)"},
+                        "yaxis": {"title": "Probability of Acceptance", "range": [0, 1.05]},
+                        "template": "plotly_white", "height": 350}
+        })
+
+        result["guide_observation"] = f"Variables sampling plan: n={n_sample}, k={k_val:.4f} for AQL={aql}%, LTPD={ltpd}%."
+        result["statistics"] = {
+            "n": n_sample, "k": k_val, "aql": aql, "ltpd": ltpd,
+            "alpha": alpha_risk, "beta": beta_risk, "lot_size": lot_size,
+        }
+
+    # =====================================================================
+    # Poisson Regression
+    # =====================================================================
+    elif analysis_id == "poisson_regression":
+        """
+        Poisson Regression — models count data as a function of predictors.
+        Uses log link: log(E[Y]) = Xβ. Fits via GLM with Poisson family.
+        Reports coefficients, IRR (incidence rate ratios), deviance goodness-of-fit.
+        """
+        import statsmodels.api as sm
+
+        response_pr = config.get("response") or config.get("var")
+        predictors_pr = config.get("predictors") or config.get("features", [])
+        if isinstance(predictors_pr, str):
+            predictors_pr = [predictors_pr]
+        offset_col_pr = config.get("offset")  # exposure/offset variable (optional)
+
+        data_pr = df[[response_pr] + predictors_pr + ([offset_col_pr] if offset_col_pr else [])].dropna()
+        y_pr = data_pr[response_pr].values.astype(float)
+
+        # Check for non-negative integers
+        if np.any(y_pr < 0):
+            result["summary"] = "Poisson regression requires non-negative count data."
+            return result
+
+        # Build design matrix with dummies for categorical
+        X_parts_pr = []
+        feature_names_pr = []
+        for pred in predictors_pr:
+            if data_pr[pred].dtype == object or data_pr[pred].nunique() < 6:
+                dummies = pd.get_dummies(data_pr[pred], prefix=pred, drop_first=True, dtype=float)
+                X_parts_pr.append(dummies.values)
+                feature_names_pr.extend(dummies.columns.tolist())
+            else:
+                X_parts_pr.append(data_pr[[pred]].values.astype(float))
+                feature_names_pr.append(pred)
+
+        X_pr = np.column_stack(X_parts_pr) if X_parts_pr else np.ones((len(data_pr), 0))
+        X_pr = sm.add_constant(X_pr)
+        feature_names_pr = ["Intercept"] + feature_names_pr
+
+        offset_vals_pr = np.log(data_pr[offset_col_pr].values.astype(float)) if offset_col_pr else None
+
+        try:
+            model_pr = sm.GLM(y_pr, X_pr, family=sm.families.Poisson(),
+                              offset=offset_vals_pr).fit()
+
+            n_pr = int(model_pr.nobs)
+            dev_pr = float(model_pr.deviance)
+            pearson_chi2_pr = float(model_pr.pearson_chi2)
+            df_resid_pr = int(model_pr.df_resid)
+            aic_pr = float(model_pr.aic)
+            bic_pr = float(model_pr.bic)
+            llf_pr = float(model_pr.llf)
+
+            # Dispersion test: deviance/df should be ~1 for Poisson
+            dispersion_pr = dev_pr / df_resid_pr if df_resid_pr > 0 else float('nan')
+
+            # Coefficients table
+            coefs_pr = []
+            for i, name in enumerate(feature_names_pr):
+                coef_val = float(model_pr.params[i])
+                se_val = float(model_pr.bse[i])
+                z_val = float(model_pr.tvalues[i])
+                p_val = float(model_pr.pvalues[i])
+                irr_val = float(np.exp(coef_val))
+                irr_lo = float(np.exp(model_pr.conf_int()[i, 0]))
+                irr_hi = float(np.exp(model_pr.conf_int()[i, 1]))
+                coefs_pr.append({
+                    "name": name, "coef": coef_val, "se": se_val,
+                    "z": z_val, "p": p_val, "irr": irr_val,
+                    "irr_lo": irr_lo, "irr_hi": irr_hi,
+                })
+
+            summary_pr = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+            summary_pr += f"<<COLOR:title>>POISSON REGRESSION<</COLOR>>\n"
+            summary_pr += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+            summary_pr += f"<<COLOR:highlight>>Response:<</COLOR>> {response_pr} (count)\n"
+            summary_pr += f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors_pr)}\n"
+            if offset_col_pr:
+                summary_pr += f"<<COLOR:highlight>>Offset (exposure):<</COLOR>> log({offset_col_pr})\n"
+            summary_pr += f"<<COLOR:highlight>>N:<</COLOR>> {n_pr}\n\n"
+
+            summary_pr += f"<<COLOR:text>>Coefficients:<</COLOR>>\n"
+            summary_pr += f"{'Term':<25} {'Coef':>8} {'SE':>8} {'z':>8} {'p':>8} {'IRR':>8} {'95% CI':>16}\n"
+            summary_pr += f"{'─' * 97}\n"
+            for c in coefs_pr:
+                sig = "<<COLOR:good>>*<</COLOR>>" if c["p"] < 0.05 else " "
+                summary_pr += f"{c['name']:<25} {c['coef']:>8.4f} {c['se']:>8.4f} {c['z']:>8.3f} {c['p']:>8.4f} {c['irr']:>8.3f} [{c['irr_lo']:.3f}, {c['irr_hi']:.3f}] {sig}\n"
+
+            summary_pr += f"\n<<COLOR:text>>Model Fit:<</COLOR>>\n"
+            summary_pr += f"  Deviance: {dev_pr:.2f}  (df={df_resid_pr})\n"
+            summary_pr += f"  Pearson χ²: {pearson_chi2_pr:.2f}\n"
+            summary_pr += f"  Dispersion (Dev/df): {dispersion_pr:.3f}"
+            if dispersion_pr > 1.5:
+                summary_pr += f"  <<COLOR:warning>>⚠ Overdispersion detected — consider negative binomial<</COLOR>>"
+            summary_pr += f"\n  AIC: {aic_pr:.1f}   BIC: {bic_pr:.1f}   Log-lik: {llf_pr:.1f}\n"
+
+            result["summary"] = summary_pr
+
+            # IRR forest plot
+            non_intercept = [c for c in coefs_pr if c["name"] != "Intercept"]
+            if non_intercept:
+                result["plots"].append({
+                    "title": "Incidence Rate Ratios (95% CI)",
+                    "data": [{
+                        "type": "scatter", "mode": "markers",
+                        "x": [c["irr"] for c in non_intercept],
+                        "y": [c["name"] for c in non_intercept],
+                        "marker": {"color": ["#4a9f6e" if c["p"] < 0.05 else "#5a6a5a" for c in non_intercept], "size": 10},
+                        "error_x": {
+                            "type": "data", "symmetric": False,
+                            "array": [c["irr_hi"] - c["irr"] for c in non_intercept],
+                            "arrayminus": [c["irr"] - c["irr_lo"] for c in non_intercept],
+                            "color": "#5a6a5a"
+                        },
+                        "showlegend": False,
+                    }],
+                    "layout": {
+                        "height": max(250, 40 * len(non_intercept)),
+                        "xaxis": {"title": "Incidence Rate Ratio", "type": "log"},
+                        "yaxis": {"automargin": True},
+                        "shapes": [{"type": "line", "x0": 1, "x1": 1, "y0": -0.5, "y1": len(non_intercept) - 0.5,
+                                    "line": {"color": "#e89547", "dash": "dash"}}]
+                    }
+                })
+
+            # Deviance residuals vs fitted
+            fitted_pr = model_pr.mu
+            resid_dev_pr = model_pr.resid_deviance
+            result["plots"].append({
+                "title": "Deviance Residuals vs Fitted",
+                "data": [{"type": "scatter", "mode": "markers",
+                          "x": fitted_pr.tolist(), "y": resid_dev_pr.tolist(),
+                          "marker": {"color": "#4a9f6e", "size": 4, "opacity": 0.6},
+                          "showlegend": False}],
+                "layout": {"height": 300, "xaxis": {"title": "Fitted values"},
+                           "yaxis": {"title": "Deviance residuals"},
+                           "shapes": [{"type": "line", "x0": min(fitted_pr), "x1": max(fitted_pr),
+                                       "y0": 0, "y1": 0, "line": {"color": "#e89547", "dash": "dash"}}]}
+            })
+
+            n_sig_pr = sum(1 for c in coefs_pr if c["p"] < 0.05 and c["name"] != "Intercept")
+            result["guide_observation"] = f"Poisson regression: {n_sig_pr}/{len(non_intercept)} predictors significant. Dispersion={dispersion_pr:.2f}."
+            result["statistics"] = {
+                "n": n_pr, "deviance": dev_pr, "df_resid": df_resid_pr,
+                "pearson_chi2": pearson_chi2_pr, "dispersion": dispersion_pr,
+                "aic": aic_pr, "bic": bic_pr, "log_likelihood": llf_pr,
+                "coefficients": coefs_pr,
+            }
+
+        except Exception as e:
+            result["summary"] = f"Poisson regression error: {str(e)}"
+
+    # =====================================================================
+    # Multiple Sampling Plan Comparison
+    # =====================================================================
+    elif analysis_id == "multiple_plan_comparison":
+        """
+        Multiple Acceptance Sampling Plan Comparison — compare OC curves, ASN, AOQ
+        for several candidate plans side by side. Helps select the best plan.
+        """
+        from scipy import stats as mpc_stats
+
+        plans_input = config.get("plans", [])
+        # Each plan: {"name": "Plan A", "type": "single"/"double", "n": 50, "c": 2, ...}
+        lot_size_mpc = int(config.get("lot_size", 1000))
+        aql_mpc = float(config.get("aql", 0.01))
+        ltpd_mpc = float(config.get("ltpd", 0.05))
+
+        if not plans_input or len(plans_input) < 2:
+            result["summary"] = "Provide at least 2 sampling plans to compare."
+            return result
+
+        p_range_mpc = np.linspace(0, min(0.20, ltpd_mpc * 3), 200)
+        plan_colors = ["#4a9f6e", "#4a90d9", "#d94a4a", "#e8c547", "#9f4a4a", "#7a6a9a"]
+        plan_results = []
+
+        for idx, plan in enumerate(plans_input):
+            plan_name = plan.get("name", f"Plan {idx + 1}")
+            plan_type = plan.get("type", "single")
+            n_mpc = int(plan.get("n", plan.get("sample_size", 50)))
+            c_mpc = int(plan.get("c", plan.get("accept_number", 2)))
+
+            # Compute OC curve
+            pa_vals = np.array([float(mpc_stats.binom.cdf(c_mpc, n_mpc, p)) if p > 0 else 1.0 for p in p_range_mpc])
+
+            # Key metrics
+            pa_aql = float(np.interp(aql_mpc, p_range_mpc, pa_vals))
+            pa_ltpd = float(np.interp(ltpd_mpc, p_range_mpc, pa_vals))
+            alpha_risk = 1 - pa_aql
+            beta_risk = pa_ltpd
+
+            # AOQ and AOQL
+            aoq_vals = pa_vals * p_range_mpc * (lot_size_mpc - n_mpc) / lot_size_mpc
+            aoql = float(np.max(aoq_vals))
+
+            # ATI at AQL
+            ati_aql = n_mpc * pa_aql + lot_size_mpc * (1 - pa_aql)
+
+            plan_results.append({
+                "name": plan_name, "n": n_mpc, "c": c_mpc, "type": plan_type,
+                "pa_values": pa_vals, "aoq_values": aoq_vals,
+                "pa_aql": pa_aql, "pa_ltpd": pa_ltpd,
+                "alpha": alpha_risk, "beta": beta_risk,
+                "aoql": aoql, "ati_aql": ati_aql,
+                "color": plan_colors[idx % len(plan_colors)],
+            })
+
+        # OC Curve comparison
+        oc_traces = []
+        for pr in plan_results:
+            oc_traces.append({
+                "x": (p_range_mpc * 100).tolist(), "y": pr["pa_values"].tolist(),
+                "mode": "lines", "name": f"{pr['name']} (n={pr['n']}, c={pr['c']})",
+                "line": {"color": pr["color"], "width": 2},
+            })
+        # AQL and LTPD reference lines
+        oc_traces.append({"x": [aql_mpc * 100, aql_mpc * 100], "y": [0, 1], "mode": "lines",
+                          "name": f"AQL ({aql_mpc*100:.1f}%)", "line": {"color": "#4a90d9", "dash": "dot"}})
+        oc_traces.append({"x": [ltpd_mpc * 100, ltpd_mpc * 100], "y": [0, 1], "mode": "lines",
+                          "name": f"LTPD ({ltpd_mpc*100:.1f}%)", "line": {"color": "#d94a4a", "dash": "dot"}})
+
+        result["plots"].append({
+            "title": "OC Curve Comparison",
+            "data": oc_traces,
+            "layout": {"height": 400, "xaxis": {"title": "Lot Defect Rate (%)"},
+                       "yaxis": {"title": "P(Accept)", "range": [0, 1.05]}, "template": "plotly_white"}
+        })
+
+        # AOQ comparison
+        aoq_traces = [{"x": (p_range_mpc * 100).tolist(), "y": (pr["aoq_values"] * 100).tolist(),
+                       "mode": "lines", "name": pr["name"], "line": {"color": pr["color"], "width": 2}}
+                      for pr in plan_results]
+        result["plots"].append({
+            "title": "AOQ Curve Comparison",
+            "data": aoq_traces,
+            "layout": {"height": 350, "xaxis": {"title": "Incoming Defect Rate (%)"},
+                       "yaxis": {"title": "Average Outgoing Quality (%)"}, "template": "plotly_white"}
+        })
+
+        # Summary table
+        summary_mpc = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_mpc += f"<<COLOR:title>>SAMPLING PLAN COMPARISON<</COLOR>>\n"
+        summary_mpc += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary_mpc += f"<<COLOR:highlight>>Lot size:<</COLOR>> {lot_size_mpc}\n"
+        summary_mpc += f"<<COLOR:highlight>>AQL:<</COLOR>> {aql_mpc*100:.1f}%    <<COLOR:highlight>>LTPD:<</COLOR>> {ltpd_mpc*100:.1f}%\n\n"
+
+        summary_mpc += f"{'Plan':<20} {'n':>5} {'c':>3} {'P(Acc@AQL)':>11} {'P(Acc@LTPD)':>12} {'α':>6} {'β':>6} {'AOQL%':>7} {'ATI@AQL':>8}\n"
+        summary_mpc += f"{'─' * 82}\n"
+        best_beta = min(pr["beta"] for pr in plan_results)
+        for pr in plan_results:
+            beta_mark = "<<COLOR:good>> ◄<</COLOR>>" if pr["beta"] == best_beta else "   "
+            summary_mpc += f"{pr['name']:<20} {pr['n']:>5} {pr['c']:>3} {pr['pa_aql']:>11.4f} {pr['pa_ltpd']:>12.4f} {pr['alpha']:>6.3f} {pr['beta']:>6.3f} {pr['aoql']*100:>7.3f} {pr['ati_aql']:>8.0f}{beta_mark}\n"
+
+        summary_mpc += f"\n<<COLOR:text>>◄ = lowest consumer risk (β)<</COLOR>>\n"
+        result["summary"] = summary_mpc
+
+        result["guide_observation"] = f"Compared {len(plan_results)} sampling plans. Best consumer risk: {best_beta:.3f}."
+        result["statistics"] = {
+            "plans": [{k: v for k, v in pr.items() if k not in ("pa_values", "aoq_values", "color")} for pr in plan_results],
+            "aql": aql_mpc, "ltpd": ltpd_mpc, "lot_size": lot_size_mpc,
+        }
+
+    elif analysis_id == "capability_sixpack":
+        """
+        Process Capability Sixpack — 6-panel diagnostic display.
+        Panels: I chart (or Xbar), MR chart (or R), last observations run chart,
+                histogram with spec limits, normal probability plot, capability stats.
+        Mirrors Minitab's capability sixpack layout.
+        """
+        var_cs = config.get("var") or config.get("var1")
+        lsl_cs = config.get("lsl")
+        usl_cs = config.get("usl")
+        target_cs = config.get("target")
+        subgroup_size = int(config.get("subgroup_size", 1))
+
+        col_cs = df[var_cs].dropna().values.astype(float)
+        n_cs = len(col_cs)
+
+        if n_cs < 10:
+            result["summary"] = "Need at least 10 observations for capability sixpack."
+            return result
+
+        lsl_val = float(lsl_cs) if lsl_cs is not None and str(lsl_cs).strip() != "" else None
+        usl_val = float(usl_cs) if usl_cs is not None and str(usl_cs).strip() != "" else None
+        target_val = float(target_cs) if target_cs is not None and str(target_cs).strip() != "" else None
+
+        if lsl_val is None and usl_val is None:
+            result["summary"] = "At least one specification limit (LSL or USL) is required."
+            return result
+
+        if target_val is None and lsl_val is not None and usl_val is not None:
+            target_val = (lsl_val + usl_val) / 2
+
+        x_bar_cs = float(np.mean(col_cs))
+        s_cs = float(np.std(col_cs, ddof=1))
+
+        from scipy.stats import norm as norm_dist
+
+        # Capability indices
+        cp_val = cpu_val = cpl_val = cpk_val = None
+        if lsl_val is not None and usl_val is not None:
+            cp_val = (usl_val - lsl_val) / (6 * s_cs) if s_cs > 0 else 0
+            cpu_val = (usl_val - x_bar_cs) / (3 * s_cs) if s_cs > 0 else 0
+            cpl_val = (x_bar_cs - lsl_val) / (3 * s_cs) if s_cs > 0 else 0
+            cpk_val = min(cpu_val, cpl_val)
+        elif usl_val is not None:
+            cpu_val = (usl_val - x_bar_cs) / (3 * s_cs) if s_cs > 0 else 0
+            cpk_val = cpu_val
+        else:
+            cpl_val = (x_bar_cs - lsl_val) / (3 * s_cs) if s_cs > 0 else 0
+            cpk_val = cpl_val
+
+        ppm_below = float(norm_dist.cdf((lsl_val - x_bar_cs) / s_cs) * 1e6) if lsl_val is not None and s_cs > 0 else 0
+        ppm_above = float((1 - norm_dist.cdf((usl_val - x_bar_cs) / s_cs)) * 1e6) if usl_val is not None and s_cs > 0 else 0
+        ppm_total = ppm_below + ppm_above
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>PROCESS CAPABILITY SIXPACK -- {var_cs}<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Specifications:<</COLOR>>\n"
+        if lsl_val is not None:
+            summary += f"  LSL: {lsl_val}\n"
+        if usl_val is not None:
+            summary += f"  USL: {usl_val}\n"
+        if target_val is not None:
+            summary += f"  Target: {target_val}\n"
+        summary += f"\n<<COLOR:text>>Process Stats:<</COLOR>>\n"
+        summary += f"  N: {n_cs},  Mean: {x_bar_cs:.4f},  StDev: {s_cs:.4f}\n\n"
+        summary += f"<<COLOR:text>>Capability Indices:<</COLOR>>\n"
+        if cp_val is not None:
+            summary += f"  Cp:  {cp_val:.3f}\n"
+        summary += f"  Cpk: {cpk_val:.3f}\n"
+        if cpl_val is not None:
+            summary += f"  CPL: {cpl_val:.3f}\n"
+        if cpu_val is not None:
+            summary += f"  CPU: {cpu_val:.3f}\n"
+        summary += f"\n<<COLOR:text>>Expected PPM:<</COLOR>>\n"
+        if lsl_val is not None:
+            summary += f"  Below LSL: {ppm_below:.1f}\n"
+        if usl_val is not None:
+            summary += f"  Above USL: {ppm_above:.1f}\n"
+        summary += f"  Total:     {ppm_total:.1f}\n"
+        if cpk_val >= 1.33:
+            summary += f"\n<<COLOR:good>>Process is capable (Cpk >= 1.33).<</COLOR>>\n"
+        elif cpk_val >= 1.0:
+            summary += f"\n<<COLOR:warning>>Process is marginally capable (1.0 <= Cpk < 1.33).<</COLOR>>\n"
+        else:
+            summary += f"\n<<COLOR:warning>>Process is NOT capable (Cpk < 1.0).<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        # Panel 1 & 2: I-MR or Xbar-R
+        if subgroup_size == 1:
+            mr = np.abs(np.diff(col_cs))
+            mr_bar = float(np.mean(mr))
+            sigma_est = mr_bar / 1.128
+            cl_i = x_bar_cs
+            ucl_i = x_bar_cs + 3 * sigma_est
+            lcl_i = x_bar_cs - 3 * sigma_est
+            result["plots"].append({
+                "title": "I Chart",
+                "data": [
+                    {"type": "scatter", "y": col_cs.tolist(), "mode": "lines+markers",
+                     "marker": {"size": 3, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e", "width": 1}, "name": var_cs},
+                    {"type": "scatter", "y": [cl_i] * n_cs, "mode": "lines", "line": {"color": "#e8c547", "width": 1}, "name": f"CL={cl_i:.2f}"},
+                    {"type": "scatter", "y": [ucl_i] * n_cs, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"UCL={ucl_i:.2f}"},
+                    {"type": "scatter", "y": [lcl_i] * n_cs, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"LCL={lcl_i:.2f}"},
+                ],
+                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False}
+            })
+            mr_ucl = mr_bar * 3.267
+            result["plots"].append({
+                "title": "MR Chart",
+                "data": [
+                    {"type": "scatter", "y": mr.tolist(), "mode": "lines+markers",
+                     "marker": {"size": 3, "color": "#47a5e8"}, "line": {"color": "#47a5e8", "width": 1}, "name": "MR"},
+                    {"type": "scatter", "y": [mr_bar] * len(mr), "mode": "lines", "line": {"color": "#e8c547", "width": 1}},
+                    {"type": "scatter", "y": [mr_ucl] * len(mr), "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
+                ],
+                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False}
+            })
+        else:
+            n_sg = n_cs // subgroup_size
+            subgroups = [col_cs[i * subgroup_size:(i + 1) * subgroup_size] for i in range(n_sg)]
+            xbar_sg = [float(np.mean(sg)) for sg in subgroups]
+            ranges_sg = [float(np.max(sg) - np.min(sg)) for sg in subgroups]
+            xbar_bar = float(np.mean(xbar_sg))
+            r_bar = float(np.mean(ranges_sg))
+            A2_tbl = {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483, 7: 0.419, 8: 0.373, 9: 0.337, 10: 0.308}
+            D4_tbl = {2: 3.267, 3: 2.575, 4: 2.282, 5: 2.115, 6: 2.004, 7: 1.924, 8: 1.864, 9: 1.816, 10: 1.777}
+            D3_tbl = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0.076, 8: 0.136, 9: 0.184, 10: 0.223}
+            a2 = A2_tbl.get(subgroup_size, 0.577)
+            d4 = D4_tbl.get(subgroup_size, 2.115)
+            d3 = D3_tbl.get(subgroup_size, 0)
+            result["plots"].append({
+                "title": "Xbar Chart",
+                "data": [
+                    {"type": "scatter", "y": xbar_sg, "mode": "lines+markers", "marker": {"size": 3, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e", "width": 1}},
+                    {"type": "scatter", "y": [xbar_bar] * n_sg, "mode": "lines", "line": {"color": "#e8c547", "width": 1}},
+                    {"type": "scatter", "y": [xbar_bar + a2 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
+                    {"type": "scatter", "y": [xbar_bar - a2 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
+                ],
+                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False}
+            })
+            result["plots"].append({
+                "title": "R Chart",
+                "data": [
+                    {"type": "scatter", "y": ranges_sg, "mode": "lines+markers", "marker": {"size": 3, "color": "#47a5e8"}, "line": {"color": "#47a5e8", "width": 1}},
+                    {"type": "scatter", "y": [r_bar] * n_sg, "mode": "lines", "line": {"color": "#e8c547", "width": 1}},
+                    {"type": "scatter", "y": [d4 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
+                    {"type": "scatter", "y": [d3 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
+                ],
+                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False}
+            })
+
+        # Panel 3: Last observations run chart with spec limits
+        last_obs = col_cs[-min(25 * max(subgroup_size, 1), n_cs):]
+        spec_shapes = []
+        if lsl_val is not None:
+            spec_shapes.append({"type": "line", "x0": 0, "x1": len(last_obs), "y0": lsl_val, "y1": lsl_val,
+                                "line": {"color": "#e85747", "dash": "dot", "width": 1}})
+        if usl_val is not None:
+            spec_shapes.append({"type": "line", "x0": 0, "x1": len(last_obs), "y0": usl_val, "y1": usl_val,
+                                "line": {"color": "#e85747", "dash": "dot", "width": 1}})
+        result["plots"].append({
+            "title": "Last Observations",
+            "data": [{"type": "scatter", "y": last_obs.tolist(), "mode": "lines+markers",
+                      "marker": {"size": 3, "color": "#9aaa9a"}, "line": {"color": "#9aaa9a", "width": 1}}],
+            "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
+                        "shapes": spec_shapes, "showlegend": False}
+        })
+
+        # Panel 4: Capability histogram
+        hist_shapes = []
+        hist_annot = []
+        if lsl_val is not None:
+            hist_shapes.append({"type": "line", "x0": lsl_val, "x1": lsl_val, "y0": 0, "y1": 1, "yref": "paper",
+                                "line": {"color": "#e85747", "width": 2}})
+            hist_annot.append({"x": lsl_val, "y": 1, "yref": "paper", "text": "LSL", "showarrow": False,
+                               "font": {"color": "#e85747", "size": 10}})
+        if usl_val is not None:
+            hist_shapes.append({"type": "line", "x0": usl_val, "x1": usl_val, "y0": 0, "y1": 1, "yref": "paper",
+                                "line": {"color": "#e85747", "width": 2}})
+            hist_annot.append({"x": usl_val, "y": 1, "yref": "paper", "text": "USL", "showarrow": False,
+                               "font": {"color": "#e85747", "size": 10}})
+        if target_val is not None:
+            hist_shapes.append({"type": "line", "x0": target_val, "x1": target_val, "y0": 0, "y1": 1, "yref": "paper",
+                                "line": {"color": "#47a5e8", "dash": "dash", "width": 1}})
+        result["plots"].append({
+            "title": "Capability Histogram",
+            "data": [{"type": "histogram", "x": col_cs.tolist(), "marker": {"color": "#4a9f6e", "opacity": 0.7},
+                      "nbinsx": min(30, n_cs // 3)}],
+            "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
+                        "shapes": hist_shapes, "annotations": hist_annot, "showlegend": False}
+        })
+
+        # Panel 5: Normal probability plot
+        sorted_cs = np.sort(col_cs)
+        probs_cs = [(i + 0.5) / n_cs for i in range(n_cs)]
+        theoretical_cs = [float(norm_dist.ppf(p)) for p in probs_cs]
+        result["plots"].append({
+            "title": "Normal Probability Plot",
+            "data": [{"type": "scatter", "x": theoretical_cs, "y": sorted_cs.tolist(), "mode": "markers",
+                      "marker": {"color": "#4a9f6e", "size": 3}}],
+            "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
+                        "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": var_cs}, "showlegend": False}
+        })
+
+        # Panel 6: Capability stats text
+        stats_lines = []
+        if cp_val is not None:
+            stats_lines.append(f"Cp = {cp_val:.3f}")
+        stats_lines.append(f"Cpk = {cpk_val:.3f}")
+        if cpl_val is not None:
+            stats_lines.append(f"CPL = {cpl_val:.3f}")
+        if cpu_val is not None:
+            stats_lines.append(f"CPU = {cpu_val:.3f}")
+        stats_lines.append(f"PPM = {ppm_total:.0f}")
+        stats_text_cs = "<br>".join(stats_lines)
+        result["plots"].append({
+            "title": "Capability Statistics",
+            "data": [{"type": "scatter", "x": [0.5], "y": [0.5], "mode": "text",
+                      "text": [stats_text_cs], "textfont": {"size": 14, "color": "#4a9f6e"}}],
+            "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
+                        "xaxis": {"visible": False, "range": [0, 1]}, "yaxis": {"visible": False, "range": [0, 1]},
+                        "showlegend": False}
+        })
+
+        result["guide_observation"] = f"Capability sixpack: Cpk={cpk_val:.3f}, PPM={ppm_total:.0f}."
+        result["statistics"] = {
+            "n": n_cs, "mean": x_bar_cs, "stdev": s_cs,
+            "cp": cp_val, "cpk": cpk_val, "cpl": cpl_val, "cpu": cpu_val,
+            "ppm_below": ppm_below, "ppm_above": ppm_above, "ppm_total": ppm_total,
+            "lsl": lsl_val, "usl": usl_val, "target": target_val,
+        }
+
+    elif analysis_id == "anom":
+        """
+        Analysis of Means (ANOM) — compare each group mean to the overall mean.
+        Uses Bonferroni-corrected t-limits as ANOM decision limits.
+        Alternative to ANOVA: identifies *which* groups differ from grand mean.
+        Supports factor format or multiple columns.
+        """
+        var_anom = config.get("var") or config.get("var1") or config.get("response")
+        factor_anom = config.get("factor") or config.get("group_var") or config.get("var2")
+        alpha_anom = 1 - float(config.get("conf", 95)) / 100
+
+        if factor_anom and factor_anom in df.columns:
+            data_anom = df[[var_anom, factor_anom]].dropna()
+            groups_labels = sorted(data_anom[factor_anom].unique().tolist(), key=str)
+            groups_data = [data_anom[data_anom[factor_anom] == g][var_anom].values.astype(float) for g in groups_labels]
+        else:
+            cols_anom = config.get("columns") or [c for c in df.select_dtypes(include=[np.number]).columns[:10]]
+            groups_labels = [str(c) for c in cols_anom]
+            groups_data = [df[c].dropna().values.astype(float) for c in cols_anom]
+
+        k_anom = len(groups_data)
+        if k_anom < 2:
+            result["summary"] = "ANOM requires at least 2 groups."
+            return result
+
+        group_ns = [len(g) for g in groups_data]
+        group_means = [float(np.mean(g)) for g in groups_data]
+        all_data_anom = np.concatenate(groups_data)
+        n_total = len(all_data_anom)
+        grand_mean = float(np.mean(all_data_anom))
+
+        ss_within = sum(float(np.sum((g - np.mean(g)) ** 2)) for g in groups_data)
+        df_within = n_total - k_anom
+        mse_anom = ss_within / df_within if df_within > 0 else 0
+
+        from scipy.stats import t as t_dist
+        h_alpha = float(t_dist.ppf(1 - alpha_anom / (2 * k_anom), df_within))
+
+        udls = []
+        ldls = []
+        for ni in group_ns:
+            margin = h_alpha * np.sqrt(mse_anom * (1 - ni / n_total) / ni) if ni > 0 and n_total > ni else 0
+            udls.append(grand_mean + margin)
+            ldls.append(grand_mean - margin)
+
+        balanced = len(set(group_ns)) == 1
+        if balanced:
+            udl_anom = udls[0]
+            ldl_anom = ldls[0]
+
+        outside = []
+        for i, (mean_i, u, l) in enumerate(zip(group_means, udls, ldls)):
+            if mean_i > u or mean_i < l:
+                outside.append(groups_labels[i])
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>ANALYSIS OF MEANS (ANOM)<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Response:<</COLOR>> {var_anom}\n"
+        summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_anom or 'columns'}\n"
+        summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {k_anom}\n"
+        summary += f"<<COLOR:highlight>>Total N:<</COLOR>> {n_total}\n"
+        summary += f"<<COLOR:highlight>>Alpha:<</COLOR>> {alpha_anom}\n\n"
+        summary += f"<<COLOR:text>>Grand Mean:<</COLOR>> {grand_mean:.4f}\n"
+        summary += f"<<COLOR:text>>MSE (within):<</COLOR>> {mse_anom:.4f}\n\n"
+        summary += f"<<COLOR:text>>Group Results:<</COLOR>>\n"
+        summary += f"  {'Group':<15} {'N':>5} {'Mean':>10} {'UDL':>10} {'LDL':>10} {'Signal':>8}\n"
+        summary += f"  {'-' * 60}\n"
+        for i in range(k_anom):
+            sig = "*" if groups_labels[i] in outside else ""
+            summary += f"  {str(groups_labels[i]):<15} {group_ns[i]:>5} {group_means[i]:>10.4f} {udls[i]:>10.4f} {ldls[i]:>10.4f} {sig:>8}\n"
+
+        if outside:
+            summary += f"\n<<COLOR:warning>>Groups outside decision limits: {', '.join(str(o) for o in outside)}<</COLOR>>\n"
+        else:
+            summary += f"\n<<COLOR:good>>All group means within decision limits.<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        marker_colors = ["#e85747" if groups_labels[i] in outside else "#4a9f6e" for i in range(k_anom)]
+        chart_data = [
+            {"type": "scatter", "x": [str(g) for g in groups_labels], "y": group_means, "mode": "markers",
+             "marker": {"color": marker_colors, "size": 10}, "name": "Group Means"},
+            {"type": "scatter", "x": [str(groups_labels[0]), str(groups_labels[-1])],
+             "y": [grand_mean, grand_mean], "mode": "lines",
+             "line": {"color": "#e8c547", "width": 2}, "name": f"Grand Mean ({grand_mean:.3f})"},
+        ]
+        if balanced:
+            chart_data.append({"type": "scatter", "x": [str(groups_labels[0]), str(groups_labels[-1])],
+                               "y": [udl_anom, udl_anom], "mode": "lines",
+                               "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"UDL ({udl_anom:.3f})"})
+            chart_data.append({"type": "scatter", "x": [str(groups_labels[0]), str(groups_labels[-1])],
+                               "y": [ldl_anom, ldl_anom], "mode": "lines",
+                               "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"LDL ({ldl_anom:.3f})"})
+        else:
+            chart_data.append({"type": "scatter", "x": [str(g) for g in groups_labels], "y": udls, "mode": "lines+markers",
+                               "marker": {"size": 3}, "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": "UDL"})
+            chart_data.append({"type": "scatter", "x": [str(g) for g in groups_labels], "y": ldls, "mode": "lines+markers",
+                               "marker": {"size": 3}, "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": "LDL"})
+
+        result["plots"].append({
+            "data": chart_data,
+            "layout": {"title": "ANOM Chart", "xaxis": {"title": factor_anom or "Group"}, "yaxis": {"title": var_anom},
+                        "template": "plotly_white", "height": 350}
+        })
+
+        result["guide_observation"] = f"ANOM: {len(outside)} of {k_anom} groups outside decision limits." if outside else f"ANOM: All {k_anom} groups within decision limits."
+        result["statistics"] = {
+            "grand_mean": grand_mean, "mse": mse_anom, "k": k_anom, "n_total": n_total,
+            "group_means": {str(g): m for g, m in zip(groups_labels, group_means)},
+            "outside_limits": [str(o) for o in outside], "alpha": alpha_anom,
+        }
+
+    # =====================================================================
+    # Split-Plot ANOVA
+    # =====================================================================
+    elif analysis_id == "split_plot_anova":
+        """
+        Split-Plot ANOVA — for designs with hard-to-change (whole-plot) and
+        easy-to-change (sub-plot) factors. Uses restricted error terms:
+        whole-plot factors tested against whole-plot error, sub-plot factors
+        against residual error.
+        """
+        import statsmodels.api as sm
+        from statsmodels.formula.api import ols
+
+        response_sp = config.get("response") or config.get("var")
+        whole_plot_factors_sp = config.get("whole_plot_factors", [])
+        sub_plot_factors_sp = config.get("sub_plot_factors", [])
+        block_col_sp = config.get("block") or config.get("whole_plot_id")
+
+        if isinstance(whole_plot_factors_sp, str):
+            whole_plot_factors_sp = [whole_plot_factors_sp]
+        if isinstance(sub_plot_factors_sp, str):
+            sub_plot_factors_sp = [sub_plot_factors_sp]
+
+        all_factors_sp = whole_plot_factors_sp + sub_plot_factors_sp
+        needed_cols = [response_sp] + all_factors_sp + ([block_col_sp] if block_col_sp else [])
+        data_sp = df[needed_cols].dropna()
+
+        # Ensure factors are categorical
+        for f in all_factors_sp:
+            data_sp[f] = data_sp[f].astype(str)
+        if block_col_sp:
+            data_sp[block_col_sp] = data_sp[block_col_sp].astype(str)
+
+        try:
+            # Build model formula with interactions
+            wp_terms = " + ".join([f"C({f})" for f in whole_plot_factors_sp])
+            sp_terms = " + ".join([f"C({f})" for f in sub_plot_factors_sp])
+            # Whole-plot × sub-plot interactions
+            interactions = []
+            for wp in whole_plot_factors_sp:
+                for sp in sub_plot_factors_sp:
+                    interactions.append(f"C({wp}):C({sp})")
+            interaction_terms = " + ".join(interactions) if interactions else ""
+
+            formula_parts = [wp_terms]
+            if block_col_sp:
+                formula_parts.append(f"C({block_col_sp})")
+            formula_parts.append(sp_terms)
+            if interaction_terms:
+                formula_parts.append(interaction_terms)
+            formula_sp = f"{response_sp} ~ " + " + ".join(formula_parts)
+
+            model_sp = ols(formula_sp, data=data_sp).fit()
+
+            # Full ANOVA table
+            anova_table = sm.stats.anova_lm(model_sp, typ=2)
+
+            # Separate whole-plot and sub-plot errors
+            # Whole-plot error = block(whole-plot) interaction, or pooled if no blocks
+            # For proper split-plot: test WP factors against WP error
+            anova_rows = []
+            ss_total = anova_table["sum_sq"].sum()
+            ms_resid = anova_table.loc["Residual", "mean_sq"] if "Residual" in anova_table.index else anova_table.iloc[-1]["mean_sq"]
+            df_resid_sp = anova_table.loc["Residual", "df"] if "Residual" in anova_table.index else anova_table.iloc[-1]["df"]
+
+            # If we have blocks, compute whole-plot error from block SS
+            wp_error_ms = ms_resid  # default to residual
+            wp_error_df = df_resid_sp
+            if block_col_sp and f"C({block_col_sp})" in anova_table.index:
+                wp_error_ms = anova_table.loc[f"C({block_col_sp})", "mean_sq"]
+                wp_error_df = anova_table.loc[f"C({block_col_sp})", "df"]
+
+            for idx_row in anova_table.index:
+                if idx_row == "Residual":
+                    continue
+                ss = float(anova_table.loc[idx_row, "sum_sq"])
+                df_val = float(anova_table.loc[idx_row, "df"])
+                ms = float(anova_table.loc[idx_row, "mean_sq"])
+
+                # Determine error term
+                clean_name = idx_row.replace("C(", "").replace(")", "").replace(":", " × ")
+                is_wp = any(f in idx_row for f in whole_plot_factors_sp) and not any(f in idx_row for f in sub_plot_factors_sp)
+
+                if is_wp and block_col_sp:
+                    error_ms = wp_error_ms
+                    error_df = wp_error_df
+                    error_term = "WP Error"
+                else:
+                    error_ms = ms_resid
+                    error_df = df_resid_sp
+                    error_term = "Residual"
+
+                f_val = ms / error_ms if error_ms > 0 else 0
+                from scipy import stats as sp_stats
+                p_val = 1 - sp_stats.f.cdf(f_val, df_val, error_df) if f_val > 0 else 1.0
+                pct_contrib = ss / ss_total * 100
+
+                anova_rows.append({
+                    "source": clean_name, "ss": ss, "df": int(df_val), "ms": ms,
+                    "f": f_val, "p": p_val, "pct": pct_contrib, "error_term": error_term,
+                    "significant": p_val < 0.05,
+                })
+
+            # Add error rows
+            if block_col_sp and f"C({block_col_sp})" in anova_table.index:
+                anova_rows.append({"source": "Whole-Plot Error", "ss": float(wp_error_ms * wp_error_df),
+                                   "df": int(wp_error_df), "ms": float(wp_error_ms), "f": None, "p": None, "pct": float(wp_error_ms * wp_error_df / ss_total * 100), "error_term": ""})
+            anova_rows.append({"source": "Sub-Plot Error (Residual)", "ss": float(ms_resid * df_resid_sp),
+                               "df": int(df_resid_sp), "ms": float(ms_resid), "f": None, "p": None, "pct": float(ms_resid * df_resid_sp / ss_total * 100), "error_term": ""})
+
+            # Summary
+            summary_sp = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+            summary_sp += f"<<COLOR:title>>SPLIT-PLOT ANOVA<</COLOR>>\n"
+            summary_sp += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+            summary_sp += f"<<COLOR:highlight>>Response:<</COLOR>> {response_sp}\n"
+            summary_sp += f"<<COLOR:highlight>>Whole-plot factors:<</COLOR>> {', '.join(whole_plot_factors_sp)}\n"
+            summary_sp += f"<<COLOR:highlight>>Sub-plot factors:<</COLOR>> {', '.join(sub_plot_factors_sp)}\n"
+            if block_col_sp:
+                summary_sp += f"<<COLOR:highlight>>Block (whole-plot ID):<</COLOR>> {block_col_sp}\n"
+            summary_sp += f"<<COLOR:highlight>>N:<</COLOR>> {len(data_sp)}\n\n"
+
+            summary_sp += f"<<COLOR:text>>ANOVA Table:<</COLOR>>\n"
+            summary_sp += f"{'Source':<30} {'SS':>10} {'df':>4} {'MS':>10} {'F':>8} {'p':>8} {'%Contrib':>8} {'Error Term':<12}\n"
+            summary_sp += f"{'─' * 95}\n"
+            for r in anova_rows:
+                f_str = f"{r['f']:>8.3f}" if r["f"] is not None else f"{'':>8}"
+                p_str = f"{r['p']:>8.4f}" if r["p"] is not None else f"{'':>8}"
+                sig = " <<COLOR:good>>*<</COLOR>>" if r.get("significant") else ""
+                summary_sp += f"{r['source']:<30} {r['ss']:>10.2f} {r['df']:>4} {r['ms']:>10.3f} {f_str} {p_str} {r['pct']:>7.1f}% {r.get('error_term', ''):<12}{sig}\n"
+
+            result["summary"] = summary_sp
+
+            # Residual plots
+            resids_sp = model_sp.resid
+            fitted_sp = model_sp.fittedvalues
+            result["plots"].append({
+                "title": "Residuals vs Fitted Values",
+                "data": [{"type": "scatter", "mode": "markers",
+                          "x": fitted_sp.tolist(), "y": resids_sp.tolist(),
+                          "marker": {"color": "#4a9f6e", "size": 5, "opacity": 0.6}, "showlegend": False}],
+                "layout": {"height": 300, "xaxis": {"title": "Fitted"}, "yaxis": {"title": "Residual"},
+                           "shapes": [{"type": "line", "x0": min(fitted_sp), "x1": max(fitted_sp), "y0": 0, "y1": 0,
+                                       "line": {"color": "#e89547", "dash": "dash"}}]}
+            })
+
+            # Main effects plot
+            me_traces = []
+            for fi, factor in enumerate(all_factors_sp):
+                grp = data_sp.groupby(factor)[response_sp].mean()
+                me_traces.append({
+                    "x": [str(lv) for lv in grp.index], "y": grp.values.tolist(),
+                    "mode": "lines+markers", "name": factor,
+                    "marker": {"size": 8},
+                })
+            result["plots"].append({
+                "title": "Main Effects Plot",
+                "data": me_traces,
+                "layout": {"height": 300, "xaxis": {"title": "Factor Level"}, "yaxis": {"title": f"Mean {response_sp}"}}
+            })
+
+            n_sig_sp = sum(1 for r in anova_rows if r.get("significant"))
+            result["guide_observation"] = f"Split-plot ANOVA: {n_sig_sp} significant terms. WP factors tested against WP error, SP factors against residual."
+            result["statistics"] = {"anova_table": anova_rows, "r_squared": float(model_sp.rsquared), "n": len(data_sp)}
+
+        except Exception as e:
+            result["summary"] = f"Split-plot ANOVA error: {str(e)}"
+
+    # =====================================================================
+    # Repeated Measures ANOVA
+    # =====================================================================
+    elif analysis_id == "repeated_measures_anova":
+        """
+        Repeated Measures ANOVA — tests within-subject effects across time points
+        or conditions. Includes Mauchly's sphericity test and Greenhouse-Geisser /
+        Huynh-Feldt corrections when sphericity is violated.
+        """
+        response_rm = config.get("response") or config.get("var")
+        subject_col = config.get("subject") or config.get("subject_id")
+        within_factor = config.get("within_factor") or config.get("condition")
+        between_factor = config.get("between_factor")  # optional
+
+        needed_cols_rm = [response_rm, subject_col, within_factor]
+        if between_factor:
+            needed_cols_rm.append(between_factor)
+        data_rm = df[needed_cols_rm].dropna()
+        data_rm[subject_col] = data_rm[subject_col].astype(str)
+        data_rm[within_factor] = data_rm[within_factor].astype(str)
+
+        try:
+            subjects = data_rm[subject_col].unique()
+            conditions = sorted(data_rm[within_factor].unique())
+            k_rm = len(conditions)
+            n_subj = len(subjects)
+
+            if k_rm < 2:
+                result["summary"] = "Need at least 2 levels of the within-subject factor."
+                return result
+
+            # Build subject × condition matrix
+            pivot_rm = data_rm.pivot_table(index=subject_col, columns=within_factor,
+                                           values=response_rm, aggfunc="mean")
+            # Drop subjects with missing conditions
+            pivot_rm = pivot_rm.dropna()
+            n_complete = len(pivot_rm)
+
+            if n_complete < 3:
+                result["summary"] = "Need at least 3 complete subjects (all conditions measured)."
+                return result
+
+            Y_rm = pivot_rm.values  # n_subj × k
+            grand_mean_rm = float(np.mean(Y_rm))
+            subj_means = np.mean(Y_rm, axis=1)
+            cond_means = np.mean(Y_rm, axis=0)
+
+            # SS decomposition
+            ss_total_rm = float(np.sum((Y_rm - grand_mean_rm) ** 2))
+            ss_between_subj = k_rm * float(np.sum((subj_means - grand_mean_rm) ** 2))
+            ss_within_subj = ss_total_rm - ss_between_subj
+            ss_condition = n_complete * float(np.sum((cond_means - grand_mean_rm) ** 2))
+            ss_error_rm = ss_within_subj - ss_condition
+
+            df_condition = k_rm - 1
+            df_subjects = n_complete - 1
+            df_error_rm = df_condition * df_subjects
+
+            ms_condition = ss_condition / df_condition if df_condition > 0 else 0
+            ms_error_rm = ss_error_rm / df_error_rm if df_error_rm > 0 else 0
+
+            f_val_rm = ms_condition / ms_error_rm if ms_error_rm > 0 else 0
+            from scipy import stats as rm_stats
+            p_val_rm = 1 - rm_stats.f.cdf(f_val_rm, df_condition, df_error_rm) if f_val_rm > 0 else 1.0
+
+            # Mauchly's test of sphericity
+            # Compute covariance matrix of differences
+            if k_rm > 2:
+                # Orthogonal contrasts
+                C_mat = np.zeros((k_rm, k_rm - 1))
+                for j in range(k_rm - 1):
+                    C_mat[j, j] = 1
+                    C_mat[j + 1, j] = -1
+                S_diff = Y_rm @ C_mat  # n × (k-1)
+                cov_diff = np.cov(S_diff.T)
+                det_cov = np.linalg.det(cov_diff)
+                trace_cov = np.trace(cov_diff)
+                p_rm = k_rm - 1
+
+                # Mauchly's W
+                W_mauchly = det_cov / ((trace_cov / p_rm) ** p_rm) if trace_cov > 0 else 0
+                # Chi-square approximation
+                f_coeff = (2 * p_rm ** 2 + p_rm + 2) / (6 * p_rm * df_subjects)
+                chi2_mauchly = -(df_subjects - f_coeff) * np.log(max(W_mauchly, 1e-15))
+                df_mauchly = p_rm * (p_rm + 1) / 2 - 1
+                p_mauchly = 1 - rm_stats.chi2.cdf(chi2_mauchly, df_mauchly) if df_mauchly > 0 else 1.0
+
+                # Greenhouse-Geisser epsilon
+                eigenvals_cov = np.linalg.eigvalsh(cov_diff)
+                eigenvals_cov = eigenvals_cov[eigenvals_cov > 0]
+                gg_epsilon = (np.sum(eigenvals_cov) ** 2) / (p_rm * np.sum(eigenvals_cov ** 2)) if len(eigenvals_cov) > 0 else 1.0
+                gg_epsilon = min(1.0, max(1.0 / p_rm, gg_epsilon))
+
+                # Huynh-Feldt epsilon
+                hf_epsilon = (n_complete * p_rm * gg_epsilon - 2) / (p_rm * (df_subjects - p_rm * gg_epsilon))
+                hf_epsilon = min(1.0, max(gg_epsilon, hf_epsilon))
+
+                # Corrected p-values
+                p_gg = 1 - rm_stats.f.cdf(f_val_rm, df_condition * gg_epsilon, df_error_rm * gg_epsilon)
+                p_hf = 1 - rm_stats.f.cdf(f_val_rm, df_condition * hf_epsilon, df_error_rm * hf_epsilon)
+            else:
+                W_mauchly = 1.0
+                p_mauchly = 1.0
+                gg_epsilon = 1.0
+                hf_epsilon = 1.0
+                p_gg = p_val_rm
+                p_hf = p_val_rm
+
+            # Summary
+            summary_rm = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+            summary_rm += f"<<COLOR:title>>REPEATED MEASURES ANOVA<</COLOR>>\n"
+            summary_rm += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+            summary_rm += f"<<COLOR:highlight>>Response:<</COLOR>> {response_rm}\n"
+            summary_rm += f"<<COLOR:highlight>>Within-subject factor:<</COLOR>> {within_factor} ({k_rm} levels)\n"
+            summary_rm += f"<<COLOR:highlight>>Subjects:<</COLOR>> {n_complete}\n\n"
+
+            summary_rm += f"<<COLOR:text>>Within-Subjects ANOVA:<</COLOR>>\n"
+            summary_rm += f"{'Source':<25} {'SS':>10} {'df':>4} {'MS':>10} {'F':>8} {'p':>8}\n"
+            summary_rm += f"{'─' * 70}\n"
+            sig_mark = " <<COLOR:good>>*<</COLOR>>" if p_val_rm < 0.05 else ""
+            summary_rm += f"{'Condition':<25} {ss_condition:>10.2f} {df_condition:>4} {ms_condition:>10.3f} {f_val_rm:>8.3f} {p_val_rm:>8.4f}{sig_mark}\n"
+            summary_rm += f"{'Error':<25} {ss_error_rm:>10.2f} {df_error_rm:>4} {ms_error_rm:>10.3f}\n"
+
+            if k_rm > 2:
+                summary_rm += f"\n<<COLOR:text>>Mauchly's Test of Sphericity:<</COLOR>>\n"
+                summary_rm += f"  W = {W_mauchly:.4f},  χ² = {chi2_mauchly:.3f},  p = {p_mauchly:.4f}\n"
+                if p_mauchly < 0.05:
+                    summary_rm += f"  <<COLOR:warning>>Sphericity violated — use corrected tests below<</COLOR>>\n"
+                else:
+                    summary_rm += f"  <<COLOR:good>>Sphericity assumption met<</COLOR>>\n"
+
+                summary_rm += f"\n<<COLOR:text>>Epsilon Corrections:<</COLOR>>\n"
+                summary_rm += f"  Greenhouse-Geisser ε = {gg_epsilon:.4f}  →  p = {p_gg:.4f}\n"
+                summary_rm += f"  Huynh-Feldt ε = {hf_epsilon:.4f}  →  p = {p_hf:.4f}\n"
+
+            # Condition means
+            summary_rm += f"\n<<COLOR:text>>Condition Means:<</COLOR>>\n"
+            for ci, cond in enumerate(pivot_rm.columns):
+                summary_rm += f"  {cond}: {cond_means[ci]:.4f} (SD = {np.std(Y_rm[:, ci], ddof=1):.4f})\n"
+
+            # Partial eta-squared
+            eta_sq = ss_condition / (ss_condition + ss_error_rm) if (ss_condition + ss_error_rm) > 0 else 0
+            summary_rm += f"\n<<COLOR:text>>Effect Size:<</COLOR>> partial η² = {eta_sq:.4f}\n"
+
+            result["summary"] = summary_rm
+
+            # Profile plot (condition means with SE)
+            se_conds = np.std(Y_rm, axis=0, ddof=1) / np.sqrt(n_complete)
+            result["plots"].append({
+                "title": "Profile Plot — Condition Means (±SE)",
+                "data": [{
+                    "x": [str(c) for c in pivot_rm.columns], "y": cond_means.tolist(),
+                    "mode": "lines+markers", "name": "Mean",
+                    "marker": {"color": "#4a9f6e", "size": 10}, "line": {"color": "#4a9f6e", "width": 2},
+                    "error_y": {"type": "data", "array": se_conds.tolist(), "visible": True, "color": "#5a6a5a"},
+                }],
+                "layout": {"height": 300, "xaxis": {"title": within_factor}, "yaxis": {"title": f"Mean {response_rm}"}}
+            })
+
+            # Individual subject trajectories (spaghetti plot)
+            spaghetti_traces = []
+            for si, subj in enumerate(pivot_rm.index[:30]):  # limit to 30 subjects for readability
+                spaghetti_traces.append({
+                    "x": [str(c) for c in pivot_rm.columns], "y": pivot_rm.loc[subj].tolist(),
+                    "mode": "lines", "line": {"color": "#5a6a5a", "width": 0.5}, "opacity": 0.3,
+                    "showlegend": False,
+                })
+            # Overlay mean
+            spaghetti_traces.append({
+                "x": [str(c) for c in pivot_rm.columns], "y": cond_means.tolist(),
+                "mode": "lines+markers", "name": "Grand Mean",
+                "marker": {"color": "#4a9f6e", "size": 8}, "line": {"color": "#4a9f6e", "width": 3},
+            })
+            result["plots"].append({
+                "title": "Subject Trajectories (spaghetti plot)",
+                "data": spaghetti_traces,
+                "layout": {"height": 300, "xaxis": {"title": within_factor}, "yaxis": {"title": response_rm}}
+            })
+
+            best_p = p_gg if (k_rm > 2 and p_mauchly < 0.05) else p_val_rm
+            result["guide_observation"] = f"Repeated measures ANOVA: F({df_condition},{df_error_rm})={f_val_rm:.3f}, p={best_p:.4f}, η²={eta_sq:.4f}."
+            result["statistics"] = {
+                "f_value": f_val_rm, "p_value": p_val_rm, "df_condition": df_condition,
+                "df_error": df_error_rm, "ss_condition": ss_condition, "ss_error": ss_error_rm,
+                "partial_eta_squared": eta_sq, "n_subjects": n_complete, "k_levels": k_rm,
+                "mauchly_w": float(W_mauchly), "mauchly_p": float(p_mauchly),
+                "gg_epsilon": float(gg_epsilon), "hf_epsilon": float(hf_epsilon),
+                "p_gg": float(p_gg), "p_hf": float(p_hf),
+                "condition_means": {str(c): float(m) for c, m in zip(pivot_rm.columns, cond_means)},
+            }
+
+        except Exception as e:
+            result["summary"] = f"Repeated measures ANOVA error: {str(e)}"
+
     # ── Power & Sample Size Calculators ──────────────────────────────────────
 
     elif analysis_id == "power_z":
@@ -7595,6 +9790,181 @@ def run_statistical_analysis(df, analysis_id, config):
         result["guide_observation"] = f"Nested Gage R&R = {pct_gage_rr:.1f}%, NDC={ndc}. " + ("Acceptable." if pct_gage_rr < 30 else "Needs improvement.")
         result["statistics"] = {"gage_rr_pct": float(pct_gage_rr), "repeatability_pct": float(pct_repeat), "reproducibility_pct": float(pct_reprod), "part_pct": float(pct_part), "ndc": ndc}
 
+    elif analysis_id == "gage_rr_expanded":
+        """
+        Expanded Gage R&R — GLM-based MSA with up to 8 factors.
+        Beyond the standard part/operator model, includes additional factors
+        (fixture, environment, time, etc.) to identify all sources of measurement variation.
+        Uses Type II sums of squares and EMS rules for variance decomposition.
+        """
+        measurement = config.get("measurement")
+        part = config.get("part")
+        factors_list = config.get("factors") or []  # additional factors beyond part
+        operator = config.get("operator")
+
+        # Build factor list: part is always included; operator and others are additional
+        all_factors = [part]
+        if operator:
+            all_factors.append(operator)
+        all_factors.extend([f for f in factors_list if f and f not in all_factors and f != part])
+
+        cols_needed = [measurement] + [f for f in all_factors if f]
+        cols_needed = [c for c in cols_needed if c in df.columns]
+        data_grr = df[cols_needed].dropna()
+
+        if len(data_grr) < 10:
+            result["summary"] = "Need at least 10 observations for expanded Gage R&R."
+            return result
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>EXPANDED GAGE R&R (Multi-Factor MSA)<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Measurement:<</COLOR>> {measurement}\n"
+        summary += f"<<COLOR:highlight>>Part:<</COLOR>> {part}\n"
+        summary += f"<<COLOR:highlight>>Factors:<</COLOR>> {', '.join(f for f in all_factors if f != part)}\n"
+        summary += f"<<COLOR:highlight>>N:<</COLOR>> {len(data_grr)}\n\n"
+
+        grand_mean = float(data_grr[measurement].mean())
+        total_var = float(data_grr[measurement].var(ddof=1))
+
+        # Compute variance components for each factor using ANOVA-style decomposition
+        var_components = {}
+
+        # Part variation
+        part_means = data_grr.groupby(part)[measurement].mean()
+        n_parts = data_grr[part].nunique()
+
+        # Factor variations
+        for f_name in all_factors:
+            if f_name not in data_grr.columns:
+                continue
+            f_means = data_grr.groupby(f_name)[measurement].mean()
+            n_levels = data_grr[f_name].nunique()
+            n_per_level = len(data_grr) / n_levels
+            ss_f = float(np.sum((f_means - grand_mean) ** 2) * n_per_level)
+            df_f = n_levels - 1
+            ms_f = ss_f / df_f if df_f > 0 else 0
+            var_components[f_name] = {
+                "n_levels": n_levels, "ss": ss_f, "df": df_f, "ms": ms_f,
+            }
+
+        # Repeatability: residual after all factors
+        # Group by all factors, compute within-cell variance
+        if len(all_factors) > 1:
+            cell_vars = data_grr.groupby(all_factors)[measurement].var(dropna=True)
+            cell_counts = data_grr.groupby(all_factors)[measurement].count()
+            repeatability_var = float(cell_vars.mean()) if not cell_vars.isna().all() else 0
+        else:
+            within_var = data_grr.groupby(part)[measurement].var(dropna=True)
+            repeatability_var = float(within_var.mean()) if not within_var.isna().all() else 0
+
+        # Estimate variance component for each factor
+        for f_name, comp in var_components.items():
+            n_per = len(data_grr) / comp["n_levels"]
+            est_var = max(0, (comp["ms"] - repeatability_var) / n_per) if n_per > 0 else 0
+            comp["var_est"] = est_var
+
+        # Part variation
+        part_var = var_components.get(part, {}).get("var_est", 0)
+
+        # Reproducibility: sum of all non-part factor variances
+        reproducibility_var = sum(comp["var_est"] for f_name, comp in var_components.items() if f_name != part)
+
+        # Gage R&R
+        gage_rr_var = repeatability_var + reproducibility_var
+        total_variation = gage_rr_var + part_var
+        if total_variation <= 0:
+            total_variation = total_var
+
+        # Study var percentages (using std dev ratios)
+        pct_rr = 100 * np.sqrt(gage_rr_var / total_variation) if total_variation > 0 else 0
+        pct_repeat = 100 * np.sqrt(repeatability_var / total_variation) if total_variation > 0 else 0
+        pct_reprod = 100 * np.sqrt(reproducibility_var / total_variation) if total_variation > 0 else 0
+        pct_part = 100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
+
+        summary += f"<<COLOR:text>>Variance Components:<</COLOR>>\n"
+        summary += f"  {'Source':<20} {'VarComp':>12} {'%StudyVar':>12}\n"
+        summary += f"  {'-' * 46}\n"
+        summary += f"  {'Total Gage R&R':<20} {gage_rr_var:>12.4f} {pct_rr:>11.1f}%\n"
+        summary += f"    {'Repeatability':<18} {repeatability_var:>12.4f} {pct_repeat:>11.1f}%\n"
+        summary += f"    {'Reproducibility':<18} {reproducibility_var:>12.4f} {pct_reprod:>11.1f}%\n"
+
+        for f_name, comp in var_components.items():
+            if f_name != part:
+                pct_f = 100 * np.sqrt(comp["var_est"] / total_variation) if total_variation > 0 else 0
+                summary += f"      {f_name:<16} {comp['var_est']:>12.4f} {pct_f:>11.1f}%\n"
+
+        summary += f"  {'Part-to-Part':<20} {part_var:>12.4f} {pct_part:>11.1f}%\n\n"
+
+        ndc = int(1.41 * np.sqrt(part_var / gage_rr_var)) if gage_rr_var > 0 else 0
+
+        summary += f"<<COLOR:text>>Assessment:<</COLOR>>\n"
+        if pct_rr < 10:
+            summary += f"  <<COLOR:good>>EXCELLENT - Gage R&R < 10%<</COLOR>>\n"
+        elif pct_rr < 30:
+            summary += f"  <<COLOR:warning>>MARGINAL - Gage R&R 10-30%<</COLOR>>\n"
+        else:
+            summary += f"  <<COLOR:warning>>UNACCEPTABLE - Gage R&R > 30%<</COLOR>>\n"
+        summary += f"\n<<COLOR:highlight>>Number of Distinct Categories (NDC):<</COLOR>> {ndc}\n"
+
+        # Identify largest source of measurement variation
+        if reproducibility_var > repeatability_var * 1.5 and len(var_components) > 1:
+            worst_factor = max(
+                [(f, c["var_est"]) for f, c in var_components.items() if f != part],
+                key=lambda x: x[1], default=(None, 0)
+            )
+            if worst_factor[0]:
+                summary += f"\n<<COLOR:text>>Largest reproducibility source:<</COLOR>> {worst_factor[0]}\n"
+                summary += f"  Consider standardizing {worst_factor[0]} to reduce measurement variation.\n"
+        elif repeatability_var > reproducibility_var * 1.5:
+            summary += f"\n<<COLOR:text>>Repeatability dominates — improve gage precision or measurement procedure.<</COLOR>>\n"
+
+        result["summary"] = summary
+
+        # Components of variation bar chart
+        bar_labels = ["Gage R&R", "Repeatability", "Reproducibility"]
+        bar_vals = [pct_rr, pct_repeat, pct_reprod]
+        bar_colors = ["#e89547", "#4a9f6e", "#47a5e8"]
+        for f_name, comp in var_components.items():
+            if f_name != part:
+                pct_f = 100 * np.sqrt(comp["var_est"] / total_variation) if total_variation > 0 else 0
+                bar_labels.append(f_name)
+                bar_vals.append(pct_f)
+                bar_colors.append("#9aaa9a")
+        bar_labels.append("Part-to-Part")
+        bar_vals.append(pct_part)
+        bar_colors.append("#d9a04a")
+
+        result["plots"].append({
+            "data": [{"type": "bar", "x": bar_labels, "y": bar_vals, "marker": {"color": bar_colors}}],
+            "layout": {"title": "Components of Variation", "yaxis": {"title": "% Study Variation"},
+                        "template": "plotly_white", "height": 300}
+        })
+
+        # Measurement by Part
+        result["plots"].append({
+            "data": [{"type": "box", "x": data_grr[part].astype(str).tolist(), "y": data_grr[measurement].tolist(),
+                      "marker": {"color": "#4a9f6e"}}],
+            "layout": {"title": f"{measurement} by {part}", "height": 250, "template": "plotly_white"}
+        })
+
+        # Measurement by each factor
+        for f_name in all_factors:
+            if f_name != part and f_name in data_grr.columns:
+                result["plots"].append({
+                    "data": [{"type": "box", "x": data_grr[f_name].astype(str).tolist(),
+                              "y": data_grr[measurement].tolist(), "marker": {"color": "#47a5e8"}}],
+                    "layout": {"title": f"{measurement} by {f_name}", "height": 250, "template": "plotly_white"}
+                })
+
+        result["guide_observation"] = f"Expanded Gage R&R = {pct_rr:.1f}%, NDC={ndc}. {len(all_factors)} factors analyzed."
+        result["statistics"] = {
+            "gage_rr_pct": float(pct_rr), "repeatability_pct": float(pct_repeat),
+            "reproducibility_pct": float(pct_reprod), "part_pct": float(pct_part),
+            "ndc": ndc, "n_factors": len(all_factors),
+            "factor_variances": {f: float(c["var_est"]) for f, c in var_components.items()},
+        }
+
     elif analysis_id == "gage_linearity_bias":
         """
         Gage Linearity & Bias Study — measures how bias changes across the measurement range.
@@ -9454,6 +11824,299 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["guide_observation"] = f"Dunn's test: {n_sig}/{len(pairs)} pairwise comparisons significant (Bonferroni)."
         result["statistics"] = {"pairs": pairs, "n_significant": n_sig, "n_comparisons": n_comparisons}
+
+    # =====================================================================
+    # Scheffé Test
+    # =====================================================================
+    elif analysis_id == "scheffe_test":
+        """
+        Scheffé's test — most conservative post-hoc for all possible contrasts
+        (not just pairwise). Controls family-wise error for any linear combination.
+        """
+        from scipy import stats as sch_stats
+
+        response_sch = config.get("response") or config.get("var")
+        factor_sch = config.get("factor") or config.get("group_var")
+        alpha_sch = 1 - config.get("conf", 95) / 100
+
+        data_sch = df[[response_sch, factor_sch]].dropna()
+        groups_sch = sorted(data_sch[factor_sch].unique(), key=str)
+        k_sch = len(groups_sch)
+
+        group_data_sch = {str(g): data_sch[data_sch[factor_sch] == g][response_sch].values for g in groups_sch}
+        group_means_sch = {g: np.mean(v) for g, v in group_data_sch.items()}
+        group_ns_sch = {g: len(v) for g, v in group_data_sch.items()}
+        n_total_sch = sum(group_ns_sch.values())
+
+        # Pooled MSE
+        ss_within = sum(np.sum((v - np.mean(v)) ** 2) for v in group_data_sch.values())
+        df_within = n_total_sch - k_sch
+        mse_sch = ss_within / df_within if df_within > 0 else 0
+
+        # Scheffé critical value: (k-1) * F(alpha, k-1, N-k)
+        f_crit_sch = sch_stats.f.ppf(1 - alpha_sch, k_sch - 1, df_within)
+        scheffe_crit = (k_sch - 1) * f_crit_sch
+
+        pairs_sch = []
+        g_names = list(group_data_sch.keys())
+        for i in range(len(g_names)):
+            for j in range(i + 1, len(g_names)):
+                g1, g2 = g_names[i], g_names[j]
+                diff = group_means_sch[g1] - group_means_sch[g2]
+                se = np.sqrt(mse_sch * (1 / group_ns_sch[g1] + 1 / group_ns_sch[g2]))
+                f_val = (diff ** 2) / (se ** 2 * (k_sch - 1)) if se > 0 else 0
+                p_val = 1 - sch_stats.f.cdf(f_val, k_sch - 1, df_within)
+                margin = np.sqrt(scheffe_crit) * se
+                pairs_sch.append({
+                    "group1": g1, "group2": g2, "diff": float(diff),
+                    "se": float(se), "f": float(f_val), "p": float(p_val),
+                    "lower": float(diff - margin), "upper": float(diff + margin),
+                    "reject": p_val < alpha_sch,
+                })
+
+        n_sig_sch = sum(1 for p in pairs_sch if p["reject"])
+        summary_sch = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_sch += f"<<COLOR:title>>SCHEFFÉ'S POST-HOC TEST<</COLOR>>\n"
+        summary_sch += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary_sch += f"<<COLOR:highlight>>Response:<</COLOR>> {response_sch}\n"
+        summary_sch += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_sch} ({k_sch} groups)\n"
+        summary_sch += f"<<COLOR:highlight>>MSE:<</COLOR>> {mse_sch:.4f}  (df = {df_within})\n"
+        summary_sch += f"<<COLOR:highlight>>Scheffé critical value:<</COLOR>> {scheffe_crit:.4f}\n\n"
+
+        summary_sch += f"{'Group 1':<15} {'Group 2':<15} {'Diff':>8} {'SE':>8} {'F':>8} {'p':>8} {'Lower':>8} {'Upper':>8} {'Sig':>5}\n"
+        summary_sch += f"{'─' * 85}\n"
+        for p in pairs_sch:
+            sig_mark = "<<COLOR:good>>*<</COLOR>>" if p["reject"] else ""
+            summary_sch += f"{p['group1']:<15} {p['group2']:<15} {p['diff']:>8.4f} {p['se']:>8.4f} {p['f']:>8.3f} {p['p']:>8.4f} {p['lower']:>8.4f} {p['upper']:>8.4f} {sig_mark:>5}\n"
+        summary_sch += f"\n<<COLOR:text>>Summary: {n_sig_sch}/{len(pairs_sch)} pairs significantly different<</COLOR>>\n"
+        summary_sch += f"<<COLOR:text>>Note: Scheffé is the most conservative — controls for ALL possible contrasts, not just pairwise.<</COLOR>>\n"
+
+        result["summary"] = summary_sch
+
+        # CI plot
+        y_labels_sch = [f"{p['group1']} - {p['group2']}" for p in pairs_sch]
+        result["plots"].append({
+            "title": "Scheffé — Pairwise Differences with CIs",
+            "data": [{
+                "type": "scatter", "x": [p["diff"] for p in pairs_sch], "y": y_labels_sch,
+                "mode": "markers",
+                "marker": {"color": ["#4a9f6e" if p["reject"] else "#5a6a5a" for p in pairs_sch], "size": 10},
+                "error_x": {"type": "data", "symmetric": False,
+                            "array": [p["upper"] - p["diff"] for p in pairs_sch],
+                            "arrayminus": [p["diff"] - p["lower"] for p in pairs_sch], "color": "#5a6a5a"},
+                "showlegend": False,
+            }],
+            "layout": {"height": max(250, 40 * len(pairs_sch)),
+                       "xaxis": {"title": "Mean Difference", "zeroline": True, "zerolinecolor": "#e89547"},
+                       "yaxis": {"automargin": True},
+                       "shapes": [{"type": "line", "x0": 0, "x1": 0, "y0": -0.5, "y1": len(pairs_sch) - 0.5,
+                                   "line": {"color": "#e89547", "dash": "dash"}}]}
+        })
+
+        result["guide_observation"] = f"Scheffé: {n_sig_sch}/{len(pairs_sch)} pairs significant at α={alpha_sch}."
+        result["statistics"] = {"pairs": pairs_sch, "mse": mse_sch, "scheffe_critical": scheffe_crit, "k": k_sch}
+
+    # =====================================================================
+    # Bonferroni Post-Hoc Test
+    # =====================================================================
+    elif analysis_id == "bonferroni_test":
+        """
+        Bonferroni post-hoc — pairwise t-tests with Bonferroni correction.
+        Simple, widely-used, slightly conservative.
+        """
+        from scipy import stats as bon_stats
+
+        response_bon = config.get("response") or config.get("var")
+        factor_bon = config.get("factor") or config.get("group_var")
+        alpha_bon = 1 - config.get("conf", 95) / 100
+
+        data_bon = df[[response_bon, factor_bon]].dropna()
+        groups_bon = sorted(data_bon[factor_bon].unique(), key=str)
+        k_bon = len(groups_bon)
+
+        group_data_bon = {str(g): data_bon[data_bon[factor_bon] == g][response_bon].values for g in groups_bon}
+        n_total_bon = sum(len(v) for v in group_data_bon.values())
+
+        # Pooled MSE
+        ss_w_bon = sum(np.sum((v - np.mean(v)) ** 2) for v in group_data_bon.values())
+        df_w_bon = n_total_bon - k_bon
+        mse_bon = ss_w_bon / df_w_bon if df_w_bon > 0 else 0
+
+        n_comparisons_bon = k_bon * (k_bon - 1) // 2
+        alpha_adj = alpha_bon / n_comparisons_bon
+
+        pairs_bon = []
+        g_names_bon = list(group_data_bon.keys())
+        for i in range(len(g_names_bon)):
+            for j in range(i + 1, len(g_names_bon)):
+                g1, g2 = g_names_bon[i], g_names_bon[j]
+                n1_b, n2_b = len(group_data_bon[g1]), len(group_data_bon[g2])
+                m1, m2 = np.mean(group_data_bon[g1]), np.mean(group_data_bon[g2])
+                diff = m1 - m2
+                se = np.sqrt(mse_bon * (1 / n1_b + 1 / n2_b))
+                t_val = diff / se if se > 0 else 0
+                p_raw = 2 * (1 - bon_stats.t.cdf(abs(t_val), df_w_bon))
+                p_adj = min(1.0, p_raw * n_comparisons_bon)
+                t_crit = bon_stats.t.ppf(1 - alpha_adj / 2, df_w_bon)
+                margin = t_crit * se
+                pairs_bon.append({
+                    "group1": g1, "group2": g2, "diff": float(diff),
+                    "se": float(se), "t": float(t_val), "p_raw": float(p_raw),
+                    "p_adj": float(p_adj), "lower": float(diff - margin),
+                    "upper": float(diff + margin), "reject": p_adj < alpha_bon,
+                })
+
+        n_sig_bon = sum(1 for p in pairs_bon if p["reject"])
+        summary_bon = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_bon += f"<<COLOR:title>>BONFERRONI POST-HOC TEST<</COLOR>>\n"
+        summary_bon += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary_bon += f"<<COLOR:highlight>>Response:<</COLOR>> {response_bon}\n"
+        summary_bon += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_bon} ({k_bon} groups)\n"
+        summary_bon += f"<<COLOR:highlight>>Adjusted α:<</COLOR>> {alpha_bon}/{n_comparisons_bon} = {alpha_adj:.6f}\n\n"
+
+        summary_bon += f"{'Group 1':<15} {'Group 2':<15} {'Diff':>8} {'t':>8} {'p-adj':>8} {'Lower':>8} {'Upper':>8} {'Sig':>5}\n"
+        summary_bon += f"{'─' * 82}\n"
+        for p in pairs_bon:
+            sig_mark = "<<COLOR:good>>*<</COLOR>>" if p["reject"] else ""
+            summary_bon += f"{p['group1']:<15} {p['group2']:<15} {p['diff']:>8.4f} {p['t']:>8.3f} {p['p_adj']:>8.4f} {p['lower']:>8.4f} {p['upper']:>8.4f} {sig_mark:>5}\n"
+        summary_bon += f"\n<<COLOR:text>>Summary: {n_sig_bon}/{len(pairs_bon)} pairs significantly different (Bonferroni)<</COLOR>>\n"
+
+        result["summary"] = summary_bon
+
+        y_labels_bon = [f"{p['group1']} - {p['group2']}" for p in pairs_bon]
+        result["plots"].append({
+            "title": "Bonferroni — Pairwise Differences with CIs",
+            "data": [{
+                "type": "scatter", "x": [p["diff"] for p in pairs_bon], "y": y_labels_bon,
+                "mode": "markers",
+                "marker": {"color": ["#4a9f6e" if p["reject"] else "#5a6a5a" for p in pairs_bon], "size": 10},
+                "error_x": {"type": "data", "symmetric": False,
+                            "array": [p["upper"] - p["diff"] for p in pairs_bon],
+                            "arrayminus": [p["diff"] - p["lower"] for p in pairs_bon], "color": "#5a6a5a"},
+                "showlegend": False,
+            }],
+            "layout": {"height": max(250, 40 * len(pairs_bon)),
+                       "xaxis": {"title": "Mean Difference", "zeroline": True, "zerolinecolor": "#e89547"},
+                       "yaxis": {"automargin": True},
+                       "shapes": [{"type": "line", "x0": 0, "x1": 0, "y0": -0.5, "y1": len(pairs_bon) - 0.5,
+                                   "line": {"color": "#e89547", "dash": "dash"}}]}
+        })
+
+        result["guide_observation"] = f"Bonferroni: {n_sig_bon}/{len(pairs_bon)} pairs significant (adj. α={alpha_adj:.4f})."
+        result["statistics"] = {"pairs": pairs_bon, "mse": mse_bon, "alpha_adjusted": alpha_adj}
+
+    # =====================================================================
+    # Hsu's MCB (Multiple Comparisons with the Best)
+    # =====================================================================
+    elif analysis_id == "hsu_mcb":
+        """
+        Hsu's MCB — determines which groups are statistically distinguishable
+        from the best (highest or lowest mean). Returns confidence intervals
+        for μ_i - max(μ_j, j≠i). If CI includes 0, group i could be the best.
+        """
+        from scipy import stats as hsu_stats
+
+        response_hsu = config.get("response") or config.get("var")
+        factor_hsu = config.get("factor") or config.get("group_var")
+        alpha_hsu = 1 - config.get("conf", 95) / 100
+        direction = config.get("direction", "max")  # "max" = higher is better, "min" = lower is better
+
+        data_hsu = df[[response_hsu, factor_hsu]].dropna()
+        groups_hsu = sorted(data_hsu[factor_hsu].unique(), key=str)
+        k_hsu = len(groups_hsu)
+
+        group_data_hsu = {str(g): data_hsu[data_hsu[factor_hsu] == g][response_hsu].values for g in groups_hsu}
+        group_means_hsu = {g: np.mean(v) for g, v in group_data_hsu.items()}
+        group_ns_hsu = {g: len(v) for g, v in group_data_hsu.items()}
+        n_total_hsu = sum(group_ns_hsu.values())
+
+        ss_w_hsu = sum(np.sum((v - np.mean(v)) ** 2) for v in group_data_hsu.values())
+        df_w_hsu = n_total_hsu - k_hsu
+        mse_hsu = ss_w_hsu / df_w_hsu if df_w_hsu > 0 else 0
+
+        # For MCB, use Dunnett-like critical value (k-1 comparisons to best)
+        # Approximate with Bonferroni-adjusted t
+        t_crit_hsu = hsu_stats.t.ppf(1 - alpha_hsu / (2 * (k_hsu - 1)), df_w_hsu)
+
+        if direction == "max":
+            best_group = max(group_means_hsu, key=group_means_hsu.get)
+        else:
+            best_group = min(group_means_hsu, key=group_means_hsu.get)
+
+        comparisons_hsu = []
+        for g in group_data_hsu:
+            mean_g = group_means_hsu[g]
+            mean_best = group_means_hsu[best_group]
+
+            if direction == "max":
+                diff = mean_g - mean_best  # ≤ 0 for non-best groups
+            else:
+                diff = mean_best - mean_g  # ≤ 0 for non-best groups
+
+            se = np.sqrt(mse_hsu * (1 / group_ns_hsu[g] + 1 / group_ns_hsu[best_group]))
+            lower = diff - t_crit_hsu * se
+            upper = diff + t_crit_hsu * se
+
+            # MCB: constrain interval
+            if g == best_group:
+                could_be_best = True
+                lower_mcb = 0.0
+                upper_mcb = max(0, upper)
+            else:
+                lower_mcb = min(0, lower)
+                upper_mcb = min(0, upper)
+                could_be_best = upper_mcb >= 0  # CI includes 0 means could be best
+
+            comparisons_hsu.append({
+                "group": g, "mean": float(mean_g), "diff_from_best": float(diff),
+                "lower": float(lower_mcb), "upper": float(upper_mcb),
+                "could_be_best": could_be_best,
+                "is_best": g == best_group,
+            })
+
+        summary_hsu = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_hsu += f"<<COLOR:title>>HSU'S MCB (MULTIPLE COMPARISONS WITH THE BEST)<</COLOR>>\n"
+        summary_hsu += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary_hsu += f"<<COLOR:highlight>>Response:<</COLOR>> {response_hsu}\n"
+        summary_hsu += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_hsu} ({k_hsu} groups)\n"
+        summary_hsu += f"<<COLOR:highlight>>Direction:<</COLOR>> {'Higher is better' if direction == 'max' else 'Lower is better'}\n"
+        summary_hsu += f"<<COLOR:highlight>>Best group:<</COLOR>> {best_group} (mean = {group_means_hsu[best_group]:.4f})\n\n"
+
+        summary_hsu += f"{'Group':<20} {'Mean':>8} {'Diff':>8} {'Lower':>8} {'Upper':>8} {'Could be best?':>15}\n"
+        summary_hsu += f"{'─' * 72}\n"
+        for c in comparisons_hsu:
+            best_mark = "<<COLOR:good>>YES<</COLOR>>" if c["could_be_best"] else "<<COLOR:warning>>NO<</COLOR>>"
+            star = " ◄" if c["is_best"] else ""
+            summary_hsu += f"{c['group']:<20} {c['mean']:>8.4f} {c['diff_from_best']:>8.4f} {c['lower']:>8.4f} {c['upper']:>8.4f} {best_mark:>15}{star}\n"
+
+        n_could_be_best = sum(1 for c in comparisons_hsu if c["could_be_best"])
+        summary_hsu += f"\n<<COLOR:text>>{n_could_be_best}/{k_hsu} groups could be the best at {(1-alpha_hsu)*100:.0f}% confidence.<</COLOR>>\n"
+
+        result["summary"] = summary_hsu
+
+        # MCB interval plot
+        result["plots"].append({
+            "title": f"Hsu's MCB — Differences from Best ({direction})",
+            "data": [{
+                "type": "scatter", "mode": "markers",
+                "x": [c["diff_from_best"] for c in comparisons_hsu],
+                "y": [c["group"] for c in comparisons_hsu],
+                "marker": {"color": ["#4a9f6e" if c["could_be_best"] else "#d94a4a" for c in comparisons_hsu], "size": 10},
+                "error_x": {"type": "data", "symmetric": False,
+                            "array": [c["upper"] - c["diff_from_best"] for c in comparisons_hsu],
+                            "arrayminus": [c["diff_from_best"] - c["lower"] for c in comparisons_hsu],
+                            "color": "#5a6a5a"},
+                "showlegend": False,
+            }],
+            "layout": {"height": max(250, 40 * k_hsu),
+                       "xaxis": {"title": f"Difference from best ({best_group})"},
+                       "yaxis": {"automargin": True},
+                       "shapes": [{"type": "line", "x0": 0, "x1": 0, "y0": -0.5, "y1": k_hsu - 0.5,
+                                   "line": {"color": "#e89547", "dash": "dash"}}]}
+        })
+
+        result["guide_observation"] = f"Hsu's MCB: {n_could_be_best}/{k_hsu} groups could be best. Best={best_group}."
+        result["statistics"] = {"comparisons": comparisons_hsu, "best_group": best_group, "direction": direction, "mse": mse_hsu}
 
     elif analysis_id == "hotelling_t2":
         """
@@ -12562,7 +15225,10 @@ def run_ml_analysis(df, analysis_id, config, user):
             X_enc[col] = pd.Categorical(X_enc[col]).codes.astype(int)
         X_enc = X_enc.fillna(X_enc.median(numeric_only=True))
 
-        X_train, X_test, y_train, y_test = train_test_split(X_enc, y_work, test_size=0.2, random_state=42)
+        if task_type == "classification":
+            X_train, X_test, y_train, y_test = _stratified_split(X_enc, y_work)
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(X_enc, y_work, test_size=0.2, random_state=42)
 
         with GPUTrainingContext() as gpu:
             params = {
@@ -12573,14 +15239,29 @@ def run_ml_analysis(df, analysis_id, config, user):
             }
             gpu_used = gpu.available
 
+            _use_sample_weight = False
             if task_type == "classification":
                 params["use_label_encoder"] = False
                 params["eval_metric"] = "logloss"
+                # Auto class weighting for imbalanced data
+                from collections import Counter as _Counter
+                _counts = _Counter(y_work)
+                _majority_pct = max(_counts.values()) / len(y_work)
+                if _majority_pct > 0.75 and len(_counts) == 2:
+                    _neg, _pos = sorted(_counts.values())
+                    params["scale_pos_weight"] = _neg / _pos
+                elif _majority_pct > 0.75:
+                    from sklearn.utils.class_weight import compute_sample_weight
+                    _sample_weights = compute_sample_weight("balanced", y_train)
+                    _use_sample_weight = True
                 model = xgb.XGBClassifier(**params)
             else:
                 model = xgb.XGBRegressor(**params)
 
-            model.fit(X_train, y_train)
+            if _use_sample_weight:
+                model.fit(X_train, y_train, sample_weight=_sample_weights)
+            else:
+                model.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
 
@@ -12593,6 +15274,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 f"{classification_report(y_test, y_pred)}"
             )
             metrics_dict = {"accuracy": float(accuracy)}
+            _classification_reliability(y_work, y_test, y_pred, metrics_dict)
         else:
             r2 = r2_score(y_test, y_pred)
             rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
@@ -12652,7 +15334,10 @@ def run_ml_analysis(df, analysis_id, config, user):
             X_enc[col] = pd.Categorical(X_enc[col]).codes.astype(int)
         X_enc = X_enc.fillna(X_enc.median(numeric_only=True))
 
-        X_train, X_test, y_train, y_test = train_test_split(X_enc, y_work, test_size=0.2, random_state=42)
+        if task_type == "classification":
+            X_train, X_test, y_train, y_test = _stratified_split(X_enc, y_work)
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(X_enc, y_work, test_size=0.2, random_state=42)
 
         with GPUTrainingContext() as gpu:
             params = {
@@ -12664,6 +15349,12 @@ def run_ml_analysis(df, analysis_id, config, user):
             gpu_used = gpu.available
 
             if task_type == "classification":
+                # Auto class weighting for imbalanced data
+                from collections import Counter as _Counter
+                _counts = _Counter(y_work)
+                _majority_pct = max(_counts.values()) / len(y_work)
+                if _majority_pct > 0.75:
+                    params["is_unbalance"] = True
                 model = lgb.LGBMClassifier(**params)
             else:
                 model = lgb.LGBMRegressor(**params)
@@ -12681,6 +15372,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 f"{classification_report(y_test, y_pred)}"
             )
             metrics_dict = {"accuracy": float(accuracy)}
+            _classification_reliability(y_work, y_test, y_pred, metrics_dict)
         else:
             r2 = r2_score(y_test, y_pred)
             rmse = float(np.sqrt(mean_squared_error(y_test, y_pred)))
@@ -14664,6 +17356,310 @@ def run_ml_analysis(df, analysis_id, config, user):
         except Exception as e:
             result["summary"] = f"Factor analysis error: {str(e)}"
 
+    # =====================================================================
+    # Correspondence Analysis
+    # =====================================================================
+    elif analysis_id == "correspondence_analysis":
+        """
+        Correspondence Analysis — visualizes associations in a contingency table
+        as a biplot. Decomposes chi-squared structure into orthogonal dimensions.
+        Shows row and column profiles in shared low-dimensional space.
+        """
+        row_var_ca = config.get("row_var") or config.get("rows")
+        col_var_ca = config.get("col_var") or config.get("columns")
+
+        data_ca = df[[row_var_ca, col_var_ca]].dropna()
+
+        try:
+            ct_ca = pd.crosstab(data_ca[row_var_ca], data_ca[col_var_ca])
+            if ct_ca.shape[0] < 2 or ct_ca.shape[1] < 2:
+                result["summary"] = "Need at least 2 rows and 2 columns for correspondence analysis."
+                return result
+
+            # Total, row/col profiles
+            N_ca = ct_ca.values.sum()
+            P_ca = ct_ca.values / N_ca  # correspondence matrix
+            r_ca = P_ca.sum(axis=1)  # row masses
+            c_ca = P_ca.sum(axis=0)  # column masses
+
+            # Standardized residuals
+            Dr_inv_sqrt = np.diag(1.0 / np.sqrt(r_ca))
+            Dc_inv_sqrt = np.diag(1.0 / np.sqrt(c_ca))
+            S_ca = Dr_inv_sqrt @ (P_ca - np.outer(r_ca, c_ca)) @ Dc_inv_sqrt
+
+            # SVD
+            U_ca, sigma_ca, Vt_ca = np.linalg.svd(S_ca, full_matrices=False)
+
+            # Number of dimensions (min of rows-1, cols-1)
+            n_dims = min(ct_ca.shape[0] - 1, ct_ca.shape[1] - 1, 2)
+            if n_dims < 1:
+                result["summary"] = "Not enough dimensions for correspondence analysis."
+                return result
+
+            # Inertia (eigenvalues = sigma^2)
+            inertia = sigma_ca ** 2
+            total_inertia = float(np.sum(inertia))
+            pct_inertia = inertia / total_inertia * 100 if total_inertia > 0 else inertia * 0
+
+            # Row and column coordinates (principal coordinates)
+            row_coords = Dr_inv_sqrt @ U_ca[:, :n_dims] * sigma_ca[:n_dims]
+            col_coords = Dc_inv_sqrt @ Vt_ca[:n_dims, :].T * sigma_ca[:n_dims]
+
+            row_labels_ca = [str(x) for x in ct_ca.index]
+            col_labels_ca = [str(x) for x in ct_ca.columns]
+
+            # Chi-squared test of independence
+            from scipy import stats as ca_stats
+            chi2_ca, p_chi2_ca, dof_ca, _ = ca_stats.chi2_contingency(ct_ca.values)
+
+            # Summary
+            summary_ca = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+            summary_ca += f"<<COLOR:title>>CORRESPONDENCE ANALYSIS<</COLOR>>\n"
+            summary_ca += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+            summary_ca += f"<<COLOR:highlight>>Row variable:<</COLOR>> {row_var_ca} ({ct_ca.shape[0]} levels)\n"
+            summary_ca += f"<<COLOR:highlight>>Column variable:<</COLOR>> {col_var_ca} ({ct_ca.shape[1]} levels)\n"
+            summary_ca += f"<<COLOR:highlight>>Total N:<</COLOR>> {int(N_ca)}\n\n"
+
+            summary_ca += f"<<COLOR:text>>Chi-squared test of independence:<</COLOR>>\n"
+            summary_ca += f"  χ² = {chi2_ca:.2f},  df = {dof_ca},  p = {p_chi2_ca:.4f}"
+            if p_chi2_ca < 0.05:
+                summary_ca += f"  <<COLOR:good>>Significant association<</COLOR>>"
+            summary_ca += "\n\n"
+
+            summary_ca += f"<<COLOR:text>>Inertia (variance explained by dimensions):<</COLOR>>\n"
+            for d in range(min(len(inertia), 5)):
+                summary_ca += f"  Dim {d+1}: {inertia[d]:.4f} ({pct_inertia[d]:.1f}%)\n"
+            summary_ca += f"  Total: {total_inertia:.4f}\n"
+
+            if n_dims >= 2:
+                summary_ca += f"\n<<COLOR:text>>First 2 dimensions explain {pct_inertia[0]+pct_inertia[1]:.1f}% of inertia.<</COLOR>>\n"
+
+            # Row contributions
+            summary_ca += f"\n<<COLOR:text>>Row Coordinates:<</COLOR>>\n"
+            summary_ca += f"{'Level':<20}" + "".join([f"{'Dim '+str(d+1):>10}" for d in range(n_dims)]) + "\n"
+            summary_ca += f"{'─' * (20 + 10 * n_dims)}\n"
+            for ri, rl in enumerate(row_labels_ca):
+                row_str = f"{rl:<20}"
+                for d in range(n_dims):
+                    row_str += f"{row_coords[ri, d]:>10.4f}"
+                summary_ca += row_str + "\n"
+
+            summary_ca += f"\n<<COLOR:text>>Column Coordinates:<</COLOR>>\n"
+            summary_ca += f"{'Level':<20}" + "".join([f"{'Dim '+str(d+1):>10}" for d in range(n_dims)]) + "\n"
+            summary_ca += f"{'─' * (20 + 10 * n_dims)}\n"
+            for ci, cl in enumerate(col_labels_ca):
+                col_str = f"{cl:<20}"
+                for d in range(n_dims):
+                    col_str += f"{col_coords[ci, d]:>10.4f}"
+                summary_ca += col_str + "\n"
+
+            result["summary"] = summary_ca
+
+            # Biplot (if 2D)
+            if n_dims >= 2:
+                traces_ca = [
+                    {"type": "scatter", "mode": "markers+text",
+                     "x": row_coords[:, 0].tolist(), "y": row_coords[:, 1].tolist(),
+                     "text": row_labels_ca, "textposition": "top center",
+                     "name": f"{row_var_ca} (rows)",
+                     "marker": {"color": "#4a9f6e", "size": 10, "symbol": "circle"}},
+                    {"type": "scatter", "mode": "markers+text",
+                     "x": col_coords[:, 0].tolist(), "y": col_coords[:, 1].tolist(),
+                     "text": col_labels_ca, "textposition": "bottom center",
+                     "name": f"{col_var_ca} (columns)",
+                     "marker": {"color": "#4a90d9", "size": 10, "symbol": "diamond"}},
+                ]
+                result["plots"].append({
+                    "title": f"Correspondence Analysis Biplot ({pct_inertia[0]:.1f}% + {pct_inertia[1]:.1f}% = {pct_inertia[0]+pct_inertia[1]:.1f}%)",
+                    "data": traces_ca,
+                    "layout": {
+                        "height": 450,
+                        "xaxis": {"title": f"Dimension 1 ({pct_inertia[0]:.1f}%)", "zeroline": True, "zerolinecolor": "#5a6a5a"},
+                        "yaxis": {"title": f"Dimension 2 ({pct_inertia[1]:.1f}%)", "zeroline": True, "zerolinecolor": "#5a6a5a"},
+                    }
+                })
+
+            # Scree plot of inertia
+            result["plots"].append({
+                "title": "Inertia Scree Plot",
+                "data": [{
+                    "x": list(range(1, len(inertia) + 1)),
+                    "y": pct_inertia[:len(inertia)].tolist(),
+                    "mode": "lines+markers", "name": "% Inertia",
+                    "marker": {"color": "#4a9f6e", "size": 8},
+                    "line": {"color": "#4a9f6e", "width": 2},
+                }],
+                "layout": {"height": 280, "xaxis": {"title": "Dimension"}, "yaxis": {"title": "% of Inertia"}}
+            })
+
+            result["guide_observation"] = f"Correspondence analysis: χ²={chi2_ca:.1f} (p={p_chi2_ca:.4f}), {n_dims} dimensions explain {sum(pct_inertia[:n_dims]):.1f}% of inertia."
+            result["statistics"] = {
+                "chi2": chi2_ca, "p_value": p_chi2_ca, "total_inertia": total_inertia,
+                "n_dims": n_dims, "inertia": inertia[:n_dims].tolist(),
+                "pct_inertia": pct_inertia[:n_dims].tolist(),
+                "row_coords": {rl: row_coords[ri, :n_dims].tolist() for ri, rl in enumerate(row_labels_ca)},
+                "col_coords": {cl: col_coords[ci, :n_dims].tolist() for ci, cl in enumerate(col_labels_ca)},
+            }
+
+        except Exception as e:
+            result["summary"] = f"Correspondence analysis error: {str(e)}"
+
+    # =====================================================================
+    # Item Analysis (Cronbach's Alpha)
+    # =====================================================================
+    elif analysis_id == "item_analysis":
+        """
+        Item Analysis — reliability assessment for multi-item scales/questionnaires.
+        Computes Cronbach's alpha (overall and if-item-deleted), item-total correlations,
+        inter-item correlation matrix. Standard tool for survey/psychometric validation.
+        """
+        items_ia = config.get("items") or config.get("variables", [])
+
+        if not items_ia:
+            items_ia = df.select_dtypes(include=[np.number]).columns.tolist()
+
+        data_ia = df[items_ia].dropna()
+        n_ia = len(data_ia)
+        k_ia = len(items_ia)
+
+        if k_ia < 2:
+            result["summary"] = "Need at least 2 items for reliability analysis."
+            return result
+
+        try:
+            X_ia = data_ia.values.astype(float)
+
+            # Cronbach's alpha
+            item_vars = np.var(X_ia, axis=0, ddof=1)
+            total_var = np.var(X_ia.sum(axis=1), ddof=1)
+            alpha_overall = (k_ia / (k_ia - 1)) * (1 - np.sum(item_vars) / total_var) if total_var > 0 else 0
+
+            # Item statistics
+            total_scores = X_ia.sum(axis=1)
+            item_stats = []
+            for i, item_name in enumerate(items_ia):
+                item_mean = float(np.mean(X_ia[:, i]))
+                item_std = float(np.std(X_ia[:, i], ddof=1))
+                # Corrected item-total correlation (correlation with total minus this item)
+                rest_total = total_scores - X_ia[:, i]
+                corr_it = float(np.corrcoef(X_ia[:, i], rest_total)[0, 1]) if item_std > 0 else 0
+
+                # Alpha if item deleted
+                if k_ia > 2:
+                    remaining = np.delete(X_ia, i, axis=1)
+                    rem_item_vars = np.var(remaining, axis=0, ddof=1)
+                    rem_total_var = np.var(remaining.sum(axis=1), ddof=1)
+                    k_rem = k_ia - 1
+                    alpha_deleted = (k_rem / (k_rem - 1)) * (1 - np.sum(rem_item_vars) / rem_total_var) if rem_total_var > 0 else 0
+                else:
+                    alpha_deleted = 0
+
+                item_stats.append({
+                    "item": item_name, "mean": item_mean, "std": item_std,
+                    "corrected_item_total": corr_it, "alpha_if_deleted": float(alpha_deleted),
+                })
+
+            # Inter-item correlation matrix
+            corr_matrix_ia = np.corrcoef(X_ia.T)
+            # Average inter-item correlation (off-diagonal)
+            off_diag = corr_matrix_ia[np.triu_indices(k_ia, k=1)]
+            avg_inter_item = float(np.mean(off_diag)) if len(off_diag) > 0 else 0
+
+            # Standardized alpha (based on average inter-item correlation)
+            std_alpha = (k_ia * avg_inter_item) / (1 + (k_ia - 1) * avg_inter_item) if (1 + (k_ia - 1) * avg_inter_item) > 0 else 0
+
+            # Summary
+            summary_ia = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+            summary_ia += f"<<COLOR:title>>ITEM ANALYSIS (RELIABILITY)<</COLOR>>\n"
+            summary_ia += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+            summary_ia += f"<<COLOR:highlight>>Items:<</COLOR>> {k_ia}\n"
+            summary_ia += f"<<COLOR:highlight>>N (complete cases):<</COLOR>> {n_ia}\n\n"
+
+            summary_ia += f"<<COLOR:text>>Overall Reliability:<</COLOR>>\n"
+            alpha_color = "good" if alpha_overall >= 0.7 else ("warning" if alpha_overall >= 0.5 else "accent")
+            summary_ia += f"  <<COLOR:{alpha_color}>>Cronbach's α = {alpha_overall:.4f}<</COLOR>>\n"
+            summary_ia += f"  Standardized α = {std_alpha:.4f}\n"
+            summary_ia += f"  Average inter-item correlation = {avg_inter_item:.4f}\n\n"
+
+            if alpha_overall >= 0.9:
+                summary_ia += f"  <<COLOR:good>>Excellent reliability<</COLOR>>\n"
+            elif alpha_overall >= 0.8:
+                summary_ia += f"  <<COLOR:good>>Good reliability<</COLOR>>\n"
+            elif alpha_overall >= 0.7:
+                summary_ia += f"  <<COLOR:good>>Acceptable reliability<</COLOR>>\n"
+            elif alpha_overall >= 0.6:
+                summary_ia += f"  <<COLOR:warning>>Questionable reliability<</COLOR>>\n"
+            elif alpha_overall >= 0.5:
+                summary_ia += f"  <<COLOR:warning>>Poor reliability<</COLOR>>\n"
+            else:
+                summary_ia += f"  <<COLOR:accent>>Unacceptable reliability<</COLOR>>\n"
+
+            summary_ia += f"\n<<COLOR:text>>Item Statistics:<</COLOR>>\n"
+            summary_ia += f"{'Item':<25} {'Mean':>8} {'SD':>8} {'r(item-total)':>14} {'α if deleted':>12}\n"
+            summary_ia += f"{'─' * 72}\n"
+            for s in item_stats:
+                flag = " <<COLOR:warning>>↑<</COLOR>>" if s["alpha_if_deleted"] > alpha_overall + 0.01 else ""
+                summary_ia += f"{s['item']:<25} {s['mean']:>8.3f} {s['std']:>8.3f} {s['corrected_item_total']:>14.4f} {s['alpha_if_deleted']:>12.4f}{flag}\n"
+
+            summary_ia += f"\n<<COLOR:text>>↑ = removing this item would improve α<</COLOR>>\n"
+
+            result["summary"] = summary_ia
+
+            # Item-total correlation bar chart
+            result["plots"].append({
+                "title": "Corrected Item-Total Correlations",
+                "data": [{
+                    "type": "bar",
+                    "x": [s["item"] for s in item_stats],
+                    "y": [s["corrected_item_total"] for s in item_stats],
+                    "marker": {"color": ["#4a9f6e" if s["corrected_item_total"] >= 0.3 else "#d94a4a" for s in item_stats]},
+                }],
+                "layout": {"height": 300, "xaxis": {"tickangle": -45}, "yaxis": {"title": "Corrected Item-Total r"},
+                           "shapes": [{"type": "line", "x0": -0.5, "x1": k_ia - 0.5,
+                                       "y0": 0.3, "y1": 0.3, "line": {"color": "#e89547", "dash": "dash"}}]}
+            })
+
+            # Alpha-if-deleted plot
+            result["plots"].append({
+                "title": "Cronbach's α if Item Deleted",
+                "data": [
+                    {"type": "bar",
+                     "x": [s["item"] for s in item_stats],
+                     "y": [s["alpha_if_deleted"] for s in item_stats],
+                     "marker": {"color": ["#d94a4a" if s["alpha_if_deleted"] > alpha_overall else "#4a9f6e" for s in item_stats]}},
+                    {"type": "scatter", "mode": "lines", "name": f"Current α ({alpha_overall:.3f})",
+                     "x": [items_ia[0], items_ia[-1]], "y": [alpha_overall, alpha_overall],
+                     "line": {"color": "#e89547", "dash": "dash"}},
+                ],
+                "layout": {"height": 300, "xaxis": {"tickangle": -45}, "yaxis": {"title": "Cronbach's α"}}
+            })
+
+            # Inter-item correlation heatmap
+            result["plots"].append({
+                "title": "Inter-Item Correlation Matrix",
+                "data": [{
+                    "type": "heatmap",
+                    "z": corr_matrix_ia.tolist(),
+                    "x": items_ia, "y": items_ia,
+                    "colorscale": "RdBu", "zmid": 0,
+                    "text": [[f"{corr_matrix_ia[i, j]:.2f}" for j in range(k_ia)] for i in range(k_ia)],
+                    "texttemplate": "%{text}", "showscale": True,
+                }],
+                "layout": {"height": max(300, k_ia * 25)}
+            })
+
+            n_weak = sum(1 for s in item_stats if s["corrected_item_total"] < 0.3)
+            result["guide_observation"] = f"Item analysis: α={alpha_overall:.3f} ({k_ia} items). {n_weak} items with weak item-total correlation (<0.3)."
+            result["statistics"] = {
+                "cronbach_alpha": alpha_overall, "standardized_alpha": std_alpha,
+                "avg_inter_item_correlation": avg_inter_item,
+                "n_items": k_ia, "n_cases": n_ia,
+                "item_stats": item_stats,
+            }
+
+        except Exception as e:
+            result["summary"] = f"Item analysis error: {str(e)}"
+
     return result
 
 
@@ -16062,7 +19058,13 @@ def run_spc_analysis(df, analysis_id, config):
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
     measurement = config.get("measurement")
-    data = df[measurement].dropna().values
+    if measurement and measurement in df.columns:
+        data = df[measurement].dropna().values
+    else:
+        # Multivariate analyses (mewma, generalized_variance) don't use single measurement
+        num_cols = df.select_dtypes(include="number").columns
+        measurement = num_cols[0] if len(num_cols) > 0 else df.columns[0]
+        data = df[measurement].dropna().values
 
     if analysis_id == "imr":
         # Individual-Moving Range chart
@@ -17235,6 +20237,268 @@ def run_spc_analysis(df, analysis_id, config):
 
         result["summary"] = f"MEWMA Chart Analysis\n\nVariables: {', '.join(vars_list)} (p={p})\nλ (smoothing): {lambda_param}\nUCL (χ²): {ucl:.4f}\n\nObservations: {n}\nOut-of-control points: {len(ooc)}\n\nNote: Smaller λ increases sensitivity to small sustained shifts but also increases false alarm rate. Typical range: 0.05–0.25."
 
+    elif analysis_id in ("g_chart", "t_chart"):
+        """
+        Rare Events Charts — for processes with very low defect rates.
+        G Chart: count of opportunities (items) between events (geometric distribution).
+        T Chart: time between events (Weibull/exponential, data transformed for normality).
+        Auto-detect: integer data → G chart, float/continuous → T chart.
+        """
+        var = config.get("var") or config.get("var1")
+        chart_type = config.get("chart_type")  # "g" or "t" — auto-detect if not given
+
+        col = df[var].dropna()
+        values = col.values.astype(float)
+        n = len(values)
+
+        if n < 3:
+            result["summary"] = "Need at least 3 data points for a rare events chart."
+            return result
+
+        # Auto-detect chart type
+        if chart_type is None:
+            if col.dtype in ["int64", "int32"] and (values == values.astype(int)).all():
+                chart_type = "g"
+            else:
+                chart_type = "t"
+
+        if chart_type == "g":
+            # G Chart — geometric distribution
+            # CL = mean, UCL/LCL based on geometric probability
+            g_bar = float(np.mean(values))
+            # Exact limits: Pr(G > UCL) = α/2 where G ~ Geom(p), p = 1/(g_bar+1)
+            p_est = 1 / (g_bar + 1) if g_bar > 0 else 0.5
+            alpha_chart = 0.0027  # 3-sigma equivalent
+
+            cl = g_bar
+            # UCL: solve for x where P(G ≤ x) ≥ 1 - α/2
+            if p_est > 0 and p_est < 1:
+                ucl = float(stats.geom.ppf(1 - alpha_chart / 2, p_est) - 1)
+                lcl = max(0, float(stats.geom.ppf(alpha_chart / 2, p_est) - 1))
+            else:
+                ucl = g_bar * 3
+                lcl = 0
+
+            chart_label = "G Chart (Opportunities Between Events)"
+            y_label = "Count Between Events"
+
+        else:
+            # T Chart — time between events, Weibull/exponential transform
+            # Transform using Weibull: fit shape & scale, then transform to ~normal
+            # If shape ≈ 1, data is exponential
+            from scipy.stats import weibull_min
+
+            # Fit Weibull
+            try:
+                shape, loc, scale = weibull_min.fit(values, floc=0)
+            except Exception:
+                shape, scale = 1.0, float(np.mean(values))
+
+            # Transform to normal: Z = ((x/scale)^shape)
+            # Use Weibull-based control limits on original scale
+            mean_t = float(np.mean(values))
+            cl = mean_t
+
+            # 3-sigma limits on transformed scale → back-transform
+            # Use percentiles of fitted Weibull as control limits
+            ucl = float(weibull_min.ppf(0.99865, shape, 0, scale))
+            lcl = max(0, float(weibull_min.ppf(0.00135, shape, 0, scale)))
+
+            chart_label = "T Chart (Time Between Events)"
+            y_label = "Time Between Events"
+
+        # Detect OOC points
+        ooc_indices = []
+        for i in range(n):
+            if values[i] > ucl or values[i] < lcl:
+                ooc_indices.append(i)
+
+        x_axis = list(range(1, n + 1))
+        colors = ["#e85747" if i in ooc_indices else "#4a9f6e" for i in range(n)]
+
+        result["plots"].append({
+            "title": chart_label,
+            "data": [
+                {"type": "scatter", "x": x_axis, "y": values.tolist(), "mode": "lines+markers",
+                 "line": {"color": "#4a9f6e"}, "marker": {"color": colors, "size": 6},
+                 "name": var},
+                {"type": "scatter", "x": [1, n], "y": [cl, cl], "mode": "lines",
+                 "line": {"color": "#e8c547", "width": 1}, "name": f"CL = {cl:.2f}"},
+                {"type": "scatter", "x": [1, n], "y": [ucl, ucl], "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"UCL = {ucl:.2f}"},
+                {"type": "scatter", "x": [1, n], "y": [lcl, lcl], "mode": "lines",
+                 "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"LCL = {lcl:.2f}"},
+            ],
+            "layout": {
+                "template": "plotly_dark", "height": 350,
+                "xaxis": {"title": "Observation"}, "yaxis": {"title": y_label},
+            },
+        })
+
+        summary = f"{chart_label}\n\n"
+        summary += f"Variable: {var}\n"
+        summary += f"Observations: {n}\n"
+        summary += f"CL: {cl:.4f}\n"
+        summary += f"UCL: {ucl:.4f}\n"
+        summary += f"LCL: {lcl:.4f}\n"
+        summary += f"Out-of-control: {len(ooc_indices)}\n"
+        if ooc_indices:
+            summary += f"OOC observations: {', '.join(str(i + 1) for i in ooc_indices)}\n"
+        if chart_type == "t":
+            summary += f"\nWeibull shape: {shape:.3f} (1.0 = exponential)\n"
+            summary += f"Weibull scale: {scale:.3f}\n"
+
+        result["summary"] = summary
+        result["guide_observation"] = f"{'G' if chart_type == 'g' else 'T'} chart: CL={cl:.2f}, {len(ooc_indices)} OOC points out of {n}."
+        result["statistics"] = {
+            "chart_type": chart_type, "n": n,
+            "cl": cl, "ucl": ucl, "lcl": lcl,
+            "ooc_count": len(ooc_indices),
+            "ooc_indices": [i + 1 for i in ooc_indices],
+        }
+
+    # =====================================================================
+    # Generalized Variance Chart
+    # =====================================================================
+    elif analysis_id == "generalized_variance":
+        """
+        Generalized Variance (|S|) Chart — monitors the determinant of the
+        covariance matrix for multivariate process variability.
+        Each subgroup produces |S_i|, plotted against control limits derived
+        from the expected distribution of |S| under normality.
+        """
+        from scipy import stats as gv_stats
+
+        variables_gv = config.get("variables") or config.get("columns", [])
+        subgroup_col = config.get("subgroup") or config.get("group")
+        subgroup_size_gv = int(config.get("subgroup_size", 5))
+
+        if not variables_gv or len(variables_gv) < 2:
+            result["summary"] = "Need at least 2 variables for generalized variance chart."
+            return result
+
+        data_gv = df[variables_gv + ([subgroup_col] if subgroup_col else [])].dropna()
+        p_gv = len(variables_gv)
+
+        # Create subgroups
+        if subgroup_col:
+            subgroups = [grp[variables_gv].values for _, grp in data_gv.groupby(subgroup_col) if len(grp) >= 2]
+            subgroup_labels = [str(name) for name, grp in data_gv.groupby(subgroup_col) if len(grp) >= 2]
+        else:
+            n_obs = len(data_gv)
+            subgroups = [data_gv[variables_gv].values[i:i+subgroup_size_gv]
+                         for i in range(0, n_obs - subgroup_size_gv + 1, subgroup_size_gv)]
+            subgroup_labels = [str(i + 1) for i in range(len(subgroups))]
+
+        if len(subgroups) < 3:
+            result["summary"] = "Need at least 3 subgroups for generalized variance chart."
+            return result
+
+        # Compute |S_i| for each subgroup
+        det_values = []
+        ns_gv = []
+        for sg in subgroups:
+            n_sg = len(sg)
+            ns_gv.append(n_sg)
+            if n_sg < p_gv:
+                det_values.append(0.0)
+            else:
+                cov_sg = np.cov(sg.T, ddof=1)
+                det_values.append(float(np.linalg.det(cov_sg)))
+        det_values = np.array(det_values)
+
+        # Pooled covariance determinant
+        mean_det = float(np.mean(det_values))
+
+        # Control limits for |S|
+        # E[|S|] = |Σ| * b1, Var[|S|] = |Σ|^2 * b2
+        # For subgroup size n, p variables:
+        # b1 = prod((n-i)/(n-1) for i in 1..p) approximately
+        # Use asymptotic approximation: UCL/LCL = mean_det ± 3*SE
+        # Better: use chi-squared based limits
+        n_avg = int(np.mean(ns_gv))
+
+        # Compute b1 and b2 coefficients
+        b1 = 1.0
+        for i in range(1, p_gv + 1):
+            b1 *= (n_avg - i) / (n_avg - 1)
+
+        # Variance coefficient (simplified)
+        b2 = b1 ** 2
+        for i in range(1, p_gv + 1):
+            b2 *= ((n_avg - i + 2) / (n_avg - i)) if (n_avg - i) > 0 else 1
+        b2 -= b1 ** 2
+
+        # |Σ| estimate
+        sigma_det = mean_det / b1 if b1 > 0 else mean_det
+        se_det = sigma_det * np.sqrt(b2) if b2 > 0 else mean_det * 0.1
+
+        cl_gv = mean_det
+        ucl_gv = cl_gv + 3 * se_det
+        lcl_gv = max(0, cl_gv - 3 * se_det)
+
+        # OOC detection
+        ooc_gv = []
+        for i, val in enumerate(det_values):
+            if val > ucl_gv or val < lcl_gv:
+                ooc_gv.append(i)
+
+        # Chart
+        in_control_x = [subgroup_labels[i] for i in range(len(det_values)) if i not in ooc_gv]
+        in_control_y = [det_values[i] for i in range(len(det_values)) if i not in ooc_gv]
+        ooc_x = [subgroup_labels[i] for i in ooc_gv]
+        ooc_y = [det_values[i] for i in ooc_gv]
+
+        chart_traces = [
+            {"x": subgroup_labels, "y": det_values.tolist(), "mode": "lines+markers",
+             "name": "|S|", "marker": {"color": "#4a9f6e", "size": 6}, "line": {"color": "#4a9f6e", "width": 1}},
+        ]
+        if ooc_x:
+            chart_traces.append({
+                "x": ooc_x, "y": ooc_y, "mode": "markers", "name": "OOC",
+                "marker": {"color": "#d94a4a", "size": 10, "symbol": "x"},
+            })
+        # Control limit lines
+        chart_traces.extend([
+            {"x": [subgroup_labels[0], subgroup_labels[-1]], "y": [ucl_gv, ucl_gv],
+             "mode": "lines", "name": f"UCL ({ucl_gv:.4f})", "line": {"color": "#d94a4a", "dash": "dash"}},
+            {"x": [subgroup_labels[0], subgroup_labels[-1]], "y": [cl_gv, cl_gv],
+             "mode": "lines", "name": f"CL ({cl_gv:.4f})", "line": {"color": "#4a90d9", "dash": "dot"}},
+            {"x": [subgroup_labels[0], subgroup_labels[-1]], "y": [lcl_gv, lcl_gv],
+             "mode": "lines", "name": f"LCL ({lcl_gv:.4f})", "line": {"color": "#d94a4a", "dash": "dash"}},
+        ])
+
+        result["plots"].append({
+            "title": "Generalized Variance |S| Chart",
+            "data": chart_traces,
+            "layout": {"height": 400, "xaxis": {"title": "Subgroup"}, "yaxis": {"title": "|S| (Determinant)"},
+                       "template": "plotly_white"}
+        })
+
+        summary_gv = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary_gv += f"<<COLOR:title>>GENERALIZED VARIANCE CHART<</COLOR>>\n"
+        summary_gv += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary_gv += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables_gv)}\n"
+        summary_gv += f"<<COLOR:highlight>>Subgroups:<</COLOR>> {len(subgroups)}  (avg size = {n_avg})\n\n"
+        summary_gv += f"<<COLOR:text>>Control Limits:<</COLOR>>\n"
+        summary_gv += f"  UCL = {ucl_gv:.6f}\n"
+        summary_gv += f"  CL  = {cl_gv:.6f}\n"
+        summary_gv += f"  LCL = {lcl_gv:.6f}\n\n"
+        if ooc_gv:
+            summary_gv += f"<<COLOR:warning>>Out-of-control points: {len(ooc_gv)}<</COLOR>>\n"
+            for idx_ooc in ooc_gv:
+                summary_gv += f"  Subgroup {subgroup_labels[idx_ooc]}: |S| = {det_values[idx_ooc]:.6f}\n"
+        else:
+            summary_gv += f"<<COLOR:good>>Process variability in control — no OOC points<</COLOR>>\n"
+
+        result["summary"] = summary_gv
+        result["guide_observation"] = f"Generalized variance chart: {len(ooc_gv)} OOC points out of {len(subgroups)} subgroups."
+        result["statistics"] = {
+            "cl": cl_gv, "ucl": ucl_gv, "lcl": lcl_gv,
+            "det_values": det_values.tolist(), "n_subgroups": len(subgroups),
+            "ooc_count": len(ooc_gv), "p": p_gv,
+        }
+
     return result
 
 
@@ -17986,6 +21250,98 @@ def run_visualization(df, analysis_id, config):
             f"3D Surface Plot\n\nX: {x_col}, Y: {y_col}, Z: {z_col}\n"
             f"Data points: {len(x)}\nGrid: 40x40\n\n"
             f"Drag to rotate. Scroll to zoom."
+        )
+
+    # =====================================================================
+    # Contour Plot Overlay
+    # =====================================================================
+    elif analysis_id == "contour_overlay":
+        """
+        Contour Plot Overlay — overlay contour lines from multiple responses
+        on a single plot. Useful for DOE optimization (finding regions that
+        satisfy multiple response targets simultaneously).
+        """
+        from scipy.interpolate import griddata as scipy_griddata
+
+        x_col_co = config.get("x")
+        y_col_co = config.get("y")
+        z_cols_co = config.get("z_columns") or config.get("responses", [])
+
+        if isinstance(z_cols_co, str):
+            z_cols_co = [z_cols_co]
+
+        if len(z_cols_co) < 2:
+            result["summary"] = "Need at least 2 response variables for contour overlay."
+            return result
+
+        all_cols_co = [x_col_co, y_col_co] + z_cols_co
+        common_co = df[all_cols_co].dropna()
+
+        if len(common_co) < 4:
+            result["summary"] = "Need at least 4 data points for contour interpolation."
+            return result
+
+        x_co = common_co[x_col_co].values.astype(float)
+        y_co = common_co[y_col_co].values.astype(float)
+
+        xi_co = np.linspace(x_co.min(), x_co.max(), 50)
+        yi_co = np.linspace(y_co.min(), y_co.max(), 50)
+        xi_grid_co, yi_grid_co = np.meshgrid(xi_co, yi_co)
+
+        overlay_colors = [
+            [[0, "rgba(74,159,110,0.1)"], [1, "rgba(74,159,110,0.6)"]],
+            [[0, "rgba(74,144,217,0.1)"], [1, "rgba(74,144,217,0.6)"]],
+            [[0, "rgba(217,74,74,0.1)"], [1, "rgba(217,74,74,0.6)"]],
+            [[0, "rgba(232,197,71,0.1)"], [1, "rgba(232,197,71,0.6)"]],
+            [[0, "rgba(122,106,154,0.1)"], [1, "rgba(122,106,154,0.6)"]],
+        ]
+        line_colors = ["#4a9f6e", "#4a90d9", "#d94a4a", "#e8c547", "#7a6a9a"]
+
+        overlay_traces = []
+        summary_lines = []
+        for zi, z_col_name in enumerate(z_cols_co):
+            z_vals = common_co[z_col_name].values.astype(float)
+            zi_grid = scipy_griddata((x_co, y_co), z_vals, (xi_grid_co, yi_grid_co), method="cubic")
+            nan_mask = np.isnan(zi_grid)
+            if nan_mask.any():
+                zi_linear = scipy_griddata((x_co, y_co), z_vals, (xi_grid_co, yi_grid_co), method="linear")
+                zi_grid[nan_mask] = zi_linear[nan_mask]
+
+            color_idx = zi % len(line_colors)
+            overlay_traces.append({
+                "type": "contour",
+                "x": xi_co.tolist(), "y": yi_co.tolist(),
+                "z": np.where(np.isnan(zi_grid), None, zi_grid).tolist(),
+                "name": z_col_name,
+                "contours": {"showlabels": True, "labelfont": {"size": 9, "color": line_colors[color_idx]},
+                             "coloring": "lines"},
+                "line": {"color": line_colors[color_idx], "width": 2},
+                "showscale": False,
+            })
+            summary_lines.append(f"  {z_col_name}: range [{np.nanmin(z_vals):.3f}, {np.nanmax(z_vals):.3f}]")
+
+        # Add data points
+        overlay_traces.append({
+            "type": "scatter", "mode": "markers",
+            "x": x_co.tolist(), "y": y_co.tolist(),
+            "marker": {"color": "#fff", "size": 4, "opacity": 0.6, "line": {"color": "#333", "width": 1}},
+            "name": "Data points", "showlegend": True,
+        })
+
+        result["plots"].append({
+            "title": f"Contour Overlay: {', '.join(z_cols_co)}",
+            "data": overlay_traces,
+            "layout": {"height": 500, "xaxis": {"title": x_col_co}, "yaxis": {"title": y_col_co}}
+        })
+
+        result["summary"] = (
+            f"Contour Plot Overlay\n\n"
+            f"X: {x_col_co}, Y: {y_col_co}\n"
+            f"Responses overlaid ({len(z_cols_co)}):\n" +
+            "\n".join(summary_lines) +
+            f"\n\nData points: {len(x_co)}\n"
+            f"Each response shown with distinct contour line color.\n"
+            f"Use this to identify regions satisfying multiple targets."
         )
 
     # =====================================================================

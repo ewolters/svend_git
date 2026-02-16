@@ -15,6 +15,331 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-15 — ML Hub: Class Imbalance Handling & Reliability Governance
+
+**What:** A 97/3 imbalanced dataset produced 1.000 accuracy and 1.000 F1 — the model was either predicting all-majority or the test set had no minority samples. Fixed the pipeline to produce honest, decision-grade metrics.
+
+**Root causes fixed:**
+1. `train_test_split` had no `stratify=y` — minority class could vanish from test set
+2. `RandomForestClassifier` used default `class_weight=None` — no rebalancing
+3. `f1_score(average="weighted")` masks the problem (≈0.97 even predicting all-majority)
+4. Warnings existed post-hoc but didn't change metrics or model behavior
+
+**Files changed:**
+- `agents_api/dsw_views.py`:
+  - Added `_stratified_split()` — StratifiedShuffleSplit with up to 10 retries to ensure all classes appear in test set, falls back to plain stratified, then unstratified
+  - Added `_classification_reliability()` — shared function computing balanced_accuracy, f1_macro, recall_macro, per-class breakdown, baseline_accuracy, and reliability_warnings list
+  - Updated `_auto_train()` — uses stratified split, auto-enables `class_weight="balanced"` when majority > 75%, adds average_precision (PR AUC) for binary
+  - Updated XGBoost section — stratified split, `scale_pos_weight` for binary / `compute_sample_weight("balanced")` for multiclass when imbalanced
+  - Updated LightGBM section — stratified split, `is_unbalance=True` when imbalanced
+  - All three paths now call `_classification_reliability()` for enriched metrics
+
+- `agents_api/autopilot_views.py`:
+  - Enhanced `_build_training_interpretation()` — prepends "Reliability: LOW" when HIGH warnings exist, shows balanced_accuracy and f1_macro context, per-class minority recall with failure flags
+
+- `templates/models.html`:
+  - Added `result-warnings` div — red-bordered banner for HIGH warnings, orange for medium
+  - Updated metrics grid — filters out objects, adds Baseline/Balanced Acc/Lift cards, colors accuracy orange when HIGH warnings exist
+  - Added `result-perclass` — collapsible per-class metrics table (precision/recall/F1/support), rows with recall < 0.5 highlighted orange
+  - Model card color override — shows primary metric in orange instead of green when HIGH reliability warnings stored in model artifact
+
+**New metrics added to classification results:**
+- `balanced_accuracy` — mean per-class recall (honest metric for imbalanced data)
+- `f1_macro` — punishes minority neglect
+- `recall_macro` — mean per-class recall
+- `average_precision` — PR AUC (binary only, most honest for 97/3 land)
+- `baseline_accuracy` — majority class proportion
+- `per_class` — per-class precision/recall/f1/support dict
+- `reliability_warnings` — list of {level, msg} dicts persisted with model artifact
+
+**Reliability warning rules:**
+- Test split missing classes (HIGH)
+- Perfect/near-perfect accuracy ≥ 0.99 (HIGH)
+- Accuracy matches baseline within 1-2% (HIGH)
+- Severe class imbalance > 80% (MEDIUM)
+- High accuracy but low balanced accuracy gap > 25% (HIGH)
+- Minority class recall < 50% (HIGH)
+
+**Verification:** Upload 97/3 imbalanced dataset → Quick Train should show: class_weight="balanced" in recipe, balanced accuracy < standard accuracy, red reliability warnings banner, per-class table, baseline comparison. Balanced dataset should show no warnings.
+
+---
+
+### 2026-02-15 — Analysis Workbench UX: Config Forms + Convenience Features
+
+**What:** Comprehensive UX pass on the analysis workbench. Added config forms for all 36 Sprint 2+3 analyses that were missing frontend forms, plus 8 convenience features.
+
+**Config forms added (36 analyses):**
+split_plot_anova, repeated_measures_anova, anom, glm, hsu_mcb, nominal_logistic, ordinal_logistic, poisson_regression, orthogonal_regression, nonlinear_regression, variable_acceptance_sampling, multiple_plan_comparison, gage_rr_expanded, capability_sixpack, laney_p, laney_u, between_within, mewma, generalized_variance, dotplot, individual_value_plot, interval_plot, contour, contour_overlay, surface_3d, run_chart, factor_analysis, correspondence_analysis, item_analysis, box_cox, johnson_transform, grubbs_test, graphical_summary, auto_profile. Existing post-hoc group extended to include scheffe_test, bonferroni_test.
+
+**UX convenience features:**
+1. Search box with real-time filtering in analysis dialog
+2. Favorites system (localStorage star toggle)
+3. Chart export (Plotly mode bar on hover with download button)
+4. Copy button on result summaries (strips color tags)
+5. Chart tab labels now show chart titles instead of "1-4"
+6. Remember last config per analysis (localStorage save/restore)
+7. 30+ missing menu items added to frontend analysis grid
+8. Color map fixed (title, highlight, good tags now render)
+
+**Bug fixes:**
+- `run_spc_analysis()` crashed on multivariate analyses (mewma, generalized_variance) because it unconditionally called `df[measurement]` before reaching the analysis block. Now gracefully falls back to first numeric column.
+- `executeAnalysis()` now collects checkbox values with IDs (interactions, show_mean)
+- Duplicate CSS rule for `.aw-analysis-item .name` merged
+
+**Files changed:**
+- `services/svend/web/templates/analysis_workbench.html` — config forms, UX features, CSS
+- `services/svend/web/agents_api/dsw_views.py` — SPC null-measurement guard
+
+**Verification:** `py_compile` passes. JS brace balance verified (1337 pairs). All form IDs verified against backend config.get() keys.
+
+---
+
+### 2026-02-15 — Minitab Parity Sprint 3: Final 11 Items — 99% Parity Achieved
+
+**What:** Closed all remaining Minitab parity gaps. Every item in the DSW_gaps.md audit is now checked off.
+
+**New DSW analyses (in `dsw_views.py`):**
+1. `poisson_regression` — GLM with Poisson family, log link, IRR with 95% CI, deviance goodness-of-fit, overdispersion detection, optional offset/exposure variable.
+2. `split_plot_anova` — Split-plot ANOVA with proper error term separation. WP factors tested against WP error, SP factors against residual. Residual + main effects plots.
+3. `repeated_measures_anova` — Within-subject ANOVA with Mauchly sphericity test + Greenhouse-Geisser/Huynh-Feldt epsilon corrections. Profile plot + spaghetti plot.
+4. `scheffe_test` — Scheffé's post-hoc (most conservative, controls for all contrasts). Pairwise CIs + forest plot.
+5. `bonferroni_test` — Bonferroni post-hoc (pairwise t with adjusted α). CI forest plot.
+6. `hsu_mcb` — Hsu's Multiple Comparisons with the Best. Identifies which groups could be best at given confidence level.
+7. `correspondence_analysis` — SVD-based decomposition of contingency table. Biplot, inertia scree, chi-squared test, row/column coordinates.
+8. `item_analysis` — Cronbach's α (overall + if-deleted), corrected item-total correlations, inter-item correlation heatmap, standardized alpha.
+9. `multiple_plan_comparison` — Compare OC curves, AOQ curves, producer/consumer risk across multiple sampling plans side-by-side.
+10. `generalized_variance` — |S| (covariance determinant) control chart for multivariate process variability. Subgroup-based with UCL/LCL/OOC detection.
+11. `contour_overlay` — Overlay contour lines from multiple responses on one plot for DOE optimization.
+
+**DOE augment design (in `doe.py` + `experimenter_views.py`):**
+- `augment_design()` method with 5 modes: axial (CCD upgrade), foldover (de-alias 2FIs), replicate, center points, D-optimal (greedy exchange)
+- All 5 modes smoke-tested. Routing + design_types endpoint updated.
+
+**Files changed:**
+- `services/svend/web/agents_api/dsw_views.py` — 11 new analysis blocks
+- `services/svend/agents/agents/experimenter/doe.py` — `augment_design()` method
+- `services/svend/web/agents_api/experimenter_views.py` — augment routing + design type entry
+- `DSW_gaps.md` — All items checked, scorecard updated to ~99% parity
+
+**Verification:** `py_compile` passes on all 3 modified Python files. DOE augment smoke-tested all 5 modes.
+
+---
+
+### 2026-02-15 — Minitab Parity Sprint 2: 8 New Analyses + DOE Expansion
+
+**What:** Continued Minitab/JMP competitive parity closure. Added 6 new DSW analyses, 1 expanded MSA study, and 4 new DOE design types.
+
+**New DSW analyses (in `dsw_views.py`):**
+1. `orthogonal_regression` — Deming/orthogonal regression with Bland-Altman plot. Bootstrap CI, OLS comparison. Supports method comparison studies.
+2. `nonlinear_regression` — 9 preset curve models (exponential, power, logistic, logarithmic, polynomial2/3, Michaelis-Menten, Gompertz, Hill). Returns parameters, SE, R², AIC/BIC, residual plot.
+3. `variable_acceptance_sampling` — k-method variables sampling plan (MIL-STD-414/ANSI Z1.9 style) with OC curve. Evaluates sample data against spec limits.
+4. `capability_sixpack` — 6-panel Minitab-style capability display: I/MR (or Xbar/R), run chart, histogram with specs, normal probability plot, capability stats. Supports subgrouping.
+5. `anom` — Analysis of Means with Bonferroni-corrected decision limits. ANOM chart with UDL/LDL. Supports balanced and unbalanced designs, factor format.
+6. `gage_rr_expanded` — Multi-factor MSA with up to 8 factors beyond standard part/operator. GLM-style variance decomposition. Identifies largest reproducibility source.
+
+**New DOE design types (in `doe.py` + `experimenter_views.py`):**
+7. `simplex_centroid` — Mixture design with vertices, edge midpoints, face centroids (all points sum to 1).
+8. `simplex_lattice` — {q, m} lattice design on the simplex with configurable degree.
+9. `extreme_vertices` — Constrained mixture regions with lower/upper bounds on each component.
+10. `split_plot` — Hard-to-change (whole-plot) and easy-to-change (sub-plot) factors with restricted randomization.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — Added 6 analyses: orthogonal_regression, nonlinear_regression, variable_acceptance_sampling, capability_sixpack, anom, gage_rr_expanded
+- `agents/agents/experimenter/doe.py` — Added 4 methods: simplex_centroid, simplex_lattice, extreme_vertices, split_plot
+- `agents_api/experimenter_views.py` — Routing for mixture designs + split-plot, design_types endpoint additions
+
+---
+
+### 2026-02-15 — Minitab Parity Sprint 1: 7 New Analyses
+
+**What:** Competitive gap closure targeting Minitab/JMP parity for LSS practitioners. Added 7 missing analysis types across DSW, SPC, and DOE.
+
+**New analyses:**
+1. `variance_test` — One/two-variance tests (chi-square, F-test, Bartlett's + Levene's). Supports wide and factor formats.
+2. `poisson_2sample` — Two-sample Poisson rate test with exact conditional test, rate ratio + CI.
+3. `nominal_logistic` — Nominal logistic regression for 3+ categories. Auto-excludes response from predictors.
+4. `attribute_capability` — Attribute capability (DPU, DPO, DPMO, yield %, sigma level with 1.5σ shift).
+5. `nonnormal_capability_np` — Nonparametric capability using percentile method with AD normality comparison.
+6. `g_chart` / `t_chart` — Rare events SPC charts (geometric / Weibull). Auto-detect chart type.
+7. `general_full_factorial` — Multi-level factorial DOE with >1000 run warning.
+
+**Files changed:**
+- `agents_api/dsw_views.py` — Added 5 stats + 2 SPC implementations
+- `agents_api/experimenter_views.py` — Added general_full_factorial alias
+
+---
+
+### 2026-02-15 — Wire Study/Projects Evidence Pipeline to 100%
+
+**What:** Audited and completed the evidence pipeline so all tools feed findings into the core `Evidence` → `EvidenceLink` → Bayesian update system. Previously ~70% wired; now 100%.
+
+**Files changed:**
+- `core/views.py` — Fixed `evidence_list` POST to call `synara.apply_evidence(link)` after creating EvidenceLink (was missing Bayesian update)
+- `templates/projects.html` — Changed `addEvidence()` to call `/api/core/projects/{id}/evidence/` instead of `/api/core/evidence/from-code/`
+- `agents_api/models.py` — Added `self.sync_evidence_to_core(evidence)` in `Problem.add_evidence()` so all legacy paths auto-sync to core
+- `agents_api/views.py` — Added `record_tool_evidence()` utility function accepting `project_id` (direct core) or `problem_id` (legacy sync)
+- `agents_api/spc_views.py` — Updated all 6 evidence spots (control_chart, chart_recommendation, capability_study, statistical_summary, analyze_data, gage_rr) to use `record_tool_evidence()` with `project_id` support
+- `agents_api/experimenter_views.py` — Updated all 6 evidence spots (power_analysis, generate_design, full_experiment, analyze_results, contour_plot, optimization) with same pattern
+- `agents_api/rca_views.py` — Added auto-evidence in `update_session()` when root_cause is set on a project-linked session
+- `agents_api/a3_views.py` — Added auto-evidence in `update_a3_report()` when root_cause or countermeasures are updated on project-linked A3
+- `agents_api/guide_views.py` — Added `save_finding` endpoint for manual evidence capture from guide chat
+- `agents_api/guide_urls.py` — Added `save-finding/` route
+- `agents_api/whiteboard_views.py` — Added `save_finding` endpoint for whiteboard observations as evidence
+- `agents_api/whiteboard_urls.py` — Added `save-finding/` route
+
+**New API endpoints:**
+- `POST /api/guide/save-finding/` — Save guide observation as evidence (project_id, summary, optional hypothesis_ids + likelihood_ratio)
+- `POST /api/whiteboard/boards/<room_code>/save-finding/` — Save whiteboard finding as evidence (summary, optional element_ids, hypothesis_ids + likelihood_ratio)
+
+**Verification:** `python manage.py check` → 0 issues. All tools now create `core.Evidence` records and trigger Bayesian updates when linked to projects.
+
+---
+
+### 2026-02-15 — Standardize Operations Widgets to Svend Theme
+
+**Files changed:**
+- `templates/calculators.html` — Added themed CSS for `input[type="range"]` (green accent thumb, dark track), `input[type="checkbox"]` (accent-primary when checked, white checkmark), and `.svend-toggle` component (replaces inline-styled toggle). Updated Yamazumi toggle from inline styles to CSS classes. Removed manual JS style manipulation for toggle (CSS `:checked` handles it). Removed inline size on breakdowns checkbox. Affects 13 range sliders, 1 checkbox, 1 toggle across Line Simulator, Queue Simulator, Kanban, Beer Game, TOC/DBR, Reliability, and Desirability calculators.
+**Verification:** Open /app/calculators/, check any simulator — sliders should show green thumb on dark track, checkbox shows green with white checkmark when checked.
+
+---
+
+### 2026-02-15 — Training Partner Student Program
+
+**What:** Full training partner flow for India LSS certification programs. Training centers (e.g., Contiprove) send students to a partner-specific registration link. Students get Pro access with 100% Stripe coupon for the program duration, then convert to ₹749/mo (50% of India Pro) after the free period ends.
+
+**Flow:** `/register/?partner=contiprove` → register → auto-subscribe with Stripe coupon → Pro access with countdown timer → 14-day and 3-day reminder emails → upgrade CTA in settings at discounted rate
+
+**Files changed:**
+- `accounts/models.py` — Added `partner_code`, `partner_discount_ends_at` to User model
+- `accounts/migrations/0011_user_partner_fields.py` — AddField x2
+- `accounts/billing.py` — Added `TRAINING_PARTNERS` config, `get_partner_config()`, `partner_activate()` view, partner-aware checkout
+- `accounts/urls.py` — Added `/billing/partner-activate/` route
+- `api/views.py` — `register()` captures partner code + sets expiry + schedules reminders; `me()` returns partner fields
+- `api/tasks.py` — Added `send_partner_expiry_reminder()` tempora task
+- `templates/register.html` — Captures `?partner=` param, redirects to partner-activate
+- `templates/settings.html` — Partner info section with countdown timer + upgrade CTA
+- `templates/base_app.html` — Gold partner expiry banner (14-day warning, dismissable)
+
+**Verification:** Register at `/register/?partner=contiprove`, check `me()` returns partner fields, verify settings shows timer
+
+---
+
+### 2026-02-15 — Partnerships Page (Education, Stiykist, Consulting)
+
+**Files changed:**
+- `templates/partnerships.html` — New page extending tool_base.html with three sections: Education partnerships (training company licensing + direct training), Project Stiykist (Ukrainian defense innovation, entirely in Ukrainian), Consulting placeholder (March 2026)
+- `svend/urls.py` — Added /partnerships/ route and sitemap entry
+- `templates/landing.html` — Added Partnerships link to footer Company column
+**Verification:** `curl -s -o /dev/null -w "%{http_code}" -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/partnerships/` → 200
+
+---
+
+### 2026-02-15 — Regional PPP Pricing via Cloudflare Geo-IP
+
+**What:** Added purchasing power parity pricing for 6 regions using Cloudflare's `CF-IPCountry` header. Landing page and Stripe checkout both resolve the same geo-IP, so displayed price always matches checkout price. No external dependencies — Cloudflare adds the header automatically through the tunnel.
+
+**Regions:**
+- India (INR): ₹1,499 / ₹3,499 / ₹9,999
+- Indochina — VN, TH, KH (VND): ₫349,000 / ₫799,000 / ₫2,499,000
+- Philippines (PHP): ₱1,290 / ₱2,990 / ₱8,990
+- Malaysia (MYR): RM99 / RM229 / RM699
+- Indonesia (IDR): Rp249,000 / Rp579,000 / Rp1,799,000
+- Ukraine (UAH): ₴349 / ₴899 / ₴2,999
+- Default / everyone else (USD): $49 / $99 / $299
+
+**billing.py:**
+- Added `COUNTRY_TO_REGION`, `REGIONAL_PRICES` (7 regions × 3 tiers = 21 price IDs), `REGIONAL_DISPLAY`
+- Added `get_region(request)`, `get_regional_price(plan, region)`, `get_pricing_context(request)` helpers
+- `create_checkout_session()` now resolves regional price via `get_region()` — consistent with landing page display
+- All 25 price IDs (4 legacy + 21 regional) registered in `PRICE_TO_TIER` for webhook tier resolution
+
+**Landing page:**
+- Replaced `TemplateView` with `landing_view()` function that passes pricing context
+- Pricing cards use `{{ currency_symbol }}{{ price_pro }}` etc. instead of hardcoded `$49`
+
+**Files changed:**
+- `accounts/billing.py` — regional pricing config + routing
+- `svend/urls.py` — landing_view replaces TemplateView
+- `templates/landing.html` — template variables in pricing cards
+
+**Verification:** `curl -H "CF-IPCountry: IN"` returns ₹ prices; `curl -H "CF-IPCountry: UA"` returns ₴ prices; no header returns $ prices
+
+---
+
+### 2026-02-15 — VSM Enterprise Tenant Support + Enterprise Rollout Debt Documentation
+
+**What:** Added dual owner/tenant ownership to ValueStreamMap, mirroring the `core.Project` pattern. Personal VSMs use `owner` FK, enterprise VSMs use `tenant` FK. A CheckConstraint ensures exactly one is set. Created `get_user_vsms(user)` helper and replaced all 15 `owner=request.user` queries across vsm_views.py. Documented the remaining 6 module rollout as technical debt with a breadcrumb trail.
+
+**Model (agents_api/models.py):**
+- Added `tenant` FK (nullable, CASCADE) to `ValueStreamMap`
+- Added `created_by` FK (SET_NULL) for tracking who created tenant-owned VSMs
+- Made `owner` nullable (was required) for tenant-owned records
+- Added `CheckConstraint` `vsm_has_single_owner`: owner XOR tenant
+- Added indexes on `(owner, status)` and `(tenant, status)`
+- Updated `to_dict()` with `owner_id` and `tenant_id`
+
+**Views (vsm_views.py):**
+- Added `get_user_vsms(user)` helper: `Q(owner=user) | Q(tenant_id__in=user_tenant_ids)` via Membership
+- Replaced 15 instances of `owner=request.user` with `get_user_vsms(request.user)`
+- `create_vsm()` accepts optional `tenant_id` for enterprise VSM creation
+- `create_future_state()` inherits ownership model (owner or tenant) from parent VSM
+
+**Debt (.kjerne/DEBT.md):**
+- Documented enterprise rollout plan for 6 remaining modules: FMEA, RCA, A3, Reports, Whiteboards, Hoshin
+- Included proven pattern, priority ordering, and breadcrumb trail referencing VSM as template
+
+**Files changed:**
+- `agents_api/models.py` — tenant FK, created_by FK, owner nullable, constraint, indexes
+- `agents_api/migrations/0033_vsm_enterprise_tenant.py` — schema changes
+- `agents_api/vsm_views.py` — `get_user_vsms()` helper + 15 query replacements
+- `.kjerne/DEBT.md` — enterprise rollout debt section
+
+**Verification:** Create VSM as personal user → appears in list. Create VSM with `tenant_id` → other tenant members see it via `get_user_vsms()`. CheckConstraint prevents setting both owner and tenant.
+
+---
+
+### 2026-02-15 — VSM Packet System: Current↔Future Linking, Diff UI, Calculator Tracking, Hoshin Bridge
+
+**What:** The VSM evolved into a composable primitive feeding 11+ calculators. This change explicitly links current↔future state VSMs, adds a station-by-station diff with suggested improvement events, tracks which VSM sourced each calculator session, and surfaces VSM links in Hoshin projects.
+
+**Model:**
+- Added `parent_vsm` self-FK to `ValueStreamMap` (with `related_name="future_states"`)
+- Updated `to_dict()` to include `parent_vsm_id`
+- Migration `0032` with `RunPython` backfill for existing future-state VSMs
+
+**Views (vsm_views.py):**
+- `create_future_state()` now sets `parent_vsm=current` on the new future VSM
+- `get_vsm()` returns `linked` dict with parent info and child future states for navigation
+- `compare_vsm()` uses FK-based lookup (with reverse + legacy fallback), returns `station_diffs` with per-station deltas and deterministic event suggestions (SMED/Kaizen/TPM/Standard Work/Elimination)
+- `generate_proposals()` uses same FK-based lookup
+
+**VSM Template (vsm.html):**
+- Status badge below VSM name: green "Current State" or purple "Future State"
+- Navigation links: "View Current State" ← / → "View Future State"
+- Full diff modal replacing `alert()`: 3 summary metric cards + station comparison table + color-coded event pills + events summary
+- Save-before-create on future state creation with confirmation
+
+**Calculator Template (calculators.html):**
+- `_lastImportedVsmId` / `_lastImportedVsmName` tracked on VSM import
+- Persisted via `collectState()` / `restoreState()` in localStorage
+- Source indicator next to VSM import button links back to source VSM
+
+**Hoshin Template (hoshin.html):**
+- Source VSM link in project detail info grid
+- Source VSM link in quick links sidebar
+
+**Files changed:**
+- `agents_api/models.py` — `parent_vsm` FK + `to_dict()`
+- `agents_api/migrations/0032_valuestreammap_parent_vsm.py` — field + backfill
+- `agents_api/vsm_views.py` — 4 view fixes
+- `templates/vsm.html` — status badge, nav links, diff modal
+- `templates/calculators.html` — source tracking + indicator
+- `templates/hoshin.html` — VSM link in detail + sidebar
+
+**Verification:** Create current-state VSM → "Create Future State" → edit future (change changeover/cycle time) → "Compare States" → see diff modal with SMED/Kaizen pills → navigate between states via links
+
+---
+
 ### 2026-02-14 — Landing Page Repositioning: "Experimentation Platform for Quality & Operations"
 
 **What:** Full repositioning of svend.ai landing page from "Statistical Analysis & SPC Software | Minitab Alternative" to "Continuous Improvement & DOE Software | Experiment Tracking for Quality Teams." Motivated by SEO research showing head terms (statistical analysis software, SPC software) are unwinnable against Minitab/JMP/SAS with decades of backlinks, while "continuous improvement software" ($1.85B market), "DOE software" (new entrants breaking through), and "hypothesis tracking" (zero competition) are realistic targets.
@@ -61,6 +386,32 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 - `api/migrations/0010_whitepaper_models.py` — migration (applied)
 
 **Verification:** Internal dashboard > Content tab > click "Whitepapers" sub-tab > create/save/publish a whitepaper, analytics charts render
+
+---
+
+### 2026-02-14 — Content BI Suite (Device/Browser/OS/Hourly/Sessions/Referrer)
+
+**What:** Added rich content analytics to both Blog and Whitepaper analytics sections. Parses user agents for device/browser/OS breakdown, builds hourly activity heatmap, tracks visitor sessions with device fingerprinting, and extracts full referrer page paths and UTM parameters.
+
+**Backend (internal_views.py):**
+- `_parse_ua(ua)` — regex-based UA parser returning device (Mobile/Desktop/Tablet), browser (Chrome/Firefox/Safari/Edge/Opera/curl), OS (Windows/macOS/iOS/Android/Linux)
+- `_extract_utm(url)` — extracts utm_source/medium/campaign/content/term from referrer query strings
+- `_content_bi(qs, ua_field, time_field, referrer_field)` — shared analytics builder producing devices, browsers, os, hourly (0-23), visitor sessions (grouped by ip_hash, top 50), referrer_pages (full domain+path), and utm_sources
+- Both `api_blog_analytics()` and `api_whitepaper_analytics()` enhanced to include BI data
+- `WhitePaperDownload` model gained `referrer` (URLField) and `path` (CharField) fields
+
+**Frontend (internal_dashboard.html):**
+- 6 new chart containers added to both Blog and Whitepaper analytics sections
+- `renderContentBI(data, prefix)` shared JS function renders: devices doughnut, browsers horizontal bar, OS doughnut, hourly activity bar (peak hour highlighted), visitor sessions table (hash/hits/device/browser/os/source/first_seen), referrer pages table (full path + count)
+- Wired to `loadBlogAnalytics()` and `loadWhitepaperAnalytics()`
+
+**Files changed:**
+- `api/internal_views.py` — 3 helper functions + 2 endpoint enhancements
+- `api/models.py` — WhitePaperDownload referrer/path fields
+- `api/migrations/0011_whitepaper_download_referrer_path.py` — migration (applied)
+- `templates/internal_dashboard.html` — 12 chart containers (6 per section) + renderContentBI function + wiring
+
+**Verification:** Internal dashboard > Content tab > Blog analytics shows device/browser/OS doughnut/bar charts, hourly activity, visitor sessions table, referrer pages. Same for Whitepapers sub-tab.
 
 ---
 

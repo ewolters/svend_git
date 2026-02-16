@@ -910,12 +910,70 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     font-size: 11px;
     font-weight: 500;
     color: #e8efe8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
 }
 
 .aw-analysis-item .desc {
     font-size: 10px;
     color: var(--aw-text-muted);
 }
+
+/* Search input in analysis dialog */
+.aw-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background: #0d120d;
+    border: 1px solid rgba(74, 159, 110, 0.4);
+    border-radius: 4px;
+    color: #e8efe8;
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+}
+.aw-search-input:focus {
+    border-color: #4a9f6e;
+}
+.aw-search-input::placeholder {
+    color: #5a6a5a;
+}
+
+/* Favorite star button */
+.aw-fav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: #3a4a3a;
+    padding: 0 2px;
+    margin-left: auto;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.aw-fav-btn:hover { color: #e8c547; }
+.aw-fav-btn.active { color: #e8c547; }
+
+/* Copy button on results */
+.aw-copy-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(74, 159, 110, 0.2);
+    border: 1px solid rgba(74, 159, 110, 0.4);
+    color: #9aaa9a;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 1;
+}
+.aw-copy-btn:hover { background: rgba(74, 159, 110, 0.4); color: #e8efe8; }
+div:hover > .aw-copy-btn { opacity: 1; }
 
 /* Resizer */
 .aw-resizer {
@@ -2978,10 +3036,13 @@ function appendSession(type, text, useHtml = false) {
 }
 
 function formatColoredOutput(text) {
-    // Color map for regression output
+    // Color map for analysis output (matches backend <<COLOR:tag>> tags)
     const colors = {
         'accent': '#4a9f6e',
+        'title': '#e8c547',
         'text': '#e8efe8',
+        'highlight': '#47a5e8',
+        'good': '#4a9f6e',
         'dim': '#7a8a7a',
         'success': '#4a9f6e',
         'warning': '#e89547',
@@ -3020,12 +3081,20 @@ const analysisMenus = {
             { id: 'games_howell', name: 'Games-Howell', desc: 'Post-hoc (unequal variances)' },
             { id: 'dunnett', name: "Dunnett's Test", desc: 'Compare treatments to control' },
             { id: 'dunn', name: "Dunn's Test", desc: 'Non-parametric post-hoc' },
+            { id: 'scheffe_test', name: "Scheffé's Test", desc: 'Conservative post-hoc (all contrasts)' },
+            { id: 'bonferroni_test', name: 'Bonferroni Test', desc: 'Post-hoc with adjusted α' },
+            { id: 'hsu_mcb', name: "Hsu's MCB", desc: 'Compare groups to the best' },
+            { id: 'split_plot_anova', name: 'Split-Plot ANOVA', desc: 'Hard/easy-to-change factors' },
+            { id: 'repeated_measures_anova', name: 'Repeated Measures', desc: 'Within-subject ANOVA' },
+            { id: 'anom', name: 'ANOM', desc: 'Analysis of Means with decision limits' },
             { id: 'hotelling_t2', name: "Hotelling's T²", desc: 'Multivariate two-sample test' },
             { id: 'manova', name: 'MANOVA', desc: 'Multivariate analysis of variance' },
             { id: 'nested_anova', name: 'Nested ANOVA', desc: 'Mixed-effects / hierarchical' },
             { id: 'kaplan_meier', name: 'Kaplan-Meier', desc: 'Survival curves with log-rank test' },
             { id: 'cox_ph', name: 'Cox Proportional Hazards', desc: 'Survival regression with hazard ratios' },
             { id: 'acceptance_sampling', name: 'Acceptance Sampling', desc: 'OC curves, AQL/LTPD, producer/consumer risk' },
+            { id: 'variable_acceptance_sampling', name: 'Variable Sampling', desc: 'k-method (MIL-STD-414)' },
+            { id: 'multiple_plan_comparison', name: 'Plan Comparison', desc: 'Compare sampling plans side-by-side' },
             { id: 'prop_1sample', name: '1-Proportion Z', desc: 'Test observed proportion vs hypothesized' },
             { id: 'prop_2sample', name: '2-Proportion Z', desc: 'Compare proportions between groups' },
             { id: 'fisher_exact', name: "Fisher's Exact", desc: 'Exact test for 2×2 tables' },
@@ -3033,6 +3102,12 @@ const analysisMenus = {
             { id: 'regression', name: 'Regression', desc: 'OLS with full diagnostics' },
             { id: 'logistic', name: 'Logistic Regression', desc: 'Binary outcomes, odds ratios' },
             { id: 'correlation', name: 'Correlation', desc: 'Pearson, Spearman' },
+            { id: 'nominal_logistic', name: 'Nominal Logistic', desc: 'Multi-category outcomes' },
+            { id: 'ordinal_logistic', name: 'Ordinal Logistic', desc: 'Ordered category outcomes' },
+            { id: 'poisson_regression', name: 'Poisson Regression', desc: 'Count data with IRR' },
+            { id: 'orthogonal_regression', name: 'Deming Regression', desc: 'Orthogonal / method comparison' },
+            { id: 'nonlinear_regression', name: 'Nonlinear Regression', desc: '9 preset curve models' },
+            { id: 'glm', name: 'General Linear Model', desc: 'Unified ANOVA/ANCOVA/regression' },
             { id: 'normality', name: 'Normality Test', desc: 'Anderson-Darling' },
             { id: 'chi2', name: 'Chi-Square', desc: 'Test for association' },
             { id: 'f_test', name: 'F-Test (Variance)', desc: 'Equality of variances' },
@@ -3084,6 +3159,7 @@ const analysisMenus = {
             { id: 'gage_type1', name: 'Type 1 Gage Study', desc: 'Single part, Cg/Cgk indices' },
             { id: 'attribute_gage', name: 'Attribute Gage', desc: 'Pass/Fail agreement vs reference' },
             { id: 'attribute_agreement', name: 'Attribute Agreement', desc: 'Kappa / Fleiss Kappa' },
+            { id: 'gage_rr_expanded', name: 'Gage R&R (Expanded)', desc: 'Multi-factor MSA' },
         ]
     },
     ml: {
@@ -3101,6 +3177,9 @@ const analysisMenus = {
             { id: 'sem', name: 'SEM / Path Analysis', desc: 'Causal paths + mediation' },
             { id: 'regularized_regression', name: 'Ridge/LASSO/Elastic Net', desc: 'Regularized regression' },
             { id: 'discriminant_analysis', name: 'Discriminant Analysis', desc: 'LDA/QDA classification' },
+            { id: 'factor_analysis', name: 'Factor Analysis', desc: 'Exploratory latent factors' },
+            { id: 'correspondence_analysis', name: 'Correspondence Analysis', desc: 'Contingency table biplot' },
+            { id: 'item_analysis', name: 'Item Analysis', desc: "Cronbach's α reliability" },
         ]
     },
     spc: {
@@ -3116,6 +3195,12 @@ const analysisMenus = {
             { id: 'cusum', name: 'CUSUM', desc: 'Cumulative sum' },
             { id: 'ewma', name: 'EWMA', desc: 'Exponentially weighted MA' },
             { id: 'capability', name: 'Capability Analysis', desc: 'Cp, Cpk, Pp, Ppk' },
+            { id: 'capability_sixpack', name: 'Capability Sixpack', desc: '6-panel Minitab-style display' },
+            { id: 'laney_p', name: "Laney P' Chart", desc: 'Adjusted for overdispersion' },
+            { id: 'laney_u', name: "Laney U' Chart", desc: 'Adjusted for overdispersion' },
+            { id: 'between_within', name: 'I-MR-R/S', desc: 'Between/within subgroup' },
+            { id: 'mewma', name: 'MEWMA', desc: 'Multivariate EWMA' },
+            { id: 'generalized_variance', name: 'Generalized Variance', desc: '|S| chart for multivariate SPC' },
         ]
     },
     viz: {
@@ -3129,6 +3214,13 @@ const analysisMenus = {
             { id: 'probability', name: 'Probability Plot', desc: 'Distribution fit' },
             { id: 'pareto', name: 'Pareto Chart', desc: '80/20 analysis' },
             { id: 'heatmap', name: 'Heatmap', desc: 'Correlation matrix' },
+            { id: 'dotplot', name: 'Dotplot', desc: 'Individual data points' },
+            { id: 'individual_value_plot', name: 'Individual Value Plot', desc: 'Values by group' },
+            { id: 'interval_plot', name: 'Interval Plot', desc: 'Means with CI bars' },
+            { id: 'contour', name: 'Contour Plot', desc: 'X × Y → Z surface' },
+            { id: 'contour_overlay', name: 'Contour Overlay', desc: 'Multi-response contours' },
+            { id: 'surface_3d', name: '3D Surface', desc: 'Rotating 3D response surface' },
+            { id: 'run_chart', name: 'Run Chart', desc: 'Time-ordered values with median' },
         ]
     },
     tools: {
@@ -3139,6 +3231,11 @@ const analysisMenus = {
             { id: 'stack', name: 'Stack/Unstack', desc: 'Reshape data' },
             { id: 'sort', name: 'Sort', desc: 'Order data' },
             { id: 'transpose', name: 'Transpose', desc: 'Flip rows/columns' },
+            { id: 'box_cox', name: 'Box-Cox Transform', desc: 'Optimal power transformation' },
+            { id: 'johnson_transform', name: 'Johnson Transform', desc: 'Transform to normality' },
+            { id: 'grubbs_test', name: "Grubbs' Outlier Test", desc: 'Detect single outlier' },
+            { id: 'graphical_summary', name: 'Graphical Summary', desc: 'Minitab-style per-variable view' },
+            { id: 'auto_profile', name: 'Auto Profile', desc: 'Quick data overview on import' },
         ]
     },
     simulate: {
@@ -3169,18 +3266,55 @@ function showAnalysisMenu(type) {
     if (!menu) return;
 
     document.getElementById('analysis-dialog-title').textContent = menu.title;
+
+    // Get favorites from localStorage
+    const favorites = JSON.parse(localStorage.getItem('awFavorites') || '[]');
+
+    function renderItems(filterText) {
+        const filter = (filterText || '').toLowerCase();
+        const filtered = menu.items.filter(item =>
+            !filter || item.name.toLowerCase().includes(filter) || item.desc.toLowerCase().includes(filter) || item.id.includes(filter)
+        );
+        return filtered.map(item => {
+            const isFav = favorites.includes(item.id);
+            return `<div class="aw-analysis-item" onclick="configureAnalysis('${type}', '${item.id}')">
+                <span class="name">${item.name}<button class="aw-fav-btn${isFav ? ' active' : ''}" onclick="event.stopPropagation();toggleFavorite('${item.id}','${type}')" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">★</button></span>
+                <span class="desc">${item.desc}</span>
+            </div>`;
+        }).join('');
+    }
+
     document.getElementById('analysis-dialog-body').innerHTML = `
-        <div class="aw-analysis-grid">
-            ${menu.items.map(item => `
-                <div class="aw-analysis-item" onclick="configureAnalysis('${type}', '${item.id}')">
-                    <span class="name">${item.name}</span>
-                    <span class="desc">${item.desc}</span>
-                </div>
-            `).join('')}
+        <input type="text" id="analysis-search" class="aw-search-input" placeholder="Search analyses..." oninput="filterAnalysisMenu('${type}')" autofocus>
+        <div class="aw-analysis-grid" id="analysis-grid">
+            ${renderItems('')}
         </div>
     `;
 
+    // Store render function for filtering
+    window._renderAnalysisItems = renderItems;
     document.getElementById('analysis-dialog').classList.add('active');
+    setTimeout(() => document.getElementById('analysis-search')?.focus(), 50);
+}
+
+function filterAnalysisMenu(type) {
+    const filter = document.getElementById('analysis-search')?.value || '';
+    const grid = document.getElementById('analysis-grid');
+    if (grid && window._renderAnalysisItems) {
+        grid.innerHTML = window._renderAnalysisItems(filter);
+    }
+}
+
+function toggleFavorite(analysisId, menuType) {
+    let favorites = JSON.parse(localStorage.getItem('awFavorites') || '[]');
+    const idx = favorites.indexOf(analysisId);
+    if (idx >= 0) {
+        favorites.splice(idx, 1);
+    } else {
+        favorites.push(analysisId);
+    }
+    localStorage.setItem('awFavorites', JSON.stringify(favorites));
+    filterAnalysisMenu(menuType);
 }
 
 function configureAnalysis(type, id) {
@@ -3193,6 +3327,22 @@ function configureAnalysis(type, id) {
     document.getElementById('config-dialog-title').textContent = item?.name || id;
     document.getElementById('config-dialog-body').innerHTML = generateConfigForm(type, id);
     document.getElementById('config-dialog').classList.add('active');
+
+    // Restore last-used config values
+    try {
+        const saved = JSON.parse(localStorage.getItem('awLastConfig_' + id) || '{}');
+        if (Object.keys(saved).length > 0) {
+            document.querySelectorAll('#config-dialog-body input[id], #config-dialog-body select').forEach(el => {
+                if (el.id && saved[el.id] !== undefined) {
+                    if (el.type === 'checkbox') {
+                        el.checked = saved[el.id];
+                    } else {
+                        el.value = saved[el.id];
+                    }
+                }
+            });
+        }
+    } catch (e) { /* ignore */ }
 }
 
 function generateConfigForm(type, id) {
@@ -3290,7 +3440,7 @@ function generateConfigForm(type, id) {
                 </div>
             `;
         }
-        if (['tukey_hsd', 'games_howell', 'dunn'].includes(id)) {
+        if (['tukey_hsd', 'games_howell', 'dunn', 'scheffe_test', 'bonferroni_test'].includes(id)) {
             const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             return `
                 <div class="aw-form-group">
@@ -3326,6 +3476,34 @@ function generateConfigForm(type, id) {
                     <label>Control group:</label>
                     <select id="cfg-control">${catCols || colOptions}</select>
                     <small style="color:#7a8f7a;">Select factor first, then pick the control level</small>
+                </div>
+                <div class="aw-form-group">
+                    <label>Confidence level:</label>
+                    <select id="cfg-conf">
+                        <option value="95">95%</option>
+                        <option value="99">99%</option>
+                        <option value="90">90%</option>
+                    </select>
+                </div>
+            `;
+        }
+        if (id === 'hsu_mcb') {
+            const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            return `
+                <div class="aw-form-group">
+                    <label>Response (measurement):</label>
+                    <select id="cfg-response">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Factor (groups):</label>
+                    <select id="cfg-factor">${catCols || colOptions}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Best is:</label>
+                    <select id="cfg-direction">
+                        <option value="max">Maximum (larger is better)</option>
+                        <option value="min">Minimum (smaller is better)</option>
+                    </select>
                 </div>
                 <div class="aw-form-group">
                     <label>Confidence level:</label>
@@ -5331,6 +5509,659 @@ function generateConfigForm(type, id) {
         }
     }
 
+    // --- ANOVA extensions ---
+    if (id === 'split_plot_anova') {
+        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Response:</label>
+                <select id="cfg-response">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Whole-plot factor (hard-to-change):</label>
+                <select id="cfg-whole_plot_factors">${catCols || colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Sub-plot factor (easy-to-change):</label>
+                <select id="cfg-sub_plot_factors">${catCols || colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Block / whole-plot ID:</label>
+                <select id="cfg-block">${catCols || colOptions}</select>
+            </div>
+        `;
+    }
+    if (id === 'repeated_measures_anova') {
+        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Response:</label>
+                <select id="cfg-response">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Subject ID:</label>
+                <select id="cfg-subject">${catCols || colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Within-subject factor:</label>
+                <select id="cfg-within_factor">${catCols || colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Between-subject factor (optional):</label>
+                <select id="cfg-between_factor"><option value="">(none)</option>${(catCols || colOptions)}</select>
+            </div>
+        `;
+    }
+    if (id === 'anom') {
+        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Response:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Factor (groups):</label>
+                <select id="cfg-factor">${catCols || colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Confidence level:</label>
+                <select id="cfg-conf">
+                    <option value="95">95%</option>
+                    <option value="99">99%</option>
+                    <option value="90">90%</option>
+                </select>
+            </div>
+        `;
+    }
+    if (id === 'glm') {
+        const catCols = columns.filter(c => c.dtype === 'text');
+        const catCheckboxes = catCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="fixed_factors" value="${c.name}"><span>${c.name}</span></label>
+        `).join('') || '<span style="color:#7a8f7a;">No categorical columns</span>';
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const covCheckboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="covariates" value="${c.name}"><span>${c.name}</span></label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Response:</label>
+                <select id="cfg-response">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Fixed factors:</label>
+                <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${catCheckboxes}</div>
+            </div>
+            <div class="aw-form-group">
+                <label>Covariates (optional):</label>
+                <div class="aw-checkbox-list" style="max-height:120px;overflow-y:auto;">${covCheckboxes}</div>
+            </div>
+            <div class="aw-form-group">
+                <label style="display:flex;align-items:center;gap:8px;text-transform:none;">
+                    <input type="checkbox" id="cfg-interactions" checked style="width:auto;">
+                    Include interactions
+                </label>
+            </div>
+        `;
+    }
+
+    // --- Regression extensions ---
+    if (['nominal_logistic', 'ordinal_logistic'].includes(id)) {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const checkboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="predictors" value="${c.name}"><span>${c.name}</span></label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Response (${id === 'ordinal_logistic' ? 'ordered' : 'multi-level'} categories):</label>
+                <select id="cfg-response">${colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Predictors:</label>
+                <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">${checkboxes}</div>
+            </div>
+        `;
+    }
+    if (id === 'poisson_regression') {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const checkboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="predictors" value="${c.name}"><span>${c.name}</span></label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Response (counts):</label>
+                <select id="cfg-response">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Predictors:</label>
+                <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">${checkboxes}</div>
+            </div>
+            <div class="aw-form-group">
+                <label>Offset / exposure column (optional):</label>
+                <select id="cfg-offset"><option value="">(none)</option>${numCols}</select>
+            </div>
+        `;
+    }
+    if (id === 'orthogonal_regression') {
+        return `
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>Method X:</label>
+                    <select id="cfg-var1">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Method Y:</label>
+                    <select id="cfg-var2">${numCols}</select>
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Error variance ratio (σ²_x / σ²_y):</label>
+                <input type="number" id="cfg-error_ratio" value="1.0" step="0.1" min="0.01">
+                <small style="color:#7a8f7a;">1.0 = equal error in both methods (Deming regression)</small>
+            </div>
+            <div class="aw-form-group">
+                <label>Confidence level:</label>
+                <select id="cfg-conf">
+                    <option value="95">95%</option>
+                    <option value="99">99%</option>
+                    <option value="90">90%</option>
+                </select>
+            </div>
+        `;
+    }
+    if (id === 'nonlinear_regression') {
+        return `
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>Predictor (X):</label>
+                    <select id="cfg-var1">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Response (Y):</label>
+                    <select id="cfg-var2">${numCols}</select>
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Model:</label>
+                <select id="cfg-model">
+                    <option value="exponential">Exponential: a·e^(bx)</option>
+                    <option value="power">Power: a·x^b</option>
+                    <option value="logarithmic">Logarithmic: a + b·ln(x)</option>
+                    <option value="logistic4">4-Parameter Logistic (S-curve)</option>
+                    <option value="gompertz">Gompertz growth</option>
+                    <option value="michaelis_menten">Michaelis-Menten: Vmax·x/(Km+x)</option>
+                    <option value="gaussian_peak">Gaussian peak</option>
+                    <option value="asymptotic">Asymptotic: a·(1-e^(-bx))</option>
+                    <option value="polynomial3">Cubic polynomial</option>
+                </select>
+            </div>
+            <div class="aw-form-group">
+                <label>Confidence level:</label>
+                <select id="cfg-conf">
+                    <option value="95">95%</option>
+                    <option value="99">99%</option>
+                    <option value="90">90%</option>
+                </select>
+            </div>
+        `;
+    }
+
+    // --- Acceptance Sampling extensions ---
+    if (id === 'variable_acceptance_sampling') {
+        return `
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>AQL (%):</label>
+                    <input type="number" id="cfg-aql" value="1.0" step="0.1" min="0">
+                </div>
+                <div class="aw-form-group">
+                    <label>LTPD / RQL (%):</label>
+                    <input type="number" id="cfg-ltpd" value="5.0" step="0.5" min="0">
+                </div>
+            </div>
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>α (producer risk):</label>
+                    <input type="number" id="cfg-alpha" value="0.05" step="0.01" min="0" max="1">
+                </div>
+                <div class="aw-form-group">
+                    <label>β (consumer risk):</label>
+                    <input type="number" id="cfg-beta" value="0.10" step="0.01" min="0" max="1">
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Lot size:</label>
+                <input type="number" id="cfg-lot_size" value="1000" step="100" min="1">
+            </div>
+            <div class="aw-form-group">
+                <label>Spec type:</label>
+                <select id="cfg-spec_type">
+                    <option value="lower">Lower spec (LSL only)</option>
+                    <option value="upper">Upper spec (USL only)</option>
+                    <option value="both">Both specs</option>
+                </select>
+            </div>
+        `;
+    }
+    if (id === 'multiple_plan_comparison') {
+        return `
+            <div class="aw-form-group">
+                <label>Define plans to compare:</label>
+                <div id="plan-rows">
+                    <div class="aw-form-row" style="margin-bottom:4px;">
+                        <input type="text" class="plan-name" placeholder="Plan name" value="Plan A" style="flex:1;">
+                        <input type="number" class="plan-n" placeholder="n" value="50" style="width:60px;">
+                        <input type="number" class="plan-c" placeholder="c" value="2" style="width:60px;">
+                    </div>
+                    <div class="aw-form-row" style="margin-bottom:4px;">
+                        <input type="text" class="plan-name" placeholder="Plan name" value="Plan B" style="flex:1;">
+                        <input type="number" class="plan-n" placeholder="n" value="80" style="width:60px;">
+                        <input type="number" class="plan-c" placeholder="c" value="3" style="width:60px;">
+                    </div>
+                </div>
+                <button type="button" class="aw-btn-small" onclick="document.getElementById('plan-rows').insertAdjacentHTML('beforeend', '<div class=\\'aw-form-row\\' style=\\'margin-bottom:4px;\\'><input type=\\'text\\' class=\\'plan-name\\' placeholder=\\'Plan name\\' style=\\'flex:1;\\'><input type=\\'number\\' class=\\'plan-n\\' placeholder=\\'n\\' value=\\'50\\' style=\\'width:60px;\\'><input type=\\'number\\' class=\\'plan-c\\' placeholder=\\'c\\' value=\\'2\\' style=\\'width:60px;\\'></div>')">+ Add Plan</button>
+            </div>
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>Lot size:</label>
+                    <input type="number" id="cfg-lot_size" value="1000" step="100">
+                </div>
+                <div class="aw-form-group">
+                    <label>AQL:</label>
+                    <input type="number" id="cfg-aql" value="0.01" step="0.005">
+                </div>
+            </div>
+        `;
+    }
+
+    // --- MSA extension ---
+    if (id === 'gage_rr_expanded') {
+        const catCols = columns.filter(c => c.dtype === 'text');
+        const factorCheckboxes = catCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="factors" value="${c.name}"><span>${c.name}</span></label>
+        `).join('') || '<span style="color:#7a8f7a;">No categorical columns</span>';
+        return `
+            <div class="aw-form-group">
+                <label>Measurement:</label>
+                <select id="cfg-measurement">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Part:</label>
+                <select id="cfg-part">${colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Operator:</label>
+                <select id="cfg-operator">${colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Additional factors:</label>
+                <div class="aw-checkbox-list" style="max-height:100px;overflow-y:auto;">${factorCheckboxes}</div>
+            </div>
+        `;
+    }
+
+    // --- SPC extensions ---
+    if (id === 'capability_sixpack') {
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>LSL:</label>
+                    <input type="number" id="cfg-lsl" step="any" placeholder="Lower spec">
+                </div>
+                <div class="aw-form-group">
+                    <label>USL:</label>
+                    <input type="number" id="cfg-usl" step="any" placeholder="Upper spec">
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Target (optional):</label>
+                <input type="number" id="cfg-target" step="any" placeholder="Nominal target">
+            </div>
+            <div class="aw-form-group">
+                <label>Subgroup size:</label>
+                <input type="number" id="cfg-subgroup_size" value="1" min="1" max="50">
+            </div>
+        `;
+    }
+    if (id === 'laney_p') {
+        return `
+            <div class="aw-form-group">
+                <label>Defectives (count per subgroup):</label>
+                <select id="cfg-defectives">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Sample size (n per subgroup):</label>
+                <select id="cfg-sample_size">${numCols}</select>
+            </div>
+        `;
+    }
+    if (id === 'laney_u') {
+        return `
+            <div class="aw-form-group">
+                <label>Defects (count per unit):</label>
+                <select id="cfg-defects">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Units inspected:</label>
+                <select id="cfg-units">${numCols}</select>
+            </div>
+        `;
+    }
+    if (id === 'between_within') {
+        return `
+            <div class="aw-form-group">
+                <label>Measurement:</label>
+                <select id="cfg-measurement">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Subgroup column (optional):</label>
+                <select id="cfg-subgroup"><option value="">(auto — sequential)</option>${colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Subgroup size:</label>
+                <input type="number" id="cfg-subgroup_size" value="5" min="2" max="50">
+            </div>
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>LSL (optional):</label>
+                    <input type="number" id="cfg-lsl" step="any" placeholder="Lower spec">
+                </div>
+                <div class="aw-form-group">
+                    <label>USL (optional):</label>
+                    <input type="number" id="cfg-usl" step="any" placeholder="Upper spec">
+                </div>
+            </div>
+        `;
+    }
+    if (id === 'mewma') {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const checkboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="variables" value="${c.name}"><span>${c.name}</span></label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Variables (select 2+):</label>
+                <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">${checkboxes}</div>
+                <div style="margin-top:6px;">
+                    <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('variables', true)">Select All</button>
+                    <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('variables', false)">Clear</button>
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Smoothing λ:</label>
+                <select id="cfg-lambda">
+                    <option value="0.05">0.05 (sensitive)</option>
+                    <option value="0.1" selected>0.10 (default)</option>
+                    <option value="0.2">0.20</option>
+                    <option value="0.3">0.30 (fast response)</option>
+                </select>
+            </div>
+        `;
+    }
+    if (id === 'generalized_variance') {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const checkboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="variables" value="${c.name}"><span>${c.name}</span></label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Variables (select 2+):</label>
+                <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">${checkboxes}</div>
+                <div style="margin-top:6px;">
+                    <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('variables', true)">Select All</button>
+                    <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('variables', false)">Clear</button>
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Subgroup size:</label>
+                <input type="number" id="cfg-subgroup_size" value="5" min="2" max="50">
+            </div>
+        `;
+    }
+
+    // --- Visualization extensions ---
+    if (id === 'dotplot') {
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Group by (optional):</label>
+                <select id="cfg-group"><option value="">(none)</option>${colOptions}</select>
+            </div>
+        `;
+    }
+    if (id === 'individual_value_plot') {
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Group by (optional):</label>
+                <select id="cfg-group"><option value="">(none)</option>${colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label style="display:flex;align-items:center;gap:8px;text-transform:none;">
+                    <input type="checkbox" id="cfg-show_mean" checked style="width:auto;">
+                    Show mean line
+                </label>
+            </div>
+        `;
+    }
+    if (id === 'interval_plot') {
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Group by:</label>
+                <select id="cfg-group">${colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Confidence level:</label>
+                <select id="cfg-confidence">
+                    <option value="0.95">95%</option>
+                    <option value="0.99">99%</option>
+                    <option value="0.90">90%</option>
+                </select>
+            </div>
+        `;
+    }
+    if (id === 'contour' || id === 'contour_overlay') {
+        const isOverlay = id === 'contour_overlay';
+        if (isOverlay) {
+            const numericCols = columns.filter(c => c.dtype === 'numeric');
+            const checkboxes = numericCols.map(c => `
+                <label class="aw-checkbox-item"><input type="checkbox" name="z_columns" value="${c.name}"><span>${c.name}</span></label>
+            `).join('');
+            return `
+                <div class="aw-form-row">
+                    <div class="aw-form-group">
+                        <label>X (factor 1):</label>
+                        <select id="cfg-x">${numCols}</select>
+                    </div>
+                    <div class="aw-form-group">
+                        <label>Y (factor 2):</label>
+                        <select id="cfg-y">${numCols}</select>
+                    </div>
+                </div>
+                <div class="aw-form-group">
+                    <label>Response columns (select 2+):</label>
+                    <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">${checkboxes}</div>
+                </div>
+            `;
+        }
+        return `
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>X:</label>
+                    <select id="cfg-x">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Y:</label>
+                    <select id="cfg-y">${numCols}</select>
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Z (response):</label>
+                <select id="cfg-z">${numCols}</select>
+            </div>
+        `;
+    }
+    if (id === 'surface_3d') {
+        return `
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>X:</label>
+                    <select id="cfg-x">${numCols}</select>
+                </div>
+                <div class="aw-form-group">
+                    <label>Y:</label>
+                    <select id="cfg-y">${numCols}</select>
+                </div>
+            </div>
+            <div class="aw-form-group">
+                <label>Z (response):</label>
+                <select id="cfg-z">${numCols}</select>
+            </div>
+        `;
+    }
+    if (id === 'run_chart') {
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Time / order column (optional):</label>
+                <select id="cfg-time_col"><option value="">(use row order)</option>${colOptions}</select>
+            </div>
+        `;
+    }
+
+    // --- ML / Multivariate extensions ---
+    if (id === 'factor_analysis') {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const checkboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="variables" value="${c.name}" checked><span>${c.name}</span></label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Variables:</label>
+                <div class="aw-checkbox-list" style="max-height:150px;overflow-y:auto;">${checkboxes}</div>
+                <div style="margin-top:6px;">
+                    <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('variables', true)">Select All</button>
+                    <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('variables', false)">Clear</button>
+                </div>
+            </div>
+            <div class="aw-form-row">
+                <div class="aw-form-group">
+                    <label>Number of factors:</label>
+                    <input type="number" id="cfg-n_factors" value="" placeholder="Auto (eigenvalue > 1)" min="1" max="20">
+                </div>
+                <div class="aw-form-group">
+                    <label>Rotation:</label>
+                    <select id="cfg-rotation">
+                        <option value="varimax">Varimax (orthogonal)</option>
+                        <option value="promax">Promax (oblique)</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+            </div>
+        `;
+    }
+    if (id === 'correspondence_analysis') {
+        const catCols = columns.filter(c => c.dtype === 'text').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Row variable:</label>
+                <select id="cfg-row_var">${catCols || colOptions}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Column variable:</label>
+                <select id="cfg-col_var">${catCols || colOptions}</select>
+            </div>
+        `;
+    }
+    if (id === 'item_analysis') {
+        const numericCols = columns.filter(c => c.dtype === 'numeric');
+        const checkboxes = numericCols.map(c => `
+            <label class="aw-checkbox-item"><input type="checkbox" name="items" value="${c.name}" checked><span>${c.name}</span></label>
+        `).join('');
+        return `
+            <div class="aw-form-group">
+                <label>Scale items (select all items in the scale):</label>
+                <div class="aw-checkbox-list" style="max-height:200px;overflow-y:auto;">${checkboxes}</div>
+                <div style="margin-top:6px;">
+                    <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('items', true)">Select All</button>
+                    <button type="button" class="aw-btn-small" onclick="toggleAllCheckboxes('items', false)">Clear</button>
+                </div>
+            </div>
+            <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                <strong style="color:var(--aw-accent);">Cronbach's α:</strong> Measures internal consistency. α ≥ 0.70 generally acceptable; ≥ 0.80 good.
+            </div>
+        `;
+    }
+
+    // --- Tools extensions ---
+    if (id === 'box_cox' || id === 'johnson_transform') {
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div style="background:rgba(74,159,110,0.1);padding:8px;border-radius:4px;font-size:10px;color:var(--aw-text-muted);">
+                <strong style="color:var(--aw-accent);">${id === 'box_cox' ? 'Box-Cox' : 'Johnson'}:</strong> ${id === 'box_cox' ? 'Finds optimal λ to transform data toward normality. Requires positive data.' : 'Selects best SB/SL/SU family to transform data to normality. Works with any data range.'}
+            </div>
+        `;
+    }
+    if (id === 'grubbs_test') {
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Significance level:</label>
+                <select id="cfg-alpha">
+                    <option value="0.05">0.05 (95% confidence)</option>
+                    <option value="0.01">0.01 (99% confidence)</option>
+                    <option value="0.10">0.10 (90% confidence)</option>
+                </select>
+            </div>
+        `;
+    }
+    if (id === 'graphical_summary') {
+        return `
+            <div class="aw-form-group">
+                <label>Variable:</label>
+                <select id="cfg-var">${numCols}</select>
+            </div>
+            <div class="aw-form-group">
+                <label>Confidence level:</label>
+                <select id="cfg-confidence">
+                    <option value="0.95">95%</option>
+                    <option value="0.99">99%</option>
+                    <option value="0.90">90%</option>
+                </select>
+            </div>
+        `;
+    }
+    if (id === 'auto_profile') {
+        return `
+            <div style="background:rgba(74,159,110,0.1);padding:12px;border-radius:4px;font-size:11px;color:var(--aw-text-muted);">
+                <strong style="color:var(--aw-accent);">Auto Profile</strong> analyzes all columns in your dataset automatically.
+                No configuration needed — click Execute to generate the overview.
+            </div>
+        `;
+    }
+
     return '<p style="color:#9aaa9a;font-size:11px;">Configure analysis options.</p>';
 }
 
@@ -5339,6 +6170,15 @@ async function executeAnalysis() {
         alert('Please load data first');
         return;
     }
+
+    // Save form values before closing dialog (for "remember last config")
+    try {
+        const savedVals = {};
+        document.querySelectorAll('#config-dialog-body input[id], #config-dialog-body select').forEach(el => {
+            if (el.id) savedVals[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+        });
+        localStorage.setItem('awLastConfig_' + currentAnalysis.id, JSON.stringify(savedVals));
+    } catch (e) { /* ignore quota errors */ }
 
     closeDialog('config-dialog');
 
@@ -5349,6 +6189,8 @@ async function executeAnalysis() {
         const key = el.id.replace('cfg-', '');
         if (el.multiple) {
             config[key] = Array.from(el.selectedOptions).map(o => o.value);
+        } else if (el.type === 'checkbox' && el.id) {
+            config[key] = el.checked;
         } else if (el.type !== 'checkbox') {
             config[key] = el.value;
         }
@@ -5362,6 +6204,18 @@ async function executeAnalysis() {
         checkboxGroups[name].push(cb.value);
     });
     Object.assign(config, checkboxGroups);
+
+    // Collect plan rows for multiple_plan_comparison
+    if (currentAnalysis.id === 'multiple_plan_comparison') {
+        const plans = [];
+        document.querySelectorAll('#plan-rows .aw-form-row').forEach(row => {
+            const name = row.querySelector('.plan-name')?.value || 'Plan';
+            const n = parseInt(row.querySelector('.plan-n')?.value) || 50;
+            const c = parseInt(row.querySelector('.plan-c')?.value) || 2;
+            plans.push({ name, n, sample_size: n, c, accept_number: c, type: 'single' });
+        });
+        config.plans = plans;
+    }
 
     const menu = analysisMenus[currentAnalysis.type];
     const item = menu?.items.find(i => i.id === currentAnalysis.id);
@@ -5402,21 +6256,41 @@ async function executeAnalysis() {
         }
 
         if (result.summary) {
+            const session = document.getElementById('session-output');
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+
+            const div = document.createElement('div');
+            div.className = 'result';
+
             // Check if summary has color tags
             if (result.summary.includes('<<COLOR:')) {
                 const formatted = formatColoredOutput(result.summary);
-                const session = document.getElementById('session-output');
-                const div = document.createElement('div');
-                div.className = 'result';
                 div.style.fontFamily = "'JetBrains Mono', 'Consolas', monospace";
                 div.style.whiteSpace = 'pre';
                 div.style.lineHeight = '1.4';
                 div.innerHTML = formatted;
-                session.appendChild(div);
-                session.scrollTop = session.scrollHeight;
             } else {
-                appendSession('result', result.summary);
+                div.textContent = result.summary;
             }
+
+            // Copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'aw-copy-btn';
+            copyBtn.textContent = 'Copy';
+            copyBtn.title = 'Copy to clipboard';
+            copyBtn.onclick = () => {
+                const plain = result.summary.replace(/<<COLOR:\w+>>/g, '').replace(/<<\/COLOR>>/g, '');
+                navigator.clipboard.writeText(plain).then(() => {
+                    copyBtn.textContent = 'Copied';
+                    setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+                });
+            };
+
+            wrapper.appendChild(copyBtn);
+            wrapper.appendChild(div);
+            session.appendChild(wrapper);
+            session.scrollTop = session.scrollHeight;
         }
 
         if (result.plots && result.plots.length > 0) {
@@ -5669,14 +6543,19 @@ function displayPlotPageWithNav(pageIndex) {
     const chartWidth = Math.floor((paneWidth - padding * 2 - (cols - 1) * gap) / cols);
     const chartHeight = Math.floor((paneHeight - tabHeight - padding * 2 - (rows - 1) * gap) / rows) - titleHeight;
 
-    // Build tab bar (only show tabs if multiple pages)
+    // Build tab bar (only show tabs if multiple pages) — use chart titles
     let tabsHtml = '';
     if (totalPages > 1) {
         for (let p = 0; p < totalPages; p++) {
-            const start = p * PLOTS_PER_PAGE + 1;
-            const end = Math.min((p + 1) * PLOTS_PER_PAGE, currentPlots.length);
+            const start = p * PLOTS_PER_PAGE;
+            const end = Math.min(start + PLOTS_PER_PAGE, currentPlots.length);
             const isActive = p === pageIndex;
-            tabsHtml += `<button onclick="switchPlotTab(${p})" class="aw-chart-tab${isActive ? ' active' : ''}">${start}-${end}</button>`;
+            // Show abbreviated titles of charts on this page
+            const titles = currentPlots.slice(start, end).map(pl => {
+                const t = pl.title || 'Chart';
+                return t.length > 18 ? t.substring(0, 16) + '…' : t;
+            }).join(' · ');
+            tabsHtml += `<button onclick="switchPlotTab(${p})" class="aw-chart-tab${isActive ? ' active' : ''}" title="${currentPlots.slice(start, end).map(pl => pl.title || 'Chart').join(', ')}">${titles}</button>`;
         }
     }
 
@@ -5924,7 +6803,9 @@ function renderPlot(plot, elementId, chartWidth, chartHeight) {
         }
     }, {
         responsive: true,
-        displayModeBar: false
+        displayModeBar: 'hover',
+        modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d'],
+        toImageButtonOptions: { format: 'png', height: 800, width: 1200, filename: (plot.title || 'chart').replace(/[^a-zA-Z0-9]/g, '_') }
     });
 }
 
