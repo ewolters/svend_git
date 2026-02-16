@@ -457,6 +457,16 @@
             </div>
             <div class="ribbon-divider"></div>
             <div class="ribbon-group">
+                <div class="ribbon-group-label">Quality Econ</div>
+                <div class="ribbon-buttons" style="gap:0.15rem;">
+                    <button class="ribbon-btn" onclick="openQualEconDialog('taguchi')" title="Taguchi Loss Function — expected quality loss per unit"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 20 Q12 4 20 20" stroke-width="2"/><line x1="12" y1="4" x2="12" y2="20" stroke-dasharray="2,2" opacity="0.4"/><circle cx="12" cy="4" r="1.5" fill="currentColor"/></svg><span>Taguchi</span></button>
+                    <button class="ribbon-btn" onclick="openQualEconDialog('decision')" title="Bayesian Process Decision — optimal SPC action given costs"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 18 8 14 12 10 16 6 21 3"/><polyline points="3 4 8 6 12 10 16 14 21 18" opacity="0.5"/><circle cx="12" cy="10" r="2" fill="#d4a24a"/></svg><span>Decision</span></button>
+                    <button class="ribbon-btn" onclick="openQualEconDialog('lot')" title="Economic Lot Sentencing — accept/reject/screen optimization"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M3 12h18" opacity="0.3"/><path d="M9 14l2 2 4-4"/></svg><span>Lot $</span></button>
+                    <button class="ribbon-btn" onclick="openQualEconDialog('coq')" title="Cost of Quality — PAF breakdown with optimization"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9" opacity="0.2"/><path d="M12 3 A9 9 0 0 1 21 12" fill="#4a9f6e" opacity="0.6"/><path d="M21 12 A9 9 0 0 1 12 21" fill="#6ab7d4" opacity="0.6"/><path d="M12 21 A9 9 0 0 1 3 12" fill="#d4a24a" opacity="0.6"/><path d="M3 12 A9 9 0 0 1 12 3" fill="#d94a4a" opacity="0.6"/></svg><span>CoQ</span></button>
+                </div>
+            </div>
+            <div class="ribbon-divider"></div>
+            <div class="ribbon-group">
                 <div class="ribbon-group-label">Reliability</div>
                 <div class="ribbon-buttons" style="gap:0.15rem;">
                     <button class="ribbon-btn" onclick="openReliabilityDialog('weibull')" title="Weibull Analysis"><svg class="ribbon-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 20 Q8 18 12 10 Q16 2 21 2"/><line x1="3" y1="20" x2="21" y2="20" opacity="0.3"/></svg><span>Weibull</span></button>
@@ -3782,6 +3792,160 @@ function openBayesMSADialog() {
         closeModal();
         runStatsAnalysis('bayes_msa', 'bayes_msa', config, 'Bayesian Gage R&R');
     });
+}
+
+// =============================================================================
+// Quality Economics dialogs
+// =============================================================================
+function openQualEconDialog(mode) {
+    if (mode === 'taguchi') {
+        if (!uploadedData) { alert('Please import a data file first'); return; }
+        const numCols = getNumericColumns();
+        const numOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
+        const html = `
+            <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;">
+                Taguchi quadratic loss — expected quality cost per unit from process variation and bias.
+            </p>
+            <div class="form-row"><label>Measurement Column</label>
+                <select id="dlg-tl-col">${numOpts}</select>
+            </div>
+            <div class="form-row"><label>Loss Type</label>
+                <select id="dlg-tl-type">
+                    <option value="nib">Nominal-is-Best (NIB)</option>
+                    <option value="stb">Smaller-is-Better (STB)</option>
+                    <option value="ltb">Larger-is-Better (LTB)</option>
+                </select>
+            </div>
+            <div class="form-row"><label>Target Value (T)</label>
+                <input type="number" id="dlg-tl-target" step="any" value="0">
+            </div>
+            <div class="form-row"><label>Customer Tolerance (delta_0)</label>
+                <input type="number" id="dlg-tl-delta" step="any" value="1" min="0.001">
+                <small>Functional limit: |y - T| = delta_0</small>
+            </div>
+            <div class="form-row"><label>Loss at Tolerance (A_0, $)</label>
+                <input type="number" id="dlg-tl-cost" step="any" value="100" min="0">
+                <small>Cost when deviation reaches delta_0 (e.g. warranty cost)</small>
+            </div>`;
+        openModal('Taguchi Loss Function', html, 'Compute Loss', () => {
+            const config = {
+                column: document.getElementById('dlg-tl-col').value,
+                loss_type: document.getElementById('dlg-tl-type').value,
+                target: parseFloat(document.getElementById('dlg-tl-target').value),
+                delta0: parseFloat(document.getElementById('dlg-tl-delta').value),
+                cost_at_limit: parseFloat(document.getElementById('dlg-tl-cost').value)
+            };
+            closeModal();
+            runStatsAnalysis('quality_econ', 'taguchi_loss', config, 'Taguchi Loss');
+        });
+    } else if (mode === 'decision') {
+        const html = `
+            <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;">
+                Bayesian optimal SPC action — continue, investigate, or adjust based on expected costs.
+            </p>
+            <div class="form-row"><label>P(Out of Control | data)</label>
+                <input type="number" id="dlg-pd-pooc" step="0.01" min="0" max="1" value="0.3">
+                <small>Posterior probability from SPC signal</small>
+            </div>
+            <div class="form-row"><label>C_miss — cost of missed defect ($/unit)</label>
+                <input type="number" id="dlg-pd-cmiss" step="any" value="500">
+            </div>
+            <div class="form-row"><label>C_fa — false alarm investigation cost ($)</label>
+                <input type="number" id="dlg-pd-cfa" step="any" value="100">
+            </div>
+            <div class="form-row"><label>C_inv — investigation cost when OOC ($)</label>
+                <input type="number" id="dlg-pd-cinv" step="any" value="80">
+            </div>
+            <div class="form-row"><label>C_over — unnecessary adjustment ($)</label>
+                <input type="number" id="dlg-pd-cover" step="any" value="120">
+            </div>
+            <div class="form-row"><label>C_adj — adjustment cost ($)</label>
+                <input type="number" id="dlg-pd-cadj" step="any" value="150">
+            </div>`;
+        openModal('Bayesian Process Decision', html, 'Compute', () => {
+            const config = {
+                p_ooc: parseFloat(document.getElementById('dlg-pd-pooc').value),
+                c_miss: parseFloat(document.getElementById('dlg-pd-cmiss').value),
+                c_fa: parseFloat(document.getElementById('dlg-pd-cfa').value),
+                c_inv: parseFloat(document.getElementById('dlg-pd-cinv').value),
+                c_over: parseFloat(document.getElementById('dlg-pd-cover').value),
+                c_adj: parseFloat(document.getElementById('dlg-pd-cadj').value)
+            };
+            closeModal();
+            runStatsAnalysis('quality_econ', 'process_decision', config, 'Process Decision');
+        });
+    } else if (mode === 'lot') {
+        const html = `
+            <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;">
+                Economic lot sentencing — accept, reject, or 100% screen based on expected costs.
+            </p>
+            <div class="form-row"><label>Posterior Defect Rate (p)</label>
+                <input type="number" id="dlg-ls-pdef" step="0.001" min="0" max="1" value="0.01">
+            </div>
+            <div class="form-row"><label>Lot Size (N)</label>
+                <input type="number" id="dlg-ls-lot" step="1" min="1" value="1000">
+            </div>
+            <div class="form-row"><label>External Failure Cost ($/defective unit)</label>
+                <input type="number" id="dlg-ls-cext" step="any" value="50">
+            </div>
+            <div class="form-row"><label>Internal Failure Cost ($/defective unit)</label>
+                <input type="number" id="dlg-ls-cint" step="any" value="5">
+            </div>
+            <div class="form-row"><label>Inspection Cost ($/unit inspected)</label>
+                <input type="number" id="dlg-ls-cinsp" step="any" value="0.50">
+            </div>
+            <div class="form-row"><label>Lot Rejection Cost ($)</label>
+                <input type="number" id="dlg-ls-crej" step="any" value="200">
+            </div>`;
+        openModal('Economic Lot Sentencing', html, 'Compute', () => {
+            const config = {
+                p_defect: parseFloat(document.getElementById('dlg-ls-pdef').value),
+                lot_size: parseInt(document.getElementById('dlg-ls-lot').value),
+                c_external: parseFloat(document.getElementById('dlg-ls-cext').value),
+                c_internal: parseFloat(document.getElementById('dlg-ls-cint').value),
+                c_inspection: parseFloat(document.getElementById('dlg-ls-cinsp').value),
+                c_reject_lot: parseFloat(document.getElementById('dlg-ls-crej').value)
+            };
+            closeModal();
+            runStatsAnalysis('quality_econ', 'lot_sentencing', config, 'Lot Sentencing');
+        });
+    } else if (mode === 'coq') {
+        const html = `
+            <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;">
+                PAF Cost of Quality — prevention + appraisal + failure breakdown with optimization curve.
+            </p>
+            <div class="form-row"><label>Prevention Cost ($)</label>
+                <input type="number" id="dlg-coq-prev" step="any" value="50000">
+                <small>Training, procedures, process design</small>
+            </div>
+            <div class="form-row"><label>Appraisal Cost ($)</label>
+                <input type="number" id="dlg-coq-appr" step="any" value="30000">
+                <small>Inspection, testing, audits</small>
+            </div>
+            <div class="form-row"><label>Internal Failure Cost ($)</label>
+                <input type="number" id="dlg-coq-intf" step="any" value="80000">
+                <small>Scrap, rework, re-inspection</small>
+            </div>
+            <div class="form-row"><label>External Failure Cost ($)</label>
+                <input type="number" id="dlg-coq-extf" step="any" value="40000">
+                <small>Warranty, returns, recalls, reputation</small>
+            </div>
+            <div class="form-row"><label>Revenue ($)</label>
+                <input type="number" id="dlg-coq-rev" step="any" value="2000000">
+                <small>For CoQ-as-%-of-revenue benchmark</small>
+            </div>`;
+        openModal('Cost of Quality', html, 'Analyze', () => {
+            const config = {
+                prevention: parseFloat(document.getElementById('dlg-coq-prev').value),
+                appraisal: parseFloat(document.getElementById('dlg-coq-appr').value),
+                internal_failure: parseFloat(document.getElementById('dlg-coq-intf').value),
+                external_failure: parseFloat(document.getElementById('dlg-coq-extf').value),
+                revenue: parseFloat(document.getElementById('dlg-coq-rev').value)
+            };
+            closeModal();
+            runStatsAnalysis('quality_econ', 'cost_of_quality', config, 'Cost of Quality');
+        });
+    }
 }
 
 // =============================================================================

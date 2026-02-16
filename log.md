@@ -15,6 +15,40 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-16 — Decision-Theoretic Quality Economics
+
+**What:** Bayesian decision theory + Taguchi loss functions for optimal quality decisions. Answers "what is the expected cost of each possible action?" instead of just "is the process in control?"
+
+**Architecture:**
+- `quality_economics.py` — new module with 4 components:
+  1. **TaguchiLoss**: Quadratic loss functions (NIB, STB, LTB, asymmetric). E[L] = k(σ² + (μ-T)²) decomposition, centering/variability what-if analysis
+  2. **ProcessDecision**: Bayesian optimal SPC action (Continue/Investigate/Adjust) with 3×2 loss matrix, decision boundary curves, cost savings
+  3. **AcceptanceDecision**: Economic lot sentencing (Accept/Reject/100% Screen) with breakeven points and cost sweep curves
+  4. **CostOfQuality**: PAF model (Prevention + Appraisal + Internal Failure + External Failure) with revenue benchmarking, grade assessment, optimal prevention model
+
+**DSW integration:**
+- `run_quality_econ(df, analysis_id, config)` dispatcher with 4 analysis_ids: taguchi_loss, process_decision, lot_sentencing, cost_of_quality
+- Dispatcher route: `elif analysis_type == "quality_econ"` in dsw_views.py
+
+**Frontend:**
+- "Quality Econ" ribbon group with 4 buttons: Taguchi, Decision, Lot $, CoQ
+- `openQualEconDialog(mode)` with mode-specific forms and cost parameter inputs
+- Each dialog includes sensible defaults and explanatory labels
+
+**Verification:**
+- Taguchi k coefficient exact (200/25 = 8.0), E[L] decomposition verified
+- Process Decision thresholds exact (100/520 ≈ 0.1923), boundary switching verified
+- Lot sentencing breakeven exact (200/(1000×50) = 0.004)
+- CoQ ratios exact (40/60 conformance/nonconformance split)
+- All DSW integration tests pass (correct plot counts, statistics)
+
+**Files changed:**
+- `services/svend/web/agents_api/quality_economics.py` — new module (~600 lines)
+- `services/svend/web/agents_api/dsw_views.py` — added quality_econ dispatcher route
+- `services/svend/web/templates/workbench_new.html` — Quality Econ group (4 buttons) + dialog
+
+---
+
 ### 2026-02-16 — Bayesian Gage R&R (MSA 2.0)
 
 **What:** Full Bayesian replacement for ANOVA-based Gage R&R. Gives posterior distributions for every variance component and probability-driven verdicts instead of point estimates.
