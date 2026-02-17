@@ -7624,7 +7624,7 @@ async function loadWorkbench(id) {
         document.getElementById('workbench-title').value = data.inquiry || '';
         document.getElementById('workbench-status').textContent = data.status || 'Active';
         artifacts = data.artifacts || [];
-        history.replaceState({}, '', `/app/new/?id=${id}`);
+        history.replaceState({}, '', `/app/dsw/?id=${id}`);
 
         // Restore session state from layout
         const layout = data.layout || {};
@@ -7707,18 +7707,21 @@ async function saveWorkbench() {
                 datasets: datasetInfo,
                 layout: sessionState,
             });
-            if (result.error === 'auth') { alert('Please log in to save'); return; }
+            if (result.error) { alert(result.error === 'auth' ? 'Please log in to save' : 'Save failed: ' + result.error); return; }
         } else {
             const data = await apiCall('create/', 'POST', { title, description: '' });
-            if (data.error === 'auth') { alert('Please log in to save'); return; }
+            if (data.error) { alert(data.error === 'auth' ? 'Please log in to save' : 'Save failed: ' + data.error); return; }
             if (data.workbench) {
                 currentWorkbench = { id: data.workbench.id };
-                history.replaceState({}, '', `/app/new/?id=${currentWorkbench.id}`);
+                history.replaceState({}, '', `/app/dsw/?id=${currentWorkbench.id}`);
                 // Save session state to newly created workbench
                 await apiCall(`${currentWorkbench.id}/update/`, 'PATCH', {
                     datasets: datasetInfo,
                     layout: sessionState,
                 });
+            } else {
+                alert('Save failed — unexpected response');
+                return;
             }
         }
         showToast('Session saved');
@@ -7736,7 +7739,7 @@ async function loadWorkbenchList() {
         const data = await apiCall('');
         const list = document.getElementById('workbench-list');
         if (data.error === 'auth') {
-            list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-dim);"><a href="/login/?next=/app/new/" style="color:var(--accent);">Log in</a> to save and load workbenches.</div>';
+            list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-dim);"><a href="/login/?next=/app/dsw/" style="color:var(--accent);">Log in</a> to save and load workbenches.</div>';
             return;
         }
         if (!data.workbenches || data.workbenches.length === 0) {
@@ -7760,7 +7763,7 @@ function createNewWorkbench() {
     artifacts = [];
     document.getElementById('workbench-title').value = '';
     clearOutput();
-    history.replaceState({}, '', '/app/new/');
+    history.replaceState({}, '', '/app/dsw/');
 }
 
 async function exportWorkbench() {
