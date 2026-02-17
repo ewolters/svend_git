@@ -13,6 +13,9 @@ from .common import log_agent_action
 logger = logging.getLogger(__name__)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
 def upload_data(request):
     """
     Upload and parse a data file for the Analysis Workbench.
