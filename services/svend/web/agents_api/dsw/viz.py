@@ -1,25 +1,7 @@
-"""DSW Visualization — chart and plot analysis methods."""
-
-import json
-import logging
-import uuid
-import tempfile
-from pathlib import Path
+"""DSW Visualization — plotting, Bayesian SPC visualization suite."""
 
 import numpy as np
-import pandas as pd
-from scipy import stats
-
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.conf import settings
-
-from accounts.permissions import gated, require_auth, require_enterprise
-
-from .common import _effect_magnitude, _practical_block, _fit_best_distribution
-
-logger = logging.getLogger(__name__)
+from scipy import stats as sp_stats
 
 
 def _nig_posterior_update(data, mu0, nu0, alpha0, beta0):
@@ -58,6 +40,8 @@ def _cpk_from_params(mu, sigma, usl=None, lsl=None):
         return (mu - lsl) / (3.0 * sigma)
     else:
         return np.zeros_like(mu)
+
+
 
 
 def run_visualization(df, analysis_id, config):
@@ -534,7 +518,7 @@ def run_visualization(df, analysis_id, config):
                 "mode": "markers",
                 "marker": {"color": "#4a9f6e", "size": 10, "symbol": "diamond"},
                 "error_y": {"type": "data", "symmetric": False, "array": ci_hi, "arrayminus": ci_lo, "color": "#4a9f6e", "thickness": 2, "width": 8},
-                "name": f"Mean \u00b1 {conf*100:.0f}% CI"
+                "name": f"Mean ± {conf*100:.0f}% CI"
             }, {
                 "type": "scatter", "x": [labels[0], labels[-1]], "y": [overall_mean, overall_mean],
                 "mode": "lines", "line": {"color": "#e89547", "dash": "dash", "width": 1.5},
@@ -608,7 +592,7 @@ def run_visualization(df, analysis_id, config):
                 })
 
     # =====================================================================
-    # Bubble Chart (backend)
+    # Bubble Chart (backend — complements client-side renderGraph)
     # =====================================================================
     elif analysis_id == "bubble":
         x_var = config.get("x")
@@ -736,6 +720,7 @@ def run_visualization(df, analysis_id, config):
         xi_grid, yi_grid = np.meshgrid(xi, yi)
 
         zi_grid = scipy_griddata((x, y), z, (xi_grid, yi_grid), method="cubic")
+        # Fill NaN regions with linear interpolation fallback
         nan_mask = np.isnan(zi_grid)
         if nan_mask.any():
             zi_linear = scipy_griddata((x, y), z, (xi_grid, yi_grid), method="linear")
@@ -817,7 +802,7 @@ def run_visualization(df, analysis_id, config):
     # =====================================================================
     elif analysis_id == "contour_overlay":
         """
-        Contour Plot Overlay -- overlay contour lines from multiple responses
+        Contour Plot Overlay — overlay contour lines from multiple responses
         on a single plot. Useful for DOE optimization (finding regions that
         satisfy multiple response targets simultaneously).
         """
@@ -859,7 +844,6 @@ def run_visualization(df, analysis_id, config):
 
         overlay_traces = []
         summary_lines = []
-
         for zi, z_col_name in enumerate(z_cols_co):
             z_vals = common_co[z_col_name].values.astype(float)
             zi_grid = scipy_griddata((x_co, y_co), z_vals, (xi_grid_co, yi_grid_co), method="cubic")
@@ -992,9 +976,10 @@ def run_visualization(df, analysis_id, config):
             f"Tile widths proportional to row totals. Heights proportional to column distribution within each row."
         )
 
-    # -- Bayesian SPC Suite ------------------------------------------------
+    # ── Bayesian SPC Suite ────────────────────────────────────────────────
 
     elif analysis_id == "bayes_spc_capability":
+        # Bayesian Capability Analysis — eliminates the 1.5σ assumption
         from scipy.stats import t as tdist
         col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
         data = df[col].dropna().values.astype(float)
@@ -1025,6 +1010,7 @@ def run_visualization(df, analysis_id, config):
         x_bar = float(np.mean(data))
         s = float(np.std(data, ddof=1)) if n > 1 else 0.01
 
+        # Set prior
         if prior_type == "informative":
             pp = config.get("prior_params", {})
             mu0 = float(pp.get("mu0", x_bar))
@@ -1037,11 +1023,14 @@ def run_visualization(df, analysis_id, config):
             hist_std = float(pp.get("hist_std", s))
             hist_n = int(pp.get("hist_n", 30))
             mu0, nu0, alpha0, beta0 = hist_mean, float(hist_n), hist_n / 2.0, hist_n / 2.0 * hist_std**2
-        else:
+        else:  # weakly_informative — α₀=2 for finite σ² mean, β₀ centered on sample variance
             s2 = float(np.var(data, ddof=1)) if n > 1 else 1.0
             mu0, nu0, alpha0, beta0 = x_bar, 1.0, 2.0, max(s2, 1e-10)
 
+        # Posterior update
         mu_n, nu_n, alpha_n, beta_n = _nig_posterior_update(data, mu0, nu0, alpha0, beta0)
+
+        # Monte Carlo sampling
         mu_samples, sigma_samples = _nig_sample(mu_n, nu_n, alpha_n, beta_n, n_mc)
         cpk_samples = _cpk_from_params(mu_samples, sigma_samples, usl, lsl)
 
@@ -1052,6 +1041,8 @@ def run_visualization(df, analysis_id, config):
         p_gt_167 = float(np.mean(cpk_samples > 1.67))
         p_gt_2 = float(np.mean(cpk_samples > 2.0))
 
+        # Frequentist point estimate for comparison
+        # Frequentist point estimate
         if s > 0:
             if usl is not None and lsl is not None:
                 cpk_freq = float(min((usl - x_bar) / (3 * s), (x_bar - lsl) / (3 * s)))
@@ -1062,6 +1053,7 @@ def run_visualization(df, analysis_id, config):
         else:
             cpk_freq = 0.0
 
+        # Posterior predictive via Monte Carlo (robust — no parameterization traps)
         rng_pp = np.random.default_rng(123)
         x_pred = rng_pp.normal(loc=mu_samples, scale=sigma_samples)
         oos_mask = np.zeros(len(x_pred), dtype=bool)
@@ -1071,50 +1063,52 @@ def run_visualization(df, analysis_id, config):
             oos_mask |= (x_pred > usl)
         p_oos = float(np.mean(oos_mask))
 
+        # Student-t curve for display only
         df_t = 2 * alpha_n
         loc_t = mu_n
         scale_t = float(np.sqrt(beta_n * (nu_n + 1) / (alpha_n * nu_n)))
         pp_dist = tdist(df=df_t, loc=loc_t, scale=scale_t)
         dpmo = p_oos * 1e6
 
+        # σ posterior sanity check
         sigma_99 = float(np.percentile(sigma_samples, 99))
         sigma_iqr = float(np.percentile(sigma_samples, 75) - np.percentile(sigma_samples, 25))
         sigma_warning = ""
         if sigma_iqr > 0 and sigma_99 > 5 * sigma_iqr + float(np.median(sigma_samples)):
             sigma_warning = "Data may be non-normal, from mixed processes, or contain outliers. Consider transformations or a mixture model."
 
+        # Verdict (probability-driven, not point-estimate)
         if p_gt_133 >= 0.95:
-            verdict_color, verdict = "success", "CAPABLE — P(Cpk > 1.33) >= 95%"
+            verdict_color, verdict = "success", "CAPABLE — P(Cpk > 1.33) ≥ 95%"
         elif p_gt_133 >= 0.80:
-            verdict_color, verdict = "highlight", "MARGINAL — P(Cpk > 1.33) between 80-95%"
+            verdict_color, verdict = "highlight", "MARGINAL — P(Cpk > 1.33) between 80–95%"
         else:
             verdict_color, verdict = "error", "NOT CAPABLE — P(Cpk > 1.33) < 80%"
 
-        sep70 = '=' * 70
-        sep40 = '-' * 40
-        summary = f"<<COLOR:accent>>{sep70}<</COLOR>>\n"
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN PROCESS CAPABILITY<</COLOR>>\n"
-        summary += f"<<COLOR:accent>>{sep70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Spec:<</COLOR>> {spec_label}    <<COLOR:highlight>>Target:<</COLOR>> {target}\n\n"
-        summary += f"<<COLOR:accent>>{sep40}<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
         summary += f"<<COLOR:title>>Posterior Cpk<</COLOR>>\n"
         summary += f"  Median: <<COLOR:highlight>>{cpk_median:.4f}<</COLOR>>    95% CI: [{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]\n"
         summary += f"  Frequentist Cpk (point estimate): {cpk_freq:.4f}\n\n"
-        summary += f"<<COLOR:accent>>{sep40}<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
         summary += f"<<COLOR:title>>Probability Table<</COLOR>>\n"
         summary += f"  P(Cpk > 1.00) = <<COLOR:{'success' if p_gt_1 > 0.9 else 'error'}>>{p_gt_1:.1%}<</COLOR>>\n"
         summary += f"  P(Cpk > 1.33) = <<COLOR:{'success' if p_gt_133 > 0.9 else 'error'}>>{p_gt_133:.1%}<</COLOR>>\n"
         summary += f"  P(Cpk > 1.67) = <<COLOR:{'success' if p_gt_167 > 0.9 else 'text'}>>{p_gt_167:.1%}<</COLOR>>\n"
         summary += f"  P(Cpk > 2.00) = {p_gt_2:.1%}\n\n"
-        summary += f"<<COLOR:accent>>{sep40}<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
         summary += f"<<COLOR:title>>Posterior Predictive<</COLOR>>\n"
         summary += f"  P(out of spec) = {p_oos:.6f}    DPMO = <<COLOR:highlight>>{dpmo:.0f}<</COLOR>>\n"
-        summary += "  (No 1.5-sigma shift assumption — uncertainty is a first-class citizen)\n\n"
+        summary += f"  (No 1.5σ shift assumption — uncertainty is a first-class citizen)\n\n"
         summary += f"<<COLOR:{verdict_color}>>{verdict}<</COLOR>>\n\n"
         if sigma_warning:
             summary += f"<<COLOR:error>>Warning: {sigma_warning}<</COLOR>>\n\n"
-        summary += "<<COLOR:text>>Accounts for parameter uncertainty; no long-term shift assumption needed.\n"
-        summary += "When n is small, uncertainty is large — this is reflected in the credible interval.<</COLOR>>\n"
+        summary += f"<<COLOR:text>>Accounts for parameter uncertainty; no long-term shift assumption needed.\n"
+        summary += f"When n is small, uncertainty is large — this is reflected in the credible interval.<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {
@@ -1123,6 +1117,7 @@ def run_visualization(df, analysis_id, config):
             "p_cpk_gt_2": p_gt_2, "dpmo": dpmo, "p_out_of_spec": p_oos,
         }
 
+        # Plot 1: Posterior Cpk histogram
         cpk_hist_vals, cpk_hist_edges = np.histogram(cpk_samples, bins=80)
         cpk_hist_centers = (cpk_hist_edges[:-1] + cpk_hist_edges[1:]) / 2
         ci_mask = (cpk_hist_centers >= cpk_ci[0]) & (cpk_hist_centers <= cpk_ci[1])
@@ -1146,6 +1141,7 @@ def run_visualization(df, analysis_id, config):
                                          "arrowhead": 2, "font": {"color": "#4a9f6e"}}]}
         })
 
+        # Plot 2: Posterior predictive vs spec limits
         lo_bound = (lsl - 3 * s) if lsl is not None else (data.min() - 3 * s)
         hi_bound = (usl + 3 * s) if usl is not None else (data.max() + 3 * s)
         x_range = np.linspace(min(lo_bound, data.min()), max(hi_bound, data.max()), 300)
@@ -1179,6 +1175,7 @@ def run_visualization(df, analysis_id, config):
                                          "font": {"color": "#e89547", "size": 13}}]}
         })
 
+        # Plot 3: P(Cpk > threshold) curve
         thresholds = np.linspace(0.5, 3.0, 100)
         p_above = [float(np.mean(cpk_samples > t)) for t in thresholds]
         result["plots"].append({
@@ -1192,6 +1189,7 @@ def run_visualization(df, analysis_id, config):
             "layout": {"height": 250, "xaxis": {"title": "Threshold"}, "yaxis": {"title": "Probability", "range": [0, 1.05]}}
         })
 
+        # Plot 4: Data histogram with predictive overlay
         overlay_traces = [
             {"type": "histogram", "x": data.tolist(), "nbinsx": 40, "histnorm": "probability density",
              "marker": {"color": "rgba(74,159,110,0.4)", "line": {"color": "#4a9f6e", "width": 1}}, "name": "Data"},
@@ -1215,6 +1213,7 @@ def run_visualization(df, analysis_id, config):
         result["guide_observation"] = f"Bayesian capability: Cpk median {cpk_median:.3f} [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}], P(Cpk>1.33)={p_gt_133:.1%}, DPMO={dpmo:.0f}"
 
     elif analysis_id == "bayes_spc_changepoint":
+        # Bayesian Online Change Point Detection (Adams & MacKay 2007)
         from scipy.special import logsumexp, gammaln
         col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
         data = df[col].dropna().values.astype(float)
@@ -1222,36 +1221,46 @@ def run_visualization(df, analysis_id, config):
         min_seg = int(config.get("min_segment_length", 5))
 
         n = len(data)
-        max_rl = min(500, n)
+        max_rl = min(500, n)  # truncate run-length window for performance
+
+        # NIG sufficient statistics per run length
         log_H = np.log(hazard_rate)
         log_1mH = np.log(1 - hazard_rate)
 
+        # Priors from calibration phase (first ~50 obs, not all data)
         n_cal = min(50, max(10, n // 5))
         cal_data = data[:n_cal]
         s2_cal = float(np.var(cal_data, ddof=1)) if n_cal > 1 else 1.0
         mu0_cp = float(np.mean(cal_data))
-        nu0_cp = 1.0
-        alpha0_cp = 2.0
-        beta0_cp = max(s2_cal * alpha0_cp, 1e-10)
+        nu0_cp = 1.0    # kappa: 1 pseudo-observation for mean
+        alpha0_cp = 2.0  # shape: mildly informative
+        beta0_cp = max(s2_cal * alpha0_cp, 1e-10)  # rate matched to calibration variance
 
+        # Forward pass
+        # run_length_probs[t] = log P(r_t = r | x_{1:t})
         log_R = -np.inf * np.ones((n + 1, max_rl + 1))
-        log_R[0, 0] = 0.0
+        log_R[0, 0] = 0.0  # P(r_0 = 0) = 1
 
+        # Track sufficient stats: sum_x, sum_x2, count per run length
         ss_n = np.zeros(max_rl + 1)
         ss_sum = np.zeros(max_rl + 1)
         ss_sum2 = np.zeros(max_rl + 1)
 
-        cp_prob = np.zeros(n)
-        shift_prob = np.zeros(n)
+        cp_prob = np.zeros(n)      # P(r_t = 0) — instantaneous changepoint
+        shift_prob = np.zeros(n)   # 1 - P(r=t+1) — has ANY change occurred?
 
         for t in range(n):
             x = data[t]
+
+            # Predictive probability for each run length (Student-t)
+            # NIG predictive: t-distribution with updated params
             rl_range = min(t + 1, max_rl)
             log_pred = np.full(rl_range + 1, -np.inf)
 
             for r in range(rl_range + 1):
                 nn = ss_n[r]
                 if nn == 0:
+                    # Prior predictive
                     nu_r = nu0_cp
                     alpha_r = alpha0_cp
                     mu_r = mu0_cp
@@ -1265,6 +1274,7 @@ def run_visualization(df, analysis_id, config):
                              (nn * nu0_cp * (xbar_r - mu0_cp)**2) / (2.0 * nu_r)
                     beta_r = max(beta_r, 1e-10)
 
+                # Student-t log pdf
                 df_r = 2 * alpha_r
                 scale_r = np.sqrt(beta_r * (nu_r + 1) / (alpha_r * nu_r))
                 scale_r = max(scale_r, 1e-10)
@@ -1273,31 +1283,38 @@ def run_visualization(df, analysis_id, config):
                                0.5 * np.log(df_r * np.pi) - np.log(scale_r) -
                                ((df_r + 1) / 2) * np.log(1 + z**2 / df_r))
 
+            # Growth: P(r_{t+1} = r+1) ∝ P(r_t = r) * pred(x) * (1-H)
             log_growth = np.full(max_rl + 1, -np.inf)
             for r in range(rl_range + 1):
                 if r < max_rl and log_R[t, r] > -1e300:
                     log_growth[r + 1] = log_R[t, r] + log_pred[r] + log_1mH
 
+            # Changepoint: P(r_{t+1} = 0) = sum P(r_t = r) * pred(x) * H
             log_cp_terms = []
             for r in range(rl_range + 1):
                 if log_R[t, r] > -1e300:
                     log_cp_terms.append(log_R[t, r] + log_pred[r] + log_H)
             log_cp = logsumexp(log_cp_terms) if log_cp_terms else -np.inf
 
+            # Combine and normalize
             log_R[t + 1, 0] = log_cp
             for r in range(1, max_rl + 1):
                 log_R[t + 1, r] = log_growth[r]
 
+            # Normalize
             log_evidence = logsumexp(log_R[t + 1, :max_rl + 1])
             log_R[t + 1, :max_rl + 1] -= log_evidence
 
             cp_prob[t] = np.exp(log_R[t + 1, 0])
 
+            # Shift probability: 1 - P(original run continues from t=0)
             if t + 1 <= max_rl:
-                shift_prob[t] = float(np.clip(1.0 - np.exp(log_R[t + 1, t + 1]), 0.0, 1.0))
+                shift_prob[t] = float(np.clip(
+                    1.0 - np.exp(log_R[t + 1, t + 1]), 0.0, 1.0))
             else:
                 shift_prob[t] = 1.0
 
+            # Update sufficient stats
             new_ss_n = np.zeros(max_rl + 1)
             new_ss_sum = np.zeros(max_rl + 1)
             new_ss_sum2 = np.zeros(max_rl + 1)
@@ -1310,12 +1327,15 @@ def run_visualization(df, analysis_id, config):
             new_ss_sum2[0] = 0
             ss_n, ss_sum, ss_sum2 = new_ss_n, new_ss_sum, new_ss_sum2
 
+        # Detect changepoints using shift probability (not instantaneous cp_prob)
         changepoints = []
         for t in range(min_seg, n - min_seg):
             if shift_prob[t] > 0.5 and (t == 0 or shift_prob[t - 1] <= 0.5):
+                # Rising edge: shift just detected
                 if not changepoints or (t - changepoints[-1]) >= min_seg:
                     changepoints.append(t)
 
+        # Segment statistics
         boundaries = [0] + changepoints + [n]
         segments = []
         for i in range(len(boundaries) - 1):
@@ -1326,10 +1346,10 @@ def run_visualization(df, analysis_id, config):
                 "n": len(seg_data)
             })
 
-        sep70 = '=' * 70
-        summary = f"<<COLOR:accent>>{sep70}<</COLOR>>\n"
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN CHANGE POINT DETECTION (BOCPD)<</COLOR>>\n"
-        summary += f"<<COLOR:accent>>{sep70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Hazard rate:<</COLOR>> {hazard_rate}\n\n"
 
         if changepoints:
@@ -1338,14 +1358,15 @@ def run_visualization(df, analysis_id, config):
                 seg_before = segments[i]
                 seg_after = segments[i + 1]
                 summary += f"  <<COLOR:highlight>>Change {i+1}:<</COLOR>> observation {cp}, P(shifted) = {shift_prob[cp]:.3f}\n"
-                summary += f"    Before: mean = {seg_before['mean']:.4f}, std = {seg_before['std']:.4f} (n={seg_before['n']})\n"
-                summary += f"    After:  mean = {seg_after['mean']:.4f}, std = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
+                summary += f"    Before: μ = {seg_before['mean']:.4f}, σ = {seg_before['std']:.4f} (n={seg_before['n']})\n"
+                summary += f"    After:  μ = {seg_after['mean']:.4f}, σ = {seg_after['std']:.4f} (n={seg_after['n']})\n\n"
         else:
             summary += f"<<COLOR:text>>No significant change points detected (threshold: P > 0.5)<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {"n_changepoints": len(changepoints), "changepoints": changepoints, "segments": segments}
 
+        # Plot 1: Run-length posterior heatmap
         rl_display = min(max_rl, 100)
         heatmap_data = np.exp(log_R[1:n + 1, :rl_display]).T
         result["plots"].append({
@@ -1356,6 +1377,7 @@ def run_visualization(df, analysis_id, config):
             "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Run Length"}}
         })
 
+        # Plot 2: Shift probability (1 - P(original run continues))
         colors = [f"rgba({int(255*p)},{int(255*(1-p))},80,0.8)" for p in shift_prob]
         result["plots"].append({
             "title": "Shift Probability — P(process has changed)",
@@ -1371,6 +1393,7 @@ def run_visualization(df, analysis_id, config):
                         "yaxis": {"title": "P(shifted)", "range": [0, 1.05]}}
         })
 
+        # Plot 3: Process data with detected changes
         proc_data = [{"type": "scatter", "y": data.tolist(), "mode": "lines+markers",
                        "marker": {"size": 4, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e"}, "name": col}]
         for i, cp in enumerate(changepoints):
@@ -1379,7 +1402,7 @@ def run_visualization(df, analysis_id, config):
         for seg in segments:
             proc_data.append({"type": "scatter", "x": [seg["start"], seg["end"] - 1],
                               "y": [seg["mean"], seg["mean"]], "mode": "lines",
-                              "line": {"color": "#e89547", "width": 2}, "name": f"mean={seg['mean']:.2f}", "showlegend": False})
+                              "line": {"color": "#e89547", "width": 2}, "name": f"μ={seg['mean']:.2f}", "showlegend": False})
         result["plots"].append({
             "title": "Process Data with Change Points",
             "data": proc_data,
@@ -1389,6 +1412,7 @@ def run_visualization(df, analysis_id, config):
         result["guide_observation"] = f"BOCPD detected {len(changepoints)} change point(s) in {n} observations"
 
     elif analysis_id == "bayes_spc_control":
+        # Bayesian Control Chart — two-state HMM forward filter
         col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
         data = df[col].dropna().values.astype(float)
         ref_mean = config.get("reference_mean")
@@ -1397,6 +1421,7 @@ def run_visualization(df, analysis_id, config):
         trans_prob = float(config.get("transition_prob", 0.01))
 
         n = len(data)
+        # Auto-estimate reference from first 20 obs if not provided
         n_ref = min(20, n)
         if ref_mean is None or ref_mean == "" or ref_mean == "null":
             ref_mean = float(np.mean(data[:n_ref]))
@@ -1408,15 +1433,20 @@ def run_visualization(df, analysis_id, config):
             ref_std = float(ref_std)
         ref_std = max(ref_std, 1e-10)
 
+        # HMM parameters
+        # State 0 (in-control): X ~ N(ref_mean, ref_std)
+        # State 1 (shifted): marginalized over +δ and -δ shift direction
         delta = shift_size * ref_std
         p_recover = 0.05
 
         from scipy.stats import norm
 
-        log_p_ic = np.zeros(n)
-        log_alpha_ic = 0.0
-        log_alpha_sh = np.log(1e-10)
+        # Forward filter in log-space
+        log_p_ic = np.zeros(n)  # P(in-control | data_{1:t})
+        log_alpha_ic = 0.0  # log P(state=IC, data_{1:t})
+        log_alpha_sh = np.log(1e-10)  # log P(state=shifted, data_{1:t})
 
+        # Sequential NIG posterior for mu
         seq_mu = np.zeros(n)
         seq_ci_lo = np.zeros(n)
         seq_ci_hi = np.zeros(n)
@@ -1426,20 +1456,25 @@ def run_visualization(df, analysis_id, config):
         for t in range(n):
             x = data[t]
 
+            # Emission likelihoods
             ll_ic = norm.logpdf(x, loc=ref_mean, scale=ref_std)
+            # Shifted state: marginalize over +δ and -δ (equal probability)
             ll_sh_plus = norm.logpdf(x, loc=ref_mean + delta, scale=ref_std)
             ll_sh_minus = norm.logpdf(x, loc=ref_mean - delta, scale=ref_std)
             ll_sh = np.logaddexp(ll_sh_plus, ll_sh_minus) - np.log(2)
 
+            # Transition
             log_t_ic_ic = np.log(1 - trans_prob)
             log_t_ic_sh = np.log(trans_prob)
             log_t_sh_ic = np.log(p_recover)
             log_t_sh_sh = np.log(1 - p_recover)
 
+            # Forward step
             from scipy.special import logsumexp as _lse
             new_log_alpha_ic = _lse([log_alpha_ic + log_t_ic_ic, log_alpha_sh + log_t_sh_ic]) + ll_ic
             new_log_alpha_sh = _lse([log_alpha_ic + log_t_ic_sh, log_alpha_sh + log_t_sh_sh]) + ll_sh
 
+            # Normalize
             log_evidence = _lse([new_log_alpha_ic, new_log_alpha_sh])
             log_alpha_ic = new_log_alpha_ic - log_evidence
             log_alpha_sh = new_log_alpha_sh - log_evidence
@@ -1447,6 +1482,7 @@ def run_visualization(df, analysis_id, config):
             log_p_ic[t] = log_alpha_ic
             p_shifted = 1.0 - np.exp(log_alpha_ic)
 
+            # Sequential NIG for mu
             seg_data = data[:t + 1]
             mu_n_s, nu_n_s, alpha_n_s, beta_n_s = _nig_posterior_update(seg_data, mu0_s, nu0_s, alpha0_s, beta0_s)
             seq_mu[t] = mu_n_s
@@ -1462,26 +1498,27 @@ def run_visualization(df, analysis_id, config):
         p_shifted_arr = 1.0 - np.exp(log_p_ic)
         n_alarms = int(np.sum(p_shifted_arr > 0.5))
 
-        sep70 = '=' * 70
-        summary = f"<<COLOR:accent>>{sep70}<</COLOR>>\n"
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN CONTROL CHART<</COLOR>>\n"
-        summary += f"<<COLOR:accent>>{sep70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Ref mean:<</COLOR>> {ref_mean:.4f}    <<COLOR:highlight>>Ref std:<</COLOR>> {ref_std:.4f}\n"
-        summary += f"<<COLOR:highlight>>Shift size:<</COLOR>> {shift_size}-sigma    <<COLOR:highlight>>P(shift):<</COLOR>> {trans_prob}\n\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Ref μ:<</COLOR>> {ref_mean:.4f}    <<COLOR:highlight>>Ref σ:<</COLOR>> {ref_std:.4f}\n"
+        summary += f"<<COLOR:highlight>>Shift size:<</COLOR>> {shift_size}σ    <<COLOR:highlight>>P(shift):<</COLOR>> {trans_prob}\n\n"
 
         if n_alarms > 0:
             first_alarm = int(np.argmax(p_shifted_arr > 0.5))
             summary += f"<<COLOR:error>>ALERT: {n_alarms} observations with P(shifted) > 0.5<</COLOR>>\n"
             summary += f"<<COLOR:highlight>>First alarm at observation {first_alarm}<</COLOR>>\n\n"
-            summary += f"<<COLOR:highlight>>Final posterior mean:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
+            summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
         else:
             summary += f"<<COLOR:success>>Process appears in control — no observations with P(shifted) > 0.5<</COLOR>>\n\n"
-            summary += f"<<COLOR:highlight>>Final posterior mean:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
+            summary += f"<<COLOR:highlight>>Final posterior μ:<</COLOR>> {seq_mu[-1]:.4f} [{seq_ci_lo[-1]:.4f}, {seq_ci_hi[-1]:.4f}]\n"
 
         result["summary"] = summary
         result["statistics"] = {"n_alarms": n_alarms, "ref_mean": ref_mean, "ref_std": ref_std,
                                  "final_mu": float(seq_mu[-1]), "final_ci": [float(seq_ci_lo[-1]), float(seq_ci_hi[-1])]}
 
+        # Plot 1: Process data colored by P(shifted)
         colors = [f"rgb({int(255*p)},{int(255*(1-p))},80)" for p in p_shifted_arr]
         result["plots"].append({
             "title": "Process Data — Colored by P(shifted)",
@@ -1492,14 +1529,15 @@ def run_visualization(df, analysis_id, config):
                 {"type": "scatter", "y": data.tolist(), "mode": "lines",
                  "line": {"color": "rgba(150,150,150,0.3)", "width": 1}, "showlegend": False},
                 {"type": "scatter", "x": [0, n - 1], "y": [ref_mean, ref_mean], "mode": "lines",
-                 "line": {"color": "#5b9bd5", "dash": "dash"}, "name": "Reference mean"},
+                 "line": {"color": "#5b9bd5", "dash": "dash"}, "name": "Reference μ"},
             ],
             "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": col}}
         })
 
+        # Plot 2: Sequential posterior for μ
         x_idx = list(range(n))
         result["plots"].append({
-            "title": "Sequential Posterior for mean",
+            "title": "Sequential Posterior for μ",
             "data": [
                 {"type": "scatter", "x": x_idx, "y": seq_ci_hi.tolist(), "mode": "lines",
                  "line": {"color": "rgba(74,159,110,0.2)", "width": 0}, "showlegend": False},
@@ -1507,13 +1545,14 @@ def run_visualization(df, analysis_id, config):
                  "line": {"color": "rgba(74,159,110,0.2)", "width": 0}, "fill": "tonexty",
                  "fillcolor": "rgba(74,159,110,0.15)", "name": "95% CI"},
                 {"type": "scatter", "x": x_idx, "y": seq_mu.tolist(), "mode": "lines",
-                 "line": {"color": "#4a9f6e", "width": 2}, "name": "Posterior mean"},
+                 "line": {"color": "#4a9f6e", "width": 2}, "name": "Posterior μ"},
                 {"type": "scatter", "x": [0, n - 1], "y": [ref_mean, ref_mean], "mode": "lines",
                  "line": {"color": "#5b9bd5", "dash": "dash"}, "name": "Reference"},
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "mean"}}
+            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "μ"}}
         })
 
+        # Plot 3: Alarm timeline
         alarm_colors = [f"rgba({int(255*p)},{int(255*(1-p))},80,0.8)" for p in p_shifted_arr]
         result["plots"].append({
             "title": "Shift Probability Timeline",
@@ -1525,9 +1564,10 @@ def run_visualization(df, analysis_id, config):
             "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "P(shifted)", "range": [0, 1.05]}}
         })
 
-        result["guide_observation"] = f"Bayesian control chart: {n_alarms} alarms in {n} observations (shift={shift_size}-sigma)"
+        result["guide_observation"] = f"Bayesian control chart: {n_alarms} alarms in {n} observations (shift={shift_size}σ)"
 
     elif analysis_id == "bayes_spc_acceptance":
+        # Bayesian Acceptance Sampling — Beta-Binomial conjugate
         from scipy.stats import beta as betadist
         col = config.get("measurement") or df.select_dtypes(include="number").columns[0]
         data = df[col].dropna().values.astype(float)
@@ -1537,12 +1577,14 @@ def run_visualization(df, analysis_id, config):
         prior_alpha = float(config.get("prior_alpha", 1))
         prior_beta = float(config.get("prior_beta", 1))
 
+        # Determine defectives: either from manual input or classify from spec limits
         manual_defectives = config.get("defectives")
         manual_sample = config.get("sample_size")
         if manual_defectives is not None and manual_sample is not None:
             k = int(manual_defectives)
             n_total = int(manual_sample)
         else:
+            # Classify from measurements + spec limits
             usl_a = config.get("usl")
             lsl_a = config.get("lsl")
             n_total = len(data)
@@ -1552,6 +1594,7 @@ def run_visualization(df, analysis_id, config):
             if lsl_a is not None and lsl_a != "" and lsl_a != "null":
                 k += int(np.sum(data < float(lsl_a)))
 
+        # Posterior
         post_alpha = prior_alpha + k
         post_beta_param = prior_beta + n_total - k
         p_accept = float(betadist.cdf(aql, post_alpha, post_beta_param))
@@ -1559,6 +1602,7 @@ def run_visualization(df, analysis_id, config):
         post_ci = (float(betadist.ppf(0.025, post_alpha, post_beta_param)),
                    float(betadist.ppf(0.975, post_alpha, post_beta_param)))
 
+        # Decision
         if p_accept >= threshold:
             decision = "ACCEPT"
             decision_color = "success"
@@ -1569,14 +1613,17 @@ def run_visualization(df, analysis_id, config):
             decision = "CONTINUE SAMPLING"
             decision_color = "highlight"
 
+        # Sequential analysis: P(p<AQL) at each cumulative inspection
         seq_p_accept = []
         seq_k = 0
         earliest_accept = None
         earliest_reject = None
         for i in range(n_total):
             if manual_defectives is not None:
+                # Simulate sequentially from overall rate
                 seq_k_i = int(round(k * (i + 1) / n_total))
             else:
+                # From actual data classification
                 val = data[i] if i < len(data) else data[-1]
                 is_def = False
                 usl_a = config.get("usl")
@@ -1596,10 +1643,12 @@ def run_visualization(df, analysis_id, config):
             if earliest_reject is None and pa_i <= (1 - threshold):
                 earliest_reject = i + 1
 
+        # Decision boundaries: max k giving acceptance at each n
         boundary_n = list(range(1, n_total + 1))
         accept_boundary = []
         reject_boundary = []
         for ni in boundary_n:
+            # Find max k where P(p<AQL) >= threshold
             max_k_accept = -1
             min_k_reject = ni + 1
             for ki in range(ni + 1):
@@ -1611,14 +1660,13 @@ def run_visualization(df, analysis_id, config):
             accept_boundary.append(max_k_accept if max_k_accept >= 0 else None)
             reject_boundary.append(min_k_reject if min_k_reject <= ni else None)
 
-        sep70 = '=' * 70
-        sep40 = '-' * 40
-        summary = f"<<COLOR:accent>>{sep70}<</COLOR>>\n"
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN ACCEPTANCE SAMPLING<</COLOR>>\n"
-        summary += f"<<COLOR:accent>>{sep70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Sample size:<</COLOR>> {n_total}    <<COLOR:highlight>>Defectives:<</COLOR>> {k}    <<COLOR:highlight>>AQL:<</COLOR>> {aql}\n"
         summary += f"<<COLOR:highlight>>Prior:<</COLOR>> Beta({prior_alpha}, {prior_beta})    <<COLOR:highlight>>Threshold:<</COLOR>> {threshold}\n\n"
-        summary += f"<<COLOR:accent>>{sep40}<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
         summary += f"<<COLOR:title>>Posterior for Defect Rate<</COLOR>>\n"
         summary += f"  Mean: <<COLOR:highlight>>{post_mean:.6f}<</COLOR>>    95% CI: [{post_ci[0]:.6f}, {post_ci[1]:.6f}]\n"
         summary += f"  P(p < AQL) = <<COLOR:{'success' if p_accept > threshold else 'error'}>>{p_accept:.4f}<</COLOR>>\n\n"
@@ -1636,6 +1684,7 @@ def run_visualization(df, analysis_id, config):
             "earliest_accept": earliest_accept, "earliest_reject": earliest_reject,
         }
 
+        # Plot 1: Posterior for defect rate
         x_range = np.linspace(0, min(max(post_ci[1] * 3, aql * 5), 1.0), 300)
         post_pdf = betadist.pdf(x_range, post_alpha, post_beta_param)
         prior_pdf = betadist.pdf(x_range, prior_alpha, prior_beta) if prior_alpha > 0 and prior_beta > 0 else np.zeros_like(x_range)
@@ -1656,6 +1705,7 @@ def run_visualization(df, analysis_id, config):
                                          "font": {"color": "#4a9f6e"}}]}
         })
 
+        # Plot 2: Sequential posterior evolution
         result["plots"].append({
             "title": "Sequential P(p < AQL) — Earliest Stopping",
             "data": [
@@ -1671,6 +1721,7 @@ def run_visualization(df, analysis_id, config):
                                           "showarrow": True, "font": {"color": "#4a9f6e"}}] if earliest_accept else [])}
         })
 
+        # Plot 3: Decision boundary
         accept_y = [b if b is not None else None for b in accept_boundary]
         reject_y = [b if b is not None else None for b in reject_boundary]
         boundary_plots = [
@@ -1679,6 +1730,7 @@ def run_visualization(df, analysis_id, config):
             {"type": "scatter", "x": boundary_n, "y": reject_y, "mode": "lines",
              "line": {"color": "#e85747", "width": 2}, "name": "Reject boundary", "connectgaps": False},
         ]
+        # Add actual trajectory point
         boundary_plots.append({"type": "scatter", "x": [n_total], "y": [k], "mode": "markers",
                                 "marker": {"color": "#e89547", "size": 12, "symbol": "star"},
                                 "name": f"Observed ({n_total}, {k})"})
@@ -1691,3 +1743,8 @@ def run_visualization(df, analysis_id, config):
         result["guide_observation"] = f"Bayesian acceptance: {k}/{n_total} defectives, P(p<AQL)={p_accept:.3f}, decision={decision}"
 
     return result
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
