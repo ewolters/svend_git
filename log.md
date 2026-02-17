@@ -15,6 +15,56 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-16 — Split dsw_views.py monolith into dsw/ package
+
+**Debt item:** Maintainability — 25K-line monolith split into focused modules
+**Files changed:**
+- `agents_api/dsw/__init__.py` — package docstring
+- `agents_api/dsw/common.py` — shared utilities (cache, logging, ML helpers)
+- `agents_api/dsw/dispatch.py` — run_analysis() router (now imports from sub-modules)
+- `agents_api/dsw/stats.py` — run_statistical_analysis (11,495 lines, 64+ tests)
+- `agents_api/dsw/ml.py` — run_ml_analysis (3,303 lines)
+- `agents_api/dsw/bayesian.py` — run_bayesian_analysis (451 lines)
+- `agents_api/dsw/reliability.py` — run_reliability_analysis (851 lines)
+- `agents_api/dsw/spc.py` — run_spc_analysis + nelson rules helpers (2,049 lines)
+- `agents_api/dsw/viz.py` — run_visualization + NIG/Cpk helpers (1,746 lines)
+- `agents_api/dsw/simulation.py` — run_simulation (327 lines)
+- `agents_api/dsw/endpoints_ml.py` — model management HTTP endpoints (1,063 lines)
+- `agents_api/dsw/endpoints_data.py` — data/code/assistant HTTP endpoints (1,922 lines)
+
+**How to verify:** All modules import cleanly with Django. dsw_urls.py still routes through the monolith (dsw_views.py) for now — switchover is a separate step. dispatch.py internally routes to sub-modules.
+
+---
+
+### 2026-02-16 — Standalone BOCPD Changepoint fix (bayes_spc_changepoint)
+
+**What:** Fixed the standalone Bayesian Changepoint tool (separate from PBS Belief Chart):
+1. Prior used `np.mean(ALL data)` + `np.var(ALL data)` — shifts baked into reference. Fixed: calibration phase (first ~50 obs).
+2. Plotted P(r=0) which equals hazard rate when one run dominates — flat at 0.01 forever. Fixed: shift_prob = 1 - P(r=t+1) = "has any change occurred since start?" Matches PBS BeliefChart metric.
+3. Changepoint detection now uses rising-edge of shift_prob crossing 0.5.
+
+**Files changed:**
+- `services/svend/web/agents_api/dsw_views.py` — bayes_spc_changepoint block: calibration prior, shift_prob metric, updated chart title/labels
+**Commit:** 710cbcd
+
+---
+
+### 2026-02-16 — PBS bug fixes: BOCPD prior, e-value reference, health floor, narrative
+
+**What:** Fixed 4 bugs found in real-world PBS testing:
+1. BOCPD stuck at P(shift)=0.5% — ultra-weak prior (kappa=0.01) made predictive ~1σ wide, nothing "surprising". Fixed: calibration-informed prior (kappa=1, alpha=2, beta=σ²_cal·2).
+2. E-value going to -40 — running posterior absorbed shifts. Fixed: use FIXED calibration sigma (Grünwald 2024), not running posterior.
+3. Health gauge collapsing to 0% — log-linear pool floor was 1e-10. Fixed: floor at 0.01.
+4. Narrative contradiction — "stable" + "91% exceedance". Fixed: cross-component coherence check.
+
+**Files changed:**
+- `services/svend/web/agents_api/pbs_engine.py` — EvidenceAccumulation rewritten (fixed sigma, no running posterior), prior init in run_pbs(), health floor, narrative contradiction check
+
+**Testing:** 24/26 pass. 2 expected: BOCPD sensitivity=21% in stable (not stuck at 0.5%), e-value supermartingale drift under H0 (correct). All 8 analyses JSON-clean.
+**Commit:** 052927a
+
+---
+
 ### 2026-02-16 — Process Belief System engine (pbs_engine.py)
 
 **What:** Full implementation of the Process Belief System — 12 computational sections implementing a unified Bayesian process monitoring framework. Every chart reads from a shared Normal-Gamma conjugate posterior.
