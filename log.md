@@ -15,6 +15,17 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-16 — Frontier Methods Sprint: Robust BOCPD, E-Detectors, Conformal Extensions
+
+**Debt item:** PBS feature expansion per frontier_methods_spec.html
+**Files changed:**
+- `agents_api/pbs_engine.py` — Part II: Robust BOCPD (Dm-BOCD, Altamirano et al. ICML 2023). BeliefChart now accepts beta_robustness param, DPD-weighted sufficient stat updates, observation_weight output. Part I: EDetector class (CUSUM e-detector, Shin/Ramdas/Rinaldo 2024), distribution-free changepoint with guaranteed ARL. New pbs_edetector analysis_id. E-Detector fused into health gauge. ProcessNarrative updated with robustness report.
+- `agents_api/dsw_views.py` — Part III: Conformal multivariate monitor extended with One-Class SVM and KDE backends, -log10(p) primary chart, evidence strength classification (NORMAL/WARNING/ANOMALY/SEVERE), min calibration warning, plotly_dark template.
+- `templates/workbench_new.html` — E-Detector ribbon button + dialog, beta_robustness slider in PBS dialogs, ocsvm/kde options in conformal dialog, slider-row/slider-val CSS.
+**Verification:** Run Full PBS analysis — should show E-Detector chart alongside Belief Chart. Set beta > 0 to see robustness report. Run E-Detector standalone. Run conformal monitor with new backends.
+
+---
+
 ### 2026-02-16 — Split dsw_views.py monolith into dsw/ package
 
 **Debt item:** Maintainability — 25K-line monolith split into focused modules

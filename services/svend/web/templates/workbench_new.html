@@ -535,6 +535,15 @@
                         </svg>
                         <span>Evidence</span>
                     </button>
+                    <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('edetector')" title="E-Detector — distribution-free CUSUM changepoint detection (Shin, Ramdas & Rinaldo 2024)">
+                        <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="2 18 6 17 10 16 13 15 15 8 17 4 19 3 22 2" stroke-width="2"/>
+                            <line x1="2" y1="6" x2="22" y2="6" stroke="#d94a4a" stroke-dasharray="3,2"/>
+                            <line x1="2" y1="18" x2="22" y2="18" stroke="#666" stroke-dasharray="2,2" opacity="0.5"/>
+                            <circle cx="17" cy="4" r="2" fill="#d94a4a" opacity="0.6"/>
+                        </svg>
+                        <span>E-Detect</span>
+                    </button>
                     <button class="ribbon-btn ribbon-btn-lg" onclick="openPBSDialog('adaptive')" title="Adaptive Control Limits — posterior predictive limits that narrow with data">
                         <svg class="ribbon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M2 4Q6 6 10 7Q14 8 18 9Q22 9.5 22 10" stroke="#d94a4a" stroke-dasharray="3,2"/>
@@ -1866,6 +1875,9 @@ input[type="range"]::-moz-range-thumb {
 input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
 input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--border, #444); }
 input[type="range"]:focus::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(74,159,110,0.25); }
+.slider-row { display: flex; align-items: center; gap: 8px; }
+.slider-row input[type="range"] { flex: 1; }
+.slider-val { font-size: 13px; font-weight: 600; min-width: 40px; text-align: right; color: var(--accent, #4a9f6e); }
 </style>
 
 <script>
@@ -3193,8 +3205,10 @@ function openConformalDialog(mode) {
         const multiOpts = numCols.map(c => `<option value="${c}">${c}</option>`).join('');
         html = `<div class="form-row"><label>Variables (select 2+)</label><select id="dlg-cf-vars" multiple size="5" style="min-height:100px;">${multiOpts}</select></div>
             <div class="form-row"><label>Anomaly Model</label><select id="dlg-cf-model">
-                <option value="isolation_forest">Isolation Forest</option>
+                <option value="isolation_forest">Isolation Forest (default)</option>
                 <option value="mahalanobis">Mahalanobis Distance</option>
+                <option value="ocsvm">One-Class SVM</option>
+                <option value="kde">Kernel Density Estimate (d &le; 5)</option>
             </select></div>
             <div class="form-row"><label>False Alarm Rate (&alpha;)</label><input type="number" id="dlg-cf-alpha" step="0.01" value="0.05" min="0.001" max="0.5"></div>
             <div class="form-row"><label>Calibration Fraction (Phase I split)</label><input type="number" id="dlg-cf-calfrac" step="0.05" value="0.5" min="0.1" max="0.9"></div>
@@ -4113,6 +4127,7 @@ function openPBSDialog(mode) {
     const titles = {
         full: 'Process Belief System — Full Analysis',
         belief: 'Belief Chart — Shift Detection',
+        edetector: 'E-Detector — Distribution-Free Changepoint',
         evidence: 'Evidence Accumulation — E-values',
         predictive: 'Predictive Chart — Trend Projection',
         adaptive: 'Adaptive Control Limits',
@@ -4121,8 +4136,9 @@ function openPBSDialog(mode) {
         health: 'Multi-Stream Health'
     };
     const descs = {
-        full: 'All charts: belief, evidence, adaptive limits, predictive, Cpk, health gauge, and narrative.',
+        full: 'All charts: belief, e-detector, evidence, adaptive limits, predictive, Cpk, health gauge, and narrative.',
         belief: 'BOCPD (Adams & MacKay 2007) — posterior probability of process shift at each time step.',
+        edetector: 'CUSUM e-detector (Shin, Ramdas & Rinaldo 2024) — distribution-free changepoint detection with guaranteed ARL control.',
         evidence: 'Anytime-valid e-values accumulate evidence against the in-control hypothesis. Peek freely.',
         predictive: 'Bayesian linear trend on rolling window with prediction fan and spec exceedance probability.',
         adaptive: 'Control limits derived from the posterior predictive Student-t. Narrows as data arrives.',
@@ -4132,13 +4148,13 @@ function openPBSDialog(mode) {
     };
 
     let specFields = '';
-    if (['full', 'predictive', 'cpk', 'cpk_traj', 'health'].includes(mode)) {
+    if (['full', 'predictive', 'cpk', 'cpk_traj', 'health', 'edetector'].includes(mode)) {
         specFields = `
             <div class="form-row"><label>USL</label><input type="number" id="dlg-pbs-usl" step="any" placeholder="Upper spec limit"></div>
             <div class="form-row"><label>LSL</label><input type="number" id="dlg-pbs-lsl" step="any" placeholder="Lower spec limit"></div>`;
     }
     let targetField = '';
-    if (['full', 'belief', 'evidence', 'adaptive'].includes(mode)) {
+    if (['full', 'belief', 'evidence', 'adaptive', 'edetector'].includes(mode)) {
         targetField = `<div class="form-row"><label>Target (optional)</label><input type="number" id="dlg-pbs-target" step="any" placeholder="Process target"></div>`;
     }
     let hazardField = '';
@@ -4146,11 +4162,23 @@ function openPBSDialog(mode) {
         hazardField = `<div class="form-row"><label>Hazard λ</label><input type="number" id="dlg-pbs-hazard" step="1" value="200" min="10" max="10000">
             <small>Expected observations between changes (higher = more stable expectation)</small></div>`;
     }
+    let betaField = '';
+    if (['full', 'belief', 'health'].includes(mode)) {
+        betaField = `<div class="form-row"><label>Robustness β</label>
+            <div class="slider-row"><input type="range" id="dlg-pbs-beta" min="0" max="0.5" step="0.05" value="0.0">
+            <span class="slider-val" id="dlg-pbs-beta-val">0.0</span></div>
+            <small>Outlier robustness (0 = standard BOCPD, 0.1–0.3 = robust). Higher = more outlier resistance but slower detection.</small></div>`;
+    }
+    let edAlphaField = '';
+    if (mode === 'edetector') {
+        edAlphaField = `<div class="form-row"><label>α (false alarm)</label><input type="number" id="dlg-pbs-ed-alpha" step="0.01" value="0.05" min="0.001" max="0.5">
+            <small>Guaranteed: ARL ≥ 1/α under any pre-change distribution.</small></div>`;
+    }
 
     const html = `
         <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;">${descs[mode]}</p>
         <div class="form-row"><label>Measurement Column</label><select id="dlg-pbs-col">${numOpts}</select></div>
-        ${specFields}${targetField}${hazardField}`;
+        ${specFields}${targetField}${hazardField}${betaField}${edAlphaField}`;
 
     openModal(titles[mode], html, 'Analyze', () => {
         const config = { column: document.getElementById('dlg-pbs-col').value };
@@ -4158,16 +4186,28 @@ function openPBSDialog(mode) {
         const lslEl = document.getElementById('dlg-pbs-lsl');
         const tgtEl = document.getElementById('dlg-pbs-target');
         const hazEl = document.getElementById('dlg-pbs-hazard');
+        const betaEl = document.getElementById('dlg-pbs-beta');
+        const edAlphaEl = document.getElementById('dlg-pbs-ed-alpha');
         if (uslEl && uslEl.value) config.USL = parseFloat(uslEl.value);
         if (lslEl && lslEl.value) config.LSL = parseFloat(lslEl.value);
         if (tgtEl && tgtEl.value) config.target = parseFloat(tgtEl.value);
         if (hazEl && hazEl.value) config.hazard_lambda = parseFloat(hazEl.value);
+        if (betaEl) config.beta_robustness = parseFloat(betaEl.value);
+        if (edAlphaEl && edAlphaEl.value) config.edetector_alpha = parseFloat(edAlphaEl.value);
         if (['cpk', 'cpk_traj'].includes(mode) && (!config.USL || !config.LSL)) {
             alert('Both USL and LSL are required for Cpk analysis'); return;
         }
         closeModal();
         runStatsAnalysis('pbs', 'pbs_' + mode, config, titles[mode]);
     });
+
+    // Wire beta slider live value display
+    const betaSlider = document.getElementById('dlg-pbs-beta');
+    if (betaSlider) {
+        betaSlider.addEventListener('input', () => {
+            document.getElementById('dlg-pbs-beta-val').textContent = parseFloat(betaSlider.value).toFixed(2);
+        });
+    }
 }
 
 // =============================================================================
@@ -5088,6 +5128,7 @@ function openStatsDialog(type) {
                 <optgroup label="Process Belief System">
                     <option value="pbs_full">Full PBS Analysis</option>
                     <option value="pbs_belief">Belief Chart (BOCPD)</option>
+                    <option value="pbs_edetector">E-Detector (Distribution-Free)</option>
                     <option value="pbs_evidence">Evidence Accumulation (E-values)</option>
                     <option value="pbs_predictive">Predictive Chart</option>
                     <option value="pbs_adaptive">Adaptive Control Limits</option>

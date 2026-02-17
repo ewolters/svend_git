@@ -21206,13 +21206,16 @@ def run_spc_analysis(df, analysis_id, config):
 
         Reference: Burger et al. (2025) "Distribution-Free Process Monitoring
         with Conformal Prediction", arXiv:2512.23602
+
+        Backends: isolation_forest (default), mahalanobis, ocsvm, kde
         """
+        import math as _math
         from sklearn.ensemble import IsolationForest
         from sklearn.preprocessing import StandardScaler
 
         alpha_conf = float(config.get("alpha", 0.05))
         cal_fraction = float(config.get("calibration_fraction", 0.5))
-        model_type = config.get("model", "isolation_forest")  # isolation_forest, mahalanobis
+        model_type = config.get("model", "isolation_forest")
 
         # Get numeric columns
         variables = config.get("variables", [])
@@ -21235,53 +21238,87 @@ def run_spc_analysis(df, analysis_id, config):
         X_mon = X[n_cal:]
         n_mon = len(X_mon)
 
+        # Min calibration warning (§12)
+        cal_warning = ""
+        if n_cal < 50:
+            cal_warning = (f"<<COLOR:warning>>Calibration set small ({n_cal} obs). "
+                           f"Recommend >= 50 for stable p-values.<</COLOR>>\n")
+
         # Standardize using calibration data
         scaler = StandardScaler()
         X_cal_scaled = scaler.fit_transform(X_cal)
         X_mon_scaled = scaler.transform(X_mon) if n_mon > 0 else np.array([]).reshape(0, len(variables))
 
-        # Compute nonconformity scores
+        # Compute nonconformity scores based on chosen backend
         if model_type == "mahalanobis":
-            # Mahalanobis distance from calibration centroid
             cov_cal = np.cov(X_cal_scaled.T)
             try:
                 cov_inv = np.linalg.inv(cov_cal)
             except np.linalg.LinAlgError:
                 cov_inv = np.linalg.pinv(cov_cal)
             mean_cal = np.mean(X_cal_scaled, axis=0)
-
             cal_scores = np.array([np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_cal_scaled])
             mon_scores = np.array([np.sqrt((x - mean_cal) @ cov_inv @ (x - mean_cal)) for x in X_mon_scaled]) if n_mon > 0 else np.array([])
             model_label = "Mahalanobis Distance"
+
+        elif model_type == "ocsvm":
+            from sklearn.svm import OneClassSVM
+            ocsvm = OneClassSVM(kernel="rbf", gamma="scale", nu=0.05)
+            ocsvm.fit(X_cal_scaled)
+            cal_scores = -ocsvm.decision_function(X_cal_scaled)
+            mon_scores = -ocsvm.decision_function(X_mon_scaled) if n_mon > 0 else np.array([])
+            model_label = "One-Class SVM"
+
+        elif model_type == "kde":
+            from sklearn.neighbors import KernelDensity
+            # KDE: negative log-likelihood as anomaly score
+            # Only practical for low dimensions
+            if len(variables) > 5:
+                result["summary"] = "KDE backend limited to <= 5 variables. Use Isolation Forest for higher dimensions."
+                return result
+            kde = KernelDensity(kernel="gaussian", bandwidth="scott")
+            kde.fit(X_cal_scaled)
+            cal_scores = -kde.score_samples(X_cal_scaled)
+            mon_scores = -kde.score_samples(X_mon_scaled) if n_mon > 0 else np.array([])
+            model_label = "Kernel Density Estimate"
+
         else:
-            # Isolation Forest anomaly scores
+            # Default: Isolation Forest
             iso = IsolationForest(random_state=42, contamination="auto")
             iso.fit(X_cal_scaled)
-
-            # Score = -decision_function (higher = more anomalous)
             cal_scores = -iso.decision_function(X_cal_scaled)
             mon_scores = -iso.decision_function(X_mon_scaled) if n_mon > 0 else np.array([])
             model_label = "Isolation Forest"
 
         all_scores = np.concatenate([cal_scores, mon_scores])
 
-        # Conformal p-values for monitoring observations
+        # Conformal p-values
         # p-value = (# calibration scores >= current score + 1) / (n_cal + 1)
-        sorted_cal = np.sort(cal_scores)
         cal_p_values = np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in cal_scores])
         mon_p_values = np.array([(np.sum(cal_scores >= s) + 1) / (n_cal + 1) for s in mon_scores]) if n_mon > 0 else np.array([])
         all_p_values = np.concatenate([cal_p_values, mon_p_values])
+
+        # Evidence strength classification (§12.1)
+        def _classify_p(p):
+            if p > 0.10: return "NORMAL"
+            if p > 0.05: return "WARNING"
+            if p > 0.01: return "ANOMALY"
+            return "SEVERE ANOMALY"
 
         # Anomalies: p-value < alpha
         if n_mon > 0:
             anomaly_mask = mon_p_values < alpha_conf
             anomaly_indices = np.where(anomaly_mask)[0]
             n_anomalies = len(anomaly_indices)
+            last_p = float(mon_p_values[-1])
+            last_strength = _classify_p(last_p)
         else:
             anomaly_indices = np.array([])
             n_anomalies = 0
+            last_p = 1.0
+            last_strength = "NORMAL"
 
-        # Variable contributions for flagged points (which variable drives the anomaly?)
+        # Variable contributions for flagged points
         contributions = []
         if n_anomalies > 0 and n_anomalies <= 20:
             mean_cal_raw = np.mean(X_cal, axis=0)
@@ -21292,74 +21329,122 @@ def run_spc_analysis(df, analysis_id, config):
                 top_var = variables[np.argmax(z_scores)]
                 contributions.append((int(idx), top_var, float(np.max(z_scores))))
 
-        # Summary
+        # -log10(p) values for chart (§12.3)
+        neg_log10_p_all = [-_math.log10(max(p, 1e-10)) for p in all_p_values]
+        neg_log10_threshold = -_math.log10(alpha_conf)
+        neg_log10_001 = 2.0  # -log10(0.01)
+
+        # Summary — updated per spec §12.4 narrative template
         summary_cm = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary_cm += f"<<COLOR:title>>CONFORMAL P-VALUE CHART (Multivariate Monitor)<</COLOR>>\n"
         summary_cm += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary_cm += f"<<COLOR:dim>>Burger et al. (2025) — Distribution-free anomaly detection<</COLOR>>\n\n"
+        if cal_warning:
+            summary_cm += cal_warning + "\n"
         summary_cm += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(variables)} ({len(variables)} dimensions)\n"
         summary_cm += f"<<COLOR:highlight>>N:<</COLOR>> {n} ({n_cal} calibration + {n_mon} monitoring)\n"
         summary_cm += f"<<COLOR:highlight>>Anomaly model:<</COLOR>> {model_label}\n"
-        summary_cm += f"<<COLOR:highlight>>Significance level:<</COLOR>> α = {alpha_conf}\n\n"
+        summary_cm += f"<<COLOR:highlight>>Significance level:<</COLOR>> alpha = {alpha_conf}\n\n"
 
-        summary_cm += f"<<COLOR:text>>Conformal P-Value Distribution (monitoring):<</COLOR>>\n"
+        # Spec §12.4 narrative
+        if n_mon > 0:
+            neg_log_last = -_math.log10(max(last_p, 1e-10))
+            summary_cm += f"<<COLOR:text>>Multivariate process health: <<COLOR:{'warning' if last_strength != 'NORMAL' else 'good'}>>{last_strength}<</COLOR>><</COLOR>>\n"
+            summary_cm += f"  Conformal p-value: {last_p:.4f} (-log10: {neg_log_last:.2f})\n"
+            summary_cm += f"  Interpretation: this observation is more anomalous than {(1-last_p)*100:.1f}% of calibration data.\n"
+            summary_cm += f"  Guarantee: false alarm rate <= {alpha_conf} (distribution-free, finite-sample).\n\n"
+
+        summary_cm += f"<<COLOR:text>>Monitoring summary:<</COLOR>>\n"
         if n_mon > 0:
             summary_cm += f"  Mean p-value: {np.mean(mon_p_values):.4f}\n"
             summary_cm += f"  Min p-value: {np.min(mon_p_values):.4f} at observation {n_cal + int(np.argmin(mon_p_values))}\n"
-            summary_cm += f"  % below α: {np.mean(mon_p_values < alpha_conf)*100:.1f}%\n\n"
+            summary_cm += f"  % below alpha: {np.mean(mon_p_values < alpha_conf)*100:.1f}%\n\n"
 
         if n_anomalies > 0:
-            summary_cm += f"<<COLOR:warning>>⚠ {n_anomalies} anomalous observation(s) detected (p < {alpha_conf})<</COLOR>>\n"
+            summary_cm += f"<<COLOR:warning>>{n_anomalies} anomalous observation(s) detected (p < {alpha_conf})<</COLOR>>\n"
             if contributions:
                 summary_cm += f"\n  <<COLOR:text>>Top contributing variables:<</COLOR>>\n"
                 for idx, var, z in contributions:
-                    summary_cm += f"    Obs {n_cal + idx}: driven by '{var}' (z = {z:.2f}σ from calibration mean)\n"
+                    summary_cm += f"    Obs {n_cal + idx}: driven by '{var}' (z = {z:.2f}sigma from calibration mean)\n"
         else:
-            summary_cm += f"<<COLOR:good>>No anomalies detected — all p-values ≥ {alpha_conf}<</COLOR>>\n"
-
-        summary_cm += f"\n<<COLOR:text>>Key advantages:<</COLOR>>\n"
-        summary_cm += f"  • Monitors {len(variables)} variables simultaneously\n"
-        summary_cm += f"  • No distributional assumptions on joint variable behavior\n"
-        summary_cm += f"  • Guaranteed false alarm rate ≤ α = {alpha_conf}\n"
-        summary_cm += f"  • Intuitive p-value scale (0 = most anomalous, 1 = most normal)\n"
+            summary_cm += f"<<COLOR:good>>No anomalies detected — all p-values >= {alpha_conf}<</COLOR>>\n"
 
         result["summary"] = summary_cm
 
-        # Plot 1: P-value chart (the main chart)
+        # Plot 1: -log10(p) chart (recommended per §12.3)
         p_colors = []
         for i, p in enumerate(all_p_values):
             if i < n_cal:
                 p_colors.append("#4a9f6e")  # Calibration
+            elif p <= 0.01:
+                p_colors.append("#e85747")  # Severe
             elif p < alpha_conf:
-                p_colors.append("#e85747")  # Anomaly
+                p_colors.append("#d4a24a")  # Anomaly
             else:
                 p_colors.append("#4a90d9")  # Normal monitoring
 
         result["plots"].append({
-            "title": "Conformal P-Value Chart",
+            "title": "Conformal P-Value Chart (-log10 scale)",
             "data": [
-                {"type": "scatter", "x": list(range(n)), "y": all_p_values.tolist(), "mode": "markers",
-                 "marker": {"size": 6, "color": p_colors}, "name": "Conformal p-value"},
-                {"type": "scatter", "x": list(range(n)), "y": [alpha_conf] * n, "mode": "lines",
-                 "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": f"α = {alpha_conf}"},
+                {"type": "scatter", "x": list(range(n)),
+                 "y": neg_log10_p_all, "mode": "markers+lines",
+                 "marker": {"size": 5, "color": p_colors},
+                 "line": {"color": "#4a90d9", "width": 1},
+                 "name": "-log10(p)"},
+                {"type": "scatter", "x": [0, n - 1],
+                 "y": [neg_log10_threshold, neg_log10_threshold],
+                 "mode": "lines",
+                 "line": {"color": "#d94a4a", "dash": "dash", "width": 2},
+                 "name": f"alpha = {alpha_conf}"},
+                {"type": "scatter", "x": [0, n - 1],
+                 "y": [neg_log10_001, neg_log10_001],
+                 "mode": "lines",
+                 "line": {"color": "#d94a4a", "width": 1},
+                 "name": "p = 0.01"},
             ],
             "layout": {
-                "height": 300,
+                "height": 300, "template": "plotly_dark",
+                "xaxis": {"title": "Observation"},
+                "yaxis": {"title": "-log10(p)", "rangemode": "tozero"},
+                "shapes": [
+                    {"type": "line", "x0": n_cal, "x1": n_cal, "y0": 0,
+                     "y1": max(neg_log10_p_all) * 1.1 if neg_log10_p_all else 3,
+                     "line": {"color": "#d4a24a", "dash": "dashdot", "width": 1.5}},
+                ],
+                "annotations": [{"x": n_cal, "y": max(neg_log10_p_all) * 0.95 if neg_log10_p_all else 2.5,
+                                 "text": "Cal | Mon",
+                                 "showarrow": False,
+                                 "font": {"color": "#d4a24a", "size": 10}}],
+            }
+        })
+
+        # Plot 2: Raw p-value chart
+        result["plots"].append({
+            "title": "Conformal P-Value Chart (raw)",
+            "data": [
+                {"type": "scatter", "x": list(range(n)),
+                 "y": all_p_values.tolist(), "mode": "markers",
+                 "marker": {"size": 5, "color": p_colors},
+                 "name": "Conformal p-value"},
+                {"type": "scatter", "x": [0, n - 1],
+                 "y": [alpha_conf, alpha_conf], "mode": "lines",
+                 "line": {"color": "#d94a4a", "dash": "dash", "width": 2},
+                 "name": f"alpha = {alpha_conf}"},
+            ],
+            "layout": {
+                "height": 250, "template": "plotly_dark",
                 "xaxis": {"title": "Observation"},
                 "yaxis": {"title": "Conformal p-value", "range": [0, 1]},
                 "shapes": [
                     {"type": "line", "x0": n_cal, "x1": n_cal, "y0": 0, "y1": 1,
-                     "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5}},
+                     "line": {"color": "#d4a24a", "dash": "dashdot", "width": 1.5}},
                     {"type": "rect", "x0": 0, "x1": n, "y0": 0, "y1": alpha_conf,
-                     "fillcolor": "rgba(232, 87, 71, 0.05)", "line": {"width": 0}},
+                     "fillcolor": "rgba(217, 74, 74, 0.05)", "line": {"width": 0}},
                 ],
-                "annotations": [{"x": n_cal, "y": 0.95, "text": "← Cal | Mon →",
-                                 "showarrow": False, "font": {"color": "#e8c547", "size": 10}}],
-                "template": "plotly_white",
             }
         })
 
-        # Plot 2: Anomaly scores over time
+        # Plot 3: Anomaly scores over time
         score_colors_2 = ["#e85747" if (i >= n_cal and all_p_values[i] < alpha_conf) else "#4a9f6e" for i in range(n)]
         result["plots"].append({
             "title": f"Nonconformity Scores ({model_label})",
@@ -21368,23 +21453,21 @@ def run_spc_analysis(df, analysis_id, config):
                  "marker": {"color": score_colors_2, "opacity": 0.7}, "name": "Score"},
             ],
             "layout": {
-                "height": 250,
+                "height": 250, "template": "plotly_dark",
                 "xaxis": {"title": "Observation"},
                 "yaxis": {"title": "Anomaly Score"},
                 "shapes": [{"type": "line", "x0": n_cal, "x1": n_cal, "y0": 0, "y1": float(np.max(all_scores)),
-                            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1}}],
-                "template": "plotly_white",
+                            "line": {"color": "#d4a24a", "dash": "dashdot", "width": 1}}],
             }
         })
 
-        # Plot 3: Variable-level view (parallel coordinates or heatmap of z-scores)
+        # Plot 4: Variable-level view (heatmap of z-scores)
         if n_mon > 0:
             mean_cal_raw = np.mean(X_cal, axis=0)
             std_cal_raw = np.std(X_cal, axis=0, ddof=1)
             std_cal_raw[std_cal_raw == 0] = 1
             z_matrix = np.abs((X_mon - mean_cal_raw) / std_cal_raw)
 
-            # Show z-scores for monitoring observations (heatmap)
             result["plots"].append({
                 "title": "Variable Contribution Heatmap (|z-score| from calibration)",
                 "data": [{
@@ -21392,18 +21475,30 @@ def run_spc_analysis(df, analysis_id, config):
                     "z": z_matrix.T.tolist(),
                     "x": [f"{n_cal + i}" for i in range(n_mon)],
                     "y": variables,
-                    "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
+                    "colorscale": [[0, "#4a9f6e"], [0.5, "#d4a24a"], [1, "#d94a4a"]],
                     "colorbar": {"title": "|z|"},
                 }],
-                "layout": {"height": max(200, 40 * len(variables)), "xaxis": {"title": "Observation"}, "template": "plotly_white"}
+                "layout": {"height": max(200, 40 * len(variables)),
+                           "xaxis": {"title": "Observation"},
+                           "template": "plotly_dark"}
             })
 
-        result["guide_observation"] = f"Conformal multivariate monitor: {n_anomalies} anomalies in {n_mon} monitoring observations across {len(variables)} variables."
+        result["guide_observation"] = (
+            f"Multivariate process health: {last_strength}. "
+            f"Conformal p-value: {last_p:.4f} (-log10: {-_math.log10(max(last_p, 1e-10)):.2f}). "
+            f"{n_anomalies} anomalies in {n_mon} monitoring observations "
+            f"across {len(variables)} variables. "
+            f"Anomaly detector: {model_label}. "
+            f"Guarantee: false alarm rate <= {alpha_conf} (distribution-free, finite-sample)."
+        )
         result["statistics"] = {
             "n": n, "n_calibration": n_cal, "n_monitoring": n_mon,
             "n_variables": len(variables), "variables": variables,
             "model": model_label, "alpha": alpha_conf,
             "n_anomalies": n_anomalies,
+            "last_p_value": last_p,
+            "last_neg_log10_p": -_math.log10(max(last_p, 1e-10)),
+            "last_evidence_strength": last_strength,
             "anomaly_indices": [int(n_cal + i) for i in anomaly_indices],
             "mean_p_value": float(np.mean(mon_p_values)) if n_mon > 0 else None,
             "min_p_value": float(np.min(mon_p_values)) if n_mon > 0 else None,

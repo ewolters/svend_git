@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "NormalGammaPosterior",
     "BeliefChart",
+    "EDetector",
     "UncertaintyFusion",
     "EvidenceAccumulation",
     "PredictiveChart",
@@ -172,22 +173,29 @@ class BeliefChartPoint:
     current_regime_std: float
     reference_mean: float
     alert_level: str  # 'nominal' | 'watch' | 'alert' | 'alarm'
+    observation_weight: float = 1.0  # DPD weight (1.0 = standard, <1 = downweighted outlier)
 
 
 class BeliefChart:
     """
     BOCPD (Adams & MacKay 2007) with Normal-Gamma sufficient statistics.
+
+    When beta_robustness > 0, uses Dm-BOCD (Altamirano, Briol & Knoblauch,
+    ICML 2023) — density power divergence scoring for outlier robustness.
+    beta=0 recovers standard BOCPD.
     """
 
     def __init__(self, hazard_lambda: float = 200.0,
                  prior: Optional[NormalGammaPosterior] = None,
                  max_run_lengths: int = 200,
-                 thresholds: Optional[Dict[str, float]] = None):
+                 thresholds: Optional[Dict[str, float]] = None,
+                 beta_robustness: float = 0.0):
         self.hazard_lambda = hazard_lambda
         self.K = max_run_lengths
         self.prior = prior or NormalGammaPosterior()
         self.thresholds = thresholds or {
             "watch": 0.50, "alert": 0.80, "alarm": 0.95}
+        self.beta_robustness = float(beta_robustness)
 
         # Run length distribution: log P(r_t | x_{1:t})
         # Start: P(r_0 = 0) = 1
@@ -208,17 +216,25 @@ class BeliefChart:
     def process(self, x: float) -> BeliefChartPoint:
         """Process one observation, return belief chart point."""
         self._t += 1
+        beta_r = self.beta_robustness
 
         n_r = len(self._log_R)
 
         # 1. Evaluate predictive probability under each run length
         log_pred = np.empty(n_r)
+        dpd_weights = np.ones(n_r)  # DPD weights per run length
         for i in range(n_r):
             mu_i, kappa_i, alpha_i, beta_i = self._suff[i]
             nu = 2 * alpha_i
             loc = mu_i
-            scale = math.sqrt(beta_i * (kappa_i + 1) / (alpha_i * kappa_i))
+            sigma2_pred = beta_i * (kappa_i + 1) / (alpha_i * kappa_i)
+            scale = math.sqrt(sigma2_pred)
             log_pred[i] = sp_stats.t.logpdf(x, df=nu, loc=loc, scale=scale)
+
+            # Compute DPD weight for robust update (§7.3 of spec)
+            if beta_r > 0:
+                z = (x - mu_i) ** 2 / sigma2_pred
+                dpd_weights[i] = math.exp(-beta_r * z / 2.0)
 
         # 2. Growth probabilities: log P(r_t = r+1, x_{1:t})
         H = np.array([self._hazard(r) for r in range(n_r)])
@@ -243,12 +259,15 @@ class BeliefChart:
         new_suff.append((self.prior.mu, self.prior.kappa,
                          self.prior.alpha, self.prior.beta))
         # r>0: update each run's sufficient statistics
+        # When beta_robustness > 0, use weighted updates (Dm-BOCD §8)
         for i in range(n_r):
             mu_i, kappa_i, alpha_i, beta_i = self._suff[i]
-            kappa_new = kappa_i + 1
-            mu_new = (kappa_i * mu_i + x) / kappa_new
-            alpha_new = alpha_i + 0.5
-            beta_new = beta_i + kappa_i * (x - mu_i) ** 2 / (2.0 * kappa_new)
+            w = dpd_weights[i]  # 1.0 when beta_robustness == 0
+            kappa_new = kappa_i + w
+            mu_new = (kappa_i * mu_i + w * x) / kappa_new
+            alpha_new = alpha_i + w / 2.0
+            beta_new = (beta_i
+                        + w * kappa_i * (x - mu_i) ** 2 / (2.0 * kappa_new))
             new_suff.append((mu_new, min(kappa_new, 1e8),
                              alpha_new, max(beta_new, 1e-15)))
 
@@ -265,26 +284,19 @@ class BeliefChart:
         self._suff = new_suff
 
         # 8. Compute shift probability
-        # P(shifted) = 1 - P(run extends from t=0)
-        # The longest possible run length is self._t
-        # Find the probability of r_t == self._t (original run)
-        max_r = len(new_log_R) - 1
-        # The run length that corresponds to "no change ever" is the max
-        # After truncation, the max stored run might be < self._t
-        # We sum all run lengths ≥ some threshold, but simplest:
-        # shift_prob = 1 - P(r_t = max stored run)
-        # More accurately: P(shifted) = 1 - sum of P(r ≥ self._t - window)
-        # For practical purposes: P(shifted from recent reference)
         shift_prob = 1.0 - math.exp(new_log_R[-1]) if len(new_log_R) > 1 else 0.0
         shift_prob = np.clip(shift_prob, 0.0, 1.0)
 
         # 9. Most likely run length
         ml_idx = int(np.argmax(new_log_R))
-        ml_run = ml_idx  # index = run length (after truncation approximation)
+        ml_run = ml_idx
 
         # Current regime parameters (MAP run length)
-        mu_r, kappa_r, alpha_r, beta_r = self._suff[ml_idx]
-        regime_std = math.sqrt(beta_r / max(alpha_r - 1, 0.5))
+        mu_r, kappa_r, alpha_r, beta_r_param = self._suff[ml_idx]
+        regime_std = math.sqrt(beta_r_param / max(alpha_r - 1, 0.5))
+
+        # Observation weight: mean DPD weight across top run lengths
+        obs_weight = float(dpd_weights[ml_idx]) if ml_idx < len(dpd_weights) else 1.0
 
         # Alert level
         if shift_prob >= self.thresholds["alarm"]:
@@ -305,6 +317,7 @@ class BeliefChart:
             current_regime_std=float(regime_std),
             reference_mean=float(self._reference_mean),
             alert_level=alert,
+            observation_weight=obs_weight,
         )
         self.points.append(pt)
         return pt
@@ -314,6 +327,112 @@ class BeliefChart:
         if self._suff:
             ml_idx = int(np.argmax(self._log_R))
             self._reference_mean = self._suff[ml_idx][0]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2b. E-DETECTOR — Distribution-Free CUSUM Changepoint Detection
+#     (Shin, Ramdas & Rinaldo 2024)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class EDetectorPoint:
+    t: int
+    observation: float
+    log_N_upper: float          # CUSUM statistic for upward shift
+    log_N_lower: float          # CUSUM statistic for downward shift
+    log_N_combined: float       # max(upper, lower) — used for alarm
+    alarm: bool
+    alarm_direction: Optional[str]  # 'upper', 'lower', or None
+    lambda_upper: float         # adaptive betting param (positive side)
+    lambda_lower: float         # adaptive betting param (negative side)
+    estimated_mean: float       # running mean estimate
+
+
+class EDetector:
+    """
+    CUSUM-style e-detector for nonparametric sequential changepoint detection.
+
+    Uses sub-Gaussian GROW e-values with adaptive lambda (ONS).
+    Two-sided: runs parallel upper/lower detectors, alarms when either
+    crosses threshold. ARL guarantee: E[tau] >= 1/(2*alpha) under any
+    pre-change distribution satisfying sub-Gaussian bound.
+    """
+
+    def __init__(self, mu_0: float, bounds: Tuple[float, float],
+                 alpha: float = 0.05):
+        self.mu_0 = mu_0
+        self.a, self.b = bounds
+        self.alpha = alpha
+        self.threshold = math.log(1.0 / alpha)  # per-side threshold
+        self.range_sq = (self.b - self.a) ** 2 / 8.0  # sub-Gaussian proxy
+        self.lambda_max = 1.0 / max(self.b - self.a, 1e-10)
+
+        # State — two-sided CUSUM
+        self._log_N_upper = 0.0
+        self._log_N_lower = 0.0
+        self._lambda_upper = 0.0
+        self._lambda_lower = 0.0
+        self._sum_x = 0.0
+        self._count = 0
+        self._t = 0
+        self.points: List[EDetectorPoint] = []
+
+    def process(self, x: float) -> EDetectorPoint:
+        """Process one observation, return e-detector point."""
+        self._t += 1
+        self._count += 1
+        self._sum_x += x
+        x_bar = self._sum_x / self._count
+
+        # Clamp observation to bounds for sub-Gaussian validity
+        x_c = max(self.a, min(self.b, x))
+
+        # Upper detector: testing for upward shift (lambda > 0)
+        log_e_upper = (self._lambda_upper * (x_c - self.mu_0)
+                       - self._lambda_upper ** 2 * self.range_sq)
+        self._log_N_upper = max(0.0, self._log_N_upper) + log_e_upper
+
+        # Lower detector: testing for downward shift (lambda < 0)
+        log_e_lower = (self._lambda_lower * (x_c - self.mu_0)
+                       - self._lambda_lower ** 2 * self.range_sq)
+        self._log_N_lower = max(0.0, self._log_N_lower) + log_e_lower
+
+        # Combined statistic
+        log_N_combined = max(self._log_N_upper, self._log_N_lower)
+
+        # Alarm check
+        alarm = False
+        alarm_dir = None
+        if self._log_N_upper >= self.threshold:
+            alarm = True
+            alarm_dir = "upper"
+        if self._log_N_lower >= self.threshold:
+            alarm = True
+            alarm_dir = "lower" if not alarm_dir else alarm_dir
+
+        # Adapt lambda via ONS — optimal bet for estimated shift
+        # Upper: lambda* = (x_bar - mu_0) / (2 * range_sq), clipped positive
+        lam_opt_upper = (x_bar - self.mu_0) / (2.0 * self.range_sq + 1e-15)
+        self._lambda_upper = max(0.0, min(lam_opt_upper, self.lambda_max))
+
+        # Lower: lambda* = (x_bar - mu_0) / (2 * range_sq), clipped negative
+        lam_opt_lower = (x_bar - self.mu_0) / (2.0 * self.range_sq + 1e-15)
+        self._lambda_lower = min(0.0, max(lam_opt_lower, -self.lambda_max))
+
+        pt = EDetectorPoint(
+            t=self._t,
+            observation=x,
+            log_N_upper=float(self._log_N_upper),
+            log_N_lower=float(self._log_N_lower),
+            log_N_combined=float(log_N_combined),
+            alarm=alarm,
+            alarm_direction=alarm_dir,
+            lambda_upper=float(self._lambda_upper),
+            lambda_lower=float(self._lambda_lower),
+            estimated_mean=float(x_bar),
+        )
+        self.points.append(pt)
+        return pt
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -977,6 +1096,8 @@ class ProcessNarrative:
                  cpk: Optional[BayesianCpkResult],
                  health: Optional[HealthDecomposition],
                  uncertainty_pt: Optional[UncertaintyFusedPoint] = None,
+                 beta_robustness: float = 0.0,
+                 belief_points: Optional[list] = None,
                  ) -> str:
         segments = []
 
@@ -1051,6 +1172,21 @@ class ProcessNarrative:
             segments.append(
                 f"Overall health: {health.overall_health:.0%}. "
                 f"Primary factor: {health.primary_driver}.")
+
+        # 7. Robustness report (§9.2)
+        if beta_robustness > 0:
+            w_3sigma = math.exp(-beta_robustness * 9.0 / 2.0)
+            segments.append(
+                f"Robustness: beta = {beta_robustness:.2f} "
+                f"(outlier weight at 3 sigma: {w_3sigma:.1%}).")
+            if belief_points:
+                dw = [p for p in belief_points if p.observation_weight < 0.5]
+                if dw:
+                    obs_list = ", ".join(str(p.t) for p in dw[:5])
+                    segments.append(
+                        f"{len(dw)} obs downweighted as potential outliers "
+                        f"(obs {obs_list}"
+                        f"{', ...' if len(dw) > 5 else ''}).")
 
         return " ".join(segments) if segments else "Insufficient data."
 
@@ -1162,6 +1298,7 @@ def run_pbs(df, analysis_id, config):
     analysis_id:
         'pbs_full'        — Full PBS analysis (all charts)
         'pbs_belief'      — Belief Chart only (shift probability)
+        'pbs_edetector'   — E-Detector (distribution-free changepoint)
         'pbs_evidence'    — Evidence Accumulation only
         'pbs_predictive'  — Predictive Chart only
         'pbs_adaptive'    — Adaptive Control Limits only
@@ -1193,6 +1330,7 @@ def run_pbs(df, analysis_id, config):
         target = float(target)
 
     hazard_lambda = float(config.get("hazard_lambda", 200))
+    beta_robustness = float(config.get("beta_robustness", 0.0))
 
     # Calibration phase — first observations set informative prior
     n_cal = min(50, max(10, n // 5))
@@ -1215,9 +1353,12 @@ def run_pbs(df, analysis_id, config):
 
     if analysis_id == "pbs_full":
         return _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda,
-                             config, sigma_cal)
+                             config, sigma_cal, beta_robustness)
     elif analysis_id == "pbs_belief":
-        return _run_belief_only(y, prior, hazard_lambda, config)
+        return _run_belief_only(y, prior, hazard_lambda, config,
+                                beta_robustness)
+    elif analysis_id == "pbs_edetector":
+        return _run_edetector_only(y, mu_0, USL, LSL, sigma_cal, config)
     elif analysis_id == "pbs_evidence":
         return _run_evidence_only(y, prior, mu_0, config, sigma_cal)
     elif analysis_id == "pbs_predictive":
@@ -1229,20 +1370,22 @@ def run_pbs(df, analysis_id, config):
     elif analysis_id == "pbs_cpk_traj":
         return _run_cpk_traj_only(y, prior, USL, LSL, config)
     elif analysis_id == "pbs_health":
-        return _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config)
+        return _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda,
+                                config, beta_robustness)
     else:
         result["summary"] = f"Error: Unknown PBS analysis: {analysis_id}"
         return result
 
 
 def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
-                  sigma_ref):
+                  sigma_ref, beta_robustness=0.0):
     """Full PBS analysis — all charts."""
     result = {"plots": [], "summary": "", "guide_observation": ""}
     n = len(y)
 
     # 1. Run BOCPD for belief chart
-    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy())
+    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy(),
+                     beta_robustness=beta_robustness)
     for x in y:
         bc.process(x)
 
@@ -1255,6 +1398,17 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
     ea = EvidenceAccumulation(mu_0=mu_0, sigma_ref=sigma_ref)
     for x in y:
         ea.process(x)
+
+    # 3b. E-Detector (distribution-free companion to Belief Chart)
+    if USL is not None and LSL is not None:
+        ed_bounds = (float(LSL), float(USL))
+    else:
+        ed_bounds = (mu_0 - 4.0 * max(sigma_ref, 1e-6),
+                     mu_0 + 4.0 * max(sigma_ref, 1e-6))
+    ed_alpha = float(config.get("edetector_alpha", 0.05))
+    ed = EDetector(mu_0=mu_0, bounds=ed_bounds, alpha=ed_alpha)
+    for x in y:
+        ed.process(x)
 
     # 4. Adaptive control limits
     acl = AdaptiveControlLimits()
@@ -1276,14 +1430,24 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         cpk_engine = BayesianCpk(USL, LSL)
         cpk_result = cpk_engine.compute(post, n)
 
-    # 7. Health
+    # 7. Health — fuse BOCPD, E-Detector, Cpk, trend (Anti-Pattern 7)
     h_spc = 1 - bc.points[-1].shift_probability if bc.points else 0.5
     h_cpk = cpk_result.cpk_probability_above_133 if cpk_result else 0.5
     h_trend = 0.5
     if pred:
         h_trend = 1.0 - pred.prob_exceed_spec_10
+    # E-Detector health: 1.0 if monitoring, 0.0 if alarm,
+    # linear scale between threshold/2 and threshold
+    ed_last = ed.points[-1] if ed.points else None
+    if ed_last and ed_last.alarm:
+        h_edet = 0.0
+    elif ed_last:
+        h_edet = max(0.0, 1.0 - ed_last.log_N_combined / ed.threshold)
+    else:
+        h_edet = 0.5
 
-    streams = {"spc": h_spc, "cpk": h_cpk, "trend": h_trend}
+    streams = {"spc": h_spc, "edetector": h_edet,
+               "cpk": h_cpk, "trend": h_trend}
     msh = MultiStreamHealth()
     health = msh.fuse(streams)
 
@@ -1303,6 +1467,8 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         predictive=pred,
         cpk=cpk_result,
         health=health,
+        beta_robustness=beta_robustness,
+        belief_points=bc.points,
     )
 
     # ── Build plots ──
@@ -1348,6 +1514,39 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         "layout": {
             "template": "plotly_dark", "height": 250,
             "yaxis": {"title": "log(E-value)"},
+            "xaxis": {"title": "Observation"},
+        },
+    })
+
+    # Plot 2b: E-Detector (distribution-free changepoint)
+    ed_log_Ns = [p.log_N_combined for p in ed.points]
+    ed_traces = [
+        {"type": "scatter", "x": ts, "y": ed_log_Ns,
+         "mode": "lines", "name": "log(N)",
+         "line": {"color": "#4a9f6e", "width": 2}},
+        {"type": "scatter", "x": [0, n - 1],
+         "y": [ed.threshold, ed.threshold],
+         "mode": "lines", "name": f"1/alpha = {1/ed_alpha:.0f}",
+         "line": {"color": "#d94a4a", "dash": "dash", "width": 1}},
+        {"type": "scatter", "x": [0, n - 1], "y": [0, 0],
+         "mode": "lines", "name": "Reset",
+         "line": {"color": "#666", "dash": "dot", "width": 1}},
+    ]
+    ed_alarm_pts = [p for p in ed.points if p.alarm]
+    if ed_alarm_pts:
+        ed_traces.append({
+            "type": "scatter",
+            "x": [p.t - 1 for p in ed_alarm_pts],
+            "y": [p.log_N_combined for p in ed_alarm_pts],
+            "mode": "markers", "name": "Alarm",
+            "marker": {"color": "#d94a4a", "symbol": "diamond", "size": 8},
+        })
+    result["plots"].append({
+        "title": "E-Detector — Distribution-Free Changepoint",
+        "data": ed_traces,
+        "layout": {
+            "template": "plotly_dark", "height": 250,
+            "yaxis": {"title": "log(N)"},
             "xaxis": {"title": "Observation"},
         },
     })
@@ -1523,6 +1722,15 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         lines.append(f"  Current regime mean: {last_bc.current_regime_mean:.4f}")
         lines.append(f"  Run length: {last_bc.most_likely_run_length}")
 
+    lines.append(f"\n<<COLOR:accent>>── E-Detector ──<</COLOR>>")
+    if ed_last:
+        ed_status = "ALARM" if ed_last.alarm else "MONITORING"
+        ed_ratio = math.exp(min(ed_last.log_N_combined, 500))
+        lines.append(f"  Status: {ed_status}  "
+                     f"log(N) = {ed_last.log_N_combined:.1f}")
+        lines.append(f"  Evidence: {ed_ratio:.0f}:1 against in-control")
+        lines.append(f"  Guarantee: ARL >= {1/ed_alpha:.0f} (alpha={ed_alpha})")
+
     lines.append(f"\n<<COLOR:accent>>── Evidence ──<</COLOR>>")
     last_ev = ea.points[-1] if ea.points else None
     if last_ev:
@@ -1567,6 +1775,22 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
     for k, v in health.stream_contributions.items():
         lines.append(f"    {k}: {v:.0%} (weight {health.stream_weights.get(k, 0):.0%})")
 
+    if beta_robustness > 0:
+        w_3sigma = math.exp(-beta_robustness * 9.0 / 2.0)
+        lines.append(f"\n<<COLOR:accent>>── Robustness ──<</COLOR>>")
+        lines.append(f"  beta = {beta_robustness:.2f}  "
+                     f"(outlier weight at 3 sigma: {w_3sigma:.1%})")
+        downweighted = [(p.t, p.observation_weight) for p in bc.points
+                        if p.observation_weight < 0.5]
+        if downweighted:
+            lines.append(f"  {len(downweighted)} obs downweighted (<50%):")
+            for t, w in downweighted[:10]:
+                lines.append(f"    Obs {t}: w={w:.2f}")
+            if len(downweighted) > 10:
+                lines.append(f"    ... and {len(downweighted)-10} more")
+        else:
+            lines.append("  No observations downweighted — data clean.")
+
     result["summary"] = "\n".join(lines)
 
     result["statistics"] = {
@@ -1574,6 +1798,8 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         "n": n,
         "shift_probability": last_bc.shift_probability if last_bc else 0,
         "e_value": last_ev.e_value_accumulated if last_ev else 1,
+        "edetector_log_N": ed_last.log_N_combined if ed_last else 0,
+        "edetector_alarm": ed_last.alarm if ed_last else False,
         "health": health.overall_health,
         "alarm_action": alarm_dec.recommend_action,
         "narrative": narrative,
@@ -1589,9 +1815,10 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
 
 # ── Individual analysis runners ──
 
-def _run_belief_only(y, prior, hazard_lambda, config):
+def _run_belief_only(y, prior, hazard_lambda, config, beta_robustness=0.0):
     result = {"plots": [], "summary": "", "guide_observation": ""}
-    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy())
+    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy(),
+                     beta_robustness=beta_robustness)
     for x in y:
         bc.process(x)
 
@@ -1627,6 +1854,89 @@ def _run_belief_only(y, prior, hazard_lambda, config):
         "shift_probability": last.shift_probability,
         "alert_level": last.alert_level,
         "regime_mean": last.current_regime_mean,
+    }
+    result["guide_observation"] = result["summary"]
+    return result
+
+
+def _run_edetector_only(y, mu_0, USL, LSL, sigma_cal, config):
+    """E-Detector chart — distribution-free CUSUM changepoint detection."""
+    result = {"plots": [], "summary": "", "guide_observation": ""}
+    alpha = float(config.get("edetector_alpha", 0.05))
+
+    # Bounds: prefer spec limits, fall back to calibration-based (Anti-Pattern 4)
+    if USL is not None and LSL is not None:
+        a, b = float(LSL), float(USL)
+    else:
+        # Tighter bounds from calibration data: X̄ ± 4s
+        a = mu_0 - 4.0 * max(sigma_cal, 1e-6)
+        b = mu_0 + 4.0 * max(sigma_cal, 1e-6)
+
+    ed = EDetector(mu_0=mu_0, bounds=(a, b), alpha=alpha)
+    for x in y:
+        ed.process(x)
+
+    ts = list(range(len(y)))
+    log_Ns = [p.log_N_combined for p in ed.points]
+    threshold = ed.threshold
+
+    # Color segments: green below threshold, red above
+    colors = ["#d94a4a" if p.alarm else "#4a9f6e" for p in ed.points]
+
+    # Find first alarm points for markers
+    alarm_ts = [p.t - 1 for p in ed.points if p.alarm]
+    alarm_vals = [p.log_N_combined for p in ed.points if p.alarm]
+
+    traces = [
+        {"type": "scatter", "x": ts, "y": log_Ns,
+         "mode": "lines", "name": "log(N)",
+         "line": {"color": "#4a9f6e", "width": 2}},
+        # Threshold line
+        {"type": "scatter", "x": [0, len(y) - 1],
+         "y": [threshold, threshold],
+         "mode": "lines", "name": f"1/alpha = {1/alpha:.0f}",
+         "line": {"color": "#d94a4a", "dash": "dash", "width": 1}},
+        # Zero (reset) line
+        {"type": "scatter", "x": [0, len(y) - 1], "y": [0, 0],
+         "mode": "lines", "name": "Reset",
+         "line": {"color": "#666", "dash": "dot", "width": 1}},
+    ]
+    if alarm_ts:
+        traces.append({
+            "type": "scatter", "x": alarm_ts, "y": alarm_vals,
+            "mode": "markers", "name": "Alarm",
+            "marker": {"color": "#d94a4a", "symbol": "diamond",
+                       "size": 10},
+        })
+
+    result["plots"].append({
+        "title": "E-Detector — Distribution-Free Changepoint",
+        "data": traces,
+        "layout": {"template": "plotly_dark", "height": 300,
+                    "yaxis": {"title": "log(N)"},
+                    "xaxis": {"title": "Observation"}},
+    })
+
+    last = ed.points[-1]
+    status = "ALARM" if last.alarm else "MONITORING"
+    evidence_ratio = math.exp(min(last.log_N_combined, 500))
+
+    result["summary"] = (
+        f"E-Detector status: {status}. "
+        f"Log-evidence: {last.log_N_combined:.1f} "
+        f"(threshold: {threshold:.1f}). "
+        f"Evidence ratio: {evidence_ratio:.0f}:1 against in-control. "
+        f"Method: Distribution-free CUSUM e-detector. "
+        f"Guarantee: ARL >= {1/alpha:.0f} under any pre-change distribution."
+    )
+    result["statistics"] = {
+        "test": "pbs_edetector",
+        "status": status.lower(),
+        "log_N": last.log_N_combined,
+        "threshold": threshold,
+        "evidence_ratio": evidence_ratio,
+        "alpha": alpha,
+        "n_alarms": len(alarm_ts),
     }
     result["guide_observation"] = result["summary"]
     return result
@@ -1879,11 +2189,13 @@ def _run_cpk_traj_only(y, prior, USL, LSL, config):
     return result
 
 
-def _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config):
+def _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config,
+                     beta_robustness=0.0):
     result = {"plots": [], "summary": "", "guide_observation": ""}
 
     # Compute all streams
-    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy())
+    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy(),
+                     beta_robustness=beta_robustness)
     for x in y:
         bc.process(x)
     h_spc = 1 - bc.points[-1].shift_probability
