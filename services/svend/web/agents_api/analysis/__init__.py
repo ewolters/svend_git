@@ -16,15 +16,11 @@ Usage:
     from agents_api.analysis.stats import run_statistical_analysis
 """
 
-# For backwards compatibility, import main functions
-# These will be migrated to individual modules over time
-from agents_api.dsw_views import (
-    run_statistical_analysis,
-    run_ml_analysis,
-    run_bayesian_analysis,
-    run_spc_analysis,
-    run_visualization,
-)
+from agents_api.dsw.stats import run_statistical_analysis
+from agents_api.dsw.ml import run_ml_analysis
+from agents_api.dsw.bayesian import run_bayesian_analysis
+from agents_api.dsw.spc import run_spc_analysis
+from agents_api.dsw.viz import run_visualization
 
 __all__ = [
     'run_statistical_analysis',

@@ -59,6 +59,7 @@ def control_chart(request):
     usl = body.get("usl")
     lsl = body.get("lsl")
     problem_id = body.get("problem_id")
+    project_id = body.get("project_id")
 
     if not data:
         return JsonResponse({"error": "Data is required"}, status=400)
@@ -100,24 +101,19 @@ def control_chart(request):
         else:
             return JsonResponse({"error": f"Unknown chart type: {chart_type}"}, status=400)
 
-        # Optionally save as evidence to a problem
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence_summary = (
-                    f"Control Chart Analysis ({chart_type}): "
-                    f"{'IN CONTROL' if result.in_control else 'OUT OF CONTROL'}. "
-                    f"{len(result.out_of_control)} points outside limits."
-                )
-                from .problem_views import write_context_file
-                problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="data_analysis",
-                    source="SPC Control Chart",
-                )
-                write_context_file(problem)
-            except Problem.DoesNotExist:
-                pass  # Ignore if problem not found
+        # Optionally save as evidence to a project/problem
+        if project_id or problem_id:
+            evidence_summary = (
+                f"Control Chart Analysis ({chart_type}): "
+                f"{'IN CONTROL' if result.in_control else 'OUT OF CONTROL'}. "
+                f"{len(result.out_of_control)} points outside limits."
+            )
+            from .views import record_tool_evidence
+            record_tool_evidence(
+                request.user, summary=evidence_summary,
+                evidence_type="data_analysis", source="SPC Control Chart",
+                project_id=project_id, problem_id=problem_id,
+            )
 
         return JsonResponse({
             "success": True,
@@ -154,6 +150,7 @@ def recommend_chart(request):
     subgroup_size = body.get("subgroup_size", 1)
     attribute_type = body.get("attribute_type")
     problem_id = body.get("problem_id")
+    project_id = body.get("project_id")
 
     recommendation = spc.recommend_chart_type(data_type, subgroup_size, attribute_type)
 
@@ -174,25 +171,19 @@ def recommend_chart(request):
     }
 
     # Optionally save recommendation as evidence
-    if problem_id:
-        try:
-            problem = Problem.objects.get(id=problem_id, user=request.user)
-            evidence_summary = (
-                f"SPC chart recommendation: {recommendation} — "
-                f"{explanations.get(recommendation, '')} "
-                f"(data_type={data_type}, subgroup_size={subgroup_size})"
-            )
-            from .problem_views import write_context_file
-            evidence = problem.add_evidence(
-                summary=evidence_summary,
-                evidence_type="observation",
-                source="SPC Chart Recommender",
-            )
-            write_context_file(problem)
-            response_data["problem_updated"] = True
-            response_data["evidence_id"] = evidence["id"]
-        except Problem.DoesNotExist:
-            pass
+    if project_id or problem_id:
+        evidence_summary = (
+            f"SPC chart recommendation: {recommendation} — "
+            f"{explanations.get(recommendation, '')} "
+            f"(data_type={data_type}, subgroup_size={subgroup_size})"
+        )
+        from .views import record_tool_evidence
+        record_tool_evidence(
+            request.user, summary=evidence_summary,
+            evidence_type="observation", source="SPC Chart Recommender",
+            project_id=project_id, problem_id=problem_id,
+        )
+        response_data["evidence_added"] = True
 
     return JsonResponse(response_data)
 
@@ -229,6 +220,7 @@ def capability_study(request):
     target = body.get("target")
     subgroup_size = body.get("subgroup_size", 1)
     problem_id = body.get("problem_id")
+    project_id = body.get("project_id")
 
     if not data:
         return JsonResponse({"error": "Data is required"}, status=400)
@@ -244,24 +236,19 @@ def capability_study(request):
             subgroup_size=subgroup_size,
         )
 
-        # Optionally save as evidence to a problem
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence_summary = (
-                    f"Process Capability Study: Cpk={result.cpk:.2f}, Ppk={result.ppk:.2f}, "
-                    f"Sigma Level={result.sigma_level:.1f}, Yield={result.yield_percent:.2f}%. "
-                    f"{result.interpretation}"
-                )
-                from .problem_views import write_context_file
-                problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="data_analysis",
-                    source="SPC Capability Study",
-                )
-                write_context_file(problem)
-            except Problem.DoesNotExist:
-                pass
+        # Optionally save as evidence to a project/problem
+        if project_id or problem_id:
+            evidence_summary = (
+                f"Process Capability Study: Cpk={result.cpk:.2f}, Ppk={result.ppk:.2f}, "
+                f"Sigma Level={result.sigma_level:.1f}, Yield={result.yield_percent:.2f}%. "
+                f"{result.interpretation}"
+            )
+            from .views import record_tool_evidence
+            record_tool_evidence(
+                request.user, summary=evidence_summary,
+                evidence_type="data_analysis", source="SPC Capability Study",
+                project_id=project_id, problem_id=problem_id,
+            )
 
         return JsonResponse({
             "success": True,
@@ -299,6 +286,7 @@ def statistical_summary(request):
 
     data = body.get("data", [])
     problem_id = body.get("problem_id")
+    project_id = body.get("project_id")
 
     if not data or len(data) < 2:
         return JsonResponse({"error": "Need at least 2 data points"}, status=400)
@@ -311,27 +299,21 @@ def statistical_summary(request):
         }
 
         # Optionally save as evidence
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                summary_dict = result.to_dict()
-                evidence_summary = (
-                    f"Statistical Summary (n={summary_dict.get('n', len(data))}): "
-                    f"mean={summary_dict.get('mean', 0):.4f}, "
-                    f"std={summary_dict.get('std', 0):.4f}, "
-                    f"median={summary_dict.get('median', 0):.4f}"
-                )
-                from .problem_views import write_context_file
-                evidence = problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="data_analysis",
-                    source="SPC Statistical Summary",
-                )
-                write_context_file(problem)
-                response_data["problem_updated"] = True
-                response_data["evidence_id"] = evidence["id"]
-            except Problem.DoesNotExist:
-                pass
+        if project_id or problem_id:
+            summary_dict = result.to_dict()
+            evidence_summary = (
+                f"Statistical Summary (n={summary_dict.get('n', len(data))}): "
+                f"mean={summary_dict.get('mean', 0):.4f}, "
+                f"std={summary_dict.get('std', 0):.4f}, "
+                f"median={summary_dict.get('median', 0):.4f}"
+            )
+            from .views import record_tool_evidence
+            record_tool_evidence(
+                request.user, summary=evidence_summary,
+                evidence_type="data_analysis", source="SPC Statistical Summary",
+                project_id=project_id, problem_id=problem_id,
+            )
+            response_data["evidence_added"] = True
 
         return JsonResponse(response_data)
 
@@ -446,6 +428,7 @@ def analyze_uploaded(request):
     value_column = body.get("value_column")
     subgroup_column = body.get("subgroup_column")
     problem_id = body.get("problem_id")
+    project_id = body.get("project_id")
 
     if not value_column:
         return JsonResponse({"error": "value_column is required"}, status=400)
@@ -560,22 +543,92 @@ def analyze_uploaded(request):
                 },
             }
 
+        elif analysis_type in ("bayes_spc_capability", "bayes_spc_changepoint", "bayes_spc_control", "bayes_spc_acceptance"):
+            from .dsw.spc import run_spc_analysis
+            import pandas as pd
+
+            if extracted["type"] == "subgroups":
+                flat_data = [v for sg in extracted["data"] for v in sg]
+            else:
+                flat_data = extracted["data"]
+
+            df = pd.DataFrame({value_column: flat_data})
+            config = dict(body)
+            config["measurement"] = value_column
+            result_dict = run_spc_analysis(df, analysis_type, config)
+
+            evidence_summary = result_dict.get("guide_observation")
+            response_data = {
+                "success": True,
+                "analysis_type": analysis_type,
+                **result_dict,
+                "data_source": {
+                    "filename": parsed.filename,
+                    "value_column": value_column,
+                    "n_points": len(flat_data),
+                },
+            }
+
+        elif analysis_type.startswith("bayes_doe_"):
+            from .bayes_doe import run_bayesian_doe
+            import pandas as pd
+
+            # DOE needs multi-column DataFrame — extract all requested columns
+            factor_columns = body.get("factor_columns", [])
+            response_column = body.get("response_column", "")
+            all_cols = factor_columns + ([response_column] if response_column else [])
+
+            if not all_cols:
+                return JsonResponse(
+                    {"error": "DOE analysis requires factor_columns and response_column"},
+                    status=400,
+                )
+
+            # Build DataFrame from parsed file data
+            raw_data = parsed.raw_data if hasattr(parsed, "raw_data") else None
+            if raw_data is not None and isinstance(raw_data, pd.DataFrame):
+                # Parsed cache has full DataFrame
+                missing = [c for c in all_cols if c not in raw_data.columns]
+                if missing:
+                    return JsonResponse(
+                        {"error": f"Columns not found in file: {missing}"},
+                        status=400,
+                    )
+                df = raw_data[all_cols].copy()
+            else:
+                return JsonResponse(
+                    {"error": "DOE analysis requires a multi-column file upload"},
+                    status=400,
+                )
+
+            config = dict(body)
+            result_dict = run_bayesian_doe(df, analysis_type, config)
+
+            evidence_summary = result_dict.get("guide_observation")
+            response_data = {
+                "success": True,
+                "analysis_type": analysis_type,
+                **result_dict,
+                "data_source": {
+                    "filename": parsed.filename,
+                    "columns": all_cols,
+                    "n_rows": len(df),
+                },
+            }
+
         else:
             return JsonResponse({"error": f"Unknown analysis_type: {analysis_type}"}, status=400)
 
-        # Save evidence to problem if requested
-        if problem_id and evidence_summary:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="analysis",
-                    source=f"SPC {analysis_type.replace('_', ' ').title()} - {parsed.filename}",
-                )
-                problem.save()
-                response_data["evidence_added"] = True
-            except Problem.DoesNotExist:
-                pass
+        # Save evidence to project/problem if requested
+        if (project_id or problem_id) and evidence_summary:
+            from .views import record_tool_evidence
+            record_tool_evidence(
+                request.user, summary=evidence_summary,
+                evidence_type="data_analysis",
+                source=f"SPC {analysis_type.replace('_', ' ').title()} - {parsed.filename}",
+                project_id=project_id, problem_id=problem_id,
+            )
+            response_data["evidence_added"] = True
 
         return JsonResponse(response_data)
 
@@ -619,6 +672,7 @@ def gage_rr(request):
 
     tolerance = body.get("tolerance")
     problem_id = body.get("problem_id")
+    project_id = body.get("project_id")
 
     try:
         # Get data from inline arrays or from cached file upload
@@ -666,24 +720,19 @@ def gage_rr(request):
             tolerance=tolerance,
         )
 
-        # Optionally save as evidence to a problem
-        if problem_id:
-            try:
-                problem = Problem.objects.get(id=problem_id, user=request.user)
-                evidence_summary = (
-                    f"Gage R&R Study: %GRR={result.grr_percent:.1f}% ({result.assessment}). "
-                    f"NDC={result.ndc}. {result.n_parts} parts, {result.n_operators} operators, "
-                    f"{result.n_replicates} replicates."
-                )
-                from .problem_views import write_context_file
-                problem.add_evidence(
-                    summary=evidence_summary,
-                    evidence_type="data_analysis",
-                    source="SPC Gage R&R",
-                )
-                write_context_file(problem)
-            except Problem.DoesNotExist:
-                pass
+        # Optionally save as evidence to a project/problem
+        if project_id or problem_id:
+            evidence_summary = (
+                f"Gage R&R Study: %GRR={result.grr_percent:.1f}% ({result.assessment}). "
+                f"NDC={result.ndc}. {result.n_parts} parts, {result.n_operators} operators, "
+                f"{result.n_replicates} replicates."
+            )
+            from .views import record_tool_evidence
+            record_tool_evidence(
+                request.user, summary=evidence_summary,
+                evidence_type="data_analysis", source="SPC Gage R&R",
+                project_id=project_id, problem_id=problem_id,
+            )
 
         return JsonResponse({
             "success": True,

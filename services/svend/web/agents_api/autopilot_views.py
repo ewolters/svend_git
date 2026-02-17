@@ -21,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_auth
-from .dsw_views import (
+from .dsw.common import (
     _auto_train,
     _build_ml_diagnostics,
     _clean_for_ml,
@@ -131,22 +131,45 @@ def _build_training_interpretation(task, metrics, model_type, y_test, y_pred,
     """Build a plain-language interpretation of ML training results."""
     lines = []
 
+    # Reliability header — prepend when HIGH warnings exist
+    warnings = metrics.get("reliability_warnings", [])
+    high_warnings = [w for w in warnings if w.get("level") == "high"]
+    if high_warnings:
+        lines.append("⚠ Reliability: LOW — metrics likely inflated by imbalance, split issues, or leakage.")
+        lines.append("")
+
     if task == "classification":
         acc = metrics.get("accuracy", 0)
-        f1 = metrics.get("f1", metrics.get("f1_weighted", 0))
+        bal_acc = metrics.get("balanced_accuracy")
+        f1_macro = metrics.get("f1_macro")
 
         # Baseline comparison
-        from collections import Counter
-        class_counts = Counter(y_test)
-        majority_pct = max(class_counts.values()) / len(y_test) if len(y_test) > 0 else 0
+        baseline_acc = metrics.get("baseline_accuracy")
+        if baseline_acc is None:
+            from collections import Counter
+            class_counts = Counter(y_test)
+            baseline_acc = max(class_counts.values()) / len(y_test) if len(y_test) > 0 else 0
+        else:
+            from collections import Counter
+            class_counts = Counter(y_test)
+
+        majority_pct = baseline_acc
         lift = acc - majority_pct
         n_classes = len(class_counts)
 
         lines.append(f"Your {model_type} predicts '{target}' with {acc:.1%} accuracy ({n_classes} classes).")
         lines.append(f"Baseline (always guess majority class): {majority_pct:.1%}. Model lift: {lift:+.1%}.")
 
+        # Balanced accuracy context when imbalanced
+        if bal_acc is not None and majority_pct > 0.70:
+            lines.append(f"Balanced accuracy (mean per-class recall): {bal_acc:.1%} — this is the more honest metric for imbalanced data.")
+        if f1_macro is not None and majority_pct > 0.70:
+            lines.append(f"F1 macro: {f1_macro:.1%} (punishes minority neglect).")
+
         if lift < 0.02:
             lines.append("⚠ Model is barely better than guessing. Consider different features or more data.")
+        elif acc >= 0.99 and majority_pct > 0.80:
+            lines.append("⚠ Perfect scores on imbalanced data usually mean the model ignores the minority class, or the dataset contains target-derived features.")
         elif acc >= 0.95:
             lines.append("✓ Excellent. Verify no data leakage (feature derived from target).")
         elif acc >= 0.85:
@@ -156,10 +179,20 @@ def _build_training_interpretation(task, metrics, model_type, y_test, y_pred,
         else:
             lines.append("Limited performance. The target may be hard to predict with these features.")
 
-        # Class imbalance
+        # Class imbalance — minority class recall
         if majority_pct > 0.8:
             minority = class_counts.most_common()[-1]
-            lines.append(f"⚠ Class imbalance: '{minority[0]}' is only {minority[1]/len(y_test):.0%} of the data. F1 score is more reliable than accuracy here.")
+            lines.append(f"⚠ Class imbalance: '{minority[0]}' is only {minority[1]/len(y_test):.0%} of the data.")
+            per_class = metrics.get("per_class", {})
+            for cls_key, cls_m in per_class.items():
+                # Find minority classes
+                try:
+                    cls_count = class_counts.get(int(cls_key), class_counts.get(cls_key, 0))
+                except (ValueError, TypeError):
+                    cls_count = class_counts.get(cls_key, 0)
+                if cls_count / len(y_test) < 0.20:
+                    r = cls_m.get("recall", 0)
+                    lines.append(f"  → Class '{cls_key}' recall: {r:.0%}" + (" ⚠ model misses most of this class" if r < 0.5 else ""))
 
     elif task == "regression":
         r2 = metrics.get("r2", 0)

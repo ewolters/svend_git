@@ -1743,8 +1743,3 @@ def run_visualization(df, analysis_id, config):
         result["guide_observation"] = f"Bayesian acceptance: {k}/{n_total} defectives, P(p<AQL)={p_accept:.3f}, decision={decision}"
 
     return result
-
-
-@csrf_exempt
-@require_http_methods(["POST"])
-@require_auth
