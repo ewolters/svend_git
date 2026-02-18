@@ -1026,8 +1026,8 @@ def run_statistical_analysis(df, analysis_id, config):
                 },
                 {
                     "type": "scatter",
-                    "x": [theoretical_quantiles.min(), theoretical_quantiles.max()],
-                    "y": [sorted_data.min(), sorted_data.max()],
+                    "x": [float(theoretical_quantiles.min()), float(theoretical_quantiles.max())],
+                    "y": [float(sorted_data.min()), float(sorted_data.max())],
                     "mode": "lines",
                     "line": {"color": "#ff7675", "dash": "dash"},
                     "name": "Reference"
