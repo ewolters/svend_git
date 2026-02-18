@@ -21,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_auth
-from .dsw_views import (
+from .dsw.common import (
     _auto_train,
     _build_ml_diagnostics,
     _clean_for_ml,
