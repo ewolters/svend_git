@@ -13,7 +13,7 @@ from django.conf import settings
 
 from accounts.permissions import gated, require_auth, require_enterprise
 
-from .common import log_agent_action
+from .common import log_agent_action, _preload_llm_background
 
 logger = logging.getLogger(__name__)
 

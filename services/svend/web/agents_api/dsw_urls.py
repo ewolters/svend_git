@@ -3,14 +3,13 @@
 from django.urls import path
 
 from . import autopilot_views as views_auto
-from . import dsw_views as views
+from . import dsw_views as views  # Phase 1: run_analysis wrapper only
 from .dsw.endpoints_ml import (
     dsw_from_intent, dsw_from_data, dsw_download,
     list_models, models_summary, save_model_from_cache,
     download_model, delete_model, run_model, optimize_model,
     model_versions, model_report,
 )
-
 urlpatterns = [
     # Phase 4: ML endpoints now served from dsw/endpoints_ml.py
     path("from-intent/", dsw_from_intent, name="dsw_from_intent"),
@@ -37,7 +36,8 @@ urlpatterns = [
     path("autopilot/augment-train/", views_auto.autopilot_augment_train, name="autopilot_augment_train"),
 
     # Analysis Workbench
-    path("analysis/", views.run_analysis, name="run_analysis"),
+    path("analysis/", views.run_analysis, name="run_analysis"),  # Phase 1 wrapper
+    # Phase 5 reverted — data endpoints back on monolith for testing
     path("execute/", views.execute_code, name="execute_code"),
     path("generate-code/", views.generate_code, name="generate_code"),
     path("upload-data/", views.upload_data, name="upload_data"),
