@@ -130,6 +130,7 @@ Track technical debt here. Review weekly.
 [STATS] bayes_changepoint — replaced CUSUM heuristic with BIC-approximated Bayes Factor scan | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [STATS] Regression SE — pinv fallback + collinearity warning on singular X'X | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [STATS] Logistic regression Fisher info — ridge fallback + warning on singular information matrix (binary + nominal) | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[DSW] Output standardization — descriptive stats restyled, 93+ section dividers standardized, 4 Bayesian analyses given guide_observation + sections + color interpretation | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 
 [DSW] No mixed-effects / multi-level modeling | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending
 [FORECAST] Limited to random walk MC, SMA, exponential smoothing — no Prophet, TBATS, or seasonal methods | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending

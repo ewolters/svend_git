@@ -133,20 +133,27 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>{var1}<</COLOR>> (n={len(x1)}, μ={np.mean(x1):.3f})\n"
         summary += f"<<COLOR:highlight>>{var2}<</COLOR>> (n={len(x2)}, μ={np.mean(x2):.3f})\n\n"
-        summary += f"<<COLOR:text>>Effect Size (Cohen's d):<</COLOR>> {cohens_d:.3f} [{d_ci_low:.3f}, {d_ci_high:.3f}]\n"
-        summary += f"<<COLOR:text>>Bayes Factor (BF10):<</COLOR>> {bf10:.2f}\n\n"
+
+        summary += f"<<COLOR:accent>>── Effect Size ──<</COLOR>>\n"
+        summary += f"  Cohen's d: {cohens_d:.3f} [{d_ci_low:.3f}, {d_ci_high:.3f}]\n\n"
+        summary += f"<<COLOR:accent>>── Bayes Factor ──<</COLOR>>\n"
+        summary += f"  BF₁₀: {bf10:.2f}\n\n"
 
         if bf10 > 10:
-            summary += f"<<COLOR:success>>Strong evidence for difference<</COLOR>>\n"
+            summary += f"<<COLOR:success>>Strong evidence for difference (BF₁₀ > 10)<</COLOR>>\n"
         elif bf10 > 3:
-            summary += f"<<COLOR:warning>>Moderate evidence for difference<</COLOR>>\n"
+            summary += f"<<COLOR:warning>>Moderate evidence for difference (BF₁₀ > 3)<</COLOR>>\n"
         elif bf10 > 1:
-            summary += f"<<COLOR:text>>Weak evidence for difference<</COLOR>>\n"
+            summary += f"<<COLOR:text>>Weak evidence for difference (BF₁₀ < 3)<</COLOR>>\n"
         else:
-            summary += f"<<COLOR:text>>Evidence favors no difference<</COLOR>>\n"
+            summary += f"<<COLOR:text>>Evidence favors no difference (BF₁₀ < 1)<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {"cohens_d": cohens_d, "bf10": bf10, "d_ci_low": d_ci_low, "d_ci_high": d_ci_high}
+
+        # Guide observation
+        bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        result["guide_observation"] = f"Bayesian t-test: d={cohens_d:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence for difference)."
 
         # Posterior distribution plot
         d_range = np.linspace(cohens_d - 3*se_d, cohens_d + 3*se_d, 100)
@@ -292,15 +299,33 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"<<COLOR:title>>BAYESIAN CORRELATION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>{var1}<</COLOR>> vs <<COLOR:highlight>>{var2}<</COLOR>> (n={n})\n\n"
-        summary += f"<<COLOR:text>>Correlation (r):<</COLOR>> {r:.3f} [{r_low:.3f}, {r_high:.3f}]\n"
-        summary += f"<<COLOR:text>>Bayes Factor:<</COLOR>> {bf10:.2f}\n\n"
+
+        summary += f"<<COLOR:accent>>── Correlation ──<</COLOR>>\n"
+        summary += f"  r = {r:.3f} [{r_low:.3f}, {r_high:.3f}]\n\n"
+        summary += f"<<COLOR:accent>>── Bayes Factor ──<</COLOR>>\n"
+        summary += f"  BF₁₀: {bf10:.2f}\n\n"
 
         strength = "strong" if abs(r) > 0.7 else "moderate" if abs(r) > 0.4 else "weak"
         direction = "positive" if r > 0 else "negative"
-        summary += f"<<COLOR:text>>Interpretation: {strength} {direction} correlation<</COLOR>>\n"
+        str_color = "success" if abs(r) > 0.7 else "warning" if abs(r) > 0.4 else "dim"
+        summary += f"<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
+        summary += f"  <<COLOR:{str_color}>>{strength.capitalize()} {direction} correlation<</COLOR>>\n"
+
+        if bf10 > 10:
+            summary += f"  <<COLOR:success>>Strong Bayesian evidence for association (BF₁₀ > 10)<</COLOR>>\n"
+        elif bf10 > 3:
+            summary += f"  <<COLOR:warning>>Moderate Bayesian evidence for association (BF₁₀ > 3)<</COLOR>>\n"
+        elif bf10 > 1:
+            summary += f"  <<COLOR:text>>Weak evidence for association<</COLOR>>\n"
+        else:
+            summary += f"  <<COLOR:text>>Evidence favors no association (BF₁₀ < 1)<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {"r": r, "r_ci_low": r_low, "r_ci_high": r_high, "bf10": bf10}
+
+        # Guide observation
+        bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        result["guide_observation"] = f"Bayesian correlation: r={r:.3f} ({strength} {direction}), BF₁₀={bf10:.2f} ({bf_label} evidence)."
 
         result["plots"].append({
             "title": f"Scatter: {var1} vs {var2}",
@@ -350,25 +375,32 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
         summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({len(group_names)} levels)\n\n"
 
+        summary += f"<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
         for name in group_names:
             g = groups[name]
             summary += f"  {name}: n={len(g)}, μ={np.mean(g):.3f}, σ={np.std(g):.3f}\n"
 
-        summary += f"\n<<COLOR:text>>F-statistic:<</COLOR>> {f_stat:.3f}\n"
-        summary += f"<<COLOR:text>>Effect size (η²):<</COLOR>> {eta_sq:.3f}\n"
-        summary += f"<<COLOR:text>>Bayes Factor (BF₁₀):<</COLOR>> {bf10:.2f}\n\n"
+        summary += f"\n<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
+        summary += f"  F-statistic: {f_stat:.3f}\n"
+        summary += f"  Effect size (η²): {eta_sq:.3f}\n"
+        summary += f"  Bayes Factor (BF₁₀): {bf10:.2f}\n\n"
 
+        summary += f"<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
         if bf10 > 10:
-            summary += f"<<COLOR:success>>Strong evidence for group differences<</COLOR>>\n"
+            summary += f"  <<COLOR:success>>Strong evidence for group differences (BF₁₀ > 10)<</COLOR>>\n"
         elif bf10 > 3:
-            summary += f"<<COLOR:warning>>Moderate evidence for group differences<</COLOR>>\n"
+            summary += f"  <<COLOR:warning>>Moderate evidence for group differences (BF₁₀ > 3)<</COLOR>>\n"
         elif bf10 > 1:
-            summary += f"<<COLOR:text>>Weak evidence for group differences<</COLOR>>\n"
+            summary += f"  <<COLOR:text>>Weak evidence for group differences (BF₁₀ < 3)<</COLOR>>\n"
         else:
-            summary += f"<<COLOR:text>>Evidence favors no group differences (BF₁₀ < 1)<</COLOR>>\n"
+            summary += f"  <<COLOR:text>>Evidence favors no group differences (BF₁₀ < 1)<</COLOR>>\n"
 
         result["summary"] = summary
         result["statistics"] = {"f_stat": f_stat, "eta_squared": eta_sq, "p_value": p_value, "bf10": bf10}
+
+        # Guide observation
+        bf_label = "strong" if bf10 > 10 else "moderate" if bf10 > 3 else "weak" if bf10 > 1 else "no"
+        result["guide_observation"] = f"Bayesian ANOVA: {factor} on {response}, F={f_stat:.3f}, η²={eta_sq:.3f}, BF₁₀={bf10:.2f} ({bf_label} evidence)."
 
         # Box plot
         result["plots"].append({
@@ -447,22 +479,45 @@ def run_bayesian_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}\n"
-        summary += f"<<COLOR:text>>Method: BIC-approximated Bayes Factor scan<</COLOR>>\n\n"
+        summary += f"<<COLOR:dim>>Method: BIC-approximated Bayes Factor scan<</COLOR>>\n\n"
 
         if len(changepoints) > 0:
-            summary += f"<<COLOR:success>>Detected {len(changepoints)} change point(s):<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Change Points ──<</COLOR>>\n"
+            summary += f"  <<COLOR:success>>Detected {len(changepoints)} change point(s)<</COLOR>>\n\n"
             for i, (cp, bf) in enumerate(changepoints):
                 before = data[:cp]
                 after = data[cp:]
-                summary += f"  Point {i+1}: index {cp}, BF₁₀={bf:.1f}"
-                summary += f", before μ={np.mean(before):.3f}, after μ={np.mean(after):.3f}\n"
+                shift = np.mean(after) - np.mean(before)
+                pooled_std = np.sqrt((np.var(before) + np.var(after)) / 2) if len(before) > 1 and len(after) > 1 else 1.0
+                effect_d = abs(shift) / pooled_std if pooled_std > 0 else 0.0
+                summary += f"  Point {i+1}: index {cp}\n"
+                summary += f"    BF₁₀ = {bf:.1f}"
+                summary += f"  |  before μ = {np.mean(before):.4f}, after μ = {np.mean(after):.4f}\n"
+                summary += f"    Shift = {shift:+.4f}  |  Effect size (d) = {effect_d:.2f}\n"
         else:
-            summary += f"<<COLOR:text>>No significant change points detected (BF₁₀ < 3)<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Result ──<</COLOR>>\n"
+            summary += f"  <<COLOR:text>>No significant change points detected (BF₁₀ < 3)<</COLOR>>\n"
+
+        summary += f"\n<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
+        if len(changepoints) > 0:
+            best_bf = max(bf for _, bf in changepoints)
+            if best_bf > 10:
+                summary += f"  <<COLOR:success>>Strong evidence for at least one process shift<</COLOR>>\n"
+            else:
+                summary += f"  <<COLOR:warning>>Moderate evidence for process shift(s)<</COLOR>>\n"
+        else:
+            summary += f"  <<COLOR:text>>Process appears stable — no evidence of mean shifts<</COLOR>>\n"
 
         result["summary"] = summary
         cp_indices = [cp for cp, _ in changepoints]
         cp_bfs = [bf for _, bf in changepoints]
         result["statistics"] = {"n_changepoints": len(changepoints), "changepoint_indices": cp_indices, "bayes_factors": cp_bfs}
+
+        # Guide observation
+        if changepoints:
+            result["guide_observation"] = f"Bayesian changepoint: {len(changepoints)} shift(s) detected in {var}. Best BF₁₀={max(cp_bfs):.1f}."
+        else:
+            result["guide_observation"] = f"Bayesian changepoint: no significant shifts detected in {var} (n={n})."
 
         # Time series plot with change points
         plot_data = [{

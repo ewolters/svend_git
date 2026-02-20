@@ -15,6 +15,16 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-20 — DSW Output Standardization (PBS north-star alignment)
+**Debt item:** [DSW] Output standardization
+**Files changed:**
+- `agents_api/dsw/stats.py` — Descriptive statistics rewritten with PBS-style header/sections/interpretation; 93+ section dividers changed from `<<COLOR:text>>Name:<</COLOR>>` to `<<COLOR:accent>>── Name ──<</COLOR>>`
+- `agents_api/dsw/bayesian.py` — All 4 Bayesian analyses (bayes_ttest, bayes_correlation, bayes_anova, bayes_changepoint) given `<<COLOR:accent>>` section dividers, color-coded interpretations, and `guide_observation` strings; bayes_changepoint given effect size (Cohen's d per shift)
+**Verification:** `python3 manage.py check` — 0 issues
+**Commit:** pending
+
+---
+
 ### 2026-02-20 — Security Audit: P2 Batch 4 (3 fixes + migrations)
 **Debt item:** [SEC] Infrastructure + data integrity
 **Files changed:**

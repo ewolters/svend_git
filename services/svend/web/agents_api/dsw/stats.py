@@ -31,19 +31,62 @@ def run_statistical_analysis(df, analysis_id, config):
             result["summary"] = "No numeric variables found to analyze."
             return result
 
-        desc = df[vars_to_analyze].describe().to_string()
-        result["summary"] = f"Descriptive Statistics:\n\n{desc}"
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>DESCRIPTIVE STATISTICS<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Variables:<</COLOR>> {len(vars_to_analyze)}    "
+        summary += f"<<COLOR:highlight>>Total rows:<</COLOR>> {len(df)}\n\n"
 
         # Add explicit statistics for Synara integration
         result["statistics"] = {}
+        obs_parts = []
+
         for var in vars_to_analyze:
             col = df[var].dropna()
-            result["statistics"][f"mean({var})"] = float(col.mean())
-            result["statistics"][f"std({var})"] = float(col.std())
+            n = len(col)
+            mean = col.mean()
+            std = col.std()
+            median = col.median()
+            skew = col.skew()
+            kurt = col.kurtosis()
+            q1, q3 = col.quantile(0.25), col.quantile(0.75)
+            iqr = q3 - q1
+            missing = len(df[var]) - n
+            cv = (std / abs(mean) * 100) if mean != 0 else float('inf')
+
+            summary += f"<<COLOR:accent>>── {var} ──<</COLOR>>\n"
+            summary += f"  N: {n}"
+            if missing > 0:
+                summary += f"  (<<COLOR:warning>>{missing} missing<</COLOR>>)"
+            summary += f"\n  Mean: {mean:.4f}    Std Dev: {std:.4f}    CV: {cv:.1f}%\n"
+            summary += f"  Median: {median:.4f}    IQR: {iqr:.4f}    [{q1:.4f}, {q3:.4f}]\n"
+            summary += f"  Min: {col.min():.4f}    Max: {col.max():.4f}    Range: {col.max() - col.min():.4f}\n"
+            summary += f"  Skewness: {skew:.3f}    Kurtosis: {kurt:.3f}\n"
+
+            # Distribution shape interpretation
+            if abs(skew) < 0.5:
+                shape = "approximately symmetric"
+            elif skew > 0:
+                shape = f"right-skewed (skew={skew:.2f})"
+            else:
+                shape = f"left-skewed (skew={skew:.2f})"
+
+            if abs(kurt) > 2:
+                shape += ", heavy-tailed" if kurt > 0 else ", light-tailed"
+
+            summary += f"  <<COLOR:dim>>Shape: {shape}<</COLOR>>\n\n"
+
+            result["statistics"][f"mean({var})"] = float(mean)
+            result["statistics"][f"std({var})"] = float(std)
             result["statistics"][f"min({var})"] = float(col.min())
             result["statistics"][f"max({var})"] = float(col.max())
-            result["statistics"][f"median({var})"] = float(col.median())
-            result["statistics"][f"n({var})"] = int(len(col))
+            result["statistics"][f"median({var})"] = float(median)
+            result["statistics"][f"n({var})"] = int(n)
+
+            obs_parts.append(f"{var}: μ={mean:.3f}, σ={std:.3f}, n={n}")
+
+        result["summary"] = summary
+        result["guide_observation"] = f"Descriptive statistics for {len(vars_to_analyze)} variable(s). " + "; ".join(obs_parts[:5])
 
         # Add histogram for each variable
         for var in vars_to_analyze:
@@ -83,11 +126,11 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var1} (n = {n})\n"
         summary += f"<<COLOR:highlight>>Hypothesized mean:<</COLOR>> {mu}\n\n"
-        summary += f"<<COLOR:text>>Sample Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sample Statistics ──<</COLOR>>\n"
         summary += f"  Mean: {x.mean():.4f}\n"
         summary += f"  Std Dev: {x.std():.4f}\n"
         summary += f"  SE Mean: {se:.4f}\n\n"
-        summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  t-statistic: {stat:.4f}\n"
         summary += f"  p-value: {pval:.4f}\n"
         summary += f"  {conf}% CI: ({ci[0]:.4f}, {ci[1]:.4f})\n\n"
@@ -177,7 +220,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:text>>Sample 1:<</COLOR>> {var1} (n = {len(x)}, mean = {x.mean():.4f}, std = {x.std():.4f})\n"
         summary += f"<<COLOR:text>>Sample 2:<</COLOR>> {var2} (n = {len(y)}, mean = {y.mean():.4f}, std = {y.std():.4f})\n\n"
-        summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  Difference of means: {x.mean() - y.mean():.4f}\n"
         summary += f"  t-statistic: {stat:.4f}\n"
         summary += f"  p-value: {pval:.4f}\n"
@@ -282,11 +325,11 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:text>>Sample 1 (Before):<</COLOR>> {var1}\n"
         summary += f"<<COLOR:text>>Sample 2 (After):<</COLOR>> {var2}\n"
-        summary += f"<<COLOR:text>>Pairs:<</COLOR>> {len(x)}\n\n"
-        summary += f"<<COLOR:text>>Difference Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Pairs ──<</COLOR>> {len(x)}\n\n"
+        summary += f"<<COLOR:accent>>── Difference Statistics ──<</COLOR>>\n"
         summary += f"  Mean difference: {diff.mean():.4f}\n"
         summary += f"  Std of differences: {diff.std():.4f}\n\n"
-        summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  t-statistic: {stat:.4f}\n"
         summary += f"  p-value: {pval:.4f}\n"
         _se_diff = diff.std() / np.sqrt(len(diff))
@@ -370,7 +413,7 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += f"<<COLOR:highlight>>Response:<</COLOR>> {response}\n"
             summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor_col}\n\n"
 
-            summary += f"<<COLOR:text>>Group Statistics:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
             for level in df[factor_col].unique():
                 grp = df[df[factor_col] == level][response].dropna()
                 _ci = stats.t.interval(0.95, len(grp)-1, loc=grp.mean(), scale=grp.std()/np.sqrt(len(grp))) if len(grp) > 1 else (grp.mean(), grp.mean())
@@ -388,7 +431,7 @@ def run_statistical_analysis(df, analysis_id, config):
             omega_sq = max(0, omega_sq)
             eta_label, eta_meaningful = _effect_magnitude(eta_sq, "eta_squared")
 
-            summary += f"\n<<COLOR:text>>ANOVA Results:<</COLOR>>\n"
+            summary += f"\n<<COLOR:accent>>── ANOVA Results ──<</COLOR>>\n"
             summary += f"  F-statistic: {stat:.4f}\n"
             summary += f"  p-value: {pval:.4f}\n\n"
 
@@ -469,7 +512,7 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += f"<<COLOR:highlight>>Factor A:<</COLOR>> {factor_a}\n"
             summary += f"<<COLOR:highlight>>Factor B:<</COLOR>> {factor_b}\n\n"
 
-            summary += f"<<COLOR:text>>ANOVA Table:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── ANOVA Table ──<</COLOR>>\n"
             summary += anova_table.to_string() + "\n\n"
 
             # Compute partial eta-squared and interpret each factor
@@ -912,7 +955,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:title>>CORRELATION ANALYSIS ({method.upper()})<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variables:<</COLOR>> {', '.join(numeric_cols)}\n\n"
-        summary += "<<COLOR:text>>Correlation Matrix:<</COLOR>>\n"
+        summary += "<<COLOR:accent>>── Correlation Matrix ──<</COLOR>>\n"
         summary += corr_matrix.to_string() + "\n"
 
         # Find and report strongest correlations with practical interpretation
@@ -1084,7 +1127,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Row Variable:<</COLOR>> {row_var}\n"
         summary += f"<<COLOR:highlight>>Column Variable:<</COLOR>> {col_var}\n\n"
 
-        summary += f"<<COLOR:text>>Contingency Table (Observed):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Contingency Table (Observed) ──<</COLOR>>\n"
         summary += contingency.to_string() + "\n\n"
 
         # Cramér's V effect size
@@ -1093,7 +1136,7 @@ def run_statistical_analysis(df, analysis_id, config):
         cramers_v = np.sqrt(chi2 / (n_obs * min_dim)) if (n_obs > 0 and min_dim > 0) else 0.0
         v_label, v_meaningful = _effect_magnitude(cramers_v, "cramers_v")
 
-        summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  Chi-square statistic: {chi2:.4f}\n"
         summary += f"  Degrees of freedom: {dof}\n"
         summary += f"  p-value: {pval:.4f}\n"
@@ -1207,11 +1250,11 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += f"<<COLOR:highlight>>Event:<</COLOR>> {event}\n"
         summary += f"<<COLOR:highlight>>H₀:<</COLOR>> p = {p0}\n"
         summary += f"<<COLOR:highlight>>H₁:<</COLOR>> p {'≠' if alt == 'two-sided' else '>' if alt == 'greater' else '<'} {p0}\n\n"
-        summary += f"<<COLOR:text>>Sample Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sample Results ──<</COLOR>>\n"
         summary += f"  N: {n}\n"
         summary += f"  Successes: {x}\n"
         summary += f"  p̂: {p_hat:.4f}\n\n"
-        summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  Z-statistic: {z_stat:.4f}\n"
         summary += f"  p-value: {p_val:.4f}\n"
         summary += f"  {100*(1-alpha):.0f}% CI (Wilson): ({ci_lo:.4f}, {ci_hi:.4f})\n\n"
@@ -1302,14 +1345,14 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {group_var}\n\n"
 
-        summary += f"<<COLOR:text>>Sample Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sample Results ──<</COLOR>>\n"
         summary += f"  {'Group':<15} {'N':>6} {'Events':>8} {'Proportion':>12}\n"
         summary += f"  {'─' * 45}\n"
         summary += f"  {str(groups[0]):<15} {n1:>6} {x1:>8} {p1:>12.4f}\n"
         summary += f"  {str(groups[1]):<15} {n2:>6} {x2:>8} {p2:>12.4f}\n\n"
-        summary += f"<<COLOR:text>>Difference (p₁ − p₂):<</COLOR>> {diff:.4f}\n"
+        summary += f"<<COLOR:accent>>── Difference (p₁ − p₂) ──<</COLOR>> {diff:.4f}\n"
         summary += f"<<COLOR:text>>{100*(1-alpha):.0f}% CI for difference:<</COLOR>> ({ci_lo:.4f}, {ci_hi:.4f})\n\n"
-        summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  Z-statistic: {z_stat:.4f}\n"
         summary += f"  p-value: {p_val:.4f}\n\n"
 
@@ -1392,11 +1435,11 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Row variable:<</COLOR>> {var1}\n"
         summary += f"<<COLOR:highlight>>Column variable:<</COLOR>> {var2}\n\n"
 
-        summary += f"<<COLOR:text>>2×2 Contingency Table:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── 2×2 Contingency Table ──<</COLOR>>\n"
         summary += f"  {'':>15} {str(ct.columns[0]):>10} {str(ct.columns[1]):>10}\n"
         summary += f"  {str(ct.index[0]):>15} {a:>10} {b:>10}\n"
         summary += f"  {str(ct.index[1]):>15} {c:>10} {d:>10}\n\n"
-        summary += f"<<COLOR:text>>Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Results ──<</COLOR>>\n"
         summary += f"  Odds Ratio: {odds_ratio:.4f}\n"
         summary += f"  {100*(1-alpha):.0f}% CI: ({or_ci_lo:.4f}, {or_ci_hi:.4f})\n"
         summary += f"  p-value (exact): {p_val:.4f}\n\n"
@@ -1485,11 +1528,11 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>H₀:<</COLOR>> rate = {rate0}\n"
         summary += f"<<COLOR:highlight>>Exposure:<</COLOR>> {exposure}\n\n"
-        summary += f"<<COLOR:text>>Sample Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sample Results ──<</COLOR>>\n"
         summary += f"  Total count: {total_count:.0f}\n"
         summary += f"  Observed rate: {observed_rate:.4f}\n"
         summary += f"  Expected count (under H₀): {expected_count:.1f}\n\n"
-        summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  p-value (exact): {p_val:.4f}\n"
         summary += f"  {100*(1-alpha):.0f}% CI for rate: ({ci_lo:.4f}, {ci_hi:.4f})\n\n"
 
@@ -1600,11 +1643,11 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
             summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var1}\n"
             summary += f"<<COLOR:highlight>>H₀:<</COLOR>> σ = {sigma0}\n\n"
-            summary += f"<<COLOR:text>>Sample Results:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Sample Results ──<</COLOR>>\n"
             summary += f"  N: {n}\n"
             summary += f"  Sample std dev: {s:.4f}\n"
             summary += f"  Sample variance: {s2:.4f}\n\n"
-            summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
             summary += f"  Chi-square statistic: {chi2_stat:.4f}\n"
             summary += f"  df: {n - 1}\n"
             summary += f"  p-value: {p_val:.4f}\n"
@@ -1642,13 +1685,13 @@ def run_statistical_analysis(df, analysis_id, config):
             else:
                 summary += f"<<COLOR:highlight>>Columns:<</COLOR>> {var1}, {var2}\n\n"
 
-            summary += f"<<COLOR:text>>Sample Statistics:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Sample Statistics ──<</COLOR>>\n"
             summary += f"  {'Group':<20} {'N':>6} {'StDev':>10} {'Variance':>12}\n"
             summary += f"  {'─' * 50}\n"
             for lbl, n_i, s_i, v_i in zip(groups_labels, ns, stds, variances):
                 summary += f"  {str(lbl):<20} {n_i:>6} {s_i:>10.4f} {v_i:>12.4f}\n"
 
-            summary += f"\n<<COLOR:text>>Test Results:<</COLOR>>\n"
+            summary += f"\n<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
             summary += f"  {'Test':<25} {'Statistic':>12} {'p-value':>10}\n"
             summary += f"  {'─' * 50}\n"
             summary += f"  {'Bartlett (normal data)':<25} {bart_stat:>12.4f} {bart_p:>10.4f}\n"
@@ -1672,7 +1715,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 ratio_hi = f_stat / f_lo
                 summary += f"\n  {conf_pct:.0f}% CI for σ₁²/σ₂²: ({ratio_lo:.4f}, {ratio_hi:.4f})\n"
 
-            summary += f"\n<<COLOR:text>>Recommendation:<</COLOR>>\n"
+            summary += f"\n<<COLOR:accent>>── Recommendation ──<</COLOR>>\n"
             summary += f"  Use Levene's test (robust to non-normality).\n"
             summary += f"  Bartlett's test is more powerful but assumes normal data.\n\n"
 
@@ -1798,16 +1841,16 @@ def run_statistical_analysis(df, analysis_id, config):
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>TWO-SAMPLE POISSON RATE TEST<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:text>>Sample Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sample Results ──<</COLOR>>\n"
         summary += f"  {'Group':<20} {'Count':>8} {'Exposure':>10} {'Rate':>10}\n"
         summary += f"  {'─' * 52}\n"
         summary += f"  {label1:<20} {c1:>8.0f} {e1:>10.1f} {r1:>10.4f}\n"
         summary += f"  {label2:<20} {c2:>8.0f} {e2:>10.1f} {r2:>10.4f}\n\n"
-        summary += f"<<COLOR:text>>Rate Ratio (r₁/r₂):<</COLOR>> {rate_ratio:.4f}\n"
+        summary += f"<<COLOR:accent>>── Rate Ratio (r₁/r₂) ──<</COLOR>> {rate_ratio:.4f}\n"
         summary += f"<<COLOR:text>>{conf_pct:.0f}% CI for ratio:<</COLOR>> ({rr_lo:.4f}, {rr_hi:.4f})\n"
-        summary += f"<<COLOR:text>>Rate Difference (r₁ − r₂):<</COLOR>> {diff:.4f}\n"
+        summary += f"<<COLOR:accent>>── Rate Difference (r₁ − r₂) ──<</COLOR>> {diff:.4f}\n"
         summary += f"<<COLOR:text>>{conf_pct:.0f}% CI for difference:<</COLOR>> ({diff_lo:.4f}, {diff_hi:.4f})\n\n"
-        summary += f"<<COLOR:text>>Exact Conditional Test:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Exact Conditional Test ──<</COLOR>>\n"
         summary += f"  p-value: {p_val:.4f}\n\n"
 
         if p_val < alpha:
@@ -1941,12 +1984,12 @@ def run_statistical_analysis(df, analysis_id, config):
                 summary += f"<<COLOR:highlight>>Defect value:<</COLOR>> {event}\n"
         summary += f"<<COLOR:highlight>>Opportunities per unit:<</COLOR>> {opp:.0f}\n\n"
 
-        summary += f"<<COLOR:text>>Summary:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Summary ──<</COLOR>>\n"
         summary += f"  Total units inspected: {n:.0f}\n"
         summary += f"  Total defects: {d:.0f}\n"
         summary += f"  Total opportunities: {n * opp:.0f}\n\n"
 
-        summary += f"<<COLOR:text>>Capability Metrics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Capability Metrics ──<</COLOR>>\n"
         summary += f"  {'Metric':<30} {'Value':>12}\n"
         summary += f"  {'─' * 44}\n"
         summary += f"  {'DPU (defects per unit)':<30} {dpu:>12.4f}\n"
@@ -2062,18 +2105,18 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var} (n = {n})\n"
         summary += f"<<COLOR:highlight>>Specs:<</COLOR>> LSL = {lsl}, USL = {usl}, Target = {target}\n\n"
 
-        summary += f"<<COLOR:text>>Normality Test (Anderson-Darling):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Normality Test (Anderson-Darling) ──<</COLOR>>\n"
         summary += f"  AD statistic: {ad_stat:.4f}\n"
         summary += f"  5% critical value: {ad_crit[2]:.4f}\n"
         summary += f"  Data is {'normal' if is_normal else '<<COLOR:warning>>non-normal<</COLOR>>'}\n\n"
 
-        summary += f"<<COLOR:text>>Comparison — Normal vs Nonparametric:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Comparison — Normal vs Nonparametric ──<</COLOR>>\n"
         summary += f"  {'Method':<25} {'Cp/Cnp':>10} {'Cpk/Cnpk':>10}\n"
         summary += f"  {'─' * 48}\n"
         summary += f"  {'Normal assumption':<25} {cp_normal:>10.3f} {cpk_normal:>10.3f}\n"
         summary += f"  {'Nonparametric (percentile)':<25} {cnp:>10.3f} {cnpk:>10.3f}\n\n"
 
-        summary += f"<<COLOR:text>>Nonparametric Details:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Nonparametric Details ──<</COLOR>>\n"
         summary += f"  Median: {median_val:.4f}\n"
         summary += f"  0.135th percentile: {p_low:.4f}\n"
         summary += f"  99.865th percentile: {p_high:.4f}\n"
@@ -2190,7 +2233,7 @@ def run_statistical_analysis(df, analysis_id, config):
 
         # Coefficients per class (vs reference)
         pred_names = list(X.columns)
-        summary += f"<<COLOR:text>>Coefficients (vs reference '{ref_class}'):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Coefficients (vs reference '{ref_class}') ──<</COLOR>>\n"
         summary += f"  {'Predictor':<25}"
         for cls in class_names[1:]:
             summary += f" {str(cls):>12}"
@@ -2222,7 +2265,7 @@ def run_statistical_analysis(df, analysis_id, config):
         except Exception:
             _nom_se_warning = True
 
-        summary += f"\n<<COLOR:text>>Odds Ratios (exp(coef)):<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Odds Ratios (exp(coef)) ──<</COLOR>>\n"
         if _nom_se_warning:
             summary += f"<<COLOR:danger>>⚠ Near-singular Fisher information for some classes — SEs are approximate<</COLOR>>\n"
         _has_ci = len(_nom_se) > 0
@@ -2247,7 +2290,7 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += "\n"
 
         # Confusion matrix
-        summary += f"\n<<COLOR:text>>Confusion Matrix:<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Confusion Matrix ──<</COLOR>>\n"
         _cm_header = "Actual \\ Pred"
         summary += f"  {_cm_header:<15}"
         for cls in class_names:
@@ -2376,14 +2419,14 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>X:<</COLOR>> {var_x}  |  <<COLOR:highlight>>Y:<</COLOR>> {var_y}\n"
         summary += f"<<COLOR:highlight>>Error ratio (delta):<</COLOR>> {delta}\n"
         summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
-        summary += f"<<COLOR:text>>Deming Regression Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Deming Regression Results ──<</COLOR>>\n"
         summary += f"  Slope:     {b1_deming:>10.4f}  ({ci_slope[0]:.4f}, {ci_slope[1]:.4f})\n"
         summary += f"  Intercept: {b0_deming:>10.4f}  ({ci_intercept[0]:.4f}, {ci_intercept[1]:.4f})\n"
         summary += f"  R-squared: {r_squared:>10.4f}\n\n"
-        summary += f"<<COLOR:text>>OLS Comparison:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── OLS Comparison ──<</COLOR>>\n"
         summary += f"  Slope:     {b1_ols:>10.4f}\n"
         summary += f"  Intercept: {b0_ols:>10.4f}\n\n"
-        summary += f"<<COLOR:text>>Interpretation:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
         if abs(b1_deming - 1.0) < 0.1 and abs(b0_deming) < (np.std(y) * 0.1):
             summary += f"  <<COLOR:good>>Methods show good agreement (slope ~ 1, intercept ~ 0).<</COLOR>>\n"
         elif abs(b1_deming - 1.0) < 0.1:
@@ -2516,12 +2559,12 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Model:<</COLOR>> {model_type}\n"
         summary += f"<<COLOR:highlight>>X:<</COLOR>> {var_x}  |  <<COLOR:highlight>>Y:<</COLOR>> {var_y}\n"
         summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
-        summary += f"<<COLOR:text>>Fitted Parameters:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Fitted Parameters ──<</COLOR>>\n"
         summary += f"  {'Parameter':<12} {'Estimate':>12} {'Std Error':>12}\n"
         summary += f"  {'-' * 38}\n"
         for name, val, se in zip(param_names, popt, perr):
             summary += f"  {name:<12} {float(val):>12.6f} {float(se):>12.6f}\n"
-        summary += f"\n<<COLOR:text>>Goodness of Fit:<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Goodness of Fit ──<</COLOR>>\n"
         summary += f"  R-squared: {r_squared:.4f}\n"
         summary += f"  RMSE:      {rmse:.4f}\n"
         summary += f"  AIC:       {aic:.2f}\n"
@@ -2607,16 +2650,16 @@ def run_statistical_analysis(df, analysis_id, config):
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>VARIABLES ACCEPTANCE SAMPLING PLAN<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:text>>Plan Parameters:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Plan Parameters ──<</COLOR>>\n"
         summary += f"  AQL (Acceptable Quality Level):         {aql}%\n"
         summary += f"  LTPD (Lot Tolerance Pct Defective):     {ltpd}%\n"
         summary += f"  Producer's risk (alpha):                {alpha_risk}\n"
         summary += f"  Consumer's risk (beta):                 {beta_risk}\n"
         summary += f"  Lot size:                               {lot_size}\n\n"
-        summary += f"<<COLOR:text>>Sampling Plan:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sampling Plan ──<</COLOR>>\n"
         summary += f"  <<COLOR:highlight>>Sample size (n):<</COLOR>>      {n_sample}\n"
         summary += f"  <<COLOR:highlight>>Critical value (k):<</COLOR>>   {k_val:.4f}\n\n"
-        summary += f"<<COLOR:text>>Decision Rule ({spec_type} spec):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Decision Rule ({spec_type} spec) ──<</COLOR>>\n"
         if spec_type == "lower" and lsl_vs is not None:
             summary += f"  Accept if: (xbar - {lsl_vs}) / s >= {k_val:.4f}\n"
         elif spec_type == "upper" and usl_vs is not None:
@@ -2632,7 +2675,7 @@ def run_statistical_analysis(df, analysis_id, config):
             col_vs = df[var_vs].dropna().values.astype(float)
             x_bar_vs = float(np.mean(col_vs))
             s_vs = float(np.std(col_vs, ddof=1))
-            summary += f"\n<<COLOR:text>>Sample Evaluation:<</COLOR>>\n"
+            summary += f"\n<<COLOR:accent>>── Sample Evaluation ──<</COLOR>>\n"
             summary += f"  n: {len(col_vs)},  xbar: {x_bar_vs:.4f},  s: {s_vs:.4f}\n"
             if lsl_vs is not None:
                 z_lsl = (x_bar_vs - float(lsl_vs)) / s_vs if s_vs > 0 else 0
@@ -2748,14 +2791,14 @@ def run_statistical_analysis(df, analysis_id, config):
                 summary_pr += f"<<COLOR:highlight>>Offset (exposure):<</COLOR>> log({offset_col_pr})\n"
             summary_pr += f"<<COLOR:highlight>>N:<</COLOR>> {n_pr}\n\n"
 
-            summary_pr += f"<<COLOR:text>>Coefficients:<</COLOR>>\n"
+            summary_pr += f"<<COLOR:accent>>── Coefficients ──<</COLOR>>\n"
             summary_pr += f"{'Term':<25} {'Coef':>8} {'SE':>8} {'z':>8} {'p':>8} {'IRR':>8} {'95% CI':>16}\n"
             summary_pr += f"{'─' * 97}\n"
             for c in coefs_pr:
                 sig = "<<COLOR:good>>*<</COLOR>>" if c["p"] < 0.05 else " "
                 summary_pr += f"{c['name']:<25} {c['coef']:>8.4f} {c['se']:>8.4f} {c['z']:>8.3f} {c['p']:>8.4f} {c['irr']:>8.3f} [{c['irr_lo']:.3f}, {c['irr_hi']:.3f}] {sig}\n"
 
-            summary_pr += f"\n<<COLOR:text>>Model Fit:<</COLOR>>\n"
+            summary_pr += f"\n<<COLOR:accent>>── Model Fit ──<</COLOR>>\n"
             summary_pr += f"  Deviance: {dev_pr:.2f}  (df={df_resid_pr})\n"
             summary_pr += f"  Pearson χ²: {pearson_chi2_pr:.2f}\n"
             summary_pr += f"  Dispersion (Dev/df): {dispersion_pr:.3f}"
@@ -2986,16 +3029,16 @@ def run_statistical_analysis(df, analysis_id, config):
         summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>PROCESS CAPABILITY SIXPACK -- {var_cs}<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:text>>Specifications:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Specifications ──<</COLOR>>\n"
         if lsl_val is not None:
             summary += f"  LSL: {lsl_val}\n"
         if usl_val is not None:
             summary += f"  USL: {usl_val}\n"
         if target_val is not None:
             summary += f"  Target: {target_val}\n"
-        summary += f"\n<<COLOR:text>>Process Stats:<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Process Stats ──<</COLOR>>\n"
         summary += f"  N: {n_cs},  Mean: {x_bar_cs:.4f},  StDev: {s_cs:.4f}\n\n"
-        summary += f"<<COLOR:text>>Capability Indices:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Capability Indices ──<</COLOR>>\n"
         if cp_val is not None:
             summary += f"  Cp:  {cp_val:.3f}\n"
         summary += f"  Cpk: {cpk_val:.3f}\n"
@@ -3003,7 +3046,7 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += f"  CPL: {cpl_val:.3f}\n"
         if cpu_val is not None:
             summary += f"  CPU: {cpu_val:.3f}\n"
-        summary += f"\n<<COLOR:text>>Expected PPM:<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Expected PPM ──<</COLOR>>\n"
         if lsl_val is not None:
             summary += f"  Below LSL: {ppm_below:.1f}\n"
         if usl_val is not None:
@@ -3228,7 +3271,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Alpha:<</COLOR>> {alpha_anom}\n\n"
         summary += f"<<COLOR:text>>Grand Mean:<</COLOR>> {grand_mean:.4f}\n"
         summary += f"<<COLOR:text>>MSE (within):<</COLOR>> {mse_anom:.4f}\n\n"
-        summary += f"<<COLOR:text>>Group Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Results ──<</COLOR>>\n"
         summary += f"  {'Group':<15} {'N':>5} {'Mean':>10} {'UDL':>10} {'LDL':>10} {'Signal':>8}\n"
         summary += f"  {'-' * 60}\n"
         for i in range(k_anom):
@@ -3397,7 +3440,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 summary_sp += f"<<COLOR:highlight>>Block (whole-plot ID):<</COLOR>> {block_col_sp}\n"
             summary_sp += f"<<COLOR:highlight>>N:<</COLOR>> {len(data_sp)}\n\n"
 
-            summary_sp += f"<<COLOR:text>>ANOVA Table:<</COLOR>>\n"
+            summary_sp += f"<<COLOR:accent>>── ANOVA Table ──<</COLOR>>\n"
             summary_sp += f"{'Source':<30} {'SS':>10} {'df':>4} {'MS':>10} {'F':>8} {'p':>8} {'%Contrib':>8} {'Error Term':<12}\n"
             summary_sp += f"{'─' * 95}\n"
             for r in anova_rows:
@@ -3559,7 +3602,7 @@ def run_statistical_analysis(df, analysis_id, config):
             summary_rm += f"<<COLOR:highlight>>Within-subject factor:<</COLOR>> {within_factor} ({k_rm} levels)\n"
             summary_rm += f"<<COLOR:highlight>>Subjects:<</COLOR>> {n_complete}\n\n"
 
-            summary_rm += f"<<COLOR:text>>Within-Subjects ANOVA:<</COLOR>>\n"
+            summary_rm += f"<<COLOR:accent>>── Within-Subjects ANOVA ──<</COLOR>>\n"
             summary_rm += f"{'Source':<25} {'SS':>10} {'df':>4} {'MS':>10} {'F':>8} {'p':>8}\n"
             summary_rm += f"{'─' * 70}\n"
             sig_mark = " <<COLOR:good>>*<</COLOR>>" if p_val_rm < 0.05 else ""
@@ -3567,25 +3610,25 @@ def run_statistical_analysis(df, analysis_id, config):
             summary_rm += f"{'Error':<25} {ss_error_rm:>10.2f} {df_error_rm:>4} {ms_error_rm:>10.3f}\n"
 
             if k_rm > 2:
-                summary_rm += f"\n<<COLOR:text>>Mauchly's Test of Sphericity:<</COLOR>>\n"
+                summary_rm += f"\n<<COLOR:accent>>── Mauchly's Test of Sphericity ──<</COLOR>>\n"
                 summary_rm += f"  W = {W_mauchly:.4f},  χ² = {chi2_mauchly:.3f},  p = {p_mauchly:.4f}\n"
                 if p_mauchly < 0.05:
                     summary_rm += f"  <<COLOR:warning>>Sphericity violated — use corrected tests below<</COLOR>>\n"
                 else:
                     summary_rm += f"  <<COLOR:good>>Sphericity assumption met<</COLOR>>\n"
 
-                summary_rm += f"\n<<COLOR:text>>Epsilon Corrections:<</COLOR>>\n"
+                summary_rm += f"\n<<COLOR:accent>>── Epsilon Corrections ──<</COLOR>>\n"
                 summary_rm += f"  Greenhouse-Geisser ε = {gg_epsilon:.4f}  →  p = {p_gg:.4f}\n"
                 summary_rm += f"  Huynh-Feldt ε = {hf_epsilon:.4f}  →  p = {p_hf:.4f}\n"
 
             # Condition means
-            summary_rm += f"\n<<COLOR:text>>Condition Means:<</COLOR>>\n"
+            summary_rm += f"\n<<COLOR:accent>>── Condition Means ──<</COLOR>>\n"
             for ci, cond in enumerate(pivot_rm.columns):
                 summary_rm += f"  {cond}: {cond_means[ci]:.4f} (SD = {np.std(Y_rm[:, ci], ddof=1):.4f})\n"
 
             # Partial eta-squared
             eta_sq = ss_condition / (ss_condition + ss_error_rm) if (ss_condition + ss_error_rm) > 0 else 0
-            summary_rm += f"\n<<COLOR:text>>Effect Size:<</COLOR>> partial η² = {eta_sq:.4f}\n"
+            summary_rm += f"\n<<COLOR:accent>>── Effect Size ──<</COLOR>> partial η² = {eta_sq:.4f}\n"
 
             result["summary"] = summary_rm
 
@@ -4203,7 +4246,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Max Lags:<</COLOR>> {max_lag}\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {min_len}\n\n"
 
-        summary += f"<<COLOR:text>>Interpretation:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Interpretation ──<</COLOR>>\n"
         summary += f"  If p < 0.05, past values of {var_x} help predict {var_y}\n"
         summary += f"  beyond what {var_y}'s own past provides.\n\n"
 
@@ -4216,7 +4259,7 @@ def run_statistical_analysis(df, analysis_id, config):
             gc_results = grangercausalitytests(data_matrix, maxlag=max_lag, verbose=False)
             sys.stdout = old_stdout
 
-            summary += f"<<COLOR:text>>Results by Lag:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Results by Lag ──<</COLOR>>\n"
             summary += f"{'Lag':<6} {'F-stat':<12} {'p-value':<12} {'Significant':<12}\n"
             summary += f"{'-'*42}\n"
 
@@ -4352,7 +4395,7 @@ def run_statistical_analysis(df, analysis_id, config):
             if change_points and change_points[-1] == n:
                 change_points = change_points[:-1]
 
-            summary += f"<<COLOR:text>>Change Points Detected:<</COLOR>> {len(change_points)}\n\n"
+            summary += f"<<COLOR:accent>>── Change Points Detected ──<</COLOR>> {len(change_points)}\n\n"
 
             if change_points:
                 summary += f"<<COLOR:accent>>{'─' * 50}<</COLOR>>\n"
@@ -4467,11 +4510,11 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {groups[0]} (n={n1}) vs {groups[1]} (n={n2})\n\n"
 
-        summary += f"<<COLOR:text>>Group Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
         summary += f"  {groups[0]}: median = {group1.median():.4f}, mean rank = {stats.rankdata(np.concatenate([group1, group2]))[:n1].mean():.1f}\n"
         summary += f"  {groups[1]}: median = {group2.median():.4f}, mean rank = {stats.rankdata(np.concatenate([group1, group2]))[n1:].mean():.1f}\n\n"
 
-        summary += f"<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  U statistic: {stat:.2f}\n"
         summary += f"  p-value: {pval:.4f}\n"
         summary += f"  Effect size (r): {effect_size:.3f}\n"
@@ -4530,7 +4573,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {len(groups)} levels of {group_var}\n"
         summary += f"<<COLOR:highlight>>Total N:<</COLOR>> {n_total}\n\n"
 
-        summary += f"<<COLOR:text>>Group Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
         for g, gdata in zip(groups, group_data):
             _n_g = len(gdata)
             _med = np.median(gdata)
@@ -4542,7 +4585,7 @@ def run_statistical_analysis(df, analysis_id, config):
             else:
                 summary += f"  {g}: n={_n_g}, median={_med:.4f}\n"
 
-        summary += f"\n<<COLOR:text>>Test Results:<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Test Results ──<</COLOR>>\n"
         summary += f"  H statistic: {stat:.4f}\n"
         summary += f"  p-value: {pval:.4f}\n"
         summary += f"  ε² (effect size): {epsilon_sq:.4f}\n\n"
@@ -4618,7 +4661,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Pair:<</COLOR>> {var1} vs {var2}\n"
         summary += f"<<COLOR:highlight>>N pairs:<</COLOR>> {min_len}\n\n"
-        summary += f"<<COLOR:text>>Differences (var1 - var2):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Differences (var1 - var2) ──<</COLOR>>\n"
         summary += f"  Median diff: {np.median(diffs):.4f}\n"
         summary += f"  Mean diff:   {np.mean(diffs):.4f}\n"
         summary += f"  Std diff:    {np.std(diffs, ddof=1):.4f}\n\n"
@@ -4814,7 +4857,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Factors:<</COLOR>> {', '.join(factors)}\n"
         summary += f"<<COLOR:highlight>>Grand Mean:<</COLOR>> {y.mean():.4f}\n\n"
 
-        summary += f"<<COLOR:text>>Effect Sizes (deviation from grand mean):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Effect Sizes (deviation from grand mean) ──<</COLOR>>\n"
 
         colors = ['#4a9f6e', '#47a5e8', '#e89547', '#9f4a4a', '#6c5ce7']
 
@@ -4882,7 +4925,7 @@ def run_statistical_analysis(df, analysis_id, config):
         # Calculate interaction means
         interaction_means = df.groupby([factor1, factor2])[response].mean().unstack()
 
-        summary += f"<<COLOR:text>>Cell Means:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Cell Means ──<</COLOR>>\n"
         summary += interaction_means.to_string() + "\n\n"
 
         # Check for interaction (compare slopes)
@@ -5012,7 +5055,7 @@ def run_statistical_analysis(df, analysis_id, config):
             except Exception:
                 _logistic_se_warning = "singular Fisher information matrix — cannot compute SEs. Check for perfect separation or collinear predictors"
 
-        summary += f"<<COLOR:text>>Coefficients & Odds Ratios:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Coefficients & Odds Ratios ──<</COLOR>>\n"
         if _logistic_se_warning:
             summary += f"<<COLOR:danger>>⚠ {_logistic_se_warning}<</COLOR>>\n"
         if _se_coefs is not None:
@@ -5028,7 +5071,7 @@ def run_statistical_analysis(df, analysis_id, config):
             for pred, coef, odds in zip(predictors, coefs, odds_ratios):
                 summary += f"  {pred:<20} {coef:>10.4f} {odds:>12.4f}\n"
 
-        summary += f"\n<<COLOR:text>>Confusion Matrix:<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Confusion Matrix ──<</COLOR>>\n"
         summary += f"  Predicted:    0      1\n"
         summary += f"  Actual 0:  {cm[0,0]:>4}   {cm[0,1]:>4}\n"
         summary += f"  Actual 1:  {cm[1,0]:>4}   {cm[1,1]:>4}\n"
@@ -5118,7 +5161,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {groups[0]} vs {groups[1]}\n\n"
-        summary += f"<<COLOR:text>>Group Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
         summary += f"  {groups[0]}: n={n1}, variance={var1:.4f}, StDev={np.sqrt(var1):.4f}\n"
         summary += f"  {groups[1]}: n={n2}, variance={var2:.4f}, StDev={np.sqrt(var2):.4f}\n\n"
         summary += f"<<COLOR:highlight>>F statistic:<</COLOR>> {F:.4f}\n"
@@ -5198,7 +5241,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {groups[0]} vs {groups[1]}\n"
         summary += f"<<COLOR:highlight>>Equivalence margin:<</COLOR>> ±{margin}\n\n"
-        summary += f"<<COLOR:text>>Group Means:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Means ──<</COLOR>>\n"
         summary += f"  {groups[0]}: {mean1:.4f} (n={n1})\n"
         summary += f"  {groups[1]}: {mean2:.4f} (n={n2})\n"
         summary += f"  Difference: {diff:.4f}\n\n"
@@ -5282,7 +5325,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}\n\n"
-        summary += f"<<COLOR:text>>Run Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Run Statistics ──<</COLOR>>\n"
         summary += f"  Observed runs: {n_runs}\n"
         summary += f"  Expected runs: {expected_runs:.2f}\n"
         summary += f"  Above median: {n_pos}\n"
@@ -5368,11 +5411,11 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>H₀ Median:<</COLOR>> {h0_median}\n\n"
-        summary += f"<<COLOR:text>>Sample Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sample Statistics ──<</COLOR>>\n"
         summary += f"  N: {len(data)}\n"
         summary += f"  Sample median: {sample_median:.4f}\n"
         summary += f"  95% CI: [{ci_lower:.4f}, {ci_upper:.4f}]\n\n"
-        summary += f"<<COLOR:text>>Sign Counts:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sign Counts ──<</COLOR>>\n"
         summary += f"  Above H₀: {above}\n"
         summary += f"  Below H₀: {below}\n"
         summary += f"  Ties (excluded): {ties}\n\n"
@@ -5433,10 +5476,10 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Response:<</COLOR>> {var}\n"
         summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {group_col}\n"
         summary += f"<<COLOR:highlight>>Grand Median:<</COLOR>> {grand_median:.4f}\n\n"
-        summary += f"<<COLOR:text>>Group Medians:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Medians ──<</COLOR>>\n"
         for g, m in group_medians.items():
             summary += f"  {g}: {m:.4f}\n"
-        summary += f"\n<<COLOR:text>>Contingency Table (above/at-or-below grand median):<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Contingency Table (above/at-or-below grand median) ──<</COLOR>>\n"
         summary += f"  {'Group':<15} {'Above':>8} {'At/Below':>10} {'N':>6}\n"
         summary += f"  {'-'*42}\n"
         for j, g in enumerate(groups):
@@ -5644,7 +5687,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Model:<</COLOR>> ARIMA({p},{d},{q})\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {len(data)}\n\n"
 
-        summary += f"<<COLOR:text>>Stationarity Test (ADF):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Stationarity Test (ADF) ──<</COLOR>>\n"
         summary += f"  ADF Statistic: {adf_stat:.4f}\n"
         summary += f"  p-value: {adf_pval:.4f}\n"
         summary += f"  {'Stationary' if adf_pval < 0.05 else 'Non-stationary (differencing recommended)'}\n\n"
@@ -5654,7 +5697,7 @@ def run_statistical_analysis(df, analysis_id, config):
             fitted = model.fit()
 
             # Model summary
-            summary += f"<<COLOR:text>>Model Parameters:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Model Parameters ──<</COLOR>>\n"
             summary += f"  AIC: {fitted.aic:.2f}\n"
             summary += f"  BIC: {fitted.bic:.2f}\n\n"
 
@@ -5663,7 +5706,7 @@ def run_statistical_analysis(df, analysis_id, config):
             fc_mean = forecast.predicted_mean
             fc_ci = forecast.conf_int()
 
-            summary += f"<<COLOR:text>>Forecast ({forecast_periods} periods):<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Forecast ({forecast_periods} periods) ──<</COLOR>>\n"
             for i in range(min(5, forecast_periods)):
                 summary += f"  Period {i+1}: {fc_mean.iloc[i]:.4f} [{fc_ci.iloc[i, 0]:.4f}, {fc_ci.iloc[i, 1]:.4f}]\n"
             if forecast_periods > 5:
@@ -5734,7 +5777,7 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {len(ts_data)}\n"
         summary += f"<<COLOR:highlight>>Seasonal period:<</COLOR>> {m}\n\n"
 
-        summary += f"<<COLOR:text>>Stationarity Test (ADF):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Stationarity Test (ADF) ──<</COLOR>>\n"
         summary += f"  ADF Statistic: {adf_stat:.4f}\n"
         summary += f"  p-value: {adf_pval:.4f}\n"
         summary += f"  {'Stationary' if adf_pval < 0.05 else 'Non-stationary (differencing recommended)'}\n\n"
@@ -5744,13 +5787,13 @@ def run_statistical_analysis(df, analysis_id, config):
                             enforce_stationarity=False, enforce_invertibility=False)
             fitted = model.fit(disp=False, maxiter=200)
 
-            summary += f"<<COLOR:text>>Model Fit:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Model Fit ──<</COLOR>>\n"
             summary += f"  AIC: {fitted.aic:.2f}\n"
             summary += f"  BIC: {fitted.bic:.2f}\n"
             summary += f"  Log-likelihood: {fitted.llf:.2f}\n\n"
 
             # Parameter summary
-            summary += f"<<COLOR:text>>Parameters:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Parameters ──<</COLOR>>\n"
             param_names = fitted.param_names if hasattr(fitted, 'param_names') else [f"param_{i}" for i in range(len(fitted.params))]
             params = fitted.params if hasattr(fitted.params, '__len__') else [fitted.params]
             bse = fitted.bse if hasattr(fitted, 'bse') else [None] * len(params)
@@ -5778,7 +5821,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 fc_lower = fc_ci[:, 0].tolist()
                 fc_upper = fc_ci[:, 1].tolist()
 
-            summary += f"\n<<COLOR:text>>Forecast ({forecast_periods} periods):<</COLOR>>\n"
+            summary += f"\n<<COLOR:accent>>── Forecast ({forecast_periods} periods) ──<</COLOR>>\n"
             for i in range(min(6, forecast_periods)):
                 summary += f"  Period {i+1}: {fc_mean_list[i]:.4f} [{fc_lower[i]:.4f}, {fc_upper[i]:.4f}]\n"
             if forecast_periods > 6:
@@ -5788,7 +5831,7 @@ def run_statistical_analysis(df, analysis_id, config):
             from statsmodels.stats.diagnostic import acorr_ljungbox
             lb = acorr_ljungbox(fitted.resid, lags=[min(10, len(ts_data) // 5)], return_df=True)
             lb_p = float(lb['lb_pvalue'].iloc[0])
-            summary += f"\n<<COLOR:text>>Ljung-Box Test (residual autocorrelation):<</COLOR>>\n"
+            summary += f"\n<<COLOR:accent>>── Ljung-Box Test (residual autocorrelation) ──<</COLOR>>\n"
             summary += f"  p-value: {lb_p:.4f}\n"
             if lb_p > 0.05:
                 summary += f"  <<COLOR:good>>Residuals appear uncorrelated — good model fit.<</COLOR>>\n"
@@ -5881,7 +5924,7 @@ def run_statistical_analysis(df, analysis_id, config):
 
         # Trend statistics
         trend_clean = decomp.trend.dropna()
-        summary += f"<<COLOR:text>>Trend:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Trend ──<</COLOR>>\n"
         summary += f"  Start: {trend_clean.iloc[0]:.4f}\n"
         summary += f"  End: {trend_clean.iloc[-1]:.4f}\n"
         summary += f"  Change: {trend_clean.iloc[-1] - trend_clean.iloc[0]:.4f}\n\n"
@@ -5891,7 +5934,7 @@ def run_statistical_analysis(df, analysis_id, config):
         resid_var = decomp.resid.dropna().var()
         seasonal_strength = 1 - (resid_var / (seasonal_var + resid_var)) if (seasonal_var + resid_var) > 0 else 0
 
-        summary += f"<<COLOR:text>>Seasonal Strength:<</COLOR>> {seasonal_strength:.2%}\n"
+        summary += f"<<COLOR:accent>>── Seasonal Strength ──<</COLOR>> {seasonal_strength:.2%}\n"
         if seasonal_strength > 0.6:
             summary += f"  <<COLOR:accent>>Strong seasonality detected<</COLOR>>\n"
         elif seasonal_strength > 0.3:
@@ -5962,8 +6005,8 @@ def run_statistical_analysis(df, analysis_id, config):
         sig_acf = [i for i in range(1, len(acf_vals)) if abs(acf_vals[i]) > ci]
         sig_pacf = [i for i in range(1, len(pacf_vals)) if abs(pacf_vals[i]) > ci]
 
-        summary += f"<<COLOR:text>>Significant ACF lags:<</COLOR>> {sig_acf[:5] if sig_acf else 'None'}\n"
-        summary += f"<<COLOR:text>>Significant PACF lags:<</COLOR>> {sig_pacf[:5] if sig_pacf else 'None'}\n\n"
+        summary += f"<<COLOR:accent>>── Significant ACF lags ──<</COLOR>> {sig_acf[:5] if sig_acf else 'None'}\n"
+        summary += f"<<COLOR:accent>>── Significant PACF lags ──<</COLOR>> {sig_pacf[:5] if sig_pacf else 'None'}\n\n"
 
         # ARIMA order suggestions
         summary += f"<<COLOR:success>>ARIMA ORDER SUGGESTIONS:<</COLOR>>\n"
@@ -6027,12 +6070,12 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var} (time to failure)\n"
         summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {len(data)}\n\n"
 
-        summary += f"<<COLOR:text>>Weibull Parameters:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Weibull Parameters ──<</COLOR>>\n"
         summary += f"  Shape (β): {shape:.4f}\n"
         summary += f"  Scale (η): {scale:.4f}\n\n"
 
         # Interpret shape parameter
-        summary += f"<<COLOR:text>>Shape Interpretation:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Shape Interpretation ──<</COLOR>>\n"
         if shape < 1:
             summary += f"  β < 1: <<COLOR:warning>>Infant mortality / early failures<</COLOR>>\n"
             summary += f"  Failure rate DECREASES over time (burn-in period)\n"
@@ -6048,13 +6091,13 @@ def run_statistical_analysis(df, analysis_id, config):
         b10 = stats.weibull_min.ppf(0.10, shape, 0, scale)  # 10% failure life
         b50 = stats.weibull_min.ppf(0.50, shape, 0, scale)  # Median life
 
-        summary += f"\n<<COLOR:text>>Reliability Metrics:<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Reliability Metrics ──<</COLOR>>\n"
         summary += f"  Mean Life (MTTF): {mean_life:.2f}\n"
         summary += f"  B10 Life (10% fail): {b10:.2f}\n"
         summary += f"  B50 Life (median): {b50:.2f}\n"
 
         # Reliability at specific times
-        summary += f"\n<<COLOR:text>>Reliability R(t):<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Reliability R(t) ──<</COLOR>>\n"
         for t in [b10, b50, scale, 2*scale]:
             r = 1 - stats.weibull_min.cdf(t, shape, 0, scale)
             summary += f"  R({t:.1f}) = {r:.2%}\n"
@@ -6510,7 +6553,7 @@ def run_statistical_analysis(df, analysis_id, config):
         n_operators = data[operator].nunique()
         n_replicates = len(data) // (n_parts * n_operators)
 
-        summary += f"<<COLOR:text>>Study Design:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Study Design ──<</COLOR>>\n"
         summary += f"  Parts: {n_parts}\n"
         summary += f"  Operators: {n_operators}\n"
         summary += f"  Replicates: {n_replicates}\n\n"
@@ -6545,7 +6588,7 @@ def run_statistical_analysis(df, analysis_id, config):
         pct_gage_rr = 100 * np.sqrt(gage_rr_var / total_variation) if total_variation > 0 else 0
         pct_part = 100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
 
-        summary += f"<<COLOR:text>>Variance Components:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
         summary += f"  {'Source':<20} {'Variance':>12} {'%Contribution':>14}\n"
         summary += f"  {'-'*48}\n"
         summary += f"  {'Total Gage R&R':<20} {gage_rr_var:>12.4f} {pct_gage_rr:>13.1f}%\n"
@@ -6678,7 +6721,7 @@ def run_statistical_analysis(df, analysis_id, config):
         pct_reprod = 100 * np.sqrt(reprod_var / total_variation) if total_variation > 0 else 0
         pct_part = 100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
 
-        summary += f"<<COLOR:text>>Variance Components (Nested ANOVA):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Variance Components (Nested ANOVA) ──<</COLOR>>\n"
         summary += f"  {'Source':<25} {'Variance':>12} {'%Study Var':>12}\n"
         summary += f"  {'-'*52}\n"
         summary += f"  {'Total Gage R&R':<25} {gage_rr_var:>12.4f} {pct_gage_rr:>11.1f}%\n"
@@ -6804,7 +6847,7 @@ def run_statistical_analysis(df, analysis_id, config):
         pct_reprod = 100 * np.sqrt(reproducibility_var / total_variation) if total_variation > 0 else 0
         pct_part = 100 * np.sqrt(part_var / total_variation) if total_variation > 0 else 0
 
-        summary += f"<<COLOR:text>>Variance Components:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
         summary += f"  {'Source':<20} {'VarComp':>12} {'%StudyVar':>12}\n"
         summary += f"  {'-' * 46}\n"
         summary += f"  {'Total Gage R&R':<20} {gage_rr_var:>12.4f} {pct_rr:>11.1f}%\n"
@@ -6820,7 +6863,7 @@ def run_statistical_analysis(df, analysis_id, config):
 
         ndc = int(1.41 * np.sqrt(part_var / gage_rr_var)) if gage_rr_var > 0 else 0
 
-        summary += f"<<COLOR:text>>Assessment:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Assessment ──<</COLOR>>\n"
         if pct_rr < 10:
             summary += f"  <<COLOR:good>>EXCELLENT - Gage R&R < 10%<</COLOR>>\n"
         elif pct_rr < 30:
@@ -6836,7 +6879,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 key=lambda x: x[1], default=(None, 0)
             )
             if worst_factor[0]:
-                summary += f"\n<<COLOR:text>>Largest reproducibility source:<</COLOR>> {worst_factor[0]}\n"
+                summary += f"\n<<COLOR:accent>>── Largest reproducibility source ──<</COLOR>> {worst_factor[0]}\n"
                 summary += f"  Consider standardizing {worst_factor[0]} to reduce measurement variation.\n"
         elif repeatability_var > reproducibility_var * 1.5:
             summary += f"\n<<COLOR:text>>Repeatability dominates — improve gage precision or measurement procedure.<</COLOR>>\n"
@@ -6915,12 +6958,12 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Reference:<</COLOR>> {reference}\n"
         summary += f"<<COLOR:highlight>>N observations:<</COLOR>> {len(data)}\n\n"
 
-        summary += f"<<COLOR:text>>BIAS:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── BIAS ──<</COLOR>>\n"
         summary += f"  Overall Bias = {overall_bias:.4f}\n"
         summary += f"  Bias as % of Process Variation ≈ {bias_pct:.1f}%\n"
         summary += f"  {'Bias is significant' if abs(overall_bias) / (bias.std() / np.sqrt(len(bias))) > 2 else 'Bias is not significant'}\n\n"
 
-        summary += f"<<COLOR:text>>LINEARITY:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── LINEARITY ──<</COLOR>>\n"
         summary += f"  Bias = {intercept:.4f} + {slope:.4f} × Reference\n"
         summary += f"  Slope = {slope:.4f} (p = {p_value:.4f})\n"
         summary += f"  R² = {r_value**2:.4f}\n"
@@ -6986,14 +7029,14 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"<<COLOR:highlight>>Tolerance:<</COLOR>> {tolerance}\n"
         summary += f"<<COLOR:highlight>>N measurements:<</COLOR>> {n}\n\n"
 
-        summary += f"<<COLOR:text>>Descriptive Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Descriptive Statistics ──<</COLOR>>\n"
         summary += f"  Mean = {mean_val:.4f}\n"
         summary += f"  Std Dev = {std_val:.4f}\n"
         summary += f"  Bias = {bias:.4f} (Mean − Ref)\n"
         summary += f"  t-statistic = {t_stat:.3f}, p-value = {p_val:.4f}\n"
         summary += f"  {'Bias is significant' if p_val < 0.05 else 'Bias is not significant'}\n\n"
 
-        summary += f"<<COLOR:text>>Capability Indices:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Capability Indices ──<</COLOR>>\n"
         summary += f"  Cg  = {cg:.3f} {'(≥ 1.33 required)' if cg < 1.33 else '✓'}\n"
         summary += f"  Cgk = {cgk:.3f} {'(≥ 1.33 required)' if cgk < 1.33 else '✓'}\n\n"
 
@@ -7072,12 +7115,12 @@ def run_statistical_analysis(df, analysis_id, config):
             false_alarm = 100 * fp / (fp + tn) if (fp + tn) > 0 else 0
             miss_rate = 100 * fn / (fn + tp) if (fn + tp) > 0 else 0
 
-            summary += f"<<COLOR:text>>Confusion Matrix:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Confusion Matrix ──<</COLOR>>\n"
             summary += f"  {'':>15} {'Ref: ' + str(unique_vals[0]):>15} {'Ref: ' + str(unique_vals[1]):>15}\n"
             summary += f"  {'Call: ' + str(unique_vals[0]):>15} {tn:>15} {fn:>15}\n"
             summary += f"  {'Call: ' + str(unique_vals[1]):>15} {fp:>15} {tp:>15}\n\n"
 
-            summary += f"<<COLOR:text>>Effectiveness Metrics:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Effectiveness Metrics ──<</COLOR>>\n"
             summary += f"  Overall Agreement:  {pct_agree:.1f}%\n"
             summary += f"  Sensitivity (detect): {sensitivity:.1f}%\n"
             summary += f"  Specificity (accept): {specificity:.1f}%\n"
@@ -7165,7 +7208,7 @@ def run_statistical_analysis(df, analysis_id, config):
             kappa = (po - pe) / (1 - pe) if pe < 1 else 1.0
             pairwise_kappas.append(("All", kappa))
 
-            summary += f"<<COLOR:text>>Cohen's Kappa (2 raters):<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Cohen's Kappa (2 raters) ──<</COLOR>>\n"
             summary += f"  κ = {kappa:.4f}\n"
             summary += f"  Observed agreement: {po:.1%}\n"
             summary += f"  Expected agreement: {pe:.1%}\n\n"
@@ -7191,7 +7234,7 @@ def run_statistical_analysis(df, analysis_id, config):
 
             kappa = (Po - Pe) / (1 - Pe) if Pe < 1 else 1.0
 
-            summary += f"<<COLOR:text>>Fleiss' Kappa ({n_appraisers} raters):<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Fleiss' Kappa ({n_appraisers} raters) ──<</COLOR>>\n"
             summary += f"  κ = {kappa:.4f}\n"
             summary += f"  Observed agreement: {Po:.1%}\n"
             summary += f"  Expected agreement: {Pe:.1%}\n\n"
@@ -7221,7 +7264,7 @@ def run_statistical_analysis(df, analysis_id, config):
             interp = "Fair"
         else:
             interp = "Slight/Poor"
-        summary += f"<<COLOR:text>>Interpretation:<</COLOR>> {interp} agreement (Landis & Koch)\n"
+        summary += f"<<COLOR:accent>>── Interpretation ──<</COLOR>> {interp} agreement (Landis & Koch)\n"
 
         # Agreement by appraiser
         app_agreements = []
@@ -7350,7 +7393,7 @@ def run_statistical_analysis(df, analysis_id, config):
             if step > 50:  # Safety limit
                 break
 
-        summary += f"<<COLOR:text>>Selection History:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Selection History ──<</COLOR>>\n"
         for hist in step_history:
             summary += f"  {hist}\n"
         summary += "\n"
@@ -7369,7 +7412,7 @@ def run_statistical_analysis(df, analysis_id, config):
             summary += f"<<COLOR:highlight>>Adjusted R²:<</COLOR>> {final_model.rsquared_adj:.4f}\n"
             summary += f"<<COLOR:highlight>>F-statistic:<</COLOR>> {final_model.fvalue:.4f} (p={final_model.f_pvalue:.4e})\n\n"
 
-            summary += f"<<COLOR:text>>Coefficients:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Coefficients ──<</COLOR>>\n"
             summary += f"  {'Variable':<20} {'Coef':>12} {'Std Err':>12} {'t':>10} {'P>|t|':>10}\n"
             summary += f"  {'-'*66}\n"
             for i, name in enumerate(['const'] + selected):
@@ -7463,7 +7506,7 @@ def run_statistical_analysis(df, analysis_id, config):
         by_cp = sorted(results_list, key=lambda x: x["cp"])
         by_bic = sorted(results_list, key=lambda x: x["bic"])
 
-        summary += f"<<COLOR:text>>Best Models by Criterion:<</COLOR>>\n\n"
+        summary += f"<<COLOR:accent>>── Best Models by Criterion ──<</COLOR>>\n\n"
 
         summary += f"<<COLOR:accent>>By Adjusted R² (top 5):<</COLOR>>\n"
         summary += f"  {'Vars':<8} {'R²':>8} {'Adj R²':>8} {'Cp':>10} {'BIC':>10} {'Predictors'}\n"
@@ -7602,12 +7645,12 @@ def run_statistical_analysis(df, analysis_id, config):
         bca_lower = np.percentile(boot_stats, bca_low_q * 100)
         bca_upper = np.percentile(boot_stats, bca_high_q * 100)
 
-        summary += f"<<COLOR:text>>Sample Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sample Statistics ──<</COLOR>>\n"
         summary += f"  Observed {statistic}: {observed:.4f}\n"
         summary += f"  Bootstrap SE: {np.std(boot_stats):.4f}\n"
         summary += f"  Bootstrap Bias: {np.mean(boot_stats) - observed:.4f}\n\n"
 
-        summary += f"<<COLOR:text>>Confidence Intervals:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Confidence Intervals ──<</COLOR>>\n"
         summary += f"  Percentile: ({ci_lower:.4f}, {ci_upper:.4f})\n"
         summary += f"  BCa:        ({bca_lower:.4f}, {bca_upper:.4f})\n\n"
 
@@ -7671,7 +7714,7 @@ def run_statistical_analysis(df, analysis_id, config):
         lambdas = [-2, -1, -0.5, 0, 0.5, 1, 2]
         lambda_names = ["1/x²", "1/x", "1/√x", "ln(x)", "√x", "x (none)", "x²"]
 
-        summary += f"<<COLOR:text>>Common Transformations (Log-Likelihood):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Common Transformations (Log-Likelihood) ──<</COLOR>>\n"
         for lam, name in zip(lambdas, lambda_names):
             if lam == 0:
                 trans = np.log(data_shifted)
@@ -7704,7 +7747,7 @@ def run_statistical_analysis(df, analysis_id, config):
         _, p_before = stats.shapiro(data[:min(5000, len(data))])
         _, p_after = stats.shapiro(transformed[:min(5000, len(transformed))])
 
-        summary += f"<<COLOR:text>>Normality Tests (Shapiro-Wilk):<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Normality Tests (Shapiro-Wilk) ──<</COLOR>>\n"
         summary += f"  Original: p = {p_before:.4f} {'(normal)' if p_before > 0.05 else '(non-normal)'}\n"
         summary += f"  Transformed: p = {p_after:.4f} {'(normal)' if p_after > 0.05 else '(non-normal)'}\n"
 
@@ -8037,7 +8080,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             # Original normality
             _, p_orig = stats.shapiro(data[:min(5000, n)])
 
-            summary += f"<<COLOR:text>>Original Shapiro-Wilk p-value:<</COLOR>> {p_orig:.4f}"
+            summary += f"<<COLOR:accent>>── Original Shapiro-Wilk p-value ──<</COLOR>> {p_orig:.4f}"
             summary += f" {'(normal)' if p_orig > 0.05 else '(non-normal)'}\n\n"
 
             if families:
@@ -8210,7 +8253,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         mean = np.mean(data)
         std = np.std(data, ddof=1)
 
-        summary += f"<<COLOR:text>>Sample Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Sample Statistics ──<</COLOR>>\n"
         summary += f"  Mean: {mean:.4f}\n"
         summary += f"  Std Dev: {std:.4f}\n\n"
 
@@ -8357,7 +8400,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor}\n"
         summary += f"<<COLOR:highlight>>Alpha:<</COLOR>> {alpha}\n\n"
 
-        summary += f"<<COLOR:text>>Pairwise Comparisons:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Pairwise Comparisons ──<</COLOR>>\n"
         summary += f"{'Group 1':<15} {'Group 2':<15} {'Diff':>8} {'p-adj':>8} {'Lower':>8} {'Upper':>8} {'Sig':>5}\n"
         summary += f"{'─' * 75}\n"
         for p in pairs:
@@ -8582,7 +8625,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         summary += f"<<COLOR:highlight>>Alpha:<</COLOR>> {alpha}\n"
         summary += f"<<COLOR:text>>(Does not assume equal variances)<</COLOR>>\n\n"
 
-        summary += f"<<COLOR:text>>Group Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Statistics ──<</COLOR>>\n"
         for lev in levels:
             s = group_stats[lev]
             summary += f"  {lev}: n={s['n']}, mean={s['mean']:.4f}, std={np.sqrt(s['var']):.4f}\n"
@@ -8693,7 +8736,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         summary += f"<<COLOR:highlight>>Correction:<</COLOR>> Bonferroni\n"
         summary += f"<<COLOR:highlight>>Alpha:<</COLOR>> {alpha}\n\n"
 
-        summary += f"<<COLOR:text>>Group Rank Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Rank Statistics ──<</COLOR>>\n"
         for lev in levels:
             s = group_info[lev]
             summary += f"  {lev}: n={s['n']}, median={s['median']:.4f}, mean rank={s['mean_rank']:.1f}\n"
@@ -9087,13 +9130,13 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         summary += f"<<COLOR:highlight>>Group variable:<</COLOR>> {group_var}\n"
         summary += f"<<COLOR:highlight>>Groups:<</COLOR>> {groups[0]} (n={n1}) vs {groups[1]} (n={n2})\n\n"
 
-        summary += f"<<COLOR:text>>Group Means:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Means ──<</COLOR>>\n"
         summary += f"{'Variable':<20} {str(groups[0]):>12} {str(groups[1]):>12} {'Difference':>12}\n"
         summary += f"{'─' * 58}\n"
         for i, var in enumerate(responses):
             summary += f"{var:<20} {mean1[i]:>12.4f} {mean2[i]:>12.4f} {diff[i]:>12.4f}\n"
 
-        summary += f"\n<<COLOR:text>>Test Statistics:<</COLOR>>\n"
+        summary += f"\n<<COLOR:accent>>── Test Statistics ──<</COLOR>>\n"
         summary += f"  Hotelling's T²: {T2:.4f}\n"
         summary += f"  F-statistic: {F_stat:.4f} (df1={df1}, df2={df2})\n"
         summary += f"  p-value: {p_value:.4f}\n\n"
@@ -9258,7 +9301,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         summary += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({k} groups)\n"
         summary += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
-        summary += f"<<COLOR:text>>Group Means:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── Group Means ──<</COLOR>>\n"
         header = f"{'Variable':<20}" + "".join(f"{str(g):>12}" for g in groups)
         summary += header + "\n" + "─" * len(header) + "\n"
         for i, var in enumerate(responses):
@@ -9266,7 +9309,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary += row + "\n"
         summary += "\n"
 
-        summary += f"<<COLOR:text>>MANOVA Test Statistics:<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>── MANOVA Test Statistics ──<</COLOR>>\n"
         summary += f"{'Test':<25} {'Value':>10} {'F':>10} {'p-value':>10} {'Sig':>5}\n"
         summary += f"{'─' * 62}\n"
 
@@ -9280,7 +9323,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             sig = "<<COLOR:good>>*<</COLOR>>" if p_val < alpha else ""
             summary += f"{name:<25} {val:>10.4f} {f_val:>10.4f} {p_val:>10.4f} {sig:>5}\n"
 
-        summary += f"\n<<COLOR:text>>Eigenvalues of H·E⁻¹:<</COLOR>> {', '.join(f'{e:.4f}' for e in eigenvalues)}\n\n"
+        summary += f"\n<<COLOR:accent>>── Eigenvalues of H·E⁻¹ ──<</COLOR>> {', '.join(f'{e:.4f}' for e in eigenvalues)}\n\n"
 
         # Overall interpretation (use Pillai's — most robust)
         if p_pillai < alpha:
@@ -9409,7 +9452,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary += f"<<COLOR:highlight>>Random factor (nesting):<</COLOR>> {random_factor} ({len(random_levels)} levels)\n"
             summary += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
-            summary += f"<<COLOR:text>>Fixed Effects:<</COLOR>>\n"
+            summary += f"<<COLOR:accent>>── Fixed Effects ──<</COLOR>>\n"
             summary += f"{'Term':<30} {'Coef':>8} {'SE':>8} {'p-value':>8} {'Sig':>5}\n"
             summary += f"{'─' * 62}\n"
             for name, fe in fixed_effects.items():
@@ -9418,7 +9461,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 se_str = f"{fe['se']:.4f}" if fe["se"] is not None else "N/A"
                 summary += f"{name:<30} {fe['coef']:>8.4f} {se_str:>8} {p_str:>8} {sig:>5}\n"
 
-            summary += f"\n<<COLOR:text>>Variance Components:<</COLOR>>\n"
+            summary += f"\n<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
             summary += f"  {random_factor} (random): {var_random:.4f} ({icc*100:.1f}% of total)\n"
             summary += f"  Residual: {var_residual:.4f} ({(1-icc)*100:.1f}% of total)\n"
             summary += f"  Total: {var_total:.4f}\n"
@@ -9757,7 +9800,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 summary_text += f"<<COLOR:highlight>>Formula:<</COLOR>> {formula}\n"
                 summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
-                summary_text += f"<<COLOR:text>>Fixed Effects:<</COLOR>>\n"
+                summary_text += f"<<COLOR:accent>>── Fixed Effects ──<</COLOR>>\n"
                 summary_text += f"{'Term':<35} {'Coef':>10} {'SE':>10} {'z':>8} {'p-value':>10} {'Sig':>5} {f'{int((1-alpha)*100)}% CI':>22}\n"
                 summary_text += f"{'─' * 105}\n"
                 for name in fit.fe_params.index:
@@ -9771,7 +9814,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     _ci_str = f"[{coef - 1.96 * se:.4f}, {coef + 1.96 * se:.4f}]" if se else ""
                     summary_text += f"{str(name):<35} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {sig:>5} {_ci_str:>22}\n"
 
-                summary_text += f"\n<<COLOR:text>>Variance Components:<</COLOR>>\n"
+                summary_text += f"\n<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
                 summary_text += f"  {group_var} (random): {var_random:.4f} ({icc*100:.1f}% of total)\n"
                 summary_text += f"  Residual: {var_residual:.4f} ({(1-icc)*100:.1f}% of total)\n"
                 summary_text += f"  ICC (Intraclass Correlation): {icc:.4f}\n"
@@ -9823,7 +9866,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}, R² = {model.rsquared:.4f}, Adj R² = {model.rsquared_adj:.4f}\n\n"
 
                 # ANOVA table with partial eta-squared
-                summary_text += f"<<COLOR:text>>Analysis of Variance (Type III SS):<</COLOR>>\n"
+                summary_text += f"<<COLOR:accent>>── Analysis of Variance (Type III SS) ──<</COLOR>>\n"
                 eta_header = " η²p" if has_factors else ""
                 summary_text += f"{'Source':<30} {'DF':>5} {'Adj SS':>12} {'Adj MS':>12} {'F':>10} {'p-value':>10}{eta_header:>8}\n"
                 summary_text += f"{'─' * (87 + (8 if has_factors else 0))}\n"
@@ -9846,14 +9889,14 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                         eta_str = "" if has_factors else ""
                     summary_text += f"{str(idx):<30} {df_val:>5} {ss:>12.4f} {ms:>12.4f} {f_str:>10} {p_str:>10} {sig} {eta_str}\n"
 
-                summary_text += f"\n<<COLOR:text>>Model Summary:<</COLOR>>\n"
+                summary_text += f"\n<<COLOR:accent>>── Model Summary ──<</COLOR>>\n"
                 summary_text += f"  S (root MSE): {np.sqrt(model.mse_resid):.4f}\n"
                 summary_text += f"  R²: {model.rsquared:.4f}  Adj R²: {model.rsquared_adj:.4f}\n"
                 summary_text += f"  AIC: {model.aic:.1f}  BIC: {model.bic:.1f}\n"
 
                 # Coefficients table with CIs
                 _glm_ci = model.conf_int(alpha=alpha)
-                summary_text += f"\n<<COLOR:text>>Coefficients:<</COLOR>>\n"
+                summary_text += f"\n<<COLOR:accent>>── Coefficients ──<</COLOR>>\n"
                 summary_text += f"{'Term':<35} {'Coef':>10} {'SE':>10} {'t':>8} {'p-value':>10} {f'{int((1-alpha)*100)}% CI':>22}\n"
                 summary_text += f"{'─' * 97}\n"
                 for name in model.params.index:
@@ -9868,7 +9911,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 # ── LS-Means (Adjusted Means) for ANCOVA ──
                 if has_factors and has_covariates:
                     summary_text += f"\n<<COLOR:accent>>{'─' * 70}<</COLOR>>\n"
-                    summary_text += f"<<COLOR:text>>Least-Squares Means (Adjusted Means):<</COLOR>>\n"
+                    summary_text += f"<<COLOR:accent>>── Least-Squares Means (Adjusted Means) ──<</COLOR>>\n"
                     summary_text += f"<<COLOR:text>>Covariates held at their means: " + ", ".join([f"{c}={data[c].mean():.4f}" for c in covariates]) + "<</COLOR>>\n\n"
 
                     for factor in fixed_factors:
@@ -10179,7 +10222,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary_text += f"<<COLOR:highlight>>Factor:<</COLOR>> {factor} ({k} groups)\n"
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
-            summary_text += f"<<COLOR:text>>Multivariate Test Statistics:<</COLOR>>\n"
+            summary_text += f"<<COLOR:accent>>── Multivariate Test Statistics ──<</COLOR>>\n"
             summary_text += f"{'Test':<25} {'Value':>10} {'Approx F':>10} {'p-value':>10}\n"
             summary_text += f"{'─' * 57}\n"
             pillai_label = "Pillai's Trace"
@@ -10193,7 +10236,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary_text += f"{roy_label:<25} {roy:>10.4f} {'':>10} {'':>10}\n\n"
 
             # Univariate ANOVAs
-            summary_text += f"<<COLOR:text>>Univariate ANOVA per Response:<</COLOR>>\n"
+            summary_text += f"<<COLOR:accent>>── Univariate ANOVA per Response ──<</COLOR>>\n"
             summary_text += f"{'Response':<20} {'F':>10} {'p-value':>10} {'Sig':>5}\n"
             summary_text += f"{'─' * 47}\n"
             from scipy import stats as fstats
@@ -10286,7 +10329,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary_text += f"<<COLOR:highlight>>Method:<</COLOR>> {method_desc}\n\n"
             summary_text += f"<<COLOR:highlight>>Confidence:<</COLOR>> {conf*100:.0f}%\n"
             summary_text += f"<<COLOR:highlight>>Coverage:<</COLOR>> {coverage*100:.0f}%\n\n"
-            summary_text += f"<<COLOR:text>>Tolerance Interval:<</COLOR>> [{lower:.4f}, {upper:.4f}]\n"
+            summary_text += f"<<COLOR:accent>>── Tolerance Interval ──<</COLOR>> [{lower:.4f}, {upper:.4f}]\n"
             summary_text += f"<<COLOR:text>>Mean:<</COLOR>> {xbar:.4f}\n"
             summary_text += f"<<COLOR:text>>Std Dev:<</COLOR>> {s:.4f}\n\n"
             summary_text += f"<<COLOR:highlight>>Interpretation:<</COLOR>> With {conf*100:.0f}% confidence, at least {coverage*100:.0f}% of the population falls between {lower:.4f} and {upper:.4f}."
@@ -10382,7 +10425,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary_text += f"<<COLOR:highlight>>Method:<</COLOR>> {method.upper()}\n"
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
-            summary_text += f"<<COLOR:text>>Variance Components:<</COLOR>>\n"
+            summary_text += f"<<COLOR:accent>>── Variance Components ──<</COLOR>>\n"
             summary_text += f"{'Source':<20} {'Variance':>12} {'% of Total':>12} {'Std Dev':>12}\n"
             summary_text += f"{'─' * 58}\n"
             for source, var_val in components.items():
@@ -10468,7 +10511,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             summary_text += f"<<COLOR:highlight>>Predictors:<</COLOR>> {', '.join(predictors)}\n"
             summary_text += f"<<COLOR:highlight>>N:<</COLOR>> {N}\n\n"
 
-            summary_text += f"<<COLOR:text>>Coefficients:<</COLOR>>\n"
+            summary_text += f"<<COLOR:accent>>── Coefficients ──<</COLOR>>\n"
             summary_text += f"{'Parameter':<25} {'Coef':>10} {'SE':>10} {'z':>8} {'p-value':>10} {'OR':>10} {'95% CI (OR)':>20}\n"
             summary_text += f"{'─' * 97}\n"
 
@@ -10487,9 +10530,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     summary_text += f"{name:<25} {coef:>10.4f} {se_str:>10} {z:>8.2f} {p_str:>10} {or_str:>10} {ci_str:>20}\n"
 
             if hasattr(fit, 'llf'):
-                summary_text += f"\n<<COLOR:text>>Log-Likelihood:<</COLOR>> {fit.llf:.2f}\n"
+                summary_text += f"\n<<COLOR:accent>>── Log-Likelihood ──<</COLOR>> {fit.llf:.2f}\n"
             if hasattr(fit, 'aic'):
-                summary_text += f"<<COLOR:text>>AIC:<</COLOR>> {fit.aic:.2f}\n"
+                summary_text += f"<<COLOR:accent>>── AIC ──<</COLOR>> {fit.aic:.2f}\n"
 
             result["summary"] = summary_text
 
