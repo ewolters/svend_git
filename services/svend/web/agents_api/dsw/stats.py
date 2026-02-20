@@ -1013,9 +1013,10 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["summary"] = summary
 
-        # Q-Q plot
+        # Q-Q plot — rank-based quantiles (Hazen plotting position)
         sorted_data = np.sort(x)
-        theoretical_quantiles = stats.norm.ppf(np.linspace(0.01, 0.99, len(x)))
+        n_qq = len(x)
+        theoretical_quantiles = stats.norm.ppf((np.arange(1, n_qq + 1) - 0.5) / n_qq)
 
         result["plots"].append({
             "title": f"Normal Q-Q Plot: {var}",
@@ -4501,9 +4502,9 @@ def run_statistical_analysis(df, analysis_id, config):
 
         stat, pval = stats.kruskal(*group_data)
 
-        # Effect size (epsilon squared)
+        # Effect size (epsilon squared), clamped to [0, 1]
         n_total = sum(len(g) for g in group_data)
-        epsilon_sq = (stat - len(groups) + 1) / (n_total - len(groups))
+        epsilon_sq = max(0.0, min(1.0, (stat - len(groups) + 1) / (n_total - len(groups)))) if n_total > len(groups) else 0.0
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>KRUSKAL-WALLIS H TEST<</COLOR>>\n"
@@ -4589,8 +4590,10 @@ def run_statistical_analysis(df, analysis_id, config):
         diffs = sample1.values - sample2.values
         stat, pval = stats.wilcoxon(sample1, sample2)
 
-        # Effect size: r = Z / sqrt(N)
-        z_score = stats.norm.ppf(pval / 2)
+        # Effect size: r = Z / sqrt(N) — compute Z directly from test statistic
+        mean_w = min_len * (min_len + 1) / 4
+        std_w = np.sqrt(min_len * (min_len + 1) * (2 * min_len + 1) / 24)
+        z_score = (stat - mean_w) / std_w if std_w > 0 else 0.0
         effect_r = abs(z_score) / np.sqrt(min_len)
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
@@ -5327,9 +5330,10 @@ def run_statistical_analysis(df, analysis_id, config):
         sample_median = np.median(data)
 
         # Confidence interval on median (binomial-based)
+        # ppf gives smallest k with cdf(k) >= 0.025; we need largest k with cdf(k) < 0.025
         sorted_data = np.sort(data)
         n_total = len(data)
-        ci_idx = int(stats.binom.ppf(0.025, n_total, 0.5))
+        ci_idx = max(0, int(stats.binom.ppf(0.025, n_total, 0.5)) - 1)
         ci_lower = sorted_data[ci_idx] if ci_idx < n_total else sorted_data[0]
         ci_upper = sorted_data[n_total - 1 - ci_idx] if ci_idx < n_total else sorted_data[-1]
 

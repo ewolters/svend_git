@@ -4358,3 +4358,23 @@ New endpoint: `POST /api/dsw/models/<uuid>/optimize/` using `scipy.optimize.diff
 - `agents_api/dsw_urls.py` — optimize route
 - `agents_api/autopilot_views.py` — `_compute_subgroup_diagnostics()`, `_compute_threshold_analysis()`, stored in all 4 endpoints + `training_config`
 - `templates/models.html` — subgroup badges, threshold chart+slider, interval display, PDP confidence bands, optimize UI
+
+### 2026-02-20 — DSW Statistical Correctness Fixes (CRITICAL)
+**Debt item:** DSW audit findings — 8 CRITICAL/MAJOR mathematical bugs
+**Files changed:**
+- `agents_api/dsw/stats.py` — Q-Q quantiles, Kruskal-Wallis ε², Sign Test CI, Wilcoxon Z
+- `agents_api/dsw/bayesian.py` — JZS BF integrand, bayes_anova BF computation
+- `agents_api/experimenter_views.py` — contour plot optimal point
+- `agents/agents/experimenter/doe.py` — fractional factorial generators
+
+**What changed:**
+1. Q-Q plot: replaced `np.linspace(0.01, 0.99, n)` with proper rank-based quantiles `(i-0.5)/n`
+2. Kruskal-Wallis ε²: clamped to [0, 1] — was producing negative values
+3. Sign Test CI: fixed off-by-one in binom.ppf → need ppf-1 for correct order statistics
+4. Wilcoxon Z-score: compute directly from test statistic instead of back-computing from p-value
+5. JZS Bayes Factor: r² was in wrong place — moved from exponential to n_eff term per Rouder (2009)
+6. bayes_anova: added BIC-approximated Bayes Factor (was only computing frequentist F-test)
+7. Contour plot: replaced axis-decomposition argmax with np.unravel_index (was finding wrong optimal point)
+8. Fractional factorial: replaced arbitrary modular generators with standard confounding patterns from Montgomery
+
+**How to verify:** `python3 manage.py check`

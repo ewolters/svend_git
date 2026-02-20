@@ -55,6 +55,9 @@ Track technical debt here. Review weekly.
 
 [STATS] DPMO uses only upper tail — spc.py:~219, underestimates defect rate by ~50% | Added: 2026-02-20 | Priority: P2 | *Reviewed: two-sided case already uses both tails correctly*
 [STATS] Synara belief propagation is a heuristic, not proper Bayesian network inference — belief.py:183-250 | Added: 2026-02-20 | Priority: P3
+[STATS] bayes_changepoint() is CUSUM heuristic, not truly Bayesian — bayesian.py | Added: 2026-02-20 | Priority: P3
+[STATS] Regression SE silently returns p=1.0 on singular matrix — ml.py | Added: 2026-02-20 | Priority: P3
+[STATS] Logistic regression Fisher information fails silently — ml.py | Added: 2026-02-20 | Priority: P3
 
 ### Existing Debt (carried forward)
 
@@ -118,6 +121,15 @@ Track technical debt here. Review weekly.
 [SEC] Race conditions in increment_queries/record_usage — replaced with F() expressions | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Broken dual-write ensure_core_project/sync_hypothesis_to_core — fixed field mappings to match core.Project/Hypothesis schema | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Broken email verification lookup — hash token before DB query | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+
+[STATS] Q-Q plot quantiles — replaced linspace(0.01,0.99) with rank-based (i-0.5)/n | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Kruskal-Wallis ε² negative — clamped to [0, 1] | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Sign Test CI off-by-one — binom.ppf index corrected | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Wilcoxon Z-score — compute from test statistic directly, not back-computed from p-value | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] JZS BF integrand — r² moved from exponential to n_eff term per Rouder (2009) | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] bayes_anova — added BIC-approximated Bayes Factor (was pure frequentist) | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Contour plot argmax — replaced axis decomposition with np.unravel_index | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[DOE] Fractional factorial generators — replaced arbitrary modular confounding with standard Montgomery patterns | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 
 [DSW] No mixed-effects / multi-level modeling | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending
 [FORECAST] Limited to random walk MC, SMA, exponential smoothing — no Prophet, TBATS, or seasonal methods | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending

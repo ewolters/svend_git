@@ -104,14 +104,19 @@ def run_bayesian_analysis(df, analysis_id, config):
         r = scale  # Cauchy prior scale
 
         def _jzs_integrand(g):
-            """Integrand for JZS Bayes Factor (Rouder et al. 2009, Eq. 2)."""
+            """Integrand for JZS Bayes Factor (Rouder et al. 2009, Eq. 2).
+
+            Uses Inv-Gamma(1/2, 1/2) prior on g with Cauchy scale r
+            entering via the effective sample size term: n_eff * r² * g.
+            """
+            nrg = n_eff * r**2 * g
             return (
-                (1 + n_eff * g) ** (-0.5)
-                * (1 + t_stat**2 / ((1 + n_eff * g) * v)) ** (-(v + 1) / 2)
+                (1 + nrg) ** (-0.5)
+                * (1 + t_stat**2 / ((1 + nrg) * v)) ** (-(v + 1) / 2)
                 / (1 + t_stat**2 / v) ** (-(v + 1) / 2)
                 * (2 * np.pi) ** (-0.5)
                 * g ** (-1.5)
-                * np.exp(-1 / (2 * g * r**2))
+                * np.exp(-1 / (2 * g))
             )
 
         from scipy.integrate import quad
@@ -318,13 +323,26 @@ def run_bayesian_analysis(df, analysis_id, config):
         group_names = list(groups.keys())
         group_data = [np.array(groups[g]) for g in group_names]
 
-        # F-test for BF approximation
+        # F-test
         f_stat, p_value = stats.f_oneway(*group_data)
 
         # Effect size (eta-squared)
-        ss_between = sum(len(g) * (np.mean(g) - df[response].mean())**2 for g in group_data)
-        ss_total = sum((df[response] - df[response].mean())**2)
+        grand_mean = df[response].mean()
+        ss_between = sum(len(g) * (np.mean(g) - grand_mean)**2 for g in group_data)
+        ss_within = sum(np.sum((np.array(g) - np.mean(g))**2) for g in group_data)
+        ss_total = ss_between + ss_within
         eta_sq = ss_between / ss_total if ss_total > 0 else 0
+
+        # BIC-approximated Bayes Factor (Wagenmakers 2007)
+        n_total = sum(len(g) for g in group_data)
+        k = len(group_names)
+        if ss_within > 0 and n_total > k:
+            bic_h0 = n_total * np.log(ss_total / n_total) + 1 * np.log(n_total)
+            bic_h1 = n_total * np.log(ss_within / n_total) + k * np.log(n_total)
+            bf10 = np.exp((bic_h0 - bic_h1) / 2)
+            bf10 = min(bf10, 1e10)  # cap for display
+        else:
+            bf10 = 1.0
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN ANOVA<</COLOR>>\n"
@@ -338,9 +356,19 @@ def run_bayesian_analysis(df, analysis_id, config):
 
         summary += f"\n<<COLOR:text>>F-statistic:<</COLOR>> {f_stat:.3f}\n"
         summary += f"<<COLOR:text>>Effect size (η²):<</COLOR>> {eta_sq:.3f}\n"
+        summary += f"<<COLOR:text>>Bayes Factor (BF₁₀):<</COLOR>> {bf10:.2f}\n\n"
+
+        if bf10 > 10:
+            summary += f"<<COLOR:success>>Strong evidence for group differences<</COLOR>>\n"
+        elif bf10 > 3:
+            summary += f"<<COLOR:warning>>Moderate evidence for group differences<</COLOR>>\n"
+        elif bf10 > 1:
+            summary += f"<<COLOR:text>>Weak evidence for group differences<</COLOR>>\n"
+        else:
+            summary += f"<<COLOR:text>>Evidence favors no group differences (BF₁₀ < 1)<</COLOR>>\n"
 
         result["summary"] = summary
-        result["statistics"] = {"f_stat": f_stat, "eta_squared": eta_sq, "p_value": p_value}
+        result["statistics"] = {"f_stat": f_stat, "eta_squared": eta_sq, "p_value": p_value, "bf10": bf10}
 
         # Box plot
         result["plots"].append({

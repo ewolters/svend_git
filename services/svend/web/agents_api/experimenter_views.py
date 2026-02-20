@@ -1280,9 +1280,10 @@ def contour_plot(request):
         x_actual = [x_low + (x_high - x_low) * (v + 1) / 2 for v in x_grid]
         y_actual = [y_low + (y_high - y_low) * (v + 1) / 2 for v in y_grid]
 
-        optimal_x = round(x_actual[int(np.argmax(Z_mesh.max(axis=0)))], 4)
-        optimal_y = round(y_actual[int(np.argmax(Z_mesh.max(axis=1)))], 4)
-        optimal_z = round(float(Z_mesh.max()), 4)
+        max_idx = np.unravel_index(np.argmax(Z_mesh), Z_mesh.shape)
+        optimal_x = round(x_actual[max_idx[1]], 4)
+        optimal_y = round(y_actual[max_idx[0]], 4)
+        optimal_z = round(float(Z_mesh[max_idx]), 4)
 
         response_data = {
             "success": True,

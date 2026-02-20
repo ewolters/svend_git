@@ -344,13 +344,29 @@ class DOEGenerator:
             # Use full factorial for small designs
             return self.full_factorial(factors, randomize=randomize)
 
-        # Standard 2^(n-p) designs
-        # These are common fractional factorial designs
+        # Standard 2^(n-p) designs (Montgomery, "Design and Analysis of Experiments")
+        # Maps k -> {resolution -> p (number of generators)}
         designs = {
-            5: {3: 4, 4: 3, 5: 1},   # 2^5: 16, 8, or 32 runs
-            6: {3: 3, 4: 2, 5: 1},   # 2^6: 8, 16, or 32 runs
-            7: {3: 4, 4: 3, 5: 2},   # 2^7: 8, 16, or 32 runs
-            8: {3: 4, 4: 4, 5: 3},   # 2^8: 16, 16, or 32 runs
+            5: {3: 2, 4: 1, 5: 1},   # 8, 16, 16 runs
+            6: {3: 3, 4: 2, 5: 1},   # 8, 16, 32 runs
+            7: {3: 4, 4: 3, 5: 2},   # 8, 16, 32 runs
+            8: {3: 4, 4: 4, 5: 2},   # 16, 16, 64 runs
+        }
+
+        # Standard confounding generators — each tuple lists base factor indices
+        # whose product defines the extra factor (Montgomery tables)
+        _GENERATORS = {
+            (5, 1): [(0, 1, 2, 3)],                                    # E=ABCD (Res V)
+            (5, 2): [(0, 1), (0, 2)],                                  # D=AB, E=AC (Res III)
+            (6, 1): [(0, 1, 2, 3, 4)],                                 # F=ABCDE (Res VI)
+            (6, 2): [(0, 1, 2), (1, 2, 3)],                            # E=ABC, F=BCD (Res IV)
+            (6, 3): [(0, 1), (0, 2), (1, 2)],                          # D=AB, E=AC, F=BC (Res III)
+            (7, 1): [(0, 1, 2, 3, 4, 5)],                              # G=ABCDEF (Res VII)
+            (7, 2): [(0, 1, 2, 3), (0, 1, 3, 4)],                      # F=ABCD, G=ABDE (Res IV)
+            (7, 3): [(0, 1, 2), (1, 2, 3), (0, 2, 3)],                 # E=ABC, F=BCD, G=ACD (Res IV)
+            (7, 4): [(0, 1), (0, 2), (1, 2), (0, 1, 2)],               # D=AB, E=AC, F=BC, G=ABC (Res III)
+            (8, 2): [(0, 1, 2, 3), (0, 1, 4, 5)],                      # G=ABCD, H=ABEF (Res V)
+            (8, 4): [(1, 2, 3), (0, 2, 3), (0, 1, 2), (0, 1, 3)],     # E=BCD, F=ACD, G=ABC, H=ABD (Res IV)
         }
 
         p = designs.get(n, {}).get(resolution, max(0, n - 5))
@@ -360,21 +376,31 @@ class DOEGenerator:
         base_factors = factors[:n-p]
         base_design = self.full_factorial(base_factors, randomize=False)
 
-        # Add remaining factors as generators (confounded with interactions)
+        # Look up standard generators; fall back to highest-order interactions
+        generators = _GENERATORS.get((n, p))
+        if generators is None:
+            # Fallback: generate extra factors from highest-order base interactions
+            from itertools import combinations
+            generators = []
+            n_base = n - p
+            for j in range(p):
+                # Use (n_base - 1)-factor interactions, cycling through combos
+                order = min(n_base, max(2, n_base - 1 - (j % (n_base - 1))))
+                combos = list(combinations(range(n_base), order))
+                generators.append(combos[j % len(combos)])
+
+        # Add remaining factors using standard generators
         runs = []
         for i, base_run in enumerate(base_design.runs):
             factor_levels = base_run.factor_levels.copy()
             coded_levels = base_run.coded_levels.copy()
 
-            # Generate remaining factors from interactions
             base_coded = [coded_levels[f.name] for f in base_factors]
 
             for j, extra_factor in enumerate(factors[n-p:]):
-                # Use product of some base factors as generator
-                # This is simplified - real designs use specific generators
-                generator_indices = [(j + k) % (n - p) for k in range(2)]
+                gen = generators[j] if j < len(generators) else tuple(range(min(2, n-p)))
                 generated_level = 1
-                for idx in generator_indices:
+                for idx in gen:
                     generated_level *= base_coded[idx]
 
                 coded_levels[extra_factor.name] = generated_level
