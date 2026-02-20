@@ -55,9 +55,6 @@ Track technical debt here. Review weekly.
 
 [STATS] DPMO uses only upper tail — spc.py:~219, underestimates defect rate by ~50% | Added: 2026-02-20 | Priority: P2 | *Reviewed: two-sided case already uses both tails correctly*
 [STATS] Synara belief propagation is a heuristic, not proper Bayesian network inference — belief.py:183-250 | Added: 2026-02-20 | Priority: P3
-[STATS] bayes_changepoint() is CUSUM heuristic, not truly Bayesian — bayesian.py | Added: 2026-02-20 | Priority: P3
-[STATS] Regression SE silently returns p=1.0 on singular matrix — ml.py | Added: 2026-02-20 | Priority: P3
-[STATS] Logistic regression Fisher information fails silently — ml.py | Added: 2026-02-20 | Priority: P3
 
 ### Existing Debt (carried forward)
 
@@ -130,6 +127,9 @@ Track technical debt here. Review weekly.
 [STATS] bayes_anova — added BIC-approximated Bayes Factor (was pure frequentist) | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [STATS] Contour plot argmax — replaced axis decomposition with np.unravel_index | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [DOE] Fractional factorial generators — replaced arbitrary modular confounding with standard Montgomery patterns | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] bayes_changepoint — replaced CUSUM heuristic with BIC-approximated Bayes Factor scan | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Regression SE — pinv fallback + collinearity warning on singular X'X | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Logistic regression Fisher info — ridge fallback + warning on singular information matrix (binary + nominal) | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 
 [DSW] No mixed-effects / multi-level modeling | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending
 [FORECAST] Limited to random walk MC, SMA, exponential smoothing — no Prophet, TBATS, or seasonal methods | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending

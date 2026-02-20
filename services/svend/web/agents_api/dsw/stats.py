@@ -584,17 +584,22 @@ def run_statistical_analysis(df, analysis_id, config):
 
         # Calculate standard errors and t-statistics
         X_with_const = np.column_stack([np.ones(n), X])
+        coefs = np.concatenate([[model.intercept_], model.coef_])
+        _collinear_warning = False
         try:
             var_coef = mse * np.linalg.inv(X_with_const.T @ X_with_const).diagonal()
+            var_coef = np.maximum(var_coef, 0)
             se = np.sqrt(var_coef)
-            coefs = np.concatenate([[model.intercept_], model.coef_])
-            t_stats = coefs / se
+            t_stats = coefs / np.where(se > 0, se, 1e-10)
             p_values = 2 * (1 - stats.t.cdf(np.abs(t_stats), n - p - 1))
-        except:
-            se = np.zeros(p + 1)
-            t_stats = np.zeros(p + 1)
-            p_values = np.ones(p + 1)
-            coefs = np.concatenate([[model.intercept_], model.coef_])
+        except np.linalg.LinAlgError:
+            # Collinear predictors — pseudoinverse fallback
+            var_coef = mse * np.linalg.pinv(X_with_const.T @ X_with_const).diagonal()
+            var_coef = np.maximum(var_coef, 0)
+            se = np.sqrt(var_coef)
+            t_stats = coefs / np.where(se > 0, se, 1e-10)
+            p_values = 2 * (1 - stats.t.cdf(np.abs(t_stats), n - p - 1))
+            _collinear_warning = True
 
         # F-statistic
         f_stat = (ss_tot - ss_res) / p / mse if p > 0 else 0
@@ -650,7 +655,10 @@ def run_statistical_analysis(df, analysis_id, config):
                 non_sig_predictors.append(name)
 
         summary += "<<COLOR:dim>>---<</COLOR>>\n"
-        summary += "<<COLOR:dim>>Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1<</COLOR>>\n\n"
+        summary += "<<COLOR:dim>>Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1<</COLOR>>\n"
+        if _collinear_warning:
+            summary += "\n<<COLOR:danger>>⚠ WARNING: Near-collinear predictors detected. Standard errors computed via pseudoinverse — interpret p-values with caution. Consider removing redundant predictors.<</COLOR>>\n"
+        summary += "\n"
 
         # Diagnostics interpretation
         summary += "<<COLOR:accent>>────────────────────────────────────────────────────────────────────────────<</COLOR>>\n"
@@ -684,8 +692,9 @@ def run_statistical_analysis(df, analysis_id, config):
         try:
             H = X_with_const @ np.linalg.inv(X_with_const.T @ X_with_const) @ X_with_const.T
             leverage = np.diag(H)
-        except:
-            leverage = np.ones(n) / n
+        except np.linalg.LinAlgError:
+            H = X_with_const @ np.linalg.pinv(X_with_const.T @ X_with_const) @ X_with_const.T
+            leverage = np.diag(H)
 
         # Cook's distance
         cooks_d = (std_residuals**2 / (p + 1)) * (leverage / (1 - leverage + 1e-10)**2)
@@ -2197,17 +2206,25 @@ def run_statistical_analysis(df, analysis_id, config):
 
         # Odds ratios with CIs (approximate SEs via Fisher information)
         _nom_se = {}
+        _nom_se_warning = False
         try:
             _probs = model.predict_proba(X)
+            _Xv = X.values
             for _ki in range(1, len(class_names)):
                 _wk = _probs[:, _ki] * (1 - _probs[:, _ki])
-                _Xv = X.values
                 _info = _Xv.T @ (_wk[:, None] * _Xv)
-                _nom_se[_ki] = np.sqrt(np.diag(np.linalg.inv(_info)))
+                try:
+                    _nom_se[_ki] = np.sqrt(np.maximum(np.diag(np.linalg.inv(_info)), 0))
+                except np.linalg.LinAlgError:
+                    _info_reg = _info + 1e-6 * np.eye(_info.shape[0])
+                    _nom_se[_ki] = np.sqrt(np.maximum(np.diag(np.linalg.inv(_info_reg)), 0))
+                    _nom_se_warning = True
         except Exception:
-            pass
+            _nom_se_warning = True
 
         summary += f"\n<<COLOR:text>>Odds Ratios (exp(coef)):<</COLOR>>\n"
+        if _nom_se_warning:
+            summary += f"<<COLOR:danger>>⚠ Near-singular Fisher information for some classes — SEs are approximate<</COLOR>>\n"
         _has_ci = len(_nom_se) > 0
         summary += f"  {'Predictor':<25}"
         for cls in class_names[1:]:
@@ -4982,13 +4999,22 @@ def run_statistical_analysis(df, analysis_id, config):
         _p_hat = model.predict_proba(X_train)[:, 1]
         _W = _p_hat * (1 - _p_hat)
         _X_mat = X_train.values
+        _se_coefs = None
+        _logistic_se_warning = None
         try:
             _XWX = _X_mat.T @ (_W[:, None] * _X_mat)
-            _se_coefs = np.sqrt(np.diag(np.linalg.inv(_XWX)))
-        except Exception:
-            _se_coefs = None
+            _se_coefs = np.sqrt(np.maximum(np.diag(np.linalg.inv(_XWX)), 0))
+        except np.linalg.LinAlgError:
+            try:
+                _XWX_reg = _XWX + 1e-6 * np.eye(_XWX.shape[0])
+                _se_coefs = np.sqrt(np.maximum(np.diag(np.linalg.inv(_XWX_reg)), 0))
+                _logistic_se_warning = "near-singular Fisher information (possible perfect separation or collinearity) — SEs are approximate"
+            except Exception:
+                _logistic_se_warning = "singular Fisher information matrix — cannot compute SEs. Check for perfect separation or collinear predictors"
 
         summary += f"<<COLOR:text>>Coefficients & Odds Ratios:<</COLOR>>\n"
+        if _logistic_se_warning:
+            summary += f"<<COLOR:danger>>⚠ {_logistic_se_warning}<</COLOR>>\n"
         if _se_coefs is not None:
             summary += f"  {'Predictor':<20} {'Coef':>10} {'SE':>10} {'OR':>10} {'95% CI for OR':>22}\n"
             summary += f"  {'-'*74}\n"

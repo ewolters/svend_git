@@ -383,7 +383,7 @@ def run_bayesian_analysis(df, analysis_id, config):
         })
 
     elif analysis_id == "bayes_changepoint":
-        # Bayesian change point detection
+        # Bayesian change point detection via BIC-approximated Bayes Factors
         var = config.get("var")
         time_col = config.get("time")
         max_cp = int(config.get("max_cp", 2))
@@ -396,37 +396,73 @@ def run_bayesian_analysis(df, analysis_id, config):
         else:
             time_idx = np.arange(n)
 
-        # Simple Bayesian change point (PELT-like with BIC)
-        from scipy.signal import find_peaks
+        def _seg_bic(segment):
+            """BIC for a segment under N(μ̂, σ̂²): n*log(σ̂²) + 2*log(n)."""
+            m = len(segment)
+            if m < 2:
+                return 0.0
+            ss = np.sum((segment - np.mean(segment))**2)
+            return m * np.log(max(ss / m, 1e-15)) + 2 * np.log(m)
 
-        # Cumulative sum for change detection
-        cumsum = np.cumsum(data - np.mean(data))
-        diff2 = np.abs(np.diff(cumsum, 2)) if n > 2 else []
+        # Iteratively find change points by scanning within segments
+        min_seg = max(3, n // 20)
+        segments = [(0, n)]  # list of (start, end) boundaries
+        changepoints = []  # list of (index, bayes_factor)
 
-        # Find peaks in second derivative (change points)
-        if len(diff2) > 0:
-            peaks, props = find_peaks(diff2, height=np.std(diff2), distance=max(5, n//10))
-            changepoints = peaks[:max_cp] + 1 if len(peaks) > 0 else []
-        else:
-            changepoints = []
+        for _ in range(max_cp):
+            best_bf = 0.0
+            best_cp = None
+            best_seg_idx = None
+
+            for seg_idx, (seg_start, seg_end) in enumerate(segments):
+                seg_data = data[seg_start:seg_end]
+                seg_n = len(seg_data)
+
+                if seg_n < 2 * min_seg:
+                    continue
+
+                bic_null = _seg_bic(seg_data)
+
+                for tau in range(min_seg, seg_n - min_seg + 1):
+                    bic_alt = _seg_bic(seg_data[:tau]) + _seg_bic(seg_data[tau:])
+                    bf = np.exp((bic_null - bic_alt) / 2)
+
+                    if bf > best_bf:
+                        best_bf = bf
+                        best_cp = seg_start + tau
+                        best_seg_idx = seg_idx
+
+            if best_cp is not None and best_bf > 3:  # moderate evidence
+                changepoints.append((best_cp, best_bf))
+                old_start, old_end = segments[best_seg_idx]
+                segments[best_seg_idx] = (old_start, best_cp)
+                segments.insert(best_seg_idx + 1, (best_cp, old_end))
+            else:
+                break
+
+        changepoints.sort(key=lambda x: x[0])
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN CHANGE POINT DETECTION<</COLOR>>\n"
         summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
         summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
-        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}\n\n"
+        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}\n"
+        summary += f"<<COLOR:text>>Method: BIC-approximated Bayes Factor scan<</COLOR>>\n\n"
 
         if len(changepoints) > 0:
             summary += f"<<COLOR:success>>Detected {len(changepoints)} change point(s):<</COLOR>>\n"
-            for i, cp in enumerate(changepoints):
+            for i, (cp, bf) in enumerate(changepoints):
                 before = data[:cp]
                 after = data[cp:]
-                summary += f"  Point {i+1}: index {cp}, before μ={np.mean(before):.3f}, after μ={np.mean(after):.3f}\n"
+                summary += f"  Point {i+1}: index {cp}, BF₁₀={bf:.1f}"
+                summary += f", before μ={np.mean(before):.3f}, after μ={np.mean(after):.3f}\n"
         else:
-            summary += f"<<COLOR:text>>No significant change points detected<</COLOR>>\n"
+            summary += f"<<COLOR:text>>No significant change points detected (BF₁₀ < 3)<</COLOR>>\n"
 
         result["summary"] = summary
-        result["statistics"] = {"n_changepoints": len(changepoints), "changepoint_indices": list(changepoints)}
+        cp_indices = [cp for cp, _ in changepoints]
+        cp_bfs = [bf for _, bf in changepoints]
+        result["statistics"] = {"n_changepoints": len(changepoints), "changepoint_indices": cp_indices, "bayes_factors": cp_bfs}
 
         # Time series plot with change points
         plot_data = [{

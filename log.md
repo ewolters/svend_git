@@ -4378,3 +4378,16 @@ New endpoint: `POST /api/dsw/models/<uuid>/optimize/` using `scipy.optimize.diff
 8. Fractional factorial: replaced arbitrary modular generators with standard confounding patterns from Montgomery
 
 **How to verify:** `python3 manage.py check`
+
+### 2026-02-20 — DSW Remaining Statistical Fixes (3 items)
+**Debt item:** DSW audit — final 3 moderate items
+**Files changed:**
+- `agents_api/dsw/bayesian.py` — bayes_changepoint: proper Bayesian BIC scan
+- `agents_api/dsw/stats.py` — regression SE: pinv fallback + collinearity warning; logistic SE: ridge fallback + warning (binary + nominal)
+
+**What changed:**
+1. bayes_changepoint(): replaced CUSUM heuristic with BIC-approximated Bayes Factor scan. Iteratively finds change points by comparing segment BICs, reports BF₁₀ for each. Threshold BF>3 for detection.
+2. Regression SE: bare `except:` replaced with `except LinAlgError:` + `np.linalg.pinv()` fallback. User now sees collinearity warning in output. Same fix for leverage hat matrix.
+3. Logistic regression SE (binary + nominal): `except Exception: None` replaced with ridge-regularized fallback (`+1e-6*I`). User sees warning about perfect separation / collinearity when SEs are approximate.
+
+**How to verify:** `python3 manage.py check`
