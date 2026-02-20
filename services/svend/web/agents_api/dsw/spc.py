@@ -170,96 +170,280 @@ def run_spc_analysis(df, analysis_id, config):
         result["guide_observation"] = f"Control chart shows {ooc} out-of-control points." + (" Process appears stable." if ooc == 0 else " Investigation recommended.")
 
     elif analysis_id == "capability":
+        from scipy import stats as sp_stats
+
         lsl = float(config.get("lsl")) if config.get("lsl") else None
         usl = float(config.get("usl")) if config.get("usl") else None
         target = float(config.get("target")) if config.get("target") else None
 
-        mean = np.mean(data)
-        std = np.std(data, ddof=1)
+        n = len(data)
+        mean = float(np.mean(data))
+        std = float(np.std(data, ddof=1))
 
-        summary = f"Capability Analysis\n\nMean: {mean:.4f}\nStd Dev: {std:.4f}\n"
+        # ── Capability indices ──────────────────────────────────────
+        cp = cpk = pp = ppk = cpm = None
+        ppm_below = ppm_above = ppm_total = 0.0
+        yield_pct = 100.0
+        sigma_level = 0.0
 
-        if lsl is not None and usl is not None:
+        if lsl is not None and usl is not None and std > 0:
             cp = (usl - lsl) / (6 * std)
-            if target:
-                cpk = min((usl - mean) / (3 * std), (mean - lsl) / (3 * std))
-            else:
-                cpk = min((usl - mean) / (3 * std), (mean - lsl) / (3 * std))
+            cpk = min((usl - mean) / (3 * std), (mean - lsl) / (3 * std))
+            pp = cp    # same as Cp for individual data (no within-subgroup estimate)
+            ppk = cpk
+            if target is not None:
+                cpm = (usl - lsl) / (6 * np.sqrt(std**2 + (mean - target)**2))
 
-            summary += f"\nCp: {cp:.3f}\nCpk: {cpk:.3f}"
+            # Expected defects
+            z_lower = (mean - lsl) / std
+            z_upper = (usl - mean) / std
+            ppm_below = float(sp_stats.norm.cdf(-z_lower) * 1e6)
+            ppm_above = float(sp_stats.norm.cdf(-z_upper) * 1e6)
+            ppm_total = ppm_below + ppm_above
+            yield_pct = (1 - ppm_total / 1e6) * 100
+            sigma_level = float(sp_stats.norm.ppf(1 - ppm_total / 1e6) + 1.5) if ppm_total < 1e6 else 0
 
+        elif lsl is not None and std > 0:
+            cpk = (mean - lsl) / (3 * std)
+            z_lower = (mean - lsl) / std
+            ppm_below = float(sp_stats.norm.cdf(-z_lower) * 1e6)
+            ppm_total = ppm_below
+            yield_pct = (1 - ppm_total / 1e6) * 100
+
+        elif usl is not None and std > 0:
+            cpk = (usl - mean) / (3 * std)
+            z_upper = (usl - mean) / std
+            ppm_above = float(sp_stats.norm.cdf(-z_upper) * 1e6)
+            ppm_total = ppm_above
+            yield_pct = (1 - ppm_total / 1e6) * 100
+
+        # ── Summary text ────────────────────────────────────────────
+        summary = f"Capability Analysis  (n = {n})\n\n"
+        summary += f"  Mean:      {mean:.4f}\n"
+        summary += f"  Std Dev:   {std:.4f}\n"
+        summary += f"  Min:       {float(np.min(data)):.4f}\n"
+        summary += f"  Max:       {float(np.max(data)):.4f}\n"
+
+        if cp is not None:
+            summary += f"\nCapability Indices:\n"
+            summary += f"  Cp:   {cp:.3f}     Pp:   {pp:.3f}\n"
+            summary += f"  Cpk:  {cpk:.3f}     Ppk:  {ppk:.3f}\n"
+            if cpm is not None:
+                summary += f"  Cpm:  {cpm:.3f}   (Taguchi, target = {target})\n"
+        elif cpk is not None:
+            summary += f"\nCapability (one-sided):\n"
+            summary += f"  Cpk:  {cpk:.3f}\n"
+
+        if lsl is not None or usl is not None:
+            summary += f"\nExpected Performance:\n"
+            if lsl is not None:
+                summary += f"  PPM < LSL:  {ppm_below:,.0f}\n"
+            if usl is not None:
+                summary += f"  PPM > USL:  {ppm_above:,.0f}\n"
+            summary += f"  PPM Total:  {ppm_total:,.0f}\n"
+            summary += f"  Yield:      {yield_pct:.4f}%\n"
+            if cp is not None:
+                summary += f"  Sigma:      {sigma_level:.2f}\n"
+
+        if cpk is not None:
             if cpk >= 1.33:
-                summary += "\n\nProcess is capable (Cpk >= 1.33)"
+                summary += f"\nProcess is capable (Cpk = {cpk:.3f} >= 1.33)"
             elif cpk >= 1.0:
-                summary += "\n\nProcess is marginally capable (1.0 <= Cpk < 1.33)"
+                summary += f"\nProcess is marginally capable (1.0 <= Cpk = {cpk:.3f} < 1.33)"
             else:
-                summary += "\n\nProcess is NOT capable (Cpk < 1.0)"
-
+                summary += f"\nProcess is NOT capable (Cpk = {cpk:.3f} < 1.0)"
             result["guide_observation"] = f"Process capability Cpk = {cpk:.2f}. " + ("Capable." if cpk >= 1.33 else "Needs improvement.")
 
-        # Histogram with spec limits - Svend theme (pale green fill, bright green border)
-        hist_data = [{
-            "type": "histogram",
-            "x": data.tolist(),
-            "name": "Data",
-            "marker": {
-                "color": "rgba(74, 159, 110, 0.4)",  # Pale green fill
-                "line": {"color": "#4a9f6e", "width": 1.5}  # Bright green border
-            }
-        }]
+        # ── Plot 1: Histogram with normal curve ─────────────────────
+        x_range = np.linspace(float(np.min(data)) - 2 * std, float(np.max(data)) + 2 * std, 300)
+        pdf_vals = sp_stats.norm.pdf(x_range, mean, std)
 
-        # Add LSL/USL as dashed vertical lines (matching anomaly threshold style)
-        shapes = []
-        annotations = []
+        hist_traces = [
+            {
+                "type": "histogram", "x": data.tolist(), "name": "Observed",
+                "histnorm": "probability density",
+                "marker": {"color": "rgba(74, 159, 110, 0.35)", "line": {"color": "#4a9f6e", "width": 1}},
+            },
+            {
+                "type": "scatter", "x": x_range.tolist(), "y": pdf_vals.tolist(),
+                "mode": "lines", "name": "Normal Fit",
+                "line": {"color": "#4a90d9", "width": 2.5},
+            },
+        ]
 
-        if lsl:
-            shapes.append({
-                "type": "line",
-                "x0": lsl,
-                "x1": lsl,
-                "y0": 0,
-                "y1": 1,
-                "yref": "paper",
-                "line": {"color": "#e85747", "dash": "dash", "width": 2}
+        shapes_h = []
+        annotations_h = []
+
+        # Mean line
+        shapes_h.append({
+            "type": "line", "x0": mean, "x1": mean, "y0": 0, "y1": 1, "yref": "paper",
+            "line": {"color": "#00b894", "width": 2},
+        })
+        annotations_h.append({
+            "x": mean, "y": 1.06, "yref": "paper", "text": "Mean",
+            "showarrow": False, "font": {"color": "#00b894", "size": 10},
+        })
+
+        # Target line
+        if target is not None:
+            shapes_h.append({
+                "type": "line", "x0": target, "x1": target, "y0": 0, "y1": 1, "yref": "paper",
+                "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
             })
-            annotations.append({
-                "x": lsl,
-                "y": 1.05,
-                "yref": "paper",
-                "text": "LSL",
-                "showarrow": False,
-                "font": {"color": "#e85747", "size": 11}
+            annotations_h.append({
+                "x": target, "y": 1.06, "yref": "paper", "text": "Target",
+                "showarrow": False, "font": {"color": "#e8c547", "size": 10},
             })
 
-        if usl:
-            shapes.append({
-                "type": "line",
-                "x0": usl,
-                "x1": usl,
-                "y0": 0,
-                "y1": 1,
-                "yref": "paper",
-                "line": {"color": "#e85747", "dash": "dash", "width": 2}
+        # LSL / USL lines
+        if lsl is not None:
+            shapes_h.append({
+                "type": "line", "x0": lsl, "x1": lsl, "y0": 0, "y1": 1, "yref": "paper",
+                "line": {"color": "#e85747", "dash": "dash", "width": 2},
             })
-            annotations.append({
-                "x": usl,
-                "y": 1.05,
-                "yref": "paper",
-                "text": "USL",
-                "showarrow": False,
-                "font": {"color": "#e85747", "size": 11}
+            annotations_h.append({
+                "x": lsl, "y": 1.06, "yref": "paper", "text": "LSL",
+                "showarrow": False, "font": {"color": "#e85747", "size": 11},
+            })
+        if usl is not None:
+            shapes_h.append({
+                "type": "line", "x0": usl, "x1": usl, "y0": 0, "y1": 1, "yref": "paper",
+                "line": {"color": "#e85747", "dash": "dash", "width": 2},
+            })
+            annotations_h.append({
+                "x": usl, "y": 1.06, "yref": "paper", "text": "USL",
+                "showarrow": False, "font": {"color": "#e85747", "size": 11},
             })
 
         result["plots"].append({
             "title": "Capability Histogram",
-            "data": hist_data,
+            "data": hist_traces,
             "layout": {
-                "template": "plotly_dark",
-                "height": 300,
-                "shapes": shapes,
-                "annotations": annotations,
-                "margin": {"t": 40}
-            }
+                "template": "plotly_dark", "height": 320,
+                "shapes": shapes_h, "annotations": annotations_h,
+                "showlegend": True,
+                "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                "margin": {"t": 40, "r": 20},
+                "xaxis": {"title": measurement},
+                "yaxis": {"title": "Density"},
+            },
+        })
+
+        # ── Plot 2: Process spread vs specs ─────────────────────────
+        if lsl is not None and usl is not None:
+            spread_lo = mean - 3 * std
+            spread_hi = mean + 3 * std
+            pad = (usl - lsl) * 0.15
+
+            spread_traces = [
+                # Spec range
+                {
+                    "type": "bar", "y": [""], "x": [usl - lsl], "base": [lsl],
+                    "orientation": "h", "name": "Spec Range",
+                    "marker": {"color": "rgba(232, 87, 71, 0.15)", "line": {"color": "#e85747", "width": 1.5}},
+                    "width": [0.5],
+                },
+                # Process spread (±3σ)
+                {
+                    "type": "bar", "y": [""], "x": [spread_hi - spread_lo], "base": [spread_lo],
+                    "orientation": "h", "name": "Process ±3\u03c3",
+                    "marker": {"color": "rgba(74, 159, 110, 0.25)", "line": {"color": "#4a9f6e", "width": 1.5}},
+                    "width": [0.3],
+                },
+            ]
+
+            spread_shapes = []
+            spread_annot = []
+
+            # Mean marker
+            spread_shapes.append({
+                "type": "line", "x0": mean, "x1": mean, "y0": -0.3, "y1": 0.3,
+                "line": {"color": "#00b894", "width": 2.5},
+            })
+            spread_annot.append({
+                "x": mean, "y": 0.35, "text": f"\u03bc={mean:.2f}",
+                "showarrow": False, "font": {"color": "#00b894", "size": 10},
+            })
+
+            # LSL / USL labels on the bar
+            spread_annot.append({
+                "x": lsl, "y": -0.35, "text": f"LSL={lsl}",
+                "showarrow": False, "font": {"color": "#e85747", "size": 10},
+            })
+            spread_annot.append({
+                "x": usl, "y": -0.35, "text": f"USL={usl}",
+                "showarrow": False, "font": {"color": "#e85747", "size": 10},
+            })
+
+            # ±3σ labels
+            spread_annot.append({
+                "x": spread_lo, "y": 0.35, "text": f"-3\u03c3",
+                "showarrow": False, "font": {"color": "#4a9f6e", "size": 9},
+            })
+            spread_annot.append({
+                "x": spread_hi, "y": 0.35, "text": f"+3\u03c3",
+                "showarrow": False, "font": {"color": "#4a9f6e", "size": 9},
+            })
+
+            # Target marker
+            if target is not None:
+                spread_shapes.append({
+                    "type": "line", "x0": target, "x1": target, "y0": -0.3, "y1": 0.3,
+                    "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
+                })
+                spread_annot.append({
+                    "x": target, "y": -0.35, "text": f"T={target}",
+                    "showarrow": False, "font": {"color": "#e8c547", "size": 10},
+                })
+
+            result["plots"].append({
+                "title": "Process Spread vs Specification",
+                "data": spread_traces,
+                "layout": {
+                    "template": "plotly_dark", "height": 180, "barmode": "overlay",
+                    "shapes": spread_shapes, "annotations": spread_annot,
+                    "showlegend": True,
+                    "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+                    "xaxis": {"range": [min(lsl, spread_lo) - pad, max(usl, spread_hi) + pad], "title": measurement},
+                    "yaxis": {"visible": False, "range": [-0.5, 0.5]},
+                    "margin": {"t": 35, "b": 45, "l": 20, "r": 20},
+                },
+            })
+
+        # ── Plot 3: Normal probability plot (Q-Q) ──────────────────
+        sorted_data = np.sort(data)
+        n_pts = len(sorted_data)
+        probs = (np.arange(1, n_pts + 1) - 0.5) / n_pts
+        theoretical_q = sp_stats.norm.ppf(probs, mean, std)
+
+        # Shapiro-Wilk test (limited to 5000 samples)
+        sw_data = data[:5000] if n > 5000 else data
+        sw_stat, sw_p = sp_stats.shapiro(sw_data)
+        normality_note = f"Shapiro-Wilk p = {sw_p:.4f}" + (" (normal)" if sw_p >= 0.05 else " (non-normal)")
+
+        result["plots"].append({
+            "title": f"Normal Probability Plot  ({normality_note})",
+            "data": [
+                {
+                    "type": "scatter", "x": theoretical_q.tolist(), "y": sorted_data.tolist(),
+                    "mode": "markers", "name": "Data",
+                    "marker": {"color": "#4a9f6e", "size": 5, "opacity": 0.7},
+                },
+                {
+                    "type": "scatter",
+                    "x": [float(theoretical_q.min()), float(theoretical_q.max())],
+                    "y": [float(theoretical_q.min()), float(theoretical_q.max())],
+                    "mode": "lines", "name": "Reference",
+                    "line": {"color": "#e85747", "dash": "dash", "width": 1.5},
+                },
+            ],
+            "layout": {
+                "template": "plotly_dark", "height": 300,
+                "xaxis": {"title": "Theoretical Quantiles"},
+                "yaxis": {"title": "Observed"},
+                "showlegend": False,
+                "margin": {"t": 35},
+            },
         })
 
         result["summary"] = summary
@@ -269,10 +453,10 @@ def run_spc_analysis(df, analysis_id, config):
             "type": "capability",
             "mean": float(mean),
             "std": float(std),
-            "n": int(len(data)),
+            "n": int(n),
             "current_lsl": float(lsl) if lsl else None,
             "current_usl": float(usl) if usl else None,
-            "data_values": data.tolist() if len(data) <= 5000 else data[:5000].tolist(),
+            "data_values": data.tolist() if n <= 5000 else data[:5000].tolist(),
         }
 
     elif analysis_id == "xbar_r":
@@ -1728,6 +1912,7 @@ def run_spc_analysis(df, analysis_id, config):
         result["summary"] = summary_cc
 
         # Plot 1: Conformal control chart (main)
+        n_cal_plot = len(cal_values)  # subgroup count for subgroup charts, n_cal for individuals
         n_total = len(all_values)
         point_colors = []
         for i in range(n_total):
@@ -1755,13 +1940,13 @@ def run_spc_analysis(df, analysis_id, config):
                  "line": {"color": "#9aaa9a", "dash": "dot", "width": 1}, "showlegend": False},
             ],
             "layout": {
-                "height": 350,
+                "height": 320,
                 "xaxis": {"title": "Observation"},
                 "yaxis": {"title": measurement},
-                "shapes": [{"type": "line", "x0": n_cal, "x1": n_cal, "y0": float(np.min(all_values)) - 0.1 * float(np.ptp(all_values)),
+                "shapes": [{"type": "line", "x0": n_cal_plot, "x1": n_cal_plot, "y0": float(np.min(all_values)) - 0.1 * float(np.ptp(all_values)),
                             "y1": float(np.max(all_values)) + 0.1 * float(np.ptp(all_values)),
                             "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5}}],
-                "annotations": [{"x": n_cal, "y": float(np.max(all_values)), "text": "← Cal | Mon →",
+                "annotations": [{"x": n_cal_plot, "y": float(np.max(all_values)), "text": "← Cal | Mon →",
                                  "showarrow": False, "font": {"color": "#e8c547", "size": 10}}],
                 "template": "plotly_white",
             }
@@ -1783,7 +1968,7 @@ def run_spc_analysis(df, analysis_id, config):
                  "mode": "markers", "marker": {"size": 10, "color": "#e8c547", "symbol": "triangle-up", "line": {"color": "#e89547", "width": 1.5}},
                  "name": "Uncertainty Spike"}
             ] if len(spike_indices_mon) > 0 else []),
-            "layout": {"height": 300, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}, "template": "plotly_white"}
+            "layout": {"height": 320, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}, "template": "plotly_white"}
         })
 
         # Plot 3: Nonconformity score chart
@@ -1795,7 +1980,7 @@ def run_spc_analysis(df, analysis_id, config):
                 {"type": "scatter", "x": list(range(n_total)), "y": [q] * n_total, "mode": "lines",
                  "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": f"Threshold q={q:.3f}"},
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Observation"}, "yaxis": {"title": "|X - median|"}, "template": "plotly_white"}
+            "layout": {"height": 320, "xaxis": {"title": "Observation"}, "yaxis": {"title": "|X - median|"}, "template": "plotly_white"}
         })
 
         # Plot 4: Interval width over time (spike detection)
@@ -1807,7 +1992,7 @@ def run_spc_analysis(df, analysis_id, config):
                 {"type": "scatter", "x": list(range(n)), "y": [spike_threshold * median_width * 2] * n, "mode": "lines",
                  "line": {"color": "#e85747", "dash": "dash", "width": 1.5}, "name": f"Spike threshold ({spike_threshold}× median)"},
             ],
-            "layout": {"height": 220, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Interval Width"}, "template": "plotly_white"}
+            "layout": {"height": 320, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Interval Width"}, "template": "plotly_white"}
         })
 
         result["guide_observation"] = f"Conformal control chart (distribution-free): {n_ooc} OOC, {len(spike_indices_mon)} uncertainty spikes in {n_mon} monitoring observations."
@@ -2037,6 +2222,7 @@ def run_spc_analysis(df, analysis_id, config):
 
     # ── Bridge: Bayesian SPC suite lives in run_visualization ──
     elif analysis_id.startswith("bayes_spc_"):
+        from .viz import run_visualization
         return run_visualization(df, analysis_id, config)
 
     # ── Bridge: Bayesian DOE suite ──

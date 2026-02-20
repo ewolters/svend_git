@@ -10,6 +10,8 @@ Endpoints for:
 
 import json
 import logging
+import math
+import statistics
 import tempfile
 import os
 
@@ -263,16 +265,267 @@ def capability_study(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse({
-            "success": True,
-            "capability": result.to_dict(),
-        })
+        resp = _build_capability_response(data, result)
+        resp["success"] = True
+        return JsonResponse(resp)
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
     except Exception as e:
         logger.exception("Capability study error")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def _build_capability_response(data, cap):
+    """Build a full analysis response (summary + plots) for capability study.
+
+    Returns a dict in the same format as renderStatsOutput expects:
+    {summary, plots, guide_observation, what_if_data}
+    """
+    from scipy import stats as sp_stats
+    import numpy as np
+
+    mean = cap.mean
+    sigma = cap.sigma_overall
+    sigma_w = cap.sigma_within
+    lsl, usl, target = cap.lsl, cap.usl, cap.target
+    n = len(data)
+
+    # ── Summary text ────────────────────────────────────────────
+    summary = f"<<COLOR:title>>CAPABILITY ANALYSIS<</COLOR>>  (n = {n})\n\n"
+    summary += f"  Mean:           {mean:.4f}\n"
+    summary += f"  Within σ:       {sigma_w:.4f}\n"
+    summary += f"  Overall σ:      {sigma:.4f}\n"
+    summary += f"  Min:            {min(data):.4f}\n"
+    summary += f"  Max:            {max(data):.4f}\n"
+
+    summary += f"\n<<COLOR:accent>>Capability Indices:<</COLOR>>\n"
+    summary += f"  Cp:   {cap.cp:.3f}     Pp:   {cap.pp:.3f}\n"
+    summary += f"  Cpk:  {cap.cpk:.3f}     Ppk:  {cap.ppk:.3f}\n"
+
+    # Cpm (Taguchi) — only meaningful with a target that differs from midpoint
+    if target is not None and sigma > 0:
+        cpm = (usl - lsl) / (6 * math.sqrt(sigma ** 2 + (mean - target) ** 2))
+        summary += f"  Cpm:  {cpm:.3f}   (Taguchi, target = {target})\n"
+
+    summary += f"\n<<COLOR:accent>>Expected Performance:<</COLOR>>\n"
+    z_lower = (mean - lsl) / sigma if sigma > 0 else float('inf')
+    z_upper = (usl - mean) / sigma if sigma > 0 else float('inf')
+    ppm_below = float(sp_stats.norm.cdf(-z_lower) * 1e6)
+    ppm_above = float(sp_stats.norm.cdf(-z_upper) * 1e6)
+    ppm_total = ppm_below + ppm_above
+    summary += f"  PPM < LSL:  {ppm_below:,.0f}\n"
+    summary += f"  PPM > USL:  {ppm_above:,.0f}\n"
+    summary += f"  PPM Total:  {ppm_total:,.0f}\n"
+    summary += f"  Yield:      {cap.yield_percent:.4f}%\n"
+    summary += f"  Sigma:      {cap.sigma_level:.2f}\n"
+
+    if cap.cpk >= 1.33:
+        summary += f"\n<<COLOR:success>>Process is capable (Cpk = {cap.cpk:.3f} ≥ 1.33)<</COLOR>>"
+    elif cap.cpk >= 1.0:
+        summary += f"\n<<COLOR:warning>>Process is marginally capable (1.0 ≤ Cpk = {cap.cpk:.3f} < 1.33)<</COLOR>>"
+    else:
+        summary += f"\n<<COLOR:danger>>Process is NOT capable (Cpk = {cap.cpk:.3f} < 1.0)<</COLOR>>"
+
+    # ── Plot 1: Histogram with normal curve ─────────────────────
+    data_arr = np.array(data, dtype=float)
+    std = float(sigma)
+    x_range = np.linspace(float(np.min(data_arr)) - 2 * std, float(np.max(data_arr)) + 2 * std, 300)
+    pdf_vals = sp_stats.norm.pdf(x_range, mean, std)
+
+    hist_traces = [
+        {
+            "type": "histogram", "x": [float(v) for v in data],
+            "histnorm": "probability density", "name": "Observed",
+            "marker": {"color": "rgba(74, 159, 110, 0.35)", "line": {"color": "#4a9f6e", "width": 1}},
+        },
+        {
+            "type": "scatter", "x": x_range.tolist(), "y": pdf_vals.tolist(),
+            "mode": "lines", "name": "Normal Fit",
+            "line": {"color": "#4a90d9", "width": 2.5},
+        },
+    ]
+
+    shapes_h = []
+    annotations_h = []
+
+    # Mean line
+    shapes_h.append({
+        "type": "line", "x0": mean, "x1": mean, "y0": 0, "y1": 1, "yref": "paper",
+        "line": {"color": "#00b894", "width": 2},
+    })
+    annotations_h.append({
+        "x": mean, "y": 1.06, "yref": "paper", "text": "Mean",
+        "showarrow": False, "font": {"color": "#00b894", "size": 10},
+    })
+
+    # Target line
+    if target is not None:
+        shapes_h.append({
+            "type": "line", "x0": target, "x1": target, "y0": 0, "y1": 1, "yref": "paper",
+            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
+        })
+        annotations_h.append({
+            "x": target, "y": 1.06, "yref": "paper", "text": "Target",
+            "showarrow": False, "font": {"color": "#e8c547", "size": 10},
+        })
+
+    # LSL / USL lines
+    shapes_h.append({
+        "type": "line", "x0": lsl, "x1": lsl, "y0": 0, "y1": 1, "yref": "paper",
+        "line": {"color": "#e85747", "dash": "dash", "width": 2},
+    })
+    annotations_h.append({
+        "x": lsl, "y": 1.06, "yref": "paper", "text": "LSL",
+        "showarrow": False, "font": {"color": "#e85747", "size": 11},
+    })
+    shapes_h.append({
+        "type": "line", "x0": usl, "x1": usl, "y0": 0, "y1": 1, "yref": "paper",
+        "line": {"color": "#e85747", "dash": "dash", "width": 2},
+    })
+    annotations_h.append({
+        "x": usl, "y": 1.06, "yref": "paper", "text": "USL",
+        "showarrow": False, "font": {"color": "#e85747", "size": 11},
+    })
+
+    plots = []
+    plots.append({
+        "title": "Capability Histogram",
+        "data": hist_traces,
+        "layout": {
+            "template": "plotly_dark", "height": 320,
+            "shapes": shapes_h, "annotations": annotations_h,
+            "showlegend": True,
+            "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+            "margin": {"t": 40, "r": 20},
+            "xaxis": {"title": "Measurement"},
+            "yaxis": {"title": "Density"},
+        },
+    })
+
+    # ── Plot 2: Process spread vs specs ─────────────────────────
+    spread_lo = mean - 3 * std
+    spread_hi = mean + 3 * std
+    pad = (usl - lsl) * 0.15
+
+    spread_traces = [
+        {
+            "type": "bar", "y": [""], "x": [usl - lsl], "base": [lsl],
+            "orientation": "h", "name": "Spec Range",
+            "marker": {"color": "rgba(232, 87, 71, 0.15)", "line": {"color": "#e85747", "width": 1.5}},
+            "width": [0.5],
+        },
+        {
+            "type": "bar", "y": [""], "x": [spread_hi - spread_lo], "base": [spread_lo],
+            "orientation": "h", "name": "Process \u00b13\u03c3",
+            "marker": {"color": "rgba(74, 159, 110, 0.25)", "line": {"color": "#4a9f6e", "width": 1.5}},
+            "width": [0.3],
+        },
+    ]
+
+    spread_shapes = []
+    spread_annot = []
+    spread_shapes.append({
+        "type": "line", "x0": mean, "x1": mean, "y0": -0.3, "y1": 0.3,
+        "line": {"color": "#00b894", "width": 2.5},
+    })
+    spread_annot.append({
+        "x": mean, "y": 0.35, "text": f"\u03bc={mean:.2f}",
+        "showarrow": False, "font": {"color": "#00b894", "size": 10},
+    })
+    spread_annot.append({
+        "x": lsl, "y": -0.35, "text": f"LSL={lsl}",
+        "showarrow": False, "font": {"color": "#e85747", "size": 10},
+    })
+    spread_annot.append({
+        "x": usl, "y": -0.35, "text": f"USL={usl}",
+        "showarrow": False, "font": {"color": "#e85747", "size": 10},
+    })
+    spread_annot.append({
+        "x": spread_lo, "y": 0.35, "text": "-3\u03c3",
+        "showarrow": False, "font": {"color": "#4a9f6e", "size": 9},
+    })
+    spread_annot.append({
+        "x": spread_hi, "y": 0.35, "text": "+3\u03c3",
+        "showarrow": False, "font": {"color": "#4a9f6e", "size": 9},
+    })
+    if target is not None:
+        spread_shapes.append({
+            "type": "line", "x0": target, "x1": target, "y0": -0.3, "y1": 0.3,
+            "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5},
+        })
+        spread_annot.append({
+            "x": target, "y": -0.35, "text": f"T={target}",
+            "showarrow": False, "font": {"color": "#e8c547", "size": 10},
+        })
+
+    plots.append({
+        "title": "Process Spread vs Specification",
+        "data": spread_traces,
+        "layout": {
+            "template": "plotly_dark", "height": 180, "barmode": "overlay",
+            "shapes": spread_shapes, "annotations": spread_annot,
+            "showlegend": True,
+            "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
+            "xaxis": {"range": [min(lsl, spread_lo) - pad, max(usl, spread_hi) + pad], "title": "Measurement"},
+            "yaxis": {"visible": False, "range": [-0.5, 0.5]},
+            "margin": {"t": 35, "b": 45, "l": 20, "r": 20},
+        },
+    })
+
+    # ── Plot 3: Normal probability plot (Q-Q) ──────────────────
+    sorted_data = np.sort(data_arr)
+    n_pts = len(sorted_data)
+    probs = (np.arange(1, n_pts + 1) - 0.5) / n_pts
+    theoretical_q = sp_stats.norm.ppf(probs, mean, std)
+
+    sw_data = data[:5000] if n > 5000 else data
+    sw_stat, sw_p = sp_stats.shapiro(sw_data)
+    normality_note = f"Shapiro-Wilk p = {sw_p:.4f}" + (" (normal)" if sw_p >= 0.05 else " (non-normal)")
+
+    plots.append({
+        "title": f"Normal Probability Plot  ({normality_note})",
+        "data": [
+            {
+                "type": "scatter", "x": theoretical_q.tolist(), "y": sorted_data.tolist(),
+                "mode": "markers", "name": "Data",
+                "marker": {"color": "#4a9f6e", "size": 5, "opacity": 0.7},
+            },
+            {
+                "type": "scatter",
+                "x": [float(theoretical_q.min()), float(theoretical_q.max())],
+                "y": [float(theoretical_q.min()), float(theoretical_q.max())],
+                "mode": "lines", "name": "Reference",
+                "line": {"color": "#e85747", "dash": "dash", "width": 1.5},
+            },
+        ],
+        "layout": {
+            "template": "plotly_dark", "height": 300,
+            "xaxis": {"title": "Theoretical Quantiles"},
+            "yaxis": {"title": "Observed"},
+            "showlegend": False,
+            "margin": {"t": 35},
+        },
+    })
+
+    guide_obs = f"Process capability Cpk = {cap.cpk:.2f}. " + ("Capable." if cap.cpk >= 1.33 else "Needs improvement.")
+
+    what_if = {
+        "type": "capability",
+        "mean": float(mean),
+        "std": float(std),
+        "n": int(n),
+        "current_lsl": float(lsl),
+        "current_usl": float(usl),
+        "data_values": [float(v) for v in data[:5000]],
+    }
+
+    return {
+        "summary": summary,
+        "plots": plots,
+        "guide_observation": guide_obs,
+        "what_if_data": what_if,
+    }
 
 
 # =============================================================================
@@ -531,10 +784,12 @@ def analyze_uploaded(request):
                 f"{result.interpretation}"
             )
 
+            resp = _build_capability_response(flat_data, result)
+
             response_data = {
                 "success": True,
                 "analysis_type": "capability",
-                "capability": result.to_dict(),
+                **resp,
                 "data_source": {
                     "filename": parsed.filename,
                     "value_column": value_column,

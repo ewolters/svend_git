@@ -626,7 +626,7 @@ def api_business(request):
             "cancelling": churning,
             "active_subscriptions": active_subs,
         },
-        "founder_slots": {"used": founder_count, "total": 100},
+        "founder_slots": {"used": founder_count, "total": 50},
         "feature_adoption": tool_usage.most_common(15),
     })
 
@@ -1811,7 +1811,7 @@ def _build_data_snapshot(days=30):
             "mrr": mrr,
             "churning_subscriptions": churning,
             "founder_slots_used": tier_dist.get("founder", 0),
-            "founder_slots_total": 100,
+            "founder_slots_total": 50,
         },
         "usage": {k: v or 0 for k, v in usage.items()},
         "performance": {

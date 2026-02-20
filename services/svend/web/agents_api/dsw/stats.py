@@ -7772,16 +7772,16 @@ def run_statistical_analysis(df, analysis_id, config):
                     else:
                         current_run = 1
 
-                cluster_flag = "<<COLOR:danger>>Yes<<\/COLOR>>" if p_clustering < 0.05 else "<<COLOR:success>>No<<\/COLOR>>"
-                mixture_flag = "<<COLOR:danger>>Yes<<\/COLOR>>" if p_mixtures < 0.05 else "<<COLOR:success>>No<<\/COLOR>>"
+                cluster_flag = "<<COLOR:danger>>Yes<</COLOR>>" if p_clustering < 0.05 else "<<COLOR:success>>No<</COLOR>>"
+                mixture_flag = "<<COLOR:danger>>Yes<</COLOR>>" if p_mixtures < 0.05 else "<<COLOR:success>>No<</COLOR>>"
 
-                summary = f"""<<COLOR:title>>RUN CHART<<\/COLOR>>
+                summary = f"""<<COLOR:title>>RUN CHART<</COLOR>>
 {'='*50}
-<<COLOR:highlight>>Variable:<<\/COLOR>> {var}
-<<COLOR:highlight>>Observations:<<\/COLOR>> {n}
-<<COLOR:highlight>>Median:<<\/COLOR>> {median_val:.6g}
+<<COLOR:highlight>>Variable:<</COLOR>> {var}
+<<COLOR:highlight>>Observations:<</COLOR>> {n}
+<<COLOR:highlight>>Median:<</COLOR>> {median_val:.6g}
 
-<<COLOR:accent>>Runs Test Results<<\/COLOR>>
+<<COLOR:accent>>Runs Test Results<</COLOR>>
   Number of runs:    {runs}
   Expected runs:     {expected_runs:.1f}
   Longest run:       {longest_run}
@@ -7791,10 +7791,10 @@ def run_statistical_analysis(df, analysis_id, config):
   Clustering (too few runs)?   {cluster_flag}  (p = {p_clustering:.4f})
   Mixtures (too many runs)?    {mixture_flag}  (p = {p_mixtures:.4f})"""
             else:
-                summary = f"""<<COLOR:title>>RUN CHART<<\/COLOR>>
+                summary = f"""<<COLOR:title>>RUN CHART<</COLOR>>
 {'='*50}
 Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
-<<COLOR:warning>>All values on same side of median — runs test not applicable<<\/COLOR>>"""
+<<COLOR:warning>>All values on same side of median — runs test not applicable<</COLOR>>"""
                 runs = 0
 
             result["summary"] = summary
@@ -7849,15 +7849,15 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 p_val = min(1.0, 2 * n * (1 - stats.t.cdf(np.sqrt((n * (n - 2) * G**2) / (n - 1 - G**2 * (n - 1) / n)), n - 2))) if G**2 < n * (n - 1) / n else 0.0
 
                 is_outlier = G > G_crit
-                verdict = "<<COLOR:danger>>Yes — significant outlier<<\/COLOR>>" if is_outlier else "<<COLOR:success>>No — not a significant outlier<<\/COLOR>>"
+                verdict = "<<COLOR:danger>>Yes — significant outlier<</COLOR>>" if is_outlier else "<<COLOR:success>>No — not a significant outlier<</COLOR>>"
 
-                summary = f"""<<COLOR:title>>GRUBBS' OUTLIER TEST<<\/COLOR>>
+                summary = f"""<<COLOR:title>>GRUBBS' OUTLIER TEST<</COLOR>>
 {'='*50}
-<<COLOR:highlight>>Variable:<<\/COLOR>> {var}
-<<COLOR:highlight>>N:<<\/COLOR>> {n}
-<<COLOR:highlight>>Significance level:<<\/COLOR>> {alpha}
+<<COLOR:highlight>>Variable:<</COLOR>> {var}
+<<COLOR:highlight>>N:<</COLOR>> {n}
+<<COLOR:highlight>>Significance level:<</COLOR>> {alpha}
 
-<<COLOR:accent>>Results<<\/COLOR>>
+<<COLOR:accent>>Results<</COLOR>>
   Suspect value: {suspect:.6g}
   Mean:          {mean_val:.6g}
   StDev:         {std_val:.6g}
@@ -7921,18 +7921,18 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             # Find significant lags
             sig_lags = [(lag, cc) for lag, cc in zip(lags, ccf_vals) if abs(cc) > sig_bound]
 
-            summary = f"""<<COLOR:title>>CROSS-CORRELATION FUNCTION<<\/COLOR>>
+            summary = f"""<<COLOR:title>>CROSS-CORRELATION FUNCTION<</COLOR>>
 {'='*50}
-<<COLOR:highlight>>Series 1:<<\/COLOR>> {var1}
-<<COLOR:highlight>>Series 2:<<\/COLOR>> {var2}
-<<COLOR:highlight>>N:<<\/COLOR>> {n}
-<<COLOR:highlight>>Max lag:<<\/COLOR>> ±{max_lag}
-<<COLOR:highlight>>Significance bound:<<\/COLOR>> ±{sig_bound:.4f}
+<<COLOR:highlight>>Series 1:<</COLOR>> {var1}
+<<COLOR:highlight>>Series 2:<</COLOR>> {var2}
+<<COLOR:highlight>>N:<</COLOR>> {n}
+<<COLOR:highlight>>Max lag:<</COLOR>> ±{max_lag}
+<<COLOR:highlight>>Significance bound:<</COLOR>> ±{sig_bound:.4f}
 
-<<COLOR:accent>>Lag 0 correlation:<<\/COLOR>> {ccf_vals[max_lag]:.4f}"""
+<<COLOR:accent>>Lag 0 correlation:<</COLOR>> {ccf_vals[max_lag]:.4f}"""
 
             if sig_lags:
-                summary += f"\n\n<<COLOR:accent>>Significant lags:<<\/COLOR>>"
+                summary += f"\n\n<<COLOR:accent>>Significant lags:<</COLOR>>"
                 for lag, cc in sorted(sig_lags, key=lambda x: abs(x[1]), reverse=True)[:10]:
                     summary += f"\n  Lag {lag:>3d}: r = {cc:+.4f}"
 
@@ -7964,9 +7964,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         if n < 10:
             result["summary"] = "Johnson transformation requires at least 10 observations."
         else:
-            summary = f"<<COLOR:title>>JOHNSON TRANSFORMATION<<\/COLOR>>\n{'='*50}\n"
-            summary += f"<<COLOR:highlight>>Variable:<<\/COLOR>> {var}\n"
-            summary += f"<<COLOR:highlight>>N:<<\/COLOR>> {n}\n\n"
+            summary = f"<<COLOR:title>>JOHNSON TRANSFORMATION<</COLOR>>\n{'='*50}\n"
+            summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
+            summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
 
             # Test each Johnson family
             families = {}
@@ -8003,21 +8003,21 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             # Original normality
             _, p_orig = stats.shapiro(data[:min(5000, n)])
 
-            summary += f"<<COLOR:text>>Original Shapiro-Wilk p-value:<<\/COLOR>> {p_orig:.4f}"
+            summary += f"<<COLOR:text>>Original Shapiro-Wilk p-value:<</COLOR>> {p_orig:.4f}"
             summary += f" {'(normal)' if p_orig > 0.05 else '(non-normal)'}\n\n"
 
             if families:
                 best_family = max(families.keys(), key=lambda k: families[k]["p_value"])
                 best = families[best_family]
 
-                summary += f"<<COLOR:accent>>Family Results:<<\/COLOR>>\n"
+                summary += f"<<COLOR:accent>>Family Results:<</COLOR>>\n"
                 for fam_name, fam_data in sorted(families.items(), key=lambda x: -x[1]["p_value"]):
                     marker = " ← Best" if fam_name == best_family else ""
                     p = fam_data["p_value"]
-                    status = "<<COLOR:success>>normal<<\/COLOR>>" if p > 0.05 else "<<COLOR:warning>>non-normal<<\/COLOR>>"
+                    status = "<<COLOR:success>>normal<</COLOR>>" if p > 0.05 else "<<COLOR:warning>>non-normal<</COLOR>>"
                     summary += f"  Johnson {fam_name}: Shapiro-Wilk p = {p:.4f} ({status}){marker}\n"
 
-                summary += f"\n<<COLOR:success>>Best transformation: Johnson {best_family}<<\/COLOR>>\n"
+                summary += f"\n<<COLOR:success>>Best transformation: Johnson {best_family}<</COLOR>>\n"
 
                 result["summary"] = summary
                 result["guide_observation"] = f"Johnson transform: best family={best_family}, p={best['p_value']:.4f}."
@@ -8035,7 +8035,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "layout": {"height": 200, "xaxis": {"title": f"Johnson {best_family}({var})"}}
                 })
             else:
-                summary += "\n<<COLOR:warning>>Could not fit any Johnson family to this data.<<\/COLOR>>"
+                summary += "\n<<COLOR:warning>>Could not fit any Johnson family to this data.<</COLOR>>"
                 result["summary"] = summary
 
     elif analysis_id == "robust_regression":
@@ -10631,17 +10631,17 @@ Top Correlations:
                 if col in numeric_cols:
                     vals = df[col].dropna()
                     if len(vals) > 0:
-                        col_lines.append(f"  <<COLOR:accent>>{col}<<\/COLOR>>  N={len(vals)}  Mean={vals.mean():.4g}  StDev={vals.std():.4g}  Min={vals.min():.4g}  Max={vals.max():.4g}  Missing={miss_p:.1f}%")
+                        col_lines.append(f"  <<COLOR:accent>>{col}<</COLOR>>  N={len(vals)}  Mean={vals.mean():.4g}  StDev={vals.std():.4g}  Min={vals.min():.4g}  Max={vals.max():.4g}  Missing={miss_p:.1f}%")
                     else:
-                        col_lines.append(f"  <<COLOR:warning>>{col}<<\/COLOR>>  (all missing)")
+                        col_lines.append(f"  <<COLOR:warning>>{col}<</COLOR>>  (all missing)")
                 else:
                     uniq = df[col].nunique()
                     top = df[col].mode().iloc[0] if len(df[col].mode()) > 0 else "-"
-                    col_lines.append(f"  <<COLOR:accent>>{col}<<\/COLOR>>  Unique={uniq}  Top=\"{str(top)[:20]}\"  Missing={miss_p:.1f}%")
+                    col_lines.append(f"  <<COLOR:accent>>{col}<</COLOR>>  Unique={uniq}  Top=\"{str(top)[:20]}\"  Missing={miss_p:.1f}%")
 
             summary = f"""<<COLOR:title>>DATA OVERVIEW<</COLOR>>
 {'='*50}
-<<COLOR:highlight>>{n_rows}<<\/COLOR>> rows × <<COLOR:highlight>>{n_cols}<<\/COLOR>> columns
+<<COLOR:highlight>>{n_rows}<</COLOR>> rows × <<COLOR:highlight>>{n_cols}<</COLOR>> columns
 Numeric: {len(numeric_cols)}  |  Categorical: {len(cat_cols)}  |  Datetime: {len(dt_cols)}
 Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
 
@@ -10711,7 +10711,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     n_star = int(df[col].isnull().sum())
 
                     if n < 3:
-                        all_summaries.append(f"<<COLOR:title>>{col}<<\/COLOR>>: insufficient data (N={n})")
+                        all_summaries.append(f"<<COLOR:title>>{col}<</COLOR>>: insufficient data (N={n})")
                         continue
 
                     # Descriptive stats
@@ -10734,7 +10734,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     ad_crit = ad_result.critical_values[2] if len(ad_result.critical_values) > 2 else ad_result.critical_values[-1]
                     ad_sig = ad_result.significance_level[2] if len(ad_result.significance_level) > 2 else ad_result.significance_level[-1]
                     ad_pass = ad_stat < ad_crit
-                    ad_verdict = "<<COLOR:success>>Yes (fail to reject H₀)<<\/COLOR>>" if ad_pass else "<<COLOR:danger>>No (reject H₀)<<\/COLOR>>"
+                    ad_verdict = "<<COLOR:success>>Yes (fail to reject H₀)<</COLOR>>" if ad_pass else "<<COLOR:danger>>No (reject H₀)<</COLOR>>"
 
                     # CI for mean (t-interval)
                     ci_mean = sp_stats.t.interval(conf_level, df=n - 1, loc=mean_val, scale=se)
@@ -10762,13 +10762,13 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     # Summary text
                     summ = f"""<<COLOR:title>>{'═'*50}
 {col}
-{'═'*50}<<\/COLOR>>
+{'═'*50}<</COLOR>>
 
-<<COLOR:accent>>Anderson-Darling Normality Test<<\/COLOR>>
+<<COLOR:accent>>Anderson-Darling Normality Test<</COLOR>>
   A² = {ad_stat:.4f}    Critical ({ad_sig:.0f}%) = {ad_crit:.4f}
   Normal? {ad_verdict}
 
-<<COLOR:accent>>Descriptive Statistics<<\/COLOR>>
+<<COLOR:accent>>Descriptive Statistics<</COLOR>>
   N = {n}    N* = {n_star}
   Mean     = {mean_val:.6g}       StDev    = {std_val:.6g}
   Variance = {var_val:.6g}       Skewness = {skew_val:.4f}
@@ -10777,7 +10777,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
   Median   = {median_val:.6g}       Q3       = {q3:.6g}
   Maximum  = {max_val:.6g}
 
-<<COLOR:accent>>Confidence Intervals ({pct_str})<<\/COLOR>>
+<<COLOR:accent>>Confidence Intervals ({pct_str})<</COLOR>>
   Mean:   ({ci_mean[0]:.6g}, {ci_mean[1]:.6g})
   Median: ({ci_median_lo:.6g}, {ci_median_hi:.6g})
   StDev:  ({ci_std_lo:.6g}, {ci_std_hi:.6g})"""

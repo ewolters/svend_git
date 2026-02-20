@@ -1,0 +1,255 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Partnerships — Education, Defense Innovation & Consulting{% endblock %}
+{% block meta_description %}Partner with Svend to bring data-driven decision science to training programs, defense innovation, and consulting engagements.{% endblock %}
+{% block meta_keywords %}Svend partnerships, training partner program, quality engineering training, continuous improvement education, defense innovation, consulting partnerships{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/partnerships/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/partnerships/">
+<meta property="og:title" content="Partnerships | Svend">
+<meta property="og:description" content="Partner with Svend for education, defense innovation, and consulting engagements. Training company licensing, direct training, and advisory partnerships.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block extra_css %}
+/* Partnership page styles */
+.partner-section {
+    margin-bottom: 3rem;
+}
+.partner-section-label {
+    font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--accent-primary);
+    margin-bottom: 0.5rem;
+}
+.partner-section h2 {
+    font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem;
+}
+.partner-section h2 strong { color: var(--accent-primary); }
+.partner-section > p {
+    color: var(--text-secondary); font-size: 0.95rem; line-height: 1.7;
+    max-width: 720px; margin-bottom: 1.5rem;
+}
+
+/* Track cards */
+.partner-tracks {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+.partner-track {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem;
+}
+.partner-track h3 {
+    font-size: 1rem; font-weight: 600; color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+.partner-track p {
+    font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;
+    margin-bottom: 0.75rem;
+}
+.partner-track ul {
+    list-style: none; padding: 0; margin: 0;
+}
+.partner-track ul li {
+    font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;
+    padding: 0.2rem 0; padding-left: 1.2rem; position: relative;
+}
+.partner-track ul li::before {
+    content: ''; position: absolute; left: 0; top: 0.6rem;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-primary);
+}
+
+/* Contact block */
+.partner-contact {
+    background: var(--accent-primary-dim); border: 1px solid var(--accent-primary-border);
+    border-radius: 8px; padding: 1.25rem 1.5rem;
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+}
+.partner-contact p {
+    font-size: 0.9rem; color: var(--text-primary); margin: 0; flex: 1;
+}
+.partner-contact a.partner-btn {
+    background: var(--accent-primary); color: #fff; padding: 0.6rem 1.5rem;
+    border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600;
+    white-space: nowrap; transition: background 0.2s;
+}
+.partner-contact a.partner-btn:hover { background: #3a8a5a; }
+
+/* Divider */
+.partner-divider {
+    border: none; border-top: 1px solid var(--border);
+    margin: 2.5rem 0;
+}
+
+/* Ukrainian section styling */
+.stiykist-section {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 2rem;
+    margin-bottom: 1.5rem;
+}
+.stiykist-section h2 {
+    margin-bottom: 0.5rem;
+}
+.stiykist-flag {
+    display: inline-flex; gap: 0; margin-left: 0.5rem; vertical-align: middle;
+    width: 1.5rem; height: 1rem; border-radius: 2px; overflow: hidden;
+    border: 1px solid var(--border);
+}
+.stiykist-flag-top { background: #005BBB; flex: 1; }
+.stiykist-flag-bottom { background: #FFD500; flex: 1; }
+.stiykist-section p {
+    font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7;
+    margin-bottom: 1rem;
+}
+.stiykist-section p:last-child { margin-bottom: 0; }
+.stiykist-areas {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    margin: 1.25rem 0;
+}
+.stiykist-area {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem 1.25rem;
+}
+.stiykist-area h4 {
+    font-size: 0.85rem; font-weight: 600; color: var(--accent-gold);
+    margin-bottom: 0.35rem;
+}
+.stiykist-area p {
+    font-size: 0.8rem; margin-bottom: 0;
+}
+
+/* Placeholder section */
+.partner-placeholder {
+    text-align: center; padding: 3rem 2rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px;
+}
+.partner-placeholder h3 {
+    font-size: 1.1rem; font-weight: 600; color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+.partner-placeholder p {
+    font-size: 0.9rem; color: var(--text-dim);
+}
+
+/* Hide the calculator CTA from tool_base */
+.tool-cta { display: none; }
+
+@media (max-width: 768px) {
+    .partner-tracks { grid-template-columns: 1fr; }
+    .stiykist-areas { grid-template-columns: 1fr; }
+    .partner-contact { flex-direction: column; text-align: center; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>Partnerships</strong></h1>
+    <p>Bring data-driven decision science to your training programs, defense operations, or consulting practice.</p>
+</div>
+
+<!-- ================================================================ -->
+<!-- Section 1: Education Partnerships                                 -->
+<!-- ================================================================ -->
+<div class="partner-section">
+    <div class="partner-section-label">Education</div>
+    <h2>Training <strong>Partnerships</strong></h2>
+    <p>Svend partners with training companies, universities, and certification bodies to give students hands-on experience with professional statistical analysis, DOE, SPC, and structured problem-solving tools during their programs.</p>
+
+    <div class="partner-tracks">
+        <div class="partner-track">
+            <h3>Licensing for Training Companies</h3>
+            <p>Integrate Svend into your curriculum. Students get free platform access for the duration of their certification program, then convert to individual plans at regional pricing after graduation.</p>
+            <ul>
+                <li>Full platform access during training (no cost to students)</li>
+                <li>Custom workspace templates aligned to your curriculum</li>
+                <li>Cohort management and progress tracking</li>
+                <li>Co-branded certification with Svend proficiency badge</li>
+                <li>Graduates convert at regional pricing — not US rates</li>
+            </ul>
+        </div>
+        <div class="partner-track">
+            <h3>Direct Training Engagements</h3>
+            <p>Svend delivers hands-on workshops and training sessions using the platform as the live teaching environment. Ideal for organizations building internal quality and CI capability.</p>
+            <ul>
+                <li>DOE, SPC, and capability analysis workshops</li>
+                <li>Structured problem solving (A3, RCA, FMEA)</li>
+                <li>Hypothesis-driven improvement methodology</li>
+                <li>Custom training built around your processes and data</li>
+                <li>Remote or on-site delivery</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="partner-contact">
+        <p>Interested in an education partnership? Tell us about your program and we'll design the right engagement.</p>
+        <a href="mailto:hello@svend.ai?subject=Education%20Partnership%20Inquiry" class="partner-btn">Get in Touch</a>
+    </div>
+</div>
+
+<hr class="partner-divider">
+
+<!-- ================================================================ -->
+<!-- Section 2: Project Stiykist (Стійкість) — entirely in Ukrainian   -->
+<!-- ================================================================ -->
+<div class="partner-section">
+    <div class="partner-section-label">Defense Innovation</div>
+    <div class="stiykist-section">
+        <h2>Проєкт <strong>Стійкість</strong>
+            <span class="stiykist-flag">
+                <span class="stiykist-flag-top"></span>
+                <span class="stiykist-flag-bottom"></span>
+            </span>
+        </h2>
+        <p>Svend пропонує пряме партнерство з українськими оборонними підприємствами, інженерними командами та дослідницькими установами. Мета — впровадження інструментів аналітики якості та прийняття рішень на основі даних у критичні виробничі та логістичні процеси.</p>
+
+        <p>Ми розуміємо, що стійкість оборонної промисловості будується не лише на ресурсах, а й на здатності систематично аналізувати, покращувати та масштабувати процеси. Платформа Svend об'єднує статистичний аналіз, планування експериментів (DOE), контроль якості (SPC) та структуроване вирішення проблем в одному середовищі.</p>
+
+        <div class="stiykist-areas">
+            <div class="stiykist-area">
+                <h4>Оборонне виробництво</h4>
+                <p>Контроль процесів, аналіз можливостей, зменшення дефектів та оптимізація виробничих ліній для оборонної продукції.</p>
+            </div>
+            <div class="stiykist-area">
+                <h4>Логістика та ланцюги постачання</h4>
+                <p>Картування потоків цінності (VSM), прогнозування та виявлення вузьких місць у ланцюгах постачання оборонного сектору.</p>
+            </div>
+            <div class="stiykist-area">
+                <h4>Інженерні дослідження</h4>
+                <p>Планування експериментів, байєсівський аналіз гіпотез та відстеження доказів для R&D програм.</p>
+            </div>
+            <div class="stiykist-area">
+                <h4>Стратегічне розгортання</h4>
+                <p>Хошин Канрі та структуроване управління проєктами покращення для координації зусиль на всіх рівнях організації.</p>
+            </div>
+        </div>
+
+        <p>Усі партнерства в рамках проєкту «Стійкість» розглядаються індивідуально. Ми відкриті до нестандартних форм співпраці, включаючи безкоштовний доступ, спільні дослідницькі ініціативи та технічну підтримку.</p>
+
+        <div class="partner-contact">
+            <p>Зв'яжіться з нами для обговорення можливостей партнерства.</p>
+            <a href="mailto:hello@svend.ai?subject=%D0%9F%D1%80%D0%BE%D1%94%D0%BA%D1%82%20%D0%A1%D1%82%D1%96%D0%B9%D0%BA%D1%96%D1%81%D1%82%D1%8C" class="partner-btn">Написати нам</a>
+        </div>
+    </div>
+</div>
+
+<hr class="partner-divider">
+
+<!-- ================================================================ -->
+<!-- Section 3: Consulting Partnerships (placeholder)                  -->
+<!-- ================================================================ -->
+<div class="partner-section">
+    <div class="partner-section-label">Advisory & Consulting</div>
+    <div class="partner-placeholder">
+        <h3>Consulting Partnerships Available Beginning March 2026</h3>
+        <p>We're building a framework for consulting and advisory partnerships. Details coming soon.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block faq %}{% endblock %}

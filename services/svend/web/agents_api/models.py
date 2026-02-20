@@ -702,13 +702,10 @@ class Problem(models.Model):
             user=self.user,
             title=self.title,
             problem_statement=self.effect_description,
-            effect_description=self.effect_description,
-            effect_magnitude=self.effect_magnitude,
+            problem_magnitude=self.effect_magnitude,
             domain=self.domain,
-            stakeholders=self.stakeholders,
             constraints=self.constraints,
             can_experiment=self.can_experiment,
-            available_data=self.available_data,
             methodology=mapped_methodology,
             status="active",
         )
@@ -730,7 +727,7 @@ class Problem(models.Model):
         core_hyp = Hypothesis.objects.create(
             project=project,
             statement=hypothesis_dict["cause"],
-            mechanism=hypothesis_dict.get("mechanism", ""),
+            because_clause=hypothesis_dict.get("mechanism", ""),
             prior_probability=hypothesis_dict.get("probability", 0.5),
             current_probability=hypothesis_dict.get("probability", 0.5),
             created_by=self.user,
@@ -907,10 +904,13 @@ class LLMUsage(models.Model):
             defaults={'request_count': 0, 'input_tokens': 0, 'output_tokens': 0}
         )
 
-        usage.request_count += 1
-        usage.input_tokens += input_tokens
-        usage.output_tokens += output_tokens
-        usage.save()
+        from django.db.models import F
+        cls.objects.filter(pk=usage.pk).update(
+            request_count=F("request_count") + 1,
+            input_tokens=F("input_tokens") + input_tokens,
+            output_tokens=F("output_tokens") + output_tokens,
+        )
+        usage.refresh_from_db()
 
         return usage
 

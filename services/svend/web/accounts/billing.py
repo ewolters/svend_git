@@ -42,9 +42,10 @@ PRICE_TO_TIER = {
     "price_1T0Y42DQfJOZ4D245kTDgtal": User.Tier.ENTERPRISE, # $299/month
 }
 
-# Tier to Price ID mapping (for new checkouts — Founder no longer sold)
+# Tier to Price ID mapping (for new checkouts)
 TIER_TO_PRICE = {
-    "pro": "price_1T0Y13DQfJOZ4D24GjaVOd09",         # $49/month
+    "founder": "price_1SvoFZDQfJOZ4D24PhKMqiY5",      # $19/month (first 50 slots)
+    "pro": "price_1T0Y13DQfJOZ4D24GjaVOd09",          # $49/month
     "team": "price_1T0Y36DQfJOZ4D24hhziBDe3",         # $99/month
     "enterprise": "price_1T0Y42DQfJOZ4D245kTDgtal",    # $299/month
 }
@@ -127,14 +128,21 @@ def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription
     from datetime import datetime
     from django.utils import timezone
 
-    sub.stripe_price_id = stripe_sub["items"]["data"][0]["price"]["id"] if stripe_sub["items"]["data"] else ""
+    first_item = stripe_sub["items"]["data"][0] if stripe_sub["items"]["data"] else {}
+    sub.stripe_price_id = first_item.get("price", {}).get("id", "") if first_item else ""
     sub.status = stripe_sub.status
+
+    # Period fields moved to items in newer Stripe API versions
+    period_start = (first_item.get("current_period_start")
+                    or getattr(stripe_sub, "current_period_start", None))
+    period_end = (first_item.get("current_period_end")
+                  or getattr(stripe_sub, "current_period_end", None))
     sub.current_period_start = timezone.make_aware(
-        datetime.fromtimestamp(stripe_sub.current_period_start)
-    ) if stripe_sub.current_period_start else None
+        datetime.fromtimestamp(period_start)
+    ) if period_start else None
     sub.current_period_end = timezone.make_aware(
-        datetime.fromtimestamp(stripe_sub.current_period_end)
-    ) if stripe_sub.current_period_end else None
+        datetime.fromtimestamp(period_end)
+    ) if period_end else None
     sub.cancel_at_period_end = stripe_sub.cancel_at_period_end
     sub.save()
 
@@ -165,8 +173,8 @@ def sync_subscription_from_stripe(subscription_id: str) -> Optional[Subscription
 def create_checkout_session(request: HttpRequest):
     """Create a Stripe Checkout session for subscription.
 
-    Accepts ?plan= query param: pro, team, enterprise
-    Defaults to pro if not specified. Founder tier is no longer sold.
+    Accepts ?plan= query param: founder, pro, team, enterprise
+    Defaults to pro if not specified. Founder limited to first 50 slots.
     """
     if not settings.STRIPE_SECRET_KEY:
         return JsonResponse({"error": "Billing not configured"}, status=503)
@@ -184,15 +192,20 @@ def create_checkout_session(request: HttpRequest):
     if not price_id:
         return redirect("/app/settings/?error=invalid_plan")
 
-    # Founder tier is no longer sold — redirect to pro
+    # Founder tier — check slot availability
     if plan == "founder":
-        return redirect("/billing/checkout/?plan=pro")
+        availability = get_founder_availability()
+        if not availability["available"]:
+            return redirect("/app/settings/?error=founder_sold_out")
 
     try:
         customer_id = get_or_create_stripe_customer(user)
 
-        # Build URLs (trailing slash to match URL pattern)
-        success_url = request.build_absolute_uri("/billing/success/?session_id={CHECKOUT_SESSION_ID}")
+        # Build URLs
+        # NOTE: {CHECKOUT_SESSION_ID} must NOT be URL-encoded — Stripe replaces it.
+        # build_absolute_uri encodes braces, so construct manually.
+        base = request.build_absolute_uri("/billing/success/")
+        success_url = base + "?session_id={CHECKOUT_SESSION_ID}"
         cancel_url = request.build_absolute_uri("/app/settings/?checkout=cancelled")
 
         # Create checkout session

@@ -15,6 +15,34 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-20 — Security Audit: Fix P1 Critical Items (10 items)
+**Debt item:** [SEC] All P1 items from Security Audit 2026-02-20
+**Plan:** Fix 10 critical security vulnerabilities identified in full backend audit:
+1. RCE via exec() with __import__ in endpoints_data.py — remove dangerous builtins
+2. RCE via eval() in calculator tool — replace with pd.eval()
+3. RCE via pickle.loads in cache.py — switch to JSON serialization
+4. IDOR on Synara endpoints — add user filtering to _resolve_project()
+5. IDOR on Whiteboard endpoints — add participant/owner checks on write operations
+6. Missing auth on problems_list/problem_detail — add @gated decorator
+7. Open redirect in email_track_click — add domain allowlist
+8. Race conditions in increment_queries/record_usage — use F() expressions
+9. Broken dual-write field mappings in ensure_core_project/sync_hypothesis_to_core
+10. Broken email verification lookup — hash token before DB query
+**Files changed:**
+- `agents_api/dsw/endpoints_data.py` — removed __import__, getattr, setattr, hasattr from exec() sandbox builtins (line ~242); replaced eval() calculator with pd.eval(engine='numexpr') (line ~1275)
+- `agents_api/cache.py` — removed pickle import; SessionCache.set() now always uses JSON; SessionCache.get() rejects non-JSON entries with warning
+- `agents_api/synara_views.py` — _resolve_project() now takes user= param with filter; get_synara/save_synara pass user through; all 30+ view callers pass request.user
+- `agents_api/whiteboard_views.py` — update_board checks owner/participant before allowing edits; export_hypotheses checks owner/participant
+- `agents_api/problem_views.py` — added @gated decorator to problems_list (line 222) and problem_detail (line 319)
+- `api/views.py` — email_track_click validates redirect URL against ALLOWED_REDIRECT_DOMAINS allowlist; email verification hashes token with hash_token() before DB lookup
+- `accounts/models.py` — increment_queries() uses F() expression + refresh_from_db
+- `agents_api/models.py` — LLMUsage.record_usage() uses F() expression + refresh_from_db; ensure_core_project() removed non-existent fields (effect_description, effect_magnitude, stakeholders, available_data), mapped effect_magnitude→problem_magnitude; sync_hypothesis_to_core() mapped mechanism→because_clause
+- `.kjerne/DEBT.md` — moved 10 critical items + email verification to Resolved section
+**Verification:** `python3 manage.py check` — System check identified no issues (0 silenced). No new migrations needed from these changes.
+**Commit:** pending
+
+---
+
 ### 2026-02-20 — Learn Module: PBS Mastery (Module 11)
 
 **Debt item:** N/A (new feature — flagship learning content for PBS)

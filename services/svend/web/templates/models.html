@@ -108,8 +108,16 @@
         <!-- Metrics -->
         <div id="result-metrics" class="result-metrics"></div>
 
-        <!-- AI Insight -->
-        <div id="result-insight" style="display:none;"></div>
+        <!-- Model Confidence -->
+        <div id="result-confidence" style="display:none;">
+            <div id="confidence-gauge" style="height:180px;"></div>
+            <div id="confidence-beliefs"></div>
+            <div id="confidence-narrative"></div>
+        </div>
+
+        <div id="result-permutation" style="display:none;">
+            <div id="permutation-histogram" style="height:220px;"></div>
+        </div>
 
         <!-- Subgroup diagnostics -->
         <div id="result-subgroups" style="display:none;"></div>
@@ -481,6 +489,25 @@
     .insight-label { font-size: 0.7rem; font-weight: 600; color: var(--accent-primary); letter-spacing: 0.05em; margin-bottom: 0.3rem; }
     .insight-text { font-size: 0.85rem; line-height: 1.6; }
 
+    .skeptic-card {
+        padding: 0.75rem 1rem;
+        background: rgba(217,74,74,0.06);
+        border: 1px solid rgba(217,74,74,0.2);
+        border-radius: 6px;
+        margin-bottom: 1rem;
+    }
+    .skeptic-label { font-size: 0.7rem; font-weight: 600; color: #d94a4a; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .skeptic-item { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem; font-size: 0.82rem; line-height: 1.5; }
+    .skeptic-badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.03em; flex-shrink: 0; margin-top: 0.15rem; text-transform: uppercase; }
+    .skeptic-badge.critical { background: rgba(217,74,74,0.15); color: #d94a4a; border: 1px solid rgba(217,74,74,0.3); }
+    .skeptic-badge.high { background: rgba(232,149,71,0.15); color: #e89547; border: 1px solid rgba(232,149,71,0.3); }
+    .skeptic-badge.medium { background: rgba(74,159,110,0.15); color: #4a9f6e; border: 1px solid rgba(74,159,110,0.3); }
+
+    .belief-bar { height: 6px; border-radius: 3px; margin-top: 4px; }
+    .belief-item { margin-bottom: 0.6rem; }
+    .belief-prob { font-weight: 700; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+    .confidence-narrative { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; padding: 0.75rem; background: rgba(74,159,110,0.04); border-radius: 6px; margin-top: 0.75rem; }
+
     .comparison-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; margin-bottom: 1rem; }
     .comparison-table th, .comparison-table td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
     .comparison-table .best-row { background: rgba(74,159,110,0.06); }
@@ -743,7 +770,8 @@ async function runTraining() {
     document.getElementById('pipeline-stages').innerHTML = '';
     document.getElementById('summary-cards').innerHTML = '';
     document.getElementById('result-metrics').innerHTML = '<div class="loading-indicator">Training model...</div>';
-    document.getElementById('result-insight').style.display = 'none';
+    document.getElementById('result-confidence').style.display = 'none';
+    document.getElementById('result-permutation').style.display = 'none';
     document.getElementById('result-comparison').style.display = 'none';
     document.getElementById('result-plots').innerHTML = '';
     document.getElementById('result-recipe').style.display = 'none';
@@ -809,24 +837,64 @@ function renderResults(data) {
     }
     summaryEl.innerHTML = summaryHtml;
 
-    // Metrics
+    // Metrics (skip non-scalar entries like reliability_warnings, per_class)
     const metricsEl = document.getElementById('result-metrics');
     if (data.metrics) {
-        metricsEl.innerHTML = Object.entries(data.metrics).map(([k, v]) => {
-            const display = typeof v === 'number' ? v.toFixed(4) : v;
-            return `<div class="r-metric"><div class="val">${display}</div><div class="lbl">${k}</div></div>`;
+        metricsEl.innerHTML = Object.entries(data.metrics).filter(([k, v]) => typeof v === 'number').map(([k, v]) => {
+            return `<div class="r-metric"><div class="val">${v.toFixed(4)}</div><div class="lbl">${k}</div></div>`;
         }).join('');
     } else {
         metricsEl.innerHTML = '';
     }
 
-    // AI insight
-    const insightEl = document.getElementById('result-insight');
-    if (data.interpretation) {
-        const escaped = data.interpretation.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const formatted = escaped.replace(/\n/g, '<br>').replace(/[✓]/g, '<span style="color:#4a9f6e">✓</span>').replace(/[⚠]/g, '<span style="color:#e89547">⚠</span>');
-        insightEl.innerHTML = `<div class="insight-card"><div class="insight-label">MODEL ASSESSMENT</div><div class="insight-text">${formatted}</div></div>`;
-        insightEl.style.display = 'block';
+    // Model Confidence panel (Bayesian beliefs)
+    const confEl = document.getElementById('result-confidence');
+    if (data.model_confidence != null) {
+        // Render gauge via Plotly
+        if (data.confidence_gauge && window.Plotly) {
+            Plotly.newPlot('confidence-gauge', data.confidence_gauge.data, data.confidence_gauge.layout, {responsive: true, displayModeBar: false});
+        }
+
+        // Render belief items with probability bars
+        if (data.beliefs && data.beliefs.length) {
+            const sorted = [...data.beliefs].filter(b => b.probability > 0.15).sort((a, b) => b.probability - a.probability);
+            let bHtml = '';
+            sorted.forEach(b => {
+                const pct = (b.probability * 100).toFixed(0);
+                const color = b.probability > 0.7 ? '#d94a4a' : b.probability > 0.4 ? '#d4a24a' : '#4a9f6e';
+                bHtml += `<div class="belief-item">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.8rem;">${b.concern.replace(/_/g, ' ')}</span>
+                        <span class="belief-prob" style="color:${color};">${pct}%</span>
+                    </div>
+                    <div class="belief-bar" style="background:rgba(128,128,128,0.15);">
+                        <div style="width:${pct}%;height:100%;border-radius:3px;background:${color};"></div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('confidence-beliefs').innerHTML = bHtml;
+        }
+
+        // Render narrative
+        if (data.confidence_narrative) {
+            const escaped = data.confidence_narrative.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            document.getElementById('confidence-narrative').innerHTML = `<div class="confidence-narrative">${escaped.replace(/\n/g, '<br>')}</div>`;
+        }
+
+        confEl.style.display = 'block';
+    } else {
+        confEl.style.display = 'none';
+    }
+
+    // Permutation reality test histogram
+    const permEl = document.getElementById('result-permutation');
+    if (data.permutation_plot && window.Plotly) {
+        Plotly.newPlot('permutation-histogram',
+            data.permutation_plot.data, data.permutation_plot.layout,
+            {responsive: true, displayModeBar: false});
+        permEl.style.display = 'block';
+    } else {
+        permEl.style.display = 'none';
     }
 
     // Subgroup diagnostics
@@ -977,18 +1045,66 @@ function renderReport(data, container) {
     }
     if (cards) html += '<div class="summary-cards" style="margin-bottom:1rem;">' + cards + '</div>';
 
-    // Metrics
+    // Metrics (skip non-scalar entries)
     if (data.metrics) {
         html += '<div class="result-metrics" style="margin-bottom:1rem;">';
-        Object.entries(data.metrics).forEach(([k, v]) => {
-            const d = typeof v === 'number' ? v.toFixed(4) : v;
-            html += `<div class="r-metric"><div class="val">${d}</div><div class="lbl">${k}</div></div>`;
+        Object.entries(data.metrics).filter(([k, v]) => typeof v === 'number').forEach(([k, v]) => {
+            html += `<div class="r-metric"><div class="val">${v.toFixed(4)}</div><div class="lbl">${k}</div></div>`;
         });
         html += '</div>';
     }
 
-    // Interpretation
-    if (data.interpretation) {
+    // Model Confidence (Bayesian beliefs)
+    if (data.model_confidence != null) {
+        const gaugeId = 'report-gauge-' + Date.now();
+        html += `<div style="margin-bottom:1rem;"><div id="${gaugeId}" style="height:180px;"></div>`;
+
+        if (data.beliefs && data.beliefs.length) {
+            const sorted = [...data.beliefs].filter(b => b.probability > 0.15).sort((a, b) => b.probability - a.probability);
+            sorted.forEach(b => {
+                const pct = (b.probability * 100).toFixed(0);
+                const color = b.probability > 0.7 ? '#d94a4a' : b.probability > 0.4 ? '#d4a24a' : '#4a9f6e';
+                html += `<div class="belief-item">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.8rem;">${b.concern.replace(/_/g, ' ')}</span>
+                        <span class="belief-prob" style="color:${color};">${pct}%</span>
+                    </div>
+                    <div class="belief-bar" style="background:rgba(128,128,128,0.15);">
+                        <div style="width:${pct}%;height:100%;border-radius:3px;background:${color};"></div>
+                    </div>
+                </div>`;
+            });
+        }
+
+        if (data.confidence_narrative) {
+            const escaped = data.confidence_narrative.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            html += `<div class="confidence-narrative">${escaped.replace(/\n/g, '<br>')}</div>`;
+        }
+        html += '</div>';
+
+        // Defer gauge rendering
+        requestAnimationFrame(() => {
+            const el = document.getElementById(gaugeId);
+            if (el && window.Plotly && data.confidence_gauge) {
+                Plotly.newPlot(el, data.confidence_gauge.data, data.confidence_gauge.layout, {responsive: true, displayModeBar: false});
+            }
+        });
+    }
+
+    // Permutation reality test histogram
+    if (data.permutation_plot) {
+        const permId = 'report-perm-' + Date.now();
+        html += `<div style="margin-bottom:1rem;"><div id="${permId}" style="height:220px;"></div></div>`;
+        requestAnimationFrame(() => {
+            const el = document.getElementById(permId);
+            if (el && window.Plotly) {
+                Plotly.newPlot(el, data.permutation_plot.data, data.permutation_plot.layout, {responsive: true, displayModeBar: false});
+            }
+        });
+    }
+
+    // Backwards compat: render old interpretation if present (saved reports)
+    else if (data.interpretation) {
         const escaped = data.interpretation.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const formatted = escaped.replace(/\n/g, '<br>').replace(/[✓]/g, '<span style="color:#4a9f6e">✓</span>').replace(/[⚠]/g, '<span style="color:#e89547">⚠</span>');
         html += `<div class="insight-card" style="margin-bottom:1rem;"><div class="insight-label">MODEL ASSESSMENT</div><div class="insight-text">${formatted}</div></div>`;

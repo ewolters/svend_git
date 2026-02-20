@@ -985,7 +985,8 @@ def verify_email(request):
         )
 
     try:
-        user = User.objects.get(email_verification_token=token)
+        from core.encryption import hash_token
+        user = User.objects.get(email_verification_token=hash_token(token))
         if user.verify_email(token):
             logger.info(f"Email verified for user: {user.username}")
             return Response({
@@ -1228,9 +1229,20 @@ def email_track_open(request, recipient_id):
 def email_track_click(request, recipient_id):
     """Track email link click and redirect."""
     from django.http import HttpResponseRedirect
+    from urllib.parse import urlparse
     from api.models import EmailRecipient
 
+    ALLOWED_REDIRECT_DOMAINS = {"svend.ai", "www.svend.ai"}
+
     url = request.GET.get("url", "https://svend.ai")
+
+    # Validate redirect URL to prevent open redirect
+    try:
+        parsed = urlparse(url)
+        if parsed.hostname not in ALLOWED_REDIRECT_DOMAINS:
+            url = "https://svend.ai"
+    except Exception:
+        url = "https://svend.ai"
 
     try:
         rcpt = EmailRecipient.objects.get(id=recipient_id)

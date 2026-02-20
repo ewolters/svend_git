@@ -22,10 +22,77 @@ Track technical debt here. Review weekly.
 [REPO] 50+ hardcoded /home/eric/ paths across Python files — works on prod server but breaks portability | Added: 2026-02-06 | Priority: P3
 [REPO] Duplicate agents/agents/ directory (85 files duplicating agents/) | Added: 2026-02-06 | Priority: P3
 
+### Code Organization
+
+[DSW] dsw_views.py monolith (25,035 lines) — split into dsw/ package in progress, analysis engines extracted, HTTP endpoints still in monolith. Plan: [dsw_future_plan.md](../services/svend/reference_docs/dsw_future_plan.md) | Added: 2026-02-16 | Priority: P2
+
 ### Infrastructure
 
 [INFRA] Off-site backup sync — encrypted backups sit on same machine as data. Push AES-256 encrypted dumps to Backblaze B2 or similar for fire/theft/disk-failure resilience | Added: 2026-02-13 | Priority: P3
 [INFRA] RCA critique views (rca_views.py) use @gated_paid instead of @require_enterprise — Founder/Pro/Team users can hit Anthropic API through critique/evaluate_chain/critique_countermeasure | Added: 2026-02-13 | Priority: P2
+
+### Security — Critical (Audit 2026-02-20)
+
+*All 10 critical items resolved — see Resolved section below.*
+
+### Security — High (Audit 2026-02-20)
+
+[SEC] IDOR in DSW views — dsw_views.py:139,193 does Project.objects.get(id=project_id) without user= filter | Added: 2026-02-20 | Priority: P1
+[SEC] CSRF globally disabled — CsrfExemptSessionAuthentication on all REST Framework endpoints, mitigated only by SameSite=Lax | Added: 2026-02-20 | Priority: P2
+[SEC] SPC cache_key IDOR — spc_views.py:669 accepts user_id:filename cache key without ownership validation | Added: 2026-02-20 | Priority: P1
+[SEC] Board.save() version increment not atomic — race condition in collaborative whiteboard, needs F() expression | Added: 2026-02-20 | Priority: P2
+[SEC] add_finding_to_problem() doesn't dual-write — agent-sourced evidence only goes to JSON blobs, never to core.Evidence | Added: 2026-02-20 | Priority: P2
+[SEC] Hoshin update_site/delete_site missing write permission checks — any tenant member (including viewers) can modify/delete sites | Added: 2026-02-20 | Priority: P1
+[SEC] FMEA list_fmea_actions/promote_fmea_action use wrong field name (user= instead of owner=) — always 404s | Added: 2026-02-20 | Priority: P1
+[SEC] HTML injection + SSRF in PDF export — wkhtmltopdf with --enable-local-file-access and unsanitized user HTML | Added: 2026-02-20 | Priority: P2
+[SEC] Content-Disposition header injection — user-controlled filenames in workbench/files/api views without sanitization | Added: 2026-02-20 | Priority: P2
+[SEC] No zombie task reaper in Tempora — crashed workers leave tasks in RUNNING state forever | Added: 2026-02-20 | Priority: P2
+[SEC] No max_requests in Gunicorn — workers never recycled, unbounded memory growth | Added: 2026-02-20 | Priority: P2
+[SEC] LLM prompt injection — user input directly interpolated into Claude/Qwen prompts across multiple views | Added: 2026-02-20 | Priority: P2
+[SEC] No probability validation (0-1) on core.Hypothesis — values outside range corrupt Bayesian math | Added: 2026-02-20 | Priority: P2
+[SEC] No FMEA S/O/D score validation (1-10) on model — zero values produce RPN=0, masking risk | Added: 2026-02-20 | Priority: P2
+[SEC] Three parallel Hypothesis/Evidence systems (workbench, core, Problem) with no sync between them | Added: 2026-02-20 | Priority: P2
+[SEC] Pickle in CacheEntry.value BinaryField — RCE vector if DB compromised | Added: 2026-02-20 | Priority: P1 | *Mitigated: SessionCache now rejects pickle entries*
+[SEC] No GPU memory cleanup in core/llm.py — no unload() method, GPU RAM never freed | Added: 2026-02-20 | Priority: P2
+[SEC] get_context_file leaks server filesystem path in API response | Added: 2026-02-20 | Priority: P2
+
+### Security — Medium (Audit 2026-02-20)
+
+[SEC] Registration endpoint not rate-limited — api/views.py:831 missing throttle | Added: 2026-02-20 | Priority: P2
+[SEC] Password validators not applied — only checks len>=8, ignores Django AUTH_PASSWORD_VALIDATORS | Added: 2026-02-20 | Priority: P2
+[SEC] TEMPORA_CLUSTER_SECRET reuses Django SECRET_KEY — settings.py:159 | Added: 2026-02-20 | Priority: P2
+[SEC] Forge tier limit bypass — session-authenticated users skip all usage limits | Added: 2026-02-20 | Priority: P2
+[SEC] Forge job IDOR — Job.objects.get(api_key=None) matches all session users' jobs | Added: 2026-02-20 | Priority: P2
+[SEC] eval() in simulation.py:129 — user formulas with AST check but np namespace exposed | Added: 2026-02-20 | Priority: P2
+[SEC] Missing indexes on Evidence.project and Message(conversation, created_at) | Added: 2026-02-20 | Priority: P2
+[SEC] Workbench conversations unencrypted — chat.Message uses EncryptedTextField but workbench stores plaintext JSON | Added: 2026-02-20 | Priority: P2
+[SEC] No timeout on Claude API calls — llm_manager.py:182, hangs sync workers indefinitely | Added: 2026-02-20 | Priority: P2
+[SEC] Rate limit bypass on DB failure — llm_manager.py:161 continues if rate limit check throws | Added: 2026-02-20 | Priority: P2
+[SEC] Hardcoded debug=True default in config.py:26 — if env var missing, runs in debug mode | Added: 2026-02-20 | Priority: P2
+[SEC] DB credentials hardcoded as default in config.py:31 — password svend_db_2026 in source | Added: 2026-02-20 | Priority: P2
+[SEC] No Django LOGGING configuration in production settings | Added: 2026-02-20 | Priority: P2
+[SEC] Unbounded in-memory caches — _parsed_data_cache, _synara_cache, _interview_sessions have no TTL/size limit | Added: 2026-02-20 | Priority: P2
+[SEC] Conversation history injection — experimenter_views.py:1625, user can inject role:"system" messages | Added: 2026-02-20 | Priority: P2
+[SEC] No file upload size limit for DSW analysis data — pd.read_csv() without size check → OOM | Added: 2026-02-20 | Priority: P2
+[SEC] File type blocklist incomplete — missing .html, .svg, .py, .php | Added: 2026-02-20 | Priority: P2
+[SEC] Path traversal in data_id — data_ prefix check insufficient, ../.. not blocked | Added: 2026-02-20 | Priority: P2
+[SEC] Tempora node ID hardcoded as svend-1 — all instances would claim same ID | Added: 2026-02-20 | Priority: P3
+[SEC] Placeholder tenant_id=UUID(int=0) in replication.py:520 | Added: 2026-02-20 | Priority: P3
+[SEC] No TLS on Tempora cluster communication despite hardening config | Added: 2026-02-20 | Priority: P3
+[SEC] Error messages leak internals — str(e) returned to client in 20+ locations | Added: 2026-02-20 | Priority: P2
+[SEC] Mass assignment on status fields — directly settable via PATCH, bypassing workflows | Added: 2026-02-20 | Priority: P3
+
+### Statistical Correctness (Audit 2026-02-20)
+
+[STATS] Incorrect JZS Bayes Factor approximation — dsw/bayesian.py:~102, not proper integral, misleading BF10 values vs Minitab | Added: 2026-02-20 | Priority: P1
+[STATS] Ad-hoc correlation Bayes Factor — dsw/bayesian.py:~251, doesn't match any standard reference (Ly et al. 2016) | Added: 2026-02-20 | Priority: P1
+[STATS] Synara forced normalization distorts independent hypotheses — belief.py:149-163, treats all hypotheses as mutually exclusive | Added: 2026-02-20 | Priority: P1
+[STATS] Two-sample t-test CI uses wrong df — stats.py:~184, Welch test + pooled df in CI | Added: 2026-02-20 | Priority: P2
+[STATS] SPC Pp/Ppk equals Cp/Cpk for individuals data — dsw/spc.py:~193, should use MR-bar/d2 for within-subgroup sigma | Added: 2026-02-20 | Priority: P2
+[STATS] DPMO uses only upper tail — spc.py:~219, underestimates defect rate by ~50% | Added: 2026-02-20 | Priority: P2
+[STATS] Cholesky decomposition without exception handling — bayes_core.py:~88, crashes on collinear data | Added: 2026-02-20 | Priority: P2
+[STATS] Synara belief propagation is a heuristic, not proper Bayesian network inference — belief.py:183-250 | Added: 2026-02-20 | Priority: P3
+[STATS] eval() in simulation module — dsw/simulation.py:~129, should use AST-walking evaluator like hoshin_calculations.py | Added: 2026-02-20 | Priority: P2
 
 ### Existing Debt (carried forward)
 
@@ -38,6 +105,17 @@ Track technical debt here. Review weekly.
 [DOE] No acceptance sampling for variable data (normal distribution plans) | Added: 2026-02-07 | Priority: P3
 
 ## Resolved
+
+[SEC] RCE via exec() with __import__ in endpoints_data.py — removed __import__, getattr, setattr, hasattr from sandbox builtins | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] RCE via eval() in endpoints_data.py — replaced eval() calculator with pd.eval(engine='numexpr') | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] RCE via pickle.loads in cache.py — SessionCache now JSON-only, rejects pickle entries | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] IDOR on Synara endpoints — _resolve_project() now accepts user param, all callers pass request.user | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] IDOR on Whiteboard write endpoints — update_board and export_hypotheses now require owner/participant status | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Missing auth on problems_list/problem_detail — added @gated decorator | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Open redirect in email_track_click — added domain allowlist validation (svend.ai only) | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Race conditions in increment_queries/record_usage — replaced with F() expressions | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Broken dual-write ensure_core_project/sync_hypothesis_to_core — fixed field mappings to match core.Project/Hypothesis schema | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Broken email verification lookup — hash token before DB query | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 
 [DSW] No mixed-effects / multi-level modeling | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending
 [FORECAST] Limited to random walk MC, SMA, exponential smoothing — no Prophet, TBATS, or seasonal methods | Added: 2026-02-06 | Resolved: 2026-02-07 | Commit: pending
@@ -62,4 +140,4 @@ Track technical debt here. Review weekly.
 [CORE] Phase 2 model cutover — all read paths now use core.Project FKs with JSON fallback. 8 read paths switched, API shape unchanged | Added: 2026-02-06 | Resolved: 2026-02-06 | Commit: 98a1628
 
 ---
-*Last reviewed: 2026-02-06*
+*Last reviewed: 2026-02-20*

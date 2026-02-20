@@ -26,7 +26,7 @@ class Tier(models.TextChoices):
 
 
 # Maximum founder slots available
-FOUNDER_SLOTS = 100
+FOUNDER_SLOTS = 50
 
 
 # Daily query limits by tier

@@ -10,7 +10,7 @@ from scipy import stats
 from .common import (
     _effect_magnitude, _practical_block, _ml_interpretation,
     _build_ml_diagnostics, _clean_for_ml, _stratified_split,
-    _stratified_split_3way, _classification_reliability, _auto_train,
+    _stratified_split_3way, _classification_reliability, _regression_reliability, _auto_train,
     _claude_generate_schema, _generate_data_from_schema,
     _claude_interpret_results, cache_model, _create_ml_evidence,
     save_model_to_disk, get_cached_model,
@@ -853,6 +853,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 f"Params: depth={max_depth}, lr={learning_rate}, n_est={n_estimators}"
             )
             metrics_dict = {"r2": float(r2), "rmse": rmse}
+            _regression_reliability(y_work, y_test, y_pred, metrics_dict)
 
         # Full diagnostic suite
         result["plots"].extend(_build_ml_diagnostics(
@@ -984,6 +985,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 f"Params: leaves={num_leaves}, lr={learning_rate}, n_est={n_estimators}"
             )
             metrics_dict = {"r2": float(r2), "rmse": rmse}
+            _regression_reliability(y_work, y_test, y_pred, metrics_dict)
 
         # Full diagnostic suite
         result["plots"].extend(_build_ml_diagnostics(

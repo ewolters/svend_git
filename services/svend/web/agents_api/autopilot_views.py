@@ -11,6 +11,7 @@ All require paid tier (@gated_paid).
 
 import json
 import logging
+import math
 import time
 import uuid
 
@@ -23,6 +24,7 @@ from django.views.decorators.http import require_http_methods
 from accounts.permissions import gated_paid, require_auth
 from .dsw.common import (
     _auto_train,
+    _bayesian_model_beliefs,
     _build_ml_diagnostics,
     _clean_for_ml,
     _create_ml_evidence,
@@ -36,13 +38,16 @@ logger = logging.getLogger(__name__)
 
 
 class _NumpySafeEncoder(json.JSONEncoder):
-    """JSON encoder that handles numpy/pandas types."""
+    """JSON encoder that handles numpy/pandas types and NaN/Infinity."""
 
     def default(self, obj):
         if isinstance(obj, (np.integer,)):
             return int(obj)
         if isinstance(obj, (np.floating,)):
-            return float(obj)
+            v = float(obj)
+            if math.isnan(v) or math.isinf(v):
+                return None
+            return v
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, (np.bool_,)):
@@ -51,9 +56,22 @@ class _NumpySafeEncoder(json.JSONEncoder):
             return obj.isoformat()
         return super().default(obj)
 
+    def encode(self, o):
+        # Replace Python float NaN/Infinity with None before encoding
+        return super().encode(self._sanitize(o))
+
+    def _sanitize(self, obj):
+        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+            return None
+        if isinstance(obj, dict):
+            return {k: self._sanitize(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [self._sanitize(v) for v in obj]
+        return obj
+
 
 def _json_response(data, status=200):
-    """JsonResponse that safely handles numpy types."""
+    """JsonResponse that safely handles numpy types and NaN/Infinity."""
     return HttpResponse(
         json.dumps(data, cls=_NumpySafeEncoder),
         content_type="application/json",
@@ -428,6 +446,10 @@ def autopilot_clean_train(request):
             "plot_count": len(diag_plots),
         })
 
+        # Bayesian model beliefs
+        X_full, y_full, _ = _clean_for_ml(df_clean, target)
+        belief_result = _bayesian_model_beliefs(metrics, X_full, y_full, importances, task, model=model)
+
         # Save model
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
         data_lineage = {
@@ -522,6 +544,11 @@ def autopilot_clean_train(request):
             "plots": diag_plots,
             "recipe": recipe,
             "saved_model_id": str(saved_model.id) if saved_model else None,
+            "model_confidence": belief_result["model_confidence"],
+            "beliefs": belief_result["beliefs"],
+            "confidence_narrative": belief_result["narrative"],
+            "confidence_gauge": belief_result["gauge_plot"],
+            "permutation_plot": belief_result.get("permutation_plot"),
             "interpretation": _build_training_interpretation(
                 task, metrics, type(model).__name__, y_test, y_pred,
                 importances[:5] if importances else [], target,
@@ -625,7 +652,7 @@ def autopilot_full_pipeline(request):
                 "LDA": LinearDiscriminantAnalysis(),
                 "GaussianNB": GaussianNB(),
             }
-            scoring = {"accuracy": "accuracy", "f1": "f1_weighted"}
+            scoring = {"accuracy": "accuracy", "f1": "f1_weighted", "mcc": "matthews_corrcoef"}
             primary_score = "accuracy"
         else:
             from sklearn.ensemble import RandomForestRegressor
@@ -703,12 +730,24 @@ def autopilot_full_pipeline(request):
         y_pred = best_model_obj.predict(X_test)
 
         # Compute metrics
-        from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, r2_score
+        from sklearn.metrics import (
+            accuracy_score, f1_score, mean_squared_error, r2_score,
+            matthews_corrcoef, brier_score_loss, average_precision_score,
+        )
         if task_type == "classification":
             metrics = {
                 "accuracy": float(accuracy_score(y_test, y_pred)),
                 "f1": float(f1_score(y_test, y_pred, average="weighted", zero_division=0)),
+                "mcc": float(matthews_corrcoef(y_test, y_pred)),
             }
+            # Binary: Brier + PR-AUC
+            if len(set(y)) == 2 and hasattr(best_model_obj, "predict_proba"):
+                try:
+                    y_proba = best_model_obj.predict_proba(X_test)[:, 1]
+                    metrics["brier_score"] = round(float(brier_score_loss(y_test, y_proba)), 4)
+                    metrics["average_precision"] = round(float(average_precision_score(y_test, y_proba)), 4)
+                except Exception:
+                    pass
         else:
             metrics = {
                 "r2": float(r2_score(y_test, y_pred)),
@@ -945,6 +984,13 @@ def autopilot_full_pipeline(request):
                 metrics, importances, task_type, target,
             )
 
+        # Bayesian model beliefs
+        belief_result = _bayesian_model_beliefs(
+            metrics, X, y, importances, task_type,
+            model=best_model_obj,
+            cv_std=best_row.get(f"test_{primary_score}_std"),
+        )
+
         elapsed = time.time() - start
 
         primary_metric = metrics.get("accuracy") or metrics.get("r2", "N/A")
@@ -989,6 +1035,11 @@ def autopilot_full_pipeline(request):
             "plots": [p for p in all_plots if "SHAP" not in (p.get("title") or p.get("layout", {}).get("title", {}).get("text", "") if isinstance(p.get("layout", {}).get("title"), dict) else p.get("layout", {}).get("title", ""))],
             "recipe": training_config,
             "saved_model_id": str(saved_model.id) if saved_model else None,
+            "model_confidence": belief_result["model_confidence"],
+            "beliefs": belief_result["beliefs"],
+            "confidence_narrative": belief_result["narrative"],
+            "confidence_gauge": belief_result["gauge_plot"],
+            "permutation_plot": belief_result.get("permutation_plot"),
             "interpretation": _build_training_interpretation(
                 task_type, metrics, type(best_model_obj).__name__, y_test, y_pred,
                 importances[:5] if importances else [], target,
@@ -1085,6 +1136,10 @@ def autopilot_augment_train(request):
             "plot_count": len(diag_plots),
         })
 
+        # Bayesian model beliefs
+        X_full, y_full, _ = _clean_for_ml(augmented_df, target)
+        belief_result = _bayesian_model_beliefs(metrics, X_full, y_full, importances, task, model=model)
+
         # Save model
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
         data_lineage = {
@@ -1180,6 +1235,11 @@ def autopilot_augment_train(request):
             "plots": diag_plots,
             "recipe": recipe,
             "saved_model_id": str(saved_model.id) if saved_model else None,
+            "model_confidence": belief_result["model_confidence"],
+            "beliefs": belief_result["beliefs"],
+            "confidence_narrative": belief_result["narrative"],
+            "confidence_gauge": belief_result["gauge_plot"],
+            "permutation_plot": belief_result.get("permutation_plot"),
             "interpretation": _build_training_interpretation(
                 task, metrics, type(model).__name__, y_test, y_pred,
                 importances[:5] if importances else [], target,

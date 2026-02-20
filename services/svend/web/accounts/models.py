@@ -235,10 +235,13 @@ class User(AbstractUser):
         return self.queries_today < self.daily_limit
 
     def increment_queries(self):
-        """Increment query count."""
-        self.queries_today += 1
-        self.total_queries += 1
-        self.save(update_fields=["queries_today", "total_queries"])
+        """Increment query count atomically."""
+        from django.db.models import F
+        type(self).objects.filter(pk=self.pk).update(
+            queries_today=F("queries_today") + 1,
+            total_queries=F("total_queries") + 1,
+        )
+        self.refresh_from_db(fields=["queries_today", "total_queries"])
 
     def generate_verification_token(self) -> str:
         """Generate a new email verification token.

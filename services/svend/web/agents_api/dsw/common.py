@@ -639,7 +639,9 @@ Make feature names domain-appropriate and realistic."""
 _INTERPRET_SYSTEM_PROMPT = """You are a quality engineer's data science advisor.
 Interpret ML results concisely and practically.
 In 3-4 sentences: What did the model learn? Which features drive predictions and why?
-What should the engineer investigate or do next? Be specific to the domain."""
+What should the engineer investigate or do next? Be specific to the domain.
+If reliability warnings are provided, address the most critical ones directly.
+Do NOT just list warnings — explain what they mean for this specific use case."""
 
 
 def _claude_generate_schema(user, intent, domain, n_records):
@@ -902,7 +904,7 @@ def _classification_reliability(y_full, y_test, y_pred, metrics):
     acc = metrics.get("accuracy", 0)
 
     if acc >= 0.99:
-        warnings.append({"level": "high", "msg": "Perfect or near-perfect accuracy — check for data leakage or target-derived features."})
+        warnings.append({"level": "critical", "msg": "Perfect or near-perfect accuracy — check for data leakage or target-derived features."})
 
     if abs(acc - majority_pct) < 0.01:
         warnings.append({"level": "high", "msg": f"Model accuracy ({acc:.1%}) matches the majority baseline ({majority_pct:.1%}). The model is not learning from features."})
@@ -928,6 +930,818 @@ def _classification_reliability(y_full, y_test, y_pred, metrics):
     return metrics
 
 
+def _regression_reliability(y_full, y_test, y_pred, metrics):
+    """Compute reliability warnings for regression results.
+
+    Mutates `metrics` in place: adds reliability_warnings.
+    """
+    import numpy as np
+
+    warnings = []
+    r2 = metrics.get("r2", 0)
+    rmse = metrics.get("rmse", 0)
+
+    if r2 < 0:
+        warnings.append({"level": "critical", "msg":
+            f"Negative R\u00b2 ({r2:.4f}) \u2014 the model is worse than predicting the mean. Features may be noise."})
+
+    if r2 >= 0.99:
+        warnings.append({"level": "critical", "msg":
+            "R\u00b2 \u2265 0.99 \u2014 check for data leakage or target-derived features."})
+
+    if 0 <= r2 < 0.10:
+        warnings.append({"level": "high", "msg":
+            f"R\u00b2 = {r2:.4f} \u2014 the model explains less than 10% of variance. Features may not predict target."})
+
+    if y_test is not None and len(y_test) > 0:
+        y_range = float(np.ptp(y_test))
+        y_std = float(np.std(y_test))
+        if y_range > 0:
+            rmse_pct = rmse / y_range * 100
+            if rmse_pct > 50:
+                warnings.append({"level": "high", "msg":
+                    f"RMSE is {rmse_pct:.0f}% of the target range \u2014 predictions are very imprecise."})
+            elif rmse_pct > 25:
+                warnings.append({"level": "medium", "msg":
+                    f"RMSE is {rmse_pct:.0f}% of the target range \u2014 moderate prediction error."})
+
+        if y_pred is not None and y_std > 0:
+            residuals = np.array(y_test) - np.array(y_pred)
+            mean_resid = float(np.mean(residuals))
+            if abs(mean_resid) > 0.1 * y_std:
+                direction = "over" if mean_resid < 0 else "under"
+                warnings.append({"level": "medium", "msg":
+                    f"Model systematically {direction}-predicts (mean residual: {mean_resid:.3f})."})
+
+    metrics["reliability_warnings"] = warnings
+    return metrics
+
+
+def _data_skepticism(X, y, importances=None):
+    """Data-level skepticism checks applicable to both classification and regression.
+
+    Returns list of warning dicts: [{"level": "critical"|"high"|"medium", "msg": "..."}].
+    """
+    import numpy as np
+
+    warnings = []
+    n_rows, n_cols = X.shape
+
+    # Dimensionality
+    if n_cols > n_rows * 0.5:
+        warnings.append({"level": "critical", "msg":
+            f"Very high dimensionality: {n_cols} features for {n_rows} rows. Model is likely memorizing noise."})
+    elif n_cols > n_rows * 0.2:
+        warnings.append({"level": "high", "msg":
+            f"High dimensionality: {n_cols} features for {n_rows} rows (ratio {n_cols / n_rows:.2f}). Risk of overfitting."})
+
+    # Small dataset
+    if n_rows < 50:
+        warnings.append({"level": "high", "msg":
+            f"Very small dataset ({n_rows} rows). Metrics are unreliable \u2014 consider collecting more data."})
+    elif n_rows < 100:
+        warnings.append({"level": "medium", "msg":
+            f"Small dataset ({n_rows} rows). Cross-validation variance will be high."})
+
+    # Feature importance concentration
+    if importances and len(importances) >= 3:
+        top_imp = importances[0].get("importance", 0)
+        total_imp = sum(f.get("importance", 0) for f in importances)
+        if total_imp > 0 and top_imp / total_imp > 0.70:
+            warnings.append({"level": "medium", "msg":
+                f"Feature '{importances[0]['feature']}' dominates ({top_imp / total_imp:.0%} of total importance). "
+                f"Model is essentially a single-feature predictor."})
+
+    # Multicollinearity (fast correlation check)
+    try:
+        numeric_X = X.select_dtypes(include=[np.number])
+        if numeric_X.shape[1] >= 2:
+            corr = numeric_X.corr().abs()
+            np.fill_diagonal(corr.values, 0)
+            max_corr = corr.max().max()
+            if max_corr > 0.95:
+                pair = corr.stack().idxmax()
+                warnings.append({"level": "high", "msg":
+                    f"Near-perfect collinearity ({max_corr:.2f}) between '{pair[0]}' and '{pair[1]}'. "
+                    f"One may be redundant or derived from the other."})
+            elif max_corr > 0.85:
+                pair = corr.stack().idxmax()
+                warnings.append({"level": "medium", "msg":
+                    f"High correlation ({max_corr:.2f}) between '{pair[0]}' and '{pair[1]}'. "
+                    f"Consider removing one to improve interpretability."})
+    except Exception:
+        pass
+
+    # Leakage-suspect feature names
+    if importances and len(importances) > 0:
+        top_feat = importances[0]
+        suspect_patterns = ["_id", "index", "row_num", "timestamp", "date_created"]
+        feat_lower = top_feat["feature"].lower()
+        for pattern in suspect_patterns:
+            if pattern in feat_lower and top_feat.get("importance", 0) > 0.15:
+                warnings.append({"level": "high", "msg":
+                    f"Top feature '{top_feat['feature']}' looks like an identifier or timestamp. "
+                    f"This may indicate data leakage."})
+                break
+
+    return warnings
+
+
+# ─── Bayesian Model Confidence ────────────────────────────────────────────────
+
+def _concern_sigmoid(x, center, steepness):
+    """Map metric x to concern probability [0, 1] via logistic sigmoid."""
+    import math
+    z = steepness * (x - center)
+    z = max(-20, min(20, z))  # clamp to avoid overflow
+    return 1.0 / (1.0 + math.exp(-z))
+
+
+# Concern weights for log-linear fusion (matches PBS MultiStreamHealth pattern)
+_CONCERN_WEIGHTS = {
+    # Critical — model may be fundamentally broken
+    "leakage": 1.0,
+    "not_learning": 1.0,
+    "random_signal": 1.0,
+    "accuracy_illusion": 0.9,
+    "duplicate_contamination": 0.9,
+    # Structural — model is limited but may still be useful
+    "class_imbalance": 0.7,
+    "minority_blindness": 0.7,
+    "imprecision": 0.7,
+    "overfit_risk": 0.7,
+    "unstable_performance": 0.7,
+    # Advisory — worth knowing, shouldn't crater confidence alone
+    "collinearity": 0.4,
+    "single_feature": 0.4,
+    "small_sample": 0.5,
+    "bias": 0.5,
+}
+
+
+def _permutation_reality_test(model, X, y, task, cv=None):
+    """Run permutation test to compute P(real signal > random | observed lift).
+
+    Shuffles y N times, retrains, records metric distribution.
+    Returns empirical p-value: proportion of permuted scores >= real score.
+
+    Scoring: PR-AUC (binary classification), balanced_accuracy (multiclass),
+    R² (regression). If caller provides a cv splitter (GroupKFold,
+    TimeSeriesSplit), the permutation respects that split regime.
+    """
+    from sklearn.model_selection import permutation_test_score, StratifiedKFold
+    from sklearn.base import clone
+
+    import numpy as np
+
+    n_rows = X.shape[0]
+
+    # Cap dataset size for speed — subsample large datasets
+    max_rows = 2000
+    if n_rows > max_rows:
+        rng = np.random.RandomState(42)
+        idx = rng.choice(n_rows, max_rows, replace=False)
+        X = X.iloc[idx].reset_index(drop=True)
+        y = y.iloc[idx].reset_index(drop=True) if hasattr(y, 'iloc') else np.array(y)[idx]
+        n_rows = max_rows
+
+    if n_rows < 500:
+        n_perms = 20
+    elif n_rows <= 2000:
+        n_perms = 15
+    else:
+        n_perms = 10
+
+    # Pick the honest metric for this task
+    n_classes = len(set(y))
+    if task == "classification":
+        if n_classes == 2 and hasattr(model, "predict_proba"):
+            scoring = "average_precision"  # PR-AUC — best for rare events
+        else:
+            scoring = "balanced_accuracy"
+    else:
+        scoring = "r2"
+
+    # Default to StratifiedKFold(3) if no cv splitter provided
+    if cv is None:
+        if task == "classification":
+            cv = StratifiedKFold(n_splits=min(3, n_rows), shuffle=True, random_state=42)
+        else:
+            cv = min(3, n_rows)
+
+    estimator = clone(model)
+    if hasattr(estimator, "n_estimators"):
+        estimator.set_params(n_estimators=min(getattr(estimator, "n_estimators", 100), 30))
+    # Keep n_jobs=1 inside the estimator — permutation_test_score already
+    # parallelises across permutations; nesting parallelism causes OOM on
+    # production (single gunicorn worker, limited RAM).
+    if hasattr(estimator, "n_jobs"):
+        estimator.set_params(n_jobs=1)
+
+    real_score, perm_scores, p_value = permutation_test_score(
+        estimator, X, y,
+        scoring=scoring,
+        cv=cv,
+        n_permutations=n_perms,
+        n_jobs=1,
+        random_state=42,
+    )
+
+    # Compute baseline for plot annotation
+    if scoring == "average_precision":
+        from collections import Counter
+        counts = Counter(y)
+        prevalence = min(counts.values()) / len(y) if len(y) > 0 else 0.5
+        baseline = prevalence  # random PR-AUC ≈ prevalence
+    elif scoring == "balanced_accuracy":
+        baseline = 1.0 / max(n_classes, 2)  # chance level
+    else:
+        baseline = 0.0  # random R² ≈ 0
+
+    def _safe_float(v, default=0.0):
+        v = float(v)
+        return default if (np.isnan(v) or np.isinf(v)) else v
+
+    return {
+        "p_value": _safe_float(p_value, 1.0),
+        "real_score": _safe_float(real_score),
+        "perm_scores": [_safe_float(s) for s in perm_scores],
+        "n_permutations": n_perms,
+        "scoring": scoring,
+        "baseline": _safe_float(baseline),
+    }
+
+
+def _duplicate_audit(X, y):
+    """Check for exact/near duplicates, ID-like columns, and perfect separability."""
+    import numpy as np
+
+    n_rows = len(X)
+
+    # Exact duplicates
+    n_exact_dups = int(X.duplicated().sum())
+    exact_dup_rate = n_exact_dups / n_rows if n_rows > 0 else 0
+
+    # Near-duplicates: round numeric features to 3 decimals, re-check
+    near_dup_rate = 0.0
+    n_near_dups = 0
+    try:
+        X_rounded = X.copy()
+        numeric_cols = X_rounded.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) > 0:
+            X_rounded[numeric_cols] = X_rounded[numeric_cols].round(3)
+            n_near_dups = int(X_rounded.duplicated().sum()) - n_exact_dups
+            near_dup_rate = n_near_dups / n_rows if n_rows > 0 else 0
+    except Exception:
+        pass
+
+    dup_rate = (n_exact_dups + max(n_near_dups, 0)) / n_rows if n_rows > 0 else 0
+
+    # ID-like column detection
+    id_columns = []
+    for col in X.columns:
+        col_lower = str(col).lower()
+        series = X[col]
+        n_unique = series.nunique()
+
+        name_match = any(kw in col_lower for kw in ("_id", "index", "_key", "row_num", "record_id"))
+        is_monotonic = False
+        if series.dtype in (np.int32, np.int64, np.float64):
+            try:
+                is_monotonic = bool(series.is_monotonic_increasing or series.is_monotonic_decreasing)
+            except Exception:
+                pass
+        high_cardinality = n_unique > 0.9 * n_rows and n_rows > 20
+
+        if name_match or (is_monotonic and high_cardinality):
+            id_columns.append(str(col))
+
+    # Near-perfect single-feature separability via univariate AUC (classification only)
+    perfect_separators = []
+    n_unique_y = len(set(y)) if hasattr(y, '__len__') else 0
+    if 2 <= n_unique_y <= 20:
+        from sklearn.metrics import roc_auc_score
+        from sklearn.preprocessing import label_binarize
+        check_cols = [c for c in X.columns if str(c) not in id_columns][:30]
+        classes = sorted(set(y))
+        is_binary = len(classes) == 2
+        for col in check_cols:
+            try:
+                vals = X[col]
+                if not np.issubdtype(vals.dtype, np.number):
+                    continue
+                if vals.nunique() < 2:
+                    continue
+                if is_binary:
+                    auc = roc_auc_score(y, vals)
+                    auc = max(auc, 1.0 - auc)  # direction-agnostic
+                else:
+                    y_bin = label_binarize(y, classes=classes)
+                    auc = roc_auc_score(y_bin, np.column_stack([vals] * len(classes)),
+                                        multi_class="ovr", average="macro")
+                if auc > 0.995:
+                    perfect_separators.append(str(col))
+            except Exception:
+                pass
+
+    return {
+        "duplicate_rate": round(dup_rate, 4),
+        "n_exact_duplicates": n_exact_dups,
+        "n_near_duplicates": max(n_near_dups, 0),
+        "id_columns": id_columns,
+        "perfect_separators": perfect_separators,
+    }
+
+
+def _build_permutation_histogram(real_score, perm_scores, p_value, scoring,
+                                  baseline=None):
+    """Build Plotly spec for permutation test null distribution histogram."""
+    signal_prob = 1.0 - p_value
+    label = scoring.replace("_", " ").title()
+
+    import numpy as np
+    counts, _ = np.histogram(perm_scores, bins="auto")
+    max_count = int(counts.max()) if len(counts) else len(perm_scores) // 3
+
+    traces = [
+        {
+            "type": "histogram",
+            "x": perm_scores,
+            "marker": {
+                "color": "rgba(128,128,128,0.45)",
+                "line": {"color": "rgba(128,128,128,0.7)", "width": 1},
+            },
+            "name": "Permuted (null)",
+            "nbinsx": min(len(perm_scores), 20),
+            "hovertemplate": "%{x:.3f}<extra>permuted</extra>",
+        },
+        {
+            "type": "scatter",
+            "x": [real_score, real_score],
+            "y": [0, max_count * 1.1],
+            "mode": "lines",
+            "line": {"color": "#4a9f6e", "width": 3},
+            "name": f"Your model ({real_score:.3f})",
+            "hoverinfo": "skip",
+        },
+    ]
+
+    # Baseline line (prevalence for PR-AUC, chance for balanced_accuracy, 0 for R²)
+    if baseline is not None:
+        traces.append({
+            "type": "scatter",
+            "x": [baseline, baseline],
+            "y": [0, max_count * 1.1],
+            "mode": "lines",
+            "line": {"color": "#d4a24a", "width": 2, "dash": "dash"},
+            "name": f"Random baseline ({baseline:.3f})",
+            "hoverinfo": "skip",
+        })
+
+    annotations = [{
+        "x": real_score,
+        "y": max_count * 0.9,
+        "text": f"p = {p_value:.3f}",
+        "showarrow": True,
+        "arrowhead": 2,
+        "arrowcolor": "#4a9f6e",
+        "font": {"color": "#4a9f6e", "size": 11, "family": "monospace"},
+        "ax": 40 if real_score > np.mean(perm_scores) else -40,
+        "ay": -20,
+    }]
+
+    return {
+        "data": traces,
+        "layout": {
+            "template": "plotly_dark",
+            "height": 220,
+            "paper_bgcolor": "transparent",
+            "plot_bgcolor": "transparent",
+            "margin": {"t": 45, "b": 40, "l": 45, "r": 20},
+            "title": {
+                "text": f"Permutation Reality Test — p = {p_value:.3f} (1 − p = {signal_prob:.0%})",
+                "font": {"size": 12, "color": "#b0b0b0"},
+            },
+            "xaxis": {
+                "title": label,
+                "gridcolor": "rgba(128,128,128,0.1)",
+            },
+            "yaxis": {
+                "title": "Count",
+                "gridcolor": "rgba(128,128,128,0.1)",
+            },
+            "annotations": annotations,
+            "showlegend": True,
+            "legend": {"orientation": "h", "y": 1.15, "font": {"size": 10}},
+        },
+    }
+
+
+def _bayesian_model_beliefs(metrics, X, y, importances, task, *,
+                            model=None, cv_std=None):
+    """Compute calibrated Bayesian beliefs about model trustworthiness.
+
+    Each concern is mapped to a probability via sigmoid. Overall model
+    confidence is computed via weighted log-linear fusion (same pattern as
+    PBS MultiStreamHealth). Returns deterministic narrative and Plotly gauge.
+
+    Returns dict with:
+        model_confidence: float (0-1)
+        beliefs: list of {concern, probability, narrative, evidence}
+        narrative: str
+        gauge_plot: dict (Plotly spec)
+    """
+    import math
+    import numpy as np
+    from collections import Counter
+
+    beliefs = []
+    n_rows, n_cols = X.shape
+
+    if task == "classification":
+        acc = metrics.get("accuracy", 0)
+        balanced_acc = metrics.get("balanced_accuracy", acc)
+        f1 = metrics.get("f1_macro", metrics.get("f1", 0))
+
+        counts = Counter(y)
+        majority_pct = max(counts.values()) / len(y) if len(y) > 0 else 0.5
+        baseline = majority_pct
+        lift = acc - baseline
+
+        # Class imbalance
+        p = _concern_sigmoid(majority_pct, center=0.80, steepness=15)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "class_imbalance",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"{majority_pct:.0%} of data is the majority class. "
+                    f"Balanced accuracy ({balanced_acc:.3f}) is more reliable than standard accuracy ({acc:.3f})."
+                ),
+                "evidence": {"majority_pct": round(majority_pct, 4), "balanced_accuracy": round(balanced_acc, 4)},
+            })
+
+        # Accuracy illusion (accuracy looks good but balanced accuracy tells a different story)
+        gap = acc - balanced_acc
+        p = _concern_sigmoid(gap, center=0.10, steepness=25)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "accuracy_illusion",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"Accuracy ({acc:.3f}) minus balanced accuracy ({balanced_acc:.3f}) = {gap:.3f} gap. "
+                    f"The model performs well on the majority class but poorly on minority classes."
+                ),
+                "evidence": {"accuracy": round(acc, 4), "balanced_accuracy": round(balanced_acc, 4), "gap": round(gap, 4)},
+            })
+
+        # Leakage
+        p = _concern_sigmoid(acc, center=0.97, steepness=50)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "leakage",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"Accuracy is {acc:.3f}. At this level, check whether any feature is derived from "
+                    f"or strongly correlated with the target."
+                ),
+                "evidence": {"accuracy": round(acc, 4)},
+            })
+
+        # Not learning (small lift over baseline)
+        p = _concern_sigmoid(lift, center=0.05, steepness=-40)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "not_learning",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"Accuracy ({acc:.3f}) is only {lift:+.3f} above the majority baseline ({baseline:.3f}). "
+                    f"The remaining {1 - acc:.3f} error is {'consistent with noise.' if lift < 0.02 else 'modest lift.'}"
+                ),
+                "evidence": {"accuracy": round(acc, 4), "baseline": round(baseline, 4), "lift": round(lift, 4)},
+            })
+
+        # Minority blindness
+        per_class = metrics.get("per_class", {})
+        if per_class:
+            min_recall = min((v.get("recall", 1.0) for v in per_class.values()), default=1.0)
+            p = _concern_sigmoid(1 - min_recall, center=0.50, steepness=8)
+            if p > 0.05:
+                beliefs.append({
+                    "concern": "minority_blindness",
+                    "probability": round(p, 3),
+                    "narrative": (
+                        f"Worst per-class recall is {min_recall:.3f}. "
+                        f"The model misses {1 - min_recall:.0%} of instances in its weakest class."
+                    ),
+                    "evidence": {"min_class_recall": round(min_recall, 4)},
+                })
+
+    else:  # regression
+        r2 = metrics.get("r2", 0)
+        rmse = metrics.get("rmse", 0)
+
+        # Leakage
+        p = _concern_sigmoid(r2, center=0.97, steepness=50)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "leakage",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"R\u00b2 = {r2:.4f}. Near-perfect fit \u2014 check for target-derived features or data leakage."
+                ),
+                "evidence": {"r2": round(r2, 4)},
+            })
+
+        # Not learning
+        p = _concern_sigmoid(r2, center=0.15, steepness=-15)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "not_learning",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"R\u00b2 = {r2:.4f} \u2014 the model explains {r2:.0%} of variance. "
+                    f"The remaining {1 - r2:.0%} is unexplained."
+                ),
+                "evidence": {"r2": round(r2, 4)},
+            })
+
+        # Imprecision
+        y_range = float(np.ptp(y)) if len(y) > 0 else 1.0
+        rmse_frac = rmse / y_range if y_range > 0 else 0
+        p = _concern_sigmoid(rmse_frac, center=0.35, steepness=8)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "imprecision",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"RMSE ({rmse:.4f}) is {rmse_frac:.0%} of the target range ({y_range:.4g}). "
+                    f"Predictions deviate substantially from actuals."
+                ),
+                "evidence": {"rmse": round(rmse, 4), "target_range": round(y_range, 4), "rmse_fraction": round(rmse_frac, 4)},
+            })
+
+        # Bias
+        y_std = float(np.std(y)) if len(y) > 0 else 1.0
+        # bias check requires y_pred which we don't have here — skip if not available in metrics
+        mean_resid = metrics.get("_mean_residual")
+        if mean_resid is not None and y_std > 0:
+            bias_frac = abs(mean_resid) / y_std
+            p = _concern_sigmoid(bias_frac, center=0.10, steepness=15)
+            if p > 0.05:
+                direction = "over" if mean_resid < 0 else "under"
+                beliefs.append({
+                    "concern": "bias",
+                    "probability": round(p, 3),
+                    "narrative": (
+                        f"Model systematically {direction}-predicts (mean residual: {mean_resid:.3f}, "
+                        f"{bias_frac:.0%} of target std)."
+                    ),
+                    "evidence": {"mean_residual": round(mean_resid, 4), "bias_fraction": round(bias_frac, 4)},
+                })
+
+    # ── Data-level beliefs (both tasks) ──
+
+    # Overfit risk (feature/row ratio)
+    ratio = n_cols / n_rows if n_rows > 0 else 0
+    p = _concern_sigmoid(ratio, center=0.20, steepness=12)
+    if p > 0.05:
+        beliefs.append({
+            "concern": "overfit_risk",
+            "probability": round(p, 3),
+            "narrative": (
+                f"{n_cols} features for {n_rows} rows (ratio {ratio:.3f}). "
+                f"{'High risk of memorizing noise.' if ratio > 0.3 else 'Moderate overfitting risk.'}"
+            ),
+            "evidence": {"n_features": n_cols, "n_rows": n_rows, "ratio": round(ratio, 4)},
+        })
+
+    # Small sample
+    log_n = -math.log10(max(n_rows, 1))
+    log_threshold = -math.log10(100)  # center at 100 rows
+    p = _concern_sigmoid(log_n, center=log_threshold, steepness=5)
+    if p > 0.05:
+        beliefs.append({
+            "concern": "small_sample",
+            "probability": round(p, 3),
+            "narrative": f"{n_rows} rows. {'Metrics are unreliable.' if n_rows < 50 else 'Cross-validation variance will be elevated.'}",
+            "evidence": {"n_rows": n_rows},
+        })
+
+    # Collinearity
+    try:
+        numeric_X = X.select_dtypes(include=[np.number])
+        if numeric_X.shape[1] >= 2:
+            corr = numeric_X.corr().abs()
+            np.fill_diagonal(corr.values, 0)
+            max_corr = float(corr.max().max())
+            p = _concern_sigmoid(max_corr, center=0.85, steepness=15)
+            if p > 0.05:
+                pair = corr.stack().idxmax()
+                beliefs.append({
+                    "concern": "collinearity",
+                    "probability": round(p, 3),
+                    "narrative": (
+                        f"Correlation of {max_corr:.2f} between '{pair[0]}' and '{pair[1]}'. "
+                        f"One may be redundant."
+                    ),
+                    "evidence": {"max_correlation": round(max_corr, 4), "feature_a": str(pair[0]), "feature_b": str(pair[1])},
+                })
+    except Exception:
+        pass
+
+    # Single-feature dominance
+    if importances and len(importances) >= 3:
+        top_imp = importances[0].get("importance", 0)
+        total_imp = sum(f.get("importance", 0) for f in importances)
+        frac = top_imp / total_imp if total_imp > 0 else 0
+        p = _concern_sigmoid(frac, center=0.60, steepness=8)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "single_feature",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"'{importances[0]['feature']}' accounts for {frac:.0%} of total importance. "
+                    f"Model is essentially a single-feature predictor."
+                ),
+                "evidence": {"top_feature": importances[0]["feature"], "importance_fraction": round(frac, 4)},
+            })
+
+    # ── Permutation reality test (empirical, not heuristic) ──
+    permutation_result = None
+    permutation_plot = None
+    if model is not None:
+        try:
+            permutation_result = _permutation_reality_test(model, X, y, task)
+            p_val = permutation_result["p_value"]
+            if p_val > 0.05:
+                beliefs.append({
+                    "concern": "random_signal",
+                    "probability": round(p_val, 3),
+                    "narrative": (
+                        f"Permutation p-value = {p_val:.3f} (risk proxy: {p_val:.0%} chance observed "
+                        f"performance is random luck). "
+                        f"{'Indistinguishable from shuffled labels.' if p_val > 0.10 else 'Marginal — real signal not confirmed.'} "
+                        f"[{permutation_result['n_permutations']} permutations, {permutation_result['scoring']}]"
+                    ),
+                    "evidence": {
+                        "p_value": round(p_val, 4),
+                        "real_score": round(permutation_result["real_score"], 4),
+                        "n_permutations": permutation_result["n_permutations"],
+                        "scoring": permutation_result["scoring"],
+                    },
+                })
+            permutation_plot = _build_permutation_histogram(
+                permutation_result["real_score"],
+                permutation_result["perm_scores"],
+                p_val,
+                permutation_result["scoring"],
+                baseline=permutation_result.get("baseline"),
+            )
+        except Exception:
+            pass
+
+    # ── Duplicate contamination audit ──
+    try:
+        dup_result = _duplicate_audit(X, y)
+        dup_rate = dup_result["duplicate_rate"]
+        id_cols = dup_result["id_columns"]
+        separators = dup_result["perfect_separators"]
+        dup_concern = max(
+            _concern_sigmoid(dup_rate, center=0.10, steepness=20),
+            0.8 if id_cols else 0.0,
+            0.9 if separators else 0.0,
+        )
+        if dup_concern > 0.05:
+            parts = []
+            n_exact = dup_result["n_exact_duplicates"]
+            n_near = dup_result["n_near_duplicates"]
+            if n_exact > 0:
+                parts.append(f"{n_exact} exact duplicate rows")
+            if n_near > 0:
+                parts.append(f"{n_near} near-duplicate rows (within rounding)")
+            if n_exact > 0 or n_near > 0:
+                parts.append(f"({dup_rate:.1%} total)")
+            if id_cols:
+                parts.append(f"ID-like columns: {', '.join(id_cols)}")
+            if separators:
+                parts.append(f"Near-perfect separators (AUC > 0.995): {', '.join(separators)}")
+            beliefs.append({
+                "concern": "duplicate_contamination",
+                "probability": round(dup_concern, 3),
+                "narrative": ". ".join(parts) + ". These may inflate metrics if they span train/test.",
+                "evidence": {
+                    "duplicate_rate": round(dup_rate, 4),
+                    "n_exact_duplicates": n_exact,
+                    "n_near_duplicates": n_near,
+                    "id_columns": id_cols,
+                    "perfect_separators": separators,
+                },
+            })
+    except Exception:
+        pass
+
+    # ── Stability belief (from CV std, full pipeline only) ──
+    if cv_std is not None and cv_std > 0:
+        cv_mean = metrics.get("accuracy", metrics.get("r2", 0.5))
+        cov = cv_std / max(abs(cv_mean), 0.01)
+        p = _concern_sigmoid(cov, center=0.10, steepness=15)
+        if p > 0.05:
+            beliefs.append({
+                "concern": "unstable_performance",
+                "probability": round(p, 3),
+                "narrative": (
+                    f"Cross-validation std = {cv_std:.4f} (CoV = {cov:.2f}). "
+                    f"{'Performance varies significantly across folds.' if cov > 0.15 else 'Moderate fold-to-fold variation.'}"
+                ),
+                "evidence": {"cv_std": round(cv_std, 4), "cv_cov": round(cov, 4)},
+            })
+
+    # ── Weighted log-linear fusion ──
+    active = [(b, _CONCERN_WEIGHTS.get(b["concern"], 0.5)) for b in beliefs if b["probability"] > 0.1]
+    if active:
+        total_weight = sum(w for _, w in active)
+        log_trust = sum(
+            w * math.log(1.0 - min(b["probability"], 0.95))
+            for b, w in active
+        ) / total_weight
+        model_confidence = math.exp(log_trust)
+    else:
+        model_confidence = 0.95
+
+    model_confidence = round(max(0.01, min(0.99, model_confidence)), 3)
+
+    # ── Deterministic narrative ──
+    narrative = f"Model Confidence: {model_confidence:.0%}\n"
+    if task == "classification":
+        acc = metrics.get("accuracy", 0)
+        narrative += f"\nAccuracy: {acc:.3f}"
+        majority_pct = max(Counter(y).values()) / len(y) if len(y) > 0 else 0.5
+        if majority_pct > 0.70:
+            narrative += f" \u2014 {majority_pct:.0%} of data is one class."
+            balanced_acc = metrics.get("balanced_accuracy", acc)
+            narrative += f"\nBalanced accuracy: {balanced_acc:.3f}"
+            if balanced_acc < 0.55:
+                narrative += " \u2014 barely above chance (0.500)."
+            narrative += "\n"
+    else:
+        r2 = metrics.get("r2", 0)
+        rmse = metrics.get("rmse", 0)
+        narrative += f"\nR\u00b2: {r2:.4f} \u2014 explains {r2:.0%} of variance, {1 - r2:.0%} unexplained."
+        narrative += f"\nRMSE: {rmse:.4f}\n"
+
+    if beliefs:
+        sorted_beliefs = sorted(beliefs, key=lambda b: b["probability"], reverse=True)
+        active_beliefs = [b for b in sorted_beliefs if b["probability"] > 0.15]
+        if active_beliefs:
+            narrative += "\nConcerns:\n"
+            for b in active_beliefs:
+                narrative += f"  P({b['concern'].replace('_', ' ')}) = {b['probability']:.2f} \u2014 {b['narrative']}\n"
+    else:
+        narrative += "\nNo significant concerns detected."
+
+    # ── Gauge plot (PBS pattern) ──
+    if model_confidence >= 0.70:
+        gauge_color = "#4a9f6e"
+    elif model_confidence >= 0.40:
+        gauge_color = "#d4a24a"
+    else:
+        gauge_color = "#d94a4a"
+
+    gauge_plot = {
+        "data": [{
+            "type": "indicator",
+            "mode": "gauge+number",
+            "value": round(model_confidence * 100, 1),
+            "number": {"suffix": "%", "font": {"size": 28, "color": gauge_color}},
+            "title": {"text": "Model Confidence", "font": {"size": 13, "color": "#b0b0b0"}},
+            "gauge": {
+                "axis": {"range": [0, 100], "tickfont": {"size": 10, "color": "#666"}},
+                "bar": {"color": gauge_color, "thickness": 0.75},
+                "bgcolor": "rgba(0,0,0,0)",
+                "steps": [
+                    {"range": [0, 40], "color": "rgba(217,74,74,0.12)"},
+                    {"range": [40, 70], "color": "rgba(212,162,74,0.12)"},
+                    {"range": [70, 100], "color": "rgba(74,159,110,0.12)"},
+                ],
+            },
+        }],
+        "layout": {
+            "template": "plotly_dark", "height": 180,
+            "paper_bgcolor": "transparent", "plot_bgcolor": "transparent",
+            "margin": {"t": 50, "b": 10, "l": 30, "r": 30},
+        },
+    }
+
+    return {
+        "model_confidence": model_confidence,
+        "beliefs": beliefs,
+        "narrative": narrative,
+        "gauge_plot": gauge_plot,
+        "permutation_plot": permutation_plot,
+    }
+
+
 def _auto_train(X, y, task=None):
     """Auto-detect task type and train the best available model.
 
@@ -940,7 +1754,7 @@ def _auto_train(X, y, task=None):
     from sklearn.model_selection import train_test_split
     from sklearn.metrics import (
         accuracy_score, precision_score, recall_score, f1_score,
-        average_precision_score,
+        average_precision_score, matthews_corrcoef, brier_score_loss,
         r2_score, mean_squared_error, mean_absolute_error,
     )
 
@@ -975,12 +1789,19 @@ def _auto_train(X, y, task=None):
             "f1": round(f1_score(y_test, y_pred, average="weighted", zero_division=0), 4),
         }
 
-        # Binary: add average_precision (PR AUC)
+        # MCC — best single metric under imbalance (all classification)
+        try:
+            metrics["mcc"] = round(matthews_corrcoef(y_test, y_pred), 4)
+        except Exception:
+            pass
+
+        # Binary: add average_precision (PR AUC) and Brier score
         n_classes = y.nunique()
         if n_classes == 2 and hasattr(model, "predict_proba"):
             try:
                 y_proba = model.predict_proba(X_test)[:, 1]
                 metrics["average_precision"] = round(average_precision_score(y_test, y_proba), 4)
+                metrics["brier_score"] = round(brier_score_loss(y_test, y_proba), 4)
             except Exception:
                 pass
 
@@ -1000,6 +1821,7 @@ def _auto_train(X, y, task=None):
             "rmse": round(float(np.sqrt(mean_squared_error(y_test, y_pred))), 4),
             "mae": round(float(mean_absolute_error(y_test, y_pred)), 4),
         }
+        _regression_reliability(y, y_test, y_pred, metrics)
 
     # Feature importance
     importances = []
@@ -1014,7 +1836,7 @@ def _auto_train(X, y, task=None):
     return model, metrics, importances, task, X_test, y_test, y_pred
 
 
-def _claude_interpret_results(user, context, metrics, importances, task=None):
+def _claude_interpret_results(user, context, metrics, importances, task=None, warnings=None):
     """Ask Claude to interpret ML results in plain English."""
     from agents_api.llm_manager import LLMManager
 
@@ -1023,6 +1845,11 @@ def _claude_interpret_results(user, context, metrics, importances, task=None):
 Task: {task or 'auto-detected'}
 Metrics: {json.dumps(metrics)}
 Top features: {json.dumps(top_features)}"""
+
+    if warnings:
+        critical = [w for w in warnings if w.get("level") in ("critical", "high")]
+        if critical:
+            prompt += f"\nReliability warnings: {json.dumps(critical)}"
 
     result = LLMManager.chat(
         user=user,

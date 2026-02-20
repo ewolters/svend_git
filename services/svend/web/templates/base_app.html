@@ -926,13 +926,7 @@
             document.getElementById('upgrade-overlay').classList.remove('active');
         }
 
-        // Close modal on overlay click (deferred — element is in body)
-        document.addEventListener('DOMContentLoaded', function() {
-            var overlay = document.getElementById('upgrade-overlay');
-            if (overlay) overlay.addEventListener('click', function(e) {
-                if (e.target === this) closeUpgradeModal();
-            });
-        });
+        // Upgrade modal is non-dismissable — no overlay click-to-close
 
         // Global 403 interceptor for upgrade-required responses
         (function() {
@@ -1625,7 +1619,7 @@
             <h2>Upgrade to unlock this tool</h2>
             <p id="upgrade-message">This feature requires a paid subscription. Upgrade to access all analysis tools, DOE, whiteboard, forecasting, and more.</p>
             <a href="/billing/checkout/" class="btn-upgrade">View Plans</a>
-            <button class="btn-dismiss" onclick="closeUpgradeModal()">Maybe later</button>
+            <button class="btn-dismiss" onclick="if (history.length > 1) history.back(); else location.href='/app/';">Go Back</button>
         </div>
     </div>
 

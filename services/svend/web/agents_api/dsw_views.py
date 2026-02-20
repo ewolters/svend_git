@@ -10848,16 +10848,16 @@ def run_statistical_analysis(df, analysis_id, config):
                     else:
                         current_run = 1
 
-                cluster_flag = "<<COLOR:danger>>Yes<<\/COLOR>>" if p_clustering < 0.05 else "<<COLOR:success>>No<<\/COLOR>>"
-                mixture_flag = "<<COLOR:danger>>Yes<<\/COLOR>>" if p_mixtures < 0.05 else "<<COLOR:success>>No<<\/COLOR>>"
+                cluster_flag = "<<COLOR:danger>>Yes<</COLOR>>" if p_clustering < 0.05 else "<<COLOR:success>>No<</COLOR>>"
+                mixture_flag = "<<COLOR:danger>>Yes<</COLOR>>" if p_mixtures < 0.05 else "<<COLOR:success>>No<</COLOR>>"
 
-                summary = f"""<<COLOR:title>>RUN CHART<<\/COLOR>>
+                summary = f"""<<COLOR:title>>RUN CHART<</COLOR>>
 {'='*50}
-<<COLOR:highlight>>Variable:<<\/COLOR>> {var}
-<<COLOR:highlight>>Observations:<<\/COLOR>> {n}
-<<COLOR:highlight>>Median:<<\/COLOR>> {median_val:.6g}
+<<COLOR:highlight>>Variable:<</COLOR>> {var}
+<<COLOR:highlight>>Observations:<</COLOR>> {n}
+<<COLOR:highlight>>Median:<</COLOR>> {median_val:.6g}
 
-<<COLOR:accent>>Runs Test Results<<\/COLOR>>
+<<COLOR:accent>>Runs Test Results<</COLOR>>
   Number of runs:    {runs}
   Expected runs:     {expected_runs:.1f}
   Longest run:       {longest_run}
@@ -10867,10 +10867,10 @@ def run_statistical_analysis(df, analysis_id, config):
   Clustering (too few runs)?   {cluster_flag}  (p = {p_clustering:.4f})
   Mixtures (too many runs)?    {mixture_flag}  (p = {p_mixtures:.4f})"""
             else:
-                summary = f"""<<COLOR:title>>RUN CHART<<\/COLOR>>
+                summary = f"""<<COLOR:title>>RUN CHART<</COLOR>>
 {'='*50}
 Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
-<<COLOR:warning>>All values on same side of median — runs test not applicable<<\/COLOR>>"""
+<<COLOR:warning>>All values on same side of median — runs test not applicable<</COLOR>>"""
                 runs = 0
 
             result["summary"] = summary
@@ -10925,15 +10925,15 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 p_val = min(1.0, 2 * n * (1 - stats.t.cdf(np.sqrt((n * (n - 2) * G**2) / (n - 1 - G**2 * (n - 1) / n)), n - 2))) if G**2 < n * (n - 1) / n else 0.0
 
                 is_outlier = G > G_crit
-                verdict = "<<COLOR:danger>>Yes — significant outlier<<\/COLOR>>" if is_outlier else "<<COLOR:success>>No — not a significant outlier<<\/COLOR>>"
+                verdict = "<<COLOR:danger>>Yes — significant outlier<</COLOR>>" if is_outlier else "<<COLOR:success>>No — not a significant outlier<</COLOR>>"
 
-                summary = f"""<<COLOR:title>>GRUBBS' OUTLIER TEST<<\/COLOR>>
+                summary = f"""<<COLOR:title>>GRUBBS' OUTLIER TEST<</COLOR>>
 {'='*50}
-<<COLOR:highlight>>Variable:<<\/COLOR>> {var}
-<<COLOR:highlight>>N:<<\/COLOR>> {n}
-<<COLOR:highlight>>Significance level:<<\/COLOR>> {alpha}
+<<COLOR:highlight>>Variable:<</COLOR>> {var}
+<<COLOR:highlight>>N:<</COLOR>> {n}
+<<COLOR:highlight>>Significance level:<</COLOR>> {alpha}
 
-<<COLOR:accent>>Results<<\/COLOR>>
+<<COLOR:accent>>Results<</COLOR>>
   Suspect value: {suspect:.6g}
   Mean:          {mean_val:.6g}
   StDev:         {std_val:.6g}
@@ -10997,18 +10997,18 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             # Find significant lags
             sig_lags = [(lag, cc) for lag, cc in zip(lags, ccf_vals) if abs(cc) > sig_bound]
 
-            summary = f"""<<COLOR:title>>CROSS-CORRELATION FUNCTION<<\/COLOR>>
+            summary = f"""<<COLOR:title>>CROSS-CORRELATION FUNCTION<</COLOR>>
 {'='*50}
-<<COLOR:highlight>>Series 1:<<\/COLOR>> {var1}
-<<COLOR:highlight>>Series 2:<<\/COLOR>> {var2}
-<<COLOR:highlight>>N:<<\/COLOR>> {n}
-<<COLOR:highlight>>Max lag:<<\/COLOR>> ±{max_lag}
-<<COLOR:highlight>>Significance bound:<<\/COLOR>> ±{sig_bound:.4f}
+<<COLOR:highlight>>Series 1:<</COLOR>> {var1}
+<<COLOR:highlight>>Series 2:<</COLOR>> {var2}
+<<COLOR:highlight>>N:<</COLOR>> {n}
+<<COLOR:highlight>>Max lag:<</COLOR>> ±{max_lag}
+<<COLOR:highlight>>Significance bound:<</COLOR>> ±{sig_bound:.4f}
 
-<<COLOR:accent>>Lag 0 correlation:<<\/COLOR>> {ccf_vals[max_lag]:.4f}"""
+<<COLOR:accent>>Lag 0 correlation:<</COLOR>> {ccf_vals[max_lag]:.4f}"""
 
             if sig_lags:
-                summary += f"\n\n<<COLOR:accent>>Significant lags:<<\/COLOR>>"
+                summary += f"\n\n<<COLOR:accent>>Significant lags:<</COLOR>>"
                 for lag, cc in sorted(sig_lags, key=lambda x: abs(x[1]), reverse=True)[:10]:
                     summary += f"\n  Lag {lag:>3d}: r = {cc:+.4f}"
 
@@ -11040,9 +11040,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         if n < 10:
             result["summary"] = "Johnson transformation requires at least 10 observations."
         else:
-            summary = f"<<COLOR:title>>JOHNSON TRANSFORMATION<<\/COLOR>>\n{'='*50}\n"
-            summary += f"<<COLOR:highlight>>Variable:<<\/COLOR>> {var}\n"
-            summary += f"<<COLOR:highlight>>N:<<\/COLOR>> {n}\n\n"
+            summary = f"<<COLOR:title>>JOHNSON TRANSFORMATION<</COLOR>>\n{'='*50}\n"
+            summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var}\n"
+            summary += f"<<COLOR:highlight>>N:<</COLOR>> {n}\n\n"
 
             # Test each Johnson family
             families = {}
@@ -11079,21 +11079,21 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             # Original normality
             _, p_orig = stats.shapiro(data[:min(5000, n)])
 
-            summary += f"<<COLOR:text>>Original Shapiro-Wilk p-value:<<\/COLOR>> {p_orig:.4f}"
+            summary += f"<<COLOR:text>>Original Shapiro-Wilk p-value:<</COLOR>> {p_orig:.4f}"
             summary += f" {'(normal)' if p_orig > 0.05 else '(non-normal)'}\n\n"
 
             if families:
                 best_family = max(families.keys(), key=lambda k: families[k]["p_value"])
                 best = families[best_family]
 
-                summary += f"<<COLOR:accent>>Family Results:<<\/COLOR>>\n"
+                summary += f"<<COLOR:accent>>Family Results:<</COLOR>>\n"
                 for fam_name, fam_data in sorted(families.items(), key=lambda x: -x[1]["p_value"]):
                     marker = " ← Best" if fam_name == best_family else ""
                     p = fam_data["p_value"]
-                    status = "<<COLOR:success>>normal<<\/COLOR>>" if p > 0.05 else "<<COLOR:warning>>non-normal<<\/COLOR>>"
+                    status = "<<COLOR:success>>normal<</COLOR>>" if p > 0.05 else "<<COLOR:warning>>non-normal<</COLOR>>"
                     summary += f"  Johnson {fam_name}: Shapiro-Wilk p = {p:.4f} ({status}){marker}\n"
 
-                summary += f"\n<<COLOR:success>>Best transformation: Johnson {best_family}<<\/COLOR>>\n"
+                summary += f"\n<<COLOR:success>>Best transformation: Johnson {best_family}<</COLOR>>\n"
 
                 result["summary"] = summary
                 result["guide_observation"] = f"Johnson transform: best family={best_family}, p={best['p_value']:.4f}."
@@ -11111,7 +11111,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "layout": {"height": 200, "xaxis": {"title": f"Johnson {best_family}({var})"}}
                 })
             else:
-                summary += "\n<<COLOR:warning>>Could not fit any Johnson family to this data.<<\/COLOR>>"
+                summary += "\n<<COLOR:warning>>Could not fit any Johnson family to this data.<</COLOR>>"
                 result["summary"] = summary
 
     elif analysis_id == "robust_regression":
@@ -13707,17 +13707,17 @@ Top Correlations:
                 if col in numeric_cols:
                     vals = df[col].dropna()
                     if len(vals) > 0:
-                        col_lines.append(f"  <<COLOR:accent>>{col}<<\/COLOR>>  N={len(vals)}  Mean={vals.mean():.4g}  StDev={vals.std():.4g}  Min={vals.min():.4g}  Max={vals.max():.4g}  Missing={miss_p:.1f}%")
+                        col_lines.append(f"  <<COLOR:accent>>{col}<</COLOR>>  N={len(vals)}  Mean={vals.mean():.4g}  StDev={vals.std():.4g}  Min={vals.min():.4g}  Max={vals.max():.4g}  Missing={miss_p:.1f}%")
                     else:
-                        col_lines.append(f"  <<COLOR:warning>>{col}<<\/COLOR>>  (all missing)")
+                        col_lines.append(f"  <<COLOR:warning>>{col}<</COLOR>>  (all missing)")
                 else:
                     uniq = df[col].nunique()
                     top = df[col].mode().iloc[0] if len(df[col].mode()) > 0 else "-"
-                    col_lines.append(f"  <<COLOR:accent>>{col}<<\/COLOR>>  Unique={uniq}  Top=\"{str(top)[:20]}\"  Missing={miss_p:.1f}%")
+                    col_lines.append(f"  <<COLOR:accent>>{col}<</COLOR>>  Unique={uniq}  Top=\"{str(top)[:20]}\"  Missing={miss_p:.1f}%")
 
             summary = f"""<<COLOR:title>>DATA OVERVIEW<</COLOR>>
 {'='*50}
-<<COLOR:highlight>>{n_rows}<<\/COLOR>> rows × <<COLOR:highlight>>{n_cols}<<\/COLOR>> columns
+<<COLOR:highlight>>{n_rows}<</COLOR>> rows × <<COLOR:highlight>>{n_cols}<</COLOR>> columns
 Numeric: {len(numeric_cols)}  |  Categorical: {len(cat_cols)}  |  Datetime: {len(dt_cols)}
 Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
 
@@ -13787,7 +13787,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     n_star = int(df[col].isnull().sum())
 
                     if n < 3:
-                        all_summaries.append(f"<<COLOR:title>>{col}<<\/COLOR>>: insufficient data (N={n})")
+                        all_summaries.append(f"<<COLOR:title>>{col}<</COLOR>>: insufficient data (N={n})")
                         continue
 
                     # Descriptive stats
@@ -13810,7 +13810,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     ad_crit = ad_result.critical_values[2] if len(ad_result.critical_values) > 2 else ad_result.critical_values[-1]
                     ad_sig = ad_result.significance_level[2] if len(ad_result.significance_level) > 2 else ad_result.significance_level[-1]
                     ad_pass = ad_stat < ad_crit
-                    ad_verdict = "<<COLOR:success>>Yes (fail to reject H₀)<<\/COLOR>>" if ad_pass else "<<COLOR:danger>>No (reject H₀)<<\/COLOR>>"
+                    ad_verdict = "<<COLOR:success>>Yes (fail to reject H₀)<</COLOR>>" if ad_pass else "<<COLOR:danger>>No (reject H₀)<</COLOR>>"
 
                     # CI for mean (t-interval)
                     ci_mean = sp_stats.t.interval(conf_level, df=n - 1, loc=mean_val, scale=se)
@@ -13838,13 +13838,13 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     # Summary text
                     summ = f"""<<COLOR:title>>{'═'*50}
 {col}
-{'═'*50}<<\/COLOR>>
+{'═'*50}<</COLOR>>
 
-<<COLOR:accent>>Anderson-Darling Normality Test<<\/COLOR>>
+<<COLOR:accent>>Anderson-Darling Normality Test<</COLOR>>
   A² = {ad_stat:.4f}    Critical ({ad_sig:.0f}%) = {ad_crit:.4f}
   Normal? {ad_verdict}
 
-<<COLOR:accent>>Descriptive Statistics<<\/COLOR>>
+<<COLOR:accent>>Descriptive Statistics<</COLOR>>
   N = {n}    N* = {n_star}
   Mean     = {mean_val:.6g}       StDev    = {std_val:.6g}
   Variance = {var_val:.6g}       Skewness = {skew_val:.4f}
@@ -13853,7 +13853,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
   Median   = {median_val:.6g}       Q3       = {q3:.6g}
   Maximum  = {max_val:.6g}
 
-<<COLOR:accent>>Confidence Intervals ({pct_str})<<\/COLOR>>
+<<COLOR:accent>>Confidence Intervals ({pct_str})<</COLOR>>
   Mean:   ({ci_mean[0]:.6g}, {ci_mean[1]:.6g})
   Median: ({ci_median_lo:.6g}, {ci_median_hi:.6g})
   StDev:  ({ci_std_lo:.6g}, {ci_std_hi:.6g})"""
@@ -22308,8 +22308,7 @@ def run_visualization(df, analysis_id, config):
         p_gt_167 = float(np.mean(cpk_samples > 1.67))
         p_gt_2 = float(np.mean(cpk_samples > 2.0))
 
-        # Frequentist point estimate for comparison
-        # Frequentist point estimate
+        # Frequentist Cpk point estimate
         if s > 0:
             if usl is not None and lsl is not None:
                 cpk_freq = float(min((usl - x_bar) / (3 * s), (x_bar - lsl) / (3 * s)))
@@ -22319,6 +22318,37 @@ def run_visualization(df, analysis_id, config):
                 cpk_freq = float((x_bar - lsl) / (3 * s))
         else:
             cpk_freq = 0.0
+
+        # ── Additional capability indices ──
+        # Cp / Pp — potential capability (ignores centering)
+        cp_median = cp_ci = cp_freq = pp_median = pp_freq = None
+        if usl is not None and lsl is not None and s > 0:
+            cp_samples = (usl - lsl) / (6.0 * sigma_samples)
+            cp_median = float(np.median(cp_samples))
+            cp_ci = (float(np.percentile(cp_samples, 2.5)),
+                     float(np.percentile(cp_samples, 97.5)))
+            cp_freq = float((usl - lsl) / (6 * s))
+            pp_median, pp_freq = cp_median, cp_freq  # identical for individual data
+
+        # Ppk = Cpk for individual data (no within-subgroup estimator)
+        ppk_median, ppk_freq = cpk_median, cpk_freq
+
+        # Cpm — Taguchi (penalizes off-target)
+        cpm_median = cpm_ci = cpm_freq = None
+        if target is not None and usl is not None and lsl is not None and s > 0:
+            cpm_denom = 6.0 * np.sqrt(sigma_samples**2 + (mu_samples - target)**2)
+            cpm_samples = (usl - lsl) / cpm_denom
+            cpm_median = float(np.median(cpm_samples))
+            cpm_ci = (float(np.percentile(cpm_samples, 2.5)),
+                      float(np.percentile(cpm_samples, 97.5)))
+            cpm_freq = float((usl - lsl) / (6 * np.sqrt(s**2 + (x_bar - target)**2)))
+
+        # Centering (k) — 0 = perfectly centered, 1 = mean at spec limit
+        k_centering = None
+        if usl is not None and lsl is not None:
+            midpoint = (usl + lsl) / 2.0
+            half_tol = (usl - lsl) / 2.0
+            k_centering = abs(x_bar - midpoint) / half_tol if half_tol > 0 else 0.0
 
         # Posterior predictive via Monte Carlo (robust — no parameterization traps)
         rng_pp = np.random.default_rng(123)
@@ -22337,6 +22367,16 @@ def run_visualization(df, analysis_id, config):
         pp_dist = tdist(df=df_t, loc=loc_t, scale=scale_t)
         dpmo = p_oos * 1e6
 
+        # Sigma level + yield (from Bayesian DPMO)
+        from scipy.stats import norm as normdist
+        if p_oos > 0 and p_oos < 1:
+            z_bench = float(normdist.ppf(1 - p_oos))
+            sigma_level = z_bench + 1.5
+        else:
+            z_bench = 6.0 if p_oos == 0 else 0.0
+            sigma_level = z_bench + 1.5
+        yield_pct = (1.0 - p_oos) * 100.0
+
         # σ posterior sanity check
         sigma_99 = float(np.percentile(sigma_samples, 99))
         sigma_iqr = float(np.percentile(sigma_samples, 75) - np.percentile(sigma_samples, 25))
@@ -22346,42 +22386,156 @@ def run_visualization(df, analysis_id, config):
 
         # Verdict (probability-driven, not point-estimate)
         if p_gt_133 >= 0.95:
-            verdict_color, verdict = "success", "CAPABLE — P(Cpk > 1.33) ≥ 95%"
+            verdict_color, verdict = "success", "CAPABLE \u2014 P(Cpk > 1.33) \u2265 95%"
         elif p_gt_133 >= 0.80:
-            verdict_color, verdict = "highlight", "MARGINAL — P(Cpk > 1.33) between 80–95%"
+            verdict_color, verdict = "highlight", "MARGINAL \u2014 P(Cpk > 1.33) between 80\u201395%"
         else:
-            verdict_color, verdict = "error", "NOT CAPABLE — P(Cpk > 1.33) < 80%"
+            verdict_color, verdict = "error", "NOT CAPABLE \u2014 P(Cpk > 1.33) < 80%"
 
-        # Summary
-        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        # ── Summary ──
+        ci_w = cpk_ci[1] - cpk_ci[0]
+        summary = f"<<COLOR:accent>>{'=' * 60}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN PROCESS CAPABILITY<</COLOR>>\n"
-        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
-        summary += f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    <<COLOR:highlight>>Spec:<</COLOR>> {spec_label}    <<COLOR:highlight>>Target:<</COLOR>> {target}\n\n"
-        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>Posterior Cpk<</COLOR>>\n"
-        summary += f"  Median: <<COLOR:highlight>>{cpk_median:.4f}<</COLOR>>    95% CI: [{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]\n"
-        summary += f"  Frequentist Cpk (point estimate): {cpk_freq:.4f}\n\n"
-        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 60}<</COLOR>>\n\n"
+        summary += (f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    "
+                    f"<<COLOR:highlight>>Spec:<</COLOR>> {spec_label}    "
+                    f"<<COLOR:highlight>>Target:<</COLOR>> {target}\n\n")
+
+        # Capability indices table
+        summary += f"<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>Capability Indices<</COLOR>>\n"
+        summary += f"  {'':18s} {'Bayesian':>10s}   {'95% CI':>18s}   {'Frequentist':>12s}\n"
+        summary += (f"  {'Cpk:':18s} "
+                    f"<<COLOR:highlight>>{cpk_median:>10.4f}<</COLOR>>   "
+                    f"[{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]   "
+                    f"{cpk_freq:>12.4f}\n")
+        summary += (f"  {'Ppk:':18s} "
+                    f"{ppk_median:>10.4f}   "
+                    f"[{cpk_ci[0]:.4f}, {cpk_ci[1]:.4f}]   "
+                    f"{ppk_freq:>12.4f}\n")
+        if cp_median is not None:
+            summary += (f"  {'Cp:':18s} "
+                        f"{cp_median:>10.4f}   "
+                        f"[{cp_ci[0]:.4f}, {cp_ci[1]:.4f}]   "
+                        f"{cp_freq:>12.4f}\n")
+            summary += (f"  {'Pp:':18s} "
+                        f"{pp_median:>10.4f}   "
+                        f"[{cp_ci[0]:.4f}, {cp_ci[1]:.4f}]   "
+                        f"{pp_freq:>12.4f}\n")
+        if cpm_median is not None:
+            summary += (f"  {'Cpm (Taguchi):':18s} "
+                        f"{cpm_median:>10.4f}   "
+                        f"[{cpm_ci[0]:.4f}, {cpm_ci[1]:.4f}]   "
+                        f"{cpm_freq:>12.4f}\n")
+        summary += f"\n  <<COLOR:text>>Cpk = Ppk (individual data \u2014 no subgroup structure).<</COLOR>>\n"
+        if k_centering is not None and cp_median is not None and k_centering > 0.05:
+            summary += (f"  <<COLOR:text>>Cp > Cpk: process is off-center "
+                        f"by k = {k_centering:.0%}.<</COLOR>>\n")
+
+        # Probability table
+        summary += f"\n<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
         summary += f"<<COLOR:title>>Probability Table<</COLOR>>\n"
         summary += f"  P(Cpk > 1.00) = <<COLOR:{'success' if p_gt_1 > 0.9 else 'error'}>>{p_gt_1:.1%}<</COLOR>>\n"
         summary += f"  P(Cpk > 1.33) = <<COLOR:{'success' if p_gt_133 > 0.9 else 'error'}>>{p_gt_133:.1%}<</COLOR>>\n"
         summary += f"  P(Cpk > 1.67) = <<COLOR:{'success' if p_gt_167 > 0.9 else 'text'}>>{p_gt_167:.1%}<</COLOR>>\n"
-        summary += f"  P(Cpk > 2.00) = {p_gt_2:.1%}\n\n"
-        summary += f"<<COLOR:accent>>{'─' * 40}<</COLOR>>\n"
-        summary += f"<<COLOR:title>>Posterior Predictive<</COLOR>>\n"
-        summary += f"  P(out of spec) = {p_oos:.6f}    DPMO = <<COLOR:highlight>>{dpmo:.0f}<</COLOR>>\n"
-        summary += f"  (No 1.5σ shift assumption — uncertainty is a first-class citizen)\n\n"
-        summary += f"<<COLOR:{verdict_color}>>{verdict}<</COLOR>>\n\n"
+        summary += f"  P(Cpk > 2.00) = {p_gt_2:.1%}\n"
+
+        # Expected performance
+        summary += f"\n<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>Expected Performance<</COLOR>>\n"
+        summary += (f"  P(out of spec): {p_oos:.6f}    "
+                    f"DPMO: <<COLOR:highlight>>{dpmo:.0f}<</COLOR>>\n")
+        summary += f"  Yield: <<COLOR:highlight>>{yield_pct:.4f}%<</COLOR>>    Sigma level: {sigma_level:.1f}\u03c3\n"
+        summary += f"  (No 1.5\u03c3 shift assumption \u2014 uncertainty is first-class)\n"
+
+        # Verdict
+        summary += f"\n<<COLOR:{verdict_color}>>{verdict}<</COLOR>>\n"
+
         if sigma_warning:
-            summary += f"<<COLOR:error>>Warning: {sigma_warning}<</COLOR>>\n\n"
-        summary += f"<<COLOR:text>>Accounts for parameter uncertainty; no long-term shift assumption needed.\n"
-        summary += f"When n is small, uncertainty is large — this is reflected in the credible interval.<</COLOR>>\n"
+            summary += f"\n<<COLOR:error>>Warning: {sigma_warning}<</COLOR>>\n"
+
+        # ── Narrative ──
+        summary += f"\n<<COLOR:accent>>{'_' * 40}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>Narrative<</COLOR>>\n"
+        narr_parts = []
+
+        # Centering
+        if k_centering is not None:
+            if k_centering <= 0.05:
+                narr_parts.append(f"Process is well-centered (k = {k_centering:.1%}).")
+            else:
+                closer_to = "USL" if x_bar > (usl + lsl) / 2.0 else "LSL"
+                narr_parts.append(
+                    f"Process runs {k_centering:.0%} off-center toward {closer_to}.")
+                if cp_median is not None and cp_median > cpk_median + 0.1:
+                    narr_parts.append(
+                        f"Recentering to target would improve Cpk from "
+                        f"{cpk_median:.2f} to {cp_median:.2f} (= Cp).")
+
+        # Cpm insight
+        if cpm_median is not None and cpm_median < cpk_median - 0.05:
+            offset = abs(x_bar - target)
+            narr_parts.append(
+                f"Taguchi Cpm ({cpm_median:.2f}) < Cpk ({cpk_median:.2f}) \u2014 "
+                f"the {offset:.4f} offset from target increases quality loss.")
+
+        # Posterior maturity
+        if ci_w < 0.3:
+            narr_parts.append(
+                f"Posterior is well-converged (95% CI width = {ci_w:.2f}).")
+        elif ci_w < 0.8:
+            narr_parts.append(
+                f"Moderate posterior uncertainty (95% CI width = {ci_w:.2f}). "
+                f"More data would tighten the estimate.")
+        else:
+            narr_parts.append(
+                f"Posterior is wide (95% CI width = {ci_w:.2f}) \u2014 "
+                f"collect more data before making capability decisions.")
+
+        # Bayesian vs frequentist
+        cpk_diff = abs(cpk_freq - cpk_median)
+        if cpk_diff < 0.05:
+            narr_parts.append(
+                f"Bayesian ({cpk_median:.3f}) and frequentist ({cpk_freq:.3f}) "
+                f"agree \u2014 posterior is data-driven.")
+        else:
+            narr_parts.append(
+                f"Bayesian ({cpk_median:.3f}) differs from frequentist ({cpk_freq:.3f}) "
+                f"by {cpk_diff:.3f} \u2014 prior influence visible, more data will converge them.")
+
+        # Practical DPMO
+        if dpmo > 0:
+            defects_per_1k = dpmo / 1000.0
+            narr_parts.append(
+                f"At {dpmo:.0f} DPMO, expect ~{defects_per_1k:.1f} defects per 1,000 parts "
+                f"({yield_pct:.4f}% yield, {sigma_level:.1f}\u03c3).")
+        else:
+            narr_parts.append(
+                f"Zero defects predicted (yield {yield_pct:.4f}%, "
+                f">{sigma_level:.1f}\u03c3).")
+
+        for part in narr_parts:
+            summary += f"  {part}\n"
 
         result["summary"] = summary
         result["statistics"] = {
             "cpk_median": cpk_median, "cpk_ci_lower": cpk_ci[0], "cpk_ci_upper": cpk_ci[1],
-            "cpk_frequentist": cpk_freq, "p_cpk_gt_1": p_gt_1, "p_cpk_gt_133": p_gt_133, "p_cpk_gt_167": p_gt_167,
-            "p_cpk_gt_2": p_gt_2, "dpmo": dpmo, "p_out_of_spec": p_oos,
+            "cpk_frequentist": cpk_freq,
+            "ppk_median": ppk_median, "ppk_frequentist": ppk_freq,
+            "cp_median": cp_median,
+            "cp_ci_lower": cp_ci[0] if cp_ci else None,
+            "cp_ci_upper": cp_ci[1] if cp_ci else None,
+            "cp_frequentist": cp_freq,
+            "cpm_median": cpm_median,
+            "cpm_ci_lower": cpm_ci[0] if cpm_ci else None,
+            "cpm_ci_upper": cpm_ci[1] if cpm_ci else None,
+            "cpm_frequentist": cpm_freq,
+            "centering_k": k_centering,
+            "p_cpk_gt_1": p_gt_1, "p_cpk_gt_133": p_gt_133,
+            "p_cpk_gt_167": p_gt_167, "p_cpk_gt_2": p_gt_2,
+            "dpmo": dpmo, "p_out_of_spec": p_oos,
+            "yield_pct": yield_pct, "sigma_level": sigma_level,
+            "z_bench": z_bench,
         }
 
         # Plot 1: Posterior Cpk histogram
@@ -22402,7 +22556,9 @@ def run_visualization(df, analysis_id, config):
                 {"type": "scatter", "x": [cpk_freq, cpk_freq], "y": [0, cpk_ymax], "mode": "lines",
                  "line": {"color": "#5b9bd5", "width": 2}, "name": "Frequentist"},
             ],
-            "layout": {"height": 300, "xaxis": {"title": "Cpk"}, "yaxis": {"title": "Count"},
+            "layout": {"height": 320, "xaxis": {"title": "Cpk"}, "yaxis": {"title": "Count"},
+                        "legend": {"orientation": "h", "yanchor": "top", "y": -0.18,
+                                   "xanchor": "center", "x": 0.5},
                         "annotations": [{"x": cpk_median, "y": cpk_ymax * 0.9,
                                          "text": f"Median: {cpk_median:.3f}", "showarrow": True,
                                          "arrowhead": 2, "font": {"color": "#4a9f6e"}}]}
@@ -22436,7 +22592,9 @@ def run_visualization(df, analysis_id, config):
         result["plots"].append({
             "title": "Posterior Predictive vs Spec Limits",
             "data": pred_traces,
-            "layout": {"height": 300, "xaxis": {"title": col},
+            "layout": {"height": 340, "xaxis": {"title": col},
+                        "legend": {"orientation": "h", "yanchor": "top", "y": -0.18,
+                                   "xanchor": "center", "x": 0.5},
                         "annotations": [{"x": ann_x, "y": max(pp_pdf) * 0.95,
                                          "text": f"DPMO: {dpmo:.0f}", "showarrow": False,
                                          "font": {"color": "#e89547", "size": 13}}]}
@@ -22453,7 +22611,10 @@ def run_visualization(df, analysis_id, config):
                 {"type": "scatter", "x": [0.5, 3.0], "y": [0.95, 0.95], "mode": "lines",
                  "line": {"color": "#e89547", "dash": "dash"}, "name": "95% confidence"},
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Threshold"}, "yaxis": {"title": "Probability", "range": [0, 1.05]}}
+            "layout": {"height": 280, "xaxis": {"title": "Threshold"},
+                       "yaxis": {"title": "Probability", "range": [0, 1.05]},
+                       "legend": {"orientation": "h", "yanchor": "top", "y": -0.18,
+                                  "xanchor": "center", "x": 0.5}}
         })
 
         # Plot 4: Data histogram with predictive overlay
@@ -22474,10 +22635,18 @@ def run_visualization(df, analysis_id, config):
         result["plots"].append({
             "title": "Data vs Predictive Distribution",
             "data": overlay_traces,
-            "layout": {"height": 300, "xaxis": {"title": col}, "yaxis": {"title": "Density"}}
+            "layout": {"height": 320, "xaxis": {"title": col}, "yaxis": {"title": "Density"},
+                       "legend": {"orientation": "h", "yanchor": "top", "y": -0.18,
+                                  "xanchor": "center", "x": 0.5}}
         })
 
-        result["guide_observation"] = f"Bayesian capability: Cpk median {cpk_median:.3f} [{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}], P(Cpk>1.33)={p_gt_133:.1%}, DPMO={dpmo:.0f}"
+        cpm_str = f", Cpm={cpm_median:.3f}" if cpm_median is not None else ""
+        result["guide_observation"] = (
+            f"Bayesian capability: Cpk median {cpk_median:.3f} "
+            f"[{cpk_ci[0]:.3f}, {cpk_ci[1]:.3f}], "
+            f"P(Cpk>1.33)={p_gt_133:.1%}, DPMO={dpmo:.0f}, "
+            f"yield={yield_pct:.4f}%, {sigma_level:.1f}\u03c3{cpm_str}"
+        )
 
     elif analysis_id == "bayes_spc_changepoint":
         # Bayesian Online Change Point Detection (Adams & MacKay 2007)

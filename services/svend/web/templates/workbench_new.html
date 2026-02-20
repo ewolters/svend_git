@@ -3835,7 +3835,7 @@ async function runCapabilityStudy() {
         try {
             const { response, data } = await apiPost('/api/spc/analyze/', body);
             showLoading(false);
-            if (response.ok && data.success) renderCapabilityOutput(data.capability);
+            if (response.ok && data.success) renderStatsOutput(data, 'Capability Study');
             else alert(data.error || 'Failed');
         } catch (err) { showLoading(false); alert('Error: ' + err.message); }
         return;
@@ -3851,14 +3851,15 @@ async function runCapabilityStudy() {
     try {
         const { response, data } = await apiPost('/api/spc/capability/', body);
         showLoading(false);
-        if (response.ok) renderCapabilityOutput(data.capability);
+        if (response.ok) renderStatsOutput(data, 'Capability Study');
         else alert(data.error || 'Failed');
     } catch (err) { showLoading(false); alert('Error: ' + err.message); }
 }
 
-function renderCapabilityOutput(cap) {
+function renderCapabilityOutput(cap, plots) {
     const cpk = cap.cpk != null ? cap.cpk : 0;
     const cpkClass = cpk >= 1.33 ? 'good' : (cpk >= 1.0 ? 'marginal' : 'poor');
+    const uid = 'cap-' + Date.now();
     const html = `
         <div class="metric-grid">
             <div class="metric-card highlight"><div class="metric-value">${fmt(cap.cpk, 3)}</div><div class="metric-label">Cpk</div></div>
@@ -3872,8 +3873,31 @@ function renderCapabilityOutput(cap) {
             <div class="metric-card"><div class="metric-value">${fmt(cap.yield_percent, 2)}%</div><div class="metric-label">Yield</div></div>
             <div class="metric-card"><div class="metric-value">${cap.n_samples || '—'}</div><div class="metric-label">n</div></div>
         </div>
-        <div class="interpretation ${cpkClass}">${cap.interpretation || ''}</div>`;
+        <div class="interpretation ${cpkClass}">${cap.interpretation || ''}</div>
+        <div id="${uid}-histogram" style="width:100%;height:350px;margin-top:1rem;"></div>
+        <div id="${uid}-spread" style="width:100%;margin-top:0.5rem;"></div>
+        <div id="${uid}-qq" style="width:100%;height:350px;margin-top:0.5rem;"></div>`;
     addOutput('Capability Study', html);
+
+    if (plots) {
+        const baseLayout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: getComputedStyle(document.body).getPropertyValue('--text-primary').trim() || '#c5c5c5', size: 12 },
+            margin: { t: 40, b: 50, l: 60, r: 20 },
+            xaxis: { gridcolor: 'rgba(255,255,255,0.08)' },
+            yaxis: { gridcolor: 'rgba(255,255,255,0.08)' },
+        };
+        const cfg = { responsive: true, displayModeBar: false };
+        const plotMap = { histogram: `${uid}-histogram`, spread: `${uid}-spread`, qq: `${uid}-qq` };
+        for (const [key, divId] of Object.entries(plotMap)) {
+            const chartDef = plots[key];
+            if (!chartDef) continue;
+            const el = document.getElementById(divId);
+            if (!el) continue;
+            Plotly.newPlot(el, chartDef.traces, { ...baseLayout, ...chartDef.layout }, cfg);
+        }
+    }
 }
 
 // =============================================================================
@@ -4157,10 +4181,15 @@ function openPBSDialog(mode) {
     if (['full', 'belief', 'evidence', 'adaptive', 'edetector'].includes(mode)) {
         targetField = `<div class="form-row"><label>Target (optional)</label><input type="number" id="dlg-pbs-target" step="any" placeholder="Process target"></div>`;
     }
+    let taguchiField = '';
+    if (mode === 'full') {
+        taguchiField = `<div class="form-row"><label>Taguchi k (override, optional)</label><input type="number" id="dlg-pbs-taguchi-k" step="any" min="0" placeholder="Auto from specs: 1/Δ₀²">
+            <small>Defaults to 1/Δ₀² when USL/LSL set — loss=1.0 at spec limit. Override with A₀/Δ₀² for dollar amounts.</small></div>`;
+    }
     let hazardField = '';
     if (['full', 'belief', 'health'].includes(mode)) {
-        hazardField = `<div class="form-row"><label>Hazard λ</label><input type="number" id="dlg-pbs-hazard" step="1" value="200" min="10" max="10000">
-            <small>Expected observations between changes (higher = more stable expectation)</small></div>`;
+        hazardField = `<div class="form-row"><label>Hazard λ</label><input type="number" id="dlg-pbs-hazard" step="1" placeholder="Auto (n/4)" min="10" max="10000">
+            <small>Expected regime length — leave blank for auto-tuning (n/4, typically 20–200)</small></div>`;
     }
     let betaField = '';
     if (['full', 'belief', 'health'].includes(mode)) {
@@ -4178,7 +4207,7 @@ function openPBSDialog(mode) {
     const html = `
         <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.85rem;">${descs[mode]}</p>
         <div class="form-row"><label>Measurement Column</label><select id="dlg-pbs-col">${numOpts}</select></div>
-        ${specFields}${targetField}${hazardField}${betaField}${edAlphaField}`;
+        ${specFields}${targetField}${taguchiField}${hazardField}${betaField}${edAlphaField}`;
 
     openModal(titles[mode], html, 'Analyze', () => {
         const config = { column: document.getElementById('dlg-pbs-col').value };
@@ -4194,6 +4223,8 @@ function openPBSDialog(mode) {
         if (hazEl && hazEl.value) config.hazard_lambda = parseFloat(hazEl.value);
         if (betaEl) config.beta_robustness = parseFloat(betaEl.value);
         if (edAlphaEl && edAlphaEl.value) config.edetector_alpha = parseFloat(edAlphaEl.value);
+        const taguchiEl = document.getElementById('dlg-pbs-taguchi-k');
+        if (taguchiEl && taguchiEl.value) config.taguchi_k = parseFloat(taguchiEl.value);
         if (['cpk', 'cpk_traj'].includes(mode) && (!config.USL || !config.LSL)) {
             alert('Both USL and LSL are required for Cpk analysis'); return;
         }
@@ -5365,17 +5396,88 @@ function appendCapabilityWhatIf(blockId, wd) {
                 <div>
                     <label style="font-size:0.75rem;color:var(--text-dim);">LSL = <span id="cwi-lsl-v">${wd.current_lsl.toFixed(2)}</span></label>
                     <input type="range" id="cwi-lsl" min="${sliderMin}" max="${sliderMax}" step="${step}" value="${wd.current_lsl}" style="width:100%;">
+                    <div style="position:relative;height:14px;margin-top:2px;">
+                        <canvas id="cwi-grad-lsl" height="14" style="width:100%;height:14px;border-radius:3px;"></canvas>
+                        <div id="cwi-thresh-lsl" style="position:absolute;top:0;left:0;height:100%;pointer-events:none;"></div>
+                    </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem;color:var(--text-dim);">USL = <span id="cwi-usl-v">${wd.current_usl.toFixed(2)}</span></label>
                     <input type="range" id="cwi-usl" min="${sliderMin}" max="${sliderMax}" step="${step}" value="${wd.current_usl}" style="width:100%;">
+                    <div style="position:relative;height:14px;margin-top:2px;">
+                        <canvas id="cwi-grad-usl" height="14" style="width:100%;height:14px;border-radius:3px;"></canvas>
+                        <div id="cwi-thresh-usl" style="position:absolute;top:0;left:0;height:100%;pointer-events:none;"></div>
+                    </div>
                 </div>
+            </div>
+            <div style="display:flex;gap:1rem;align-items:center;margin-bottom:0.75rem;">
+                <span style="font-size:0.65rem;color:var(--text-dim);display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#4ac86e;"></span>Cpk &ge; 1.33</span>
+                <span style="font-size:0.65rem;color:var(--text-dim);display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#e8c547;"></span>1.0 &le; Cpk &lt; 1.33</span>
+                <span style="font-size:0.65rem;color:var(--text-dim);display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#dc5050;"></span>Cpk &lt; 1.0</span>
             </div>
             <div id="cwi-metrics" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;margin-bottom:0.75rem;text-align:center;"></div>
             <div id="${plotId}" style="height:220px;"></div>
         </div>`);
 
     const mean = wd.mean, std = wd.std;
+    const sMin = parseFloat(sliderMin), sMax = parseFloat(sliderMax);
+
+    // Cpk helper: compute Cpk given lsl, usl
+    function calcCpk(l, u) {
+        if (std <= 0 || u <= l) return 0;
+        return Math.min((u - mean) / (3 * std), (mean - l) / (3 * std));
+    }
+
+    // Color for Cpk value
+    function cpkToColor(v) {
+        if (v >= 1.33) return [74, 200, 110];
+        if (v >= 1.0)  { const t = (v - 1.0) / 0.33; return [Math.round(232 + (74-232)*t), Math.round(197 + (200-197)*t), Math.round(71 + (110-71)*t)]; }
+        if (v >= 0)    { const t = Math.min(v / 1.0, 1); return [Math.round(220 + (232-220)*t), Math.round(80 + (197-80)*t), Math.round(80 + (71-80)*t)]; }
+        return [220, 80, 80];
+    }
+
+    // Paint a sensitivity gradient canvas for one slider
+    function paintGradient(canvasId, threshId, computeCpkAt) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const w = canvas.offsetWidth;
+        canvas.width = w;
+        const ctx = canvas.getContext('2d');
+        const nSteps = Math.min(w, 200);
+        const barW = Math.ceil(w / nSteps);
+        let thresh133 = -1, thresh100 = -1;
+        let prev133 = null, prev100 = null;
+
+        for (let i = 0; i < nSteps; i++) {
+            const val = sMin + (sMax - sMin) * (i / (nSteps - 1));
+            const cpk = computeCpkAt(val);
+            const [r, g, b] = cpkToColor(cpk);
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
+            ctx.fillRect(Math.round(i * w / nSteps), 0, barW, 14);
+
+            // Detect threshold crossings
+            if (prev133 !== null && ((prev133 >= 1.33 && cpk < 1.33) || (prev133 < 1.33 && cpk >= 1.33)))
+                thresh133 = i * w / nSteps;
+            if (prev100 !== null && ((prev100 >= 1.0 && cpk < 1.0) || (prev100 < 1.0 && cpk >= 1.0)))
+                thresh100 = i * w / nSteps;
+            prev133 = cpk;
+            prev100 = cpk;
+        }
+
+        // Draw threshold tick marks
+        const threshEl = document.getElementById(threshId);
+        if (!threshEl) return;
+        let marks = '';
+        if (thresh133 >= 0) marks += `<div style="position:absolute;left:${thresh133}px;top:-2px;width:1px;height:18px;background:#fff;opacity:0.7;"></div><div style="position:absolute;left:${thresh133 - 10}px;top:-14px;font-size:9px;color:#ccc;white-space:nowrap;">1.33</div>`;
+        if (thresh100 >= 0) marks += `<div style="position:absolute;left:${thresh100}px;top:-2px;width:1px;height:18px;background:#fff;opacity:0.7;"></div><div style="position:absolute;left:${thresh100 - 8}px;top:-14px;font-size:9px;color:#ccc;white-space:nowrap;">1.0</div>`;
+        threshEl.innerHTML = marks;
+    }
+
+    function updateGradients(lsl, usl) {
+        paintGradient('cwi-grad-lsl', 'cwi-thresh-lsl', v => calcCpk(v, usl));
+        paintGradient('cwi-grad-usl', 'cwi-thresh-usl', v => calcCpk(lsl, v));
+    }
+
     function update() {
         const lsl = parseFloat(document.getElementById('cwi-lsl').value);
         const usl = parseFloat(document.getElementById('cwi-usl').value);
@@ -5400,12 +5502,18 @@ function appendCapabilityWhatIf(blockId, wd) {
             <div><div style="font-size:1.1rem;font-weight:700;">${yieldPct.toFixed(2)}%</div><div style="font-size:0.65rem;color:var(--text-dim);">Yield</div></div>
             <div><div style="font-size:1.1rem;font-weight:700;">${sigmaLvl.toFixed(2)}&sigma;</div><div style="font-size:0.65rem;color:var(--text-dim);">Sigma</div></div>`;
 
+        updateGradients(lsl, usl);
+
+        const pad = (usl - lsl) * 0.15 || std;
+        const xLo = Math.min(lsl, dataMin) - pad;
+        const xHi = Math.max(usl, dataMax) + pad;
         Plotly.react(plotId, [{
             type: 'histogram', x: wd.data_values || [], name: 'Data',
             marker: {color: 'rgba(74,159,110,0.4)', line: {color: '#4a9f6e', width: 1.5}},
         }], {
             template: 'plotly_dark', paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
             margin: {t: 10, r: 20, b: 35, l: 50}, showlegend: false,
+            xaxis: {range: [xLo, xHi]},
             shapes: [
                 {type:'line',x0:lsl,x1:lsl,y0:0,y1:1,yref:'paper',line:{color:'#e85747',dash:'dash',width:2}},
                 {type:'line',x0:usl,x1:usl,y0:0,y1:1,yref:'paper',line:{color:'#e85747',dash:'dash',width:2}},

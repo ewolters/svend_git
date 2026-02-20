@@ -25,7 +25,6 @@ Usage:
 
 import json
 import logging
-import pickle
 from datetime import timedelta
 from typing import Any, Callable, Optional
 
@@ -67,11 +66,9 @@ class SessionCache:
             True if successful
         """
         try:
-            # Serialize value
-            if value_type == "json":
-                serialized = json.dumps(value).encode("utf-8")
-            else:
-                serialized = pickle.dumps(value)
+            # Serialize value — always use JSON (pickle is an RCE vector)
+            serialized = json.dumps(value).encode("utf-8")
+            value_type = "json"
 
             # Calculate expiration
             expires_at = None
@@ -118,11 +115,13 @@ class SessionCache:
             entry.hit_count += 1
             entry.save(update_fields=["hit_count", "last_accessed"])
 
-            # Deserialize
+            # Deserialize — only JSON is supported (pickle entries are rejected)
             if entry.value_type == "json":
                 return json.loads(entry.value.decode("utf-8"))
             else:
-                return pickle.loads(entry.value)
+                logger.warning(f"Rejecting non-JSON cache entry {key} (type={entry.value_type})")
+                entry.delete()
+                return default
 
         except CacheEntry.DoesNotExist:
             return default

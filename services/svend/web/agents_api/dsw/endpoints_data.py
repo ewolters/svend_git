@@ -236,10 +236,6 @@ def execute_code(request):
                 "all": all,
                 "isinstance": isinstance,
                 "type": type,
-                "getattr": getattr,
-                "setattr": setattr,
-                "hasattr": hasattr,
-                "__import__": __import__,
             }
         }
 
@@ -1251,28 +1247,9 @@ def transform_data(request):
             if not new_col or not expression:
                 return JsonResponse({"error": "Column name and expression required"}, status=400)
 
-            # Safe evaluation - only allow column names and basic math
+            # Safe evaluation using pandas.eval (no arbitrary code execution)
             try:
-                # Replace column names with df['column'] syntax
-                safe_expr = expression
-                for col in df.columns:
-                    safe_expr = safe_expr.replace(col, f"df['{col}']")
-
-                # Allow basic numpy functions
-                safe_locals = {
-                    'df': df,
-                    'np': np,
-                    'log': np.log,
-                    'log10': np.log10,
-                    'sqrt': np.sqrt,
-                    'abs': np.abs,
-                    'exp': np.exp,
-                    'sin': np.sin,
-                    'cos': np.cos,
-                    'round': np.round,
-                }
-
-                result_df[new_col] = eval(safe_expr, {"__builtins__": {}}, safe_locals)
+                result_df[new_col] = pd.eval(expression, local_dict={'df': df}, engine='numexpr')
                 message = f"Created column '{new_col}'"
             except Exception as e:
                 return JsonResponse({"error": f"Expression error: {str(e)}"}, status=400)

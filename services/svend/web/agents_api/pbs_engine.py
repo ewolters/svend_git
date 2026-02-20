@@ -160,6 +160,133 @@ class NormalGammaPosterior:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# INVESTIGATION TIMELINE — single source of truth for cross-panel sync
+# ═══════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class ChangePointEvent:
+    obs: int                        # observation index
+    shift_prob: float               # P(shift) at detection
+    e_value: float                  # evidence accumulation ratio at detection
+    evidence_level: str             # 'none'|'notable'|'strong'|'decisive'
+    robustness: int = 0             # how many λ values detect this CP (out of grid size)
+    robustness_total: int = 5       # grid size
+    confirmation_obs: int = -1      # per-CP: obs where P(shift) >= 0.95
+    near_known_transition: bool = False  # within ±3 obs of a metadata transition
+
+
+@dataclass
+class TaguchiLossResult:
+    """Expected Taguchi quality loss per unit from a Normal-Gamma posterior.
+
+    L(y) = k·(y - target)².  Under the posterior:
+      E[L] = k·[ (μ - target)² + σ²_μ + E[σ²] ]
+    where σ²_μ = β / (κ·(α-1)) captures posterior mean uncertainty,
+    and E[σ²] = β / (α-1) is the expected process variance.
+    """
+    expected_loss: float            # E[k·(Y - target)²] per unit
+    bias_loss: float                # k·(μ_post - target)² portion
+    variance_loss: float            # k·E[σ²] portion
+    uncertainty_loss: float         # k·σ²_μ portion (posterior uncertainty on mean)
+    bias_fraction: float            # bias_loss / expected_loss
+    variance_fraction: float        # variance_loss / expected_loss
+    k: float                        # loss coefficient used
+    target: float                   # target value used
+
+
+def compute_taguchi_loss(posterior: "NormalGammaPosterior",
+                         target: float, k: float = 1.0) -> TaguchiLossResult:
+    """Compute expected Taguchi loss from a Normal-Gamma posterior.
+
+    Analytical: no sampling needed. Same posterior used for Cpk.
+    """
+    # E[σ²] from inverse-gamma marginal
+    if posterior.alpha > 1:
+        e_var = posterior.beta / (posterior.alpha - 1)
+    else:
+        e_var = posterior.beta / max(posterior.alpha, 0.01)
+
+    # Posterior uncertainty on the mean: Var[μ] = β / (κ·(α-1))
+    if posterior.alpha > 1:
+        var_mu = posterior.beta / (posterior.kappa * (posterior.alpha - 1))
+    else:
+        var_mu = posterior.beta / (posterior.kappa * max(posterior.alpha, 0.01))
+
+    bias_sq = (posterior.mu - target) ** 2
+    bias_loss = k * bias_sq
+    variance_loss = k * e_var
+    uncertainty_loss = k * var_mu
+    total = bias_loss + variance_loss + uncertainty_loss
+
+    if total > 0:
+        bias_frac = bias_loss / total
+        var_frac = variance_loss / total
+    else:
+        bias_frac = 0.0
+        var_frac = 0.0
+
+    return TaguchiLossResult(
+        expected_loss=total,
+        bias_loss=bias_loss,
+        variance_loss=variance_loss,
+        uncertainty_loss=uncertainty_loss,
+        bias_fraction=bias_frac,
+        variance_fraction=var_frac,
+        k=k,
+        target=target,
+    )
+
+
+@dataclass
+class RegimeStats:
+    label: str                      # "Regime 1", "Regime 2", etc.
+    start: int
+    end: int
+    n: int
+    mean: float
+    std: float
+    cpk: object = None              # Optional[BayesianCpkResult] — None if no specs
+    ci_narrowing_30: float = 0.0    # % CI narrows with 30 more obs
+    taguchi: object = None          # Optional[TaguchiLossResult]
+
+
+@dataclass
+class KnownTransition:
+    obs: int                        # observation index where transition occurs
+    column: str                     # 'material_lot', 'operator', 'machine'
+    from_value: str
+    to_value: str
+
+
+@dataclass
+class LotCapability:
+    lot_id: str
+    start: int
+    end: int
+    n: int
+    mean: float
+    std: float
+    cpk: object = None              # Optional[BayesianCpkResult]
+    ci_narrowing_30: float = 0.0
+    within_lot_cps: list = None     # BOCPD changepoints within this lot (not at boundary)
+    taguchi: object = None          # Optional[TaguchiLossResult]
+
+
+@dataclass
+class InvestigationTimeline:
+    changepoints: list              # List[ChangePointEvent]
+    regimes: list                   # List[RegimeStats]
+    ed_peak_obs: int = -1           # observation of E-Detector max log(N)
+    ed_peak_log_N: float = 0.0
+    ed_first_alarm_obs: int = -1    # first E-Detector alarm, -1 if none
+    ed_threshold: float = 3.0       # log(1/alpha) alarm threshold
+    best_lambda: float = 0.0       # MAP λ from empirical Bayes grid
+    lambda_log_evidences: dict = None  # {λ: log_marginal_likelihood}
+    known_transitions: list = None  # List[KnownTransition]
+    lot_capabilities: list = None   # List[LotCapability]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # 2. BELIEF CHART — Bayesian Online Changepoint Detection
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -189,13 +316,15 @@ class BeliefChart:
                  prior: Optional[NormalGammaPosterior] = None,
                  max_run_lengths: int = 200,
                  thresholds: Optional[Dict[str, float]] = None,
-                 beta_robustness: float = 0.0):
+                 beta_robustness: float = 0.0,
+                 max_neff: Optional[int] = 50):
         self.hazard_lambda = hazard_lambda
         self.K = max_run_lengths
         self.prior = prior or NormalGammaPosterior()
         self.thresholds = thresholds or {
             "watch": 0.50, "alert": 0.80, "alarm": 0.95}
         self.beta_robustness = float(beta_robustness)
+        self.max_neff = max_neff  # cap effective sample size per run length
 
         # Run length distribution: log P(r_t | x_{1:t})
         # Start: P(r_0 = 0) = 1
@@ -209,6 +338,7 @@ class BeliefChart:
         self._reference_mean = self.prior.mu
         self._t = 0
         self.points: List[BeliefChartPoint] = []
+        self.log_marginal_likelihood = 0.0  # Σ log p(x_t | x_{1:t-1}, λ)
 
     def _hazard(self, r: int) -> float:
         return 1.0 / self.hazard_lambda
@@ -252,6 +382,7 @@ class BeliefChart:
         # 5. Normalize
         log_evidence = _logsumexp(new_log_R)
         new_log_R -= log_evidence
+        self.log_marginal_likelihood += log_evidence
 
         # 6. Update sufficient statistics
         new_suff = []
@@ -268,6 +399,14 @@ class BeliefChart:
             alpha_new = alpha_i + w / 2.0
             beta_new = (beta_i
                         + w * kappa_i * (x - mu_i) ** 2 / (2.0 * kappa_new))
+            # Windowed sufficient stats: cap kappa to prevent long regimes
+            # from becoming immovable.  Decay alpha/beta proportionally to
+            # preserve posterior mean of sigma^2 while widening uncertainty.
+            if self.max_neff and kappa_new > self.max_neff:
+                decay = self.max_neff / kappa_new
+                kappa_new = float(self.max_neff)
+                alpha_new *= decay
+                beta_new *= decay
             new_suff.append((mu_new, min(kappa_new, 1e8),
                              alpha_new, max(beta_new, 1e-15)))
 
@@ -1098,11 +1237,167 @@ class ProcessNarrative:
                  uncertainty_pt: Optional[UncertaintyFusedPoint] = None,
                  beta_robustness: float = 0.0,
                  belief_points: Optional[list] = None,
+                 timeline: Optional[InvestigationTimeline] = None,
+                 USL: Optional[float] = None,
+                 LSL: Optional[float] = None,
+                 taguchi_k: float = 0.0,
+                 taguchi_target: Optional[float] = None,
+                 y: Optional[np.ndarray] = None,
+                 prior: Optional["NormalGammaPosterior"] = None,
                  ) -> str:
         segments = []
 
-        # 1. Current state
-        if belief_pt:
+        # ── Timeline-aware narrative (replaces simple state description) ──
+        has_shifts = timeline and timeline.changepoints
+        if has_shifts:
+            cps = timeline.changepoints
+            regimes = timeline.regimes
+
+            # Shift location(s) with confirmation arc and robustness
+            def _robustness_label(cp_ev):
+                if cp_ev.robustness_total <= 1:
+                    return ""
+                if cp_ev.robustness >= cp_ev.robustness_total:
+                    return " (robust — detected at all \u03bb values)"
+                elif cp_ev.robustness >= cp_ev.robustness_total - 1:
+                    return f" (robust — {cp_ev.robustness}/{cp_ev.robustness_total} \u03bb values)"
+                elif cp_ev.robustness <= 2:
+                    return f" (uncertain — {cp_ev.robustness}/{cp_ev.robustness_total} \u03bb values, sensitive to prior)"
+                else:
+                    return f" ({cp_ev.robustness}/{cp_ev.robustness_total} \u03bb values)"
+
+            if len(cps) == 1:
+                cp = cps[0]
+                rob_lbl = _robustness_label(cp)
+                if (cp.confirmation_obs >= 0
+                        and cp.confirmation_obs > cp.obs):
+                    segments.append(
+                        f"Shift first detected at observation {cp.obs} "
+                        f"(P = {cp.shift_prob:.0%}), confirmed to "
+                        f"P \u2265 95% by obs ~{cp.confirmation_obs}"
+                        f"{rob_lbl}.")
+                else:
+                    segments.append(
+                        f"Process shifted at observation {cp.obs} "
+                        f"(P = {cp.shift_prob:.0%}){rob_lbl}.")
+            else:
+                cp_descs = []
+                for c in cps:
+                    rob_lbl = _robustness_label(c)
+                    confirm_str = ""
+                    if c.confirmation_obs >= 0 and c.confirmation_obs > c.obs:
+                        confirm_str = f", confirmed obs ~{c.confirmation_obs}"
+                    cp_descs.append(
+                        f"obs {c.obs} (P={c.shift_prob:.0%}{confirm_str})"
+                        f"{rob_lbl}")
+                segments.append(
+                    f"Process shifted at {', '.join(cp_descs[:-1])} "
+                    f"and {cp_descs[-1]}. "
+                    f"{len(regimes)} regimes detected.")
+
+            # Per-regime capability
+            for r in regimes:
+                cpk_r = r.cpk
+                if cpk_r:
+                    ci = cpk_r.cpk_credible_interval
+                    regime_desc = (
+                        f"{r.label} (obs {r.start + 1}\u2013{r.end}, n={r.n}): "
+                        f"Cpk {cpk_r.cpk_point_estimate:.2f} "
+                        f"[{ci[0]:.2f}, {ci[1]:.2f}],"
+                        f" P(>1.33)={cpk_r.cpk_probability_above_133:.0%}")
+                    if r.taguchi:
+                        tl = r.taguchi
+                        regime_desc += (
+                            f", E[L]=${tl.expected_loss:.3f}/unit"
+                            f" (bias: {tl.bias_fraction:.0%},"
+                            f" var: {tl.variance_fraction:.0%})")
+                    if r.n < 30:
+                        regime_desc += (
+                            f" \u2014 posterior wide, confidence limited. "
+                            f"{30} additional observations would narrow CI "
+                            f"by approximately {r.ci_narrowing_30:.0f}%")
+                    segments.append(regime_desc + ".")
+                else:
+                    segments.append(
+                        f"{r.label} (obs {r.start + 1}\u2013{r.end}, n={r.n}): "
+                        f"\u03bc={r.mean:.4f}, \u03c3={r.std:.4f}.")
+
+            # Mean displacement direction
+            if len(regimes) >= 2:
+                r_prev, r_curr = regimes[-2], regimes[-1]
+                delta = r_curr.mean - r_prev.mean
+                direction = ""
+                if USL is not None and delta > 0:
+                    direction = " toward USL"
+                elif LSL is not None and delta < 0:
+                    direction = " toward LSL"
+                segments.append(
+                    f"Mean displaced {delta:+.4f}{direction}.")
+
+            # Evidence corroboration
+            last_ev = cps[-1].e_value
+            level = cps[-1].evidence_level
+            if last_ev > 1:
+                segments.append(
+                    f"Evidence strength: {last_ev:.0f}:1 ({level}).")
+            if timeline.ed_peak_obs >= 0:
+                if timeline.ed_peak_log_N >= timeline.ed_threshold:
+                    segments.append(
+                        f"E-Detector corroboration: alarm at "
+                        f"obs {timeline.ed_peak_obs} "
+                        f"(log(N) = {timeline.ed_peak_log_N:.1f}).")
+                else:
+                    segments.append(
+                        f"E-Detector: no independent alarm "
+                        f"(peak log(N) = {timeline.ed_peak_log_N:.1f}, "
+                        f"below threshold {timeline.ed_threshold:.1f}). "
+                        f"Shift real but small.")
+
+        elif timeline and timeline.lot_capabilities:
+            # No BOCPD changepoints but lot transitions present
+            n_lots = len(timeline.lot_capabilities)
+            segments.append(
+                f"{n_lots} material lots detected. "
+                f"No unexpected within-lot shifts found by BOCPD.")
+            # Per-lot capability summary
+            for lc in timeline.lot_capabilities:
+                cpk_r = lc.cpk
+                if cpk_r:
+                    ci = cpk_r.cpk_credible_interval
+                    lot_desc = (
+                        f"{lc.lot_id} (n={lc.n}): "
+                        f"Cpk {cpk_r.cpk_point_estimate:.2f} "
+                        f"[{ci[0]:.2f}, {ci[1]:.2f}],"
+                        f" P(>1.33)={cpk_r.cpk_probability_above_133:.0%}")
+                    if lc.taguchi:
+                        tl = lc.taguchi
+                        lot_desc += (
+                            f", E[L]=${tl.expected_loss:.3f}/unit"
+                            f" (bias: {tl.bias_fraction:.0%},"
+                            f" var: {tl.variance_fraction:.0%})")
+                    segments.append(lot_desc + ".")
+                    # Within-lot shift: show pre/post loss if Taguchi is active
+                    if (lc.within_lot_cps and lc.taguchi
+                            and taguchi_k > 0 and taguchi_target is not None):
+                        for wcp in lc.within_lot_cps:
+                            pre_data = y[lc.start:wcp]
+                            post_data = y[wcp:lc.end]
+                            if len(pre_data) >= 2 and len(post_data) >= 2:
+                                pre_post = prior.copy()
+                                pre_post.update(pre_data)
+                                post_post = prior.copy()
+                                post_post.update(post_data)
+                                pre_loss = compute_taguchi_loss(
+                                    pre_post, taguchi_target, taguchi_k)
+                                post_loss = compute_taguchi_loss(
+                                    post_post, taguchi_target, taguchi_k)
+                                segments.append(
+                                    f"  \u26a0 Within-lot shift at obs {wcp}"
+                                    f" \u2014 pre-shift ${pre_loss.expected_loss:.3f},"
+                                    f" post-shift ${post_loss.expected_loss:.3f}/unit")
+
+        elif belief_pt:
+            # No shift — original behavior
             sp = belief_pt.shift_probability
             if sp < 0.20:
                 segments.append(
@@ -1133,8 +1428,8 @@ class ProcessNarrative:
                 f"({uncertainty_pt.gage_health_pct:.0f}% GRR). "
                 f"True-value uncertainty: +/-{uncertainty_pt.fused_std:.3f}.")
 
-        # 3. Evidence
-        if evidence_pt:
+        # 3. Evidence (only if not already covered by timeline)
+        if not has_shifts and evidence_pt:
             ev = evidence_pt.e_value_accumulated
             if ev > 20:
                 segments.append(
@@ -1159,8 +1454,8 @@ class ProcessNarrative:
                 "indicate risk that the shift detector has not confirmed. "
                 "Investigate the trend.")
 
-        # 5. Capability
-        if cpk:
+        # 5. Capability (only if not already covered by timeline)
+        if not has_shifts and cpk:
             segments.append(
                 f"Bayesian Cpk: {cpk.cpk_point_estimate:.2f} "
                 f"[{cpk.cpk_credible_interval[0]:.2f}, "
@@ -1313,7 +1608,9 @@ def run_pbs(df, analysis_id, config):
         result["summary"] = "Error: Select a measurement column."
         return result
 
-    y = df[col].dropna().values.astype(float)
+    valid_mask = df[col].notna()
+    df_valid = df.loc[valid_mask].reset_index(drop=True)
+    y = df_valid[col].values.astype(float)
     n = len(y)
     if n < 5:
         result["summary"] = "Error: Need at least 5 observations."
@@ -1329,8 +1626,20 @@ def run_pbs(df, analysis_id, config):
     if target is not None:
         target = float(target)
 
-    hazard_lambda = float(config.get("hazard_lambda", 200))
+    hazard_lambda_raw = config.get("hazard_lambda")
+    if hazard_lambda_raw not in (None, "", "null", "auto"):
+        hazard_lambda = float(hazard_lambda_raw)
+    else:
+        hazard_lambda = max(20.0, min(200.0, n / 4.0))
     beta_robustness = float(config.get("beta_robustness", 0.0))
+
+    # Extract metadata columns (lot, operator, machine) aligned to valid rows
+    metadata = {}
+    for mc in ['material_lot', 'operator', 'machine']:
+        if mc in df_valid.columns:
+            vals = df_valid[mc].tolist()
+            if len(set(vals)) > 1:  # only include if transitions exist
+                metadata[mc] = vals
 
     # Calibration phase — first observations set informative prior
     n_cal = min(50, max(10, n // 5))
@@ -1353,7 +1662,7 @@ def run_pbs(df, analysis_id, config):
 
     if analysis_id == "pbs_full":
         return _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda,
-                             config, sigma_cal, beta_robustness)
+                             config, sigma_cal, beta_robustness, metadata)
     elif analysis_id == "pbs_belief":
         return _run_belief_only(y, prior, hazard_lambda, config,
                                 beta_robustness)
@@ -1378,16 +1687,110 @@ def run_pbs(df, analysis_id, config):
 
 
 def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
-                  sigma_ref, beta_robustness=0.0):
+                  sigma_ref, beta_robustness=0.0, metadata=None):
     """Full PBS analysis — all charts."""
     result = {"plots": [], "summary": "", "guide_observation": ""}
     n = len(y)
 
-    # 1. Run BOCPD for belief chart
-    bc = BeliefChart(hazard_lambda=hazard_lambda, prior=prior.copy(),
-                     beta_robustness=beta_robustness)
-    for x in y:
-        bc.process(x)
+    # 1. Run BOCPD — empirical Bayes over λ grid
+    #    Put a uniform prior on λ and select MAP segmentation.
+    #    Flag changepoints that appear across multiple λ as robust.
+    lambda_grid = [20, 50, 100, 200, 500]
+    bc_runs = {}
+    for lam in lambda_grid:
+        bc_i = BeliefChart(hazard_lambda=lam, prior=prior.copy(),
+                           beta_robustness=beta_robustness)
+        for x in y:
+            bc_i.process(x)
+        bc_runs[lam] = bc_i
+
+    # Select MAP λ (highest marginal log-likelihood)
+    best_lam = max(lambda_grid,
+                   key=lambda lam: bc_runs[lam].log_marginal_likelihood)
+    bc = bc_runs[best_lam]
+    hazard_lambda = best_lam  # update for downstream summary
+
+    # Robustness: extract changepoints per λ for cross-validation
+    def _extract_cps(bc_obj, min_gap=5):
+        """Detect changepoints via MAP run length drops.
+        When the most likely run length drops to ≤2 from a value ≥5,
+        a new regime has started at that observation.
+        """
+        cps = []
+        last = -min_gap
+        pts = bc_obj.points
+        for t in range(2, n):
+            prev_rl = pts[t - 1].most_likely_run_length
+            curr_rl = pts[t].most_likely_run_length
+            if (prev_rl >= 5 and curr_rl <= 2
+                    and t - last >= min_gap):
+                cps.append(t)
+                last = t
+        return cps
+
+    all_cps_by_lambda = {lam: _extract_cps(bc_runs[lam]) for lam in lambda_grid}
+    # Count how many λ values detect each changepoint (within ±3 obs)
+    cp_robustness = {}  # obs -> count of λ values that see it
+    for cp in all_cps_by_lambda[best_lam]:
+        count = 0
+        for lam in lambda_grid:
+            if any(abs(c - cp) <= 3 for c in all_cps_by_lambda[lam]):
+                count += 1
+        cp_robustness[cp] = count
+
+    # 1b. Regime merging — collapse adjacent BOCPD regimes with similar means
+    def _merge_similar_regimes(cps_in, data, merge_threshold=1.0,
+                               protected=None):
+        """Remove CPs where adjacent regimes have similar means.
+        CPs in `protected` (within ±3 obs) are never merged.
+        """
+        if not cps_in:
+            return []
+        keep = []
+        bounds = [0] + list(cps_in) + [len(data)]
+        for j, cp in enumerate(cps_in):
+            # Never merge CPs near known transitions
+            if protected and any(abs(cp - p) <= 3 for p in protected):
+                keep.append(cp)
+                continue
+            left = data[bounds[j]:cp]
+            right = data[cp:bounds[j + 2]]
+            if len(left) < 2 or len(right) < 2:
+                keep.append(cp)
+                continue
+            n_l, n_r = len(left), len(right)
+            var_l = float(np.var(left, ddof=1))
+            var_r = float(np.var(right, ddof=1))
+            pooled_std = math.sqrt(
+                (var_l * (n_l - 1) + var_r * (n_r - 1)) / (n_l + n_r - 2))
+            if pooled_std <= 0:
+                keep.append(cp)
+                continue
+            if abs(float(np.mean(left)) - float(np.mean(right))) >= merge_threshold * pooled_std:
+                keep.append(cp)
+            # else: means too similar — drop this CP (merge regimes)
+        return keep
+
+    # 1c. Detect known transitions from metadata columns (before merge,
+    #     so we can protect lot-boundary CPs from being merged away)
+    known_transitions = []
+    if metadata:
+        for col_name, values in metadata.items():
+            for i in range(1, n):
+                if values[i] != values[i - 1]:
+                    known_transitions.append(KnownTransition(
+                        obs=i, column=col_name,
+                        from_value=str(values[i - 1]),
+                        to_value=str(values[i]),
+                    ))
+    lot_transitions = [kt for kt in known_transitions
+                       if kt.column == 'material_lot']
+
+    map_cps = list(all_cps_by_lambda[best_lam])
+    # Protect CPs that are near known lot transitions from being merged
+    protected_obs = [kt.obs for kt in lot_transitions]
+    map_cps = _merge_similar_regimes(map_cps, y, merge_threshold=1.0,
+                                     protected=protected_obs)
 
     # 2. Cumulative posterior
     post = prior.copy()
@@ -1432,7 +1835,10 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
 
     # 7. Health — fuse BOCPD, E-Detector, Cpk, trend (Anti-Pattern 7)
     h_spc = 1 - bc.points[-1].shift_probability if bc.points else 0.5
-    h_cpk = cpk_result.cpk_probability_above_133 if cpk_result else 0.5
+    h_cpk_raw = cpk_result.cpk_probability_above_133 if cpk_result else 0.5
+    cpk_n_eff = n
+    cpk_maturity = min(1.0, cpk_n_eff / 30.0)
+    h_cpk = h_cpk_raw * cpk_maturity
     h_trend = 0.5
     if pred:
         h_trend = 1.0 - pred.prob_exceed_spec_10
@@ -1450,6 +1856,168 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
                "cpk": h_cpk, "trend": h_trend}
     msh = MultiStreamHealth()
     health = msh.fuse(streams)
+
+    # 7b. Investigation Timeline — synchronized changepoint data
+    cp_indices = map_cps  # post-merge BOCPD changepoints
+
+    # E-Detector peak (does NOT auto-reset)
+    ed_peak_idx = max(range(n), key=lambda i: ed.points[i].log_N_combined) if n > 0 else 0
+    ed_peak_val = ed.points[ed_peak_idx].log_N_combined if ed.points else 0.0
+    ed_first_alarm = next((p.t - 1 for p in ed.points if p.alarm), -1)
+
+    # Taguchi loss config — extracted once, used in both regime and lot loops
+    # Default k from spec limits: k = 1/Δ₀² where Δ₀ = (USL-LSL)/2
+    # Loss = 1.0 means "as bad as sitting on the spec limit"
+    taguchi_k_raw = config.get("taguchi_k")
+    if taguchi_k_raw not in (None, "", 0, "0"):
+        taguchi_k = float(taguchi_k_raw)
+    elif USL is not None and LSL is not None:
+        delta0 = (USL - LSL) / 2.0
+        taguchi_k = 1.0 / (delta0 ** 2) if delta0 > 0 else 0.0
+    else:
+        taguchi_k = 0.0
+    taguchi_target = target
+    if taguchi_target is None and USL is not None and LSL is not None:
+        taguchi_target = (USL + LSL) / 2.0
+
+    # Per-regime stats + Cpk (BOCPD regimes)
+    boundaries = [0] + cp_indices + [n]
+    regimes = []
+    for i in range(len(boundaries) - 1):
+        seg_start, seg_end = boundaries[i], boundaries[i + 1]
+        seg_data = y[seg_start:seg_end]
+        seg_n = len(seg_data)
+        seg_mean = float(np.mean(seg_data)) if seg_n > 0 else 0.0
+        seg_std = float(np.std(seg_data, ddof=1)) if seg_n > 1 else 0.0
+        seg_cpk = None
+        seg_taguchi = None
+        seg_post = None
+        if seg_n >= 2:
+            seg_post = prior.copy()
+            seg_post.update(seg_data)
+            if USL is not None and LSL is not None:
+                seg_cpk = BayesianCpk(USL, LSL).compute(seg_post, seg_n, seed=42 + i)
+        ci_narrow = 0.0
+        if seg_n >= 2:
+            seg_kappa = prior.kappa + seg_n
+            ci_narrow = (1.0 - math.sqrt(seg_kappa / (seg_kappa + 30))) * 100
+        if seg_post is not None and taguchi_k > 0 and taguchi_target is not None:
+            seg_taguchi = compute_taguchi_loss(seg_post, taguchi_target, taguchi_k)
+        regimes.append(RegimeStats(
+            label=f"Regime {i + 1}", start=seg_start, end=seg_end,
+            n=seg_n, mean=seg_mean, std=seg_std,
+            cpk=seg_cpk, ci_narrowing_30=ci_narrow,
+            taguchi=seg_taguchi,
+        ))
+
+    # Build CP events with per-CP confirmation and near-known-transition flag
+    n_grid = len(lambda_grid)
+    cp_events = []
+    for cp in cp_indices:
+        ev_at = ea.points[cp].e_value_accumulated if cp < len(ea.points) else 1.0
+        ev_level = ea.points[cp].evidence_level if cp < len(ea.points) else "none"
+        sp_at = bc.points[cp].shift_probability
+        rob = cp_robustness.get(cp, 1)
+        # Per-CP confirmation: scan forward from this CP
+        cp_confirm = -1
+        for t in range(cp, n):
+            if bc.points[t].shift_probability >= 0.95:
+                cp_confirm = t
+                break
+        # Near a known lot transition?
+        near_kt = any(abs(cp - kt.obs) <= 3 for kt in lot_transitions)
+        cp_events.append(ChangePointEvent(
+            obs=cp, shift_prob=sp_at, e_value=ev_at, evidence_level=ev_level,
+            robustness=rob, robustness_total=n_grid,
+            confirmation_obs=cp_confirm, near_known_transition=near_kt,
+        ))
+
+    # Per-lot capability (metadata-driven segmentation)
+    lot_capabilities = []
+    if lot_transitions:
+        lot_bounds = [0] + [kt.obs for kt in lot_transitions] + [n]
+        lot_ids = []
+        if metadata and 'material_lot' in metadata:
+            for i in range(len(lot_bounds) - 1):
+                lot_ids.append(metadata['material_lot'][lot_bounds[i]])
+        for i in range(len(lot_bounds) - 1):
+            seg_start, seg_end = lot_bounds[i], lot_bounds[i + 1]
+            seg_data = y[seg_start:seg_end]
+            seg_n = len(seg_data)
+            seg_mean = float(np.mean(seg_data)) if seg_n > 0 else 0.0
+            seg_std = float(np.std(seg_data, ddof=1)) if seg_n > 1 else 0.0
+            seg_cpk = None
+            seg_taguchi = None
+            seg_post = None
+            if seg_n >= 2:
+                seg_post = prior.copy()
+                seg_post.update(seg_data)
+                if USL is not None and LSL is not None:
+                    seg_cpk = BayesianCpk(USL, LSL).compute(
+                        seg_post, seg_n, seed=200 + i)
+            ci_narrow = 0.0
+            if seg_n >= 2:
+                seg_kappa = prior.kappa + seg_n
+                ci_narrow = (1.0 - math.sqrt(
+                    seg_kappa / (seg_kappa + 30))) * 100
+            # Taguchi loss — same posterior, different projection
+            if seg_post is not None and taguchi_k > 0 and taguchi_target is not None:
+                seg_taguchi = compute_taguchi_loss(seg_post, taguchi_target, taguchi_k)
+            # Within-lot BOCPD CPs (not at a lot boundary)
+            within_cps = [cp for cp in cp_indices
+                          if seg_start < cp < seg_end
+                          and not any(abs(cp - kt.obs) <= 3
+                                      for kt in lot_transitions)]
+            lot_capabilities.append(LotCapability(
+                lot_id=lot_ids[i] if lot_ids else f"Segment {i + 1}",
+                start=seg_start, end=seg_end, n=seg_n,
+                mean=seg_mean, std=seg_std, cpk=seg_cpk,
+                ci_narrowing_30=ci_narrow, within_lot_cps=within_cps,
+                taguchi=seg_taguchi,
+            ))
+
+    lambda_log_evs = {lam: bc_runs[lam].log_marginal_likelihood
+                      for lam in lambda_grid}
+    timeline = InvestigationTimeline(
+        changepoints=cp_events, regimes=regimes,
+        ed_peak_obs=ed_peak_idx, ed_peak_log_N=ed_peak_val,
+        ed_first_alarm_obs=ed_first_alarm,
+        ed_threshold=ed.threshold,
+        best_lambda=float(best_lam),
+        lambda_log_evidences=lambda_log_evs,
+        known_transitions=known_transitions,
+        lot_capabilities=lot_capabilities if lot_capabilities else None,
+    )
+
+    # 7c. Re-scope Predictive + Cpk to current regime when shift detected
+    #     Use the later of: last BOCPD CP or last known lot transition
+    last_anchor = 0
+    if cp_indices:
+        last_anchor = cp_indices[-1]
+    if lot_transitions:
+        last_anchor = max(last_anchor, lot_transitions[-1].obs)
+    if last_anchor > 0:
+        current_regime_data = y[last_anchor:]
+        # Predictive: anchor from post-shift data only
+        if len(current_regime_data) >= 10:
+            pc_r = PredictiveChart(window=min(20, len(current_regime_data)))
+            pred = pc_r.compute(current_regime_data, USL=USL, LSL=LSL,
+                                horizon=min(25, len(current_regime_data)))
+        else:
+            pred = None
+        # Cpk: posterior from current regime only
+        if USL is not None and LSL is not None and len(current_regime_data) >= 2:
+            post_current = prior.copy()
+            post_current.update(current_regime_data)
+            cpk_result = BayesianCpk(USL, LSL).compute(
+                post_current, len(current_regime_data))
+            # Update health Cpk component — discount by posterior maturity
+            h_cpk_raw = cpk_result.cpk_probability_above_133
+            cpk_n_eff = len(current_regime_data)
+            cpk_maturity = min(1.0, cpk_n_eff / 30.0)
+            h_cpk = h_cpk_raw * cpk_maturity
+            streams["cpk"] = h_cpk
+            health = msh.fuse(streams)
 
     # 8. Alarm
     alarm_engine = ProbabilisticAlarms(
@@ -1469,10 +2037,68 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         health=health,
         beta_robustness=beta_robustness,
         belief_points=bc.points,
+        timeline=timeline,
+        USL=USL, LSL=LSL,
+        taguchi_k=taguchi_k,
+        taguchi_target=taguchi_target,
+        y=y, prior=prior,
     )
 
     # ── Build plots ──
     ts = list(range(n))
+
+    # Synchronized changepoint shapes + annotations for all obs-axis plots
+    # Red dashed = BOCPD-detected shift.  Gold dotted = known metadata transition.
+    cp_shapes = []
+    cp_annots = []
+    for cpe in timeline.changepoints:
+        cp_shapes.append({
+            "type": "line", "x0": cpe.obs, "x1": cpe.obs,
+            "y0": 0, "y1": 1, "yref": "paper",
+            "line": {"color": "#e85747", "width": 1.5, "dash": "dash"},
+        })
+        cp_annots.append({
+            "x": cpe.obs, "y": 1.02, "yref": "paper",
+            "text": f"CP {cpe.obs}", "showarrow": False,
+            "font": {"color": "#e85747", "size": 10},
+            "xanchor": "center", "yanchor": "bottom",
+        })
+
+    # Known transition lines (gold dotted)
+    kt_shapes = []
+    kt_annots = []
+    for kt in lot_transitions:
+        kt_shapes.append({
+            "type": "line", "x0": kt.obs, "x1": kt.obs,
+            "y0": 0, "y1": 1, "yref": "paper",
+            "line": {"color": "#c9a227", "width": 1, "dash": "dot"},
+        })
+        # Short label: strip common prefix for readability
+        short_label = kt.to_value
+        if short_label.startswith("LOT-2026-"):
+            short_label = "L" + short_label[-3:]
+        elif len(short_label) > 10:
+            short_label = short_label[-6:]
+        kt_annots.append({
+            "x": kt.obs, "y": 1.06, "yref": "paper",
+            "text": short_label, "showarrow": False,
+            "font": {"color": "#c9a227", "size": 9},
+            "xanchor": "center", "yanchor": "bottom",
+        })
+
+    def _with_cp(layout):
+        """Merge changepoint + known transition shapes into a plot layout."""
+        shapes = layout.get("shapes", [])
+        annots = layout.get("annotations", [])
+        if cp_shapes:
+            shapes = shapes + cp_shapes
+            annots = annots + cp_annots
+        if kt_shapes:
+            shapes = shapes + kt_shapes
+            annots = annots + kt_annots
+        layout["shapes"] = shapes
+        layout["annotations"] = annots
+        return layout
 
     # Plot 1: Belief Chart (shift probability)
     shift_probs = [p.shift_probability for p in bc.points]
@@ -1491,11 +2117,11 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
              "mode": "lines", "name": "Alarm (95%)",
              "line": {"color": "#d94a4a", "dash": "dash", "width": 1}},
         ],
-        "layout": {
+        "layout": _with_cp({
             "template": "plotly_dark", "height": 250,
             "yaxis": {"title": "P(shifted)", "range": [0, 1.05]},
             "xaxis": {"title": "Observation"},
-        },
+        }),
     })
 
     # Plot 2: Evidence Accumulation (log scale)
@@ -1511,11 +2137,11 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
              "mode": "lines", "name": "Strong (20:1)",
              "line": {"color": "#4a9f6e", "dash": "dash", "width": 1}},
         ],
-        "layout": {
+        "layout": _with_cp({
             "template": "plotly_dark", "height": 250,
             "yaxis": {"title": "log(E-value)"},
             "xaxis": {"title": "Observation"},
-        },
+        }),
     })
 
     # Plot 2b: E-Detector (distribution-free changepoint)
@@ -1541,14 +2167,35 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
             "mode": "markers", "name": "Alarm",
             "marker": {"color": "#d94a4a", "symbol": "diamond", "size": 8},
         })
+    # E-Detector peak marker
+    if timeline.ed_peak_obs >= 0 and ed_peak_val > 0:
+        ed_traces.append({
+            "type": "scatter",
+            "x": [timeline.ed_peak_obs],
+            "y": [ed_peak_val],
+            "mode": "markers+text", "name": "Peak",
+            "marker": {"color": "#e8c547", "symbol": "star", "size": 10},
+            "text": [f"Peak log(N)={ed_peak_val:.1f}"],
+            "textposition": "top center",
+            "textfont": {"color": "#e8c547", "size": 10},
+        })
+    ed_layout = _with_cp({
+        "template": "plotly_dark", "height": 250,
+        "yaxis": {"title": "log(N)"},
+        "xaxis": {"title": "Observation"},
+    })
+    # First alarm vertical line (threshold crossing)
+    if timeline.ed_first_alarm_obs >= 0:
+        ed_layout.setdefault("shapes", []).append({
+            "type": "line",
+            "x0": timeline.ed_first_alarm_obs, "x1": timeline.ed_first_alarm_obs,
+            "y0": 0, "y1": 1, "yref": "paper",
+            "line": {"color": "#e8c547", "width": 1, "dash": "dot"},
+        })
     result["plots"].append({
         "title": "E-Detector — Distribution-Free Changepoint",
         "data": ed_traces,
-        "layout": {
-            "template": "plotly_dark", "height": 250,
-            "yaxis": {"title": "log(N)"},
-            "xaxis": {"title": "Observation"},
-        },
+        "layout": ed_layout,
     })
 
     # Plot 3: Adaptive Control Limits
@@ -1572,11 +2219,11 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
              "mode": "lines", "name": "LCL",
              "line": {"color": "#d94a4a", "dash": "dash", "width": 1}},
         ],
-        "layout": {
+        "layout": _with_cp({
             "template": "plotly_dark", "height": 280,
             "yaxis": {"title": config.get("column", "Value")},
             "xaxis": {"title": "Observation"},
-        },
+        }),
     })
 
     # Plot 4: Predictive Fan (if available)
@@ -1637,13 +2284,17 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
 
     # Plot 5: Bayesian Cpk posterior (if available)
     if cpk_result:
-        cpk_engine = BayesianCpk(USL, LSL)
-        cpk_samples = cpk_engine.compute(post, n).cpk_point_estimate
-        # Regenerate samples for histogram
+        # Use current-regime posterior when shift or lot transition detected
+        cpk_post = post
+        cpk_n_label = n
+        if last_anchor > 0:
+            cpk_post = prior.copy()
+            cpk_post.update(y[last_anchor:])
+            cpk_n_label = n - last_anchor
         rng = np.random.RandomState(42)
-        tau_s = rng.gamma(post.alpha, 1.0 / post.beta, size=10000)
-        sig_mu = 1.0 / np.sqrt(post.kappa * tau_s)
-        mu_s = rng.normal(post.mu, sig_mu)
+        tau_s = rng.gamma(cpk_post.alpha, 1.0 / cpk_post.beta, size=10000)
+        sig_mu = 1.0 / np.sqrt(cpk_post.kappa * tau_s)
+        mu_s = rng.normal(cpk_post.mu, sig_mu)
         sigma_s = 1.0 / np.sqrt(tau_s)
         cpu_s = (USL - mu_s) / (3 * sigma_s)
         cpl_s = (mu_s - LSL) / (3 * sigma_s)
@@ -1653,8 +2304,20 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         hist_v, bin_e = np.histogram(cpk_s, bins=50, density=True)
         bin_c = (bin_e[:-1] + bin_e[1:]) / 2
 
+        cpk_title = "Bayesian Cpk Posterior"
+        if last_anchor > 0:
+            anchor_n = n - last_anchor
+            # Identify current lot if available
+            if lot_capabilities:
+                cpk_title = (f"Bayesian Cpk Posterior — {lot_capabilities[-1].lot_id} "
+                             f"(obs {last_anchor + 1}–{n}, n={anchor_n})")
+            elif timeline.regimes:
+                cr = timeline.regimes[-1]
+                cpk_title = (f"Bayesian Cpk Posterior — {cr.label} "
+                             f"(obs {cr.start + 1}–{cr.end}, n={cr.n})")
+
         result["plots"].append({
-            "title": "Bayesian Cpk Posterior",
+            "title": cpk_title,
             "data": [
                 {"type": "bar", "x": bin_c.tolist(), "y": hist_v.tolist(),
                  "marker": {"color": "rgba(74,159,110,0.5)",
@@ -1676,6 +2339,44 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
             },
         })
 
+    # Plot 5b: Taguchi Loss per Regime (stacked bar — bias vs variance)
+    regimes_with_taguchi = [r for r in timeline.regimes if r.taguchi]
+    if regimes_with_taguchi:
+        labels = [f"{r.label}\n(obs {r.start+1}–{r.end})" for r in regimes_with_taguchi]
+        bias_vals = [r.taguchi.bias_loss for r in regimes_with_taguchi]
+        var_vals = [r.taguchi.variance_loss for r in regimes_with_taguchi]
+        unc_vals = [r.taguchi.uncertainty_loss for r in regimes_with_taguchi]
+        # Hover text with decomposition
+        hover_bias = [f"Bias: ${b:.4f}/unit ({r.taguchi.bias_fraction:.0%})"
+                      for b, r in zip(bias_vals, regimes_with_taguchi)]
+        hover_var = [f"Variance: ${v:.4f}/unit ({r.taguchi.variance_fraction:.0%})"
+                     for v, r in zip(var_vals, regimes_with_taguchi)]
+        result["plots"].append({
+            "title": f"Taguchi Loss per Regime (k={taguchi_k:.4g}, target={taguchi_target})",
+            "data": [
+                {"type": "bar", "y": labels, "x": bias_vals,
+                 "orientation": "h", "name": "Bias loss",
+                 "marker": {"color": "rgba(217,74,74,0.7)"},
+                 "text": hover_bias, "hoverinfo": "text"},
+                {"type": "bar", "y": labels, "x": var_vals,
+                 "orientation": "h", "name": "Variance loss",
+                 "marker": {"color": "rgba(74,159,180,0.7)"},
+                 "text": hover_var, "hoverinfo": "text"},
+                {"type": "bar", "y": labels, "x": unc_vals,
+                 "orientation": "h", "name": "Mean uncertainty",
+                 "marker": {"color": "rgba(180,180,180,0.3)"},
+                 "hoverinfo": "skip"},
+            ],
+            "layout": {
+                "template": "plotly_dark",
+                "height": max(180, 60 * len(regimes_with_taguchi)),
+                "barmode": "stack",
+                "xaxis": {"title": "Expected loss ($/unit)"},
+                "yaxis": {"autorange": "reversed"},
+                "legend": {"orientation": "h", "y": -0.25},
+            },
+        })
+
     # Plot 6: Health gauge
     result["plots"].append({
         "title": "Process Health",
@@ -1692,7 +2393,6 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
                      {"range": [75, 100], "color": "rgba(74,159,110,0.3)"},
                  ],
              },
-             "title": {"text": "Health %"},
              }
         ],
         "layout": {"template": "plotly_dark", "height": 200},
@@ -1704,15 +2404,167 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
     lines.append("<<COLOR:title>>PROCESS BELIEF SYSTEM<</COLOR>>")
     lines.append(f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n")
 
-    lines.append(f"<<COLOR:highlight>>Observations:<</COLOR>> {n}")
+    lines.append(f"<<COLOR:highlight>>Observations:<</COLOR>> {n}    "
+                 f"<<COLOR:highlight>>Hazard λ:<</COLOR>> {hazard_lambda:.0f} "
+                 f"(MAP from empirical Bayes grid)")
     lines.append(f"<<COLOR:highlight>>Prior:<</COLOR>> "
                  f"Weakly informative (μ₀={prior.mu:.2f})")
     if USL is not None and LSL is not None:
         lines.append(f"<<COLOR:highlight>>Spec:<</COLOR>> "
                      f"[{LSL}, {USL}]")
 
+    # λ grid evidence comparison
+    if timeline.lambda_log_evidences:
+        lines.append(f"\n<<COLOR:accent>>── \u03bb Selection (Empirical Bayes) ──<</COLOR>>")
+        sorted_lams = sorted(timeline.lambda_log_evidences.items(),
+                             key=lambda x: x[1], reverse=True)
+        best_ll = sorted_lams[0][1]
+        for lam, ll in sorted_lams:
+            delta = ll - best_ll
+            marker = " <<COLOR:success>>◀ MAP<</COLOR>>" if lam == timeline.best_lambda else ""
+            lines.append(f"  λ = {lam:<5.0f}  log p(y|λ) = {ll:>10.1f}  "
+                         f"Δ = {delta:>7.1f}{marker}")
+
     lines.append(f"\n<<COLOR:accent>>── Narrative ──<</COLOR>>")
     lines.append(narrative)
+
+    # Known Transitions (metadata-driven)
+    if timeline.known_transitions:
+        lot_kts = [kt for kt in timeline.known_transitions
+                   if kt.column == 'material_lot']
+        if lot_kts:
+            lines.append(f"\n<<COLOR:accent>>── Known Transitions ──<</COLOR>>")
+            for kt in lot_kts:
+                lines.append(
+                    f"  <<COLOR:highlight>>Obs {kt.obs}:<</COLOR>> "
+                    f"Lot {kt.from_value} \u2192 {kt.to_value}")
+        # Operator/machine transitions (if any)
+        other_kts = [kt for kt in timeline.known_transitions
+                     if kt.column != 'material_lot']
+        for kt in other_kts:
+            lines.append(
+                f"  <<COLOR:highlight>>Obs {kt.obs}:<</COLOR>> "
+                f"{kt.column}: {kt.from_value} \u2192 {kt.to_value}")
+
+    # Per-Lot Capability (metadata-driven segmentation)
+    if timeline.lot_capabilities:
+        lines.append(f"\n<<COLOR:accent>>── Per-Lot Capability ──<</COLOR>>")
+        for lc in timeline.lot_capabilities:
+            cpk_r = lc.cpk
+            if cpk_r:
+                ci = cpk_r.cpk_credible_interval
+                p133 = cpk_r.cpk_probability_above_133
+                if p133 >= 0.80:
+                    color = "success"
+                elif p133 >= 0.50:
+                    color = "highlight"
+                else:
+                    color = "error"
+                lines.append(
+                    f"  <<COLOR:{color}>>{lc.lot_id} (obs {lc.start + 1}\u2013{lc.end}, "
+                    f"n={lc.n}):<</COLOR>> Cpk = {cpk_r.cpk_point_estimate:.2f} "
+                    f"[{ci[0]:.2f}, {ci[1]:.2f}], "
+                    f"P(Cpk>1.33) = {p133:.0%}")
+                if lc.n < 30:
+                    lines.append(
+                        f"    <<COLOR:warning>>\u26a0 Posterior wide \u2014 {lc.n} "
+                        f"observations. 30 more would narrow CI "
+                        f"by ~{lc.ci_narrowing_30:.0f}%.<</COLOR>>")
+            else:
+                lines.append(
+                    f"  {lc.lot_id} (obs {lc.start + 1}\u2013{lc.end}, n={lc.n}): "
+                    f"\u03bc={lc.mean:.4f}, \u03c3={lc.std:.4f}")
+            # Within-lot BOCPD shifts
+            if lc.within_lot_cps:
+                for wcp in lc.within_lot_cps:
+                    lines.append(
+                        f"    <<COLOR:warning>>\u26a0 Within-lot shift at obs {wcp} "
+                        f"\u2014 unknown cause<</COLOR>>")
+
+    # Investigation Timeline (BOCPD + known transitions combined)
+    if timeline.changepoints or timeline.known_transitions:
+        lines.append(f"\n<<COLOR:accent>>── Investigation Timeline ──<</COLOR>>")
+
+        # Merge BOCPD CPs and known transitions into chronological order
+        events = []
+        for cpe in timeline.changepoints:
+            rob_tag = ""
+            if cpe.robustness_total > 1:
+                if cpe.robustness >= cpe.robustness_total:
+                    rob_tag = " [robust]"
+                elif cpe.robustness <= 2:
+                    rob_tag = " [uncertain]"
+                else:
+                    rob_tag = f" [{cpe.robustness}/{cpe.robustness_total}]"
+            at_boundary = " (at lot boundary)" if cpe.near_known_transition else ""
+            events.append((cpe.obs, "bocpd",
+                           f"BOCPD shift detected (P = {cpe.shift_prob:.0%})"
+                           f"{rob_tag}{at_boundary}"))
+            if cpe.confirmation_obs >= 0 and cpe.confirmation_obs > cpe.obs:
+                events.append((cpe.confirmation_obs, "confirm",
+                               f"Shift confirmed (P \u2265 95%)"))
+            if cpe.e_value > 5:
+                events.append((cpe.obs, "evidence",
+                               f"E-value reached \"{cpe.evidence_level}\" "
+                               f"({cpe.e_value:.0f}:1)"))
+        if timeline.known_transitions:
+            for kt in timeline.known_transitions:
+                if kt.column == 'material_lot':
+                    events.append((kt.obs, "known",
+                                   f"Lot transition {kt.from_value} \u2192 "
+                                   f"{kt.to_value} [known]"))
+        if timeline.ed_peak_obs >= 0 and timeline.ed_peak_log_N > 0:
+            if timeline.ed_peak_log_N >= timeline.ed_threshold:
+                events.append((timeline.ed_peak_obs, "edetector",
+                               f"E-Detector alarm "
+                               f"(log(N) = {timeline.ed_peak_log_N:.1f})"))
+            else:
+                events.append((timeline.ed_peak_obs, "edetector",
+                               f"E-Detector peak "
+                               f"(log(N) = {timeline.ed_peak_log_N:.1f}, "
+                               f"below threshold {timeline.ed_threshold:.1f} "
+                               f"\u2014 no alarm)"))
+
+        events.sort(key=lambda e: (e[0], e[1]))
+        for obs, etype, desc in events:
+            if etype == "known":
+                color = "highlight"
+            elif etype == "confirm":
+                color = "success"
+            elif etype == "edetector":
+                color = "highlight" if "no alarm" in desc else "success"
+            else:
+                color = "warning"
+            lines.append(f"  <<COLOR:{color}>>Obs {obs}:<</COLOR>> {desc}")
+
+    # Per-Regime Capability (BOCPD regimes — only when CPs detected and no lot data)
+    if timeline.changepoints and not timeline.lot_capabilities:
+        lines.append(f"\n<<COLOR:accent>>── Per-Regime Capability ──<</COLOR>>")
+        for r in timeline.regimes:
+            cpk_r = r.cpk
+            if cpk_r:
+                ci = cpk_r.cpk_credible_interval
+                p133 = cpk_r.cpk_probability_above_133
+                if p133 >= 0.80:
+                    color = "success"
+                elif p133 >= 0.50:
+                    color = "highlight"
+                else:
+                    color = "error"
+                lines.append(
+                    f"  <<COLOR:{color}>>{r.label} (obs {r.start + 1}\u2013{r.end}, "
+                    f"n={r.n}):<</COLOR>> Cpk = {cpk_r.cpk_point_estimate:.2f} "
+                    f"[{ci[0]:.2f}, {ci[1]:.2f}], "
+                    f"P(Cpk>1.33) = {p133:.0%}")
+                if r.n < 30:
+                    lines.append(
+                        f"    <<COLOR:warning>>\u26a0 Posterior wide \u2014 {r.n} "
+                        f"observations. 30 more would narrow CI "
+                        f"by ~{r.ci_narrowing_30:.0f}%.<</COLOR>>")
+            else:
+                lines.append(
+                    f"  {r.label} (obs {r.start + 1}\u2013{r.end}, n={r.n}): "
+                    f"\u03bc={r.mean:.4f}, \u03c3={r.std:.4f}")
 
     lines.append(f"\n<<COLOR:accent>>── Belief Chart ──<</COLOR>>")
     last_bc = bc.points[-1] if bc.points else None
@@ -1758,12 +2610,20 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
 
     if cpk_result:
         lines.append(f"\n<<COLOR:accent>>── Bayesian Cpk ──<</COLOR>>")
+        ci_w = cpk_result.cpk_credible_interval[1] - cpk_result.cpk_credible_interval[0]
         lines.append(f"  Cpk: {cpk_result.cpk_point_estimate:.2f}  "
                      f"[{cpk_result.cpk_credible_interval[0]:.2f}, "
                      f"{cpk_result.cpk_credible_interval[1]:.2f}]")
         lines.append(f"  P(Cpk > 1.0): {cpk_result.cpk_probability_above_1:.0%}")
         lines.append(f"  P(Cpk > 1.33): {cpk_result.cpk_probability_above_133:.0%}")
         lines.append(f"  Classical Cpk: {cpk_result.classical_cpk:.2f}")
+        lines.append(f"  n_eff: {cpk_n_eff}  "
+                     f"Posterior precision: \u00b1{ci_w/2:.2f} "
+                     f"(95% CI width = {ci_w:.2f})")
+        if cpk_maturity < 1.0:
+            lines.append(f"  \u26a0 Health discount: maturity = {cpk_maturity:.0%} "
+                         f"(n={cpk_n_eff} < 30, health Cpk = "
+                         f"{h_cpk_raw:.0%} \u00d7 {cpk_maturity:.0%} = {h_cpk:.0%})")
 
     lines.append(f"\n<<COLOR:accent>>── Decision ──<</COLOR>>")
     lines.append(f"  Alarm threshold: P = {alarm_dec.threshold:.0%}")
@@ -1773,7 +2633,12 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
     lines.append(f"\n<<COLOR:accent>>── Health ──<</COLOR>>")
     lines.append(f"  Overall: {health.overall_health:.0%}")
     for k, v in health.stream_contributions.items():
-        lines.append(f"    {k}: {v:.0%} (weight {health.stream_weights.get(k, 0):.0%})")
+        suffix = ""
+        if k == "cpk" and cpk_maturity < 1.0 and cpk_result:
+            ci_w = cpk_result.cpk_credible_interval[1] - cpk_result.cpk_credible_interval[0]
+            suffix = (f" \u26a0 discounted from {h_cpk_raw:.0%} \u2014 "
+                      f"n={cpk_n_eff}, CI width {ci_w:.2f}")
+        lines.append(f"    {k}: {v:.0%} (weight {health.stream_weights.get(k, 0):.0%}){suffix}")
 
     if beta_robustness > 0:
         w_3sigma = math.exp(-beta_robustness * 9.0 / 2.0)
@@ -1796,7 +2661,11 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
     result["statistics"] = {
         "test": "pbs_full",
         "n": n,
+        "hazard_lambda": hazard_lambda,
+        "lambda_grid": {lam: bc_runs[lam].log_marginal_likelihood
+                        for lam in lambda_grid},
         "shift_probability": last_bc.shift_probability if last_bc else 0,
+        "n_changepoints": len(timeline.changepoints),
         "e_value": last_ev.e_value_accumulated if last_ev else 1,
         "edetector_log_N": ed_last.log_N_combined if ed_last else 0,
         "edetector_alarm": ed_last.alarm if ed_last else False,
@@ -1808,6 +2677,42 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         result["statistics"]["cpk_median"] = cpk_result.cpk_point_estimate
         result["statistics"]["cpk_ci"] = list(cpk_result.cpk_credible_interval)
         result["statistics"]["p_cpk_above_133"] = cpk_result.cpk_probability_above_133
+
+    # Per-regime Taguchi loss (only when taguchi_k > 0)
+    if taguchi_k > 0:
+        regime_losses = []
+        for r in timeline.regimes:
+            entry = {
+                "label": r.label, "start": r.start, "end": r.end, "n": r.n,
+            }
+            if r.cpk:
+                entry["cpk"] = r.cpk.cpk_point_estimate
+                entry["p_above_133"] = r.cpk.cpk_probability_above_133
+            if r.taguchi:
+                entry["expected_loss"] = r.taguchi.expected_loss
+                entry["bias_fraction"] = r.taguchi.bias_fraction
+                entry["variance_fraction"] = r.taguchi.variance_fraction
+            regime_losses.append(entry)
+        result["statistics"]["regime_losses"] = regime_losses
+
+        if timeline.lot_capabilities:
+            lot_losses = []
+            for lc in timeline.lot_capabilities:
+                entry = {
+                    "lot_id": lc.lot_id, "start": lc.start,
+                    "end": lc.end, "n": lc.n,
+                }
+                if lc.cpk:
+                    entry["cpk"] = lc.cpk.cpk_point_estimate
+                    entry["p_above_133"] = lc.cpk.cpk_probability_above_133
+                if lc.taguchi:
+                    entry["expected_loss"] = lc.taguchi.expected_loss
+                    entry["bias_fraction"] = lc.taguchi.bias_fraction
+                    entry["variance_fraction"] = lc.taguchi.variance_fraction
+                if lc.within_lot_cps:
+                    entry["within_lot_shifts"] = lc.within_lot_cps
+                lot_losses.append(entry)
+            result["statistics"]["lot_losses"] = lot_losses
 
     result["guide_observation"] = narrative
     return result

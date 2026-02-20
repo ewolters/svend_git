@@ -24,7 +24,7 @@ from .common import (
     _clean_for_ml,
     _auto_train,
     _build_ml_diagnostics,
-    _claude_interpret_results,
+    _bayesian_model_beliefs,
 )
 
 
@@ -71,9 +71,11 @@ def dsw_from_intent(request):
             label_map=label_map, model_name=type(model).__name__,
         )
 
-        interpretation = _claude_interpret_results(
-            request.user, intent, metrics, importances, task
-        )
+        # Pop non-scalar entries before belief computation
+        metrics.pop("reliability_warnings", None)
+        metrics.pop("per_class", None)
+        metrics.pop("class_balance", None)
+        belief_result = _bayesian_model_beliefs(metrics, X, y, importances, task, model=model)
 
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
         data_dir = Path(settings.MEDIA_ROOT) / "dsw_data" / str(request.user.id)
@@ -110,15 +112,23 @@ def dsw_from_intent(request):
             "data_shape": list(df.shape), "data_path": str(data_path),
             "model_type": type(model).__name__, "metrics": metrics,
             "feature_importance": importances[:10],
-            "pipeline": ["schema_generation", "data_synthesis", "data_cleaning", "model_training", "diagnostics", "interpretation"],
-            "warnings": [],
+            "pipeline": ["schema_generation", "data_synthesis", "data_cleaning", "model_training", "diagnostics", "belief_assessment"],
+            "warnings": [
+                {"level": "critical" if b["probability"] > 0.7 else "warning" if b["probability"] > 0.4 else "info", "msg": b["narrative"]}
+                for b in belief_result["beliefs"] if b["probability"] > 0.3
+            ],
+            "model_confidence": belief_result["model_confidence"],
+            "beliefs": belief_result["beliefs"],
+            "confidence_narrative": belief_result["narrative"],
+            "confidence_gauge": belief_result["gauge_plot"],
+            "permutation_plot": belief_result.get("permutation_plot"),
             "summary": (
                 f"Generated {n_records} synthetic records based on intent: {intent}. "
                 f"Trained {type(model).__name__} ({task}). "
                 + (f"Accuracy: {metrics.get('accuracy', 'N/A')}" if task == "classification"
-                   else f"R²: {metrics.get('r2', 'N/A')}")
+                   else f"R\u00b2: {metrics.get('r2', 'N/A')}")
             ),
-            "interpretation": interpretation, "model_key": model_key, "plots": diag_plots,
+            "model_key": model_key, "plots": diag_plots,
         }
 
         DSWResult.objects.create(id=result_id, user=request.user, result_type="from_intent", data=json.dumps(result_data))
@@ -183,8 +193,11 @@ def dsw_from_data(request):
             label_map=label_map, model_name=type(model).__name__,
         )
 
-        context = intent if intent else f"Predict '{target}' from {len(feature_names)} features"
-        interpretation = _claude_interpret_results(request.user, context, metrics, importances, task)
+        # Pop non-scalar entries before belief computation
+        metrics.pop("reliability_warnings", None)
+        metrics.pop("per_class", None)
+        metrics.pop("class_balance", None)
+        belief_result = _bayesian_model_beliefs(metrics, X, y, importances, task, model=model)
 
         result_id = f"dsw_{uuid.uuid4().hex[:8]}"
         data_dir = Path(settings.MEDIA_ROOT) / "dsw_data" / str(request.user.id)
@@ -216,15 +229,23 @@ def dsw_from_data(request):
             "original_shape": original_shape, "cleaned_shape": [X.shape[0], X.shape[1]],
             "data_path": str(data_path), "model_type": type(model).__name__,
             "task": task, "metrics": metrics, "feature_importance": importances[:10],
-            "pipeline": ["data_loading", "data_cleaning", "model_training", "diagnostics", "interpretation"],
-            "warnings": [],
+            "pipeline": ["data_loading", "data_cleaning", "model_training", "diagnostics", "belief_assessment"],
+            "warnings": [
+                {"level": "critical" if b["probability"] > 0.7 else "warning" if b["probability"] > 0.4 else "info", "msg": b["narrative"]}
+                for b in belief_result["beliefs"] if b["probability"] > 0.3
+            ],
+            "model_confidence": belief_result["model_confidence"],
+            "beliefs": belief_result["beliefs"],
+            "confidence_narrative": belief_result["narrative"],
+            "confidence_gauge": belief_result["gauge_plot"],
+            "permutation_plot": belief_result.get("permutation_plot"),
             "summary": (
                 f"Processed {original_shape[0]} rows with {original_shape[1]} columns. Target: {target}. "
                 f"Trained {type(model).__name__} ({task}). "
                 + (f"Accuracy: {metrics.get('accuracy', 'N/A')}" if task == "classification"
                    else f"R²: {metrics.get('r2', 'N/A')}")
             ),
-            "interpretation": interpretation, "model_key": model_key, "plots": diag_plots,
+            "model_key": model_key, "plots": diag_plots,
         }
 
         DSWResult.objects.create(id=result_id, user=request.user, result_type="from_data", data=json.dumps(result_data))

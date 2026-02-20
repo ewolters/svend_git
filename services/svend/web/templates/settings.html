@@ -127,6 +127,7 @@
             </div>
             <div class="subscription-actions">
                 <a href="/billing/portal/" class="btn btn-secondary" id="manage-billing" style="display:none;">Manage Billing</a>
+                <a href="/billing/checkout/?plan=founder" class="btn btn-primary" id="upgrade-founder-btn" style="display:none;">Upgrade — $19/mo (Founder)</a>
                 <a href="/billing/checkout/" class="btn btn-primary" id="upgrade-btn" style="display:none;">Upgrade to Pro</a>
             </div>
         </section>
@@ -597,7 +598,15 @@
             // Show appropriate subscription buttons
             if (currentUser.subscription_active) {
                 document.getElementById('manage-billing').style.display = 'inline-flex';
-            } else if (currentUser.tier !== 'pro') {
+            } else if (!['founder', 'pro', 'team', 'enterprise'].includes(currentUser.tier)) {
+                // Check founder availability for free users
+                try {
+                    const founderRes = await fetch('/billing/founder-availability/');
+                    const founderData = await founderRes.json();
+                    if (founderData.available) {
+                        document.getElementById('upgrade-founder-btn').style.display = 'inline-flex';
+                    }
+                } catch (e) {}
                 document.getElementById('upgrade-btn').style.display = 'inline-flex';
             }
 

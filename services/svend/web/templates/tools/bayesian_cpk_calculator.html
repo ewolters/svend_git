@@ -1,0 +1,467 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Bayesian Cpk Calculator — Process Capability as a Probability{% endblock %}
+{% block meta_description %}Free Bayesian Cpk calculator. Get credible intervals and P(Cpk > 1.33) instead of a point estimate. No 1.5σ shift assumption. Paste your data, set spec limits, see the posterior distribution of capability. No signup required.{% endblock %}
+{% block meta_keywords %}Bayesian Cpk calculator, Bayesian process capability, Bayesian Cpk, posterior Cpk, credible interval Cpk, P(Cpk > 1.33), Bayesian SPC, process capability analysis, capability probability, no 1.5 sigma shift{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/bayesian-cpk-calculator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/bayesian-cpk-calculator/">
+<meta property="og:title" content="Free Bayesian Cpk Calculator — Capability as a Probability">
+<meta property="og:description" content="Get P(Cpk > 1.33) and credible intervals on process capability. No 1.5σ shift assumption. Free, instant, no signup.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Bayesian Cpk Calculator",
+    "url": "https://svend.ai/tools/bayesian-cpk-calculator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free Bayesian process capability calculator. Computes posterior distribution of Cpk with credible intervals and P(Cpk > 1.33). No 1.5σ shift assumption — capability expressed as a probability.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is Bayesian Cpk?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Bayesian Cpk treats process capability as a probability distribution rather than a single number. Instead of reporting Cpk = 1.34, you get a posterior distribution that says 'the median Cpk is 1.34 with a 95% credible interval of [1.18, 1.52], and there is a 62% probability that Cpk exceeds 1.33.' This accounts for sampling uncertainty — with 30 measurements, your uncertainty is large; with 500, it's tight."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Why not just use traditional Cpk?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Traditional Cpk gives you a point estimate with no uncertainty. A Cpk of 1.34 from 30 measurements could easily be 1.1 or 1.6 in reality. Bayesian Cpk quantifies that uncertainty directly. It also eliminates the need for the 1.5σ shift assumption used to convert between short-term and long-term capability — instead, the posterior naturally accounts for what you know and don't know."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How many data points do I need for Bayesian Cpk?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Bayesian Cpk works with any sample size, but the credible interval width tells you how much to trust the result. With 15–20 observations, you'll get a wide interval but still a meaningful probability. With 100+ observations, the interval tightens considerably. The calculator shows you exactly how much uncertainty remains."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does P(Cpk > 1.33) mean?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "P(Cpk > 1.33) is the posterior probability that your process is truly capable at the 4-sigma level, given your data. If P(Cpk > 1.33) = 0.85, there's an 85% chance your process meets the capability requirement. This is a direct answer to the question practitioners actually care about, unlike a p-value or confidence interval."
+            }
+        }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.compare-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;
+}
+.compare-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.25rem;
+}
+.compare-card h3 {
+    font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 1rem;
+}
+.compare-card.traditional h3 { color: var(--text-dim); }
+.compare-card.bayesian h3 { color: var(--accent-blue); }
+.compare-card.bayesian { border-color: rgba(58, 127, 143, 0.3); }
+.prob-bar-row {
+    display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;
+}
+.prob-bar-label {
+    font-size: 0.8rem; color: var(--text-secondary); min-width: 120px; text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+}
+.prob-bar-track {
+    flex: 1; height: 24px; background: var(--bg-secondary); border-radius: 4px;
+    overflow: hidden; position: relative;
+}
+.prob-bar-fill {
+    height: 100%; border-radius: 4px; transition: width 0.5s ease;
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 6px;
+    font-size: 0.75rem; font-weight: 600; color: var(--bg-primary);
+    font-family: 'JetBrains Mono', monospace;
+}
+.insight-box {
+    background: rgba(58, 127, 143, 0.08); border: 1px solid rgba(58, 127, 143, 0.2);
+    border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1rem;
+    font-size: 0.9rem; line-height: 1.6; color: var(--text-secondary);
+}
+.insight-box strong { color: var(--accent-blue); }
+@media (max-width: 768px) {
+    .compare-row { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>Bayesian Cpk</strong> Calculator</h1>
+    <p>Process capability as a probability, not a point estimate. Get credible intervals on Cpk and the probability your process is truly capable — no 1.5σ shift assumption.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Input Data</h2>
+    <div class="form-grid">
+        <div class="form-group full">
+            <label>Measurements (paste comma, space, tab, or newline separated values)</label>
+            <textarea id="data-input" placeholder="25.01, 24.98, 25.03, 25.00, 24.97, 25.02, 24.99, 25.01, 24.98, 25.00&#10;25.02, 24.99, 25.01, 24.97, 25.03, 25.00, 24.98, 25.02, 25.01, 24.99">25.01, 24.98, 25.03, 25.00, 24.97, 25.02, 24.99, 25.01, 24.98, 25.00, 25.02, 24.99, 25.01, 24.97, 25.03, 25.00, 24.98, 25.02, 25.01, 24.99, 25.00, 25.01, 24.98, 25.02, 24.99, 25.01, 25.00, 24.97, 25.03, 25.00</textarea>
+        </div>
+        <div class="form-group">
+            <label>Lower Spec Limit (LSL)</label>
+            <input type="number" id="lsl" step="any" value="24.97" placeholder="e.g. 24.97">
+        </div>
+        <div class="form-group">
+            <label>Upper Spec Limit (USL)</label>
+            <input type="number" id="usl" step="any" value="25.03" placeholder="e.g. 25.03">
+        </div>
+        <div class="form-group">
+            <label>Target (optional — midpoint of spec if blank)</label>
+            <input type="number" id="target" step="any" placeholder="e.g. 25.00">
+        </div>
+        <div class="form-group">
+            <label>Monte Carlo Samples</label>
+            <input type="number" id="mc-samples" value="10000" min="1000" max="100000" step="1000">
+        </div>
+    </div>
+    <button class="btn-calculate" onclick="calculate()" style="margin-top:1rem;">Compute Bayesian Cpk</button>
+</div>
+
+<div id="results" style="display:none;">
+    <div class="compare-row">
+        <div class="compare-card traditional">
+            <h3>Traditional (Point Estimate)</h3>
+            <div class="results-grid" id="trad-grid"></div>
+        </div>
+        <div class="compare-card bayesian">
+            <h3>Bayesian (Posterior Distribution)</h3>
+            <div class="results-grid" id="bayes-grid"></div>
+        </div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Probability of Capability</h2>
+        <div id="prob-bars"></div>
+        <div id="insight" class="insight-box" style="display:none;"></div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Posterior Distribution of Cpk</h2>
+        <div class="chart-container">
+            <canvas id="posterior-canvas" width="880" height="320"></canvas>
+        </div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Summary Statistics</h2>
+        <div class="results-grid" id="stats-grid"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is Bayesian Cpk?</div>
+        <div class="faq-a">Bayesian Cpk treats process capability as a <strong>probability distribution</strong> rather than a single number. Instead of "Cpk = 1.34," you get a posterior that says "median Cpk is 1.34 with a 95% credible interval of [1.18, 1.52], and there is a 62% probability that Cpk exceeds 1.33." This accounts for sampling uncertainty — with 30 measurements your uncertainty is large; with 500 it's tight.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">Why not just use traditional Cpk?</div>
+        <div class="faq-a">Traditional Cpk gives you a point estimate with no uncertainty attached. A Cpk of 1.34 from 30 measurements could easily be 1.1 or 1.6 in reality — you have no way to tell. Bayesian Cpk quantifies that uncertainty directly. It also eliminates the 1.5σ shift assumption used to convert between short-term and long-term capability. The posterior naturally accounts for what you know and don't know.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How many data points do I need?</div>
+        <div class="faq-a">Bayesian Cpk works with any sample size — even 10–15 observations give meaningful results. The credible interval width tells you how much to trust the result. With small samples, the interval is wide (honest about uncertainty). With 100+ observations, it tightens considerably. The calculator shows you exactly how much uncertainty remains.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What does P(Cpk > 1.33) mean?</div>
+        <div class="faq-a">P(Cpk > 1.33) is the posterior probability that your process is truly capable at the 4-sigma level, given your data. If P(Cpk > 1.33) = 0.85, there's an 85% chance your process meets the requirement. This is a <strong>direct answer</strong> to the question practitioners actually care about — unlike a p-value or confidence interval that requires mental gymnastics to interpret.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What prior does this use?</div>
+        <div class="faq-a">This calculator uses a non-informative (Jeffreys) prior: the standard reference prior for Normal mean and variance. This means the data drives the result. With enough data (n > 20), the prior has negligible influence. The full Svend platform supports informative priors from historical process data.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How does the Monte Carlo simulation work?</div>
+        <div class="faq-a">The calculator draws samples from the posterior distribution of (μ, σ) using the conjugate Normal-Inverse-Gamma model. For each (μ, σ) draw, it computes Cpk = min((USL − μ)/(3σ), (μ − LSL)/(3σ)). The collection of Cpk values forms the posterior distribution of capability. 10,000 samples gives stable quantiles; increase to 50,000+ for smoother histograms.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function parseData(text) {
+    return text.split(/[\s,;\t\n]+/).map(s => s.trim()).filter(s => s !== '').map(Number).filter(v => !isNaN(v));
+}
+
+// Box-Muller transform for standard normal
+function randn() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+// Chi-squared with df degrees of freedom (sum of df standard normals squared)
+function randChiSq(df) {
+    // For large df, use normal approximation
+    if (df > 100) {
+        const z = randn();
+        const x = df * Math.pow(1 - 2/(9*df) + z * Math.sqrt(2/(9*df)), 3);
+        return Math.max(x, 0.01);
+    }
+    let s = 0;
+    for (let i = 0; i < df; i++) {
+        const z = randn();
+        s += z * z;
+    }
+    return s;
+}
+
+// Inverse-Gamma sample: if X ~ Chi²(v), then v*s²/X ~ Inv-Gamma
+function randInvGamma(shape, scale) {
+    const x = randChiSq(2 * shape);
+    return (2 * scale) / x;
+}
+
+function calculate() {
+    const raw = document.getElementById('data-input').value;
+    const data = parseData(raw);
+    if (data.length < 5) { alert('Need at least 5 data points.'); return; }
+
+    const usl = parseFloat(document.getElementById('usl').value);
+    const lsl = parseFloat(document.getElementById('lsl').value);
+    if (isNaN(usl) || isNaN(lsl) || usl <= lsl) { alert('Check spec limits: USL must be greater than LSL.'); return; }
+
+    const nSamples = parseInt(document.getElementById('mc-samples').value) || 10000;
+    const targetInput = document.getElementById('target').value;
+    const target = targetInput ? parseFloat(targetInput) : (usl + lsl) / 2;
+
+    const n = data.length;
+    const mean = data.reduce((a,b) => a+b, 0) / n;
+    const s2 = data.reduce((s,v) => s + (v-mean)**2, 0) / (n-1);
+    const sigma = Math.sqrt(s2);
+
+    // Traditional Cpk
+    const tradCp = (usl - lsl) / (6 * sigma);
+    const tradCpk = Math.min((usl - mean) / (3 * sigma), (mean - lsl) / (3 * sigma));
+
+    // Monte Carlo: sample from posterior of (mu, sigma²)
+    // Prior: Jeffreys (non-informative)
+    // sigma² | data ~ Inv-Gamma((n-1)/2, (n-1)*s²/2)
+    // mu | sigma², data ~ Normal(xbar, sigma²/n)
+    const cpkSamples = new Float64Array(nSamples);
+    const shape = (n - 1) / 2;
+    const scale = (n - 1) * s2 / 2;
+
+    for (let i = 0; i < nSamples; i++) {
+        const sig2 = randInvGamma(shape, scale);
+        const sig = Math.sqrt(sig2);
+        const mu = mean + (sig / Math.sqrt(n)) * randn();
+        const cpu = (usl - mu) / (3 * sig);
+        const cpl = (mu - lsl) / (3 * sig);
+        cpkSamples[i] = Math.min(cpu, cpl);
+    }
+
+    // Sort for quantiles
+    const sorted = Array.from(cpkSamples).sort((a,b) => a - b);
+    const q = p => sorted[Math.min(Math.floor(p * nSamples), nSamples - 1)];
+
+    const median = q(0.5);
+    const ci025 = q(0.025);
+    const ci975 = q(0.975);
+    const ci05 = q(0.05);
+    const ci95 = q(0.95);
+    const meanCpk = sorted.reduce((a,b) => a+b, 0) / nSamples;
+
+    // Probabilities
+    const pGt100 = sorted.filter(v => v > 1.0).length / nSamples;
+    const pGt133 = sorted.filter(v => v > 1.33).length / nSamples;
+    const pGt150 = sorted.filter(v => v > 1.5).length / nSamples;
+    const pGt167 = sorted.filter(v => v > 1.67).length / nSamples;
+    const pGt200 = sorted.filter(v => v > 2.0).length / nSamples;
+
+    // Show results
+    document.getElementById('results').style.display = '';
+
+    function ratingClass(cpk) {
+        if (cpk >= 1.67) return 'result-good';
+        if (cpk >= 1.33) return 'result-good';
+        if (cpk >= 1.0) return 'result-warn';
+        return 'result-bad';
+    }
+
+    // Traditional
+    document.getElementById('trad-grid').innerHTML = `
+        <div class="result-item ${ratingClass(tradCp)}"><div class="label">Cp</div><div class="value">${tradCp.toFixed(3)}</div><div class="sub">Point estimate</div></div>
+        <div class="result-item ${ratingClass(tradCpk)}"><div class="label">Cpk</div><div class="value">${tradCpk.toFixed(3)}</div><div class="sub">Point estimate</div></div>
+    `;
+
+    // Bayesian
+    document.getElementById('bayes-grid').innerHTML = `
+        <div class="result-item ${ratingClass(median)}"><div class="label">Cpk Median</div><div class="value">${median.toFixed(3)}</div><div class="sub">Posterior</div></div>
+        <div class="result-item result-neutral"><div class="label">95% CI</div><div class="value" style="font-size:1.1rem;">[${ci025.toFixed(3)}, ${ci975.toFixed(3)}]</div><div class="sub">Credible interval</div></div>
+        <div class="result-item ${pGt133 > 0.9 ? 'result-good' : pGt133 > 0.5 ? 'result-warn' : 'result-bad'}"><div class="label">P(Cpk > 1.33)</div><div class="value">${(pGt133*100).toFixed(1)}%</div><div class="sub">Probability capable</div></div>
+    `;
+
+    // Probability bars
+    const probs = [
+        { label: 'P(Cpk > 1.00)', value: pGt100, color: '#c0392b' },
+        { label: 'P(Cpk > 1.33)', value: pGt133, color: '#e8c547' },
+        { label: 'P(Cpk > 1.50)', value: pGt150, color: '#4a9f6e' },
+        { label: 'P(Cpk > 1.67)', value: pGt167, color: '#3a7f8f' },
+        { label: 'P(Cpk > 2.00)', value: pGt200, color: '#5a4f7f' },
+    ];
+    document.getElementById('prob-bars').innerHTML = probs.map(p => `
+        <div class="prob-bar-row">
+            <div class="prob-bar-label">${p.label}</div>
+            <div class="prob-bar-track">
+                <div class="prob-bar-fill" style="width:${(p.value*100).toFixed(1)}%;background:${p.color};">${(p.value*100).toFixed(1)}%</div>
+            </div>
+        </div>
+    `).join('');
+
+    // Insight
+    const insight = document.getElementById('insight');
+    insight.style.display = '';
+    const ciWidth = ci975 - ci025;
+    let msg = '';
+    if (pGt133 > 0.95) {
+        msg = `<strong>High confidence capable.</strong> There is a ${(pGt133*100).toFixed(0)}% probability your process exceeds Cpk 1.33. The 95% credible interval is [${ci025.toFixed(3)}, ${ci975.toFixed(3)}].`;
+    } else if (pGt133 > 0.5) {
+        msg = `<strong>Likely capable, but uncertain.</strong> P(Cpk > 1.33) = ${(pGt133*100).toFixed(0)}%. The credible interval spans [${ci025.toFixed(3)}, ${ci975.toFixed(3)}] — more data would tighten this.`;
+    } else if (pGt100 > 0.5) {
+        msg = `<strong>Marginal.</strong> P(Cpk > 1.33) is only ${(pGt133*100).toFixed(0)}%, though P(Cpk > 1.00) = ${(pGt100*100).toFixed(0)}%. The process may be minimally capable but doesn't meet the 4-sigma standard with confidence.`;
+    } else {
+        msg = `<strong>Not capable.</strong> P(Cpk > 1.00) is only ${(pGt100*100).toFixed(0)}%. The posterior median Cpk is ${median.toFixed(3)}. The process needs improvement before capability can be claimed.`;
+    }
+    if (ciWidth > 0.5 && n < 50) {
+        msg += ` <strong>Note:</strong> The credible interval is wide (${ciWidth.toFixed(2)}) due to sample size (n=${n}). Collecting more data will significantly sharpen the estimate.`;
+    }
+    insight.innerHTML = msg;
+
+    // Summary stats
+    const sorted_data = [...data].sort((a,b) => a-b);
+    const data_median = n % 2 === 0 ? (sorted_data[n/2-1] + sorted_data[n/2]) / 2 : sorted_data[Math.floor(n/2)];
+    document.getElementById('stats-grid').innerHTML = `
+        <div class="result-item result-neutral"><div class="label">n</div><div class="value">${n}</div></div>
+        <div class="result-item result-neutral"><div class="label">Mean</div><div class="value">${mean.toFixed(4)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Std Dev</div><div class="value">${sigma.toFixed(5)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Min</div><div class="value">${Math.min(...data).toFixed(4)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Max</div><div class="value">${Math.max(...data).toFixed(4)}</div></div>
+        <div class="result-item result-neutral"><div class="label">MC Samples</div><div class="value">${nSamples.toLocaleString()}</div></div>
+    `;
+
+    // Draw posterior histogram
+    drawPosterior(sorted, ci025, ci975, median, tradCpk);
+}
+
+function drawPosterior(sorted, ci025, ci975, median, tradCpk) {
+    const canvas = document.getElementById('posterior-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pad = { top: 30, right: 30, bottom: 45, left: 50 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Determine range
+    const lo = Math.max(sorted[Math.floor(sorted.length * 0.001)], 0);
+    const hi = sorted[Math.floor(sorted.length * 0.999)];
+    const range = hi - lo || 1;
+    const nBins = 80;
+    const binW = range / nBins;
+
+    const bins = new Array(nBins).fill(0);
+    sorted.forEach(v => {
+        let b = Math.floor((v - lo) / binW);
+        if (b >= nBins) b = nBins - 1;
+        if (b < 0) b = 0;
+        bins[b]++;
+    });
+    const maxCount = Math.max(...bins, 1);
+
+    function xPos(v) { return pad.left + ((v - lo) / range) * plotW; }
+
+    // Draw CI shading
+    const ciLeft = Math.max(xPos(ci025), pad.left);
+    const ciRight = Math.min(xPos(ci975), pad.left + plotW);
+    ctx.fillStyle = 'rgba(58, 127, 143, 0.1)';
+    ctx.fillRect(ciLeft, pad.top, ciRight - ciLeft, plotH);
+
+    // Draw bars
+    for (let i = 0; i < nBins; i++) {
+        const x1 = lo + i * binW;
+        const x2 = x1 + binW;
+        const bx = xPos(x1) + 0.5;
+        const bw = Math.max(xPos(x2) - xPos(x1) - 1, 1);
+        const bh = (bins[i] / maxCount) * plotH;
+        ctx.fillStyle = 'rgba(58, 127, 143, 0.5)';
+        ctx.fillRect(bx, pad.top + plotH - bh, bw, bh);
+    }
+
+    // Benchmark lines
+    function drawBenchmark(val, label, color, dashed) {
+        const x = xPos(val);
+        if (x < pad.left || x > pad.left + plotW) return;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.setLineDash(dashed ? [6, 4] : []);
+        ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = '11px JetBrains Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x, pad.top - 8);
+    }
+
+    if (1.0 >= lo && 1.0 <= hi) drawBenchmark(1.0, '1.00', 'rgba(192, 57, 43, 0.6)', true);
+    if (1.33 >= lo && 1.33 <= hi) drawBenchmark(1.33, '1.33', 'rgba(232, 197, 71, 0.8)', true);
+    if (1.67 >= lo && 1.67 <= hi) drawBenchmark(1.67, '1.67', 'rgba(74, 159, 110, 0.6)', true);
+    drawBenchmark(median, 'Median', '#3a7f8f', false);
+    if (Math.abs(tradCpk - median) > 0.02) {
+        drawBenchmark(tradCpk, 'Traditional', '#e8c547', true);
+    }
+
+    // X axis labels
+    ctx.fillStyle = '#7a8f7a';
+    ctx.font = '10px JetBrains Mono';
+    ctx.textAlign = 'center';
+    const step = range / 6;
+    for (let i = 0; i <= 6; i++) {
+        const val = lo + i * step;
+        ctx.fillText(val.toFixed(2), xPos(val), pad.top + plotH + 16);
+    }
+
+    // Label
+    ctx.fillStyle = '#7a8f7a';
+    ctx.font = '11px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText('Cpk', pad.left + plotW / 2, pad.top + plotH + 36);
+}
+
+document.addEventListener('DOMContentLoaded', calculate);
+</script>
+{% endblock %}

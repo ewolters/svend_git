@@ -231,7 +231,11 @@ def update_board(request, room_code):
         board.save()
         return JsonResponse({"success": True, "version": board.version})
 
-    # Normal user path
+    # Normal user path — must be owner or existing participant
+    is_participant = BoardParticipant.objects.filter(board=board, user=request.user).exists()
+    if request.user.id != board.owner_id and not is_participant:
+        return JsonResponse({"error": "You must join this board before editing"}, status=403)
+
     if "elements" in data:
         board.elements = data["elements"]
     if "connections" in data:
@@ -478,6 +482,11 @@ def export_hypotheses(request, room_code):
     linked to the board's project.
     """
     board = get_object_or_404(Board, room_code=room_code.upper())
+
+    # Must be owner or participant to export
+    is_participant = BoardParticipant.objects.filter(board=board, user=request.user).exists()
+    if request.user.id != board.owner_id and not is_participant:
+        return JsonResponse({"error": "Access denied"}, status=403)
 
     if not board.project:
         return JsonResponse({

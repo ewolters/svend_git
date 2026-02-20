@@ -219,6 +219,7 @@ def problem_to_dict(problem: Problem) -> dict:
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
+@gated
 def problems_list(request):
     """List or create problems."""
 
@@ -315,6 +316,7 @@ def problems_list(request):
 
 @csrf_exempt
 @require_http_methods(["GET", "PATCH", "DELETE"])
+@gated
 def problem_detail(request, problem_id):
     """Get, update, or delete a problem."""
 

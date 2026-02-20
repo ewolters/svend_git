@@ -38,24 +38,27 @@ logger = logging.getLogger(__name__)
 _synara_cache: dict[str, Synara] = {}
 
 
-def _resolve_project(workbench_id: str):
+def _resolve_project(workbench_id: str, user=None):
     """Resolve a workbench_id to a core.Project.
 
     Tries core.Project first, then agents_api.Problem (via its core_project FK).
-    Returns the Project or None.
+    Returns the Project or None. Filters by user when provided to prevent IDOR.
     """
     from core.models import Project
     from .models import Problem
 
+    # Build user filter
+    user_filter = {"user": user} if user else {}
+
     # Try as core.Project UUID directly
     try:
-        return Project.objects.get(id=workbench_id)
+        return Project.objects.get(id=workbench_id, **user_filter)
     except (Project.DoesNotExist, ValueError):
         pass
 
     # Try as agents_api.Problem UUID → follow FK
     try:
-        problem = Problem.objects.get(id=workbench_id)
+        problem = Problem.objects.get(id=workbench_id, **user_filter)
         if problem.core_project:
             return problem.core_project
         # Auto-create core.Project if Problem exists but has no link
@@ -66,7 +69,7 @@ def _resolve_project(workbench_id: str):
     return None
 
 
-def get_synara(workbench_id: str) -> Synara:
+def get_synara(workbench_id: str, user=None) -> Synara:
     """Get or create Synara instance for a workbench.
 
     Loads from core.Project.synara_state on cache miss.
@@ -74,7 +77,7 @@ def get_synara(workbench_id: str) -> Synara:
     if workbench_id in _synara_cache:
         return _synara_cache[workbench_id]
 
-    project = _resolve_project(workbench_id)
+    project = _resolve_project(workbench_id, user=user)
     if project and project.synara_state:
         synara = Synara.from_dict(project.synara_state)
     else:
@@ -84,7 +87,7 @@ def get_synara(workbench_id: str) -> Synara:
     return synara
 
 
-def save_synara(workbench_id: str, synara: Synara = None) -> bool:
+def save_synara(workbench_id: str, synara: Synara = None, user=None) -> bool:
     """Persist Synara state to core.Project.synara_state.
 
     Returns True if saved successfully, False if no project found.
@@ -94,7 +97,7 @@ def save_synara(workbench_id: str, synara: Synara = None) -> bool:
     if synara is None:
         return False
 
-    project = _resolve_project(workbench_id)
+    project = _resolve_project(workbench_id, user=user)
     if project:
         project.synara_state = synara.to_dict()
         project.save(update_fields=["synara_state", "updated_at"])
@@ -130,7 +133,7 @@ def add_hypothesis(request, workbench_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     h = synara.create_hypothesis(
         description=body.get("description", ""),
@@ -141,7 +144,7 @@ def add_hypothesis(request, workbench_id: str):
         source="user",
     )
 
-    save_synara(workbench_id, synara)
+    save_synara(workbench_id, synara, user=request.user)
 
     return JsonResponse({
         "success": True,
@@ -155,7 +158,7 @@ def add_hypothesis(request, workbench_id: str):
 def get_hypotheses(request, workbench_id: str):
     """Get all hypotheses, sorted by posterior."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     hypotheses = synara.get_all_hypotheses()
 
     return JsonResponse({
@@ -170,11 +173,11 @@ def get_hypotheses(request, workbench_id: str):
 def delete_hypothesis(request, workbench_id: str, hypothesis_id: str):
     """Remove a hypothesis from the belief engine."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     if hypothesis_id in synara.graph.hypotheses:
         del synara.graph.hypotheses[hypothesis_id]
-        save_synara(workbench_id, synara)
+        save_synara(workbench_id, synara, user=request.user)
         return JsonResponse({"success": True})
     else:
         return JsonResponse({"error": "Hypothesis not found"}, status=404)
@@ -205,7 +208,7 @@ def add_link(request, workbench_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     # Validate hypotheses exist
     if body.get("from_id") not in synara.graph.hypotheses:
@@ -220,7 +223,7 @@ def add_link(request, workbench_id: str):
         strength=body.get("strength", 0.7),
     )
 
-    save_synara(workbench_id, synara)
+    save_synara(workbench_id, synara, user=request.user)
 
     return JsonResponse({
         "success": True,
@@ -234,7 +237,7 @@ def add_link(request, workbench_id: str):
 def get_links(request, workbench_id: str):
     """Get all causal links."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     return JsonResponse({
         "links": [link.to_dict() for link in synara.graph.links],
@@ -271,7 +274,7 @@ def add_evidence(request, workbench_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     result = synara.create_evidence(
         event=body.get("event", ""),
@@ -283,7 +286,7 @@ def add_evidence(request, workbench_id: str):
         data=body.get("data"),
     )
 
-    save_synara(workbench_id, synara)
+    save_synara(workbench_id, synara, user=request.user)
 
     return JsonResponse({
         "success": True,
@@ -298,7 +301,7 @@ def add_evidence(request, workbench_id: str):
 def get_evidence(request, workbench_id: str):
     """Get all evidence."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     return JsonResponse({
         "evidence": [e.to_dict() for e in synara.graph.evidence],
@@ -312,7 +315,7 @@ def get_evidence(request, workbench_id: str):
 def delete_evidence(request, workbench_id: str, evidence_id: str):
     """Remove an evidence item from the belief engine."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     original_len = len(synara.graph.evidence)
     synara.graph.evidence = [e for e in synara.graph.evidence if e.id != evidence_id]
@@ -320,7 +323,7 @@ def delete_evidence(request, workbench_id: str, evidence_id: str):
     if len(synara.graph.evidence) == original_len:
         return JsonResponse({"error": "Evidence not found"}, status=404)
 
-    save_synara(workbench_id, synara)
+    save_synara(workbench_id, synara, user=request.user)
     return JsonResponse({"success": True})
 
 
@@ -339,7 +342,7 @@ def delete_link(request, workbench_id: str):
     if not from_id or not to_id:
         return JsonResponse({"error": "from_id and to_id required"}, status=400)
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     original_len = len(synara.graph.links)
     synara.graph.links = [
@@ -350,7 +353,7 @@ def delete_link(request, workbench_id: str):
     if len(synara.graph.links) == original_len:
         return JsonResponse({"error": "Link not found"}, status=404)
 
-    save_synara(workbench_id, synara)
+    save_synara(workbench_id, synara, user=request.user)
     return JsonResponse({"success": True})
 
 
@@ -364,7 +367,7 @@ def delete_link(request, workbench_id: str):
 def get_expansions(request, workbench_id: str):
     """Get pending expansion signals."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     pending = synara.get_pending_expansions()
 
     return JsonResponse({
@@ -392,7 +395,7 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     new_h = None
     if body.get("resolution") == "new_hypothesis" and body.get("new_hypothesis"):
@@ -415,7 +418,7 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
     )
 
     if success:
-        save_synara(workbench_id, synara)
+        save_synara(workbench_id, synara, user=request.user)
         return JsonResponse({
             "success": True,
             "new_hypothesis": new_h.to_dict() if new_h else None,
@@ -434,7 +437,7 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
 def get_belief_state(request, workbench_id: str):
     """Get current belief state summary."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     interface = SynaraLLMInterface(synara)
 
     top = synara.get_most_likely_cause()
@@ -456,7 +459,7 @@ def get_belief_state(request, workbench_id: str):
 def explain_hypothesis(request, workbench_id: str, hypothesis_id: str):
     """Get explanation for a hypothesis's probability."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     explanation = synara.explain_belief(hypothesis_id)
 
     return JsonResponse(explanation)
@@ -468,7 +471,7 @@ def explain_hypothesis(request, workbench_id: str, hypothesis_id: str):
 def get_causal_chains(request, workbench_id: str, hypothesis_id: str):
     """Get all causal chains leading to a hypothesis."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     chains = synara.get_causal_chains_to(hypothesis_id)
 
     return JsonResponse({
@@ -488,7 +491,7 @@ def get_causal_chains(request, workbench_id: str, hypothesis_id: str):
 def get_validation_prompt(request, workbench_id: str):
     """Get prompt for LLM to validate the causal graph."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     interface = SynaraLLMInterface(synara)
 
     return JsonResponse({
@@ -503,7 +506,7 @@ def get_validation_prompt(request, workbench_id: str):
 def get_hypothesis_prompt(request, workbench_id: str, signal_id: str):
     """Get prompt for LLM to generate hypotheses from expansion signal."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     signal = next(
         (s for s in synara.expansion_signals if s.id == signal_id),
@@ -535,7 +538,7 @@ def apply_validation_result(request, workbench_id: str):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     interface = SynaraLLMInterface(synara)
 
     analysis = interface.parse_validation_response(body)
@@ -570,7 +573,7 @@ def llm_validate(request, workbench_id: str):
     No request body needed.
     """
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     interface = SynaraLLMInterface(synara)
 
     analysis = interface.validate_graph_llm(user=request.user)
@@ -610,7 +613,7 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
     Generates prompt, calls Claude, parses response, adds hypotheses to graph.
     """
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     signal = next(
         (s for s in synara.expansion_signals if s.id == signal_id),
@@ -631,7 +634,7 @@ def llm_generate_hypotheses(request, workbench_id: str, signal_id: str):
             "fallback_prompt": interface.generate_hypothesis_prompt(signal),
         }, status=503)
 
-    save_synara(workbench_id, synara)
+    save_synara(workbench_id, synara, user=request.user)
 
     return JsonResponse({
         "success": True,
@@ -658,7 +661,7 @@ def llm_interpret_evidence(request, workbench_id: str):
     except json.JSONDecodeError:
         body = {}
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     if not synara.graph.evidence:
         return JsonResponse({"error": "No evidence to interpret"}, status=400)
@@ -721,7 +724,7 @@ def llm_document(request, workbench_id: str):
 
     format_type = body.get("format", "summary")
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
     interface = SynaraLLMInterface(synara)
 
     document = interface.document_findings_llm(
@@ -752,7 +755,7 @@ def llm_document(request, workbench_id: str):
 def export_synara(request, workbench_id: str):
     """Export Synara state as JSON."""
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     return JsonResponse(synara.to_dict())
 
@@ -770,7 +773,7 @@ def import_synara(request, workbench_id: str):
 
     synara = Synara.from_dict(body)
     _synara_cache[workbench_id] = synara
-    save_synara(workbench_id, synara)
+    save_synara(workbench_id, synara, user=request.user)
 
     return JsonResponse({
         "success": True,
@@ -937,7 +940,7 @@ def add_formal_hypothesis(request, workbench_id: str):
             "fallacies": validation["fallacies"],
         }, status=400)
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     # Create hypothesis with formal structure
     h = synara.create_hypothesis(
@@ -952,7 +955,7 @@ def add_formal_hypothesis(request, workbench_id: str):
     # Store the parsed structure as metadata
     # (In a full implementation, we'd extend HypothesisRegion)
 
-    save_synara(workbench_id, synara)
+    save_synara(workbench_id, synara, user=request.user)
 
     return JsonResponse({
         "success": True,
@@ -986,7 +989,7 @@ def evaluate_workbench_hypothesis(request, workbench_id: str, hypothesis_id: str
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    synara = get_synara(workbench_id)
+    synara = get_synara(workbench_id, user=request.user)
 
     if hypothesis_id not in synara.graph.hypotheses:
         return JsonResponse({"error": "Hypothesis not found"}, status=404)
@@ -1030,7 +1033,7 @@ def evaluate_workbench_hypothesis(request, workbench_id: str, hypothesis_id: str
         result = None
 
     if result:
-        save_synara(workbench_id, synara)
+        save_synara(workbench_id, synara, user=request.user)
 
     return JsonResponse({
         "success": True,
