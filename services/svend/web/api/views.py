@@ -1081,6 +1081,22 @@ def export_pdf(request):
     else:
         html_content = content
 
+    # Sanitize HTML to prevent script injection in PDF renderer
+    # Strip dangerous tags and event handler attributes
+    html_content = re.sub(
+        r'<\s*(script|iframe|object|embed|applet|form|input|link|meta|base)[^>]*>.*?</\s*\1\s*>',
+        '', html_content, flags=re.IGNORECASE | re.DOTALL,
+    )
+    html_content = re.sub(
+        r'<\s*(script|iframe|object|embed|applet|form|input|link|meta|base)[^>]*/?\s*>',
+        '', html_content, flags=re.IGNORECASE,
+    )
+    # Strip event handlers (onclick, onerror, onload, etc.)
+    html_content = re.sub(r'\s+on\w+\s*=\s*["\'][^"\']*["\']', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'\s+on\w+\s*=\s*\S+', '', html_content, flags=re.IGNORECASE)
+    # Strip javascript: URLs
+    html_content = re.sub(r'(href|src|action)\s*=\s*["\']?\s*javascript:', r'\1="', html_content, flags=re.IGNORECASE)
+
     # Build full HTML document with Svend styling
     html_doc = f"""<!DOCTYPE html>
 <html>

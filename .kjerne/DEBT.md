@@ -38,8 +38,6 @@ Track technical debt here. Review weekly.
 ### Security — High (Audit 2026-02-20)
 
 [SEC] CSRF globally disabled — CsrfExemptSessionAuthentication on all REST Framework endpoints, mitigated only by SameSite=Lax | Added: 2026-02-20 | Priority: P2
-[SEC] HTML injection in PDF export — user HTML still unsanitized (wkhtmltopdf local file access now disabled) | Added: 2026-02-20 | Priority: P2
-[SEC] No zombie task reaper in Tempora — crashed workers leave tasks in RUNNING state forever | Added: 2026-02-20 | Priority: P2
 [SEC] LLM prompt injection — user input directly interpolated into Claude/Qwen prompts across multiple views | Added: 2026-02-20 | Priority: P2
 [SEC] Three parallel Hypothesis/Evidence systems (workbench, core, Problem) with no sync between them | Added: 2026-02-20 | Priority: P2
 [SEC] Pickle in CacheEntry.value BinaryField — RCE vector if DB compromised | Added: 2026-02-20 | Priority: P1 | *Mitigated: SessionCache now rejects pickle entries*
@@ -70,6 +68,9 @@ Track technical debt here. Review weekly.
 
 ## Resolved
 
+[SEC] Zombie task reaper — reap_zombie_tasks management command for stale RUNNING tasks | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] HTML injection in PDF export — sanitize script/iframe/event handlers before wkhtmltopdf | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] DB migrations applied — Evidence index, Message index, Hypothesis validators, FMEA validators | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Board.save() version increment — atomic F() expression in save() | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Gunicorn max_requests — added max_requests=1000 with jitter | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Hypothesis probability validation (0-1) — field validators + save() clamping | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending

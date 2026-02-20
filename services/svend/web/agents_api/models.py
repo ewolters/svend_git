@@ -1664,6 +1664,8 @@ class ValueStreamMap(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="value_stream_maps",
+        null=True,
+        blank=True,
     )
 
     # Optional link to project

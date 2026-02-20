@@ -15,6 +15,21 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-20 — Security Audit: P2 Batch 4 (3 fixes + migrations)
+**Debt item:** [SEC] Infrastructure + data integrity
+**Files changed:**
+- `agents_api/migrations/0034_*` — FMEA validators, VSM owner nullable fix, pre-existing field cleanup
+- `chat/migrations/0007_*` — Message(conversation, created_at) compound index
+- `core/migrations/0007_*` — Hypothesis probability validators + Evidence project index
+- `accounts/migrations/0012_*`, `api/migrations/0012_*`, `forge/migrations/0006_*` — pre-existing pending migrations applied
+- `tempora/management/commands/reap_zombie_tasks.py` — New: management command to mark stale RUNNING tasks as FAILURE after configurable timeout (default 30m), with --dry-run support
+- `api/views.py` — HTML sanitization for PDF export: strips script/iframe/object/embed tags, event handlers, javascript: URLs before passing to wkhtmltopdf/weasyprint
+- `agents_api/models.py` — VSM owner field made nullable to match DB state from migration 0033
+**Verification:** `python3 manage.py check` — 0 issues; all 6 migrations applied successfully
+**Commit:** pending
+
+---
+
 ### 2026-02-20 — Security Audit: P2 Batch 3 (9 fixes)
 **Debt item:** [SEC] P2 High + Medium items from audit
 **Files changed:**
