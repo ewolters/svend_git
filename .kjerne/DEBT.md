@@ -40,7 +40,6 @@ Track technical debt here. Review weekly.
 [SEC] CSRF globally disabled — CsrfExemptSessionAuthentication on all REST Framework endpoints, mitigated only by SameSite=Lax | Added: 2026-02-20 | Priority: P2
 [SEC] add_finding_to_problem() doesn't dual-write — agent-sourced evidence only goes to JSON blobs, never to core.Evidence | Added: 2026-02-20 | Priority: P2
 [SEC] HTML injection + SSRF in PDF export — wkhtmltopdf with --enable-local-file-access and unsanitized user HTML | Added: 2026-02-20 | Priority: P2
-[SEC] Content-Disposition header injection — user-controlled filenames in workbench/files/api views without sanitization | Added: 2026-02-20 | Priority: P2
 [SEC] No zombie task reaper in Tempora — crashed workers leave tasks in RUNNING state forever | Added: 2026-02-20 | Priority: P2
 [SEC] LLM prompt injection — user input directly interpolated into Claude/Qwen prompts across multiple views | Added: 2026-02-20 | Priority: P2
 [SEC] No probability validation (0-1) on core.Hypothesis — values outside range corrupt Bayesian math | Added: 2026-02-20 | Priority: P2
@@ -51,18 +50,9 @@ Track technical debt here. Review weekly.
 
 ### Security — Medium (Audit 2026-02-20)
 
-[SEC] Registration endpoint not rate-limited — api/views.py:831 missing throttle | Added: 2026-02-20 | Priority: P2
-[SEC] Password validators not applied — only checks len>=8, ignores Django AUTH_PASSWORD_VALIDATORS | Added: 2026-02-20 | Priority: P2
-[SEC] TEMPORA_CLUSTER_SECRET reuses Django SECRET_KEY — settings.py:159 | Added: 2026-02-20 | Priority: P2
-[SEC] Forge tier limit bypass — session-authenticated users skip all usage limits | Added: 2026-02-20 | Priority: P2
-[SEC] Forge job IDOR — Job.objects.get(api_key=None) matches all session users' jobs | Added: 2026-02-20 | Priority: P2
-[SEC] eval() in simulation.py:129 — user formulas with AST check but np namespace exposed | Added: 2026-02-20 | Priority: P2
 [SEC] Missing indexes on Evidence.project and Message(conversation, created_at) | Added: 2026-02-20 | Priority: P2
 [SEC] Workbench conversations unencrypted — chat.Message uses EncryptedTextField but workbench stores plaintext JSON | Added: 2026-02-20 | Priority: P2
 [SEC] No Django LOGGING configuration in production settings | Added: 2026-02-20 | Priority: P2
-[SEC] Unbounded in-memory caches — _parsed_data_cache, _synara_cache, _interview_sessions have no TTL/size limit | Added: 2026-02-20 | Priority: P2
-[SEC] No file upload size limit for DSW analysis data — pd.read_csv() without size check → OOM | Added: 2026-02-20 | Priority: P2
-[SEC] File type blocklist incomplete — missing .html, .svg, .py, .php | Added: 2026-02-20 | Priority: P2
 [SEC] Tempora node ID hardcoded as svend-1 — all instances would claim same ID | Added: 2026-02-20 | Priority: P3
 [SEC] Placeholder tenant_id=UUID(int=0) in replication.py:520 | Added: 2026-02-20 | Priority: P3
 [SEC] No TLS on Tempora cluster communication despite hardening config | Added: 2026-02-20 | Priority: P3
@@ -89,6 +79,16 @@ Track technical debt here. Review weekly.
 
 [SEC] Board.save() version increment — atomic F() expression in save() | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Gunicorn max_requests — added max_requests=1000 with jitter | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Content-Disposition header injection — sanitize filenames in 7 files | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Registration endpoint rate-limited — 5/hour via RegistrationThrottle | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Password validators applied — Django validate_password() on register + change_password | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] TEMPORA_CLUSTER_SECRET — derived via HMAC instead of reusing SECRET_KEY | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Forge tier limit bypass — session-auth users now subject to tier limits | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Forge job IDOR — session-auth queries filter by user instead of api_key=None | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] eval() in simulation.py — removed raw np module, blocked attribute access in AST | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Unbounded in-memory caches — bounded _parsed_data_cache(256), _synara_cache(128), _interview_sessions(128) | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] DSW upload size limit — 50 MB max on upload_data endpoint | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] File type blocklist — extended with 18 additional dangerous extensions | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] get_context_file path leak — removed filesystem path from API response | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Claude API timeout — added timeout=120.0 to client.messages.create() | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Rate limit bypass on DB failure — now returns error instead of continuing | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending

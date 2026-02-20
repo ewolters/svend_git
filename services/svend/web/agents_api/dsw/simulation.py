@@ -96,8 +96,10 @@ def run_simulation(df, analysis_id, config, user):
             return result
     else:
         # Validate formula AST for security
+        # Only bare function names allowed — no module attribute access (prevents np.__class__ etc.)
         allowed_names = set(var_names) | {"sqrt", "log", "exp", "abs", "sin", "cos", "tan",
-                                          "pi", "max", "min", "pow", "np", "e", "ceil", "floor"}
+                                          "pi", "max", "min", "pow", "e", "ceil", "floor",
+                                          "mean", "std", "sum"}
         try:
             tree = ast.parse(formula, mode="eval")
             for node in ast.walk(tree):
@@ -107,22 +109,22 @@ def run_simulation(df, analysis_id, config, user):
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
                     result["summary"] = "Error: Import statements not allowed in formula."
                     return result
-                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                    if isinstance(node.func.value, ast.Name) and node.func.value.id not in ("np", "math"):
-                        result["summary"] = f"Error: Only np.* and math.* methods allowed."
-                        return result
+                if isinstance(node, ast.Attribute):
+                    result["summary"] = "Error: Attribute access not allowed. Use function names directly (e.g., sqrt(x) not np.sqrt(x))."
+                    return result
         except SyntaxError as e:
             result["summary"] = f"Error: Invalid formula syntax — {e}"
             return result
 
-        # Build safe namespace
+        # Build safe namespace — no raw module references
         safe_ns = {"__builtins__": {}}
         safe_ns.update({name: samples[name] for name in var_names})
         safe_ns.update({
             "sqrt": np.sqrt, "log": np.log, "exp": np.exp, "abs": np.abs,
             "sin": np.sin, "cos": np.cos, "tan": np.tan,
             "pi": np.pi, "e": np.e, "max": np.maximum, "min": np.minimum,
-            "pow": np.power, "np": np, "ceil": np.ceil, "floor": np.floor,
+            "pow": np.power, "ceil": np.ceil, "floor": np.floor,
+            "mean": np.mean, "std": np.std, "sum": np.sum,
         })
 
         try:

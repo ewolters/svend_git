@@ -87,5 +87,6 @@ def whitepaper_pdf(request, slug):
     pdf_file.seek(0)
 
     response = HttpResponse(pdf_file.read(), content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="{paper.slug}.pdf"'
+    safe_slug = re.sub(r'[^\w\-.]', '_', paper.slug) or 'whitepaper'
+    response["Content-Disposition"] = f'inline; filename="{safe_slug}.pdf"'
     return response

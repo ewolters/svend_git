@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import re
 import secrets
 from datetime import timedelta
 
@@ -174,21 +175,32 @@ def generate(request):
         data["quality_level"],
     )
 
-    # Check tier limits (skip for session-authenticated users without API key)
+    # Check tier limits for both API key and session-authenticated users
     if api_key:
         current_usage = get_current_period_usage(api_key)
         tier_limit = TIER_LIMITS.get(api_key.tier, TIER_LIMITS[Tier.FREE])
+    else:
+        # Session-authenticated user — use their subscription tier
+        user_tier = getattr(request.user, 'tier', Tier.FREE)
+        tier_limit = TIER_LIMITS.get(user_tier, TIER_LIMITS[Tier.FREE])
+        now = timezone.now()
+        period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        current_usage = Job.objects.filter(
+            user=request.user,
+            api_key__isnull=True,
+            created_at__gte=period_start,
+            status__in=[JobStatus.COMPLETED, JobStatus.PROCESSING, JobStatus.QUEUED],
+        ).aggregate(total=Sum("record_count"))["total"] or 0
 
-        if current_usage + data["record_count"] > tier_limit:
-            return Response(
-                {
-                    "error": "Tier limit exceeded",
-                    "current_usage": current_usage,
-                    "tier_limit": tier_limit,
-                    "tier": api_key.tier,
-                },
-                status=status.HTTP_402_PAYMENT_REQUIRED
-            )
+    if current_usage + data["record_count"] > tier_limit:
+        return Response(
+            {
+                "error": "Tier limit exceeded",
+                "current_usage": current_usage,
+                "tier_limit": tier_limit,
+            },
+            status=status.HTTP_402_PAYMENT_REQUIRED
+        )
 
     # Create job
     job = Job.objects.create(
@@ -249,7 +261,13 @@ def generate(request):
 def job_status(request, job_id):
     """Get job status."""
     try:
-        job = Job.objects.get(job_id=job_id, api_key=request.api_key)
+        filters = {"job_id": job_id}
+        if request.api_key:
+            filters["api_key"] = request.api_key
+        else:
+            filters["user"] = request.user
+            filters["api_key__isnull"] = True
+        job = Job.objects.get(**filters)
     except Job.DoesNotExist:
         return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -262,7 +280,13 @@ def job_status(request, job_id):
 def job_result(request, job_id):
     """Get job result download URL."""
     try:
-        job = Job.objects.get(job_id=job_id, api_key=request.api_key)
+        filters = {"job_id": job_id}
+        if request.api_key:
+            filters["api_key"] = request.api_key
+        else:
+            filters["user"] = request.user
+            filters["api_key__isnull"] = True
+        job = Job.objects.get(**filters)
     except Job.DoesNotExist:
         return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -293,7 +317,13 @@ def download(request, job_id):
     from django.http import HttpResponse
 
     try:
-        job = Job.objects.get(job_id=job_id, api_key=request.api_key)
+        filters = {"job_id": job_id}
+        if request.api_key:
+            filters["api_key"] = request.api_key
+        else:
+            filters["user"] = request.user
+            filters["api_key__isnull"] = True
+        job = Job.objects.get(**filters)
     except Job.DoesNotExist:
         return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -324,7 +354,8 @@ def download(request, job_id):
     }.get(job.output_format, "application/octet-stream")
 
     response = HttpResponse(content, content_type=content_type)
-    response["Content-Disposition"] = f'attachment; filename="forge_{job_id}.{job.output_format}"'
+    safe_fmt = re.sub(r'[^\w]', '', job.output_format) or 'dat'
+    response["Content-Disposition"] = f'attachment; filename="forge_{job_id}.{safe_fmt}"'
     return response
 
 

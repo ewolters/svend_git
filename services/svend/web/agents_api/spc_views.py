@@ -27,7 +27,17 @@ logger = logging.getLogger(__name__)
 
 # Cache for parsed datasets (in production, use Redis or similar)
 # Key: user_id:filename -> ParsedDataset
+# Bounded to prevent unbounded memory growth
+_CACHE_MAX_SIZE = 256
 _parsed_data_cache: dict[str, spc.ParsedDataset] = {}
+
+
+def _cache_put(key: str, value: spc.ParsedDataset) -> None:
+    """Add to cache with LRU eviction when full."""
+    if len(_parsed_data_cache) >= _CACHE_MAX_SIZE:
+        # Evict oldest entry
+        _parsed_data_cache.pop(next(iter(_parsed_data_cache)), None)
+    _parsed_data_cache[key] = value
 
 
 # =============================================================================
@@ -646,7 +656,7 @@ def upload_data(request):
 
         # Cache the parsed data for subsequent analysis
         cache_key = f"{request.user.id}:{filename}"
-        _parsed_data_cache[cache_key] = parsed
+        _cache_put(cache_key, parsed)
 
         # Return column info for field mapping
         return JsonResponse({

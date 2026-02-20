@@ -135,6 +135,8 @@ def read_context_file(problem_id: str, user_id: int) -> dict | None:
 # =============================================================================
 
 # In-memory interview sessions (could be moved to cache/Redis for scale)
+# Bounded to prevent unbounded memory growth
+_INTERVIEW_CACHE_MAX = 128
 _interview_sessions = {}
 
 
@@ -142,6 +144,10 @@ def get_interview_session(problem_id: str):
     """Get or create an interview session for a problem."""
     if problem_id not in _interview_sessions:
         from guide.decision import DecisionGuide
+
+        # Evict oldest if at capacity
+        if len(_interview_sessions) >= _INTERVIEW_CACHE_MAX:
+            _interview_sessions.pop(next(iter(_interview_sessions)), None)
 
         guide = DecisionGuide()
         guide.start()

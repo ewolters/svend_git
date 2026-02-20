@@ -35,6 +35,8 @@ from .synara.logic_engine import LogicEngine, validate_hypothesis, parse_and_eva
 logger = logging.getLogger(__name__)
 
 # In-memory cache for Synara instances (backed by core.Project.synara_state)
+# Bounded to prevent unbounded memory growth
+_SYNARA_CACHE_MAX = 128
 _synara_cache: dict[str, Synara] = {}
 
 
@@ -83,6 +85,8 @@ def get_synara(workbench_id: str, user=None) -> Synara:
     else:
         synara = Synara()
 
+    if len(_synara_cache) >= _SYNARA_CACHE_MAX:
+        _synara_cache.pop(next(iter(_synara_cache)), None)
     _synara_cache[workbench_id] = synara
     return synara
 
@@ -772,6 +776,8 @@ def import_synara(request, workbench_id: str):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     synara = Synara.from_dict(body)
+    if len(_synara_cache) >= _SYNARA_CACHE_MAX:
+        _synara_cache.pop(next(iter(_synara_cache)), None)
     _synara_cache[workbench_id] = synara
     save_synara(workbench_id, synara, user=request.user)
 

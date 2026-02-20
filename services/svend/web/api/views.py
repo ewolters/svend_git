@@ -2,6 +2,7 @@
 
 import logging
 import random
+import re
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
@@ -25,6 +26,12 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class RegistrationThrottle(AnonRateThrottle):
+    """Limit registration attempts to 5/hour per IP."""
+    rate = "5/hour"
+
 
 # Model mappings for enterprise users
 ENTERPRISE_MODELS = {
@@ -830,9 +837,12 @@ def update_profile(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([RegistrationThrottle])
 def register(request):
     """Register a new user."""
     from django.contrib.auth import get_user_model
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
 
     User = get_user_model()
 
@@ -850,6 +860,15 @@ def register(request):
     if not password or len(password) < 8:
         return Response(
             {"error": "Password must be at least 8 characters"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Apply Django's password validators (complexity, common passwords, etc.)
+    try:
+        validate_password(password)
+    except DjangoValidationError as e:
+        return Response(
+            {"error": e.messages[0]},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -924,6 +943,17 @@ def change_password(request):
     if len(new_password) < 8:
         return Response(
             {"error": "New password must be at least 8 characters"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Apply Django's password validators
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    try:
+        validate_password(new_password, user=user)
+    except DjangoValidationError as e:
+        return Response(
+            {"error": e.messages[0]},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -1138,7 +1168,8 @@ def export_pdf(request):
                 # Last resort: return HTML for browser printing
                 os.unlink(html_path)
                 response = HttpResponse(html_doc, content_type='text/html')
-                response['Content-Disposition'] = f'inline; filename="{title}.html"'
+                safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', '_', title) or 'export'
+                response['Content-Disposition'] = f'inline; filename="{safe_title}.html"'
                 return response
 
         # Read and return PDF
@@ -1150,7 +1181,8 @@ def export_pdf(request):
         os.unlink(pdf_path)
 
         response = HttpResponse(pdf_content, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{title}.pdf"'
+        safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', '_', title) or 'export'
+        response['Content-Disposition'] = f'attachment; filename="{safe_title}.pdf"'
         return response
 
     except Exception as e:

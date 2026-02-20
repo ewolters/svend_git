@@ -1,5 +1,6 @@
 """Django settings for Svend."""
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -156,7 +157,9 @@ REST_FRAMEWORK = {
 }
 
 # Tempora (distributed task scheduling)
-TEMPORA_CLUSTER_SECRET = config.secret_key
+TEMPORA_CLUSTER_SECRET = hashlib.sha256(
+    (config.secret_key + ":tempora-cluster").encode()
+).hexdigest()
 TEMPORA_NODE_ID = "svend-1"
 TEMPORA_SETTINGS = {
     "election_timeout_min": 150,

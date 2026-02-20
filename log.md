@@ -15,6 +15,25 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-20 — Security Audit: P2 Batch 2 (10 fixes)
+**Debt item:** [SEC] P2 Medium items from audit
+**Files changed:**
+- `files/views.py` — Content-Disposition header injection: added _safe_cd_filename() sanitizer; extended file type blocklist with 18 additional dangerous extensions (.html, .svg, .py, .php, .zip, .jar, etc.)
+- `workbench/views.py` — Content-Disposition sanitization on export filename
+- `api/views.py` — Content-Disposition sanitization on PDF/HTML export; registration rate-limited (5/hour via RegistrationThrottle); password validation via Django validate_password() on register + change_password
+- `api/whitepaper_views.py` — Content-Disposition sanitization on PDF download slug
+- `forge/views.py` — Content-Disposition sanitization; Forge job IDOR fixed (session-auth users filtered by user instead of api_key=None matching all); tier limit bypass fixed (session-auth users now subject to limits via their subscription tier)
+- `agents_api/dsw/endpoints_data.py` — 50 MB upload size limit on DSW data upload
+- `svend/settings.py` — TEMPORA_CLUSTER_SECRET derived from SECRET_KEY via HMAC instead of direct reuse
+- `agents_api/spc_views.py` — _parsed_data_cache bounded to 256 entries with LRU eviction
+- `agents_api/synara_views.py` — _synara_cache bounded to 128 entries with LRU eviction
+- `agents_api/problem_views.py` — _interview_sessions bounded to 128 entries with LRU eviction
+- `agents_api/dsw/simulation.py` — eval() tightened: removed raw np module from namespace, blocked all attribute access in AST, only bare function names allowed
+**Verification:** `python3 manage.py check` — 0 issues
+**Commit:** pending
+
+---
+
 ### 2026-02-20 — Security/Stats Audit: P2 Batch (11 fixes)
 **Debt item:** [SEC] P2 items from High + Medium sections; [STATS] P2 items
 **Files changed:**

@@ -41,6 +41,15 @@ def upload_data(request):
         return JsonResponse({"error": "No file provided"}, status=400)
 
     file = request.FILES["file"]
+
+    # Limit upload size to 50 MB to prevent OOM
+    MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+    if file.size and file.size > MAX_UPLOAD_BYTES:
+        return JsonResponse(
+            {"error": f"File too large ({file.size // (1024*1024)} MB). Maximum is 50 MB."},
+            status=413,
+        )
+
     filename = file.name.lower()
 
     try:
