@@ -3,6 +3,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 from core.encryption import EncryptedTextField
@@ -1429,11 +1430,11 @@ class FMEARow(models.Model):
     effect = models.TextField(blank=True)
 
     # Original S/O/D scores (1-10)
-    severity = models.IntegerField(default=1)
+    severity = models.IntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10)])
     cause = models.TextField(blank=True)
-    occurrence = models.IntegerField(default=1)
+    occurrence = models.IntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10)])
     current_controls = models.TextField(blank=True)
-    detection = models.IntegerField(default=1)
+    detection = models.IntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10)])
 
     # Computed: severity * occurrence * detection
     rpn = models.IntegerField(default=1)
@@ -1471,8 +1472,15 @@ class FMEARow(models.Model):
         return f"{self.failure_mode} (RPN={self.rpn})"
 
     def save(self, *args, **kwargs):
+        # Clamp S/O/D to valid range (1-10) before computing RPN
+        self.severity = max(1, min(10, self.severity or 1))
+        self.occurrence = max(1, min(10, self.occurrence or 1))
+        self.detection = max(1, min(10, self.detection or 1))
         self.rpn = self.severity * self.occurrence * self.detection
         if self.revised_severity and self.revised_occurrence and self.revised_detection:
+            self.revised_severity = max(1, min(10, self.revised_severity))
+            self.revised_occurrence = max(1, min(10, self.revised_occurrence))
+            self.revised_detection = max(1, min(10, self.revised_detection))
             self.revised_rpn = self.revised_severity * self.revised_occurrence * self.revised_detection
         super().save(*args, **kwargs)
 

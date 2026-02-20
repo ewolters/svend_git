@@ -48,6 +48,30 @@ def add_finding_to_problem(user, problem_id: str, summary: str,
         problem.update_understanding()
         write_context_file(problem)
 
+        # Dual-write: also create core.Evidence if problem has a core_project
+        try:
+            core_project = getattr(problem, 'core_project', None)
+            if core_project:
+                from core.models import Evidence as CoreEvidence
+                # Map evidence_type to core source_type
+                source_map = {
+                    "research": "research",
+                    "data_analysis": "analysis",
+                    "experiment": "experiment",
+                    "observation": "observation",
+                    "expert": "expert",
+                }
+                CoreEvidence.objects.create(
+                    project=core_project,
+                    summary=summary,
+                    source_type=source_map.get(evidence_type, "observation"),
+                    source_description=source,
+                    result_type="qualitative",
+                    created_by=user,
+                )
+        except Exception as e:
+            logger.warning(f"Core evidence dual-write failed for problem {problem_id}: {e}")
+
         logger.info(f"Added evidence to problem {problem_id}: {summary[:50]}...")
         return evidence
 

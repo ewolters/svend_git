@@ -15,6 +15,26 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-20 — Security Audit: P2 Batch 3 (9 fixes)
+**Debt item:** [SEC] P2 High + Medium items from audit
+**Files changed:**
+- `core/models/hypothesis.py` — Probability validation: MinValueValidator/MaxValueValidator(0-1) on prior_probability/current_probability, save() clamping; Evidence.project gets db_index=True + compound index (project, -created_at)
+- `agents_api/models.py` — FMEA S/O/D validation: MinValueValidator(1)/MaxValueValidator(10) on severity/occurrence/detection, save() clamping for original and revised scores
+- `agents_api/llm_manager.py` — Added unload() classmethod for graceful LLM resource cleanup
+- `chat/models.py` — Added compound index (conversation, created_at) on Message model
+- `svend/settings.py` — Added LOGGING configuration: RotatingFileHandler for svend.log (10MB, 5 backups), security.log (10MB, 10 backups), structured verbose formatter
+- `api/views.py` — Removed --enable-local-file-access from wkhtmltopdf (replaced with --disable-local-file-access) to prevent SSRF
+- `agents_api/views.py` — add_finding_to_problem() dual-write: now also creates core.Evidence when problem has core_project FK
+- `agents_api/dsw/endpoints_data.py` — Sanitized 5 error responses: str(e) replaced with generic messages, logger.exception() added
+- `agents_api/rca_views.py` — Sanitized 6 error responses: API errors + generic exceptions get safe messages
+- `agents_api/forecast_views.py` — Sanitized 2 error responses
+- `agents_api/spc_views.py` — Sanitized 1 error response (file upload)
+- `agents_api/triage_views.py` — Sanitized 3 error responses
+**Verification:** `python3 manage.py check` — 0 issues
+**Commit:** pending
+
+---
+
 ### 2026-02-20 — Security Audit: P2 Batch 2 (10 fixes)
 **Debt item:** [SEC] P2 Medium items from audit
 **Files changed:**

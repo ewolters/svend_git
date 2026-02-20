@@ -11,6 +11,7 @@ All probability updates use core.bayesian.BayesianUpdater.
 
 import uuid
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 from core.bayesian import BayesianUpdater, get_updater
@@ -133,10 +134,12 @@ class Hypothesis(models.Model):
     # =========================================================================
     prior_probability = models.FloatField(
         default=0.5,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Initial probability before evidence (0.0 to 1.0)",
     )
     current_probability = models.FloatField(
         default=0.5,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Current probability after all evidence (0.0 to 1.0)",
     )
     probability_history = models.JSONField(
@@ -213,6 +216,12 @@ class Hypothesis(models.Model):
     def __str__(self):
         preview = self.statement[:50] if self.statement else self.if_clause[:50] if self.if_clause else "Untitled"
         return f"{preview}... ({self.current_probability:.0%})"
+
+    def save(self, *args, **kwargs):
+        """Clamp probability fields to [0.0, 1.0] before saving."""
+        self.prior_probability = max(0.0, min(1.0, self.prior_probability or 0.5))
+        self.current_probability = max(0.0, min(1.0, self.current_probability or 0.5))
+        super().save(*args, **kwargs)
 
     def generate_statement(self) -> str:
         """Generate full statement from structured fields."""
@@ -348,6 +357,7 @@ class Evidence(models.Model):
         related_name="evidence",
         null=True,
         blank=True,
+        db_index=True,
     )
 
     # Description
@@ -429,6 +439,9 @@ class Evidence(models.Model):
         db_table = "core_evidence"
         verbose_name_plural = "evidence"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["project", "-created_at"]),
+        ]
 
     def __str__(self):
         return f"{self.source_type}: {self.summary[:50]}..."

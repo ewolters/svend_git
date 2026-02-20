@@ -227,7 +227,7 @@ def forecast(request):
             }, status=400)
         except Exception as e:
             logger.exception(f"Error fetching {symbol}")
-            return JsonResponse({"error": f"Failed to fetch data for {symbol}: {str(e)}"}, status=400)
+            return JsonResponse({"error": f"Unable to fetch data for {symbol}. Please verify the symbol and try again."}, status=400)
 
     elif custom_data:
         if not isinstance(custom_data, list) or len(custom_data) < 5:
@@ -350,4 +350,4 @@ def quote(request):
         return JsonResponse({"error": "yfinance not available"}, status=500)
     except Exception as e:
         logger.exception(f"Error fetching quote for {symbol}")
-        return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse({"error": "Unable to retrieve quote data. Please try again."}, status=500)

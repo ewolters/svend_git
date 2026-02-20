@@ -210,6 +210,9 @@ class Message(models.Model):
     class Meta:
         db_table = "messages"
         ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["conversation", "created_at"]),
+        ]
 
     def __str__(self):
         return f"{self.role}: {self.content[:50]}..."

@@ -167,6 +167,68 @@ TEMPORA_SETTINGS = {
     "heartbeat_interval": 50,
 }
 
+# Logging
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "svend.log"),
+            "maxBytes": 10 * 1024 * 1024,  # 10 MB
+            "backupCount": 5,
+            "formatter": "verbose",
+        },
+        "security": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "security.log"),
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 10,
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "WARNING",
+        },
+        "django.security": {
+            "handlers": ["console", "security"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "agents_api": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+        "api": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+        "forge": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "INFO",
+    },
+}
+
 # Kjerne pipeline path
 KJERNE_PATH = config.kjerne_path
 INFERENCE_DEVICE = config.device

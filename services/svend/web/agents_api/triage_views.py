@@ -140,7 +140,8 @@ def triage_clean(request):
         })
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.exception(f"Triage error: {e}")
+        return JsonResponse({"error": "Data cleaning failed. Please check your inputs and try again."}, status=500)
 
 
 @csrf_exempt
@@ -261,7 +262,8 @@ def triage_preview(request):
         })
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.exception(f"Triage validation error: {e}")
+        return JsonResponse({"error": "Data validation failed. Please try again."}, status=500)
 
 
 def _detect_data_biases(df) -> list:
@@ -416,7 +418,8 @@ def load_dataset(request, job_id):
         })
 
     except Exception as e:
-        return JsonResponse({"error": f"Failed to load dataset: {str(e)}"}, status=500)
+        logger.exception(f"Dataset load error: {e}")
+        return JsonResponse({"error": "Dataset load failed. Please verify the file is valid and try again."}, status=500)
 
 
 def _preload_llm_background():

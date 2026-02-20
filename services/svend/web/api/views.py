@@ -1151,7 +1151,8 @@ def export_pdf(request):
         # Try wkhtmltopdf first (faster, better CSS support)
         try:
             subprocess.run(
-                ['wkhtmltopdf', '--quiet', '--enable-local-file-access',
+                ['wkhtmltopdf', '--quiet',
+                 '--disable-local-file-access',
                  '--margin-top', '20mm', '--margin-bottom', '20mm',
                  '--margin-left', '15mm', '--margin-right', '15mm',
                  html_path, pdf_path],

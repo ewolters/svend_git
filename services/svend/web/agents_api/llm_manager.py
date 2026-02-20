@@ -226,6 +226,21 @@ class LLMManager:
             cls._anthropic_loaded = False
 
     @classmethod
+    def unload(cls):
+        """Release LLM resources and free memory.
+
+        Call during graceful shutdown or when LLM features are no longer needed.
+        """
+        with cls._lock:
+            if cls._anthropic_client is not None:
+                # Anthropic client has no explicit close, but clearing references
+                # allows GC to reclaim memory
+                cls._anthropic_client = None
+                cls._anthropic_loaded = False
+                logger.info("LLM resources released")
+            cls._instance = None
+
+    @classmethod
     def status(cls) -> dict:
         """Get status of LLM configuration."""
         return {

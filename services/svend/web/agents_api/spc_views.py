@@ -670,7 +670,7 @@ def upload_data(request):
 
     except Exception as e:
         logger.exception("File upload error")
-        return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse({"error": "File upload failed. Please check file size and format."}, status=500)
 
 
 @csrf_exempt

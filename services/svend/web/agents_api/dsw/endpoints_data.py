@@ -160,8 +160,8 @@ def upload_data(request):
         })
 
     except Exception as e:
-        logger.error(f"Data upload error: {e}")
-        return JsonResponse({"error": f"Failed to parse file: {str(e)}"}, status=400)
+        logger.exception(f"Data upload error: {e}")
+        return JsonResponse({"error": "Failed to parse uploaded file. Please check the file format and try again."}, status=400)
 
 
 @csrf_exempt
@@ -283,7 +283,8 @@ def execute_code(request):
         })
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
+        logger.exception(f"Code execution error: {e}")
+        return JsonResponse({"error": "Code execution failed. Please check your inputs."}, status=400)
 
 
 @csrf_exempt
@@ -376,7 +377,7 @@ Available libraries: numpy (np), pandas (pd), scipy, matplotlib (plt), random, m
 
         except Exception as e:
             logger.exception(f"Anthropic code generation error: {e}")
-            return JsonResponse({"error": str(e)}, status=500)
+            return JsonResponse({"error": "Code generation failed. Please try again."}, status=500)
 
     # Default: Use Qwen Coder
     code_prompt = f"""{context_prefix}Generate Python code for: {prompt}
@@ -426,7 +427,7 @@ print("Code generation requires Qwen Coder - loading in background...")
 
     except Exception as e:
         logger.exception(f"Code generation error: {e}")
-        return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse({"error": "Code generation service unavailable. Please try again later."}, status=500)
 
 
 @csrf_exempt
@@ -1519,7 +1520,7 @@ def download_data(request):
 
     except Exception as e:
         logger.exception(f"Download error: {e}")
-        return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse({"error": "Download failed. Please try again."}, status=500)
 
 
 @csrf_exempt

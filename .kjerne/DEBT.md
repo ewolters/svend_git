@@ -38,32 +38,25 @@ Track technical debt here. Review weekly.
 ### Security — High (Audit 2026-02-20)
 
 [SEC] CSRF globally disabled — CsrfExemptSessionAuthentication on all REST Framework endpoints, mitigated only by SameSite=Lax | Added: 2026-02-20 | Priority: P2
-[SEC] add_finding_to_problem() doesn't dual-write — agent-sourced evidence only goes to JSON blobs, never to core.Evidence | Added: 2026-02-20 | Priority: P2
-[SEC] HTML injection + SSRF in PDF export — wkhtmltopdf with --enable-local-file-access and unsanitized user HTML | Added: 2026-02-20 | Priority: P2
+[SEC] HTML injection in PDF export — user HTML still unsanitized (wkhtmltopdf local file access now disabled) | Added: 2026-02-20 | Priority: P2
 [SEC] No zombie task reaper in Tempora — crashed workers leave tasks in RUNNING state forever | Added: 2026-02-20 | Priority: P2
 [SEC] LLM prompt injection — user input directly interpolated into Claude/Qwen prompts across multiple views | Added: 2026-02-20 | Priority: P2
-[SEC] No probability validation (0-1) on core.Hypothesis — values outside range corrupt Bayesian math | Added: 2026-02-20 | Priority: P2
-[SEC] No FMEA S/O/D score validation (1-10) on model — zero values produce RPN=0, masking risk | Added: 2026-02-20 | Priority: P2
 [SEC] Three parallel Hypothesis/Evidence systems (workbench, core, Problem) with no sync between them | Added: 2026-02-20 | Priority: P2
 [SEC] Pickle in CacheEntry.value BinaryField — RCE vector if DB compromised | Added: 2026-02-20 | Priority: P1 | *Mitigated: SessionCache now rejects pickle entries*
-[SEC] No GPU memory cleanup in core/llm.py — no unload() method, GPU RAM never freed | Added: 2026-02-20 | Priority: P2
 
 ### Security — Medium (Audit 2026-02-20)
 
-[SEC] Missing indexes on Evidence.project and Message(conversation, created_at) | Added: 2026-02-20 | Priority: P2
 [SEC] Workbench conversations unencrypted — chat.Message uses EncryptedTextField but workbench stores plaintext JSON | Added: 2026-02-20 | Priority: P2
-[SEC] No Django LOGGING configuration in production settings | Added: 2026-02-20 | Priority: P2
 [SEC] Tempora node ID hardcoded as svend-1 — all instances would claim same ID | Added: 2026-02-20 | Priority: P3
 [SEC] Placeholder tenant_id=UUID(int=0) in replication.py:520 | Added: 2026-02-20 | Priority: P3
 [SEC] No TLS on Tempora cluster communication despite hardening config | Added: 2026-02-20 | Priority: P3
-[SEC] Error messages leak internals — str(e) returned to client in 20+ locations | Added: 2026-02-20 | Priority: P2
+[SEC] Error messages leak internals — str(e) still in ~50 lower-risk locations (top 17 fixed) | Added: 2026-02-20 | Priority: P3
 [SEC] Mass assignment on status fields — directly settable via PATCH, bypassing workflows | Added: 2026-02-20 | Priority: P3
 
 ### Statistical Correctness (Audit 2026-02-20)
 
 [STATS] DPMO uses only upper tail — spc.py:~219, underestimates defect rate by ~50% | Added: 2026-02-20 | Priority: P2 | *Reviewed: two-sided case already uses both tails correctly*
 [STATS] Synara belief propagation is a heuristic, not proper Bayesian network inference — belief.py:183-250 | Added: 2026-02-20 | Priority: P3
-[STATS] eval() in simulation module — dsw/simulation.py:~129, should use AST-walking evaluator like hoshin_calculations.py | Added: 2026-02-20 | Priority: P2
 
 ### Existing Debt (carried forward)
 
@@ -79,6 +72,15 @@ Track technical debt here. Review weekly.
 
 [SEC] Board.save() version increment — atomic F() expression in save() | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Gunicorn max_requests — added max_requests=1000 with jitter | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Hypothesis probability validation (0-1) — field validators + save() clamping | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] FMEA S/O/D score validation (1-10) — field validators + save() clamping | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] LLM resource cleanup — added unload() classmethod to LLMManager | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Missing DB indexes — Evidence.project + Message(conversation, created_at) compound indexes | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Django LOGGING — RotatingFileHandler for svend.log + security.log | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] wkhtmltopdf SSRF — --enable-local-file-access removed, replaced with --disable-local-file-access | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] add_finding_to_problem() dual-write — now creates core.Evidence alongside JSON blob | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Error message sanitization — top 17 str(e) leaks replaced with generic messages | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] eval() in simulation — np module removed, attribute access blocked in AST | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Content-Disposition header injection — sanitize filenames in 7 files | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Registration endpoint rate-limited — 5/hour via RegistrationThrottle | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Password validators applied — Django validate_password() on register + change_password | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending

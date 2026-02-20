@@ -214,9 +214,11 @@ def critique(request):
         })
 
     except anthropic.APIError as e:
-        return JsonResponse({"error": f"API error: {str(e)}"}, status=502)
+        logger.error(f"Anthropic API error in RCA: {e}")
+        return JsonResponse({"error": "Analysis service temporarily unavailable. Please retry."}, status=502)
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.exception(f"RCA error: {e}")
+        return JsonResponse({"error": "Analysis failed. Please check your inputs and try again."}, status=500)
 
 
 @csrf_exempt
@@ -302,9 +304,11 @@ Be direct. If it's solid, say so. If it's garbage dressed up as analysis, say th
         })
 
     except anthropic.APIError as e:
-        return JsonResponse({"error": f"API error: {str(e)}"}, status=502)
+        logger.error(f"Anthropic API error in RCA: {e}")
+        return JsonResponse({"error": "Analysis service temporarily unavailable. Please retry."}, status=502)
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.exception(f"RCA error: {e}")
+        return JsonResponse({"error": "Analysis failed. Please check your inputs and try again."}, status=500)
 
 
 @csrf_exempt
@@ -378,9 +382,11 @@ Be specific. If it's weak, say why and suggest stronger alternatives from higher
         })
 
     except anthropic.APIError as e:
-        return JsonResponse({"error": f"API error: {str(e)}"}, status=502)
+        logger.error(f"Anthropic API error in RCA: {e}")
+        return JsonResponse({"error": "Analysis service temporarily unavailable. Please retry."}, status=502)
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.exception(f"RCA error: {e}")
+        return JsonResponse({"error": "Analysis failed. Please check your inputs and try again."}, status=500)
 
 
 # =============================================================================
