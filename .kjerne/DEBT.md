@@ -38,19 +38,16 @@ Track technical debt here. Review weekly.
 ### Security — High (Audit 2026-02-20)
 
 [SEC] CSRF globally disabled — CsrfExemptSessionAuthentication on all REST Framework endpoints, mitigated only by SameSite=Lax | Added: 2026-02-20 | Priority: P2
-[SEC] Board.save() version increment not atomic — race condition in collaborative whiteboard, needs F() expression | Added: 2026-02-20 | Priority: P2
 [SEC] add_finding_to_problem() doesn't dual-write — agent-sourced evidence only goes to JSON blobs, never to core.Evidence | Added: 2026-02-20 | Priority: P2
 [SEC] HTML injection + SSRF in PDF export — wkhtmltopdf with --enable-local-file-access and unsanitized user HTML | Added: 2026-02-20 | Priority: P2
 [SEC] Content-Disposition header injection — user-controlled filenames in workbench/files/api views without sanitization | Added: 2026-02-20 | Priority: P2
 [SEC] No zombie task reaper in Tempora — crashed workers leave tasks in RUNNING state forever | Added: 2026-02-20 | Priority: P2
-[SEC] No max_requests in Gunicorn — workers never recycled, unbounded memory growth | Added: 2026-02-20 | Priority: P2
 [SEC] LLM prompt injection — user input directly interpolated into Claude/Qwen prompts across multiple views | Added: 2026-02-20 | Priority: P2
 [SEC] No probability validation (0-1) on core.Hypothesis — values outside range corrupt Bayesian math | Added: 2026-02-20 | Priority: P2
 [SEC] No FMEA S/O/D score validation (1-10) on model — zero values produce RPN=0, masking risk | Added: 2026-02-20 | Priority: P2
 [SEC] Three parallel Hypothesis/Evidence systems (workbench, core, Problem) with no sync between them | Added: 2026-02-20 | Priority: P2
 [SEC] Pickle in CacheEntry.value BinaryField — RCE vector if DB compromised | Added: 2026-02-20 | Priority: P1 | *Mitigated: SessionCache now rejects pickle entries*
 [SEC] No GPU memory cleanup in core/llm.py — no unload() method, GPU RAM never freed | Added: 2026-02-20 | Priority: P2
-[SEC] get_context_file leaks server filesystem path in API response | Added: 2026-02-20 | Priority: P2
 
 ### Security — Medium (Audit 2026-02-20)
 
@@ -62,16 +59,10 @@ Track technical debt here. Review weekly.
 [SEC] eval() in simulation.py:129 — user formulas with AST check but np namespace exposed | Added: 2026-02-20 | Priority: P2
 [SEC] Missing indexes on Evidence.project and Message(conversation, created_at) | Added: 2026-02-20 | Priority: P2
 [SEC] Workbench conversations unencrypted — chat.Message uses EncryptedTextField but workbench stores plaintext JSON | Added: 2026-02-20 | Priority: P2
-[SEC] No timeout on Claude API calls — llm_manager.py:182, hangs sync workers indefinitely | Added: 2026-02-20 | Priority: P2
-[SEC] Rate limit bypass on DB failure — llm_manager.py:161 continues if rate limit check throws | Added: 2026-02-20 | Priority: P2
-[SEC] Hardcoded debug=True default in config.py:26 — if env var missing, runs in debug mode | Added: 2026-02-20 | Priority: P2
-[SEC] DB credentials hardcoded as default in config.py:31 — password svend_db_2026 in source | Added: 2026-02-20 | Priority: P2
 [SEC] No Django LOGGING configuration in production settings | Added: 2026-02-20 | Priority: P2
 [SEC] Unbounded in-memory caches — _parsed_data_cache, _synara_cache, _interview_sessions have no TTL/size limit | Added: 2026-02-20 | Priority: P2
-[SEC] Conversation history injection — experimenter_views.py:1625, user can inject role:"system" messages | Added: 2026-02-20 | Priority: P2
 [SEC] No file upload size limit for DSW analysis data — pd.read_csv() without size check → OOM | Added: 2026-02-20 | Priority: P2
 [SEC] File type blocklist incomplete — missing .html, .svg, .py, .php | Added: 2026-02-20 | Priority: P2
-[SEC] Path traversal in data_id — data_ prefix check insufficient, ../.. not blocked | Added: 2026-02-20 | Priority: P2
 [SEC] Tempora node ID hardcoded as svend-1 — all instances would claim same ID | Added: 2026-02-20 | Priority: P3
 [SEC] Placeholder tenant_id=UUID(int=0) in replication.py:520 | Added: 2026-02-20 | Priority: P3
 [SEC] No TLS on Tempora cluster communication despite hardening config | Added: 2026-02-20 | Priority: P3
@@ -80,10 +71,7 @@ Track technical debt here. Review weekly.
 
 ### Statistical Correctness (Audit 2026-02-20)
 
-[STATS] Two-sample t-test CI uses wrong df — stats.py:~184, Welch test + pooled df in CI | Added: 2026-02-20 | Priority: P2
-[STATS] SPC Pp/Ppk equals Cp/Cpk for individuals data — dsw/spc.py:~193, should use MR-bar/d2 for within-subgroup sigma | Added: 2026-02-20 | Priority: P2
-[STATS] DPMO uses only upper tail — spc.py:~219, underestimates defect rate by ~50% | Added: 2026-02-20 | Priority: P2
-[STATS] Cholesky decomposition without exception handling — bayes_core.py:~88, crashes on collinear data | Added: 2026-02-20 | Priority: P2
+[STATS] DPMO uses only upper tail — spc.py:~219, underestimates defect rate by ~50% | Added: 2026-02-20 | Priority: P2 | *Reviewed: two-sided case already uses both tails correctly*
 [STATS] Synara belief propagation is a heuristic, not proper Bayesian network inference — belief.py:183-250 | Added: 2026-02-20 | Priority: P3
 [STATS] eval() in simulation module — dsw/simulation.py:~129, should use AST-walking evaluator like hoshin_calculations.py | Added: 2026-02-20 | Priority: P2
 
@@ -99,6 +87,17 @@ Track technical debt here. Review weekly.
 
 ## Resolved
 
+[SEC] Board.save() version increment — atomic F() expression in save() | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Gunicorn max_requests — added max_requests=1000 with jitter | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] get_context_file path leak — removed filesystem path from API response | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Claude API timeout — added timeout=120.0 to client.messages.create() | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Rate limit bypass on DB failure — now returns error instead of continuing | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Hardcoded debug/credentials — changed defaults to False/empty | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Conversation history injection — sanitize roles to user/assistant only, cap content length | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Path traversal in data_id — validate with regex ^data_[a-f0-9]+$ | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Two-sample t-test CI — use Welch-Satterthwaite df instead of pooled | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] SPC Pp/Ppk — Cp/Cpk now uses MR-bar/d2 within-subgroup sigma for individuals | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Cholesky decomposition — added ridge fallback for collinear data | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] IDOR in DSW views — added user= filter to Project.objects.get() in dsw_views.py | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] SPC cache_key IDOR — validate user_id prefix in cache key against request.user | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] Hoshin update_site/delete_site — added _check_site_write() and _is_site_admin() permission checks | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending

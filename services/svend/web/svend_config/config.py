@@ -23,12 +23,12 @@ class Settings(BaseSettings):
 
     # Environment
     env: Literal["dev", "staging", "prod"] = "dev"
-    debug: bool = True
-    secret_key: str = "change-me-in-production"
+    debug: bool = False
+    secret_key: str = ""
 
     # Database — PostgreSQL
     database_url: str = Field(
-        default="postgresql://svend:svend_db_2026@127.0.0.1/svend",
+        default="",
         description="PostgreSQL connection string",
     )
 

@@ -1003,9 +1003,11 @@ class Board(models.Model):
         return f"{self.name} ({self.room_code})"
 
     def save(self, *args, **kwargs):
-        # Increment version on save
-        self.version += 1
         super().save(*args, **kwargs)
+        # Atomic version increment after save to prevent race conditions
+        from django.db.models import F
+        type(self).objects.filter(pk=self.pk).update(version=F("version") + 1)
+        self.refresh_from_db(fields=["version"])
 
 
 class BoardParticipant(models.Model):

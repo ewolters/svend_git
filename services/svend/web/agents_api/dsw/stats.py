@@ -182,7 +182,11 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"  t-statistic: {stat:.4f}\n"
         summary += f"  p-value: {pval:.4f}\n"
         _se_diff = np.sqrt(x.std()**2/len(x) + y.std()**2/len(y))
-        _t_crit = stats.t.ppf(1 - alpha/2, len(x) + len(y) - 2)
+        # Welch-Satterthwaite degrees of freedom for unequal variances
+        _s1_n = x.std()**2 / len(x)
+        _s2_n = y.std()**2 / len(y)
+        _welch_df = (_s1_n + _s2_n)**2 / (_s1_n**2/(len(x)-1) + _s2_n**2/(len(y)-1)) if (_s1_n + _s2_n) > 0 else len(x) + len(y) - 2
+        _t_crit = stats.t.ppf(1 - alpha/2, _welch_df)
         _ci_lo = (x.mean() - y.mean()) - _t_crit * _se_diff
         _ci_hi = (x.mean() - y.mean()) + _t_crit * _se_diff
         summary += f"  {conf}% CI for difference: [{_ci_lo:.4f}, {_ci_hi:.4f}]\n\n"

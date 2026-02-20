@@ -11,7 +11,17 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 
+import re
+
 from accounts.permissions import gated, require_auth, require_enterprise
+
+# Validate data_id to prevent path traversal (must be data_ + alphanumeric)
+_SAFE_DATA_ID = re.compile(r"^data_[a-f0-9]+$")
+
+
+def _validate_data_id(data_id: str) -> bool:
+    """Return True if data_id is safe (no path traversal)."""
+    return bool(data_id and _SAFE_DATA_ID.match(data_id))
 
 from .common import log_agent_action, _preload_llm_background
 
@@ -445,7 +455,7 @@ def analyst_assistant(request):
                 import pandas as pd
                 from io import StringIO
 
-                if data_id.startswith("data_"):
+                if data_id and _validate_data_id(data_id):
                     data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                     data_path = data_dir / f"{data_id}.csv"
                     if data_path.exists():
@@ -1207,7 +1217,7 @@ def transform_data(request):
         # Load data
         df = None
 
-        if data_id.startswith("data_"):
+        if data_id and _validate_data_id(data_id):
             try:
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
@@ -1463,7 +1473,7 @@ def download_data(request):
 
         df = None
 
-        if data_id.startswith("data_"):
+        if data_id and _validate_data_id(data_id):
             try:
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
@@ -1532,7 +1542,7 @@ def triage_data(request):
         # Load the data
         df = None
 
-        if data_id.startswith("data_"):
+        if data_id and _validate_data_id(data_id):
             try:
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
@@ -1787,7 +1797,7 @@ def triage_scan(request):
         # Load the data
         df = None
 
-        if data_id.startswith("data_"):
+        if data_id and _validate_data_id(data_id):
             try:
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"

@@ -15,6 +15,24 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-20 — Security/Stats Audit: P2 Batch (11 fixes)
+**Debt item:** [SEC] P2 items from High + Medium sections; [STATS] P2 items
+**Files changed:**
+- `agents_api/models.py` — Board.save() uses atomic F() version increment
+- `svend_config/config.py` — debug default=False, secret_key/database_url defaults empty
+- `gunicorn.conf.py` — added max_requests=1000 + jitter=50
+- `agents_api/llm_manager.py` — added timeout=120.0 to Claude API; rate limit bypass → error instead of continue
+- `agents_api/problem_views.py` — removed filesystem path from get_context_file response
+- `agents_api/dsw/stats.py` — t-test CI uses Welch-Satterthwaite df
+- `agents_api/dsw/spc.py` — Cp/Cpk uses MR-bar/d2 within-subgroup sigma; Pp/Ppk uses overall std
+- `agents_api/bayes_core.py` — Cholesky with ridge fallback for collinear data
+- `agents_api/experimenter_views.py` — sanitize conversation history roles (user/assistant only), cap 4000 chars
+- `agents_api/dsw/endpoints_data.py` — validate data_id with regex to prevent path traversal
+**Verification:** `python3 manage.py check` — no issues
+**Commit:** pending
+
+---
+
 ### 2026-02-20 — Security/Stats Audit: Fix P1 High + Stats Items (7 items)
 **Debt item:** [SEC] P1 items from High section + [STATS] P1 items from Statistical Correctness
 **Files changed:**

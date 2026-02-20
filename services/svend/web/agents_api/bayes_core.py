@@ -85,7 +85,12 @@ def bayesian_linear_posterior(X, y, mu0=None, Lambda0=None, alpha0=2.0, beta0=No
     Lambda_n = Lambda0 + XtX
 
     # Cholesky decomposition for numerical stability
-    L_n = np.linalg.cholesky(Lambda_n)
+    # Add small ridge for collinear data
+    try:
+        L_n = np.linalg.cholesky(Lambda_n)
+    except np.linalg.LinAlgError:
+        Lambda_n += np.eye(Lambda_n.shape[0]) * 1e-6
+        L_n = np.linalg.cholesky(Lambda_n)
 
     # Posterior mean via Cholesky solve
     Xty = X.T @ y

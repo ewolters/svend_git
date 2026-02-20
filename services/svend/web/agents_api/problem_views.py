@@ -917,7 +917,6 @@ def get_context_file(request, problem_id):
     return JsonResponse({
         "success": True,
         "context": context,
-        "path": str(get_context_path(str(problem_id), request.user.id)),
     })
 
 

@@ -160,7 +160,7 @@ class LLMManager:
                     }
             except Exception as e:
                 logger.error(f"Rate limit check failed: {e}")
-                # Continue anyway if rate limit check fails
+                return {"error": "Service temporarily unavailable. Please try again.", "rate_limited": True}
 
         client = cls.get_anthropic()
         if not client:
@@ -179,7 +179,7 @@ class LLMManager:
             if system:
                 create_kwargs["system"] = system
 
-            response = client.messages.create(**create_kwargs)
+            response = client.messages.create(**create_kwargs, timeout=120.0)
 
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens

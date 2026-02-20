@@ -1654,8 +1654,10 @@ def doe_guidance_chat(request):
     ]
 
     # Add conversation history (limit to last 10 exchanges)
+    # Sanitize: only allow user/assistant roles from client-supplied history
     for msg in history[-20:]:
-        messages.append(msg)
+        if isinstance(msg, dict) and msg.get("role") in ("user", "assistant"):
+            messages.append({"role": msg["role"], "content": str(msg.get("content", ""))[:4000]})
 
     # Add current context and user message
     full_user_message = f"""Current Session Context:

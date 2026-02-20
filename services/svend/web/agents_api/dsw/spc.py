@@ -187,10 +187,16 @@ def run_spc_analysis(df, analysis_id, config):
         sigma_level = 0.0
 
         if lsl is not None and usl is not None and std > 0:
-            cp = (usl - lsl) / (6 * std)
-            cpk = min((usl - mean) / (3 * std), (mean - lsl) / (3 * std))
-            pp = cp    # same as Cp for individual data (no within-subgroup estimate)
-            ppk = cpk
+            # Pp/Ppk use overall std (long-term)
+            pp = (usl - lsl) / (6 * std)
+            ppk = min((usl - mean) / (3 * std), (mean - lsl) / (3 * std))
+            # Cp/Cpk use within-subgroup sigma (MR-bar/d2 for individuals)
+            mr = np.abs(np.diff(data))
+            mr_bar = np.mean(mr) if len(mr) > 0 else std
+            d2 = 1.128  # d2 constant for n=2 (moving range of 2)
+            sigma_within = mr_bar / d2 if mr_bar > 0 else std
+            cp = (usl - lsl) / (6 * sigma_within)
+            cpk = min((usl - mean) / (3 * sigma_within), (mean - lsl) / (3 * sigma_within))
             if target is not None:
                 cpm = (usl - lsl) / (6 * np.sqrt(std**2 + (mean - target)**2))
 
