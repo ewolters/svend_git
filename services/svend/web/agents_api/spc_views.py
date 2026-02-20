@@ -688,6 +688,9 @@ def analyze_uploaded(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     cache_key = body.get("cache_key")
+    # Validate cache key belongs to requesting user (format: user_id:filename)
+    if cache_key and not cache_key.startswith(f"{request.user.id}:"):
+        return JsonResponse({"error": "Access denied"}, status=403)
     if not cache_key or cache_key not in _parsed_data_cache:
         return JsonResponse({
             "error": "Data not found. Please upload the file again."

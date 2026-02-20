@@ -146,25 +146,20 @@ class BeliefEngine:
         Updates all hypothesis posteriors in the graph.
         Returns the new posteriors.
         """
-        # Compute unnormalized posteriors
-        unnormalized = {}
+        # Independent Bayesian update per hypothesis (NOT mutually exclusive)
+        # P(H|E) = P(E|H) * P(H) / [P(E|H) * P(H) + P(E|¬H) * P(¬H)]
+        posteriors = {}
         for h_id, hypothesis in graph.hypotheses.items():
             likelihood = likelihoods.get(h_id, 0.5)
             prior = hypothesis.posterior  # Current belief is the prior
-            unnormalized[h_id] = likelihood * prior
-
-        # Normalize so posteriors sum to 1
-        total = sum(unnormalized.values())
-
-        if total > 0:
-            posteriors = {
-                h_id: max(MIN_PROBABILITY, min(MAX_PROBABILITY, val / total))
-                for h_id, val in unnormalized.items()
-            }
-        else:
-            # Edge case: all likelihoods were 0
-            # Keep priors but flag for expansion
-            posteriors = {h_id: h.posterior for h_id, h in graph.hypotheses.items()}
+            # P(E|¬H) is complement: if P(E|H) is high, P(E|¬H) is low
+            likelihood_neg = 1.0 - likelihood
+            numerator = likelihood * prior
+            denominator = numerator + likelihood_neg * (1.0 - prior)
+            if denominator > 0:
+                posteriors[h_id] = max(MIN_PROBABILITY, min(MAX_PROBABILITY, numerator / denominator))
+            else:
+                posteriors[h_id] = prior
 
         # Apply updates to graph
         for h_id, posterior in posteriors.items():

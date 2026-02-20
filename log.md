@@ -15,6 +15,20 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-20 — Security/Stats Audit: Fix P1 High + Stats Items (7 items)
+**Debt item:** [SEC] P1 items from High section + [STATS] P1 items from Statistical Correctness
+**Files changed:**
+- `agents_api/dsw_views.py` — added user= filter to both Project.objects.get(id=project_id) calls (lines ~139, ~193)
+- `agents_api/spc_views.py` — validate cache_key user_id prefix matches request.user.id before lookup
+- `agents_api/hoshin_views.py` — update_site now checks _check_site_write(); delete_site checks _is_site_admin()
+- `agents_api/fmea_views.py` — changed user=request.user to owner=request.user in list_fmea_actions and promote_fmea_action
+- `agents_api/dsw/bayesian.py` — replaced JZS BF10 with proper Rouder et al. (2009) numerical integral via scipy.integrate.quad; replaced correlation BF with Ly et al. (2016) integral under uniform prior
+- `agents_api/synara/belief.py` — replaced forced normalization (sum-to-1) with independent Bayesian updates: P(H|E) = P(E|H)*P(H) / [P(E|H)*P(H) + P(E|¬H)*(1-P(H))]
+**Verification:** `python3 manage.py check` — System check identified no issues (0 silenced)
+**Commit:** pending
+
+---
+
 ### 2026-02-20 — Security Audit: Fix P1 Critical Items (10 items)
 **Debt item:** [SEC] All P1 items from Security Audit 2026-02-20
 **Plan:** Fix 10 critical security vulnerabilities identified in full backend audit:

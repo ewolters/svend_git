@@ -678,7 +678,7 @@ def _compute_likelihood_ratio(severity, occurrence):
 @require_http_methods(["GET"])
 def list_fmea_actions(request, fmea_id):
     """List all action items linked to any row in this FMEA."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, user=request.user)
+    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
     row_ids = list(fmea.rows.values_list("id", flat=True))
     items = ActionItem.objects.filter(source_type="fmea", source_id__in=row_ids)
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
@@ -689,7 +689,7 @@ def list_fmea_actions(request, fmea_id):
 @require_http_methods(["POST"])
 def promote_fmea_action(request, fmea_id, row_id):
     """Promote an FMEA row's recommended action to a tracked ActionItem."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, user=request.user)
+    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     if not fmea.project:

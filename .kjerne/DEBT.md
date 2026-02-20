@@ -37,13 +37,9 @@ Track technical debt here. Review weekly.
 
 ### Security — High (Audit 2026-02-20)
 
-[SEC] IDOR in DSW views — dsw_views.py:139,193 does Project.objects.get(id=project_id) without user= filter | Added: 2026-02-20 | Priority: P1
 [SEC] CSRF globally disabled — CsrfExemptSessionAuthentication on all REST Framework endpoints, mitigated only by SameSite=Lax | Added: 2026-02-20 | Priority: P2
-[SEC] SPC cache_key IDOR — spc_views.py:669 accepts user_id:filename cache key without ownership validation | Added: 2026-02-20 | Priority: P1
 [SEC] Board.save() version increment not atomic — race condition in collaborative whiteboard, needs F() expression | Added: 2026-02-20 | Priority: P2
 [SEC] add_finding_to_problem() doesn't dual-write — agent-sourced evidence only goes to JSON blobs, never to core.Evidence | Added: 2026-02-20 | Priority: P2
-[SEC] Hoshin update_site/delete_site missing write permission checks — any tenant member (including viewers) can modify/delete sites | Added: 2026-02-20 | Priority: P1
-[SEC] FMEA list_fmea_actions/promote_fmea_action use wrong field name (user= instead of owner=) — always 404s | Added: 2026-02-20 | Priority: P1
 [SEC] HTML injection + SSRF in PDF export — wkhtmltopdf with --enable-local-file-access and unsanitized user HTML | Added: 2026-02-20 | Priority: P2
 [SEC] Content-Disposition header injection — user-controlled filenames in workbench/files/api views without sanitization | Added: 2026-02-20 | Priority: P2
 [SEC] No zombie task reaper in Tempora — crashed workers leave tasks in RUNNING state forever | Added: 2026-02-20 | Priority: P2
@@ -84,9 +80,6 @@ Track technical debt here. Review weekly.
 
 ### Statistical Correctness (Audit 2026-02-20)
 
-[STATS] Incorrect JZS Bayes Factor approximation — dsw/bayesian.py:~102, not proper integral, misleading BF10 values vs Minitab | Added: 2026-02-20 | Priority: P1
-[STATS] Ad-hoc correlation Bayes Factor — dsw/bayesian.py:~251, doesn't match any standard reference (Ly et al. 2016) | Added: 2026-02-20 | Priority: P1
-[STATS] Synara forced normalization distorts independent hypotheses — belief.py:149-163, treats all hypotheses as mutually exclusive | Added: 2026-02-20 | Priority: P1
 [STATS] Two-sample t-test CI uses wrong df — stats.py:~184, Welch test + pooled df in CI | Added: 2026-02-20 | Priority: P2
 [STATS] SPC Pp/Ppk equals Cp/Cpk for individuals data — dsw/spc.py:~193, should use MR-bar/d2 for within-subgroup sigma | Added: 2026-02-20 | Priority: P2
 [STATS] DPMO uses only upper tail — spc.py:~219, underestimates defect rate by ~50% | Added: 2026-02-20 | Priority: P2
@@ -106,6 +99,13 @@ Track technical debt here. Review weekly.
 
 ## Resolved
 
+[SEC] IDOR in DSW views — added user= filter to Project.objects.get() in dsw_views.py | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] SPC cache_key IDOR — validate user_id prefix in cache key against request.user | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] Hoshin update_site/delete_site — added _check_site_write() and _is_site_admin() permission checks | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[SEC] FMEA list/promote wrong field name — changed user= to owner= matching FMEA model | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] JZS Bayes Factor — replaced ad-hoc formula with Rouder et al. (2009) numerical integral | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Correlation Bayes Factor — replaced ad-hoc formula with Ly et al. (2016) integral | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
+[STATS] Synara forced normalization — replaced sum-to-1 normalization with independent Bayesian updates | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] RCE via exec() with __import__ in endpoints_data.py — removed __import__, getattr, setattr, hasattr from sandbox builtins | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] RCE via eval() in endpoints_data.py — replaced eval() calculator with pd.eval(engine='numexpr') | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] RCE via pickle.loads in cache.py — SessionCache now JSON-only, rejects pickle entries | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending

@@ -96,10 +96,27 @@ def run_bayesian_analysis(df, analysis_id, config):
         pooled_std = np.sqrt(((len(x1)-1)*np.var(x1, ddof=1) + (len(x2)-1)*np.var(x2, ddof=1)) / (len(x1)+len(x2)-2))
         cohens_d = (np.mean(x1) - np.mean(x2)) / pooled_std if pooled_std > 0 else 0
 
-        # Bayes Factor approximation (JZS prior)
+        # Bayes Factor via JZS prior (Rouder et al. 2009)
         t_stat, p_value = stats.ttest_ind(x1, x2)
-        n_eff = 2 / (1/len(x1) + 1/len(x2))
-        bf10 = np.exp(0.5 * (np.log(n_eff) - np.log(2*np.pi) - (t_stat**2)/n_eff)) if abs(t_stat) < 10 else 1e6
+        n1, n2 = len(x1), len(x2)
+        n_eff = n1 * n2 / (n1 + n2)
+        v = n1 + n2 - 2  # degrees of freedom
+        r = scale  # Cauchy prior scale
+
+        def _jzs_integrand(g):
+            """Integrand for JZS Bayes Factor (Rouder et al. 2009, Eq. 2)."""
+            return (
+                (1 + n_eff * g) ** (-0.5)
+                * (1 + t_stat**2 / ((1 + n_eff * g) * v)) ** (-(v + 1) / 2)
+                / (1 + t_stat**2 / v) ** (-(v + 1) / 2)
+                * (2 * np.pi) ** (-0.5)
+                * g ** (-1.5)
+                * np.exp(-1 / (2 * g * r**2))
+            )
+
+        from scipy.integrate import quad
+        bf10, _ = quad(_jzs_integrand, 1e-10, np.inf)
+        bf10 = max(bf10, 1e-10)  # Numerical floor
 
         # Posterior on effect size (approximate)
         se_d = np.sqrt((len(x1)+len(x2))/(len(x1)*len(x2)) + cohens_d**2/(2*(len(x1)+len(x2))))
@@ -247,8 +264,24 @@ def run_bayesian_analysis(df, analysis_id, config):
         r_low = (np.exp(2*z_low) - 1) / (np.exp(2*z_low) + 1)
         r_high = (np.exp(2*z_high) - 1) / (np.exp(2*z_high) + 1)
 
-        # BF approximation
-        bf10 = np.sqrt((n-1)/2) * np.exp(stats.t.logpdf(r * np.sqrt(n-2) / np.sqrt(1-r**2), n-2)) if abs(r) < 0.999 else 100
+        # BF for correlation via Ly et al. (2016) integral under uniform prior
+        from scipy.integrate import quad
+        from scipy.special import gammaln
+
+        def _corr_bf_integrand(rho):
+            """Integrand for correlation BF under uniform prior on rho."""
+            if abs(rho) >= 1:
+                return 0.0
+            log_term = (
+                ((n - 2) / 2) * np.log(1 - rho**2)
+                - ((n - 1) / 2) * np.log(1 - r * rho)
+            )
+            return np.exp(log_term)
+
+        bf_integral, _ = quad(_corr_bf_integrand, -1 + 1e-10, 1 - 1e-10)
+        # Under H0: rho=0, the likelihood ratio normalizes to 1
+        # BF10 = integral / (value at rho=0 * prior width=2)
+        bf10 = bf_integral / 2.0 if bf_integral > 0 else 1e-10
 
         summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
         summary += f"<<COLOR:title>>BAYESIAN CORRELATION<</COLOR>>\n"

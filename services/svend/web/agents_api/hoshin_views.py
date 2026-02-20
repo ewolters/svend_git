@@ -203,6 +203,10 @@ def update_site(request, site_id):
         return err
 
     site = get_object_or_404(Site, id=site_id, tenant=tenant)
+
+    if not _check_site_write(request.user, site, tenant):
+        return JsonResponse({"error": "Write permission required"}, status=403)
+
     data = json.loads(request.body)
 
     for field in ["name", "code", "business_unit", "plant_manager", "ci_leader", "controller", "address"]:
@@ -225,6 +229,10 @@ def delete_site(request, site_id):
         return err
 
     site = get_object_or_404(Site, id=site_id, tenant=tenant)
+
+    if not _is_site_admin(request.user, site, tenant):
+        return JsonResponse({"error": "Site admin permission required to delete"}, status=403)
+
     project_count = site.hoshin_projects.count()
     site.delete()
 

@@ -136,7 +136,7 @@ def save_model_to_disk(user, model, model_type, dsw_result_id, name=None,
         if project_id:
             try:
                 from core.models import Project
-                project = Project.objects.get(id=project_id)
+                project = Project.objects.get(id=project_id, user=user)
             except Exception:
                 logger.warning(f"Could not link model to project {project_id}")
 
@@ -190,7 +190,7 @@ def _create_ml_evidence(user, project_id, model_type, metrics, importances, task
         from core.models import Project
         from core.models.hypothesis import Evidence as CoreEvidence
 
-        project = Project.objects.get(id=project_id)
+        project = Project.objects.get(id=project_id, user=user)
 
         top_features = [f["feature"] for f in (importances or [])[:3]]
         primary_metric = metrics.get("accuracy") or metrics.get("r2")
