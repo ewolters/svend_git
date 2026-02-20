@@ -15,6 +15,132 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-20 — Learn Module: PBS Mastery (Module 11)
+
+**Debt item:** N/A (new feature — flagship learning content for PBS)
+**Files changed:**
+- `agents_api/learn_content/pbs_mastery.py` — **New file.** 7 section content dicts covering all 12 PBS engine components: paradigm shift (Normal-Gamma posterior), change detection (BOCPD + E-Detector), evidence accumulation (anytime-valid e-values), predictive/adaptive (prediction fans + adaptive limits), Bayesian Cpk (posterior distribution + trajectory), health fusion (multi-stream + uncertainty + narrative + Taguchi), advanced (genealogy + probabilistic alarms). Each section has exercise, rich markdown content, key takeaways, and practice questions. All exercises link to real PBS analyses via dsw_type.
+- `agents_api/learn_content/_registry.py` — Imported 7 PBS section constants, added to SECTION_CONTENT dict.
+- `agents_api/learn_views.py` — Added "pbs-mastery" module to COURSE_MODULES (order: 11, 7 sections, 330 estimated minutes).
+- `agents_api/learn_content/dsw_mastery.py` — Added "Next Level: Probabilistic Bayesian SPC" cross-reference callout at end of SPC_HANDS_ON content.
+- `agents_api/learn_content/foundations.py` — Added PBS cross-reference in BAYESIAN_THINKING content connecting Bayes' theorem to real-time process monitoring.
+**Verification:** `python3 manage.py check` passes. 11 modules, 51 total sections. All 7 PBS sections import and register correctly.
+
+---
+
+### 2026-02-20 — Stripe Webhook + Billing Fixes
+
+**Debt item:** Critical — paid user not syncing
+**Files changed:**
+- `accounts/urls.py` — Added no-trailing-slash URL patterns for Stripe webhook (`webhooks/stripe` and `billing/webhook`). Django's `APPEND_SLASH` was returning 301 on POST, which Stripe doesn't follow.
+- `accounts/billing.py` — Two fixes:
+  1. **Success URL**: `{CHECKOUT_SESSION_ID}` was being URL-encoded by `build_absolute_uri()`. Now constructed manually so Stripe can substitute it.
+  2. **`sync_subscription_from_stripe()`**: Period fields (`current_period_start/end`) moved from subscription root to `items.data[0]` in newer Stripe API versions. Now checks both locations with `getattr()` fallback.
+- Manually synced subscription `sub_1T2iEbDQfJOZ4D24CGOB1wYq` for user `erniei` (id=24) → tier=founder, subscription_active=True, is_founder_locked=True.
+**Root cause:** All Stripe webhook POSTs returned 301 (trailing slash redirect). Webhooks never fired. Success redirect also failed because `{CHECKOUT_SESSION_ID}` was URL-encoded.
+**Verification:** Next Stripe webhook event should return 200 instead of 301. User erniei shows as Founder tier.
+
+---
+
+### 2026-02-20 — Bayesian Capability: Legends, Ppk/Cp/Cpm, Narrative
+
+**Debt item:** N/A (Bayesian SPC capability enhancement)
+**Files changed:**
+- `agents_api/dsw/viz.py` (authoritative) — `bayes_spc_capability` analysis:
+  - **Legend fix**: All 4 plots now use horizontal legends below chart (`orientation: "h", y: -0.18`) instead of top-right inside. Plot heights increased to accommodate.
+  - **New capability indices**: Cp/Pp (potential capability, ignores centering), Ppk (= Cpk for individual data), Cpm (Taguchi, penalizes off-target). All computed via MC posterior sampling with 95% CI + frequentist point estimate.
+  - **Centering (k)**: Process centering metric, 0 = perfectly centered, 1 = mean at spec limit.
+  - **Sigma level + yield**: Derived from Bayesian DPMO. Z-bench + 1.5σ convention.
+  - **Capability indices table** in summary: Bayesian / 95% CI / Frequentist columns for all 5 indices.
+  - **Narrative section**: Auto-generated interpretive text covering centering, Cp vs Cpk gap, Cpm insight, posterior maturity, Bayesian/frequentist agreement, practical DPMO.
+  - **Statistics dict** expanded with cp, pp, cpm, centering_k, yield_pct, sigma_level, z_bench.
+- `agents_api/dsw_views.py` (legacy duplicate) — synced with same changes.
+**Verification:** Run `bayes_spc_capability` on bore_diameter data → full index table, horizontal legends on all plots, narrative auto-generated.
+
+---
+
+### 2026-02-19 — PBS Health Gauge Posterior Maturity Discount
+
+**Debt item:** N/A (PBS — honest uncertainty reporting)
+**Files changed:**
+- `agents_api/pbs_engine.py` — Health gauge Cpk component now discounted by posterior maturity when n < 30.
+  - `maturity = min(1.0, n_eff / 30)`, applied as `h_cpk = P(Cpk>1.33) × maturity`.
+  - For bore diameter LOT-004 (n=18): 95% × 60% = 57% health contribution.
+  - Bayesian Cpk summary section shows discount formula when active.
+  - Health summary section shows "⚠ discounted from X% — n=N, CI width W" inline.
+**Verification:** Run Full PBS on bore_diameter data → Bayesian Cpk shows "Health discount: maturity = 60%", Health section shows "cpk: 57% (weight 33%) ⚠ discounted from 95%"
+
+---
+
+### 2026-02-19 — PBS Metadata-Aware Segmentation + Empirical Bayes λ + Windowed Sufficient Stats
+
+**Debt item:** N/A (PBS major enhancement — metadata-driven lot segmentation, empirical Bayes model selection, windowed n_eff)
+**Files changed:**
+- `agents_api/pbs_engine.py` — Major PBS Full enhancement:
+  - **Metadata-Aware Segmentation**: Extracts `material_lot`, `operator`, `machine` columns from dataframe. Detects known transitions (lot changes, operator changes). Per-lot Bayesian Cpk with fresh NIG posterior per segment. Within-lot BOCPD classification: CPs near lot boundaries flagged as "(at lot boundary)", CPs within lots flagged as "unknown cause." Gold dotted vertical lines for known lot transitions on all obs-axis charts (red dashed = BOCPD, gold dotted = known). Known Transitions, Per-Lot Capability, and Within-Lot BOCPD sections in summary.
+  - **New dataclasses**: `ChangePointEvent` (with per-CP `confirmation_obs`, `near_known_transition`), `RegimeStats`, `KnownTransition`, `LotCapability`, `InvestigationTimeline` (with `known_transitions`, `lot_capabilities`, `best_lambda`, `lambda_log_evidences`).
+  - **Empirical Bayes λ selection**: Grid over λ ∈ {20, 50, 100, 200, 500}, MAP λ selected via marginal log-likelihood. λ Selection summary section with log-evidence comparison table.
+  - **Cross-λ robustness**: Each changepoint flagged as robust/uncertain based on how many λ values detect it (±3 obs tolerance).
+  - **Windowed sufficient statistics**: `BeliefChart.max_neff=50` caps kappa in NIG sufficient stats per run length with proportional alpha/beta decay. Prevents long regimes from becoming immovable posteriors.
+  - **Run-length-based CP detection**: Replaced P(shift) rising-edge detection with MAP run length drops (RL drops from ≥5 to ≤2 indicates new regime). Fixes issue where P(shift)=100% after first CP prevented detection of subsequent CPs.
+  - **Regime merging**: Post-BOCPD merge of adjacent regimes with means within 1 pooled σ. CPs near known lot transitions protected from merging.
+  - **Per-CP confirmation**: Moved from single timeline-level `confirmation_obs` to per-ChangePointEvent. Each CP scans forward independently for P(shift) ≥ 0.95.
+  - **Narrative**: Lot-aware branch when no BOCPD CPs but lot transitions present. Per-CP robustness labels. Confirmation arc per CP. Honest E-Detector disagreement.
+  - **Timeline**: Chronological merge of BOCPD CPs, confirmations, E-Detector events, and known lot transitions with [robust]/[uncertain]/[known] tags.
+  - **n_eff + posterior precision** in Bayesian Cpk summary section.
+  - **Predictive + Cpk anchoring**: Scoped to later of last BOCPD CP or last lot transition.
+  - Synchronized vertical CP lines across Belief, Evidence, E-Detector, Adaptive Limits panels.
+  - Removed gauge inner title overlap. λ Selection table in summary.
+- `agents_api/dsw/spc.py` — Fixed missing `from .viz import run_visualization` import in `bayes_spc_` bridge
+- `agents_api/dsw/viz.py` — Added per-regime Bayesian Cpk coupling after BOCPD segment extraction (4th plot with overlaid Cpk posteriors per regime)
+- `templates/workbench_new.html` — Changed hazard input from hardcoded `value="200"` to `placeholder="Auto (n/4)"` with no default
+**Verification:** Run Full PBS on `bore_diameter_observations.csv` (180 obs, 4 lots, 2 operators):
+- λ=20 selected as MAP. 3 BOCPD CPs: obs 54 (within-lot drift, uncertain 1/5), obs 80 (lot boundary, robust 5/5), obs 162 (lot boundary, uncertain 1/5).
+- Per-Lot Capability: LOT-001 Cpk=1.16 with within-lot shift flagged, LOT-002 Cpk=1.11, LOT-003 Cpk=2.35 (n=20, posterior wide), LOT-004 Cpk=1.73 (n=20).
+- Investigation Timeline: chronological merge of BOCPD shifts, confirmations, E-Detector peak, and [known] lot transitions.
+- Gold dotted vertical lines at lot boundaries on all obs-axis charts. Red dashed at BOCPD CPs.
+- LOT-002→LOT-003 transition not detected by BOCPD (mean shift ~1.3σ too small) but shown as [known] from metadata.
+- Bayesian Cpk scoped to current lot (n_eff=18). Predictive scoped to post-lot-transition data.
+
+---
+
+### 2026-02-18 — Permutation Reality Test + Duplicate Audit + Honest Metrics
+
+**Debt item:** N/A (empirical model validation — Layer 1 of adversarial credibility system)
+**Files changed:**
+- `agents_api/dsw/common.py` — Added `_permutation_reality_test()` (sklearn permutation_test_score, PR-AUC for binary, balanced_accuracy for multiclass, R² for regression; adaptive n_perms; accepts cv= for split consistency; computes baseline for plot). Added `_duplicate_audit()` (exact duplicates + near-duplicates via 3-decimal rounding + ID-like columns + univariate AUC separator detection > 0.995). Added `_build_permutation_histogram()` (null distribution, real model line, baseline line, p-value annotation). Extended `_bayesian_model_beliefs()` with `model=` and `cv_std=` keyword args: permutation test → `random_signal` belief (weight 1.0), duplicate audit → `duplicate_contamination` belief (weight 0.9), CV stability → `unstable_performance` belief (weight 0.7). Added MCC and Brier score to `_auto_train()` classification metrics.
+- `agents_api/dsw/endpoints_ml.py` — Both `dsw_from_intent` and `dsw_from_data` now pass `model=model` to beliefs call. Added `permutation_plot` to response data.
+- `agents_api/autopilot_views.py` — All 3 autopilot endpoints pass `model=` to beliefs. `autopilot_full_pipeline` also passes `cv_std=` from best model's cross-validation. Added MCC/Brier/PR-AUC to full pipeline classification metrics. Added `permutation_plot` to all responses.
+- `templates/models.html` — Added `result-permutation` div with `permutation-histogram` container. `renderResults()` renders Plotly histogram. `renderReport()` renders with deferred requestAnimationFrame. Reset on training start.
+**Verification:** Upload 97% imbalanced dataset → permutation test shows real score near/inside null cloud, high p-value, `random_signal` belief fires, confidence craters. Clean balanced dataset → real score far right of null, low p-value. Dataset with duplicates → `duplicate_contamination` fires. ID column → detected. MCC + Brier appear in metrics cards. Histogram renders below confidence gauge with baseline line.
+
+---
+
+### 2026-02-18 — Bayesian Model Confidence: Replaced LLM narrative with computed beliefs
+
+**Debt item:** N/A (philosophical upgrade — LLM interpretation → Bayesian belief computation)
+**Files changed:**
+- `agents_api/dsw/common.py` — Added `_concern_sigmoid()`, `_CONCERN_WEIGHTS` dict (tiered: critical=1.0, structural=0.7, advisory=0.4), and `_bayesian_model_beliefs()`. Each concern mapped to P(concern) via sigmoid. Classification: class_imbalance, accuracy_illusion, leakage, not_learning, minority_blindness. Regression: leakage, not_learning, imprecision, bias. Data-level: overfit_risk, small_sample, collinearity, single_feature. Overall model_confidence via weighted log-linear fusion (PBS pattern) with 0.95 cap. Deterministic narrative. Plotly gauge spec.
+- `agents_api/dsw/endpoints_ml.py` — `dsw_from_intent` and `dsw_from_data` now call `_bayesian_model_beliefs()` instead of `_claude_interpret_results()`. Result data includes `model_confidence`, `beliefs`, `confidence_narrative`, `confidence_gauge`. Backwards-compat `warnings` field populated from beliefs with P>0.3. No Claude API call during training.
+- `templates/models.html` — Replaced `result-skeptic` + `result-insight` divs with unified `result-confidence` panel. Plotly gauge for overall confidence, belief probability bars (sorted by severity, color-coded), deterministic narrative. `renderReport()` renders same panel with backwards-compat fallback for old `interpretation` field. CSS: `.belief-bar`, `.belief-item`, `.belief-prob`, `.confidence-narrative`.
+**Verification:** Upload 97% imbalanced dataset → gauge shows ~15% confidence, class_imbalance/accuracy_illusion beliefs high. Clean balanced dataset → gauge shows 80%+. No Claude API call made during training (check logs). Old saved reports with `interpretation` field still render.
+
+---
+
+### 2026-02-18 — Skeptic's Review: Systematized ML model skepticism (superseded by Bayesian confidence above)
+
+**Debt item:** N/A (new feature)
+**Files changed:**
+- `agents_api/dsw/common.py` — Added `_regression_reliability()` (parallel to existing `_classification_reliability`), `_data_skepticism()` (data-level checks: dimensionality, small dataset, feature importance concentration, multicollinearity, leakage-suspect feature names). Wired `_regression_reliability` into `_auto_train` regression branch. Updated `_claude_interpret_results` to accept and pass warnings. Updated `_INTERPRET_SYSTEM_PROMPT` with skepticism directive. Elevated near-perfect accuracy from "high" to "critical" severity.
+- `agents_api/dsw/endpoints_ml.py` — `dsw_from_intent` and `dsw_from_data` now extract `reliability_warnings` from metrics, run `_data_skepticism`, pass warnings to Claude interpretation, and populate `"warnings"` field in result data. Non-scalar entries (`per_class`, `class_balance`) popped from metrics to prevent broken `[object Object]` metric cards on frontend.
+- `agents_api/dsw/ml.py` — Added `_regression_reliability` calls in XGBoost and LightGBM regression branches.
+- `templates/models.html` — Added "SKEPTIC'S REVIEW" panel (CSS + DOM + JS rendering in both `renderResults()` and `renderReport()`). Severity-sorted warnings with color-coded badges (critical/red, high/orange, medium/green). Metrics loop now filters to numeric-only entries. Panel resets on new training runs.
+**Also fixed:**
+- `agents_api/dsw/stats.py` + `agents_api/dsw_views.py` — Fixed `<<\/COLOR>>` → `<</COLOR>>` in all color tags. Python's backslash-forwardslash in f-strings produced literal `\` in output, preventing frontend regex replacement. Affected auto_profile, run chart, Grubbs test, cross-correlation, Johnson transformation, and graphical summary.
+**Verification:** Upload imbalanced classification dataset → SKEPTIC'S REVIEW panel appears with class imbalance + baseline warnings. Upload regression dataset with random target → low R² + RMSE warnings. Near-perfect model → critical leakage warning. Collinear features → multicollinearity warning. Metrics cards no longer show `[object Object]`.
+
+---
+
 ### 2026-02-16 — Frontier Methods Sprint: Robust BOCPD, E-Detectors, Conformal Extensions
 
 **Debt item:** PBS feature expansion per frontier_methods_spec.html
@@ -3868,6 +3994,31 @@ Backend: 6 new analysis_ids in run_statistical_analysis + 3 new tools in transfo
 - Models import correctly in Django shell
 - Whiteboard accessible at `/app/whiteboard/` and `/app/whiteboard/<ROOM_CODE>/`
 **Commit:** pending
+
+## 2026-02-18 - PBS Confidence Inversion — Elevate the Process Belief System
+
+**What:** Applied the PBS Confidence Inversion to all three existing Process Belief System calculators and added a fourth (Bayesian Sigma). Three tiers of changes:
+
+**Tier 1 — Expose latent posteriors:**
+- Belief Chart: credible bands on regime mean (shaded fill from Normal-Gamma posterior), regime n_eff and 95% CI cards
+- Bayesian Cpk: posterior predictive defect rate P(next ∉ spec), expected ppm, posterior sigma with CI, data projection insight
+- Evidence Strength: P(shifted|data) card from E-value as likelihood ratio, posterior odds in insight text
+
+**Tier 2 — Cross-calculator coupling via SvendOps:**
+- All three PBS tools now publish values (specs, regime params, E-values) to the data bus
+- Belief Chart gains optional USL/LSL inputs with pull buttons from Cpk, per-regime capability table
+- Updated renderNextSteps with Bayesian Sigma links
+
+**Tier 3 — New theory:**
+- Posterior predictive chart in Cpk: "Where the Next Part Falls" — histogram with USL/LSL lines
+- New Bayesian Sigma calculator: Σ_B = √(2V/ε) · √(1−𝒜⁺) from quasipotential theory, MC posterior, escape probability via Kramers' law, momentum alignment
+
+**Files:**
+- `services/svend/web/templates/calculators.html` — all changes (helpers, HTML, JS)
+
+**Verify:** DSW > Calculators > Process Belief System section. Run each of the 4 tools with sample data. Cpk shows defect rate + predictive chart. Belief Chart shows credible bands. Evidence shows posterior odds. Bayesian Sigma shows escape probability.
+
+---
 
 ## 2026-02-14 - Interventional SHAP (SCM-based causal feature attribution)
 
