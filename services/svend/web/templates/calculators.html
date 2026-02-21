@@ -1030,7 +1030,7 @@ input[type="number"] {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="9" width="4" height="6" rx="1"/><rect x="10" y="9" width="4" height="6" rx="1"/><rect x="18" y="9" width="4" height="6" rx="1"/><path d="M6 12h4M14 12h4"/></svg>
                     <span>Line Simulator</span>
                 </div>
-                <div class="ops-nav-item coming-soon" onclick="showCalc('cell-sim')">
+                <div class="ops-nav-item" onclick="showCalc('cell-sim')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h4v8H4zM16 8h4v8h-4z"/><path d="M8 12h8"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="16" r="2"/></svg>
                     <span>Cell Design</span>
                 </div>
@@ -1057,7 +1057,7 @@ input[type="number"] {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="6" height="4" rx="1"/><rect x="2" y="10" width="6" height="4" rx="1"/><rect x="2" y="16" width="6" height="4" rx="1"/><path d="M8 6h4l2 6-2 6h-4"/><rect x="16" y="8" width="6" height="8" rx="1"/></svg>
                     <span>Kanban Simulator</span>
                 </div>
-                <div class="ops-nav-item coming-soon" onclick="showCalc('safety-sim')">
+                <div class="ops-nav-item" onclick="showCalc('safety-sim')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><path d="M5 20V10l7-7 7 7v10"/><path d="M9 20v-4h6v4"/><path d="M3 20l2-2M21 20l-2-2"/></svg>
                     <span>Safety Stock Sim</span>
                 </div>
@@ -1190,7 +1190,7 @@ input[type="number"] {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M10 6h4M10 17h4M6 10v4M17 10v4"/></svg>
                     <span>Changeover Matrix</span>
                 </div>
-                <div class="ops-nav-item coming-soon" onclick="showCalc('smed-sim')">
+                <div class="ops-nav-item" onclick="showCalc('smed-sim')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M16 16l2 2"/></svg>
                     <span>SMED Simulator</span>
                 </div>
@@ -1209,7 +1209,7 @@ input[type="number"] {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                     <span>Sample Size</span>
                 </div>
-                <div class="ops-nav-item coming-soon" onclick="showCalc('fmea-sim')">
+                <div class="ops-nav-item" onclick="showCalc('fmea-sim')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
                     <span>FMEA Monte Carlo</span>
                 </div>
@@ -1247,7 +1247,7 @@ input[type="number"] {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
                     <span>Heijunka</span>
                 </div>
-                <div class="ops-nav-item coming-soon" onclick="showCalc('heijunka-sim')">
+                <div class="ops-nav-item" onclick="showCalc('heijunka-sim')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="18" cy="6" r="1.5" fill="currentColor"/></svg>
                     <span>Heijunka Simulator</span>
                 </div>
@@ -1554,13 +1554,9 @@ input[type="number"] {
                 <div class="calc-chart">
                     <div class="calc-chart-title" style="display:flex; align-items:center; justify-content:space-between;">
                         <span>Line Balance</span>
-                        <label id="yama-wc-toggle" style="display:none; font-size:11px; font-weight:400; color:var(--text-secondary); cursor:pointer; user-select:none; align-items:center; gap:6px;">
-                            <span style="position:relative; display:inline-block; width:32px; height:18px; vertical-align:middle;">
-                                <input type="checkbox" id="yama-combine-wc" onchange="toggleYamazumiWCMode()" style="opacity:0; width:0; height:0; position:absolute;">
-                                <span id="yama-toggle-track" style="position:absolute; top:0; left:0; right:0; bottom:0; background:var(--border); border-radius:9px; transition:background 0.2s;"></span>
-                                <span id="yama-toggle-knob" style="position:absolute; top:2px; left:2px; width:14px; height:14px; background:white; border-radius:50%; transition:transform 0.2s;"></span>
-                            </span>
-                            Combine work centers
+                        <label id="yama-wc-toggle" class="svend-toggle" style="display:none; font-size:11px;">
+                            <input type="checkbox" id="yama-combine-wc" onchange="toggleYamazumiWCMode()">
+                            <span>Combine work centers</span>
                         </label>
                     </div>
                     <div id="yamazumi-chart" style="height: 350px;"></div>
@@ -1629,9 +1625,9 @@ input[type="number"] {
                             <span class="input-hint">units per batch (watch the WIP explode)</span>
                         </div>
                         <div class="calc-input">
-                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" id="ls-breakdowns" style="width: 16px; height: 16px;">
-                                Random Breakdowns
+                            <label class="svend-toggle">
+                                <input type="checkbox" id="ls-breakdowns">
+                                <span>Random Breakdowns</span>
                             </label>
                             <span class="input-hint" id="ls-breakdown-hint">Inject random equipment failures</span>
                         </div>
@@ -5403,63 +5399,842 @@ input[type="number"] {
 
             <!-- Coming Soon Placeholders -->
             <div class="calc-layout" id="layout-safety-sim">
-                <div class="calc-section" style="text-align: center; padding: 80px 20px;">
-                    <div style="font-size: 48px; margin-bottom: 16px; filter: grayscale(0.3);">&#x1F4CA;</div>
-                    <div style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Safety Stock Simulator</div>
-                    <div style="color: var(--text-dim); max-width: 460px; margin: 0 auto; line-height: 1.6;">
-                        Watch inventory levels over 100+ simulated days with stochastic demand and lead time variability.
-                        See exactly when and why stockouts happen — and how your reorder point math prevents them.
-                    </div>
-                    <div style="margin-top: 24px; padding: 8px 20px; background: var(--bg-secondary); border-radius: 20px; display: inline-block; font-size: 12px; color: var(--text-dim); font-weight: 600; letter-spacing: 0.5px;">COMING SOON</div>
+
+                <!-- Pull Buttons -->
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+                    <button class="calc-dsw-pull" onclick="ssPullFromSafety()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                        Pull from Safety Stock Calc
+                    </button>
+                    <button class="calc-dsw-pull" onclick="ssPullFromEOQ()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                        Pull EOQ Order Qty
+                    </button>
                 </div>
+
+                <!-- Demand Parameters -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Demand Parameters</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Average Daily Demand</label>
+                            <input type="number" id="ss-demand" value="100" min="1" oninput="ssUpdateDerived()">
+                            <span class="input-hint">units/day</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Demand Std Dev (σ<sub>d</sub>)</label>
+                            <input type="number" id="ss-demand-std" value="15" min="0" oninput="ssUpdateDerived()">
+                            <span class="input-hint">daily variation</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Lead Time</label>
+                            <input type="number" id="ss-lead" value="5" min="1" step="0.5" oninput="ssUpdateDerived()">
+                            <span class="input-hint">days</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Lead Time Std Dev (σ<sub>LT</sub>)</label>
+                            <input type="number" id="ss-lead-std" value="1" min="0" step="0.5" oninput="ssUpdateDerived()">
+                            <span class="input-hint">days variation</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Policy Parameters -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Policy Parameters</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Service Level</label>
+                            <select id="ss-service" onchange="ssUpdateDerived()">
+                                <option value="1.28">90%</option>
+                                <option value="1.65" selected>95%</option>
+                                <option value="1.96">97.5%</option>
+                                <option value="2.33">99%</option>
+                                <option value="2.58">99.5%</option>
+                            </select>
+                        </div>
+                        <div class="calc-input">
+                            <label>Order Quantity</label>
+                            <input type="number" id="ss-order-qty" value="1000" min="1" oninput="ssUpdateDerived()">
+                            <span class="input-hint">units per order</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Initial Inventory</label>
+                            <input type="number" id="ss-init-inv" value="" min="0">
+                            <span class="input-hint">units (blank = ROP + OQ)</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Simulation Days</label>
+                            <input type="number" id="ss-duration" value="180" min="30" max="365">
+                            <span class="input-hint">30–365 days</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Derived Values -->
+                <div class="calc-breakdown" id="ss-derived-display">
+                    <div class="calc-breakdown-row">
+                        <span>Computed Safety Stock</span>
+                        <span id="ss-derived-ss" style="font-weight:700;">—</span>
+                    </div>
+                    <div class="calc-breakdown-row">
+                        <span>Computed Reorder Point (ROP)</span>
+                        <span id="ss-derived-rop" style="font-weight:700;">—</span>
+                    </div>
+                    <div class="calc-breakdown-row">
+                        <span>Z-score</span>
+                        <span id="ss-derived-z">1.65</span>
+                    </div>
+                </div>
+
+                <!-- Cost Parameters -->
+                <div class="calc-section" style="margin-top:24px;">
+                    <div class="calc-section-title">Cost Parameters</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Holding Cost</label>
+                            <input type="number" id="ss-hold-cost" value="0.50" min="0" step="0.05">
+                            <span class="input-hint">$/unit/day</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Stockout Cost</label>
+                            <input type="number" id="ss-stockout-cost" value="50" min="0" step="5">
+                            <span class="input-hint">$/unit short</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Controls -->
+                <div class="calc-section">
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <button id="ss-start-btn" onclick="ssStart()"
+                            style="padding:10px 24px; background:var(--accent); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:600; font-size:14px;">
+                            &#9654; Start
+                        </button>
+                        <button onclick="ssReset()"
+                            style="padding:10px 20px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer;">
+                            Reset
+                        </button>
+                        <div style="font-size:14px; font-weight:600; color:var(--text-primary); margin-left:16px;">
+                            Day: <span id="ss-day-counter" style="color:var(--accent);">0</span>
+                            <span id="ss-day-total" style="color:var(--text-dim); font-weight:400;"> / 180</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                            <span style="font-size:12px; color:var(--text-dim);">Speed:</span>
+                            <input type="range" id="ss-speed" min="1" max="20" value="5" style="width:100px;"
+                                oninput="document.getElementById('ss-speed-label').textContent=this.value">
+                            <span id="ss-speed-label" style="font-size:12px; color:var(--accent); min-width:20px;">5</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Inventory Chart -->
+                <div class="calc-chart">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                        <div class="calc-chart-title" style="margin:0;">Inventory Level Over Time</div>
+                        <div style="display:flex; gap:14px; font-size:11px; color:var(--text-dim); flex-wrap:wrap;">
+                            <span><span style="color:#27ae60;">&#9644;</span> Inventory</span>
+                            <span><span style="color:#e74c3c;">- -</span> ROP</span>
+                            <span><span style="color:#f39c12;">&#183;&#183;&#183;</span> SS</span>
+                            <span><span style="color:#9b59b6;">&#9650;</span> Arrivals</span>
+                            <span><span style="color:#e74c3c;">&#10005;</span> Stockouts</span>
+                        </div>
+                    </div>
+                    <div id="ss-chart" style="height:350px;"></div>
+                </div>
+
+                <!-- Live Metrics -->
+                <div class="calc-section" style="margin-top:24px;">
+                    <div class="calc-section-title">Live Metrics</div>
+                    <div class="calc-results">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">Current Inventory</div>
+                            <div class="calc-result-value" id="ss-m-inventory">—<span class="calc-result-unit"> units</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Service Level</div>
+                            <div class="calc-result-value" id="ss-m-service">—<span class="calc-result-unit">%</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Total Stockouts</div>
+                            <div class="calc-result-value" id="ss-m-stockouts">0<span class="calc-result-unit"> days</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Avg Inventory</div>
+                            <div class="calc-result-value" id="ss-m-avg-inv">—<span class="calc-result-unit"> units</span></div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Orders Placed</div>
+                            <div class="calc-result-value" id="ss-m-orders">0</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Fill Rate</div>
+                            <div class="calc-result-value" id="ss-m-fillrate">—<span class="calc-result-unit">%</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cost Analysis -->
+                <div class="calc-chart" style="margin-top:8px;">
+                    <div class="calc-chart-title">Cost Analysis</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px;">
+                        <div style="padding:12px; background:var(--bg-secondary); border-radius:8px;">
+                            <div style="color:var(--text-dim); font-size:11px; text-transform:uppercase; margin-bottom:4px;">Holding Cost</div>
+                            <div id="ss-cost-holding" style="font-size:20px; font-weight:700; color:var(--text-primary);">$0</div>
+                        </div>
+                        <div style="padding:12px; background:var(--bg-secondary); border-radius:8px;">
+                            <div style="color:var(--text-dim); font-size:11px; text-transform:uppercase; margin-bottom:4px;">Stockout Cost</div>
+                            <div id="ss-cost-stockout" style="font-size:20px; font-weight:700; color:#e74c3c;">$0</div>
+                        </div>
+                        <div style="padding:12px; background:var(--bg-secondary); border-radius:8px;">
+                            <div style="color:var(--text-dim); font-size:11px; text-transform:uppercase; margin-bottom:4px;">Total Cost</div>
+                            <div id="ss-cost-total" style="font-size:20px; font-weight:700; color:var(--accent);">$0</div>
+                        </div>
+                    </div>
+                    <div id="ss-cost-chart" style="height:120px;"></div>
+                </div>
+
+                <!-- What-If Slider -->
+                <div class="calc-section" style="margin-top:24px; padding:20px; background:var(--bg-secondary); border-radius:12px; border:1px solid var(--border);">
+                    <div class="calc-section-title">What-If: Safety Stock Multiplier</div>
+                    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                        <span style="font-size:12px; color:var(--text-dim);">0.5&times;</span>
+                        <input type="range" id="ss-multiplier" min="50" max="200" value="100" style="flex:1; max-width:300px;" oninput="ssUpdateMultiplier(this.value)">
+                        <span style="font-size:12px; color:var(--text-dim);">2.0&times;</span>
+                        <span id="ss-multiplier-label" style="font-size:14px; font-weight:700; color:var(--accent); min-width:50px;">1.0&times;</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:16px; font-size:12px;">
+                        <div>Effective SS: <strong id="ss-wif-ss">—</strong></div>
+                        <div>Effective ROP: <strong id="ss-wif-rop">—</strong></div>
+                        <div>Est. Cost Impact: <strong id="ss-wif-cost">—</strong></div>
+                    </div>
+                    <div style="font-size:11px; color:var(--text-dim); margin-top:8px;">
+                        Adjust the multiplier, then re-run the simulation to compare outcomes.
+                    </div>
+                </div>
+
+                <!-- Stockout Log -->
+                <div class="calc-section" style="margin-top:24px;">
+                    <div class="calc-section-title">Stockout Log</div>
+                    <div id="ss-stockout-log" style="background:var(--bg-secondary); border-radius:8px; padding:16px; font-size:13px; color:var(--text-dim); max-height:300px; overflow-y:auto;">
+                        <em>No stockouts yet.</em>
+                    </div>
+                </div>
+
+                <!-- Insights -->
+                <div class="calc-section" style="margin-top:8px;">
+                    <div class="calc-section-title">Insights</div>
+                    <div id="ss-insights" style="padding:16px; background:var(--bg-secondary); border-radius:8px; font-size:13px; color:var(--text-secondary);">
+                        <em>Start simulation to generate insights...</em>
+                    </div>
+                </div>
+
+                <!-- Educational Panels -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                    <div style="padding:16px; background:var(--bg-secondary); border-radius:10px; border-left:3px solid var(--accent);">
+                        <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:8px;">The Service Level Trade-Off</div>
+                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                            Safety stock buffers against demand and lead time uncertainty. Higher service levels require
+                            exponentially more safety stock. At 99.5% the Z-score is 2.58 &mdash; nearly double the 90%
+                            (Z=1.28) level. Holding cost scales linearly; stockout cost hits in discrete, painful events.
+                        </div>
+                    </div>
+                    <div style="padding:16px; background:var(--bg-secondary); border-radius:10px; border-left:3px solid #f39c12;">
+                        <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:8px;">Why Stockouts Still Happen</div>
+                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                            The formula assumes normally distributed demand and lead time. In reality: demand can cluster,
+                            suppliers face correlated delays, and compound uncertainty exceeds the model. The formula gives
+                            a target service level, not a guarantee. This simulator shows you the gap.
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="calc-layout" id="layout-heijunka-sim">
-                <div class="calc-section" style="text-align: center; padding: 80px 20px;">
-                    <div style="font-size: 48px; margin-bottom: 16px; filter: grayscale(0.3);">&#x1F4E6;</div>
-                    <div style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Heijunka Simulator</div>
-                    <div style="color: var(--text-dim); max-width: 460px; margin: 0 auto; line-height: 1.6;">
-                        Side-by-side comparison: batched production (all A, then all B) vs leveled flow (ABABAB).
-                        Watch WIP buildup, customer wait times, and changeover frequency in real-time.
-                    </div>
-                    <div style="margin-top: 24px; padding: 8px 20px; background: var(--bg-secondary); border-radius: 20px; display: inline-block; font-size: 12px; color: var(--text-dim); font-weight: 600; letter-spacing: 0.5px;">COMING SOON</div>
+
+                <!-- Pull from Heijunka -->
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+                    <button class="calc-dsw-pull" onclick="hjSimPullFromHeijunka()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                        Pull from Heijunka
+                    </button>
                 </div>
+
+                <!-- Configuration -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Product Mix</div>
+                    <div id="hj-sim-products"></div>
+                    <button onclick="hjSimAddProduct()" style="margin-top:8px; padding:6px 16px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-secondary); cursor:pointer; font-size:13px;">+ Add Product</button>
+                </div>
+
+                <div class="calc-section">
+                    <div class="calc-section-title">Production Parameters</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Cycle Time per Unit</label>
+                            <input type="number" id="hj-cycle" value="10" min="1" max="120">
+                            <span class="input-hint">seconds</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Changeover Time</label>
+                            <input type="number" id="hj-changeover" value="30" min="0" max="600">
+                            <span class="input-hint">seconds per product switch</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Customer Demand Interval</label>
+                            <input type="number" id="hj-demand-interval" value="15" min="1" max="120">
+                            <span class="input-hint">seconds between customer pulls (mixed)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="calc-section">
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <button id="hj-start-btn" onclick="hjSimStart()"
+                            style="padding:10px 24px; background:var(--accent); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:600; font-size:14px;">
+                            &#9654; Start
+                        </button>
+                        <button onclick="hjSimReset()"
+                            style="padding:10px 20px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer;">
+                            Reset
+                        </button>
+                        <div style="font-size:14px; font-weight:600; color:var(--text-primary); margin-left:16px;">
+                            Time: <span id="hj-time-counter" style="color:var(--accent);">0</span><span style="color:var(--text-dim); font-weight:400;">s</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                            <span style="font-size:12px; color:var(--text-dim);">Speed:</span>
+                            <input type="range" id="hj-speed" min="1" max="10" value="5" style="width:100px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Side-by-side visualization -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                    <!-- Batched Side -->
+                    <div class="calc-section" style="margin-bottom:0;">
+                        <div class="calc-section-title" style="color:#e74c3c;">Batched Production</div>
+                        <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">All of A, then all of B, then all of C...</div>
+                        <div id="hj-batched-visual" style="background:var(--bg-secondary); border-radius:12px; padding:16px; min-height:120px; position:relative; overflow:hidden;">
+                            <div style="color:var(--text-dim); font-size:12px; text-align:center;">Press Start</div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+                            <div style="padding:10px; background:var(--bg-secondary); border-radius:6px; text-align:center;">
+                                <div style="font-size:10px; color:var(--text-dim);">WIP</div>
+                                <div id="hj-b-wip" style="font-size:18px; font-weight:700; color:var(--text-primary);">0</div>
+                            </div>
+                            <div style="padding:10px; background:var(--bg-secondary); border-radius:6px; text-align:center;">
+                                <div style="font-size:10px; color:var(--text-dim);">Changeovers</div>
+                                <div id="hj-b-changeovers" style="font-size:18px; font-weight:700; color:var(--text-primary);">0</div>
+                            </div>
+                            <div style="padding:10px; background:var(--bg-secondary); border-radius:6px; text-align:center;">
+                                <div style="font-size:10px; color:var(--text-dim);">Completed</div>
+                                <div id="hj-b-completed" style="font-size:18px; font-weight:700; color:var(--text-primary);">0</div>
+                            </div>
+                            <div style="padding:10px; background:var(--bg-secondary); border-radius:6px; text-align:center;">
+                                <div style="font-size:10px; color:var(--text-dim);">Avg Lead Time</div>
+                                <div id="hj-b-leadtime" style="font-size:18px; font-weight:700; color:var(--text-primary);">—</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Leveled Side -->
+                    <div class="calc-section" style="margin-bottom:0;">
+                        <div class="calc-section-title" style="color:#4a9f6e;">Leveled Production (Heijunka)</div>
+                        <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px;">Smallest repeating pattern: ABCABC...</div>
+                        <div id="hj-leveled-visual" style="background:var(--bg-secondary); border-radius:12px; padding:16px; min-height:120px; position:relative; overflow:hidden;">
+                            <div style="color:var(--text-dim); font-size:12px; text-align:center;">Press Start</div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+                            <div style="padding:10px; background:var(--bg-secondary); border-radius:6px; text-align:center;">
+                                <div style="font-size:10px; color:var(--text-dim);">WIP</div>
+                                <div id="hj-l-wip" style="font-size:18px; font-weight:700; color:var(--text-primary);">0</div>
+                            </div>
+                            <div style="padding:10px; background:var(--bg-secondary); border-radius:6px; text-align:center;">
+                                <div style="font-size:10px; color:var(--text-dim);">Changeovers</div>
+                                <div id="hj-l-changeovers" style="font-size:18px; font-weight:700; color:var(--text-primary);">0</div>
+                            </div>
+                            <div style="padding:10px; background:var(--bg-secondary); border-radius:6px; text-align:center;">
+                                <div style="font-size:10px; color:var(--text-dim);">Completed</div>
+                                <div id="hj-l-completed" style="font-size:18px; font-weight:700; color:var(--text-primary);">0</div>
+                            </div>
+                            <div style="padding:10px; background:var(--bg-secondary); border-radius:6px; text-align:center;">
+                                <div style="font-size:10px; color:var(--text-dim);">Avg Lead Time</div>
+                                <div id="hj-l-leadtime" style="font-size:18px; font-weight:700; color:var(--text-primary);">—</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison Chart -->
+                <div class="calc-chart">
+                    <div class="calc-chart-title">WIP Over Time &mdash; Batched vs Leveled</div>
+                    <div id="hj-sim-chart" style="height:300px;"></div>
+                </div>
+
+                <!-- Insights -->
+                <div class="calc-section" style="margin-top:20px;">
+                    <div class="calc-section-title">Insights</div>
+                    <div id="hj-sim-insights" style="padding:16px; background:var(--bg-secondary); border-radius:8px; font-size:13px; color:var(--text-secondary); line-height:1.6;">
+                        <em>Start simulation to compare batched vs leveled production...</em>
+                    </div>
+                </div>
+
+                <!-- Educational panels -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                    <div style="padding:16px; background:var(--bg-secondary); border-radius:10px; border-left:3px solid var(--accent-primary);">
+                        <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:8px;">Why Level Production?</div>
+                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                            Batched production creates WIP mountains between changeovers. The first customer for product B
+                            waits until the entire A batch finishes. Leveling spreads changeovers across the day, reducing
+                            max WIP and average lead time — even if total changeover time increases.
+                        </div>
+                    </div>
+                    <div style="padding:16px; background:var(--bg-secondary); border-radius:10px; border-left:3px solid #f39c12;">
+                        <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:8px;">The Changeover Trade-off</div>
+                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                            Leveled production requires more changeovers. This only works when changeover times are short
+                            (SMED). The economic crossover point: level when changeover cost &lt; WIP holding cost. Try
+                            adjusting the changeover time above to find your break-even.
+                        </div>
+                    </div>
+                </div>
+
+                <div id="hj-sim-next-steps" style="display:none;"></div>
+
             </div>
 
             <div class="calc-layout" id="layout-smed-sim">
-                <div class="calc-section" style="text-align: center; padding: 80px 20px;">
-                    <div style="font-size: 48px; margin-bottom: 16px; filter: grayscale(0.3);">&#x23F1;</div>
-                    <div style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">SMED Simulator</div>
-                    <div style="color: var(--text-dim); max-width: 460px; margin: 0 auto; line-height: 1.6;">
-                        Animate changeover reduction in real-time. Drag elements from internal to external,
-                        parallelize operations, and watch the changeover timeline shrink before your eyes.
-                    </div>
-                    <div style="margin-top: 24px; padding: 8px 20px; background: var(--bg-secondary); border-radius: 20px; display: inline-block; font-size: 12px; color: var(--text-dim); font-weight: 600; letter-spacing: 0.5px;">COMING SOON</div>
+
+                <!-- Pull from SMED -->
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+                    <button class="calc-dsw-pull" onclick="smedSimPullFromSMED()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                        Pull from SMED Analysis
+                    </button>
+                    <button onclick="smedSimLoadExample()" style="padding:6px 14px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--accent); cursor:pointer; font-size:12px; font-weight:600;">Load Example</button>
                 </div>
+
+                <!-- Changeover Elements -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Changeover Elements</div>
+                    <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">
+                        Click the Internal/External toggle to reclassify elements. Watch the timeline update in real-time.
+                    </div>
+                    <div id="smed-sim-elements"></div>
+                    <button onclick="smedSimAddElement()" style="margin-top:8px; padding:6px 16px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-secondary); cursor:pointer; font-size:13px;">+ Add Element</button>
+                </div>
+
+                <!-- Before/After Timeline -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Changeover Timeline</div>
+
+                    <!-- Before (all internal) -->
+                    <div style="margin-bottom:20px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                            <div style="font-size:13px; font-weight:600; color:#e74c3c;">Before SMED</div>
+                            <div id="smed-sim-before-time" style="font-size:12px; color:var(--text-dim);">(0 min)</div>
+                        </div>
+                        <div id="smed-sim-before-bar" style="background:var(--bg-secondary); border-radius:8px; padding:8px; min-height:36px; display:flex; gap:2px; align-items:center; overflow-x:auto;"></div>
+                    </div>
+
+                    <!-- After (separated) -->
+                    <div style="margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                            <div style="font-size:13px; font-weight:600; color:#4a9f6e;">After SMED</div>
+                            <div id="smed-sim-after-time" style="font-size:12px; color:var(--text-dim);">(0 min downtime)</div>
+                        </div>
+                        <!-- External (parallel, above) -->
+                        <div style="margin-bottom:4px;">
+                            <div style="font-size:10px; color:var(--text-dim); margin-bottom:4px;">External (machine running):</div>
+                            <div id="smed-sim-ext-bar" style="background:var(--bg-secondary); border-radius:8px; padding:8px; min-height:36px; display:flex; gap:2px; align-items:center; overflow-x:auto; opacity:0.7;"></div>
+                        </div>
+                        <!-- Internal (sequential, below) -->
+                        <div>
+                            <div style="font-size:10px; color:var(--text-dim); margin-bottom:4px;">Internal (machine stopped):</div>
+                            <div id="smed-sim-int-bar" style="background:var(--bg-secondary); border-radius:8px; padding:8px; min-height:36px; display:flex; gap:2px; align-items:center; overflow-x:auto;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animation Controls -->
+                <div class="calc-section">
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <button id="smed-sim-start" onclick="smedSimAnimate()"
+                            style="padding:10px 24px; background:var(--accent); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:600; font-size:14px;">
+                            &#9654; Animate Changeover
+                        </button>
+                        <button onclick="smedSimResetAnim()"
+                            style="padding:10px 20px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer;">
+                            Reset
+                        </button>
+                        <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                            <span style="font-size:12px; color:var(--text-dim);">Speed:</span>
+                            <input type="range" id="smed-sim-speed" min="1" max="10" value="5" style="width:100px;">
+                        </div>
+                    </div>
+                    <!-- Animation progress -->
+                    <div id="smed-sim-anim-area" style="margin-top:16px; display:none;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                            <div>
+                                <div style="font-size:12px; font-weight:600; color:#e74c3c; margin-bottom:6px;">Before: <span id="smed-anim-before-clock">0:00</span></div>
+                                <div style="background:var(--bg-secondary); border-radius:8px; height:40px; overflow:hidden; position:relative;">
+                                    <div id="smed-anim-before-progress" style="height:100%; background:linear-gradient(90deg, #e74c3c, #c0392b); width:0%; transition:width 0.1s; border-radius:8px;"></div>
+                                </div>
+                                <div id="smed-anim-before-label" style="font-size:11px; color:var(--text-dim); margin-top:4px;">Waiting...</div>
+                            </div>
+                            <div>
+                                <div style="font-size:12px; font-weight:600; color:#4a9f6e; margin-bottom:6px;">After: <span id="smed-anim-after-clock">0:00</span></div>
+                                <div style="background:var(--bg-secondary); border-radius:8px; height:40px; overflow:hidden; position:relative;">
+                                    <div id="smed-anim-after-progress" style="height:100%; background:linear-gradient(90deg, #4a9f6e, #27ae60); width:0%; transition:width 0.1s; border-radius:8px;"></div>
+                                </div>
+                                <div id="smed-anim-after-label" style="font-size:11px; color:var(--text-dim); margin-top:4px;">Waiting...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="calc-results">
+                    <div class="calc-result-card primary">
+                        <div class="calc-result-label">Downtime Reduction</div>
+                        <div class="calc-result-value" id="smed-sim-reduction">0<span class="calc-result-unit">%</span></div>
+                    </div>
+                    <div class="calc-result-card">
+                        <div class="calc-result-label">Before (Total)</div>
+                        <div class="calc-result-value" id="smed-sim-total-before">0<span class="calc-result-unit">min</span></div>
+                    </div>
+                    <div class="calc-result-card">
+                        <div class="calc-result-label">After (Downtime)</div>
+                        <div class="calc-result-value" id="smed-sim-total-after">0<span class="calc-result-unit">min</span></div>
+                    </div>
+                    <div class="calc-result-card">
+                        <div class="calc-result-label">Time Saved</div>
+                        <div class="calc-result-value" id="smed-sim-saved">0<span class="calc-result-unit">min</span></div>
+                    </div>
+                </div>
+
+                <!-- Impact Chart -->
+                <div class="calc-chart">
+                    <div class="calc-chart-title">Changeover Timeline Comparison</div>
+                    <div id="smed-sim-chart" style="height:280px;"></div>
+                </div>
+
+                <!-- Insights -->
+                <div class="calc-section" style="margin-top:20px;">
+                    <div class="calc-section-title">Insights</div>
+                    <div id="smed-sim-insights" style="padding:16px; background:var(--bg-secondary); border-radius:8px; font-size:13px; color:var(--text-secondary); line-height:1.6;">
+                        <em>Reclassify elements as external to see the downtime reduction...</em>
+                    </div>
+                </div>
+
+                <!-- Educational panels -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                    <div style="padding:16px; background:var(--bg-secondary); border-radius:10px; border-left:3px solid var(--accent-primary);">
+                        <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:8px;">SMED in 3 Steps</div>
+                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                            <strong>1. Separate:</strong> Identify which tasks require the machine to be stopped (internal) vs those that can
+                            be done while running (external). <strong>2. Convert:</strong> Move internal tasks to external where possible.
+                            <strong>3. Streamline:</strong> Reduce time on remaining internal tasks through parallel work or quick-connect fixtures.
+                        </div>
+                    </div>
+                    <div style="padding:16px; background:var(--bg-secondary); border-radius:10px; border-left:3px solid #f39c12;">
+                        <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:8px;">Why Single-Minute?</div>
+                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                            Shigeo Shingo's goal: every changeover under 10 minutes (single digit). Toyota achieved this on
+                            1,000-ton stamping presses — from 4 hours to 3 minutes. The key insight: most changeover time
+                            is wasted on tasks that could happen before or after the machine stops.
+                        </div>
+                    </div>
+                </div>
+
+                <div id="smed-sim-next-steps" style="display:none;"></div>
+
             </div>
 
             <div class="calc-layout" id="layout-cell-sim">
-                <div class="calc-section" style="text-align: center; padding: 80px 20px;">
-                    <div style="font-size: 48px; margin-bottom: 16px; filter: grayscale(0.3);">&#x1F3ED;</div>
-                    <div style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Cell Design Simulator</div>
-                    <div style="color: var(--text-dim); max-width: 460px; margin: 0 auto; line-height: 1.6;">
-                        Compare operator walking patterns across straight-line, U-cell, and parallel layouts.
-                        See how cell design affects cycle time, multi-process handling, and operator utilization.
+                <!-- Cell Configuration -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Cell Configuration</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 700px;">
+                        <div class="calc-input" style="grid-column: 1 / -1;">
+                            <label>Layout Type</label>
+                            <div id="cs-layout-toggle" style="display: flex; gap: 4px;">
+                                <button onclick="setCellLayout('straight')" class="cs-layout-btn active" data-layout="straight" style="flex:1; padding:10px 8px; border:2px solid var(--accent); background:rgba(74,159,110,0.15); color:var(--text-primary); border-radius:8px; cursor:pointer; font-size:12px; font-weight:600;">Straight Line</button>
+                                <button onclick="setCellLayout('u-cell')" class="cs-layout-btn" data-layout="u-cell" style="flex:1; padding:10px 8px; border:2px solid var(--border); background:transparent; color:var(--text-secondary); border-radius:8px; cursor:pointer; font-size:12px; font-weight:600;">U-Cell</button>
+                                <button onclick="setCellLayout('l-cell')" class="cs-layout-btn" data-layout="l-cell" style="flex:1; padding:10px 8px; border:2px solid var(--border); background:transparent; color:var(--text-secondary); border-radius:8px; cursor:pointer; font-size:12px; font-weight:600;">L-Cell</button>
+                                <button onclick="setCellLayout('parallel')" class="cs-layout-btn" data-layout="parallel" style="flex:1; padding:10px 8px; border:2px solid var(--border); background:transparent; color:var(--text-secondary); border-radius:8px; cursor:pointer; font-size:12px; font-weight:600;">Parallel</button>
+                            </div>
+                        </div>
+                        <div class="calc-input">
+                            <label>Number of Stations</label>
+                            <input type="number" id="cs-num-stations" value="6" min="3" max="10" oninput="updateCellParams()">
+                            <span class="input-hint">3-10 workstations</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Station Spacing</label>
+                            <input type="number" id="cs-spacing" value="2.0" min="0.5" max="5" step="0.1" oninput="updateCellParams()">
+                            <span class="input-hint">meters between stations</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Walking Speed</label>
+                            <input type="number" id="cs-walk-speed" value="1.2" min="0.5" max="2.5" step="0.1" oninput="updateCellParams()">
+                            <span class="input-hint">m/s (1.2 typical)</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Operators</label>
+                            <input type="number" id="cs-num-operators" value="2" min="1" max="4" oninput="updateCellParams()">
+                            <span class="input-hint">1-4 operators</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>Cycle Time Mode</label>
+                            <select id="cs-ct-mode" onchange="updateCellParams()" style="padding:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; color:var(--text-primary);">
+                                <option value="uniform">Uniform (all same)</option>
+                                <option value="custom">Custom (per station)</option>
+                            </select>
+                        </div>
+                        <div class="calc-input" id="cs-uniform-ct-wrap">
+                            <label>Cycle Time (all stations)</label>
+                            <input type="number" id="cs-uniform-ct" value="30" min="5" max="300" oninput="updateCellParams()">
+                            <span class="input-hint">seconds per station</span>
+                        </div>
                     </div>
-                    <div style="margin-top: 24px; padding: 8px 20px; background: var(--bg-secondary); border-radius: 20px; display: inline-block; font-size: 12px; color: var(--text-dim); font-weight: 600; letter-spacing: 0.5px;">COMING SOON</div>
+                </div>
+
+                <!-- Station Details (custom mode) -->
+                <div class="calc-section" id="cs-stations-section" style="display:none;">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+                        <div class="calc-section-title" style="margin:0;">Station Details</div>
+                        <button onclick="importCellFromLineSim()" style="padding:6px 12px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-secondary); cursor:pointer; font-size:11px;">&#8592; Line Sim</button>
+                        <button onclick="importCellFromYamazumi()" style="padding:6px 12px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-secondary); cursor:pointer; font-size:11px;">&#8592; Yamazumi</button>
+                    </div>
+                    <div id="cs-station-table"></div>
+                </div>
+
+                <!-- Operator Routes -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Operator Routes</div>
+                    <div id="cs-operator-routes"></div>
+                    <span class="input-hint">Each operator walks their assigned stations in order, then loops back. Drag to reorder.</span>
+                </div>
+
+                <!-- Simulation Controls -->
+                <div class="calc-section">
+                    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                        <button id="cs-start" onclick="startCellSim()" style="padding:10px 24px; background:var(--accent); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:600; font-size:14px;">&#9654; Start Cell</button>
+                        <button onclick="resetCellSim()" style="padding:10px 20px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer;">Reset</button>
+                        <button onclick="clearCellTrails()" style="padding:10px 20px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer;">Clear Trails</button>
+                        <div style="flex:1;"></div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:12px; color:var(--text-dim);">Speed:</span>
+                            <input type="range" id="cs-speed" min="1" max="10" value="5" style="width:100px;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Spaghetti Diagram -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Spaghetti Diagram &mdash; Floor Plan View</div>
+                    <div id="cs-diagram-wrap" style="background:var(--bg-secondary); border-radius:12px; padding:24px; position:relative; overflow-x:auto;">
+                        <svg id="cs-svg" width="100%" viewBox="0 0 700 400" style="background:var(--bg-card); border-radius:8px; border:1px solid var(--border); min-height:300px;">
+                            <g id="cs-svg-grid"></g>
+                            <g id="cs-svg-trails"></g>
+                            <g id="cs-svg-stations"></g>
+                            <g id="cs-svg-operators"></g>
+                        </svg>
+                        <div id="cs-legend" style="position:absolute; top:32px; right:32px; background:rgba(0,0,0,0.65); border-radius:8px; padding:10px 14px; font-size:11px; color:#ccc; pointer-events:none;"></div>
+                    </div>
+                </div>
+
+                <!-- Live Metrics -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Live Metrics</div>
+                    <div class="calc-results">
+                        <div class="calc-result-card primary">
+                            <div class="calc-result-label">Units / Hour</div>
+                            <div class="calc-result-value" id="cs-throughput">&mdash;</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Walk Distance / Cycle</div>
+                            <div class="calc-result-value" id="cs-walk-dist">&mdash;</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Walk / Work Ratio</div>
+                            <div class="calc-result-value" id="cs-walk-ratio">&mdash;</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Operator Utilization</div>
+                            <div class="calc-result-value" id="cs-util">&mdash;</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Total Distance</div>
+                            <div class="calc-result-value" id="cs-total-dist">&mdash;</div>
+                        </div>
+                        <div class="calc-result-card">
+                            <div class="calc-result-label">Cycle Time</div>
+                            <div class="calc-result-value" id="cs-cycle-time">&mdash;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operator Performance Table -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Operator Performance</div>
+                    <div id="cs-operator-stats" style="overflow-x:auto;"></div>
+                </div>
+
+                <!-- Layout Comparison Chart -->
+                <div class="calc-chart">
+                    <div class="calc-chart-title">Walking Distance Comparison &mdash; All Layouts</div>
+                    <div id="cs-compare-chart" style="height:280px;"></div>
+                </div>
+
+                <!-- Insights -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Why U-Cells?</div>
+                    <div id="cs-insight-panel" style="padding:16px; background:var(--bg-secondary); border-radius:8px; font-size:13px; color:var(--text-secondary); line-height:1.6;">
+                        <em>Run the simulation to see the comparison...</em>
+                    </div>
                 </div>
             </div>
 
             <div class="calc-layout" id="layout-fmea-sim">
-                <div class="calc-section" style="text-align: center; padding: 80px 20px;">
-                    <div style="font-size: 48px; margin-bottom: 16px; filter: grayscale(0.3);">&#x26A0;</div>
-                    <div style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">FMEA Monte Carlo</div>
-                    <div style="color: var(--text-dim); max-width: 460px; margin: 0 auto; line-height: 1.6;">
-                        Run thousands of failure scenarios. See how compounding small risks create system-level
-                        failures and identify which failure modes drive the most overall risk.
-                    </div>
-                    <div style="margin-top: 24px; padding: 8px 20px; background: var(--bg-secondary); border-radius: 20px; display: inline-block; font-size: 12px; color: var(--text-dim); font-weight: 600; letter-spacing: 0.5px;">COMING SOON</div>
+
+                <!-- Pull from FMEA -->
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+                    <button class="calc-dsw-pull" onclick="fmeaSimPullFromFMEA()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                        Pull from FMEA / RPN
+                    </button>
+                    <button onclick="fmeaSimLoadExample()" style="padding:6px 14px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--accent); cursor:pointer; font-size:12px; font-weight:600;">Load Example</button>
                 </div>
+
+                <!-- Failure Modes with Uncertainty -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Failure Modes with Uncertainty</div>
+                    <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">
+                        Each S/O/D rating has uncertainty (±range). The Monte Carlo samples from triangular distributions around your point estimates.
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 80px 80px 80px 60px 30px; gap:4px; padding:8px 12px; font-size:10px; font-weight:600; color:var(--text-dim);">
+                        <div>Failure Mode</div>
+                        <div style="text-align:center;">S (±)</div>
+                        <div style="text-align:center;">O (±)</div>
+                        <div style="text-align:center;">D (±)</div>
+                        <div style="text-align:center;">RPN</div>
+                        <div></div>
+                    </div>
+                    <div id="fmea-sim-items"></div>
+                    <button onclick="fmeaSimAddItem()" style="margin-top:8px; padding:6px 16px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-secondary); cursor:pointer; font-size:13px;">+ Add Failure Mode</button>
+                </div>
+
+                <!-- Simulation Parameters -->
+                <div class="calc-section">
+                    <div class="calc-section-title">Simulation Parameters</div>
+                    <div class="calc-inputs">
+                        <div class="calc-input">
+                            <label>Number of Simulations</label>
+                            <select id="fmea-sim-runs">
+                                <option value="1000">1,000</option>
+                                <option value="2000" selected>2,000</option>
+                                <option value="5000">5,000</option>
+                                <option value="10000">10,000</option>
+                            </select>
+                        </div>
+                        <div class="calc-input">
+                            <label>Uncertainty Range (±)</label>
+                            <select id="fmea-sim-uncertainty">
+                                <option value="0.5">±0.5 (Low)</option>
+                                <option value="1" selected>±1 (Medium)</option>
+                                <option value="2">±2 (High)</option>
+                                <option value="3">±3 (Very High)</option>
+                            </select>
+                            <span class="input-hint">Applied to S, O, D ratings</span>
+                        </div>
+                        <div class="calc-input">
+                            <label>RPN Threshold</label>
+                            <input type="number" id="fmea-sim-threshold" value="100" min="1" max="1000">
+                            <span class="input-hint">Flag failure modes exceeding this</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Run Button -->
+                <div class="calc-section">
+                    <button id="fmea-sim-run-btn" onclick="fmeaSimRun()"
+                        style="padding:12px 32px; background:var(--accent); border:none; border-radius:8px; color:white; cursor:pointer; font-weight:600; font-size:14px;">
+                        Run Monte Carlo Simulation
+                    </button>
+                </div>
+
+                <!-- Results -->
+                <div class="calc-results" id="fmea-sim-results" style="display:none;">
+                    <div class="calc-result-card primary">
+                        <div class="calc-result-label">P(Any RPN &gt; Threshold)</div>
+                        <div class="calc-result-value" id="fmea-sim-p-exceed">0<span class="calc-result-unit">%</span></div>
+                    </div>
+                    <div class="calc-result-card">
+                        <div class="calc-result-label">Avg System RPN</div>
+                        <div class="calc-result-value" id="fmea-sim-avg-rpn">0</div>
+                    </div>
+                    <div class="calc-result-card">
+                        <div class="calc-result-label">Max System RPN</div>
+                        <div class="calc-result-value" id="fmea-sim-max-rpn">0</div>
+                    </div>
+                    <div class="calc-result-card">
+                        <div class="calc-result-label">Highest Risk Mode</div>
+                        <div class="calc-result-value" id="fmea-sim-worst-mode" style="font-size:14px;">—</div>
+                    </div>
+                </div>
+
+                <!-- RPN Distribution Chart -->
+                <div class="calc-chart" id="fmea-sim-chart-area" style="display:none;">
+                    <div class="calc-chart-title">System RPN Distribution (Sum of All Failure Modes)</div>
+                    <div id="fmea-sim-chart" style="height:300px;"></div>
+                </div>
+
+                <!-- Per-Mode Distribution -->
+                <div class="calc-chart" id="fmea-sim-mode-chart-area" style="display:none;">
+                    <div class="calc-chart-title">Per-Mode RPN Distributions</div>
+                    <div id="fmea-sim-mode-chart" style="height:300px;"></div>
+                </div>
+
+                <!-- Sensitivity / Tornado Chart -->
+                <div class="calc-chart" id="fmea-sim-tornado-area" style="display:none;">
+                    <div class="calc-chart-title">Risk Contribution — Which Failure Modes Drive System Risk?</div>
+                    <div id="fmea-sim-tornado" style="height:280px;"></div>
+                </div>
+
+                <!-- Insights -->
+                <div class="calc-section" style="margin-top:20px;">
+                    <div class="calc-section-title">Insights</div>
+                    <div id="fmea-sim-insights" style="padding:16px; background:var(--bg-secondary); border-radius:8px; font-size:13px; color:var(--text-secondary); line-height:1.6;">
+                        <em>Run the simulation to see how uncertainty in your S/O/D ratings affects overall risk...</em>
+                    </div>
+                </div>
+
+                <!-- Educational panels -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                    <div style="padding:16px; background:var(--bg-secondary); border-radius:10px; border-left:3px solid var(--accent-primary);">
+                        <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:8px;">Why Monte Carlo for FMEA?</div>
+                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                            Traditional RPN uses point estimates (S=7, O=3, D=4 = 84). But what if Severity is really 6-8?
+                            And Occurrence could be 2-5? Monte Carlo samples thousands of scenarios from these ranges,
+                            revealing the true risk distribution. A "safe" RPN of 84 might exceed 100 in 30% of scenarios.
+                        </div>
+                    </div>
+                    <div style="padding:16px; background:var(--bg-secondary); border-radius:10px; border-left:3px solid #f39c12;">
+                        <div style="font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:8px;">Compounding Risk</div>
+                        <div style="font-size:11px; color:var(--text-dim); line-height:1.5;">
+                            Individual failure modes may look safe, but system-level risk compounds. If you have 10 modes
+                            each with 5% chance of exceeding threshold, the probability that <em>at least one</em> exceeds
+                            it is 1 − 0.95<sup>10</sup> = 40%. This simulation makes that compounding visible.
+                        </div>
+                    </div>
+                </div>
+
+                <div id="fmea-sim-next-steps" style="display:none;"></div>
+
             </div>
 
             <!-- ============================================================ -->
@@ -6272,10 +7047,10 @@ const calcMeta = {
     'kanban-sim': { title: 'Kanban Pull System Simulator', desc: 'Watch kanban cards circulate. Toggle PUSH vs PULL and see why pull systems control WIP.' },
     'beer-game': { title: 'Beer Game — Bullwhip Effect', desc: 'The MIT Beer Game. Watch small demand changes amplify through a 4-tier supply chain.' },
     'toc-sim': { title: 'TOC / Drum-Buffer-Rope', desc: 'Theory of Constraints in action. Protect the bottleneck, control the system.' },
-    'safety-sim': { title: 'Safety Stock Simulator', desc: 'Watch inventory levels over time with stochastic demand. See stockouts happen — or not.' },
+    'safety-sim': { title: 'Safety Stock Simulator', desc: 'Simulate inventory over 180+ days with stochastic demand. Watch stockouts happen — and see your safety stock formula in action.' },
     'heijunka-sim': { title: 'Heijunka Simulator', desc: 'Batched vs leveled production side-by-side. See the WIP and lead time difference.' },
     'smed-sim': { title: 'SMED Simulator', desc: 'Animate changeover reduction. Drag elements from internal to external and watch the bar shrink.' },
-    'cell-sim': { title: 'Cell Design Simulator', desc: 'Animate operator walking patterns in line, U-cell, and parallel layouts.' },
+    'cell-sim': { title: 'Cell Design Simulator', desc: 'Watch spaghetti diagrams form as operators walk. Compare straight-line, U-cell, L-cell, and parallel layouts.' },
     'fmea-sim': { title: 'FMEA Monte Carlo', desc: 'Run failure cascades. See how compounding small risks create system-level failures.' },
     // Quality & DOE
     'desirability': { title: 'Multi-Response Desirability', desc: 'Optimize multiple responses simultaneously. Drag sliders to find the sweet spot.' },
@@ -6539,6 +7314,97 @@ const calcGuide = {
             { calcId: 'mtbf', label: 'MTBF / MTTR' }
         ],
         publishes: []
+    },
+    'cell-sim': {
+        purpose: 'Simulates operator movement across different manufacturing cell layouts. The spaghetti diagram reveals wasted walking — the #1 argument for U-cells over straight lines. Use when designing or redesigning a production cell.',
+        inputs: {
+            'Layout Type': 'Straight line, U-cell, L-cell, or parallel — determines station geometry.',
+            'Stations': 'Number of workstations (3–10). Set cycle times individually or use uniform.',
+            'Station Spacing': 'Meters between stations. Drives total walking distance.',
+            'Walking Speed': 'Operator walking speed in m/s (default 1.2 — typical factory pace).',
+            'Operators': 'Number of operators (1–4). Each gets a color-coded spaghetti trail.'
+        },
+        formula: 'Walk Distance/Cycle = Σ distances between assigned stations per operator route',
+        feedsFrom: [
+            { calcId: 'takt', label: 'Takt Time', key: 'takt' },
+            { calcId: 'line-sim', label: 'Line Simulator (station times)' },
+            { calcId: 'yamazumi', label: 'Yamazumi (station breakdown)' }
+        ],
+        feedsInto: [
+            { calcId: 'oee', label: 'OEE (utilization data)' },
+            { calcId: 'lineeff', label: 'Line Efficiency' }
+        ],
+        publishes: ['cellThroughput', 'cellWalkDist', 'cellUtilization']
+    },
+    'fmea-sim': {
+        purpose: 'Monte Carlo simulation for FMEA risk assessment. Samples S/O/D ratings from uncertainty distributions (triangular) across thousands of scenarios. Reveals true risk distributions, compound system risk, and which failure modes drive the most overall exposure.',
+        inputs: {
+            'Failure Modes': 'List with Severity, Occurrence, Detection point estimates (1-10 each).',
+            'Uncertainty Range': 'How much S/O/D can vary from the point estimate (±0.5 to ±3).',
+            'Simulations': 'Number of Monte Carlo iterations (1,000 to 10,000).',
+            'RPN Threshold': 'Flag scenarios where any mode exceeds this value.'
+        },
+        formula: 'RPN = S × O × D sampled from Triangular(rating ± uncertainty). System RPN = Σ per-mode RPNs.',
+        feedsFrom: [
+            { calcId: 'fmea', label: 'FMEA / RPN (failure mode data)' }
+        ],
+        feedsInto: [
+            { calcId: 'riskmatrix', label: 'Risk Matrix' },
+            { calcId: 'cpk', label: 'Cp / Cpk (capability check)' }
+        ],
+        publishes: ['fmeaSimPExceed', 'fmeaSimAvgRPN']
+    },
+    'smed-sim': {
+        purpose: 'Interactive SMED (Single-Minute Exchange of Die) simulator. Reclassify changeover elements from internal (machine stopped) to external (machine running) and watch the downtime timeline shrink. Includes animated side-by-side before/after comparison.',
+        inputs: {
+            'Element Name': 'Description of the changeover task.',
+            'Time': 'Minutes required for this element.',
+            'Type': 'Internal (machine must stop) or External (can be done while running).'
+        },
+        formula: 'Downtime = Σ Internal element times. Reduction = (Before − After) ÷ Before × 100%',
+        feedsFrom: [
+            { calcId: 'smed', label: 'SMED Analysis (element data)' }
+        ],
+        feedsInto: [
+            { calcId: 'heijunka-sim', label: 'Heijunka Sim (changeover time)' },
+            { calcId: 'line-sim', label: 'Line Simulator (changeover param)' }
+        ],
+        publishes: ['smedSimBefore', 'smedSimAfter']
+    },
+    'heijunka-sim': {
+        purpose: 'Side-by-side discrete-event simulation: batched production (all A then all B) vs leveled flow (ABABAB). Shows how leveling reduces WIP peaks and average lead time at the cost of more changeovers.',
+        inputs: {
+            'Product Mix': 'Products with demand quantities. Pull from the Heijunka calculator.',
+            'Cycle Time': 'Seconds per unit of production.',
+            'Changeover Time': 'Seconds lost when switching between products.',
+            'Demand Interval': 'Seconds between customer pulls (mixed across products).'
+        },
+        formula: 'Leveled Sequence = smallest repeating demand pattern. WIP = units started − units completed.',
+        feedsFrom: [
+            { calcId: 'heijunka', label: 'Heijunka (product mix)' }
+        ],
+        feedsInto: [
+            { calcId: 'smed', label: 'SMED (reduce changeover)' },
+            { calcId: 'line-sim', label: 'Line Simulator' }
+        ],
+        publishes: ['hjSimBatchWip', 'hjSimLevelWip']
+    },
+    'safety-sim': {
+        purpose: 'Animates the (s,Q) inventory policy day-by-day with stochastic demand and lead time. Shows actual stockouts, reorder triggers, and replenishment arrivals — making the safety stock formula tangible.',
+        inputs: {
+            'Avg Daily Demand': 'Units consumed per day on average.',
+            'Demand Std Dev': 'Day-to-day demand variability (σ_d).',
+            'Lead Time / Std Dev': 'Replenishment lead time and its variability (σ_LT).',
+            'Service Level': 'Target probability of no stockout per cycle.',
+            'Order Quantity': 'Units per replenishment order. Pull from EOQ.'
+        },
+        formula: 'SS = Z × √(LT·σ_d² + d²·σ_LT²)   ROP = d·LT + SS',
+        feedsFrom: [
+            { calcId: 'safety', label: 'Safety Stock Calculator', key: 'safetyStock' },
+            { calcId: 'eoq', label: 'EOQ', key: 'eoq' }
+        ],
+        feedsInto: [],
+        publishes: ['safetySimServiceLevel', 'safetySimAvgInventory', 'safetySimStockouts']
     }
 };
 
@@ -6560,7 +7426,8 @@ function findPullTarget(calcId, publishKey) {
         'pitch':          { takt: 'pitch-takt' },
         'turns':          { kanbanInventory: 'turns-inv' },
         'lineeff':        { changeoverInternal: 'lineeff-changeover' },
-        'heijunka':       { pitch: 'heijunka-pitch' }
+        'heijunka':       { pitch: 'heijunka-pitch' },
+        'safety-sim':     { eoq: 'ss-order-qty' }
     };
     return pullMap[calcId]?.[publishKey] || null;
 }
@@ -7134,6 +8001,8 @@ function doVSMImport() {
         case 'toc-sim': loadVSMIntoTocSim(effectiveStations); break;
         case 'bottleneck': loadVSMIntoBottleneck(effectiveStations); break;
         case 'yamazumi': loadYamazumiFromVSMExpanded(steps, wcs); break;
+        case 'cell-sim': loadVSMIntoCellSim(effectiveStations); break;
+        case 'safety-sim': loadVSMIntoSafetySim(effectiveStations); break;
         case 'takt': loadVSMIntoTakt(vsm); break;
         case 'oee': loadVSMIntoOEE(steps); break;
         case 'kanban': loadVSMIntoKanbanSizing(vsm); break;
@@ -7225,8 +8094,6 @@ function loadYamazumiFromVSMExpanded(steps, workCenters) {
 
     // Reset checkbox to unchecked (expanded = default)
     document.getElementById('yama-combine-wc').checked = false;
-    document.getElementById('yama-toggle-knob').style.transform = 'translateX(0)';
-    document.getElementById('yama-toggle-track').style.background = 'var(--border)';
 
     // Expanded: each machine is its own bar, sorted by x position
     yamazumiData.length = 0;
@@ -7246,9 +8113,6 @@ function loadYamazumiFromVSMExpanded(steps, workCenters) {
 function toggleYamazumiWCMode() {
     if (!yamazumiVSMRaw) return;
     const combine = document.getElementById('yama-combine-wc').checked;
-    // Update toggle visual
-    document.getElementById('yama-toggle-knob').style.transform = combine ? 'translateX(14px)' : 'translateX(0)';
-    document.getElementById('yama-toggle-track').style.background = combine ? 'var(--accent)' : 'var(--border)';
 
     const { steps, workCenters } = yamazumiVSMRaw;
 
@@ -9408,6 +10272,450 @@ function runSafetyMonteCarlo() {
     document.getElementById('safety-monte-std').textContent = `±${Math.round(sim.std)}`;
 
     MonteCarlo.renderHistogram('safety-monte-chart', sim, 'Safety Stock Distribution (2000 runs)', 'units');
+}
+
+// ============================================================================
+// Safety Stock Simulator
+// ============================================================================
+
+const ssSimState = {
+    running: false, interval: null, day: 0, inventory: 0,
+    inTransit: [],  // [{qty, daysLeft}]
+    history: { day: [], inventory: [], demand: [], stockout: [], orderPlaced: [], arrival: [] },
+    totalDemand: 0, totalServed: 0, totalHoldCost: 0, totalStockoutCost: 0,
+    stockoutDays: 0, ordersPlaced: 0,
+    stockoutLog: [],  // [{day, demand, inventoryBefore, shortfall}]
+    params: null,
+};
+
+function ssRandn() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+function ssComputeDerived() {
+    const demand = parseFloat(document.getElementById('ss-demand').value) || 100;
+    const demandStd = parseFloat(document.getElementById('ss-demand-std').value) || 0;
+    const lead = parseFloat(document.getElementById('ss-lead').value) || 5;
+    const leadStd = parseFloat(document.getElementById('ss-lead-std').value) || 0;
+    const z = parseFloat(document.getElementById('ss-service').value) || 1.65;
+    const combined = Math.sqrt(lead * demandStd * demandStd + demand * demand * leadStd * leadStd);
+    const ss = z * combined;
+    const rop = demand * lead + ss;
+    return { ss, rop, z, demand, demandStd, lead, leadStd };
+}
+
+function ssUpdateDerived() {
+    const d = ssComputeDerived();
+    document.getElementById('ss-derived-ss').textContent = Math.round(d.ss) + ' units';
+    document.getElementById('ss-derived-rop').textContent = Math.round(d.rop) + ' units';
+    document.getElementById('ss-derived-z').textContent = d.z.toFixed(2);
+    // Update what-if display
+    ssUpdateMultiplier(document.getElementById('ss-multiplier').value);
+}
+
+function ssGetParams() {
+    const d = ssComputeDerived();
+    const orderQty = parseFloat(document.getElementById('ss-order-qty').value) || 1000;
+    const initInvRaw = document.getElementById('ss-init-inv').value;
+    const initInv = initInvRaw ? parseFloat(initInvRaw) : Math.round(d.rop + orderQty);
+    const duration = Math.min(365, Math.max(30, parseInt(document.getElementById('ss-duration').value) || 180));
+    const holdCost = parseFloat(document.getElementById('ss-hold-cost').value) || 0;
+    const stockoutCost = parseFloat(document.getElementById('ss-stockout-cost').value) || 0;
+    const multiplier = parseFloat(document.getElementById('ss-multiplier').value) / 100;
+    const effectiveSS = d.ss * multiplier;
+    const effectiveROP = d.demand * d.lead + effectiveSS;
+    return {
+        demand: d.demand, demandStd: d.demandStd, lead: d.lead, leadStd: d.leadStd,
+        z: d.z, baseSS: d.ss, baseROP: d.rop, ss: effectiveSS, rop: effectiveROP,
+        orderQty, initInv, duration, holdCost, stockoutCost
+    };
+}
+
+function ssInit() {
+    const p = ssGetParams();
+    ssSimState.params = p;
+    ssSimState.day = 0;
+    ssSimState.inventory = p.initInv;
+    ssSimState.inTransit = [];
+    ssSimState.history = { day: [], inventory: [], demand: [], stockout: [], orderPlaced: [], arrival: [] };
+    ssSimState.totalDemand = 0;
+    ssSimState.totalServed = 0;
+    ssSimState.totalHoldCost = 0;
+    ssSimState.totalStockoutCost = 0;
+    ssSimState.stockoutDays = 0;
+    ssSimState.ordersPlaced = 0;
+    ssSimState.stockoutLog = [];
+    document.getElementById('ss-day-total').textContent = ' / ' + p.duration;
+}
+
+function ssStart() {
+    if (ssSimState.running) {
+        clearInterval(ssSimState.interval);
+        ssSimState.running = false;
+        document.getElementById('ss-start-btn').innerHTML = '&#9654; Resume';
+        return;
+    }
+    if (ssSimState.day === 0) ssInit();
+    ssSimState.running = true;
+    document.getElementById('ss-start-btn').innerHTML = '&#10074;&#10074; Pause';
+    ssSimState.interval = setInterval(ssTick, 100);
+}
+
+function ssReset() {
+    if (ssSimState.interval) clearInterval(ssSimState.interval);
+    ssSimState.running = false;
+    ssSimState.day = 0;
+    ssSimState.inventory = 0;
+    ssSimState.inTransit = [];
+    ssSimState.params = null;
+    document.getElementById('ss-start-btn').innerHTML = '&#9654; Start';
+    document.getElementById('ss-day-counter').textContent = '0';
+    document.getElementById('ss-m-inventory').innerHTML = '—<span class="calc-result-unit"> units</span>';
+    document.getElementById('ss-m-service').innerHTML = '—<span class="calc-result-unit">%</span>';
+    document.getElementById('ss-m-stockouts').innerHTML = '0<span class="calc-result-unit"> days</span>';
+    document.getElementById('ss-m-avg-inv').innerHTML = '—<span class="calc-result-unit"> units</span>';
+    document.getElementById('ss-m-orders').textContent = '0';
+    document.getElementById('ss-m-fillrate').innerHTML = '—<span class="calc-result-unit">%</span>';
+    document.getElementById('ss-cost-holding').textContent = '$0';
+    document.getElementById('ss-cost-stockout').textContent = '$0';
+    document.getElementById('ss-cost-total').textContent = '$0';
+    document.getElementById('ss-stockout-log').innerHTML = '<em>No stockouts yet.</em>';
+    document.getElementById('ss-insights').innerHTML = '<em>Start simulation to generate insights...</em>';
+    try { Plotly.purge('ss-chart'); } catch(e) {}
+    try { Plotly.purge('ss-cost-chart'); } catch(e) {}
+    ssUpdateDerived();
+}
+
+function ssTick() {
+    const speed = parseInt(document.getElementById('ss-speed').value) || 5;
+    for (let i = 0; i < speed; i++) {
+        ssStep();
+        if (ssSimState.day >= ssSimState.params.duration) {
+            ssStop();
+            return;
+        }
+    }
+    ssUpdateChart();
+    ssUpdateMetrics();
+    ssUpdateCosts();
+    if (ssSimState.day % 10 === 0) ssUpdateInsights();
+}
+
+function ssStep() {
+    const p = ssSimState.params;
+    ssSimState.day++;
+    const day = ssSimState.day;
+
+    // 1. Generate stochastic demand
+    const demand = Math.max(0, p.demand + ssRandn() * p.demandStd);
+
+    // 2. Receive in-transit orders that have arrived
+    let received = 0;
+    const stillInTransit = [];
+    for (const o of ssSimState.inTransit) {
+        o.daysLeft--;
+        if (o.daysLeft <= 0) { received += o.qty; }
+        else stillInTransit.push(o);
+    }
+    ssSimState.inTransit = stillInTransit;
+    ssSimState.inventory += received;
+
+    // 3. Consume inventory
+    const inventoryBefore = ssSimState.inventory;
+    ssSimState.inventory -= demand;
+    let shortfall = 0;
+    let stockoutFlag = false;
+    if (ssSimState.inventory < 0) {
+        shortfall = -ssSimState.inventory;
+        ssSimState.inventory = 0;
+        stockoutFlag = true;
+        ssSimState.stockoutDays++;
+        ssSimState.stockoutLog.push({
+            day, demand: Math.round(demand),
+            inventoryBefore: Math.round(inventoryBefore),
+            shortfall: Math.round(shortfall)
+        });
+    }
+
+    // 4. Accumulate
+    ssSimState.totalDemand += demand;
+    ssSimState.totalServed += (demand - shortfall);
+    ssSimState.totalHoldCost += ssSimState.inventory * p.holdCost;
+    ssSimState.totalStockoutCost += shortfall * p.stockoutCost;
+
+    // 5. Check reorder: (s,Q) policy — one open order at a time
+    const inTransitQty = ssSimState.inTransit.reduce((s, o) => s + o.qty, 0);
+    const invPosition = ssSimState.inventory + inTransitQty;
+    let orderPlacedFlag = false;
+    if (invPosition <= p.rop && ssSimState.inTransit.length === 0) {
+        const lt = Math.max(1, Math.round(p.lead + ssRandn() * p.leadStd));
+        ssSimState.inTransit.push({ qty: p.orderQty, daysLeft: lt });
+        ssSimState.ordersPlaced++;
+        orderPlacedFlag = true;
+    }
+
+    // 6. Record history
+    const h = ssSimState.history;
+    h.day.push(day);
+    h.inventory.push(Math.round(ssSimState.inventory));
+    h.demand.push(Math.round(demand));
+    h.stockout.push(stockoutFlag);
+    h.orderPlaced.push(orderPlacedFlag);
+    h.arrival.push(received > 0);
+}
+
+function ssUpdateChart() {
+    const h = ssSimState.history;
+    const p = ssSimState.params;
+    if (h.day.length < 2) return;
+
+    const invTrace = {
+        x: h.day, y: h.inventory, type: 'scatter', mode: 'lines',
+        name: 'Inventory', fill: 'tozeroy', fillcolor: 'rgba(39,174,96,0.12)',
+        line: { color: '#27ae60', width: 2 }
+    };
+
+    const soDays = h.day.filter((_, i) => h.stockout[i]);
+    const stockoutTrace = {
+        x: soDays, y: soDays.map(() => 0),
+        type: 'scatter', mode: 'markers', name: 'Stockout',
+        marker: { color: '#e74c3c', size: 9, symbol: 'x' }
+    };
+
+    const arrDays = [], arrY = [];
+    h.day.forEach((d, i) => { if (h.arrival[i]) { arrDays.push(d); arrY.push(h.inventory[i]); } });
+    const arrivalTrace = {
+        x: arrDays, y: arrY, type: 'scatter', mode: 'markers', name: 'Arrival',
+        marker: { color: '#9b59b6', size: 8, symbol: 'triangle-up' }
+    };
+
+    const demandTrace = {
+        x: h.day, y: h.demand, type: 'scatter', mode: 'lines',
+        name: 'Demand', line: { color: '#3498db', width: 1, dash: 'dot' },
+        yaxis: 'y2', opacity: 0.6
+    };
+
+    const maxDay = p.duration;
+    const shapes = [
+        { type: 'line', x0: 1, x1: maxDay, y0: p.rop, y1: p.rop,
+          line: { color: '#e74c3c', width: 1.5, dash: 'dash' } },
+        { type: 'line', x0: 1, x1: maxDay, y0: p.ss, y1: p.ss,
+          line: { color: '#f39c12', width: 1.5, dash: 'dot' } }
+    ];
+
+    const annotations = [
+        { x: maxDay, y: p.rop, text: 'ROP', showarrow: false, xanchor: 'right', font: { color: '#e74c3c', size: 10 } },
+        { x: maxDay, y: p.ss, text: 'SS', showarrow: false, xanchor: 'right', font: { color: '#f39c12', size: 10 } }
+    ];
+
+    Plotly.react('ss-chart', [invTrace, stockoutTrace, arrivalTrace, demandTrace], {
+        margin: { t: 10, b: 40, l: 50, r: 50 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a', size: 10 },
+        xaxis: { title: 'Day', gridcolor: 'rgba(255,255,255,0.07)', range: [1, maxDay] },
+        yaxis: { title: 'Inventory (units)', gridcolor: 'rgba(255,255,255,0.07)', rangemode: 'tozero' },
+        yaxis2: { title: 'Demand', overlaying: 'y', side: 'right', showgrid: false, rangemode: 'tozero' },
+        shapes, annotations,
+        legend: { orientation: 'h', y: -0.22, font: { size: 10 } },
+        showlegend: true
+    }, { responsive: true, displayModeBar: false });
+}
+
+function ssUpdateMetrics() {
+    const s = ssSimState;
+    const day = s.day;
+    document.getElementById('ss-day-counter').textContent = day;
+    document.getElementById('ss-m-inventory').innerHTML = Math.round(s.inventory) + '<span class="calc-result-unit"> units</span>';
+    const sl = day > 0 ? ((day - s.stockoutDays) / day * 100) : 100;
+    document.getElementById('ss-m-service').innerHTML = sl.toFixed(1) + '<span class="calc-result-unit">%</span>';
+    document.getElementById('ss-m-stockouts').innerHTML = s.stockoutDays + '<span class="calc-result-unit"> days</span>';
+    const avgInv = day > 0 ? s.history.inventory.reduce((a, b) => a + b, 0) / day : 0;
+    document.getElementById('ss-m-avg-inv').innerHTML = Math.round(avgInv) + '<span class="calc-result-unit"> units</span>';
+    document.getElementById('ss-m-orders').textContent = s.ordersPlaced;
+    const fillRate = s.totalDemand > 0 ? (s.totalServed / s.totalDemand * 100) : 100;
+    document.getElementById('ss-m-fillrate').innerHTML = fillRate.toFixed(1) + '<span class="calc-result-unit">%</span>';
+}
+
+function ssUpdateCosts() {
+    const s = ssSimState;
+    document.getElementById('ss-cost-holding').textContent = '$' + Math.round(s.totalHoldCost).toLocaleString();
+    document.getElementById('ss-cost-stockout').textContent = '$' + Math.round(s.totalStockoutCost).toLocaleString();
+    document.getElementById('ss-cost-total').textContent = '$' + Math.round(s.totalHoldCost + s.totalStockoutCost).toLocaleString();
+
+    Plotly.react('ss-cost-chart', [{
+        x: [Math.round(s.totalHoldCost), Math.round(s.totalStockoutCost)],
+        y: ['Holding', 'Stockout'],
+        type: 'bar', orientation: 'h',
+        marker: { color: ['#27ae60', '#e74c3c'] },
+        text: ['$' + Math.round(s.totalHoldCost).toLocaleString(), '$' + Math.round(s.totalStockoutCost).toLocaleString()],
+        textposition: 'auto', textfont: { color: '#fff', size: 11 }
+    }], {
+        margin: { t: 5, b: 20, l: 70, r: 20 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a', size: 10 },
+        xaxis: { gridcolor: 'rgba(255,255,255,0.07)' },
+        yaxis: { automargin: true },
+        showlegend: false, bargap: 0.3
+    }, { responsive: true, displayModeBar: false });
+}
+
+function ssUpdateStockoutLog() {
+    const log = ssSimState.stockoutLog;
+    if (log.length === 0) {
+        document.getElementById('ss-stockout-log').innerHTML = '<em>No stockouts yet.</em>';
+        return;
+    }
+    const rows = log.slice(-20).map(e => {
+        const severity = e.shortfall > e.demand * 0.5 ? '#e74c3c' : (e.shortfall > e.demand * 0.1 ? '#f39c12' : 'var(--text-dim)');
+        return `<tr>
+            <td style="padding:4px 8px;">Day ${e.day}</td>
+            <td style="padding:4px 8px;">${e.demand}</td>
+            <td style="padding:4px 8px;">${e.inventoryBefore}</td>
+            <td style="padding:4px 8px; color:${severity}; font-weight:600;">${e.shortfall}</td>
+        </tr>`;
+    }).join('');
+    document.getElementById('ss-stockout-log').innerHTML = `
+        <table style="width:100%; border-collapse:collapse;">
+            <tr style="color:var(--text-dim); font-size:11px; text-transform:uppercase; border-bottom:1px solid var(--border);">
+                <th style="padding:4px 8px; text-align:left;">Day</th>
+                <th style="padding:4px 8px; text-align:left;">Demand</th>
+                <th style="padding:4px 8px; text-align:left;">Inv Before</th>
+                <th style="padding:4px 8px; text-align:left;">Shortfall</th>
+            </tr>
+            ${rows}
+        </table>
+        ${log.length > 20 ? '<div style="margin-top:8px; font-size:11px; color:var(--text-dim);">Showing last 20 of ' + log.length + ' stockout events</div>' : ''}`;
+}
+
+function ssUpdateInsights() {
+    const s = ssSimState;
+    const p = s.params;
+    const day = s.day;
+    if (day < 5) return;
+
+    const zToSL = { '1.28': 90, '1.65': 95, '1.96': 97.5, '2.33': 99, '2.58': 99.5 };
+    const targetSL = zToSL[p.z.toFixed(2)] || 95;
+    const actualSL = day > 0 ? ((day - s.stockoutDays) / day * 100) : 100;
+    const avgInv = s.history.inventory.reduce((a, b) => a + b, 0) / day;
+    const fillRate = s.totalDemand > 0 ? (s.totalServed / s.totalDemand * 100) : 100;
+
+    let html = '<div style="line-height:1.7; color:var(--text-secondary);">';
+    const gap = actualSL - targetSL;
+
+    if (gap < -3) {
+        html += `<div style="color:#e74c3c; font-weight:600; margin-bottom:8px;">
+            &#9888; Underperforming: actual service level ${actualSL.toFixed(1)}% vs target ${targetSL}%</div>`;
+        html += `<div style="margin-bottom:6px;">Safety stock appears insufficient for this variability.
+            Stockouts on ${s.stockoutDays} of ${day} days.</div>`;
+        html += `<div>Try: increase service level target, raise the SS multiplier, or reduce demand variability.</div>`;
+    } else if (gap > 5) {
+        html += `<div style="color:#27ae60; font-weight:600; margin-bottom:8px;">
+            &#9989; Over-provisioned: actual ${actualSL.toFixed(1)}% vs target ${targetSL}%</div>`;
+        html += `<div style="margin-bottom:6px;">Average inventory is ${Math.round(avgInv)} units &mdash;
+            holding cost may be higher than necessary.</div>`;
+        html += `<div>Consider reducing safety stock (lower SS multiplier or service level) to cut costs.</div>`;
+    } else {
+        html += `<div style="color:#27ae60; font-weight:600; margin-bottom:8px;">
+            &#9989; On target: actual ${actualSL.toFixed(1)}% &asymp; target ${targetSL}%</div>`;
+        html += `<div>Policy is well-calibrated. ${s.stockoutDays} stockout day(s), fill rate ${fillRate.toFixed(1)}%.</div>`;
+    }
+
+    html += `<ul style="margin-top:12px; padding-left:20px; font-size:12px; color:var(--text-dim);">
+        <li>Avg inventory: ${Math.round(avgInv)} units &times; $${p.holdCost}/day = $${Math.round(avgInv * p.holdCost)}/day holding</li>
+        <li>Orders placed: ${s.ordersPlaced} (avg cycle: ${s.ordersPlaced > 0 ? Math.round(day / s.ordersPlaced) : '—'} days)</li>
+        <li>Fill rate: ${fillRate.toFixed(1)}% of demand units served from stock</li>
+    </ul></div>`;
+
+    document.getElementById('ss-insights').innerHTML = html;
+}
+
+function ssUpdateMultiplier(val) {
+    const mult = parseInt(val) / 100;
+    document.getElementById('ss-multiplier-label').textContent = mult.toFixed(1) + '\u00d7';
+    const d = ssComputeDerived();
+    const effSS = Math.round(d.ss * mult);
+    const effROP = Math.round(d.demand * d.lead + effSS);
+    document.getElementById('ss-wif-ss').textContent = effSS + ' units';
+    document.getElementById('ss-wif-rop').textContent = effROP + ' units';
+    // Estimate cost impact vs baseline
+    const baseSS = Math.round(d.ss);
+    const delta = effSS - baseSS;
+    const holdCost = parseFloat(document.getElementById('ss-hold-cost').value) || 0;
+    const duration = parseInt(document.getElementById('ss-duration').value) || 180;
+    const costDelta = delta * holdCost * duration;
+    if (delta === 0) {
+        document.getElementById('ss-wif-cost').textContent = 'baseline';
+    } else {
+        const sign = costDelta > 0 ? '+' : '';
+        document.getElementById('ss-wif-cost').textContent = sign + '$' + Math.round(Math.abs(costDelta)).toLocaleString() + (costDelta > 0 ? ' holding' : ' saved');
+        document.getElementById('ss-wif-cost').style.color = costDelta > 0 ? '#e74c3c' : '#27ae60';
+    }
+}
+
+function ssStop() {
+    clearInterval(ssSimState.interval);
+    ssSimState.running = false;
+    document.getElementById('ss-start-btn').innerHTML = '&#9654; Replay';
+    // Final updates
+    ssUpdateChart();
+    ssUpdateMetrics();
+    ssUpdateCosts();
+    ssUpdateStockoutLog();
+    ssUpdateInsights();
+    // Publish to SvendOps
+    const day = ssSimState.day;
+    const sl = day > 0 ? ((day - ssSimState.stockoutDays) / day * 100) : 100;
+    const avgInv = day > 0 ? ssSimState.history.inventory.reduce((a, b) => a + b, 0) / day : 0;
+    SvendOps.publish('safetySimServiceLevel', sl.toFixed(1), '%', 'SS Sim');
+    SvendOps.publish('safetySimAvgInventory', Math.round(avgInv), 'units', 'SS Sim');
+    SvendOps.publish('safetySimStockouts', ssSimState.stockoutDays, 'days', 'SS Sim');
+}
+
+function ssPullFromSafety() {
+    const fields = [
+        ['safety-demand', 'ss-demand'],
+        ['safety-demand-std', 'ss-demand-std'],
+        ['safety-lead', 'ss-lead'],
+        ['safety-lead-std', 'ss-lead-std'],
+        ['safety-service', 'ss-service']
+    ];
+    let pulled = 0;
+    fields.forEach(([src, dst]) => {
+        const srcEl = document.getElementById(src);
+        const dstEl = document.getElementById(dst);
+        if (srcEl && dstEl && srcEl.value) {
+            dstEl.value = srcEl.value;
+            dstEl.style.transition = 'background 0.3s';
+            dstEl.style.background = 'rgba(74,159,110,0.2)';
+            setTimeout(() => dstEl.style.background = '', 600);
+            pulled++;
+        }
+    });
+    if (pulled > 0) ssUpdateDerived();
+}
+
+function ssPullFromEOQ() {
+    const eoqVal = SvendOps.get('eoq');
+    if (eoqVal) {
+        const el = document.getElementById('ss-order-qty');
+        el.value = Math.round(eoqVal);
+        el.style.transition = 'background 0.3s';
+        el.style.background = 'rgba(74,159,110,0.2)';
+        setTimeout(() => el.style.background = '', 600);
+    }
+}
+
+function loadVSMIntoSafetySim(stations) {
+    if (!stations || stations.length === 0) return;
+    // Use first station's cycle time to derive daily demand
+    // Assume 480 min/day (8-hour shift): demand = 480*60 / avg_ct
+    const avgCT = stations.reduce((s, st) => s + (st.ct || 60), 0) / stations.length;
+    const dailyDemand = Math.round((480 * 60) / avgCT);
+    document.getElementById('ss-demand').value = dailyDemand;
+    ssUpdateDerived();
 }
 
 // ============================================================================
@@ -15874,6 +17182,725 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================================
+// Cell Design Simulator — Spaghetti Diagram
+// ============================================================================
+
+const CS_COLORS = ['#e74c3c', '#3498db', '#f39c12', '#9b59b6'];
+const CS_SCALE = 60; // 1 meter = 60 SVG units
+
+let cellStations = [
+    { name: 'S1', cycleTime: 30 },
+    { name: 'S2', cycleTime: 30 },
+    { name: 'S3', cycleTime: 30 },
+    { name: 'S4', cycleTime: 30 },
+    { name: 'S5', cycleTime: 30 },
+    { name: 'S6', cycleTime: 30 },
+];
+
+let cellState = {
+    running: false,
+    interval: null,
+    time: 0,
+    layout: 'straight',
+    spacing: 2.0,
+    walkSpeed: 1.2,
+    positions: [],
+    operators: [],
+    stationActive: [],
+    trailSegments: new Map(),
+    trailCount: 0,
+    totalUnits: 0,
+    history: { time: [], throughput: [], walkDist: [] },
+    layoutComparison: null,
+};
+
+// --- Layout Geometry ---
+
+function computeCellPositions(layout, n, spacingM) {
+    const s = spacingM * CS_SCALE;
+    const cx = 350, cy = 200;
+    const pos = [];
+
+    switch (layout) {
+        case 'straight': {
+            const totalW = (n - 1) * s;
+            const sx = cx - totalW / 2;
+            for (let i = 0; i < n; i++) pos.push({ x: sx + i * s, y: cy });
+            break;
+        }
+        case 'u-cell': {
+            const leftN = Math.ceil(n / 2);
+            const rightN = n - leftN;
+            const armH = (Math.max(leftN, rightN) - 1) * s;
+            const uW = Math.max(s * 2, 180);
+            const sy = cy - armH / 2;
+            for (let i = 0; i < leftN; i++) pos.push({ x: cx - uW / 2, y: sy + i * s });
+            for (let i = 0; i < rightN; i++) pos.push({ x: cx + uW / 2, y: sy + (rightN - 1 - i) * s });
+            break;
+        }
+        case 'l-cell': {
+            const hN = Math.ceil(n / 2);
+            const vN = n - hN;
+            const sx = cx - (hN - 1) * s / 2;
+            const cornerX = sx + (hN - 1) * s;
+            const cornerY = cy - vN * s / 2;
+            for (let i = 0; i < hN; i++) pos.push({ x: sx + i * s, y: cornerY });
+            for (let i = 0; i < vN; i++) pos.push({ x: cornerX, y: cornerY + (i + 1) * s });
+            break;
+        }
+        case 'parallel': {
+            const topN = Math.ceil(n / 2);
+            const botN = n - topN;
+            const rowGap = s * 1.5;
+            const topY = cy - rowGap / 2;
+            const botY = cy + rowGap / 2;
+            const topSx = cx - (topN - 1) * s / 2;
+            const botSx = cx - (botN - 1) * s / 2;
+            for (let i = 0; i < topN; i++) pos.push({ x: topSx + i * s, y: topY });
+            for (let i = 0; i < botN; i++) pos.push({ x: botSx + (botN - 1 - i) * s, y: botY });
+            break;
+        }
+    }
+    return pos;
+}
+
+// --- SVG Rendering ---
+
+function renderCellDiagram() {
+    const positions = computeCellPositions(cellState.layout, cellStations.length, cellState.spacing);
+    cellState.positions = positions;
+
+    // Fit viewBox to content
+    if (positions.length > 0) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        positions.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+        const pad = 80;
+        const vw = Math.max(400, maxX - minX + pad * 2);
+        const vh = Math.max(250, maxY - minY + pad * 2);
+        const vx = minX - pad;
+        const vy = minY - pad;
+        document.getElementById('cs-svg').setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
+    }
+
+    // Grid
+    const gridG = document.getElementById('cs-svg-grid');
+    let gridH = '';
+    for (let gx = 0; gx < 800; gx += 60) {
+        for (let gy = 0; gy < 500; gy += 60) {
+            gridH += `<circle cx="${gx}" cy="${gy}" r="1" fill="rgba(255,255,255,0.06)"/>`;
+        }
+    }
+    gridG.innerHTML = gridH;
+
+    // Stations
+    const stG = document.getElementById('cs-svg-stations');
+    let stH = '';
+    positions.forEach((p, i) => {
+        const active = cellState.stationActive[i];
+        const fill = active ? 'rgba(74,159,110,0.3)' : 'rgba(255,255,255,0.05)';
+        const stroke = active ? '#4a9f6e' : 'rgba(255,255,255,0.2)';
+        stH += `<g id="cs-st-${i}">`;
+        stH += `<rect x="${p.x - 28}" y="${p.y - 20}" width="56" height="40" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+        stH += `<text x="${p.x}" y="${p.y - 4}" text-anchor="middle" fill="#ccc" font-size="12" font-weight="600">${cellStations[i].name}</text>`;
+        stH += `<text x="${p.x}" y="${p.y + 12}" text-anchor="middle" fill="#888" font-size="9">${cellStations[i].cycleTime}s</text>`;
+        stH += `</g>`;
+    });
+    stG.innerHTML = stH;
+
+    // Operators (initial positions)
+    renderCellOperators();
+
+    // Legend
+    const numOps = parseInt(document.getElementById('cs-num-operators').value) || 2;
+    let legH = '';
+    for (let i = 0; i < Math.min(numOps, 4); i++) {
+        legH += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="width:10px;height:10px;border-radius:50%;background:${CS_COLORS[i]};display:inline-block;"></span> Op ${i + 1}</div>`;
+    }
+    legH += `<div style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.15);padding-top:6px;"><span style="color:#888;">Lines = walking trails</span></div>`;
+    document.getElementById('cs-legend').innerHTML = legH;
+
+    // Comparison chart
+    updateCellComparisonChart();
+}
+
+function renderCellOperators() {
+    const opG = document.getElementById('cs-svg-operators');
+    let h = '';
+    cellState.operators.forEach((op, i) => {
+        h += `<circle id="cs-op-${i}" cx="${op.x}" cy="${op.y}" r="10" fill="${CS_COLORS[i]}" stroke="white" stroke-width="2" opacity="0.9"/>`;
+        h += `<text id="cs-op-lbl-${i}" x="${op.x}" y="${op.y + 4}" text-anchor="middle" fill="white" font-size="10" font-weight="bold" pointer-events="none">${i + 1}</text>`;
+    });
+    opG.innerHTML = h;
+}
+
+function updateCellOperatorPos(i) {
+    const op = cellState.operators[i];
+    const c = document.getElementById(`cs-op-${i}`);
+    const t = document.getElementById(`cs-op-lbl-${i}`);
+    if (c) { c.setAttribute('cx', op.x); c.setAttribute('cy', op.y); }
+    if (t) { t.setAttribute('x', op.x); t.setAttribute('y', op.y + 4); }
+}
+
+function updateCellStationHighlight(idx, active) {
+    const g = document.getElementById(`cs-st-${idx}`);
+    if (!g) return;
+    const rect = g.querySelector('rect');
+    if (rect) {
+        rect.setAttribute('fill', active ? 'rgba(74,159,110,0.3)' : 'rgba(255,255,255,0.05)');
+        rect.setAttribute('stroke', active ? '#4a9f6e' : 'rgba(255,255,255,0.2)');
+    }
+}
+
+// --- Trail System ---
+
+function recordCellTrail(opIdx, x1, y1, x2, y2) {
+    const key = x1 < x2 || (x1 === x2 && y1 < y2)
+        ? `${Math.round(x1)},${Math.round(y1)}-${Math.round(x2)},${Math.round(y2)}-${opIdx}`
+        : `${Math.round(x2)},${Math.round(y2)}-${Math.round(x1)},${Math.round(y1)}-${opIdx}`;
+    if (cellState.trailSegments.has(key)) {
+        cellState.trailSegments.get(key).count++;
+    } else {
+        cellState.trailSegments.set(key, { x1, y1, x2, y2, color: CS_COLORS[opIdx], count: 1 });
+    }
+    cellState.trailCount++;
+}
+
+function renderCellTrails() {
+    const g = document.getElementById('cs-svg-trails');
+    let h = '';
+    for (const [, seg] of cellState.trailSegments) {
+        const opacity = Math.min(0.7, 0.08 + seg.count * 0.025);
+        const width = Math.min(6, 1.5 + seg.count * 0.12);
+        h += `<line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="${seg.color}" stroke-width="${width}" stroke-opacity="${opacity}" stroke-linecap="round"/>`;
+    }
+    g.innerHTML = h;
+}
+
+function clearCellTrails() {
+    cellState.trailSegments = new Map();
+    cellState.trailCount = 0;
+    document.getElementById('cs-svg-trails').innerHTML = '';
+}
+
+// --- Operator State Machine ---
+
+function initCellOperators() {
+    const n = cellStations.length;
+    const numOps = Math.min(parseInt(document.getElementById('cs-num-operators').value) || 2, 4);
+    const positions = cellState.positions;
+
+    cellState.operators = [];
+    cellState.stationActive = new Array(n).fill(false);
+    cellState.trailSegments = new Map();
+    cellState.trailCount = 0;
+    cellState.totalUnits = 0;
+    cellState.time = 0;
+    cellState.history = { time: [], throughput: [], walkDist: [] };
+
+    // Split stations evenly among operators
+    const perOp = Math.ceil(n / numOps);
+    for (let i = 0; i < numOps; i++) {
+        const start = i * perOp;
+        const end = Math.min(start + perOp, n);
+        const assigned = [];
+        for (let j = start; j < end; j++) assigned.push(j);
+        if (assigned.length === 0) continue;
+
+        const fp = positions[assigned[0]];
+        cellState.operators.push({
+            x: fp.x, y: fp.y,
+            assignedStations: assigned,
+            currentStepIdx: 0,
+            state: 'idle',
+            stateTimer: 0,
+            walkFrom: null, walkTo: null,
+            walkProgress: 0, walkDistM: 0,
+            stats: { totalWalkDist: 0, totalWalkTime: 0, totalWorkTime: 0, totalWaitTime: 0, cyclesCompleted: 0 }
+        });
+    }
+
+    // Start each at their first station
+    cellState.operators.forEach((op, i) => cellStartWorking(op, i));
+    renderCellOperators();
+    renderCellOperatorRoutes();
+}
+
+function cellStartWorking(op, opIdx) {
+    const stIdx = op.assignedStations[op.currentStepIdx];
+    if (cellState.stationActive[stIdx]) {
+        op.state = 'waiting';
+        return;
+    }
+    cellState.stationActive[stIdx] = true;
+    updateCellStationHighlight(stIdx, true);
+    op.state = 'working';
+    op.stateTimer = cellStations[stIdx].cycleTime;
+    op.x = cellState.positions[stIdx].x;
+    op.y = cellState.positions[stIdx].y;
+}
+
+function processOperatorTick(op, opIdx, dt) {
+    switch (op.state) {
+        case 'idle':
+            cellStartWorking(op, opIdx);
+            break;
+
+        case 'working':
+            op.stateTimer -= dt;
+            op.stats.totalWorkTime += dt;
+            if (op.stateTimer <= 0) {
+                // Done at this station
+                const prevSt = op.assignedStations[op.currentStepIdx];
+                cellState.stationActive[prevSt] = false;
+                updateCellStationHighlight(prevSt, false);
+
+                // Advance to next station
+                op.currentStepIdx = (op.currentStepIdx + 1) % op.assignedStations.length;
+                if (op.currentStepIdx === 0) {
+                    op.stats.cyclesCompleted++;
+                    cellState.totalUnits++;
+                }
+
+                // Calculate walk to next station
+                const fromPos = cellState.positions[prevSt];
+                const toSt = op.assignedStations[op.currentStepIdx];
+                const toPos = cellState.positions[toSt];
+                const distSVG = Math.hypot(toPos.x - fromPos.x, toPos.y - fromPos.y);
+                const distM = distSVG / CS_SCALE;
+                const walkTime = distM / cellState.walkSpeed;
+
+                if (walkTime < 0.01) {
+                    cellStartWorking(op, opIdx);
+                } else {
+                    op.state = 'walking';
+                    op.walkFrom = { x: fromPos.x, y: fromPos.y };
+                    op.walkTo = { x: toPos.x, y: toPos.y };
+                    op.walkProgress = 0;
+                    op.walkDistM = distM;
+                    op.stateTimer = walkTime;
+                    recordCellTrail(opIdx, fromPos.x, fromPos.y, toPos.x, toPos.y);
+                }
+            }
+            break;
+
+        case 'walking':
+            op.stateTimer -= dt;
+            op.stats.totalWalkTime += dt;
+            const totalWT = op.walkDistM / cellState.walkSpeed;
+            op.walkProgress = Math.min(1, 1 - (op.stateTimer / totalWT));
+            op.x = op.walkFrom.x + (op.walkTo.x - op.walkFrom.x) * op.walkProgress;
+            op.y = op.walkFrom.y + (op.walkTo.y - op.walkFrom.y) * op.walkProgress;
+            op.stats.totalWalkDist += (dt / totalWT) * op.walkDistM;
+
+            if (op.stateTimer <= 0) {
+                op.x = op.walkTo.x;
+                op.y = op.walkTo.y;
+                cellStartWorking(op, opIdx);
+            }
+            break;
+
+        case 'waiting':
+            op.stats.totalWaitTime += dt;
+            const tgt = op.assignedStations[op.currentStepIdx];
+            if (!cellState.stationActive[tgt]) {
+                cellStartWorking(op, opIdx);
+            }
+            break;
+    }
+}
+
+// --- Simulation Control ---
+
+function startCellSim() {
+    if (cellState.running) {
+        cellState.running = false;
+        clearInterval(cellState.interval);
+        document.getElementById('cs-start').innerHTML = '&#9654; Resume';
+        return;
+    }
+
+    cellState.running = true;
+    document.getElementById('cs-start').innerHTML = '&#9208; Pause';
+
+    if (cellState.time === 0) {
+        renderCellDiagram();
+        initCellOperators();
+    }
+
+    const tick = 100;
+    cellState.interval = setInterval(() => {
+        const speed = parseInt(document.getElementById('cs-speed').value) || 5;
+        const simDt = speed * 0.1;
+        cellState.time += simDt;
+
+        cellState.operators.forEach((op, i) => processOperatorTick(op, i, simDt));
+
+        // Update operator dots every tick for smooth animation
+        cellState.operators.forEach((op, i) => updateCellOperatorPos(i));
+
+        // Render trails periodically
+        if (Math.floor(cellState.time / 2) !== Math.floor((cellState.time - simDt) / 2)) {
+            renderCellTrails();
+        }
+
+        // Update metrics every ~1 sim second
+        if (Math.floor(cellState.time) !== Math.floor(cellState.time - simDt)) {
+            updateCellMetrics();
+            updateCellOperatorStats();
+        }
+
+        // Record history every ~5 sim seconds
+        if (cellState.history.time.length === 0 || cellState.time - cellState.history.time[cellState.history.time.length - 1] >= 5) {
+            const thr = cellState.time > 0 ? (cellState.totalUnits / cellState.time) * 3600 : 0;
+            let wd = 0;
+            cellState.operators.forEach(op => { if (op.stats.cyclesCompleted > 0) wd += op.stats.totalWalkDist / op.stats.cyclesCompleted; });
+            cellState.history.time.push(cellState.time);
+            cellState.history.throughput.push(thr);
+            cellState.history.walkDist.push(wd);
+        }
+    }, tick);
+}
+
+function resetCellSim() {
+    cellState.running = false;
+    if (cellState.interval) clearInterval(cellState.interval);
+    cellState.time = 0;
+    cellState.totalUnits = 0;
+    cellState.operators = [];
+    cellState.stationActive = [];
+    cellState.trailSegments = new Map();
+    cellState.trailCount = 0;
+    cellState.history = { time: [], throughput: [], walkDist: [] };
+    document.getElementById('cs-start').innerHTML = '&#9654; Start Cell';
+    document.getElementById('cs-svg-trails').innerHTML = '';
+    document.getElementById('cs-svg-operators').innerHTML = '';
+    ['cs-throughput', 'cs-walk-dist', 'cs-walk-ratio', 'cs-util', 'cs-total-dist', 'cs-cycle-time'].forEach(id => {
+        document.getElementById(id).innerHTML = '&mdash;';
+    });
+    document.getElementById('cs-operator-stats').innerHTML = '';
+    Plotly.purge('cs-compare-chart');
+    renderCellDiagram();
+}
+
+// --- Metrics ---
+
+function updateCellMetrics() {
+    if (cellState.time < 0.5) return;
+    let tWalkDist = 0, tWalkTime = 0, tWorkTime = 0, tWaitTime = 0, tCycles = 0;
+    cellState.operators.forEach(op => {
+        tWalkDist += op.stats.totalWalkDist;
+        tWalkTime += op.stats.totalWalkTime;
+        tWorkTime += op.stats.totalWorkTime;
+        tWaitTime += op.stats.totalWaitTime;
+        tCycles += op.stats.cyclesCompleted;
+    });
+
+    const thrPerHr = (cellState.totalUnits / cellState.time) * 3600;
+    const avgWalkPC = tCycles > 0 ? tWalkDist / tCycles : 0;
+    const walkRatio = (tWorkTime + tWalkTime) > 0 ? (tWalkTime / (tWorkTime + tWalkTime)) * 100 : 0;
+    const util = (tWorkTime + tWalkTime + tWaitTime) > 0 ? (tWorkTime / (tWorkTime + tWalkTime + tWaitTime)) * 100 : 0;
+    const avgCT = tCycles > 0 ? (cellState.time / cellState.totalUnits) : 0;
+
+    document.getElementById('cs-throughput').innerHTML = `${thrPerHr.toFixed(1)}<span class="calc-result-unit">/hr</span>`;
+    document.getElementById('cs-walk-dist').innerHTML = `${avgWalkPC.toFixed(1)}<span class="calc-result-unit">m</span>`;
+    document.getElementById('cs-walk-ratio').innerHTML = `${walkRatio.toFixed(0)}<span class="calc-result-unit">%</span>`;
+    document.getElementById('cs-util').innerHTML = `${util.toFixed(0)}<span class="calc-result-unit">%</span>`;
+    document.getElementById('cs-total-dist').innerHTML = `${tWalkDist.toFixed(0)}<span class="calc-result-unit">m</span>`;
+    document.getElementById('cs-cycle-time').innerHTML = `${avgCT.toFixed(1)}<span class="calc-result-unit">s</span>`;
+
+    SvendOps.publish('cellThroughput', +thrPerHr.toFixed(1), 'units/hr', 'Cell Design');
+    SvendOps.publish('cellWalkDist', +avgWalkPC.toFixed(1), 'm/cycle', 'Cell Design');
+    SvendOps.publish('cellUtilization', +util.toFixed(1), '%', 'Cell Design');
+}
+
+function updateCellOperatorStats() {
+    if (cellState.operators.length === 0) return;
+    let h = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    h += '<tr style="color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;">';
+    h += '<th style="text-align:left;padding:6px 8px;">Operator</th>';
+    h += '<th style="text-align:left;padding:6px 8px;">Stations</th>';
+    h += '<th style="text-align:right;padding:6px 8px;">Walk/Cycle</th>';
+    h += '<th style="text-align:right;padding:6px 8px;">Work %</th>';
+    h += '<th style="text-align:right;padding:6px 8px;">Walk %</th>';
+    h += '<th style="text-align:right;padding:6px 8px;">Wait %</th>';
+    h += '<th style="text-align:right;padding:6px 8px;">Cycles</th>';
+    h += '</tr>';
+    cellState.operators.forEach((op, i) => {
+        const total = op.stats.totalWorkTime + op.stats.totalWalkTime + op.stats.totalWaitTime;
+        const workPct = total > 0 ? (op.stats.totalWorkTime / total * 100).toFixed(0) : 0;
+        const walkPct = total > 0 ? (op.stats.totalWalkTime / total * 100).toFixed(0) : 0;
+        const waitPct = total > 0 ? (op.stats.totalWaitTime / total * 100).toFixed(0) : 0;
+        const walkPC = op.stats.cyclesCompleted > 0 ? (op.stats.totalWalkDist / op.stats.cyclesCompleted).toFixed(1) : '—';
+        const stNames = op.assignedStations.map(s => cellStations[s].name).join(', ');
+        h += `<tr style="border-top:1px solid var(--border);">`;
+        h += `<td style="padding:6px 8px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${CS_COLORS[i]};margin-right:6px;vertical-align:middle;"></span>Op ${i + 1}</td>`;
+        h += `<td style="padding:6px 8px;color:var(--text-secondary);">${stNames}</td>`;
+        h += `<td style="padding:6px 8px;text-align:right;">${walkPC}m</td>`;
+        h += `<td style="padding:6px 8px;text-align:right;color:#4a9f6e;">${workPct}%</td>`;
+        h += `<td style="padding:6px 8px;text-align:right;color:#f39c12;">${walkPct}%</td>`;
+        h += `<td style="padding:6px 8px;text-align:right;color:#888;">${waitPct}%</td>`;
+        h += `<td style="padding:6px 8px;text-align:right;">${op.stats.cyclesCompleted}</td>`;
+        h += `</tr>`;
+    });
+    h += '</table>';
+    document.getElementById('cs-operator-stats').innerHTML = h;
+}
+
+// --- Layout Comparison ---
+
+function computeCellComparison() {
+    const n = cellStations.length;
+    const s = parseFloat(document.getElementById('cs-spacing').value) || 2.0;
+    const layouts = ['straight', 'u-cell', 'l-cell', 'parallel'];
+    const results = {};
+    layouts.forEach(layout => {
+        const pos = computeCellPositions(layout, n, s);
+        let dist = 0;
+        for (let i = 0; i < n; i++) {
+            const from = pos[i];
+            const to = pos[(i + 1) % n];
+            dist += Math.hypot(to.x - from.x, to.y - from.y) / CS_SCALE;
+        }
+        results[layout] = dist;
+    });
+    cellState.layoutComparison = results;
+    return results;
+}
+
+function updateCellComparisonChart() {
+    const comparison = computeCellComparison();
+    const labels = ['Straight', 'U-Cell', 'L-Cell', 'Parallel'];
+    const keys = ['straight', 'u-cell', 'l-cell', 'parallel'];
+    const distances = keys.map(k => comparison[k]);
+    const colors = keys.map(k => k === cellState.layout ? '#4a9f6e' : 'rgba(74,159,110,0.3)');
+
+    Plotly.newPlot('cs-compare-chart', [{
+        x: labels, y: distances, type: 'bar',
+        marker: { color: colors },
+        text: distances.map(d => d.toFixed(1) + 'm'),
+        textposition: 'outside',
+        textfont: { color: '#9aaa9a', size: 12 },
+    }], {
+        margin: { t: 20, b: 50, l: 50, r: 20 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        yaxis: { title: 'Walk Distance / Cycle (m)', gridcolor: 'rgba(255,255,255,0.06)' },
+        xaxis: { gridcolor: 'rgba(255,255,255,0.06)' },
+    }, { responsive: true, displayModeBar: false });
+
+    updateCellInsights();
+}
+
+function updateCellInsights() {
+    const c = cellState.layoutComparison;
+    if (!c) return;
+    const current = cellState.layout;
+    const straightD = c['straight'];
+    const currentD = c[current];
+    const best = Object.entries(c).sort((a, b) => a[1] - b[1])[0];
+    const layoutNames = { straight: 'Straight Line', 'u-cell': 'U-Cell', 'l-cell': 'L-Cell', parallel: 'Parallel' };
+    const currentName = layoutNames[current];
+
+    // Compare current layout vs straight baseline
+    let savingsHtml;
+    if (current === 'straight') {
+        const bestName = layoutNames[best[0]];
+        const bestSavings = straightD > 0 ? ((straightD - best[1]) / straightD * 100).toFixed(0) : 0;
+        const bestSavedM = (straightD - best[1]).toFixed(1);
+        savingsHtml = `
+            <div style="font-size:28px;font-weight:700;color:var(--text-dim);">Baseline layout</div>
+            <div style="margin-top:4px;">Straight line is the reference &mdash; other layouts are compared against it</div>
+            <div style="margin-top:4px;color:var(--text-dim);">Best alternative: <strong>${bestName}</strong> saves ${bestSavings}% (${bestSavedM}m/cycle)</div>`;
+    } else {
+        const savings = straightD > 0 ? ((straightD - currentD) / straightD * 100).toFixed(0) : 0;
+        const savedM = (straightD - currentD).toFixed(1);
+        const isWorse = currentD >= straightD;
+        savingsHtml = `
+            <div style="font-size:28px;font-weight:700;color:${isWorse ? '#e74c3c' : '#4a9f6e'};">${isWorse ? 'No' : savings + '%'} ${isWorse ? 'improvement' : 'less walking'}</div>
+            <div style="margin-top:4px;">${currentName} ${isWorse ? 'adds' : 'saves'} <strong>${Math.abs(parseFloat(savedM)).toFixed(1)}m per cycle</strong> vs straight line</div>
+            <div style="margin-top:4px;color:var(--text-dim);">Best layout: <strong>${layoutNames[best[0]]}</strong> (${best[1].toFixed(1)}m/cycle)</div>`;
+    }
+
+    // Layout-specific insight bullets
+    const insights = {
+        straight: [
+            'Straight lines are simple to set up but force long return walks',
+            'Walking distance grows linearly with station count',
+            'Best for single-operator, low-station-count processes',
+            'Consider U-cell or L-cell when adding stations or operators'
+        ],
+        'u-cell': [
+            'Entry and exit stations are adjacent &mdash; the return walk nearly disappears',
+            'One operator can reach more stations, enabling multi-process handling',
+            'Flexible staffing: add or remove operators as demand changes without reconfiguring',
+            'Less walking = less fatigue, fewer errors, more value-added time'
+        ],
+        'l-cell': [
+            'The 90&deg; turn shortens the return path vs a straight line',
+            'Good when floor space constrains one dimension but not the other',
+            'Operators at the corner can serve stations on both arms',
+            'A compromise between straight-line simplicity and U-cell compactness'
+        ],
+        parallel: [
+            'Two parallel rows create a loop &mdash; operators walk a circuit',
+            'Keeps total footprint compact for high station counts',
+            'Natural for paired processes (e.g. assembly + test on facing rows)',
+            'Walking distance depends on how stations are assigned across rows'
+        ]
+    };
+
+    document.getElementById('cs-insight-panel').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <div>
+                <div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;">Walking Distance: ${currentName} vs Straight</div>
+                ${savingsHtml}
+            </div>
+            <div>
+                <div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;">Why ${currentName}?</div>
+                <ul style="margin:0;padding-left:16px;line-height:1.8;">
+                    ${(insights[current] || insights.straight).map(i => `<li>${i}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+    `;
+}
+
+// --- UI Helpers ---
+
+function setCellLayout(layout) {
+    cellState.layout = layout;
+    document.querySelectorAll('.cs-layout-btn').forEach(btn => {
+        const isActive = btn.dataset.layout === layout;
+        btn.style.borderColor = isActive ? 'var(--accent)' : 'var(--border)';
+        btn.style.background = isActive ? 'rgba(74,159,110,0.15)' : 'transparent';
+        btn.style.color = isActive ? 'var(--text-primary)' : 'var(--text-secondary)';
+    });
+    if (cellState.running) {
+        clearInterval(cellState.interval);
+        cellState.running = false;
+    }
+    resetCellSim();
+}
+
+function updateCellParams() {
+    const n = parseInt(document.getElementById('cs-num-stations').value) || 6;
+    const mode = document.getElementById('cs-ct-mode').value;
+    const uniformCT = parseInt(document.getElementById('cs-uniform-ct').value) || 30;
+
+    // Show/hide sections
+    document.getElementById('cs-stations-section').style.display = mode === 'custom' ? 'block' : 'none';
+    document.getElementById('cs-uniform-ct-wrap').style.display = mode === 'uniform' ? 'block' : 'none';
+
+    // Sync station count
+    while (cellStations.length < n) cellStations.push({ name: `S${cellStations.length + 1}`, cycleTime: uniformCT });
+    while (cellStations.length > n) cellStations.pop();
+
+    if (mode === 'uniform') {
+        cellStations.forEach(s => { s.cycleTime = uniformCT; });
+    }
+
+    cellState.spacing = parseFloat(document.getElementById('cs-spacing').value) || 2.0;
+    cellState.walkSpeed = parseFloat(document.getElementById('cs-walk-speed').value) || 1.2;
+
+    // Re-render station table if in custom mode
+    if (mode === 'custom') renderCellStationTable();
+    renderCellOperatorRoutes();
+
+    if (!cellState.running) {
+        renderCellDiagram();
+    }
+}
+
+function renderCellStationTable() {
+    let h = '<table style="width:100%;max-width:500px;border-collapse:collapse;font-size:12px;">';
+    h += '<tr style="color:var(--text-dim);font-size:10px;text-transform:uppercase;"><th style="text-align:left;padding:4px 8px;">Station</th><th style="text-align:left;padding:4px 8px;">Name</th><th style="text-align:right;padding:4px 8px;">Cycle Time (s)</th></tr>';
+    cellStations.forEach((s, i) => {
+        h += `<tr style="border-top:1px solid var(--border);">`;
+        h += `<td style="padding:6px 8px;color:var(--text-dim);">${i + 1}</td>`;
+        h += `<td style="padding:6px 8px;"><input type="text" value="${s.name}" onchange="cellStations[${i}].name=this.value;renderCellDiagram();" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text-primary);width:80px;"></td>`;
+        h += `<td style="padding:6px 8px;text-align:right;"><input type="number" value="${s.cycleTime}" min="5" max="300" onchange="cellStations[${i}].cycleTime=+this.value;renderCellDiagram();" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text-primary);width:70px;text-align:right;"></td>`;
+        h += `</tr>`;
+    });
+    h += '</table>';
+    document.getElementById('cs-station-table').innerHTML = h;
+}
+
+function renderCellOperatorRoutes() {
+    const numOps = Math.min(parseInt(document.getElementById('cs-num-operators').value) || 2, 4);
+    const n = cellStations.length;
+    const perOp = Math.ceil(n / numOps);
+
+    let h = '<div style="display:flex;flex-direction:column;gap:8px;">';
+    for (let i = 0; i < numOps; i++) {
+        const start = i * perOp;
+        const end = Math.min(start + perOp, n);
+        h += `<div style="display:flex;align-items:center;gap:8px;">`;
+        h += `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${CS_COLORS[i]};flex-shrink:0;"></span>`;
+        h += `<span style="font-size:12px;font-weight:600;color:var(--text-primary);min-width:40px;">Op ${i + 1}</span>`;
+        h += `<div style="display:flex;gap:4px;flex-wrap:wrap;">`;
+        for (let j = 0; j < n; j++) {
+            const assigned = j >= start && j < end;
+            const bg = assigned ? CS_COLORS[i] : 'transparent';
+            const border = assigned ? CS_COLORS[i] : 'var(--border)';
+            const color = assigned ? 'white' : 'var(--text-dim)';
+            h += `<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:24px;border-radius:4px;background:${bg};border:1px solid ${border};color:${color};font-size:10px;font-weight:600;">${cellStations[j].name}</span>`;
+        }
+        h += `</div></div>`;
+    }
+    h += '</div>';
+    document.getElementById('cs-operator-routes').innerHTML = h;
+}
+
+// --- Integration ---
+
+function importCellFromLineSim() {
+    if (typeof lineStations !== 'undefined' && lineStations.length > 0) {
+        cellStations = lineStations.map(s => ({ name: s.name, cycleTime: s.cycleTime }));
+        document.getElementById('cs-num-stations').value = cellStations.length;
+        document.getElementById('cs-ct-mode').value = 'custom';
+        updateCellParams();
+        resetCellSim();
+    }
+}
+
+function importCellFromYamazumi() {
+    if (typeof yamazumiStations !== 'undefined' && yamazumiStations.length > 0) {
+        cellStations = yamazumiStations.map(s => ({ name: s.name || s.station, cycleTime: s.time || s.cycleTime || 30 }));
+        document.getElementById('cs-num-stations').value = cellStations.length;
+        document.getElementById('cs-ct-mode').value = 'custom';
+        updateCellParams();
+        resetCellSim();
+    }
+}
+
+function loadVSMIntoCellSim(effectiveStations) {
+    cellStations = effectiveStations.map(s => ({ name: s.name || 'Station', cycleTime: s.cycle_time || 30 }));
+    document.getElementById('cs-num-stations').value = cellStations.length;
+    document.getElementById('cs-ct-mode').value = 'custom';
+    updateCellParams();
+    resetCellSim();
+    closeVSMImport();
+}
+
+// Initialize on first show
+(function initCellDesign() {
+    // Render initial diagram when this calc is first shown
+    const origShowCalc = window._origShowCalcForCell;
+    if (!origShowCalc) {
+        window._origShowCalcForCell = true;
+        const _show = showCalc;
+        showCalc = function(id) {
+            _show(id);
+            if (id === 'cell-sim' && cellState.positions.length === 0) {
+                updateCellParams();
+                renderCellDiagram();
+            }
+        };
+    }
+})();
+
+
+// ============================================================================
 // Kanban Pull System Simulator
 // ============================================================================
 
@@ -19380,6 +21407,1013 @@ function calcPbsSigma() {
     ]);
 }
 
+
+// ============================================================================
+// FMEA Monte Carlo — Risk Distribution Simulation
+// ============================================================================
+
+let fmeaSimItems = [
+    { mode: 'Seal failure', severity: 8, occurrence: 4, detection: 5 },
+    { mode: 'Wrong label', severity: 5, occurrence: 3, detection: 2 },
+    { mode: 'Underfill', severity: 7, occurrence: 2, detection: 3 },
+    { mode: 'Contamination', severity: 9, occurrence: 2, detection: 4 },
+    { mode: 'Cracked housing', severity: 6, occurrence: 3, detection: 6 },
+];
+
+function fmeaSimRenderItems() {
+    const c = document.getElementById('fmea-sim-items');
+    if (!c) return;
+    c.innerHTML = fmeaSimItems.map((f, i) => {
+        const rpn = f.severity * f.occurrence * f.detection;
+        const rpnColor = rpn > 100 ? '#e74c3c' : rpn > 50 ? '#f39c12' : '#4a9f6e';
+        return `
+        <div style="display:grid; grid-template-columns:1fr 80px 80px 80px 60px 30px; gap:4px; align-items:center; padding:8px 12px; background:var(--bg-secondary); border-radius:8px; margin-bottom:3px;">
+            <input type="text" value="${f.mode}" placeholder="Failure Mode" style="padding:6px 8px; font-size:13px;" oninput="fmeaSimUpdate(${i},'mode',this.value)">
+            <input type="number" value="${f.severity}" min="1" max="10" style="text-align:center; padding:6px;" oninput="fmeaSimUpdate(${i},'severity',this.value)" title="Severity">
+            <input type="number" value="${f.occurrence}" min="1" max="10" style="text-align:center; padding:6px;" oninput="fmeaSimUpdate(${i},'occurrence',this.value)" title="Occurrence">
+            <input type="number" value="${f.detection}" min="1" max="10" style="text-align:center; padding:6px;" oninput="fmeaSimUpdate(${i},'detection',this.value)" title="Detection">
+            <div style="text-align:center; font-weight:700; color:${rpnColor}; font-size:13px;">${rpn}</div>
+            <button class="yamazumi-station-remove" onclick="fmeaSimRemove(${i})">&times;</button>
+        </div>`;
+    }).join('');
+}
+
+function fmeaSimUpdate(idx, field, value) {
+    if (field !== 'mode') value = Math.min(10, Math.max(1, parseInt(value) || 1));
+    fmeaSimItems[idx][field] = value;
+    fmeaSimRenderItems();
+}
+
+function fmeaSimRemove(idx) {
+    if (fmeaSimItems.length <= 1) return;
+    fmeaSimItems.splice(idx, 1);
+    fmeaSimRenderItems();
+}
+
+function fmeaSimAddItem() {
+    fmeaSimItems.push({ mode: 'New failure mode', severity: 5, occurrence: 5, detection: 5 });
+    fmeaSimRenderItems();
+}
+
+function fmeaSimLoadExample() {
+    fmeaSimItems = [
+        { mode: 'Seal failure', severity: 8, occurrence: 4, detection: 5 },
+        { mode: 'Wrong label', severity: 5, occurrence: 3, detection: 2 },
+        { mode: 'Underfill', severity: 7, occurrence: 2, detection: 3 },
+        { mode: 'Contamination', severity: 9, occurrence: 2, detection: 4 },
+        { mode: 'Cracked housing', severity: 6, occurrence: 3, detection: 6 },
+    ];
+    fmeaSimRenderItems();
+}
+
+function fmeaSimPullFromFMEA() {
+    if (typeof fmeaData !== 'undefined' && fmeaData.length > 0) {
+        fmeaSimItems = fmeaData.map(f => ({
+            mode: f.mode, severity: f.severity, occurrence: f.occurrence, detection: f.detection
+        }));
+        fmeaSimRenderItems();
+    }
+}
+
+function fmeaSimTriangular(min, mode, max) {
+    // Sample from triangular distribution
+    const u = Math.random();
+    const fc = (mode - min) / (max - min);
+    if (u < fc) return min + Math.sqrt(u * (max - min) * (mode - min));
+    return max - Math.sqrt((1 - u) * (max - min) * (max - mode));
+}
+
+function fmeaSimRun() {
+    const runs = parseInt(document.getElementById('fmea-sim-runs').value) || 2000;
+    const unc = parseFloat(document.getElementById('fmea-sim-uncertainty').value) || 1;
+    const threshold = parseInt(document.getElementById('fmea-sim-threshold').value) || 100;
+
+    const btn = document.getElementById('fmea-sim-run-btn');
+    btn.textContent = 'Running...';
+    btn.disabled = true;
+
+    // Use setTimeout to allow UI to update
+    setTimeout(() => {
+        // Per-mode RPN distributions
+        const modeRPNs = fmeaSimItems.map(() => []);
+        const systemRPNs = [];
+        let exceedCount = 0;
+
+        for (let r = 0; r < runs; r++) {
+            let systemRPN = 0;
+            let anyExceed = false;
+
+            fmeaSimItems.forEach((f, i) => {
+                // Sample S, O, D from triangular distributions
+                const sMin = Math.max(1, f.severity - unc);
+                const sMax = Math.min(10, f.severity + unc);
+                const oMin = Math.max(1, f.occurrence - unc);
+                const oMax = Math.min(10, f.occurrence + unc);
+                const dMin = Math.max(1, f.detection - unc);
+                const dMax = Math.min(10, f.detection + unc);
+
+                const s = fmeaSimTriangular(sMin, f.severity, sMax);
+                const o = fmeaSimTriangular(oMin, f.occurrence, oMax);
+                const d = fmeaSimTriangular(dMin, f.detection, dMax);
+
+                const rpn = s * o * d;
+                modeRPNs[i].push(rpn);
+                systemRPN += rpn;
+                if (rpn > threshold) anyExceed = true;
+            });
+
+            systemRPNs.push(systemRPN);
+            if (anyExceed) exceedCount++;
+        }
+
+        // Compute statistics
+        const mean = systemRPNs.reduce((a, b) => a + b, 0) / runs;
+        const max = Math.max(...systemRPNs);
+        const sorted = [...systemRPNs].sort((a, b) => a - b);
+        const p5 = sorted[Math.floor(runs * 0.05)];
+        const p95 = sorted[Math.floor(runs * 0.95)];
+        const pExceed = (exceedCount / runs * 100);
+
+        // Per-mode stats
+        const modeStats = fmeaSimItems.map((f, i) => {
+            const rpns = modeRPNs[i];
+            const modeMean = rpns.reduce((a, b) => a + b, 0) / runs;
+            const modeMax = Math.max(...rpns);
+            const modeSorted = [...rpns].sort((a, b) => a - b);
+            const modeP95 = modeSorted[Math.floor(runs * 0.95)];
+            const modeExceed = rpns.filter(r => r > threshold).length / runs * 100;
+            return { name: f.mode, mean: modeMean, max: modeMax, p95: modeP95, pExceed: modeExceed, rpns };
+        });
+
+        // Find worst mode by contribution to mean
+        const worstMode = modeStats.reduce((a, b) => a.mean > b.mean ? a : b);
+
+        // Update results
+        document.getElementById('fmea-sim-results').style.display = '';
+        document.getElementById('fmea-sim-p-exceed').innerHTML = `${pExceed.toFixed(1)}<span class="calc-result-unit">%</span>`;
+        document.getElementById('fmea-sim-avg-rpn').textContent = Math.round(mean);
+        document.getElementById('fmea-sim-max-rpn').textContent = Math.round(max);
+        document.getElementById('fmea-sim-worst-mode').textContent = worstMode.name;
+
+        // System RPN histogram
+        document.getElementById('fmea-sim-chart-area').style.display = '';
+        Plotly.newPlot('fmea-sim-chart', [{
+            x: systemRPNs,
+            type: 'histogram',
+            nbinsx: 50,
+            marker: { color: 'rgba(74,159,110,0.7)', line: { color: '#4a9f6e', width: 1 } },
+            name: 'System RPN'
+        }], {
+            shapes: [{
+                type: 'line', x0: threshold * fmeaSimItems.length, x1: threshold * fmeaSimItems.length,
+                y0: 0, y1: 1, yref: 'paper',
+                line: { color: '#e74c3c', width: 2, dash: 'dash' }
+            }],
+            annotations: [{
+                x: threshold * fmeaSimItems.length, y: 1, yref: 'paper',
+                text: `Threshold × ${fmeaSimItems.length}`,
+                showarrow: false, font: { color: '#e74c3c', size: 10 }, yshift: 10
+            }],
+            margin: { t: 20, b: 50, l: 50, r: 20 },
+            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+            font: { color: '#9aaa9a' },
+            xaxis: { title: 'System RPN (sum of all modes)', gridcolor: 'rgba(255,255,255,0.1)' },
+            yaxis: { title: 'Frequency', gridcolor: 'rgba(255,255,255,0.1)' },
+        }, { responsive: true, displayModeBar: false });
+
+        // Per-mode box plot
+        document.getElementById('fmea-sim-mode-chart-area').style.display = '';
+        const modeTraces = modeStats.map((ms, i) => ({
+            y: ms.rpns.filter((_, j) => j % Math.max(1, Math.floor(runs / 500)) === 0), // sample for perf
+            type: 'box',
+            name: ms.name,
+            marker: { color: `hsl(${(i * 137) % 360}, 60%, 50%)` },
+            boxpoints: false,
+        }));
+        Plotly.newPlot('fmea-sim-mode-chart', modeTraces, {
+            margin: { t: 20, b: 80, l: 50, r: 20 },
+            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+            font: { color: '#9aaa9a' },
+            yaxis: { title: 'RPN', gridcolor: 'rgba(255,255,255,0.1)' },
+            xaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
+            shapes: [{
+                type: 'line', x0: -0.5, x1: modeStats.length - 0.5,
+                y0: threshold, y1: threshold,
+                line: { color: '#e74c3c', width: 2, dash: 'dash' }
+            }],
+            showlegend: false,
+        }, { responsive: true, displayModeBar: false });
+
+        // Tornado chart (risk contribution)
+        document.getElementById('fmea-sim-tornado-area').style.display = '';
+        const sortedModes = [...modeStats].sort((a, b) => b.mean - a.mean);
+        Plotly.newPlot('fmea-sim-tornado', [{
+            y: sortedModes.map(m => m.name),
+            x: sortedModes.map(m => m.mean),
+            type: 'bar',
+            orientation: 'h',
+            marker: { color: sortedModes.map(m => m.pExceed > 20 ? '#e74c3c' : m.pExceed > 5 ? '#f39c12' : '#4a9f6e') },
+            text: sortedModes.map(m => `Avg: ${m.mean.toFixed(0)}, P(>${threshold}): ${m.pExceed.toFixed(0)}%`),
+            textposition: 'outside',
+            textfont: { size: 10 },
+        }], {
+            margin: { t: 20, b: 50, l: 120, r: 100 },
+            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+            font: { color: '#9aaa9a' },
+            xaxis: { title: 'Average RPN', gridcolor: 'rgba(255,255,255,0.1)' },
+            yaxis: { gridcolor: 'rgba(255,255,255,0.1)', autorange: 'reversed' },
+            shapes: [{
+                type: 'line', x0: threshold, x1: threshold,
+                y0: -0.5, y1: sortedModes.length - 0.5,
+                line: { color: '#e74c3c', width: 2, dash: 'dash' }
+            }],
+        }, { responsive: true, displayModeBar: false });
+
+        // Insights
+        fmeaSimUpdateInsights(runs, threshold, pExceed, mean, max, p5, p95, modeStats, worstMode);
+
+        // Publish
+        SvendOps.publish('fmeaSimPExceed', parseFloat(pExceed.toFixed(1)), '%', 'FMEA MC');
+        SvendOps.publish('fmeaSimAvgRPN', Math.round(mean), '', 'FMEA MC');
+
+        btn.textContent = 'Run Monte Carlo Simulation';
+        btn.disabled = false;
+    }, 50);
+}
+
+function fmeaSimUpdateInsights(runs, threshold, pExceed, mean, max, p5, p95, modeStats, worstMode) {
+    let html = `<div style="margin-bottom:10px;"><strong>${runs.toLocaleString()} simulations complete.</strong> System RPN range: ${Math.round(p5)} (5th pctl) to ${Math.round(p95)} (95th pctl).</div>`;
+
+    // Compounding risk highlight
+    const modeSafe = modeStats.filter(m => m.pExceed < 10);
+    const modeDangerous = modeStats.filter(m => m.pExceed >= 10);
+
+    if (pExceed > 50) {
+        html += `<div style="padding:10px 12px; background:rgba(231,76,60,0.15); border-radius:6px; color:#e74c3c; margin-bottom:10px; font-weight:600;">
+            High risk: ${pExceed.toFixed(0)}% of scenarios have at least one failure mode exceeding RPN ${threshold}. Immediate action required on ${modeDangerous.length} mode${modeDangerous.length > 1 ? 's' : ''}.
+        </div>`;
+    } else if (pExceed > 20) {
+        html += `<div style="padding:10px 12px; background:rgba(243,156,18,0.15); border-radius:6px; color:#f39c12; margin-bottom:10px;">
+            Moderate risk: ${pExceed.toFixed(0)}% chance of threshold exceedance. Focus mitigation on "${worstMode.name}" which contributes ${(worstMode.mean / mean * 100).toFixed(0)}% of system risk.
+        </div>`;
+    } else {
+        html += `<div style="padding:10px 12px; background:rgba(74,159,110,0.15); border-radius:6px; color:var(--accent); margin-bottom:10px;">
+            Low risk: Only ${pExceed.toFixed(1)}% of scenarios exceed threshold. Current controls appear adequate.
+        </div>`;
+    }
+
+    // Per-mode breakdown
+    html += '<div style="margin-top:10px; font-size:12px;">';
+    html += '<strong>Per-mode exceedance probability:</strong><br>';
+    [...modeStats].sort((a, b) => b.pExceed - a.pExceed).forEach(m => {
+        const bar = Math.min(100, m.pExceed);
+        const color = m.pExceed > 20 ? '#e74c3c' : m.pExceed > 5 ? '#f39c12' : '#4a9f6e';
+        html += `<div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <span style="min-width:120px; font-size:11px;">${m.name}</span>
+            <div style="flex:1; height:12px; background:var(--bg-tertiary); border-radius:3px; overflow:hidden;">
+                <div style="width:${bar}%; height:100%; background:${color}; border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px; min-width:50px; text-align:right; color:${color}; font-weight:600;">${m.pExceed.toFixed(1)}%</span>
+        </div>`;
+    });
+    html += '</div>';
+
+    document.getElementById('fmea-sim-insights').innerHTML = html;
+
+    renderNextSteps('fmea-sim-next-steps', [
+        { title: 'FMEA / RPN', desc: 'Detailed failure mode analysis and scoring', calcId: 'fmea' },
+        { title: 'Risk Matrix', desc: 'Visual risk assessment for high-RPN modes', calcId: 'riskmatrix' },
+        { title: 'Cp / Cpk', desc: 'Check process capability for critical modes', calcId: 'cpk' },
+    ]);
+    document.getElementById('fmea-sim-next-steps').style.display = '';
+}
+
+// Init FMEA MC on load
+document.addEventListener('DOMContentLoaded', () => { fmeaSimRenderItems(); });
+
+// ============================================================================
+// SMED Simulator — Interactive Changeover Reduction
+// ============================================================================
+
+let smedSimElements = [
+    { name: 'Gather tools & parts', time: 8, type: 'internal', convertible: true },
+    { name: 'Remove old die/fixture', time: 12, type: 'internal', convertible: false },
+    { name: 'Clean mounting surface', time: 5, type: 'internal', convertible: true },
+    { name: 'Install new die/fixture', time: 15, type: 'internal', convertible: false },
+    { name: 'Align & adjust settings', time: 10, type: 'internal', convertible: false },
+    { name: 'Connect utilities', time: 6, type: 'internal', convertible: true },
+    { name: 'Preheat new die', time: 10, type: 'internal', convertible: true },
+    { name: 'First piece inspection', time: 5, type: 'internal', convertible: false },
+    { name: 'Cleanup & store old die', time: 8, type: 'internal', convertible: true },
+];
+
+let smedSimAnim = { running: false, interval: null, time: 0, phase: null };
+
+function smedSimRenderElements() {
+    const c = document.getElementById('smed-sim-elements');
+    if (!c) return;
+    c.innerHTML = smedSimElements.map((el, i) => {
+        const isInt = el.type === 'internal';
+        const btnColor = isInt ? '#e74c3c' : '#4a9f6e';
+        const btnText = isInt ? 'Internal' : 'External';
+        return `
+        <div style="display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--bg-secondary); border-radius:8px; margin-bottom:4px; border-left:3px solid ${btnColor};">
+            <button onclick="smedSimToggleType(${i})" style="padding:4px 12px; background:${btnColor}; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px; font-weight:600; min-width:70px;">${btnText}</button>
+            <input type="text" value="${el.name}" style="flex:1; padding:6px 8px; font-size:13px;" oninput="smedSimUpdate(${i},'name',this.value)">
+            <input type="number" value="${el.time}" min="1" max="120" style="width:60px; text-align:right; padding:6px;" oninput="smedSimUpdate(${i},'time',this.value)">
+            <span style="color:var(--text-dim); font-size:11px;">min</span>
+            <button class="yamazumi-station-remove" onclick="smedSimRemove(${i})">&times;</button>
+        </div>`;
+    }).join('');
+    smedSimCalc();
+}
+
+function smedSimToggleType(idx) {
+    smedSimElements[idx].type = smedSimElements[idx].type === 'internal' ? 'external' : 'internal';
+    smedSimRenderElements();
+}
+
+function smedSimUpdate(idx, field, value) {
+    if (field === 'time') value = Math.max(1, parseInt(value) || 1);
+    smedSimElements[idx][field] = value;
+    smedSimCalc();
+}
+
+function smedSimRemove(idx) {
+    smedSimElements.splice(idx, 1);
+    smedSimRenderElements();
+}
+
+function smedSimAddElement() {
+    smedSimElements.push({ name: 'New element', time: 5, type: 'internal', convertible: true });
+    smedSimRenderElements();
+}
+
+function smedSimLoadExample() {
+    smedSimElements = [
+        { name: 'Gather tools & parts', time: 8, type: 'internal', convertible: true },
+        { name: 'Remove old die/fixture', time: 12, type: 'internal', convertible: false },
+        { name: 'Clean mounting surface', time: 5, type: 'internal', convertible: true },
+        { name: 'Install new die/fixture', time: 15, type: 'internal', convertible: false },
+        { name: 'Align & adjust settings', time: 10, type: 'internal', convertible: false },
+        { name: 'Connect utilities', time: 6, type: 'internal', convertible: true },
+        { name: 'Preheat new die', time: 10, type: 'internal', convertible: true },
+        { name: 'First piece inspection', time: 5, type: 'internal', convertible: false },
+        { name: 'Cleanup & store old die', time: 8, type: 'internal', convertible: true },
+    ];
+    smedSimRenderElements();
+}
+
+function smedSimPullFromSMED() {
+    if (typeof smedData !== 'undefined' && smedData.length > 0) {
+        smedSimElements = smedData.map(s => ({
+            name: s.name, time: s.time, type: s.type, convertible: true
+        }));
+        smedSimRenderElements();
+    }
+}
+
+function smedSimCalc() {
+    const internal = smedSimElements.filter(e => e.type === 'internal');
+    const external = smedSimElements.filter(e => e.type === 'external');
+    const totalBefore = smedSimElements.reduce((s, e) => s + e.time, 0);
+    const internalTime = internal.reduce((s, e) => s + e.time, 0);
+    const externalTime = external.reduce((s, e) => s + e.time, 0);
+    const saved = totalBefore - internalTime;
+    const reduction = totalBefore > 0 ? ((saved / totalBefore) * 100) : 0;
+
+    // Update results
+    document.getElementById('smed-sim-total-before').innerHTML = `${totalBefore}<span class="calc-result-unit">min</span>`;
+    document.getElementById('smed-sim-total-after').innerHTML = `${internalTime}<span class="calc-result-unit">min</span>`;
+    document.getElementById('smed-sim-saved').innerHTML = `${saved}<span class="calc-result-unit">min</span>`;
+    document.getElementById('smed-sim-reduction').innerHTML = `${reduction.toFixed(0)}<span class="calc-result-unit">%</span>`;
+
+    // Update timeline headers
+    document.getElementById('smed-sim-before-time').textContent = `(${totalBefore} min total)`;
+    document.getElementById('smed-sim-after-time').textContent = `(${internalTime} min downtime)`;
+
+    // Render before bar (all sequential)
+    const maxTime = Math.max(totalBefore, 1);
+    let beforeHtml = '';
+    smedSimElements.forEach(el => {
+        const w = (el.time / maxTime * 100).toFixed(1);
+        const color = el.type === 'internal' ? '#e74c3c' : '#c0392b';
+        beforeHtml += `<div style="width:${w}%; min-width:20px; height:24px; background:${color}; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:9px; color:white; overflow:hidden; white-space:nowrap; padding:0 4px;" title="${el.name} (${el.time} min)">${el.time > 3 ? el.name.substring(0, 12) : el.time}</div>`;
+    });
+    document.getElementById('smed-sim-before-bar').innerHTML = beforeHtml;
+
+    // Render after bars (separated)
+    let extHtml = '', intHtml = '';
+    external.forEach(el => {
+        const w = (el.time / maxTime * 100).toFixed(1);
+        extHtml += `<div style="width:${w}%; min-width:20px; height:24px; background:#4a9f6e; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:9px; color:white; overflow:hidden; white-space:nowrap; padding:0 4px;" title="${el.name} (${el.time} min)">${el.time > 3 ? el.name.substring(0, 12) : el.time}</div>`;
+    });
+    internal.forEach(el => {
+        const w = (el.time / maxTime * 100).toFixed(1);
+        intHtml += `<div style="width:${w}%; min-width:20px; height:24px; background:#e74c3c; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:9px; color:white; overflow:hidden; white-space:nowrap; padding:0 4px;" title="${el.name} (${el.time} min)">${el.time > 3 ? el.name.substring(0, 12) : el.time}</div>`;
+    });
+    document.getElementById('smed-sim-ext-bar').innerHTML = extHtml || '<div style="font-size:11px; color:var(--text-dim);">No external elements yet — click Internal buttons above to convert</div>';
+    document.getElementById('smed-sim-int-bar').innerHTML = intHtml || '<div style="font-size:11px; color:var(--text-dim);">All elements externalized!</div>';
+
+    // Update chart
+    smedSimUpdateChart(totalBefore, internalTime, externalTime, internal, external);
+
+    // Update insights
+    smedSimUpdateInsights(totalBefore, internalTime, externalTime, reduction, internal, external);
+
+    // Publish
+    SvendOps.publish('smedSimBefore', totalBefore, 'min', 'SMED Sim');
+    SvendOps.publish('smedSimAfter', internalTime, 'min', 'SMED Sim');
+}
+
+function smedSimUpdateChart(totalBefore, internalTime, externalTime, internal, external) {
+    // Gantt-style comparison chart
+    const beforeTasks = [], afterIntTasks = [], afterExtTasks = [];
+    let bCum = 0;
+    smedSimElements.forEach(el => {
+        beforeTasks.push({ name: el.name, start: bCum, duration: el.time, type: 'before' });
+        bCum += el.time;
+    });
+    let iCum = 0;
+    internal.forEach(el => {
+        afterIntTasks.push({ name: el.name, start: iCum, duration: el.time, type: 'internal' });
+        iCum += el.time;
+    });
+    let eCum = 0;
+    external.forEach(el => {
+        afterExtTasks.push({ name: el.name, start: eCum, duration: el.time, type: 'external' });
+        eCum += el.time;
+    });
+
+    const traces = [
+        // Before row
+        ...beforeTasks.map(t => ({
+            x: [t.duration], y: ['Before SMED'], type: 'bar', orientation: 'h',
+            base: [t.start], marker: { color: '#e74c3c' },
+            text: [`${t.name} (${t.duration}m)`], textposition: 'inside',
+            textfont: { size: 10, color: 'white' },
+            hoverinfo: 'text', showlegend: false,
+        })),
+        // After internal row
+        ...afterIntTasks.map(t => ({
+            x: [t.duration], y: ['After (Internal)'], type: 'bar', orientation: 'h',
+            base: [t.start], marker: { color: '#e74c3c' },
+            text: [`${t.name} (${t.duration}m)`], textposition: 'inside',
+            textfont: { size: 10, color: 'white' },
+            hoverinfo: 'text', showlegend: false,
+        })),
+        // After external row
+        ...afterExtTasks.map(t => ({
+            x: [t.duration], y: ['After (External)'], type: 'bar', orientation: 'h',
+            base: [t.start], marker: { color: '#4a9f6e' },
+            text: [`${t.name} (${t.duration}m)`], textposition: 'inside',
+            textfont: { size: 10, color: 'white' },
+            hoverinfo: 'text', showlegend: false,
+        })),
+    ];
+
+    Plotly.newPlot('smed-sim-chart', traces, {
+        barmode: 'overlay',
+        margin: { t: 20, b: 50, l: 120, r: 20 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        xaxis: { title: 'Time (minutes)', gridcolor: 'rgba(255,255,255,0.1)' },
+        yaxis: { gridcolor: 'rgba(255,255,255,0.1)' },
+        shapes: [{
+            type: 'line', x0: internalTime, x1: internalTime,
+            y0: -0.5, y1: 2.5,
+            line: { color: '#4a9f6e', width: 2, dash: 'dash' }
+        }],
+        annotations: internalTime < totalBefore ? [{
+            x: internalTime, y: 2.5, text: `${internalTime}m downtime`,
+            showarrow: false, font: { color: '#4a9f6e', size: 11 }, yshift: 10
+        }] : [],
+    }, { responsive: true, displayModeBar: false });
+}
+
+function smedSimUpdateInsights(totalBefore, internalTime, externalTime, reduction, internal, external) {
+    let html = '';
+    if (external.length === 0) {
+        html = '<em>All elements are still internal. Click the "Internal" buttons to convert elements that can be done while the machine is running.</em>';
+    } else {
+        html += `<div style="margin-bottom:8px;"><strong>${reduction.toFixed(0)}% downtime reduction:</strong> ${totalBefore} min → ${internalTime} min machine downtime.</div>`;
+        html += `<div style="margin-bottom:8px;">${external.length} element${external.length > 1 ? 's' : ''} moved to external (${externalTime} min done while machine runs).</div>`;
+
+        if (internalTime <= 10) {
+            html += `<div style="padding:8px 12px; background:rgba(74,159,110,0.15); border-radius:6px; color:var(--accent); font-weight:600;">
+                Single-Minute Exchange achieved! Downtime is under 10 minutes.
+            </div>`;
+        } else if (internalTime <= 30) {
+            html += `<div style="padding:8px 12px; background:rgba(243,156,18,0.15); border-radius:6px; color:#f39c12;">
+                Good progress. ${internalTime - 10} more minutes of internal work to convert before reaching single-minute exchange.
+            </div>`;
+        }
+
+        // Suggestion: largest remaining internal element
+        if (internal.length > 0) {
+            const largest = internal.reduce((a, b) => a.time > b.time ? a : b);
+            html += `<div style="margin-top:8px; font-size:12px; color:var(--text-dim);">Largest remaining internal element: <strong>"${largest.name}" (${largest.time} min)</strong> — can any part of this be done externally?</div>`;
+        }
+    }
+    document.getElementById('smed-sim-insights').innerHTML = html;
+
+    renderNextSteps('smed-sim-next-steps', [
+        { title: 'SMED Analysis', desc: 'Detailed changeover element analysis', calcId: 'smed' },
+        { title: 'Heijunka Sim', desc: 'See how short changeovers enable leveled production', calcId: 'heijunka-sim' },
+        { title: 'Line Simulator', desc: 'Test changeover impact on production line throughput', calcId: 'line-sim' },
+    ]);
+    document.getElementById('smed-sim-next-steps').style.display = '';
+}
+
+function smedSimAnimate() {
+    if (smedSimAnim.running) {
+        clearInterval(smedSimAnim.interval);
+        smedSimAnim.running = false;
+        document.getElementById('smed-sim-start').innerHTML = '&#9654; Resume';
+        return;
+    }
+
+    const totalBefore = smedSimElements.reduce((s, e) => s + e.time, 0);
+    const internalOnly = smedSimElements.filter(e => e.type === 'internal').reduce((s, e) => s + e.time, 0);
+
+    if (smedSimAnim.time === 0) {
+        document.getElementById('smed-sim-anim-area').style.display = 'block';
+        smedSimAnim.totalBefore = totalBefore;
+        smedSimAnim.totalAfter = internalOnly;
+        smedSimAnim.beforeDone = false;
+        smedSimAnim.afterDone = false;
+
+        // Build element sequence for animation
+        let bCum = 0;
+        smedSimAnim.beforeSteps = smedSimElements.map(el => {
+            const step = { name: el.name, start: bCum, end: bCum + el.time };
+            bCum += el.time;
+            return step;
+        });
+        let iCum = 0;
+        smedSimAnim.afterSteps = smedSimElements.filter(e => e.type === 'internal').map(el => {
+            const step = { name: el.name, start: iCum, end: iCum + el.time };
+            iCum += el.time;
+            return step;
+        });
+    }
+
+    smedSimAnim.running = true;
+    document.getElementById('smed-sim-start').innerHTML = '&#10074;&#10074; Pause';
+    smedSimAnim.interval = setInterval(smedSimAnimTick, 100);
+}
+
+function smedSimAnimTick() {
+    const speed = parseInt(document.getElementById('smed-sim-speed').value) || 5;
+    smedSimAnim.time += speed * 0.5; // minutes per tick
+
+    const t = smedSimAnim.time;
+    const tb = smedSimAnim.totalBefore;
+    const ta = smedSimAnim.totalAfter;
+
+    // Update before side
+    const bPct = Math.min(100, (t / tb) * 100);
+    document.getElementById('smed-anim-before-progress').style.width = bPct + '%';
+    const bMin = Math.min(t, tb);
+    document.getElementById('smed-anim-before-clock').textContent = `${Math.floor(bMin)}:${String(Math.floor((bMin % 1) * 60)).padStart(2, '0')}`;
+    const bStep = smedSimAnim.beforeSteps.find(s => t >= s.start && t < s.end);
+    document.getElementById('smed-anim-before-label').textContent = bStep ? bStep.name : (t >= tb ? 'Complete' : '');
+
+    // Update after side
+    const aPct = Math.min(100, (t / ta) * 100);
+    document.getElementById('smed-anim-after-progress').style.width = aPct + '%';
+    const aMin = Math.min(t, ta);
+    document.getElementById('smed-anim-after-clock').textContent = `${Math.floor(aMin)}:${String(Math.floor((aMin % 1) * 60)).padStart(2, '0')}`;
+    const aStep = smedSimAnim.afterSteps.find(s => t >= s.start && t < s.end);
+    if (t >= ta && !smedSimAnim.afterDone) {
+        smedSimAnim.afterDone = true;
+        document.getElementById('smed-anim-after-label').innerHTML = '<span style="color:var(--accent); font-weight:600;">Done! Machine restarted.</span>';
+    } else if (!smedSimAnim.afterDone) {
+        document.getElementById('smed-anim-after-label').textContent = aStep ? aStep.name : '';
+    }
+
+    if (t >= tb && !smedSimAnim.beforeDone) {
+        smedSimAnim.beforeDone = true;
+        document.getElementById('smed-anim-before-label').innerHTML = '<span style="color:#e74c3c;">Done. Machine restarting.</span>';
+    }
+
+    // Both done
+    if (t >= tb) {
+        clearInterval(smedSimAnim.interval);
+        smedSimAnim.running = false;
+        document.getElementById('smed-sim-start').innerHTML = '&#9654; Done';
+    }
+}
+
+function smedSimResetAnim() {
+    if (smedSimAnim.interval) clearInterval(smedSimAnim.interval);
+    smedSimAnim = { running: false, interval: null, time: 0, phase: null };
+    document.getElementById('smed-sim-start').innerHTML = '&#9654; Animate Changeover';
+    document.getElementById('smed-sim-anim-area').style.display = 'none';
+    document.getElementById('smed-anim-before-progress').style.width = '0%';
+    document.getElementById('smed-anim-after-progress').style.width = '0%';
+    document.getElementById('smed-anim-before-clock').textContent = '0:00';
+    document.getElementById('smed-anim-after-clock').textContent = '0:00';
+    document.getElementById('smed-anim-before-label').textContent = 'Waiting...';
+    document.getElementById('smed-anim-after-label').textContent = 'Waiting...';
+}
+
+// Init SMED Sim on load
+document.addEventListener('DOMContentLoaded', () => { smedSimRenderElements(); });
+
+// ============================================================================
+// Heijunka Simulator — Batched vs Leveled
+// ============================================================================
+
+let hjSimProducts = [
+    { product: 'A', demand: 100, color: 'hsl(0, 60%, 50%)' },
+    { product: 'B', demand: 60, color: 'hsl(137, 60%, 50%)' },
+    { product: 'C', demand: 40, color: 'hsl(220, 60%, 50%)' },
+];
+
+const hjSim = {
+    running: false, interval: null, time: 0,
+    batched: null, leveled: null,
+    history: { time: [], bWip: [], lWip: [] },
+};
+
+function hjSimProductColor(idx) {
+    const hues = [0, 137, 220, 45, 280, 30, 180, 330];
+    return `hsl(${hues[idx % hues.length]}, 60%, 50%)`;
+}
+
+function hjSimRenderProducts() {
+    const c = document.getElementById('hj-sim-products');
+    if (!c) return;
+    c.innerHTML = hjSimProducts.map((p, i) => `
+        <div class="yamazumi-station" style="gap:8px;">
+            <div style="width:16px;height:16px;border-radius:4px;background:${p.color};flex-shrink:0;"></div>
+            <input type="text" value="${p.product}" style="width:60px; padding:8px;" oninput="hjSimUpdateProduct(${i},'product',this.value)">
+            <span style="color:var(--text-dim); font-size:12px;">Demand:</span>
+            <input type="number" value="${p.demand}" style="width:80px; text-align:right; padding:8px;" oninput="hjSimUpdateProduct(${i},'demand',this.value)">
+            <span style="color:var(--text-dim); font-size:11px;">units</span>
+            <button class="yamazumi-station-remove" onclick="hjSimRemoveProduct(${i})">&times;</button>
+        </div>
+    `).join('');
+}
+
+function hjSimAddProduct() {
+    const idx = hjSimProducts.length;
+    hjSimProducts.push({
+        product: String.fromCharCode(65 + idx),
+        demand: 50,
+        color: hjSimProductColor(idx)
+    });
+    hjSimRenderProducts();
+}
+
+function hjSimRemoveProduct(idx) {
+    if (hjSimProducts.length <= 2) return;
+    hjSimProducts.splice(idx, 1);
+    hjSimProducts.forEach((p, i) => { p.color = hjSimProductColor(i); });
+    hjSimRenderProducts();
+}
+
+function hjSimUpdateProduct(idx, field, value) {
+    if (field === 'demand') value = Math.max(1, parseInt(value) || 1);
+    hjSimProducts[idx][field] = value;
+}
+
+function hjSimPullFromHeijunka() {
+    if (typeof heijunkaData !== 'undefined' && heijunkaData.length > 0) {
+        hjSimProducts = heijunkaData.map((p, i) => ({
+            product: p.product,
+            demand: p.demand,
+            color: hjSimProductColor(i)
+        }));
+        hjSimRenderProducts();
+    }
+}
+
+function hjSimBuildBatchSequence(products) {
+    // All of A, then all of B, then all of C
+    const seq = [];
+    const totalDemand = products.reduce((s, p) => s + p.demand, 0);
+    const scale = Math.min(1, 200 / totalDemand); // cap total units for sim
+    products.forEach(p => {
+        const count = Math.max(1, Math.round(p.demand * scale));
+        for (let i = 0; i < count; i++) seq.push(p.product);
+    });
+    return seq;
+}
+
+function hjSimBuildLeveledSequence(products) {
+    // Smallest repeating pattern based on demand ratio
+    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+    const demands = products.map(p => Math.max(1, p.demand));
+    const g = demands.reduce((a, b) => gcd(a, b));
+    const pattern = [];
+    products.forEach(p => {
+        const count = Math.max(1, p.demand) / g;
+        for (let i = 0; i < count; i++) pattern.push(p.product);
+    });
+    // Interleave: spread products evenly
+    const interleaved = [];
+    const counts = {};
+    products.forEach(p => { counts[p.product] = Math.max(1, p.demand) / g; });
+    const totalPattern = pattern.length;
+    const remaining = { ...counts };
+    for (let i = 0; i < totalPattern; i++) {
+        let best = null, bestScore = -1;
+        for (const p of products) {
+            if (remaining[p.product] > 0) {
+                const score = remaining[p.product] / counts[p.product];
+                if (score > bestScore) { bestScore = score; best = p.product; }
+            }
+        }
+        if (best) { interleaved.push(best); remaining[best]--; }
+    }
+    // Repeat pattern to match batched total
+    const totalDemand = products.reduce((s, p) => s + p.demand, 0);
+    const scale = Math.min(1, 200 / totalDemand);
+    const totalUnits = Math.max(interleaved.length, Math.round(totalDemand * scale));
+    const seq = [];
+    for (let i = 0; i < totalUnits; i++) seq.push(interleaved[i % interleaved.length]);
+    return seq;
+}
+
+function hjSimCreateLane(sequence, products) {
+    const cycleTime = parseFloat(document.getElementById('hj-cycle').value) || 10;
+    const changeover = parseFloat(document.getElementById('hj-changeover').value) || 30;
+    const productMap = {};
+    products.forEach(p => { productMap[p.product] = p; });
+
+    return {
+        sequence,
+        idx: 0,              // current position in sequence
+        producing: null,     // current product being made
+        changeoverLeft: 0,   // seconds remaining in changeover
+        cycleLeft: 0,        // seconds remaining in current unit
+        wip: {},             // per-product WIP counts
+        completed: {},       // per-product completed counts
+        totalCompleted: 0,
+        changeovers: 0,
+        totalWip: 0,
+        waitTimes: [],       // per-unit wait time
+        productionLog: [],   // [{product, startTime, endTime}]
+        cycleTime,
+        changeover,
+    };
+}
+
+function hjSimStart() {
+    if (hjSim.running) {
+        clearInterval(hjSim.interval);
+        hjSim.running = false;
+        document.getElementById('hj-start-btn').innerHTML = '&#9654; Resume';
+        return;
+    }
+    if (hjSim.time === 0) {
+        // Initialize both lanes
+        const batchSeq = hjSimBuildBatchSequence(hjSimProducts);
+        const levelSeq = hjSimBuildLeveledSequence(hjSimProducts);
+        hjSim.batched = hjSimCreateLane(batchSeq, hjSimProducts);
+        hjSim.leveled = hjSimCreateLane(levelSeq, hjSimProducts);
+        hjSim.history = { time: [], bWip: [], lWip: [] };
+        hjSimProducts.forEach(p => {
+            hjSim.batched.wip[p.product] = 0;
+            hjSim.batched.completed[p.product] = 0;
+            hjSim.leveled.wip[p.product] = 0;
+            hjSim.leveled.completed[p.product] = 0;
+        });
+    }
+    hjSim.running = true;
+    document.getElementById('hj-start-btn').innerHTML = '&#10074;&#10074; Pause';
+    hjSim.interval = setInterval(hjSimTick, 100);
+}
+
+function hjSimReset() {
+    if (hjSim.interval) clearInterval(hjSim.interval);
+    hjSim.running = false;
+    hjSim.time = 0;
+    hjSim.batched = null;
+    hjSim.leveled = null;
+    hjSim.history = { time: [], bWip: [], lWip: [] };
+    document.getElementById('hj-start-btn').innerHTML = '&#9654; Start';
+    document.getElementById('hj-time-counter').textContent = '0';
+    ['hj-b-wip','hj-b-changeovers','hj-b-completed'].forEach(id => document.getElementById(id).textContent = '0');
+    ['hj-l-wip','hj-l-changeovers','hj-l-completed'].forEach(id => document.getElementById(id).textContent = '0');
+    document.getElementById('hj-b-leadtime').textContent = '—';
+    document.getElementById('hj-l-leadtime').textContent = '—';
+    document.getElementById('hj-batched-visual').innerHTML = '<div style="color:var(--text-dim); font-size:12px; text-align:center;">Press Start</div>';
+    document.getElementById('hj-leveled-visual').innerHTML = '<div style="color:var(--text-dim); font-size:12px; text-align:center;">Press Start</div>';
+    document.getElementById('hj-sim-insights').innerHTML = '<em>Start simulation to compare batched vs leveled production...</em>';
+    try { Plotly.purge('hj-sim-chart'); } catch(e) {}
+}
+
+function hjSimStepLane(lane, dt) {
+    const demandInterval = parseFloat(document.getElementById('hj-demand-interval').value) || 15;
+    for (let t = 0; t < dt; t++) {
+        // If in changeover, count down
+        if (lane.changeoverLeft > 0) {
+            lane.changeoverLeft--;
+            continue;
+        }
+        // If currently producing a unit, count down
+        if (lane.cycleLeft > 0) {
+            lane.cycleLeft--;
+            if (lane.cycleLeft <= 0 && lane.producing) {
+                // Unit completed
+                lane.completed[lane.producing] = (lane.completed[lane.producing] || 0) + 1;
+                lane.totalCompleted++;
+                // Record wait time (simplified: position in sequence × cycle time + changeovers)
+            }
+            continue;
+        }
+        // Start next unit
+        if (lane.idx < lane.sequence.length) {
+            const nextProduct = lane.sequence[lane.idx];
+            if (lane.producing && lane.producing !== nextProduct) {
+                // Changeover needed
+                lane.changeoverLeft = lane.changeover;
+                lane.changeovers++;
+                lane.producing = nextProduct;
+                lane.idx++;
+                lane.cycleLeft = lane.cycleTime;
+                // Add WIP for all waiting units of this product type
+                lane.wip[nextProduct] = (lane.wip[nextProduct] || 0) + 1;
+            } else {
+                lane.producing = nextProduct;
+                lane.idx++;
+                lane.cycleLeft = lane.cycleTime;
+                lane.wip[nextProduct] = (lane.wip[nextProduct] || 0) + 1;
+            }
+        }
+    }
+    // Update total WIP (units started but not yet complete)
+    const started = lane.idx;
+    lane.totalWip = Math.max(0, started - lane.totalCompleted);
+}
+
+function hjSimTick() {
+    const speed = parseInt(document.getElementById('hj-speed').value) || 5;
+    const dt = speed;
+    hjSim.time += dt;
+
+    hjSimStepLane(hjSim.batched, dt);
+    hjSimStepLane(hjSim.leveled, dt);
+
+    // Record history every few ticks
+    if (hjSim.time % 5 === 0) {
+        hjSim.history.time.push(hjSim.time);
+        hjSim.history.bWip.push(hjSim.batched.totalWip);
+        hjSim.history.lWip.push(hjSim.leveled.totalWip);
+    }
+
+    // Stop when both lanes finish
+    const bDone = hjSim.batched.idx >= hjSim.batched.sequence.length && hjSim.batched.cycleLeft <= 0 && hjSim.batched.changeoverLeft <= 0;
+    const lDone = hjSim.leveled.idx >= hjSim.leveled.sequence.length && hjSim.leveled.cycleLeft <= 0 && hjSim.leveled.changeoverLeft <= 0;
+    if (bDone && lDone) {
+        clearInterval(hjSim.interval);
+        hjSim.running = false;
+        document.getElementById('hj-start-btn').innerHTML = '&#9654; Done';
+        hjSimUpdateInsights();
+    }
+
+    hjSimUpdateMetrics();
+    if (hjSim.time % 10 === 0) hjSimUpdateChart();
+    hjSimUpdateVisuals();
+}
+
+function hjSimUpdateMetrics() {
+    document.getElementById('hj-time-counter').textContent = hjSim.time;
+    const b = hjSim.batched, l = hjSim.leveled;
+
+    document.getElementById('hj-b-wip').textContent = b.totalWip;
+    document.getElementById('hj-b-changeovers').textContent = b.changeovers;
+    document.getElementById('hj-b-completed').textContent = b.totalCompleted;
+
+    document.getElementById('hj-l-wip').textContent = l.totalWip;
+    document.getElementById('hj-l-changeovers').textContent = l.changeovers;
+    document.getElementById('hj-l-completed').textContent = l.totalCompleted;
+
+    // Avg lead time estimate: (total time so far) / completed, weighted by WIP
+    if (b.totalCompleted > 0) {
+        const bAvgLT = ((b.totalWip * b.cycleTime / 2) + (b.changeovers * b.changeover / b.totalCompleted * (hjSimProducts.length - 1))).toFixed(0);
+        document.getElementById('hj-b-leadtime').textContent = Math.round(hjSim.time / b.totalCompleted) + 's';
+    }
+    if (l.totalCompleted > 0) {
+        document.getElementById('hj-l-leadtime').textContent = Math.round(hjSim.time / l.totalCompleted) + 's';
+    }
+}
+
+function hjSimUpdateVisuals() {
+    const productColors = {};
+    hjSimProducts.forEach(p => { productColors[p.product] = p.color; });
+
+    // Render production progress bars
+    function renderLane(lane, containerId) {
+        const el = document.getElementById(containerId);
+        const total = lane.sequence.length;
+        if (total === 0) return;
+
+        // Show production queue as colored blocks
+        const blockWidth = Math.max(2, Math.min(8, Math.floor(el.clientWidth / total)));
+        let html = '<div style="display:flex; flex-wrap:wrap; gap:1px;">';
+        for (let i = 0; i < total; i++) {
+            const prod = lane.sequence[i];
+            const color = productColors[prod] || '#666';
+            const opacity = i < lane.idx ? '0.3' : i === lane.idx ? '1' : '0.6';
+            const border = i === lane.idx ? '2px solid white' : 'none';
+            html += `<div style="width:${blockWidth}px; height:18px; background:${color}; opacity:${opacity}; border:${border}; border-radius:2px;" title="${prod}"></div>`;
+        }
+        html += '</div>';
+
+        // Show current state
+        const state = lane.changeoverLeft > 0
+            ? `<div style="margin-top:8px; font-size:11px; color:#f39c12;">Changeover: ${lane.changeoverLeft}s remaining</div>`
+            : lane.cycleLeft > 0
+            ? `<div style="margin-top:8px; font-size:11px; color:var(--accent);">Producing ${lane.producing}: ${lane.cycleLeft}s</div>`
+            : lane.idx >= total
+            ? `<div style="margin-top:8px; font-size:11px; color:var(--accent);">Complete</div>`
+            : '';
+        html += state;
+
+        // Per-product completion summary
+        html += '<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">';
+        hjSimProducts.forEach(p => {
+            const done = lane.completed[p.product] || 0;
+            html += `<div style="font-size:10px; color:var(--text-dim);"><span style="display:inline-block; width:8px; height:8px; background:${p.color}; border-radius:2px; margin-right:3px;"></span>${p.product}: ${done}</div>`;
+        });
+        html += '</div>';
+
+        el.innerHTML = html;
+    }
+
+    renderLane(hjSim.batched, 'hj-batched-visual');
+    renderLane(hjSim.leveled, 'hj-leveled-visual');
+}
+
+function hjSimUpdateChart() {
+    const h = hjSim.history;
+    if (h.time.length < 2) return;
+
+    Plotly.newPlot('hj-sim-chart', [
+        { x: h.time, y: h.bWip, type: 'scatter', mode: 'lines', name: 'Batched WIP', line: { color: '#e74c3c', width: 2 } },
+        { x: h.time, y: h.lWip, type: 'scatter', mode: 'lines', name: 'Leveled WIP', line: { color: '#4a9f6e', width: 2 } },
+    ], {
+        margin: { t: 20, b: 50, l: 50, r: 20 },
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+        xaxis: { title: 'Time (s)', gridcolor: 'rgba(255,255,255,0.1)' },
+        yaxis: { title: 'WIP (units)', gridcolor: 'rgba(255,255,255,0.1)' },
+        legend: { orientation: 'h', y: -0.25, x: 0.5, xanchor: 'center' },
+    }, { responsive: true, displayModeBar: false });
+}
+
+function hjSimUpdateInsights() {
+    const b = hjSim.batched, l = hjSim.leveled;
+    const bMaxWip = Math.max(...hjSim.history.bWip, 0);
+    const lMaxWip = Math.max(...hjSim.history.lWip, 0);
+    const wipReduction = bMaxWip > 0 ? ((1 - lMaxWip / bMaxWip) * 100).toFixed(0) : 0;
+    const bAvgWip = hjSim.history.bWip.length > 0 ? (hjSim.history.bWip.reduce((a,b)=>a+b,0) / hjSim.history.bWip.length).toFixed(1) : 0;
+    const lAvgWip = hjSim.history.lWip.length > 0 ? (hjSim.history.lWip.reduce((a,b)=>a+b,0) / hjSim.history.lWip.length).toFixed(1) : 0;
+
+    let html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">';
+    html += `<div><strong>Batched:</strong> Peak WIP = ${bMaxWip}, Avg WIP = ${bAvgWip}, Changeovers = ${b.changeovers}</div>`;
+    html += `<div><strong>Leveled:</strong> Peak WIP = ${lMaxWip}, Avg WIP = ${lAvgWip}, Changeovers = ${l.changeovers}</div>`;
+    html += '</div>';
+
+    if (parseInt(wipReduction) > 0) {
+        html += `<div style="margin-top:12px; padding:10px; background:rgba(74,159,110,0.15); border-radius:6px; font-weight:600; color:var(--accent);">
+            Leveled production reduced peak WIP by ${wipReduction}% (${bMaxWip} → ${lMaxWip} units)
+            ${l.changeovers > b.changeovers ? ` at the cost of ${l.changeovers - b.changeovers} additional changeovers.` : '.'}
+        </div>`;
+    } else if (parseInt(wipReduction) < 0) {
+        html += `<div style="margin-top:12px; padding:10px; background:rgba(231,76,60,0.15); border-radius:6px; color:#e74c3c;">
+            In this configuration, leveling didn't reduce WIP. The changeover time may be too long relative to cycle time — try reducing it with SMED.
+        </div>`;
+    }
+
+    document.getElementById('hj-sim-insights').innerHTML = html;
+
+    // Publish
+    SvendOps.publish('hjSimBatchWip', bMaxWip, 'units', 'Heijunka Sim');
+    SvendOps.publish('hjSimLevelWip', lMaxWip, 'units', 'Heijunka Sim');
+
+    renderNextSteps('hj-sim-next-steps', [
+        { title: 'SMED', desc: 'Reduce changeover time to enable more frequent leveling', calcId: 'smed' },
+        { title: 'Mixed-Model', desc: 'Build the leveled production sequence', calcId: 'mixed-model' },
+        { title: 'Line Simulator', desc: 'Simulate the production line with this product mix', calcId: 'line-sim' },
+    ]);
+    document.getElementById('hj-sim-next-steps').style.display = '';
+}
+
+// Init Heijunka Sim products on load
+(function initHeijunkaSim() {
+    const observer = new MutationObserver(() => {
+        const el = document.getElementById('hj-sim-products');
+        if (el && el.children.length === 0) hjSimRenderProducts();
+    });
+    document.addEventListener('DOMContentLoaded', () => {
+        hjSimRenderProducts();
+    });
+})();
 
 // Init new calculators on page load
 document.addEventListener('DOMContentLoaded', () => {

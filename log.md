@@ -15,6 +15,104 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-21 — Ship 3 Remaining "Coming Soon" Calculators
+**Files changed:**
+- `services/svend/web/templates/calculators.html` — Replaced placeholder content for heijunka-sim, smed-sim, fmea-sim with full implementations. Removed `coming-soon` class from all three nav items. Added JS engines, guide entries, and calcMeta entries. +1,464 lines.
+
+**What was built:**
+1. **Heijunka Simulator** — Side-by-side batched vs leveled production. Discrete-event sim with product mix config, WIP tracking, changeover counting, live visualization, Plotly chart comparing WIP over time. Pulls from Heijunka calculator.
+2. **SMED Simulator** — Interactive changeover reduction. Click to reclassify elements internal→external. Before/after Gantt timeline. Animated side-by-side progress bars showing the time saved. Pulls from SMED Analysis.
+3. **FMEA Monte Carlo** — Runs 2,000+ simulations sampling S/O/D from triangular distributions with configurable uncertainty. System RPN histogram, per-mode box plots, tornado chart for risk contribution, threshold exceedance probability. Pulls from FMEA/RPN.
+
+**Verification:** Navigate to Operations Workbench. All 3 tools should appear without "SOON" badge. Each should be interactive (Start/Run buttons functional, charts render).
+
+---
+
+### 2026-02-21 — Surface Bayesian SPC Capabilities Across Site
+**Files changed:**
+- `svend/urls.py` — Added /tools/bayesian-cpk-calculator/ route + sitemap entry (orphaned tool, now live)
+- `templates/tools/index.html` — Added 10th tool card (Bayesian Cpk Calculator), JSON-LD hasPart, updated meta
+- `templates/tool_base.html` — Added Bayesian Cpk Calculator footer link
+- `templates/landing.html` — Added "Bayesian Process Intelligence" feature card (7th card), updated "Measure & Monitor" card to mention Bayesian SPC, updated spine step 5 with Bayesian chip, added Bayesian SPC FAQ + JSON-LD, updated pricing list, updated stats ribbon to 10 free tools, added 2 JSON-LD featureList items
+- `templates/svend_vs_minitab.html` — Added "Bayesian SPC & Process Intelligence" comparison table section (8 rows all Svend ✓ / Minitab ✗), replaced generic Bayesian advantage card with detailed "35+ capabilities" card, added Bayesian SPC FAQ + JSON-LD entry, added "Bayesian SPC — Beyond the 3-Sigma Rule" guide subsection with 7 bullet points
+
+**Why:** Svend has 35+ Bayesian/probabilistic capabilities (PBS, BOCPD, adaptive limits, Bayesian Cpk, e-values, Bayesian DOE, Bayesian Gage R&R) that were invisible on the public site. These are battlefields where Minitab/JMP have zero presence. Also wired up orphaned bayesian_cpk_calculator.html that had no URL route.
+**Verify:** Visit /tools/bayesian-cpk-calculator/, check /svend-vs-minitab/ Bayesian SPC section, check landing page 7 feature cards
+
+---
+
+### 2026-02-21 — Competitive Positioning Overhaul & Landing Page Corrections
+**Files changed:**
+- `reference_docs/COMPETITIVE_POSITIONING.md` — NEW: competitive analysis reference doc (200+ analysis breakdown, competitor pricing, switching triggers/barriers, differentiators)
+- `DSW_gaps.md` — Checked off 21 remaining items (all P3 + Gen.Var.), updated scorecard to ~99% parity
+- `templates/landing.html` — Fixed "64+" → "200+" (8 instances), added "By the Numbers" stats ribbon (200+ analyses, $49/mo, 9 free tools, zero setup)
+- `templates/tool_base.html` — Fixed "64+" → "200+" CTA, added Svend vs Minitab footer link
+- `templates/svend_vs_minitab.html` — NEW: comparison page with feature table, pricing comparison, FAQ, full SEO (JSON-LD WebPage + FAQPage + BreadcrumbList)
+- `svend/urls.py` — Added /svend-vs-minitab/ route + sitemap entry
+- `CLAUDE.md` — Fixed "64+" → "200+" (3 instances)
+- `STANDARD.md` — Fixed "64+" → "200+" (2 instances)
+- `reference_docs/ARCHITECTURE.md` — Fixed "64+" → "200+", updated Minitab pricing to $2,594/yr
+- `reference_docs/dsw_future_plan.md` — Fixed "64+" → "200+" (2 instances)
+- `agents_api/dsw/stats.py` — Fixed docstring "64+" → "200+"
+- `agents_api/dsw/__init__.py` — Fixed docstring "64+" → "200+"
+- `api/tasks.py` — Fixed "64+" → "200+" in 3 email templates
+
+**Why:** Competitive analysis revealed Svend has ~200 analysis types but marketed "64+" everywhere. DSW_gaps.md was severely out of date. No comparison/SEO pages existed for "minitab alternative" keywords.
+**Verify:** Visit /svend-vs-minitab/, check landing page stats ribbon, grep for remaining "64+"
+
+---
+
+### 2026-02-21 — Safety Stock Simulator (S2) — Inventory Time-Series
+**Debt item:** interactivity_roadmap.md S2
+**Files changed:**
+- `templates/calculators.html` — Replaced 11-line "coming soon" stub with full Safety Stock Simulator (~685 lines). Features: (s,Q) inventory policy simulation with stochastic demand and lead time, Plotly inventory trace chart with ROP/SS dashed lines and stockout/arrival markers, 6 live metric cards (inventory, service level, stockouts, avg inventory, orders, fill rate), cost analysis with holding/stockout bar chart, what-if safety stock multiplier slider, stockout log table, dynamic insights panel, educational panels. Pull buttons for Safety Stock Calculator and EOQ. Removed "coming soon" badge from nav. Updated calcMeta, added calcGuide entry, added findPullTarget and VSM import case.
+**How to verify:** Navigate to Operations Workbench → Safety Stock Sim. Click Start — inventory trace grows day-by-day, stockouts show as red × markers, arrivals as purple triangles. Metrics update live. At sim end, insights compare actual vs target service level.
+
+### 2026-02-21 — Cell Design Simulator (S1) — Spaghetti Diagram
+**Debt item:** interactivity_roadmap.md S1
+**Files changed:**
+- `templates/calculators.html` — Replaced 11-line "coming soon" stub with full Cell Design Simulator (~1250 lines). Features: SVG spaghetti diagram with accumulated operator walking trails, 4 layout types (straight, U-cell, L-cell, parallel), 1-4 color-coded operators, station count/spacing/walking speed config, per-station cycle times, operator route assignment, live metrics (throughput, walk distance, utilization), operator performance table, Plotly layout comparison chart, educational insights panel. Imports from Line Sim, Yamazumi, and VSM. Removed "coming soon" badge from nav. Updated calcMeta description, added calcGuide entry, added VSM import case.
+**How to verify:** Navigate to Operations Workbench → Cell Design. Select layout type, click Start. Operators animate between stations, spaghetti trails accumulate. Switch to U-Cell — walk distance drops visibly. Comparison chart shows all 4 layouts side-by-side.
+
+### 2026-02-21 — 3 New Free Tools: Control Chart Generator, Gage R&R Calculator, Pareto Chart Generator
+**Files changed:**
+- `templates/tools/control_chart_generator.html` (created) — Shewhart I-MR & X-bar R control charts. CSV/XLSX upload via SheetJS, column selector, USL/LSL/Target inputs. Dual stacked Canvas charts, Nelson rules 1-8, Cp/Cpk/Pp/Ppk capability when specs provided. PNG export. Full SEO (JSON-LD WebApp + FAQ + Breadcrumbs, guide content).
+- `templates/tools/gage_rr_calculator.html` (created) — Crossed Gage R&R with ANOVA method. Spreadsheet table or paste CSV input. %GRR ring gauge, NDC, assessment, ANOVA table, variance components table + Canvas bar chart. F-distribution p-values via regularized incomplete beta function. Full SEO package.
+- `templates/tools/pareto_chart_generator.html` (created) — Pareto chart with 80/20 analysis. Editable table or paste CSV input. Canvas chart with sorted bars, cumulative % line, 80% threshold, vital few highlighting. Results grid + sorted data table. PNG export. Full SEO package.
+- `svend/urls.py` — Added 3 URL routes (control-chart-generator, gage-rr-calculator, pareto-chart-generator) + 3 sitemap entries
+- `templates/tools/index.html` — Added 3 tool cards with SVG icons + 3 JSON-LD hasPart entries. Updated meta description and keywords. Now 9 tools in 3x3 grid.
+- `templates/tool_base.html` — Added 3 footer links (now 9 tools)
+**How to verify:** Visit `/tools/` — should show 9 tools in 3x3 grid. Each new tool page loads, auto-calculates with example data, renders charts.
+
+### 2026-02-20 — Operations Workbench interactivity roadmap
+**Files changed:**
+- `interactivity_roadmap.md` (created) — Prioritized roadmap for new Operations Workbench tools. 5 "coming soon" to ship, 11 Tier 1, 5 Tier 2, 6 Tier 3. Deduplicated against DSW (130+ analyses), DOE (11 design types), SPC (21 chart types), Forecasting, FMEA, RCA, VSM, A3 modules. Focus: education, simulation, interactivity.
+**Verification:** n/a (planning document)
+
+### 2026-02-20 — Studies System Review: 16 fixes (bugs, security, UX, validation)
+**Debt item:** studies_debt.md
+**Files changed:**
+- `core/models/hypothesis.py` — Fixed probability 0.0→0.5 bug (or→is None); added applied_at timestamp in apply_evidence(); added validators on Evidence.confidence (0-1), EvidenceLink.likelihood_ratio (≥0.001), confirmation_threshold (0.5-1.0), rejection_threshold (0.0-0.5)
+- `core/models/project.py` — Added MinValue/MaxValue validators on resolution_confidence (0-1)
+- `core/views.py` — Fixed IDOR in link_evidence and suggest_likelihood_ratio (Evidence now scoped to user-accessible projects); added evidence_detail view (GET/PUT/DELETE)
+- `core/urls.py` — Added evidence_detail URL pattern
+- `core/migrations/0008_alter_evidence_confidence_and_more.py` — Migration for all new validators
+- `agents_api/problem_views.py` — Removed double rate-limit charge in generate_hypotheses (@gated already handles it)
+- `templates/projects.html` — Archive button now uses PUT status=abandoned instead of DELETE; advancePhase now auto-computes next DMAIC phase; evidence slider shows plain-language labels (Negligible→Very Strong) instead of raw LR; aligned status CSS to backend (active/confirmed/rejected/uncertain/merged); aligned direction from "weakens" to "opposes" in radio/CSS/JS
+**Verification:** `python3 manage.py check` — 0 issues; migration 0008 applied
+**Commit:** pending
+
+### 2026-02-20 — Studies System Review: Batch 2 (7 more fixes)
+**Debt item:** studies_debt.md (A6, C1, B3, B5, B8, D5)
+**Files changed:**
+- `core/views.py` — Added `@rate_limited` to computation-heavy endpoints (project_recalculate, hypothesis_recalculate, check_consistency, review_design_execution); fixed project_hub count/list mismatch (split into unsliced base querysets for .count()); added phase-order validation in project_advance_phase (prevents forward skips)
+- `core/models/hypothesis.py` — Replaced hardcoded 0.3/0.7 UNCERTAIN range with threshold-derived formula: (rejection+0.5)/2 to (confirmation+0.5)/2
+- `templates/projects.html` — Renamed "Workbenches" to "Methodology & Phase", removed "+ Add Workbench" button; implemented editProject() with modal reuse for PUT updates
+**Verification:** `python3 manage.py check` — 0 issues; gunicorn reloaded
+**Commit:** pending
+
+---
+
 ### 2026-02-20 — DSW Output Standardization (PBS north-star alignment)
 **Debt item:** [DSW] Output standardization
 **Files changed:**
@@ -4401,3 +4499,26 @@ New endpoint: `POST /api/dsw/models/<uuid>/optimize/` using `scipy.optimize.diff
 3. Logistic regression SE (binary + nominal): `except Exception: None` replaced with ridge-regularized fallback (`+1e-6*I`). User sees warning about perfect separation / collinearity when SEs are approximate.
 
 **How to verify:** `python3 manage.py check`
+
+---
+
+### 2026-02-20 — Tempora Bug Fixes (4 items)
+**Debt item:** Tempora scheduler runtime bugs
+**Files changed:**
+- `tempora/core.py` — Fixed tuple unpacking in `submit()`: `CognitiveTask.create_task()` returns `(task, was_created)`, was assigned to single variable
+- `tempora/models.py` — Fixed `to_context()` kwargs mismatch with `TaskContext` dataclass (wrong field names, extra kwargs); fixed tuple unpacking in `DeadLetterEntry.reprocess()`; fixed `CircuitBreakerState.get_or_create_for_service()` field name (`recovery_timeout_seconds` → `timeout_seconds`)
+- `tempora/types.py` — Added `RetryConfig.get_delay()` method implementing IMMEDIATE/LINEAR/EXPONENTIAL/FIBONACCI strategies with jitter support
+**Verification:** End-to-end Django test script passes; `python3 manage.py check` — 0 issues. User needs to `sudo systemctl restart svend-tempora`.
+**Commit:** pending
+
+---
+
+### 2026-02-20 — Kanban Card Generator: Free Tool Added
+**Debt item:** N/A (new feature — SEO free tool)
+**Files changed:**
+- `templates/tools/kanban_card_generator.html` — **New file.** Full kanban reorder card generator: Canvas-based renderer with Code128 barcodes (JsBarcode) and QR codes (qrcode.js); CR80/half-letter/4x6 card sizes; single card, batch entry, and JSON/CSV import modes; PNG download and multi-page PDF with die lines; dark theme matching Svend design system; full SEO (meta, OG, canonical, JSON-LD WebApplication + FAQPage with 6 Q&As)
+- `templates/tools/index.html` — Added kanban card generator card to tools grid; changed heading from "Calculators" to "Tools"; updated meta title/description/keywords and JSON-LD to include kanban
+- `templates/tool_base.html` — Made CTA section overridable (`{% block tool_cta %}`); added kanban card generator to footer links
+- `svend/urls.py` — Added route `tools/kanban-card-generator/` and sitemap entry
+**Verification:** Visit `/tools/kanban-card-generator/` in browser. `python3 manage.py check` — 0 issues.
+**Commit:** pending
