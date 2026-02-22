@@ -494,6 +494,62 @@
         display: block;
     }
 
+    /* Step metrics overlay */
+    .step-metrics-panel {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 300px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1rem;
+        z-index: 10;
+        display: none;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    .step-metrics-panel.visible { display: block; }
+    .step-metrics-panel .smp-header {
+        display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;
+    }
+    .step-metrics-panel .smp-header h4 { font-size: 0.85rem; color: var(--text-primary); margin: 0; }
+    .step-metrics-panel .smp-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.1rem; padding: 0 4px; }
+    .step-metrics-panel .smp-banner {
+        padding: 6px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.75rem;
+    }
+    .step-metrics-panel .smp-banner.red { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+    .step-metrics-panel .smp-banner.yellow { background: rgba(241,196,15,0.15); color: #f1c40f; border: 1px solid rgba(241,196,15,0.3); }
+    .step-metrics-panel .smp-banner.green { background: rgba(74,159,110,0.15); color: #4a9f6e; border: 1px solid rgba(74,159,110,0.3); }
+    .smp-kpi-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 0.75rem;
+    }
+    .smp-kpi { background: var(--bg-tertiary); border-radius: 4px; padding: 8px; text-align: center; }
+    .smp-kpi-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; }
+    .smp-kpi-value { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin-top: 2px; }
+    .smp-section-title { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin: 0.75rem 0 0.4rem; }
+    .smp-annotation-card {
+        background: var(--bg-tertiary); border-radius: 4px; padding: 8px 10px; margin-bottom: 6px;
+        border-left: 3px solid #666; position: relative;
+    }
+    .smp-annotation-card.green { border-left-color: #4a9f6e; }
+    .smp-annotation-card.yellow { border-left-color: #f1c40f; }
+    .smp-annotation-card.red { border-left-color: #e74c3c; }
+    .smp-annotation-card .smp-ann-source { font-size: 0.7rem; color: var(--accent); font-weight: 600; text-transform: uppercase; }
+    .smp-annotation-card .smp-ann-body { font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px; }
+    .smp-annotation-card .smp-ann-time { font-size: 0.65rem; color: var(--text-dim); margin-top: 3px; }
+    .smp-annotation-card .smp-ann-remove {
+        position: absolute; top: 4px; right: 6px; background: none; border: none;
+        color: var(--text-dim); cursor: pointer; font-size: 0.75rem; padding: 0 2px;
+    }
+    .smp-annotation-card .smp-ann-remove:hover { color: #e74c3c; }
+    .smp-open-calcs {
+        display: block; width: 100%; margin-top: 0.75rem; padding: 6px; font-size: 0.75rem;
+        background: var(--surface-alt); border: 1px solid var(--border); border-radius: 4px;
+        color: var(--text-secondary); cursor: pointer; text-align: center;
+    }
+    .smp-open-calcs:hover { border-color: var(--accent); color: var(--accent); }
+
     .properties-panel h4 {
         font-size: 0.85rem;
         margin-bottom: 1rem;
@@ -972,6 +1028,18 @@
             <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="saveProperties()">
                 Save
             </button>
+        </div>
+
+        <!-- Step Metrics Overlay -->
+        <div class="step-metrics-panel" id="step-metrics-panel">
+            <div class="smp-header">
+                <h4 id="smp-title">Step Metrics</h4>
+                <button class="smp-close" onclick="closeStepMetrics()">&times;</button>
+            </div>
+            <div id="smp-banner"></div>
+            <div class="smp-kpi-grid" id="smp-kpis"></div>
+            <div id="smp-annotations"></div>
+            <button class="smp-open-calcs" onclick="window.open('/app/calculators/','_blank')">Open in Calculators</button>
         </div>
     </div>
 </div>
@@ -1491,9 +1559,19 @@ function renderProcessBox(step, layer) {
         });
     }
 
-    // Make draggable and handle flow clicks
+    // Make draggable; single click = metrics, double click = properties
     g.addEventListener('mousedown', (e) => startDragElement(e, step, 'process'));
-    g.addEventListener('dblclick', () => showProperties(step));
+    g.addEventListener('click', (e) => {
+        if (e.detail === 1 && !wasDragged) {
+            clearTimeout(stepMetricsClickTimer);
+            stepMetricsClickTimer = setTimeout(() => showStepMetrics(step), 200);
+        }
+    });
+    g.addEventListener('dblclick', () => {
+        clearTimeout(stepMetricsClickTimer);
+        closeStepMetrics();
+        showProperties(step);
+    });
 
     layer.appendChild(g);
 }
@@ -2574,8 +2652,11 @@ let dragElement = null;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
+let wasDragged = false;
+
 function startDragElement(e, element, elementType = 'process') {
     e.stopPropagation();
+    wasDragged = false;
 
     // Handle flow tool clicks
     if (currentTool === 'flow' && elementType === 'process') {
@@ -2598,6 +2679,7 @@ function startDragElement(e, element, elementType = 'process') {
 
 function dragElementMove(e) {
     if (!dragElement) return;
+    wasDragged = true;
 
     const canvasRect = document.getElementById('canvas-container').getBoundingClientRect();
     const x = (e.clientX - canvasRect.left - dragOffsetX - panX) / zoom;
@@ -2917,6 +2999,91 @@ function renderSuggestedCalcs(bottleneck) {
             ${s.name} <span style="color:var(--text-dim); font-size:0.65rem;">— ${s.reason}</span>
         </a>`
     ).join('');
+}
+
+// --- Step Metrics Overlay ---
+let stepMetricsClickTimer = null;
+
+function showStepMetrics(step) {
+    const panel = document.getElementById('step-metrics-panel');
+    document.getElementById('smp-title').textContent = step.name || 'Unnamed Step';
+
+    // Banner: bottleneck / exceeds takt / normal
+    const flags = step.flags || {};
+    const bannerEl = document.getElementById('smp-banner');
+    if (flags.is_bottleneck) {
+        bannerEl.innerHTML = '<div class="smp-banner red">System Constraint (Bottleneck)</div>';
+    } else if (flags.exceeds_takt) {
+        bannerEl.innerHTML = '<div class="smp-banner yellow">Exceeds Takt — ratio ' + (flags.takt_ratio || '?') + '</div>';
+    } else if (flags.takt_ratio) {
+        bannerEl.innerHTML = '<div class="smp-banner green">Within Takt — ratio ' + flags.takt_ratio + '</div>';
+    } else {
+        bannerEl.innerHTML = '';
+    }
+
+    // KPI grid
+    const ct = step.cycle_time || '-';
+    const co = step.changeover_time || '-';
+    const uptime = step.uptime ? step.uptime + '%' : '-';
+    const ops = step.operators || '-';
+    const taktRatio = flags.takt_ratio || '-';
+    const scrap = step.scrap_rate ? step.scrap_rate + '%' : '-';
+    document.getElementById('smp-kpis').innerHTML =
+        `<div class="smp-kpi"><div class="smp-kpi-label">C/T (sec)</div><div class="smp-kpi-value">${ct}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">C/O (sec)</div><div class="smp-kpi-value">${co}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">Uptime</div><div class="smp-kpi-value">${uptime}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">Operators</div><div class="smp-kpi-value">${ops}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">vs Takt</div><div class="smp-kpi-value">${taktRatio}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">Scrap</div><div class="smp-kpi-value">${scrap}</div></div>`;
+
+    // Annotations
+    const annotations = step.annotations || [];
+    const annEl = document.getElementById('smp-annotations');
+    if (annotations.length > 0) {
+        annEl.innerHTML = '<div class="smp-section-title">Linked Results</div>' +
+            annotations.map((a, i) => renderAnnotationCard(a, step, i)).join('');
+    } else {
+        annEl.innerHTML = '<div class="smp-section-title">No linked results</div>' +
+            '<div style="font-size:0.75rem; color:var(--text-dim); padding:4px 0;">Run a calculator and export to VSM to see results here.</div>';
+    }
+
+    panel.classList.add('visible');
+}
+
+function renderAnnotationCard(a, step, idx) {
+    const statusClass = a.status || '';
+    const source = (a.source || 'unknown').replace(/_/g, ' ');
+    const ts = a.timestamp ? new Date(a.timestamp).toLocaleDateString() : '';
+    let body = '';
+    if (a.value && typeof a.value === 'object') {
+        body = Object.entries(a.value).map(([k, v]) =>
+            `<span style="margin-right:8px;">${k.replace(/_/g, ' ')}: <strong>${v}</strong></span>`
+        ).join('');
+    } else if (a.value) {
+        body = String(a.value);
+    }
+    const stepId = step.id || '';
+    return `<div class="smp-annotation-card ${statusClass}">
+        <button class="smp-ann-remove" onclick="removeAnnotation('${stepId}', ${idx})" title="Remove">&times;</button>
+        <div class="smp-ann-source">${source}</div>
+        <div class="smp-ann-body">${body}</div>
+        ${ts ? '<div class="smp-ann-time">' + ts + '</div>' : ''}
+    </div>`;
+}
+
+function removeAnnotation(stepId, idx) {
+    if (!currentVSM) return;
+    const step = (currentVSM.process_steps || []).find(s => s.id === stepId);
+    if (!step || !step.annotations) return;
+    saveVSMState();
+    step.annotations.splice(idx, 1);
+    showStepMetrics(step);
+    renderVSM();
+    saveVSM();
+}
+
+function closeStepMetrics() {
+    document.getElementById('step-metrics-panel').classList.remove('visible');
 }
 
 function setTaktDirect() {

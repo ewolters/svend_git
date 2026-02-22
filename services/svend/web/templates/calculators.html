@@ -6441,6 +6441,12 @@ input[type="number"] {
                     <div class="calc-section-title">Insights</div>
                     <div id="re-insights" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;line-height:1.6;"></div>
                 </div>
+                <div style="margin-top:12px; text-align:right;">
+                    <button onclick="pinSPCResultToVSM(document.getElementById('re-est-rate').textContent + ' rate, ' + document.getElementById('re-ooc').textContent + ' OOC', document.getElementById('re-ooc').textContent !== '0' ? 'out_of_control' : 'in_control')" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                        Pin to VSM
+                    </button>
+                </div>
             </div>
 
             <!-- ============================================================ -->
@@ -8624,6 +8630,67 @@ function selectVSMStep(steps, prompt_msg) {
         };
         modal.style.display = 'flex';
     });
+}
+
+// --- Pin to VSM (DSW / SPC results) ---
+
+async function pinDSWResultToVSM(summary, resultType, status) {
+    const annotation = {
+        source: 'dsw_pin',
+        type: resultType || 'dsw_result',
+        value: { summary: summary },
+        status: status || 'green',
+        timestamp: new Date().toISOString()
+    };
+    try {
+        const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
+        const data = await resp.json();
+        const maps = (data.maps || []).filter(m => m.status === 'current');
+        if (maps.length === 0) { showToast('No VSMs found', 'warning'); return; }
+        const target = maps.length === 1 ? maps[0] : await new Promise(resolve => {
+            exportToVSM({ step_annotations: {} }, '');  // reuse modal; will override below
+            return;
+        });
+        const vsmResp = await fetch(`/api/vsm/${(maps[0]).id}/`, { credentials: 'same-origin' });
+        const vsmData = await vsmResp.json();
+        const steps = (vsmData.vsm.process_steps || []).filter(s => s.name);
+        if (steps.length === 0) { showToast('VSM has no named steps', 'warning'); return; }
+        const stepName = await selectVSMStep(steps, 'Pin DSW result to which step?');
+        if (!stepName) return;
+        await doGenericExportToVSM(maps.length === 1 ? maps[0] : maps[0], {
+            step_annotations: { [stepName]: annotation }
+        });
+        showToast('Pinned to VSM step: ' + stepName);
+    } catch (e) {
+        showToast('Pin failed: ' + e.message, 'error');
+    }
+}
+
+async function pinSPCResultToVSM(summary, controlStatus) {
+    const statusMap = { in_control: 'green', warning: 'yellow', out_of_control: 'red' };
+    const annotation = {
+        source: 'spc_pin',
+        type: 'spc_result',
+        value: { summary: summary, control_status: controlStatus || 'unknown' },
+        status: statusMap[controlStatus] || 'yellow',
+        timestamp: new Date().toISOString()
+    };
+    try {
+        const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
+        const data = await resp.json();
+        const maps = (data.maps || []).filter(m => m.status === 'current');
+        if (maps.length === 0) { showToast('No VSMs found', 'warning'); return; }
+        const vsmResp = await fetch(`/api/vsm/${maps[0].id}/`, { credentials: 'same-origin' });
+        const vsmData = await vsmResp.json();
+        const steps = (vsmData.vsm.process_steps || []).filter(s => s.name);
+        if (steps.length === 0) { showToast('VSM has no named steps', 'warning'); return; }
+        const stepName = await selectVSMStep(steps, 'Pin SPC result to which step?');
+        if (!stepName) return;
+        await doGenericExportToVSM(maps[0], { step_annotations: { [stepName]: annotation } });
+        showToast('Pinned SPC result to: ' + stepName);
+    } catch (e) {
+        showToast('Pin failed: ' + e.message, 'error');
+    }
 }
 
 // ============================================================================
