@@ -207,6 +207,12 @@ def get_xmatrix_data(request):
 
         kpi_rollup.append(rollup_entry)
 
+    # Expose metric catalog to frontend for dropdown rendering
+    metric_catalog = {
+        k: {ck: cv for ck, cv in v.items()}
+        for k, v in HoshinKPI.METRIC_CATALOG.items()
+    }
+
     return JsonResponse({
         "fiscal_year": fiscal_year,
         "strategic_objectives": [s.to_dict() for s in strategic],
@@ -214,6 +220,7 @@ def get_xmatrix_data(request):
         "projects": [p.to_dict() for p in projects],
         "kpis": [k.to_dict() for k in kpis],
         "correlations": corr_grouped,
+        "metric_catalog": metric_catalog,
         "rollup": {
             "total_target": round(total_target, 2),
             "total_ytd": round(total_ytd, 2),
@@ -268,12 +275,22 @@ def _auto_suggest_correlations(tenant, fiscal_year, accessible_sites):
                     "annual_project", ao.id, p.id, "moderate",
                 ))
 
-    # project_kpi: KPI derived_from == project
+    # project_kpi: KPI derived_from == project (strong)
+    #   + metric catalog filter_method match (moderate)
     for kpi in kpis:
         if kpi.derived_from_id:
             suggestions.append((
                 "project_kpi", kpi.derived_from_id, kpi.id, "strong",
             ))
+        # Auto-suggest based on matching calculation_method
+        meta = HoshinKPI.METRIC_CATALOG.get(kpi.calculator_result_type, {})
+        filter_method = meta.get("filter_method")
+        if filter_method:
+            for p in projects:
+                if p.calculation_method == filter_method:
+                    suggestions.append((
+                        "project_kpi", p.id, kpi.id, "moderate",
+                    ))
 
     # kpi_strategic: matching target_metric keywords
     for kpi in kpis:
@@ -593,6 +610,10 @@ def list_create_kpis(request):
     if not name:
         return JsonResponse({"error": "name is required"}, status=400)
 
+    # Resolve metric_type from catalog → auto-fill unit, direction, aggregation, etc.
+    metric_type = data.get("metric_type", "manual")
+    meta = HoshinKPI.METRIC_CATALOG.get(metric_type, HoshinKPI.METRIC_CATALOG["manual"])
+
     derived_from = None
     if data.get("derived_from_id"):
         derived_from = get_object_or_404(HoshinProject, id=data["derived_from_id"])
@@ -604,14 +625,14 @@ def list_create_kpis(request):
         description=data.get("description", ""),
         target_value=_decimal_or_none(data.get("target_value")),
         actual_value=_decimal_or_none(data.get("actual_value")),
-        unit=data.get("unit", ""),
+        unit=meta.get("unit", data.get("unit", "")),
         frequency=data.get("frequency", "monthly"),
-        direction=data.get("direction", "up"),
-        aggregation=data.get("aggregation", "sum"),
+        direction=meta.get("direction", data.get("direction", "up")),
+        aggregation=meta.get("aggregation", data.get("aggregation", "sum")),
         derived_from=derived_from,
-        derived_field=data.get("derived_field", "ytd_savings"),
-        calculator_result_type=data.get("calculator_result_type", ""),
-        calculator_field=data.get("calculator_field", ""),
+        derived_field=meta.get("derived_field", data.get("derived_field", "ytd_savings")),
+        calculator_result_type=metric_type,
+        calculator_field=meta.get("calculator_field", data.get("calculator_field", "")),
         sort_order=data.get("sort_order", 0),
     )
     return JsonResponse({"success": True, "kpi": obj.to_dict()}, status=201)
@@ -637,9 +658,18 @@ def update_delete_kpi(request, kpi_id):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    for field in ["name", "description", "unit", "frequency", "direction",
-                  "derived_field", "aggregation", "calculator_result_type",
-                  "calculator_field"]:
+    # If metric_type changed, re-derive all catalog fields
+    if "metric_type" in data:
+        metric_type = data["metric_type"]
+        meta = HoshinKPI.METRIC_CATALOG.get(metric_type, HoshinKPI.METRIC_CATALOG["manual"])
+        obj.calculator_result_type = metric_type
+        obj.unit = meta.get("unit", "")
+        obj.direction = meta.get("direction", "up")
+        obj.aggregation = meta.get("aggregation", "sum")
+        obj.derived_field = meta.get("derived_field", "ytd_savings")
+        obj.calculator_field = meta.get("calculator_field", "")
+
+    for field in ["name", "description", "frequency"]:
         if field in data:
             setattr(obj, field, data[field])
     if "fiscal_year" in data:

@@ -2459,6 +2459,125 @@ class HoshinKPI(models.Model):
         LATEST = "latest", "Latest calculator result"
         MANUAL = "manual", "Manual entry"
 
+    # Metric catalog — each entry is a calculator type that fully determines
+    # how the KPI aggregates, what unit it uses, and which direction is good.
+    # The key is stored in calculator_result_type. Frontend renders this as
+    # the single "Metric" dropdown.
+    METRIC_CATALOG = {
+        # --- Dollar savings (sum across projects) ---
+        "dollar_savings": {
+            "label": "Total Dollar Savings",
+            "group": "Dollar Savings",
+            "unit": "$", "direction": "up", "aggregation": "sum",
+            "derived_field": "ytd_savings",
+        },
+        "waste_pct": {
+            "label": "Waste/Scrap Savings",
+            "group": "Dollar Savings",
+            "unit": "$", "direction": "up", "aggregation": "sum",
+            "derived_field": "ytd_savings",
+            "filter_method": "waste_pct",
+        },
+        "time_reduction": {
+            "label": "Cycle Time Savings",
+            "group": "Dollar Savings",
+            "unit": "$", "direction": "up", "aggregation": "sum",
+            "derived_field": "ytd_savings",
+            "filter_method": "time_reduction",
+        },
+        "headcount": {
+            "label": "Headcount Savings",
+            "group": "Dollar Savings",
+            "unit": "$", "direction": "up", "aggregation": "sum",
+            "derived_field": "ytd_savings",
+            "filter_method": "headcount",
+        },
+        "claims": {
+            "label": "Quality Claims Savings",
+            "group": "Dollar Savings",
+            "unit": "$", "direction": "up", "aggregation": "sum",
+            "derived_field": "ytd_savings",
+            "filter_method": "claims",
+        },
+        "freight": {
+            "label": "Freight/Logistics Savings",
+            "group": "Dollar Savings",
+            "unit": "$", "direction": "up", "aggregation": "sum",
+            "derived_field": "ytd_savings",
+            "filter_method": "freight",
+        },
+        "energy": {
+            "label": "Energy Savings",
+            "group": "Dollar Savings",
+            "unit": "$", "direction": "up", "aggregation": "sum",
+            "derived_field": "ytd_savings",
+            "filter_method": "energy",
+        },
+        "direct": {
+            "label": "Direct Cost Savings",
+            "group": "Dollar Savings",
+            "unit": "$", "direction": "up", "aggregation": "sum",
+            "derived_field": "ytd_savings",
+            "filter_method": "direct",
+        },
+        # --- Volume-weighted rates (non-dollar numerators) ---
+        "scrap_rate": {
+            "label": "Scrap/Waste Rate",
+            "group": "Process Rates",
+            "unit": "%", "direction": "down", "aggregation": "weighted_avg",
+            "derived_field": "raw_metric",
+        },
+        "defect_rate": {
+            "label": "Defect Rate",
+            "group": "Process Rates",
+            "unit": "ppm", "direction": "down", "aggregation": "weighted_avg",
+            "derived_field": "raw_metric",
+        },
+        "first_pass_yield": {
+            "label": "First Pass Yield",
+            "group": "Process Rates",
+            "unit": "%", "direction": "up", "aggregation": "weighted_avg",
+            "derived_field": "raw_metric",
+        },
+        "oee": {
+            "label": "OEE",
+            "group": "Process Rates",
+            "unit": "%", "direction": "up", "aggregation": "weighted_avg",
+            "derived_field": "raw_metric",
+        },
+        # --- SPC / calculator point values ---
+        "spc_capability": {
+            "label": "Process Capability (Cpk)",
+            "group": "SPC Metrics",
+            "unit": "index", "direction": "up", "aggregation": "latest",
+            "calculator_field": "cpk",
+        },
+        "spc_ppk": {
+            "label": "Process Performance (Ppk)",
+            "group": "SPC Metrics",
+            "unit": "index", "direction": "up", "aggregation": "latest",
+            "calculator_field": "ppk",
+        },
+        "spc_yield": {
+            "label": "Process Yield",
+            "group": "SPC Metrics",
+            "unit": "%", "direction": "up", "aggregation": "latest",
+            "calculator_field": "yield_percent",
+        },
+        "spc_gage_rr": {
+            "label": "Gage R&R",
+            "group": "SPC Metrics",
+            "unit": "%", "direction": "down", "aggregation": "latest",
+            "calculator_field": "grr_percent",
+        },
+        # --- Manual ---
+        "manual": {
+            "label": "Manual Entry",
+            "group": "Other",
+            "unit": "", "direction": "up", "aggregation": "manual",
+        },
+    }
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
         "core.Tenant", on_delete=models.CASCADE,
@@ -2575,6 +2694,8 @@ class HoshinKPI(models.Model):
         return self.name
 
     def to_dict(self):
+        metric_type = self.calculator_result_type or "manual"
+        meta = self.METRIC_CATALOG.get(metric_type, {})
         return {
             "id": str(self.id),
             "tenant_id": str(self.tenant_id),
@@ -2587,6 +2708,8 @@ class HoshinKPI(models.Model):
             "frequency": self.frequency,
             "direction": self.direction,
             "aggregation": self.aggregation,
+            "metric_type": metric_type,
+            "metric_label": meta.get("label", "Manual Entry"),
             "derived_from_id": str(self.derived_from_id) if self.derived_from_id else None,
             "derived_field": self.derived_field,
             "calculator_result_type": self.calculator_result_type,
