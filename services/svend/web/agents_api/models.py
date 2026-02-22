@@ -2315,12 +2315,13 @@ class StrategicObjective(models.Model):
     end_year = models.IntegerField(help_text="Target completion fiscal year")
     target_metric = models.CharField(
         max_length=255, blank=True,
-        help_text="What is being measured, e.g. 'Manufacturing cost %'",
+        help_text="Metric catalog key, e.g. 'waste_pct', 'dollar_savings', 'spc_capability'. "
+                  "Links to HoshinKPI.METRIC_CATALOG for unit, direction, and aggregation.",
     )
     target_value = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True,
     )
-    target_unit = models.CharField(max_length=50, blank=True, help_text="$, %, units, etc.")
+    target_unit = models.CharField(max_length=50, blank=True, help_text="Auto-filled from metric catalog")
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.DRAFT,
     )
@@ -2336,6 +2337,7 @@ class StrategicObjective(models.Model):
         return f"{self.title} ({self.start_year}-{self.end_year})"
 
     def to_dict(self):
+        meta = HoshinKPI.METRIC_CATALOG.get(self.target_metric, {})
         return {
             "id": str(self.id),
             "tenant_id": str(self.tenant_id),
@@ -2345,6 +2347,10 @@ class StrategicObjective(models.Model):
             "start_year": self.start_year,
             "end_year": self.end_year,
             "target_metric": self.target_metric,
+            "metric_label": meta.get("label", self.target_metric or "—"),
+            "metric_unit": meta.get("unit", self.target_unit or ""),
+            "metric_aggregation": meta.get("aggregation", "sum"),
+            "metric_direction": meta.get("direction", "up"),
             "target_value": float(self.target_value) if self.target_value else None,
             "target_unit": self.target_unit,
             "status": self.status,

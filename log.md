@@ -15,6 +15,17 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-22 — Metric catalog as single source of truth for X-Matrix
+**Files changed:**
+- `agents_api/models.py` — StrategicObjective: `target_metric` now stores metric catalog key (not free text); `to_dict()` returns `metric_label`, `metric_unit`, `metric_aggregation`, `metric_direction` derived from catalog
+- `agents_api/xmatrix_views.py` — Strategic objective create/update auto-fills `target_unit` from catalog; rollup uses metric's aggregation mode (weighted_avg for rates, sum for dollars) instead of hardcoded $; auto-suggestion `kpi_strategic` uses exact metric key match (strong) and group match (moderate) instead of fuzzy string; exposed `metric_catalog` in x-matrix data response
+- `templates/hoshin.html` — Strategic objective modal: `target_metric` text input → dropdown from METRIC_CATALOG with `<optgroup>` headers; hides unit field (auto-derived); shows meta line (unit/direction/aggregation); rollup cards format values with correct unit/direction per strategic objective; strategic items show metric label as subtitle
+
+**Why:** Free-text `target_metric` on strategic objectives had no programmatic link to KPIs or the calculation engine. Now the metric catalog is the single source of truth — strategic objectives, KPIs, and projects all reference the same metric types, and the system knows how to aggregate (sum $ vs weighted-avg rates vs latest SPC values) based on the metric choice.
+**Verify:** Create strategic objective with non-dollar metric (e.g. Scrap Rate) → KPI auto-suggests via exact metric match → rollup shows weighted-average instead of dollar sum.
+
+---
+
 ### 2026-02-22 — KPI aggregation + calculator mapping for X-Matrix
 **Files changed:**
 - `agents_api/models.py` — HoshinKPI: added `aggregation` (sum/weighted_avg/latest/manual), `calculator_result_type`, `calculator_field` fields; rewrote `effective_actual` property for 4 aggregation modes; updated `to_dict()`

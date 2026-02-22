@@ -1039,14 +1039,18 @@
             <div><label>Owner</label><input id="xm-obj-owner" placeholder="Name"></div>
             <div><label>Status</label><select id="xm-obj-status"></select></div>
             <div><label>Target Value</label><input id="xm-obj-target" type="number" step="0.01"></div>
-            <div><label>Unit</label><input id="xm-obj-unit" placeholder="$, %, etc."></div>
+            <div id="xm-obj-unit-row"><label>Unit</label><input id="xm-obj-unit" placeholder="$, %, etc."></div>
             <!-- Strategic-specific -->
             <div id="xm-obj-strategic-fields">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div><label>Start Year</label><input id="xm-obj-start-year" type="number"></div>
                     <div><label>End Year</label><input id="xm-obj-end-year" type="number"></div>
                 </div>
-                <div style="margin-top:12px;"><label>Target Metric</label><input id="xm-obj-metric" placeholder="e.g. Manufacturing cost %"></div>
+                <div style="margin-top:12px;">
+                    <label>Target Metric</label>
+                    <select id="xm-obj-metric" onchange="onStrategicMetricChange()"></select>
+                    <div id="xm-obj-metric-meta" style="font-size:11px;color:var(--text-dim);margin-top:2px;"></div>
+                </div>
             </div>
             <!-- Annual-specific -->
             <div id="xm-obj-annual-fields" style="display:none;">
@@ -3439,7 +3443,8 @@ function renderXMItems(containerId, items, type) {
         let statusColor = 'var(--text-dim)';
 
         if (type === 'strategic') {
-            value = item.target_value ? `${item.target_unit || '$'}${fmtNum(item.target_value)}` : '';
+            const su = item.metric_unit || item.target_unit || '$';
+            value = item.target_value ? (su === '$' ? '$' + fmtNum(item.target_value) : fmtNum(item.target_value) + ' ' + su) : '';
             statusColor = { draft: 'var(--text-dim)', active: 'var(--accent)', achieved: '#6fcf97', deferred: '#e89547' }[item.status] || 'var(--text-dim)';
         } else if (type === 'annual') {
             value = item.target_value ? `${item.target_unit || '$'}${fmtNum(item.target_value)}` : '';
@@ -3465,7 +3470,7 @@ function renderXMItems(containerId, items, type) {
                 ? `editXMKPI('${id}')`
                 : `editXMObjective('${type}','${id}')`;
 
-        const subtitle = type === 'kpi' && item.metric_label ? `<span class="xm-item-sub">${item.metric_label}</span>` : '';
+        const subtitle = (type === 'kpi' || type === 'strategic') && item.metric_label ? `<span class="xm-item-sub">${item.metric_label}</span>` : '';
         return `<li class="xm-item" data-xm-id="${id}" data-xm-type="${type}"
                     onclick="${clickAction}" oncontextmenu="xmItemContext(event,'${type}','${id}')">
             <span class="xm-status-dot" style="background:${statusColor};"></span>
@@ -3612,15 +3617,23 @@ function renderXMRollup() {
     }
 
     let html = rollup.by_strategic_objective.map(so => {
-        const pct = so.linked_target ? Math.round(so.linked_ytd / so.linked_target * 100) : 0;
+        const u = so.unit || '$';
+        const isUp = so.direction !== 'down';
+        const fmtV = v => v != null ? (u === '$' ? '$' + fmtNum(v) : fmtNum(v) + ' ' + u) : '—';
+        let pct = 0;
+        if (so.linked_target && so.linked_ytd != null) {
+            pct = isUp ? Math.round(so.linked_ytd / so.linked_target * 100)
+                       : (so.linked_target > 0 ? Math.round((2 * so.linked_target - so.linked_ytd) / so.linked_target * 100) : 0);
+        }
         const color = pct >= 90 ? 'var(--accent)' : pct >= 70 ? '#e89547' : 'var(--error)';
+        const aggLabel = so.aggregation === 'weighted_avg' ? ' (wtd avg)' : '';
         return `<div class="xm-rollup-card">
-            <div class="rollup-title">${so.title}</div>
+            <div class="rollup-title">${so.title}${aggLabel ? '<span class="rollup-dim">' + aggLabel + '</span>' : ''}</div>
             <div class="rollup-values">
-                <span class="target">Target: $${fmtNum(so.linked_target)}</span>
-                <span class="ytd" style="color:${color}">YTD: $${fmtNum(so.linked_ytd)}</span>
+                <span class="target">Target: ${fmtV(so.linked_target)}</span>
+                <span class="ytd" style="color:${color}">YTD: ${fmtV(so.linked_ytd)}${pct ? ' (' + pct + '%)' : ''}</span>
             </div>
-            <div class="rollup-bar"><div class="rollup-bar-fill" style="width:${Math.min(pct,100)}%;background:${color};"></div></div>
+            <div class="rollup-bar"><div class="rollup-bar-fill" style="width:${Math.min(Math.max(pct,0),100)}%;background:${color};"></div></div>
         </div>`;
     }).join('');
 
@@ -3719,6 +3732,8 @@ function openXMObjectiveModal(type, editItem) {
     // Show/hide type-specific fields
     document.getElementById('xm-obj-strategic-fields').style.display = type === 'strategic' ? 'block' : 'none';
     document.getElementById('xm-obj-annual-fields').style.display = type === 'annual' ? 'block' : 'none';
+    // Hide unit field for strategic (auto-derived from metric)
+    document.getElementById('xm-obj-unit-row').style.display = type === 'strategic' ? 'none' : 'block';
 
     // Status options
     const statusSel = document.getElementById('xm-obj-status');
@@ -3726,6 +3741,11 @@ function openXMObjectiveModal(type, editItem) {
         statusSel.innerHTML = '<option value="draft">Draft</option><option value="active">Active</option><option value="achieved">Achieved</option><option value="deferred">Deferred</option>';
     } else {
         statusSel.innerHTML = '<option value="on_track">On Track</option><option value="at_risk">At Risk</option><option value="behind">Behind</option><option value="achieved">Achieved</option>';
+    }
+
+    // Populate metric dropdown for strategic objectives
+    if (type === 'strategic') {
+        buildStrategicMetricDropdown();
     }
 
     // Populate site dropdown for annual
@@ -3755,7 +3775,8 @@ function openXMObjectiveModal(type, editItem) {
         if (type === 'strategic') {
             document.getElementById('xm-obj-start-year').value = editItem.start_year || selectedFY;
             document.getElementById('xm-obj-end-year').value = editItem.end_year || selectedFY + 3;
-            document.getElementById('xm-obj-metric').value = editItem.target_metric || '';
+            document.getElementById('xm-obj-metric').value = editItem.target_metric || 'dollar_savings';
+            onStrategicMetricChange();
         } else {
             document.getElementById('xm-obj-site').value = editItem.site_id || '';
             document.getElementById('xm-obj-parent').value = editItem.strategic_objective_id || '';
@@ -3770,7 +3791,8 @@ function openXMObjectiveModal(type, editItem) {
         if (type === 'strategic') {
             document.getElementById('xm-obj-start-year').value = selectedFY;
             document.getElementById('xm-obj-end-year').value = selectedFY + 3;
-            document.getElementById('xm-obj-metric').value = '';
+            document.getElementById('xm-obj-metric').value = 'dollar_savings';
+            onStrategicMetricChange();
         }
     }
 
@@ -3791,7 +3813,6 @@ async function saveXMObjective() {
         owner_name: document.getElementById('xm-obj-owner').value,
         status: document.getElementById('xm-obj-status').value,
         target_value: document.getElementById('xm-obj-target').value || null,
-        target_unit: document.getElementById('xm-obj-unit').value,
     };
 
     if (type === 'strategic') {
@@ -3799,6 +3820,7 @@ async function saveXMObjective() {
         body.end_year = parseInt(document.getElementById('xm-obj-end-year').value) || selectedFY + 3;
         body.target_metric = document.getElementById('xm-obj-metric').value;
     } else {
+        body.target_unit = document.getElementById('xm-obj-unit').value;
         body.fiscal_year = selectedFY;
         body.site_id = document.getElementById('xm-obj-site').value || null;
         body.strategic_objective_id = document.getElementById('xm-obj-parent').value || null;
@@ -3888,6 +3910,44 @@ function onMetricTypeChange() {
         metaLine.textContent = `${meta.unit || '—'} · ${meta.direction === 'down' ? 'Lower is better' : 'Higher is better'} · ${aggLabel}`;
     } else {
         metaLine.textContent = '';
+    }
+}
+
+function buildStrategicMetricDropdown() {
+    const sel = document.getElementById('xm-obj-metric');
+    if (!sel || !xmData || !xmData.metric_catalog) return;
+    sel.innerHTML = '';
+    const catalog = xmData.metric_catalog;
+    // Skip "manual" — strategic objectives must have a measurable metric
+    const groups = {};
+    for (const [key, meta] of Object.entries(catalog)) {
+        if (key === 'manual') continue;
+        const g = meta.group || 'Other';
+        if (!groups[g]) groups[g] = [];
+        groups[g].push({ key, label: meta.label });
+    }
+    for (const [group, items] of Object.entries(groups)) {
+        const og = document.createElement('optgroup');
+        og.label = group;
+        items.forEach(i => {
+            const opt = document.createElement('option');
+            opt.value = i.key;
+            opt.textContent = i.label;
+            og.appendChild(opt);
+        });
+        sel.appendChild(og);
+    }
+}
+
+function onStrategicMetricChange() {
+    const key = document.getElementById('xm-obj-metric').value;
+    const meta = xmData && xmData.metric_catalog ? xmData.metric_catalog[key] : null;
+    const metaDiv = document.getElementById('xm-obj-metric-meta');
+    if (meta) {
+        const aggLabel = {sum:'Sum across projects', weighted_avg:'Volume-weighted average', latest:'Latest value', manual:'Manual'}[meta.aggregation] || meta.aggregation;
+        metaDiv.textContent = `Unit: ${meta.unit || '—'} · ${meta.direction === 'down' ? 'Lower is better' : 'Higher is better'} · ${aggLabel}`;
+    } else {
+        metaDiv.textContent = '';
     }
 }
 

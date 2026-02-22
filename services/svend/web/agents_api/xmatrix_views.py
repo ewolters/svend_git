@@ -119,6 +119,10 @@ def get_xmatrix_data(request):
 
     rollup_by_strategic = []
     for so in strategic:
+        so_meta = HoshinKPI.METRIC_CATALOG.get(so.target_metric, {})
+        so_agg = so_meta.get("aggregation", "sum")
+        so_unit = so_meta.get("unit", so.target_unit or "$")
+
         linked_annual = [
             a for a in annual
             if str(a.strategic_objective_id) == str(so.id)
@@ -129,20 +133,50 @@ def get_xmatrix_data(request):
                 if str(link.row_id) == str(ao.id) and str(link.col_id) in project_map:
                     linked_project_ids.add(str(link.col_id))
 
-        linked_target = sum(
-            float(project_map[pid].annual_savings_target)
-            for pid in linked_project_ids if pid in project_map
-        )
-        linked_ytd = sum(
-            float(project_map[pid].ytd_savings)
-            for pid in linked_project_ids if pid in project_map
-        )
-        rollup_by_strategic.append({
-            "id": str(so.id),
-            "title": so.title,
-            "linked_target": round(linked_target, 2),
-            "linked_ytd": round(linked_ytd, 2),
-        })
+        if so_agg == "weighted_avg":
+            # Volume-weighted average of raw metric across linked projects
+            total_w, total_v = 0.0, 0.0
+            for pid in linked_project_ids:
+                proj = project_map.get(pid)
+                if not proj:
+                    continue
+                for entry in (proj.monthly_actuals or []):
+                    actual = entry.get("actual")
+                    volume = entry.get("volume")
+                    if actual is not None and volume:
+                        total_w += float(actual) * float(volume)
+                        total_v += float(volume)
+            linked_actual = round(total_w / total_v, 4) if total_v > 0 else None
+            linked_target_val = float(so.target_value) if so.target_value else None
+            rollup_by_strategic.append({
+                "id": str(so.id),
+                "title": so.title,
+                "unit": so_unit,
+                "aggregation": so_agg,
+                "direction": so_meta.get("direction", "up"),
+                "linked_target": linked_target_val,
+                "linked_ytd": linked_actual,
+                "total_volume": round(total_v, 2) if total_v > 0 else None,
+            })
+        else:
+            # Default: sum dollar savings
+            linked_target = sum(
+                float(project_map[pid].annual_savings_target)
+                for pid in linked_project_ids if pid in project_map
+            )
+            linked_ytd = sum(
+                float(project_map[pid].ytd_savings)
+                for pid in linked_project_ids if pid in project_map
+            )
+            rollup_by_strategic.append({
+                "id": str(so.id),
+                "title": so.title,
+                "unit": so_unit,
+                "aggregation": so_agg,
+                "direction": so_meta.get("direction", "up"),
+                "linked_target": round(linked_target, 2),
+                "linked_ytd": round(linked_ytd, 2),
+            })
 
     total_target = float(sum(p.annual_savings_target for p in projects))
     total_ytd = float(sum(p.ytd_savings for p in projects))
@@ -292,17 +326,24 @@ def _auto_suggest_correlations(tenant, fiscal_year, accessible_sites):
                         "project_kpi", p.id, kpi.id, "moderate",
                     ))
 
-    # kpi_strategic: matching target_metric keywords
+    # kpi_strategic: matching metric catalog key
     for kpi in kpis:
-        kpi_name_lower = kpi.name.lower()
+        kpi_metric = kpi.calculator_result_type or ""
         for so in strategic_objs:
-            metric_lower = so.target_metric.lower()
-            if metric_lower and kpi_name_lower and (
-                metric_lower in kpi_name_lower or kpi_name_lower in metric_lower
-            ):
+            so_metric = so.target_metric or ""
+            if so_metric and kpi_metric and so_metric == kpi_metric:
+                # Exact catalog key match → strong
                 suggestions.append((
-                    "kpi_strategic", kpi.id, so.id, "moderate",
+                    "kpi_strategic", kpi.id, so.id, "strong",
                 ))
+            elif so_metric and kpi_metric:
+                # Same group match (e.g. both dollar savings)
+                so_group = HoshinKPI.METRIC_CATALOG.get(so_metric, {}).get("group")
+                kpi_group = HoshinKPI.METRIC_CATALOG.get(kpi_metric, {}).get("group")
+                if so_group and so_group == kpi_group:
+                    suggestions.append((
+                        "kpi_strategic", kpi.id, so.id, "moderate",
+                    ))
 
     # Batch create — skip existing
     for pair_type, row_id, col_id, strength in suggestions:
@@ -421,6 +462,9 @@ def list_create_strategic_objectives(request):
         return JsonResponse({"error": "title is required"}, status=400)
 
     current_year = date.today().year
+    metric_key = data.get("target_metric", "")
+    meta = HoshinKPI.METRIC_CATALOG.get(metric_key, {})
+
     obj = StrategicObjective.objects.create(
         tenant=tenant,
         title=title,
@@ -428,9 +472,9 @@ def list_create_strategic_objectives(request):
         owner_name=data.get("owner_name", ""),
         start_year=data.get("start_year", current_year),
         end_year=data.get("end_year", current_year + 3),
-        target_metric=data.get("target_metric", ""),
+        target_metric=metric_key,
         target_value=_decimal_or_none(data.get("target_value")),
-        target_unit=data.get("target_unit", ""),
+        target_unit=meta.get("unit", data.get("target_unit", "")),
         status=data.get("status", "draft"),
         sort_order=data.get("sort_order", 0),
     )
@@ -457,8 +501,14 @@ def update_delete_strategic_objective(request, obj_id):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    for field in ["title", "description", "owner_name", "target_metric",
-                  "target_unit", "status"]:
+    # If target_metric changed, auto-fill target_unit from catalog
+    if "target_metric" in data:
+        metric_key = data["target_metric"]
+        meta = HoshinKPI.METRIC_CATALOG.get(metric_key, {})
+        obj.target_metric = metric_key
+        obj.target_unit = meta.get("unit", "")
+
+    for field in ["title", "description", "owner_name", "status"]:
         if field in data:
             setattr(obj, field, data[field])
     for field in ["start_year", "end_year", "sort_order"]:
