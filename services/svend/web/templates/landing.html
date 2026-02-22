@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Svend - Continuous Improvement & DOE Software | Experiment Tracking for Quality Teams</title>
-    <meta name="description" content="Run DOE, SPC, and capability studies. Track hypotheses from signal to verified improvement. 64+ analyses, structured problem solving, and CI deployment — one platform. Free tier available.">
-    <meta name="keywords" content="continuous improvement software, DOE software, experiment tracking manufacturing, hypothesis tracking, SPC software, control charts, process capability analysis, Cpk calculator, FMEA software, value stream mapping software, root cause analysis software, A3 report tool, hoshin kanri software, design of experiments, quality engineering platform">
+    <meta name="description" content="Run DOE, SPC, and capability studies. Track hypotheses from signal to verified improvement. Hoshin kanri X-matrix with live project data, auto-suggested correlations, and dollar rollup from strategic objectives to project savings. 200+ analyses, structured problem solving, and CI deployment — one platform. Free tier available.">
+    <meta name="keywords" content="continuous improvement software, DOE software, experiment tracking manufacturing, hypothesis tracking, SPC software, control charts, process capability analysis, Cpk calculator, FMEA software, value stream mapping software, root cause analysis software, A3 report tool, hoshin kanri software, x-matrix software, strategy deployment software, hoshin x-matrix, catchball, design of experiments, quality engineering platform, CI savings tracking, lean management software">
     <meta name="author" content="Svend">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://svend.ai/">
@@ -54,7 +54,7 @@
         "name": "Svend",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web",
-        "description": "Experimentation platform for quality and operations teams. 64+ statistical analyses, DOE, SPC, hypothesis tracking, root cause analysis, FMEA, value stream mapping, and hoshin kanri deployment.",
+        "description": "Experimentation platform for quality and operations teams. 200+ statistical analyses, DOE, SPC, hypothesis tracking, root cause analysis, FMEA, value stream mapping, and hoshin kanri deployment.",
         "url": "https://svend.ai",
         "offers": {
             "@type": "AggregateOffer",
@@ -73,7 +73,9 @@
             "Value Stream Mapping & Simulation",
             "A3 Reports & CAPA Management",
             "Hoshin Kanri Strategic Deployment",
-            "64+ Statistical Tests & ML Models",
+            "200+ Statistical Tests & ML Models",
+            "Bayesian SPC — Adaptive Control Limits, Bayesian Cpk, Online Changepoint Detection",
+            "Anytime-Valid Sequential Testing (E-Processes)",
             "Collaborative Whiteboard & Knowledge Graph"
         ]
     }
@@ -90,7 +92,7 @@
                 "name": "What is continuous improvement software?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Continuous improvement software connects statistical analysis (SPC, DOE, capability studies) with structured problem solving (root cause analysis, FMEA, A3 reports) and strategic deployment (hoshin kanri). Instead of using separate tools for each activity, a CI platform keeps the thread from data signal to root cause to corrective action to verified improvement. Svend includes 64+ statistical analyses, Bayesian hypothesis tracking, and project management designed for improvement teams."
+                    "text": "Continuous improvement software connects statistical analysis (SPC, DOE, capability studies) with structured problem solving (root cause analysis, FMEA, A3 reports) and strategic deployment (hoshin kanri). Instead of using separate tools for each activity, a CI platform keeps the thread from data signal to root cause to corrective action to verified improvement. Svend includes 200+ statistical analyses, Bayesian hypothesis tracking, and project management designed for improvement teams."
                 }
             },
             {
@@ -123,6 +125,30 @@
                 "acceptedAnswer": {
                     "@type": "Answer",
                     "text": "Yes. Your data stays on our servers (encrypted at rest and in transit), never shared, never used for training. Export or delete anytime. Enterprise customers can run on-premises."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What is Bayesian SPC and how is it different from traditional SPC?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Traditional SPC uses fixed 3-sigma control limits and point estimates. Bayesian SPC replaces these with probability-driven monitoring: adaptive control limits that tighten as data accumulates, Bayesian Cpk that gives P(Cpk > 1.33) instead of a single number, online changepoint detection that identifies shifts observation by observation, and anytime-valid sequential testing with no peeking penalty. Svend is the only platform with a full Bayesian Process Belief System."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What is the X-matrix and how does Svend implement it?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "The X-matrix is the core artifact of hoshin kanri (strategy deployment). It connects four quadrants — strategic objectives (3-5 year), annual objectives (this fiscal year), improvement projects, and KPIs — via correlation grids. In Svend, the X-matrix is live: the bottom quadrants (projects and KPIs) are fed by real operational data including monthly savings actuals and Monte Carlo forecasts. Correlation grids auto-populate from data lineage — site matching, project-to-KPI derivation, objective hierarchies — and humans confirm during catchball. Unlinked projects are flagged immediately. Dollar rollup traces from strategic objectives through annual targets to project-level savings."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "How does Svend connect value stream mapping to hoshin kanri?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Value stream maps in Svend are scoped to fiscal years and paired as current-state and future-state. Kaizen bursts on a VSM can be promoted to hoshin projects with savings targets and monthly tracking. When the future-state VSM is promoted to current, metric snapshots carry over and kaizen bursts show realized savings from linked hoshin projects. The full loop runs from process observation to strategic verification without leaving the platform."
                 }
             },
             {
@@ -519,6 +545,52 @@
         .cpk-stat-lbl { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
 
         /* Features */
+        /* Stats ribbon */
+        .stats-ribbon {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            padding: 2.5rem 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .stats-ribbon .stat-item {
+            flex: 1;
+            text-align: center;
+            padding: 0 1.5rem;
+            border-right: 1px solid var(--border);
+        }
+        .stats-ribbon .stat-item:last-child { border-right: none; }
+        .stats-ribbon .stat-number {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            line-height: 1.1;
+        }
+        .stats-ribbon .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+            line-height: 1.3;
+        }
+        .stats-ribbon .stat-label .stat-compare {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+        @media (max-width: 640px) {
+            .stats-ribbon {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1.5rem;
+                padding: 2rem 1rem;
+            }
+            .stats-ribbon .stat-item {
+                border-right: none;
+                padding: 0;
+            }
+            .stats-ribbon .stat-number { font-size: 1.8rem; }
+        }
+
         .features {
             padding: 6rem 2rem;
             max-width: 1200px;
@@ -583,6 +655,91 @@
             font-size: 0.9rem;
             color: var(--text-secondary);
             line-height: 1.7;
+        }
+
+        /* Hoshin / X-Matrix Deep Dive */
+        .hoshin-dive {
+            padding: 6rem 2rem;
+            background: var(--bg-secondary);
+            border-top: 1px solid rgba(255,255,255,0.03);
+        }
+        .hoshin-dive-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .hoshin-dive .section-subtitle {
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hoshin-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            margin-top: 3rem;
+        }
+        .hoshin-col h3 {
+            font-size: 1.05rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+        .hoshin-col p, .hoshin-col li {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        .hoshin-col ul {
+            padding-left: 1.2rem;
+            margin-top: 0.5rem;
+        }
+        .hoshin-col li { margin-bottom: 0.4rem; }
+        .hoshin-xm-diagram {
+            margin: 3rem auto 0;
+            max-width: 600px;
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 2px;
+            font-size: 0.75rem;
+            text-align: center;
+        }
+        .xm-quad {
+            padding: 1rem 0.75rem;
+            border-radius: 8px;
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .xm-quad-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            margin-bottom: 0.3rem;
+        }
+        .xm-quad-title {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .xm-center-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+        .xm-center-label {
+            padding: 0.5rem;
+            border-radius: 6px;
+            background: var(--accent-primary-dim);
+            border: 1px dashed var(--accent-primary-border);
+            color: var(--accent-primary);
+            font-size: 0.7rem;
+        }
+        @media (max-width: 900px) {
+            .hoshin-columns { grid-template-columns: 1fr; }
+            .hoshin-xm-diagram { max-width: 100%; }
         }
 
         /* Insight Spine */
@@ -1057,8 +1214,9 @@
         </div>
         <div class="nav-links">
             <a href="#features" class="nav-link">Features</a>
+            <a href="#hoshin" class="nav-link">Strategy</a>
             <a href="#spine" class="nav-link">How It Works</a>
-            <a href="/tools/" class="nav-link">Calculators</a>
+            <a href="/tools/" class="nav-link">Free Tools</a>
             <a href="/whitepapers/" class="nav-link">Whitepapers</a>
             <a href="#pricing" class="nav-link">Pricing</a>
             <a href="#faq" class="nav-link">FAQ</a>
@@ -1340,6 +1498,26 @@
         </div>
     </section>
 
+    <!-- Stats Ribbon -->
+    <div class="stats-ribbon">
+        <div class="stat-item">
+            <div class="stat-number">200+</div>
+            <div class="stat-label">Statistical Analyses</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">$49</div>
+            <div class="stat-label">/month<br><span class="stat-compare">vs $2,594/yr Minitab</span></div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">10</div>
+            <div class="stat-label">Free Tools</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">Zero</div>
+            <div class="stat-label">Setup Required</div>
+        </div>
+    </div>
+
     <!-- Features -->
     <section class="features" id="features">
         <h2 class="section-title">The experimentation lifecycle, connected</h2>
@@ -1349,7 +1527,7 @@
             <div class="feature-card">
                 <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
                 <h3 class="feature-title">Measure & Monitor</h3>
-                <p class="feature-desc">SPC control charts (I-MR, X-bar R, p, c, u), capability analysis (Cp, Cpk, Pp, Ppk), Gage R&R, and process monitoring with Western Electric rules.</p>
+                <p class="feature-desc">SPC control charts with Shewhart and Bayesian monitoring. Capability analysis (Cp, Cpk, Pp, Ppk + Bayesian Cpk with credible intervals), Gage R&R, and Nelson rules.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
@@ -1359,7 +1537,7 @@
             <div class="feature-card">
                 <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></div>
                 <h3 class="feature-title">Analyze & Model</h3>
-                <p class="feature-desc">64+ analyses: ANOVA, regression, hypothesis tests, reliability, Bayesian methods, and ML models. Full diagnostics and code generation.</p>
+                <p class="feature-desc">200+ analyses: ANOVA, regression, hypothesis tests, reliability, Bayesian methods, and ML models. Full diagnostics and code generation.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg></div>
@@ -1372,9 +1550,81 @@
                 <p class="feature-desc">Bayesian belief engine links evidence to hypotheses. Probability estimates update as experiments complete. Every analysis feeds your decision framework.</p>
             </div>
             <div class="feature-card">
+                <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6c-2 2.5-3 5-3 6 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1-1-3.5-3-6z"/></svg></div>
+                <h3 class="feature-title">Bayesian Process Intelligence</h3>
+                <p class="feature-desc">Adaptive control limits that shrink with data. Bayesian Cpk with P(Cpk > 1.33). Online changepoint detection, anytime-valid sequential testing, and Bayesian DOE. No arbitrary 3&sigma; rule. <a href="/classical-vs-bayesian-spc/" style="color: var(--accent-primary);">See what it finds &rarr;</a></p>
+            </div>
+            <div class="feature-card">
                 <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg></div>
-                <h3 class="feature-title">Deploy & Verify</h3>
-                <p class="feature-desc">Hoshin Kanri strategic deployment, bowler charts, savings tracking, and effectiveness verification. Connect projects to business outcomes.</p>
+                <h3 class="feature-title">Deploy Strategy</h3>
+                <p class="feature-desc">Hoshin Kanri with a live X-matrix connecting 3-5 year strategic objectives to annual targets, improvement projects, and KPIs. Correlation matrices auto-populate from your data and surface unlinked projects during catchball. Monthly savings tracking with Monte Carlo forecasting. <a href="#hoshin" style="color: var(--accent-primary);">See how it works &rarr;</a></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hoshin Kanri / X-Matrix Deep Dive -->
+    <section class="hoshin-dive" id="hoshin">
+        <div class="hoshin-dive-inner">
+            <h2 class="section-title">Strategy deployment that runs on real data</h2>
+            <p class="section-subtitle">Most hoshin kanri implementations are spreadsheets and wall posters. Svend's X-matrix is a live instrument — the bottom half feeds from your operational data, the top half is where leadership judgment lives.</p>
+
+            <div class="hoshin-columns">
+                <div class="hoshin-col">
+                    <h3>The X-Matrix</h3>
+                    <p>The X-matrix is the single artifact where strategy meets execution. Four quadrants, four correlation grids:</p>
+                    <ul>
+                        <li><strong>South:</strong> Strategic objectives — 3-5 year breakthrough goals (reduce manufacturing cost 30%, achieve zero-defect on Line 4)</li>
+                        <li><strong>West:</strong> Annual objectives — this fiscal year's specific targets, each linked to a strategic objective</li>
+                        <li><strong>North:</strong> Improvement projects — kaizen events and CI projects with live monthly savings tracking, Monte Carlo forecasting, and VSM traceability</li>
+                        <li><strong>East:</strong> KPIs — measurable indicators that pull actual values directly from project data or manual entry</li>
+                    </ul>
+                    <p style="margin-top: 1rem;">The four corner grids show how adjacent quadrants relate. Every dot is a strategic alignment decision. The system pre-populates correlations from your actual data relationships — site matching, project-to-KPI derivation, objective hierarchies — then leadership confirms or adjusts during catchball. Humans stay in the loop without doing data entry.</p>
+                </div>
+
+                <div class="hoshin-col">
+                    <h3>What makes this different</h3>
+                    <p>Traditional hoshin tools are top-down goal cascades disconnected from the work. Svend's hoshin is bidirectional — the X-matrix is fed by live data from below and governed by judgment from above.</p>
+                    <ul>
+                        <li><strong>Auto-suggested correlations:</strong> The system detects when a project at Site A maps to an annual objective scoped to Site A, or when a KPI derives its actual from a project's YTD savings. These show as dashed outlines until a human confirms them.</li>
+                        <li><strong>Unlinked project warnings:</strong> Any project with no correlation to an annual objective gets flagged. If it can't justify its existence strategically, leadership sees it immediately. This is the catchball enforcement mechanism.</li>
+                        <li><strong>Dollar rollup by strategic objective:</strong> Trace from a 5-year goal down through annual objectives, across correlations to projects, and aggregate their savings targets and actuals. One view of whether the strategy is funded and on track.</li>
+                        <li><strong>Fiscal year rollover:</strong> When January hits, annual objectives clone forward with actuals reset. Strategic objectives persist across their multi-year span. Project-level correlations start fresh — new year, new projects, auto-suggested from the data.</li>
+                        <li><strong>VSM lifecycle:</strong> Value stream maps are scoped to fiscal years with current/future pairing. Promote a future-state VSM to current when the improvement is verified — metric snapshots carry over, and kaizen bursts show realized savings from linked hoshin projects.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- X-Matrix mini-diagram -->
+            <div class="hoshin-xm-diagram" role="img" aria-label="X-Matrix layout showing four quadrants — strategic objectives, annual objectives, improvement projects, and KPIs — connected by correlation grids">
+                <div></div>
+                <div class="xm-quad" style="border-color: rgba(74,159,110,0.2);">
+                    <div class="xm-quad-label">North</div>
+                    <div class="xm-quad-title">Improvement Projects</div>
+                    <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">Live monthly actuals, Monte Carlo savings</div>
+                </div>
+                <div></div>
+
+                <div class="xm-quad" style="border-color: rgba(58,127,143,0.2);">
+                    <div class="xm-quad-label">West</div>
+                    <div class="xm-quad-title">Annual Objectives</div>
+                    <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">This FY's targets</div>
+                </div>
+                <div class="xm-center-cell">
+                    <div class="xm-center-label">Correlation grids<br>auto-suggested + human-confirmed</div>
+                </div>
+                <div class="xm-quad" style="border-color: rgba(232,149,71,0.2);">
+                    <div class="xm-quad-label">East</div>
+                    <div class="xm-quad-title">KPIs</div>
+                    <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">Derived from project data</div>
+                </div>
+
+                <div></div>
+                <div class="xm-quad" style="border-color: rgba(167,139,250,0.2);">
+                    <div class="xm-quad-label">South</div>
+                    <div class="xm-quad-title">Strategic Objectives</div>
+                    <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">3-5 year breakthrough goals</div>
+                </div>
+                <div></div>
             </div>
         </div>
     </section>
@@ -1404,10 +1654,11 @@
                 </div>
                 <div class="spine-step">
                     <div class="spine-step-title">Set Strategic Priorities</div>
-                    <div class="spine-step-desc">Findings become hoshin priorities with measurable targets linked to budget. Living strategy, not a wall poster.</div>
+                    <div class="spine-step-desc">Findings become hoshin priorities. The X-matrix connects 3-5 year strategic objectives to this year's annual targets, with correlation grids auto-populated from your data lineage. Unlinked projects are flagged immediately — if it can't trace to a strategic objective, leadership sees it during catchball.</div>
                     <div class="spine-step-tools">
+                        <span class="spine-chip">X-Matrix</span>
                         <span class="spine-chip">Hoshin Kanri</span>
-                        <span class="spine-chip">Bowler Charts</span>
+                        <span class="spine-chip">Catchball</span>
                     </div>
                 </div>
                 <div class="spine-step">
@@ -1420,10 +1671,11 @@
                 </div>
                 <div class="spine-step">
                     <div class="spine-step-title">Run the Analysis</div>
-                    <div class="spine-step-desc">SPC, DOE, regression, ANOVA, Gage R&R, reliability, ML models. Root cause investigation with AI that challenges premature conclusions. Results feed back to hypotheses automatically.</div>
+                    <div class="spine-step-desc">200+ analyses including Bayesian SPC with adaptive control limits and P(Cpk > 1.33). DOE, regression, ANOVA, Gage R&R, reliability, ML. AI challenges premature conclusions. Results feed back to hypotheses automatically.</div>
                     <div class="spine-step-tools">
                         <span class="spine-chip">DSW</span>
                         <span class="spine-chip">SPC</span>
+                        <span class="spine-chip">Bayesian</span>
                         <span class="spine-chip">DOE</span>
                         <span class="spine-chip">RCA</span>
                     </div>
@@ -1438,9 +1690,10 @@
                 </div>
                 <div class="spine-step">
                     <div class="spine-step-title">Confirm Strategic Impact</div>
-                    <div class="spine-step-desc">Budget-linked, scorecard-verified, auditable. The same system that predicted the improvement proves it happened and connects it to the strategy that justified it.</div>
+                    <div class="spine-step-desc">Dollar rollup traces from strategic objectives through annual targets to project-level savings. The X-matrix aggregates actuals across every correlated project. Promote your future-state VSM to current when savings are verified — realized dollars appear on the kaizen bursts that created them. Budget-linked, scorecard-verified, auditable.</div>
                     <div class="spine-step-tools">
-                        <span class="spine-chip">Hoshin Results</span>
+                        <span class="spine-chip">X-Matrix Rollup</span>
+                        <span class="spine-chip">VSM Lifecycle</span>
                         <span class="spine-chip">Savings Tracking</span>
                     </div>
                 </div>
@@ -1488,7 +1741,7 @@
                 <div style="font-size: 0.8rem; color: var(--accent-primary); margin-top: -0.5rem; margin-bottom: 1rem;" id="founder-slots">Loading availability...</div>
                 <ul class="pricing-features">
                     <li>Everything in Professional</li>
-                    <li>64+ statistical analyses</li>
+                    <li>200+ statistical analyses</li>
                     <li>DOE, SPC, Gage R&R</li>
                     <li>A3, RCA, FMEA & VSM</li>
                     <li>Priority support</li>
@@ -1505,7 +1758,7 @@
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: -0.5rem; margin-bottom: 1rem;">$588/year — replaces your entire tool stack</div>
                 <ul class="pricing-features">
-                    <li>64+ statistical analyses</li>
+                    <li>200+ analyses incl. Bayesian SPC</li>
                     <li>DOE with response optimization</li>
                     <li>SPC, capability & Gage R&R</li>
                     <li>Hypothesis tracking (Synara)</li>
@@ -1541,7 +1794,8 @@
                 <ul class="pricing-features">
                     <li>Everything in Team</li>
                     <li>AI assistant (Claude)</li>
-                    <li>Hoshin Kanri CI</li>
+                    <li>Hoshin Kanri + X-Matrix</li>
+                    <li>Multi-site savings tracking</li>
                     <li>SSO & audit trails</li>
                     <li>Dedicated support & SLA</li>
                 </ul>
@@ -1552,6 +1806,11 @@
         <p style="text-align: center; margin-top: 2rem; color: var(--text-dim); font-size: 0.9rem;">
             All plans include unlimited exports. Annual billing available — <a href="mailto:hello@svend.ai" style="color: var(--accent-primary);">contact us</a> for volume discounts.
         </p>
+        <p style="text-align: center; margin-top: 0.75rem; font-size: 0.9rem;">
+            <a href="/svend-vs-minitab/" style="color: var(--accent-primary);">See how Svend compares to Minitab &rarr;</a>
+            &nbsp;&middot;&nbsp;
+            <a href="/classical-vs-bayesian-spc/" style="color: var(--accent-primary);">Classical vs Bayesian SPC &rarr;</a>
+        </p>
     </section>
 
     <!-- FAQ -->
@@ -1561,7 +1820,7 @@
 
             <div class="faq-item">
                 <div class="faq-question">What is continuous improvement software?</div>
-                <div class="faq-answer">Continuous improvement software connects statistical analysis (SPC, DOE, capability studies) with structured problem solving (root cause analysis, FMEA, A3 reports) and strategic deployment (hoshin kanri). Instead of using separate tools for each activity, a CI platform keeps the thread from data signal to root cause to corrective action to verified improvement. Svend includes 64+ statistical analyses, Bayesian hypothesis tracking, and project management designed for improvement teams.</div>
+                <div class="faq-answer">Continuous improvement software connects statistical analysis (SPC, DOE, capability studies) with structured problem solving (root cause analysis, FMEA, A3 reports) and strategic deployment (hoshin kanri). Instead of using separate tools for each activity, a CI platform keeps the thread from data signal to root cause to corrective action to verified improvement. Svend includes 200+ statistical analyses, Bayesian hypothesis tracking, and project management designed for improvement teams.</div>
             </div>
 
             <div class="faq-item">
@@ -1582,6 +1841,21 @@
             <div class="faq-item">
                 <div class="faq-question">Is my data private?</div>
                 <div class="faq-answer">Yes. Your data stays on our servers (encrypted at rest and in transit), never shared, never used for training. Export or delete anytime. Enterprise customers can run on-premises.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">What is Bayesian SPC and how is it different from traditional SPC?</div>
+                <div class="faq-answer">Traditional SPC uses fixed 3-sigma control limits and point estimates. Bayesian SPC replaces these with probability-driven monitoring: adaptive control limits that tighten as data accumulates, Bayesian Cpk that gives P(Cpk > 1.33) instead of a single number, online changepoint detection that identifies shifts observation by observation, and anytime-valid sequential testing with no peeking penalty. Svend is the only platform with a full Bayesian Process Belief System. <a href="/tools/bayesian-cpk-calculator/" style="color: var(--accent-primary);">Try the free Bayesian Cpk calculator</a>.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">What is the X-matrix and how does Svend implement it?</div>
+                <div class="faq-answer">The X-matrix is the core artifact of hoshin kanri (strategy deployment). It's a single document with four quadrants — strategic objectives (3-5 year), annual objectives (this fiscal year), improvement projects, and KPIs — connected by correlation grids that show how each quadrant relates to its neighbors. In most organizations, the X-matrix is a static spreadsheet or a poster on the wall. In Svend, it's a live instrument. The bottom two quadrants (projects and KPIs) are fed by real operational data — monthly savings actuals, Monte Carlo forecasts, value stream metrics. The top two quadrants (strategic and annual objectives) are where leadership sets direction. The correlation grids in between auto-populate from data lineage: if a project lives at Site A and an annual objective is scoped to Site A, the system suggests the link. If a KPI derives its actual value from a project's YTD savings, the system knows. Humans confirm or override during catchball. Click a dot to cycle through strong, moderate, weak, or remove it. The system also flags any project that has no correlation to an annual objective — if a project can't trace to strategy, leadership sees it immediately.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">How does Svend connect value stream mapping to hoshin kanri?</div>
+                <div class="faq-answer">Value stream maps in Svend are scoped to fiscal years and paired as current-state and future-state. Kaizen bursts on a VSM can be promoted to hoshin projects with savings targets and monthly tracking. When the improvement is verified and you promote the future-state VSM to become the new current state, metric snapshots carry over and the kaizen bursts show the realized savings from their linked hoshin projects. The constraint you eliminated on the VSM traces to the dollars captured in the hoshin, which rolls up to an annual objective, which maps to a strategic objective on the X-matrix. That's the full loop — from process observation to strategic verification — without leaving the platform or copying data between systems.</div>
             </div>
 
             <div class="faq-item">
@@ -1607,9 +1881,12 @@
             <div class="footer-col">
                 <div class="footer-col-title">Product</div>
                 <a href="#features" class="footer-link">Features</a>
+                <a href="#hoshin" class="footer-link">Strategy Deployment</a>
                 <a href="#spine" class="footer-link">How It Works</a>
                 <a href="#pricing" class="footer-link">Pricing</a>
-                <a href="/tools/" class="footer-link">Free Calculators</a>
+                <a href="/tools/" class="footer-link">Free Tools</a>
+                <a href="/svend-vs-minitab/" class="footer-link">Svend vs Minitab</a>
+                <a href="/classical-vs-bayesian-spc/" class="footer-link">Classical vs Bayesian SPC</a>
             </div>
             <div class="footer-col">
                 <div class="footer-col-title">Resources</div>
