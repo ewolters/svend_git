@@ -4474,6 +4474,12 @@ input[type="number"] {
                     <div class="calc-section-title">Metrics</div>
                     <div id="beforeafter-metrics" style="display: flex; flex-direction: column; gap: 12px;"></div>
                     <div class="yamazumi-add" onclick="addBAMetric()" style="margin-top: 12px;">+ Add Metric</div>
+                    <div style="margin-top:12px;">
+                        <button onclick="pullVSMCompareIntoBA()" style="background:rgba(74,159,110,0.1); border:1px solid rgba(74,159,110,0.3); color:var(--accent); padding:8px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px; width:100%; justify-content:center;" onmouseover="this.style.background='rgba(74,159,110,0.2)'" onmouseout="this.style.background='rgba(74,159,110,0.1)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                            Pull from VSM Compare (Current vs Future)
+                        </button>
+                    </div>
                 </div>
 
                 <div class="calc-chart">
@@ -14762,6 +14768,57 @@ function addBAMetric() {
 function removeBA(idx) {
     baData.splice(idx, 1);
     renderBAInputs();
+}
+
+async function pullVSMCompareIntoBA() {
+    try {
+        const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
+        const data = await resp.json();
+        const maps = data.maps || [];
+        const currentMaps = maps.filter(m => m.status === 'current');
+        const futureMaps = maps.filter(m => m.status === 'future');
+        if (currentMaps.length === 0) { showToast('No current-state VSM found', 'warning'); return; }
+        if (futureMaps.length === 0) { showToast('No future-state VSM found. Create a Future State map to compare.', 'warning'); return; }
+
+        // Fetch both VSMs
+        const [curResp, futResp] = await Promise.all([
+            fetch(`/api/vsm/${currentMaps[0].id}/`, { credentials: 'same-origin' }),
+            fetch(`/api/vsm/${futureMaps[0].id}/`, { credentials: 'same-origin' })
+        ]);
+        const curData = await curResp.json();
+        const futData = await futResp.json();
+        const cur = curData.vsm;
+        const fut = futData.vsm;
+
+        // Build comparison metrics
+        const newData = [];
+        if (cur.total_lead_time != null && fut.total_lead_time != null) {
+            newData.push({ metric: 'Lead Time', before: parseFloat(cur.total_lead_time.toFixed(3)), after: parseFloat(fut.total_lead_time.toFixed(3)), unit: 'days', lowerBetter: true });
+        }
+        if (cur.total_process_time != null && fut.total_process_time != null) {
+            newData.push({ metric: 'Process Time', before: Math.round(cur.total_process_time), after: Math.round(fut.total_process_time), unit: 'sec', lowerBetter: true });
+        }
+        if (cur.pce != null && fut.pce != null) {
+            newData.push({ metric: 'PCE', before: parseFloat(cur.pce.toFixed(2)), after: parseFloat(fut.pce.toFixed(2)), unit: '%', lowerBetter: false });
+        }
+
+        // Per-step CT deltas for matching step names
+        const curSteps = cur.process_steps || [];
+        const futSteps = fut.process_steps || [];
+        for (const cs of curSteps) {
+            const fs = futSteps.find(f => f.name && f.name === cs.name);
+            if (fs && cs.cycle_time && fs.cycle_time) {
+                newData.push({ metric: `${cs.name} C/T`, before: cs.cycle_time, after: fs.cycle_time, unit: 'sec', lowerBetter: true });
+            }
+        }
+
+        if (newData.length === 0) { showToast('No comparable metrics found between current and future VSMs', 'warning'); return; }
+        baData = newData;
+        renderBAInputs();
+        showToast(`Loaded ${newData.length} metrics from VSM comparison`);
+    } catch (e) {
+        showToast('Failed to pull VSM data: ' + e.message, 'error');
+    }
 }
 
 function updateBA(idx, field, value) {

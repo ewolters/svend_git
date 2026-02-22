@@ -801,6 +801,13 @@
                     <span style="font-size:0.7rem; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;">Suggested</span>
                     <div id="suggested-calcs-list" style="margin-top:0.4rem;"></div>
                 </div>
+                <!-- Metric Timeline -->
+                <div style="margin-top:0.5rem;">
+                    <button onclick="showTimeline()" style="width:100%; background:var(--bg-tertiary); border:1px solid var(--border); color:var(--text-secondary); padding:0.35rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem; display:flex; align-items:center; gap:6px; justify-content:center;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        Metric Timeline
+                    </button>
+                </div>
                 <div class="takt-input-section" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
                     <div style="display:flex; align-items:center; gap:0.25rem; margin-bottom:0.5rem;">
                         <span style="font-size:0.75rem; font-weight:600; color:var(--text-primary);">Set Takt Time</span>
@@ -1087,6 +1094,20 @@
             Analyzing VSM deltas...
         </div>
         <div id="proposal-error" style="display:none; color:var(--error); padding:1rem; font-size:0.85rem;"></div>
+    </div>
+</div>
+
+<!-- Metric Timeline Modal -->
+<div id="timeline-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#121a12; padding:2rem; border-radius:8px; width:720px; max-height:80vh; overflow-y:auto; border:1px solid rgba(74,159,110,0.3); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="color:var(--accent);">Metric Timeline</h3>
+            <button onclick="document.getElementById('timeline-modal').style.display='none'" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:1.2rem;">&times;</button>
+        </div>
+        <div id="timeline-chart" style="height:350px;"></div>
+        <div id="timeline-empty" style="display:none; text-align:center; padding:2rem; color:var(--text-dim); font-size:0.85rem;">
+            No metric history yet. Metrics are recorded each time you save the VSM with changed values.
+        </div>
     </div>
 </div>
 
@@ -3084,6 +3105,41 @@ function removeAnnotation(stepId, idx) {
 
 function closeStepMetrics() {
     document.getElementById('step-metrics-panel').classList.remove('visible');
+}
+
+function showTimeline() {
+    if (!currentVSM) return;
+    const snaps = currentVSM.metric_snapshots || [];
+    const modal = document.getElementById('timeline-modal');
+    modal.style.display = 'flex';
+
+    if (snaps.length < 2) {
+        document.getElementById('timeline-chart').style.display = 'none';
+        document.getElementById('timeline-empty').style.display = 'block';
+        return;
+    }
+    document.getElementById('timeline-chart').style.display = 'block';
+    document.getElementById('timeline-empty').style.display = 'none';
+
+    const timestamps = snaps.map(s => s.timestamp ? new Date(s.timestamp).toLocaleString() : '');
+    const leadTimes = snaps.map(s => s.lead_time || 0);
+    const pces = snaps.map(s => s.pce || 0);
+
+    const traces = [
+        { x: timestamps, y: leadTimes, name: 'Lead Time (days)', type: 'scatter', mode: 'lines+markers', line: { color: '#e74c3c' } },
+        { x: timestamps, y: pces, name: 'PCE (%)', type: 'scatter', mode: 'lines+markers', yaxis: 'y2', line: { color: '#4a9f6e' } }
+    ];
+    const layout = {
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#999', size: 11 },
+        margin: { t: 30, b: 60, l: 60, r: 60 },
+        xaxis: { showgrid: false },
+        yaxis: { title: 'Lead Time (days)', gridcolor: 'rgba(255,255,255,0.05)' },
+        yaxis2: { title: 'PCE (%)', overlaying: 'y', side: 'right', gridcolor: 'rgba(255,255,255,0.05)' },
+        legend: { orientation: 'h', y: -0.2 },
+        showlegend: true
+    };
+    Plotly.newPlot('timeline-chart', traces, layout, { responsive: true, displayModeBar: false });
 }
 
 function setTaktDirect() {

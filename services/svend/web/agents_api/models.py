@@ -1726,6 +1726,12 @@ class ValueStreamMap(models.Model):
     # Process steps link via optional work_center_id field
     work_centers = models.JSONField(default=list, help_text="Work center groupings")
 
+    # Metric history for timeline tracking
+    metric_snapshots = models.JSONField(
+        default=list, blank=True,
+        help_text="[{timestamp, lead_time, process_time, pce, takt_time, step_count, inventory_count}]"
+    )
+
     # Canvas state
     zoom = models.FloatField(default=1.0)
     pan_x = models.FloatField(default=0.0)
@@ -1786,6 +1792,30 @@ class ValueStreamMap(models.Model):
         else:
             self.pce = 0
 
+        # Append metric snapshot if values changed
+        from datetime import datetime, timezone
+        snap = {
+            "lead_time": round(self.total_lead_time or 0, 4),
+            "process_time": round(self.total_process_time or 0, 1),
+            "pce": round(self.pce or 0, 2),
+            "takt_time": self.takt_time,
+            "step_count": len(self.process_steps or []),
+            "inventory_count": len(self.inventory or []),
+        }
+        snapshots = self.metric_snapshots or []
+        last = snapshots[-1] if snapshots else None
+        changed = (not last or
+                   last.get("lead_time") != snap["lead_time"] or
+                   last.get("process_time") != snap["process_time"] or
+                   last.get("pce") != snap["pce"] or
+                   last.get("takt_time") != snap["takt_time"])
+        if changed and (snap["step_count"] > 0 or snap["inventory_count"] > 0):
+            snap["timestamp"] = datetime.now(timezone.utc).isoformat()
+            snapshots.append(snap)
+            if len(snapshots) > 100:
+                snapshots = snapshots[-100:]
+            self.metric_snapshots = snapshots
+
     def to_dict(self):
         return {
             "id": str(self.id),
@@ -1812,6 +1842,7 @@ class ValueStreamMap(models.Model):
             "zoom": self.zoom,
             "pan_x": self.pan_x,
             "pan_y": self.pan_y,
+            "metric_snapshots": self.metric_snapshots or [],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
