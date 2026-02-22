@@ -1514,6 +1514,12 @@ input[type="number"] {
                             <span id="rto-buffer">+0.30 operators</span>
                         </div>
                     </div>
+                    <div style="margin-top:12px; text-align:right;">
+                        <button onclick="exportRTOToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                            Export to VSM
+                        </button>
+                    </div>
                 </div>
 
                 <div class="calc-derivation" id="rto-derivation">
@@ -1923,6 +1929,12 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+                <div style="margin-top:12px; text-align:right;">
+                    <button onclick="exportLineSimToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                        Export to VSM
+                    </button>
+                </div>
 
                 <div class="calc-section">
                     <div class="calc-section-title">Station Performance</div>
@@ -2008,6 +2020,12 @@ input[type="number"] {
                             <span>Total Inventory</span>
                             <span id="kanban-total">240 units</span>
                         </div>
+                    </div>
+                    <div style="margin-top:12px; text-align:right;">
+                        <button onclick="exportKanbanSizingToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                            Export to VSM
+                        </button>
                     </div>
                 </div>
 
@@ -2109,6 +2127,12 @@ input[type="number"] {
                             <span>Interpretation</span>
                             <span>Run every part every <span id="epei-interpret">1.6</span> days</span>
                         </div>
+                    </div>
+                    <div style="margin-top:12px; text-align:right;">
+                        <button onclick="exportEPEIToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                            Export to VSM
+                        </button>
                     </div>
                 </div>
 
@@ -2398,6 +2422,12 @@ input[type="number"] {
                         <div class="oee-value" id="oee-result">72.9%</div>
                         <div class="oee-label">Overall Equipment Effectiveness</div>
                     </div>
+                    <div style="margin-top:12px; text-align:right;">
+                        <button onclick="exportOEEToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                            Export to VSM
+                        </button>
+                    </div>
                 </div>
 
                 <div class="calc-section">
@@ -2504,6 +2534,12 @@ input[type="number"] {
                             <span>Max System Throughput</span>
                             <span id="bottleneck-throughput">50 units/hr</span>
                         </div>
+                    </div>
+                    <div style="margin-top:12px; text-align:right;">
+                        <button onclick="exportBottleneckToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                            Export to VSM
+                        </button>
                     </div>
                 </div>
             </div>
@@ -4741,6 +4777,12 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+                <div style="margin-top:12px; text-align:right;">
+                    <button onclick="exportCapacityLoadToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                        Export to VSM
+                    </button>
+                </div>
 
                 <div class="calc-chart">
                     <div class="calc-chart-title">Capacity Load by Day</div>
@@ -5170,6 +5212,12 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+                <div style="margin-top:12px; text-align:right;">
+                    <button onclick="exportKanbanSimToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                        Export to VSM
+                    </button>
+                </div>
 
                 <div class="calc-chart">
                     <div class="calc-chart-title">WIP Over Time</div>
@@ -5383,6 +5431,12 @@ input[type="number"] {
                         </div>
                     </div>
                 </div>
+                <div style="margin-top:12px; text-align:right;">
+                    <button onclick="exportTOCToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                        Export to VSM
+                    </button>
+                </div>
 
                 <div class="calc-chart">
                     <div class="calc-chart-title">Throughput & WIP Over Time</div>
@@ -5572,6 +5626,12 @@ input[type="number"] {
                             <div class="calc-result-value" id="ss-m-fillrate">—<span class="calc-result-unit">%</span></div>
                         </div>
                     </div>
+                </div>
+                <div style="margin-top:12px; text-align:right;">
+                    <button onclick="exportSafetySimToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                        Export to VSM
+                    </button>
                 </div>
 
                 <!-- Cost Analysis -->
@@ -6076,6 +6136,12 @@ input[type="number"] {
                             <div class="calc-result-value" id="cs-cycle-time">&mdash;</div>
                         </div>
                     </div>
+                </div>
+                <div style="margin-top:12px; text-align:right;">
+                    <button onclick="exportCellSimToVSM()" style="background:var(--surface-alt); border:1px solid var(--border); color:var(--text-secondary); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+                        Export to VSM
+                    </button>
                 </div>
 
                 <!-- Operator Performance Table -->
@@ -8272,6 +8338,292 @@ async function doExportTaktToVSM(target, taktSec) {
     } catch (e) {
         alert('Failed to export: ' + e.message);
     }
+}
+
+// ============================================================================
+// Generic VSM Export (bidirectional sync)
+// ============================================================================
+
+async function exportToVSM(payload, successMsg) {
+    try {
+        const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
+        const data = await resp.json();
+        const maps = (data.maps || []).filter(m => m.status === 'current');
+        if (maps.length === 0) { showToast('No VSMs found. Create a Value Stream Map first.', 'warning'); return; }
+
+        if (maps.length === 1) {
+            await doGenericExportToVSM(maps[0], payload);
+            showToast(successMsg || 'Exported to VSM');
+            return;
+        }
+
+        // Multiple VSMs — reuse import modal for selection
+        const modal = document.getElementById('vsm-import-modal');
+        modal.querySelector('h3').textContent = 'Export Results to VSM';
+        const selectEl = document.getElementById('vsm-import-select');
+        selectEl.innerHTML = maps.map(m => `<option value="${m.id}">${m.name} (${m.process_steps?.length || 0} steps)</option>`).join('');
+        document.getElementById('vsm-import-preview').style.display = 'none';
+        const btn = document.getElementById('vsm-import-btn');
+        btn.textContent = 'Export to Selected VSM';
+        btn.onclick = async () => {
+            const id = selectEl.value;
+            const target = maps.find(m => String(m.id) === id);
+            if (!target) return;
+            closeVSMImport();
+            await doGenericExportToVSM(target, payload);
+            showToast(successMsg || 'Exported to VSM');
+            // Restore modal to import mode
+            btn.onclick = () => doVSMImport();
+            btn.textContent = 'Import into Current Calculator';
+            modal.querySelector('h3').textContent = 'Import from Value Stream Map';
+        };
+        modal.style.display = 'flex';
+    } catch (e) {
+        showToast('Export failed: ' + e.message, 'error');
+    }
+}
+
+async function doGenericExportToVSM(target, payload) {
+    // Fetch current VSM, merge annotations into matching steps, PUT back
+    const resp = await fetch(`/api/vsm/${target.id}/`, { credentials: 'same-origin' });
+    if (!resp.ok) throw new Error('Failed to fetch VSM');
+    const data = await resp.json();
+    const vsm = data.vsm;
+
+    // Merge step-level annotations
+    if (payload.step_annotations) {
+        for (const [stepName, annotation] of Object.entries(payload.step_annotations)) {
+            const step = vsm.process_steps.find(s => s.name === stepName);
+            if (!step) continue;
+            if (!step.annotations) step.annotations = [];
+            // Replace existing annotation from same source, or append
+            const idx = step.annotations.findIndex(a => a.source === annotation.source);
+            if (idx >= 0) step.annotations[idx] = annotation;
+            else step.annotations.push(annotation);
+        }
+    }
+
+    // Merge VSM-level fields (e.g. takt_time)
+    const putPayload = { ...(payload.vsm_fields || {}) };
+    putPayload.process_steps = vsm.process_steps;
+
+    // Handle auto kaizen burst creation
+    if (payload.auto_kaizen) {
+        const ak = payload.auto_kaizen;
+        const bursts = vsm.kaizen_bursts || [];
+        const exists = bursts.some(b => b.text === ak.text);
+        if (!exists) {
+            // Position near the named step
+            const nearStep = vsm.process_steps.find(s => s.name === ak.near_step);
+            const x = nearStep ? (nearStep.x || 200) + 20 : 200;
+            const y = nearStep ? (nearStep.y || 200) - 60 : 200;
+            bursts.push({
+                id: Math.random().toString(36).substring(2, 10),
+                x, y,
+                text: ak.text,
+                priority: ak.priority || 'medium'
+            });
+            putPayload.kaizen_bursts = bursts;
+        }
+    }
+
+    const putResp = await fetch(`/api/vsm/${target.id}/update/`, {
+        method: 'PUT', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(putPayload)
+    });
+    if (!putResp.ok) throw new Error(`Server returned ${putResp.status}`);
+}
+
+// --- Calculator-specific VSM exports ---
+
+async function exportBottleneckToVSM() {
+    if (bottleneckData.length === 0) { showToast('Run bottleneck analysis first', 'warning'); return; }
+    const maxTime = Math.max(...bottleneckData.map(s => s.time));
+    const constraint = bottleneckData.find(s => s.time === maxTime);
+    const annotations = {};
+    bottleneckData.forEach(s => {
+        annotations[s.name] = {
+            source: 'bottleneck', type: 'bottleneck_analysis',
+            value: { cycle_time: s.time, is_constraint: s.time === maxTime, throughput: parseFloat((3600 / s.time).toFixed(1)) },
+            status: s.time === maxTime ? 'red' : 'green',
+            timestamp: new Date().toISOString()
+        };
+    });
+    await exportToVSM({
+        step_annotations: annotations,
+        auto_kaizen: { text: `Bottleneck: ${constraint.name} (${constraint.time}s — ${(3600/constraint.time).toFixed(0)} u/hr)`, near_step: constraint.name, priority: 'high' }
+    }, `Bottleneck exported. Constraint: ${constraint.name}`);
+}
+
+async function exportOEEToVSM() {
+    const oeeVal = SvendOps.get('oee');
+    if (!oeeVal) { showToast('Calculate OEE first', 'warning'); return; }
+    // Determine which step — if imported from VSM, use that context
+    const availability = document.getElementById('oee-availability')?.textContent || '';
+    const performance = document.getElementById('oee-performance')?.textContent || '';
+    const quality = document.getElementById('oee-quality')?.textContent || '';
+
+    // Show step selector
+    try {
+        const resp = await fetch('/api/vsm/', { credentials: 'same-origin' });
+        const data = await resp.json();
+        const maps = (data.maps || []).filter(m => m.status === 'current');
+        if (maps.length === 0) { showToast('No VSMs found', 'warning'); return; }
+        const vsm = maps[0]; // use first; multi-select can be added later
+        const steps = vsm.process_steps || [];
+        if (steps.length === 0) { showToast('VSM has no process steps', 'warning'); return; }
+        const stepName = await selectVSMStep(steps, 'Which step does this OEE apply to?');
+        if (!stepName) return;
+        const annotations = {};
+        annotations[stepName] = {
+            source: 'oee', type: 'oee_result',
+            value: { oee: oeeVal, availability, performance, quality },
+            status: oeeVal >= 85 ? 'green' : oeeVal >= 65 ? 'yellow' : 'red',
+            timestamp: new Date().toISOString()
+        };
+        await exportToVSM({ step_annotations: annotations }, `OEE (${oeeVal.toFixed(1)}%) exported to "${stepName}"`);
+    } catch (e) { showToast('Export failed: ' + e.message, 'error'); }
+}
+
+async function exportLineSimToVSM() {
+    if (lineStations.length === 0 || !lineSimState || lineSimState.time === 0) {
+        showToast('Run line simulation first', 'warning'); return;
+    }
+    const annotations = {};
+    const stats = lineSimState.stationStats || [];
+    lineStations.forEach((s, i) => {
+        const st = stats[i];
+        if (!st) return;
+        const total = st.working + st.blocked + st.starved;
+        const utilization = total > 0 ? parseFloat(((st.working / total) * 100).toFixed(1)) : 0;
+        annotations[s.name] = {
+            source: 'line_sim', type: 'utilization',
+            value: { utilization, blocked_pct: total > 0 ? parseFloat(((st.blocked / total) * 100).toFixed(1)) : 0, starved_pct: total > 0 ? parseFloat(((st.starved / total) * 100).toFixed(1)) : 0 },
+            status: utilization > 95 ? 'red' : utilization > 80 ? 'yellow' : 'green',
+            timestamp: new Date().toISOString()
+        };
+    });
+    await exportToVSM({ step_annotations: annotations }, `Line sim utilization (${lineStations.length} stations) exported`);
+}
+
+async function exportTOCToVSM() {
+    if (typeof tocStationsData === 'undefined' || tocStationsData.length === 0) { showToast('Run TOC analysis first', 'warning'); return; }
+    const minCap = Math.min(...tocStationsData.map(s => s.capacity));
+    const constraint = tocStationsData.find(s => s.capacity === minCap);
+    const annotations = {};
+    tocStationsData.forEach(s => {
+        annotations[s.name] = {
+            source: 'toc', type: 'toc_analysis',
+            value: { capacity: s.capacity, is_constraint: s.capacity === minCap },
+            status: s.capacity === minCap ? 'red' : 'green',
+            timestamp: new Date().toISOString()
+        };
+    });
+    await exportToVSM({ step_annotations: annotations }, `TOC constraint: ${constraint.name} (${constraint.capacity} u/hr)`);
+}
+
+async function exportCellSimToVSM() {
+    if (lineStations.length === 0) { showToast('Configure cell design first', 'warning'); return; }
+    const annotations = {};
+    lineStations.forEach(s => {
+        annotations[s.name] = {
+            source: 'cell_sim', type: 'cell_design',
+            value: { cycle_time: s.cycleTime },
+            status: 'green',
+            timestamp: new Date().toISOString()
+        };
+    });
+    await exportToVSM({ step_annotations: annotations }, `Cell design (${lineStations.length} stations) exported`);
+}
+
+async function exportKanbanSimToVSM() {
+    if (typeof kanbanStations === 'undefined' || kanbanStations.length === 0) { showToast('Run Kanban sim first', 'warning'); return; }
+    const annotations = {};
+    kanbanStations.forEach(s => {
+        annotations[s.name] = {
+            source: 'kanban_sim', type: 'kanban_sim',
+            value: { cycle_time: s.cycleTime },
+            status: 'green',
+            timestamp: new Date().toISOString()
+        };
+    });
+    await exportToVSM({ step_annotations: annotations }, `Kanban sim (${kanbanStations.length} stations) exported`);
+}
+
+async function exportSafetySimToVSM() {
+    if (typeof safetySimStations === 'undefined' || safetySimStations.length === 0) { showToast('Run safety stock sim first', 'warning'); return; }
+    const annotations = {};
+    safetySimStations.forEach(s => {
+        annotations[s.name] = {
+            source: 'safety_sim', type: 'safety_stock',
+            value: { cycle_time: s.cycleTime },
+            status: 'green',
+            timestamp: new Date().toISOString()
+        };
+    });
+    await exportToVSM({ step_annotations: annotations }, 'Safety stock sim exported');
+}
+
+async function exportCapacityLoadToVSM() {
+    if (typeof capacityOrders === 'undefined' || capacityOrders.length === 0) { showToast('Run capacity load first', 'warning'); return; }
+    const annotations = {};
+    capacityOrders.forEach(o => {
+        annotations[o.name] = {
+            source: 'capacity_load', type: 'capacity_load',
+            value: { load_hours: o.hours },
+            status: o.hours > 8 ? 'red' : o.hours > 6 ? 'yellow' : 'green',
+            timestamp: new Date().toISOString()
+        };
+    });
+    await exportToVSM({ step_annotations: annotations }, `Capacity load (${capacityOrders.length} stations) exported`);
+}
+
+async function exportRTOToVSM() {
+    const staffEl = document.getElementById('rto-staff');
+    if (!staffEl) { showToast('Run RTO calculation first', 'warning'); return; }
+    const staff = parseInt(staffEl.textContent);
+    if (isNaN(staff)) { showToast('Calculate RTO first', 'warning'); return; }
+    await exportToVSM({
+        vsm_fields: {},
+        step_annotations: {}
+    }, `RTO staffing recommendation: ${staff} people`);
+}
+
+async function exportKanbanSizingToVSM() {
+    const result = document.getElementById('kanban-result');
+    if (!result) { showToast('Calculate kanban sizing first', 'warning'); return; }
+    const qty = parseInt(result.textContent);
+    if (isNaN(qty)) { showToast('Calculate kanban first', 'warning'); return; }
+    showToast(`Kanban sizing: ${qty} cards. Data is informational — no step-level export.`);
+}
+
+async function exportEPEIToVSM() {
+    const result = document.getElementById('epei-result');
+    if (!result) { showToast('Calculate EPEI first', 'warning'); return; }
+    showToast(`EPEI result noted. Data is informational — no step-level export.`);
+}
+
+// Step selector helper for single-step exports
+function selectVSMStep(steps, prompt_msg) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('vsm-import-modal');
+        modal.querySelector('h3').textContent = prompt_msg || 'Select Process Step';
+        const selectEl = document.getElementById('vsm-import-select');
+        selectEl.innerHTML = steps.map(s => `<option value="${s.name}">${s.name} (C/T: ${s.cycle_time ? s.cycle_time + 's' : '-'})</option>`).join('');
+        document.getElementById('vsm-import-preview').style.display = 'none';
+        const btn = document.getElementById('vsm-import-btn');
+        btn.textContent = 'Select Step';
+        btn.onclick = () => {
+            const selected = selectEl.value;
+            closeVSMImport();
+            btn.onclick = () => doVSMImport();
+            btn.textContent = 'Import into Current Calculator';
+            modal.querySelector('h3').textContent = 'Import from Value Stream Map';
+            resolve(selected || null);
+        };
+        modal.style.display = 'flex';
+    });
 }
 
 // ============================================================================

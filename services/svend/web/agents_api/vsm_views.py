@@ -10,9 +10,9 @@ Unlike a general whiteboard, VSM has structured elements:
 
 import json
 import logging
+import time as _time
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
@@ -24,7 +24,67 @@ from core.models import Project
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
+def detect_bottleneck(vsm):
+    """Identify bottleneck step and set flags on process_steps.
+
+    Sets per-step flags: is_bottleneck, takt_ratio, exceeds_takt.
+    Returns bottleneck summary dict or None if no steps.
+    """
+    steps = vsm.process_steps or []
+    if not steps:
+        return None
+
+    wc_steps = {}  # work_center_id -> [(step_dict, ct)]
+    standalone = []
+
+    for step in steps:
+        ct = step.get("cycle_time", 0) or 0
+        wc_id = step.get("work_center_id")
+        if wc_id:
+            wc_steps.setdefault(wc_id, []).append((step, ct))
+        else:
+            standalone.append((step, ct))
+
+    # Build effective station list: (step_dict, effective_ct)
+    effective = []
+    for step, ct in standalone:
+        effective.append((step, ct))
+    for wc_id, members in wc_steps.items():
+        rate_sum = sum(1.0 / ct for _, ct in members if ct > 0)
+        eff_ct = (1.0 / rate_sum) if rate_sum > 0 else 0
+        # Attribute to first member for display
+        effective.append((members[0][0], eff_ct))
+
+    valid = [(s, ct) for s, ct in effective if ct > 0]
+    if not valid:
+        # Clear flags if no valid cycle times
+        for step in steps:
+            step["flags"] = {}
+        return None
+
+    max_ct = max(ct for _, ct in valid)
+    bottleneck_step = next(s for s, ct in valid if ct == max_ct)
+    throughput = 3600.0 / max_ct if max_ct > 0 else 0
+    takt = vsm.takt_time
+
+    # Set flags on every step
+    for step in steps:
+        step_ct = step.get("cycle_time", 0) or 0
+        flags = {}
+        flags["is_bottleneck"] = (step.get("id") == bottleneck_step.get("id"))
+        if takt and takt > 0 and step_ct > 0:
+            flags["takt_ratio"] = round(step_ct / takt, 2)
+            flags["exceeds_takt"] = step_ct > takt
+        step["flags"] = flags
+
+    return {
+        "bottleneck_step_id": bottleneck_step.get("id", ""),
+        "bottleneck_step_name": bottleneck_step.get("name", ""),
+        "bottleneck_ct": max_ct,
+        "theoretical_throughput": round(throughput, 1),
+    }
+
+
 @gated_paid
 @require_http_methods(["GET"])
 def list_vsm(request):
@@ -49,7 +109,6 @@ def list_vsm(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_vsm(request):
@@ -85,19 +144,19 @@ def create_vsm(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def get_vsm(request, vsm_id):
     """Get a single VSM with full details."""
     vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    bottleneck_info = detect_bottleneck(vsm)
 
     return JsonResponse({
         "vsm": vsm.to_dict(),
+        "bottleneck": bottleneck_info,
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_vsm(request, vsm_id):
@@ -143,17 +202,44 @@ def update_vsm(request, vsm_id):
         else:
             vsm.project = None
 
-    # Recalculate metrics
+    # Handle auto_kaizen from calculator exports
+    auto_kaizen = data.get('auto_kaizen')
+    if auto_kaizen and isinstance(auto_kaizen, dict):
+        text = auto_kaizen.get('text', '').strip()
+        near_step = auto_kaizen.get('near_step', '')
+        priority = auto_kaizen.get('priority', 'medium')
+        if text:
+            bursts = vsm.kaizen_bursts or []
+            # Dedup: skip if burst with same text already exists
+            if not any(b.get('text') == text for b in bursts):
+                # Find position near the named step
+                x, y = 200, 50
+                for i, step in enumerate(vsm.process_steps or []):
+                    if step.get('name', '').lower() == near_step.lower():
+                        x = step.get('x', 200 + i * 200)
+                        y = max(0, step.get('y', 100) - 60)
+                        break
+                bursts.append({
+                    'id': f'kaizen_{len(bursts) + 1}_{int(_time.time())}',
+                    'text': text,
+                    'x': x,
+                    'y': y,
+                    'priority': priority,
+                })
+                vsm.kaizen_bursts = bursts
+
+    # Recalculate metrics and detect bottleneck
     vsm.calculate_metrics()
+    bottleneck_info = detect_bottleneck(vsm)
     vsm.save()
 
     return JsonResponse({
         "success": True,
         "vsm": vsm.to_dict(),
+        "bottleneck": bottleneck_info,
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_vsm(request, vsm_id):
@@ -164,7 +250,6 @@ def delete_vsm(request, vsm_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def add_process_step(request, vsm_id):
@@ -216,7 +301,6 @@ def add_process_step(request, vsm_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def add_inventory(request, vsm_id):
@@ -259,7 +343,6 @@ def add_inventory(request, vsm_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def add_kaizen_burst(request, vsm_id):
@@ -299,7 +382,6 @@ def add_kaizen_burst(request, vsm_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_future_state(request, vsm_id):
@@ -341,7 +423,6 @@ def create_future_state(request, vsm_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def compare_vsm(request, vsm_id):
@@ -407,7 +488,6 @@ def compare_vsm(request, vsm_id):
     })
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
 def generate_proposals(request, vsm_id):

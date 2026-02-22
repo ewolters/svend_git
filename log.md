@@ -15,6 +15,45 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-22 — VSM Integration: Phase 1 (Auto-Bottleneck) + Phase 2 (Bidirectional Calculator Sync)
+**Files changed:**
+- `agents_api/vsm_views.py` — Added `detect_bottleneck(vsm)` helper (bottleneck detection with parallel-machine effective CT logic). Called from `get_vsm()` and `update_vsm()`. Added `auto_kaizen` handling in `update_vsm()` for calculator exports to auto-create kaizen bursts. Added `import time`.
+- `templates/vsm.html` — Bottleneck badge (red "B" circle) on constraint step, orange/red stroke on takt-exceeding steps, annotation dots at step bottom, sidebar metrics (Bottleneck, Throughput), client-side `detectBottleneckClient()`, `renderSuggestedCalcs()` with contextual calculator links.
+- `templates/calculators.html` — Added generic `exportToVSM()` utility, `doGenericExportToVSM()` (GET/merge/PUT pattern), `selectVSMStep()` helper, and 11 calculator-specific export functions (Bottleneck, OEE, Line Sim, TOC/DBR, Cell Sim, Kanban Sim, Safety Stock Sim, Capacity Load, RTO Staffing, Kanban Sizing, EPEI). Added "Export to VSM" buttons to all 11 calculator result areas.
+
+**Why:** VSM was a static drawing tool — 12 calculators imported from it but only Takt Time exported back. Now every calculator can write results as annotations on matched process steps, creating a live operational dashboard. No competitor (Minitab, JMP, Arena) offers this bidirectional integration.
+**Verify:** `python manage.py check` passes. Create VSM with 3+ steps → bottleneck badge appears on highest-CT step. Open Calculators → import from VSM → run Bottleneck analysis → click "Export to VSM" → annotation appears on VSM step.
+
+---
+
+### 2026-02-22 — Enable CSRF Protection
+**Debt item:** [SEC] CSRF globally disabled (P2)
+**Files changed:**
+- `svend/settings.py` — `CSRF_COOKIE_HTTPONLY = False` (allows JS to read CSRF cookie for double-submit pattern), DRF auth class changed from `CsrfExemptSessionAuthentication` to `SessionAuthentication`
+- `api/auth.py` — Deleted `CsrfExemptSessionAuthentication` class (was bypassing all CSRF checks)
+- `templates/base_app.html` — Added `getCSRFToken()` + auto-injecting `window.fetch` wrapper that adds `X-CSRFToken` header to all same-origin non-GET requests
+- `templates/base_guest.html` — Same fetch wrapper for login/register pages
+- 23 view files — Removed `@csrf_exempt` decorator (~278 occurrences) and unused imports
+- `api/views.py`, `agents_api/dsw/common.py` — Removed unused `csrf_exempt` imports
+- `accounts/billing.py` — `@csrf_exempt` KEPT on `stripe_webhook` (external callback, uses Stripe signature verification)
+
+**Why:** CSRF was globally disabled — all endpoints relied only on SameSite=Lax cookie attribute. Now Django's CsrfViewMiddleware validates the X-CSRFToken header on all state-changing requests. The fetch wrapper ensures all existing templates send the token automatically without per-template changes.
+**Verify:** `python manage.py check` passes. Browser smoke test: login, run an analysis, create a project — all POST actions should work. DevTools Network tab should show `X-CSRFToken` header on POST requests. No 403 errors in console.
+
+---
+
+### 2026-02-21 — Codebase Sweep Fixes
+**Files changed:**
+- `api/tasks.py` — Fixed `claude_growth_review` task: pass `api_key=django_settings.ANTHROPIC_API_KEY` to Anthropic client (was missing, causing auth failure)
+- `templates/dashboard.html` — Fixed broken API endpoints: `/api/a3/reports/` → `/api/a3/`, `/api/vsm/maps/` → `/api/vsm/` (dashboard recent activity was silently failing)
+- `templates/rca.html` — Fixed broken API endpoint: `/api/a3/reports/` → `/api/a3/` (A3 link modal was failing)
+- `agents_api/dsw/endpoints_data.py` — Replaced `print()` with `logger.info()` for Qwen loading message
+
+**Why:** Full codebase sweep found broken API calls in dashboard/RCA templates, missing API key in autopilot growth review task, and stray print statement.
+**Verify:** Run Growth Review from staff dashboard (should succeed). Dashboard A3/VSM recent activity sections should load. RCA "Link A3" modal should populate.
+
+---
+
 ### 2026-02-21 — Ship 3 Remaining "Coming Soon" Calculators
 **Files changed:**
 - `services/svend/web/templates/calculators.html` — Replaced placeholder content for heijunka-sim, smed-sim, fmea-sim with full implementations. Removed `coming-soon` class from all three nav items. Added JS engines, guide entries, and calcMeta entries. +1,464 lines.

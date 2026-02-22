@@ -731,6 +731,19 @@
                         <span class="metric-label" title="Available production time / customer demand. Any step with cycle time above takt is a bottleneck">Takt Time</span>
                         <span class="metric-value" id="metric-takt">-</span>
                     </div>
+                    <div class="metric-row" style="border-top:1px solid var(--border); padding-top:0.4rem; margin-top:0.4rem;">
+                        <span class="metric-label" title="Step with highest effective cycle time — constrains system throughput">Bottleneck</span>
+                        <span class="metric-value" id="metric-bottleneck" style="font-size:0.7rem;">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label" title="Max theoretical output based on bottleneck cycle time">Throughput</span>
+                        <span class="metric-value" id="metric-throughput">-</span>
+                    </div>
+                </div>
+                <!-- Suggested Calculators -->
+                <div id="suggested-calcs" style="display:none; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
+                    <span style="font-size:0.7rem; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;">Suggested</span>
+                    <div id="suggested-calcs-list" style="margin-top:0.4rem;"></div>
                 </div>
                 <div class="takt-input-section" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
                     <div style="display:flex; align-items:center; gap:0.25rem; margin-bottom:0.5rem;">
@@ -1436,6 +1449,46 @@ function renderProcessBox(step, layer) {
         wcDot.setAttribute('fill', 'var(--accent-primary)');
         wcDot.setAttribute('opacity', '0.5');
         g.appendChild(wcDot);
+    }
+
+    // --- Bottleneck & takt flags ---
+    const flags = step.flags || {};
+    if (flags.is_bottleneck) {
+        // Red stroke on box
+        rect.setAttribute('stroke', '#e74c3c');
+        rect.setAttribute('stroke-width', '2.5');
+        // Red "B" badge top-right
+        const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        badge.setAttribute('cx', '125'); badge.setAttribute('cy', '5');
+        badge.setAttribute('r', '7'); badge.setAttribute('fill', '#e74c3c');
+        badge.setAttribute('stroke', 'var(--bg-primary)'); badge.setAttribute('stroke-width', '1.5');
+        g.appendChild(badge);
+        const bText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        bText.setAttribute('x', '125'); bText.setAttribute('y', '8.5');
+        bText.setAttribute('text-anchor', 'middle'); bText.setAttribute('fill', 'white');
+        bText.setAttribute('font-size', '8'); bText.setAttribute('font-weight', '700');
+        bText.textContent = 'B';
+        g.appendChild(bText);
+    } else if (flags.exceeds_takt) {
+        // Orange stroke for exceeds-takt (not bottleneck)
+        rect.setAttribute('stroke', '#f39c12');
+        rect.setAttribute('stroke-width', '2.5');
+    }
+
+    // --- Annotation badges (colored dots at bottom) ---
+    const annotations = step.annotations || [];
+    if (annotations.length > 0) {
+        const statusColors = { green: '#4a9f6e', yellow: '#f1c40f', red: '#e74c3c' };
+        annotations.forEach((a, i) => {
+            if (i >= 8) return; // max 8 dots
+            const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            dot.setAttribute('cx', String(8 + i * 12));
+            dot.setAttribute('cy', '136');
+            dot.setAttribute('r', '3.5');
+            dot.setAttribute('fill', statusColors[a.status] || '#666');
+            dot.setAttribute('stroke', 'var(--bg-secondary)'); dot.setAttribute('stroke-width', '1');
+            g.appendChild(dot);
+        });
     }
 
     // Make draggable and handle flow clicks
@@ -2770,6 +2823,100 @@ function updateMetrics() {
     if (currentVSM.takt_time) {
         document.getElementById('takt-direct').value = currentVSM.takt_time;
     }
+
+    // Client-side bottleneck detection
+    const bn = detectBottleneckClient(currentVSM);
+    const bnEl = document.getElementById('metric-bottleneck');
+    const tpEl = document.getElementById('metric-throughput');
+    if (bn) {
+        bnEl.textContent = bn.name + ' (' + formatTime(bn.ct) + ')';
+        bnEl.style.color = (currentVSM.takt_time && bn.ct > currentVSM.takt_time) ? '#e74c3c' : '';
+        tpEl.textContent = bn.throughput.toFixed(1) + ' u/hr';
+    } else {
+        bnEl.textContent = '-';
+        bnEl.style.color = '';
+        tpEl.textContent = '-';
+    }
+
+    // Suggested calculators
+    renderSuggestedCalcs(bn);
+}
+
+function detectBottleneckClient(vsm) {
+    // Client-side bottleneck detection — mirrors server logic
+    const steps = vsm.process_steps || [];
+    const wcs = vsm.work_centers || [];
+    if (steps.length === 0) return null;
+
+    const wcMap = {};
+    wcs.forEach(wc => { wcMap[wc.id] = { ...wc, members: [] }; });
+    const standalone = [];
+    steps.forEach(s => {
+        if (s.work_center_id && wcMap[s.work_center_id]) {
+            wcMap[s.work_center_id].members.push(s);
+        } else {
+            standalone.push(s);
+        }
+    });
+
+    const effective = [];
+    standalone.forEach(s => {
+        const ct = s.cycle_time || 0;
+        if (ct > 0) effective.push({ name: s.name || 'Process', ct, id: s.id });
+    });
+    Object.values(wcMap).forEach(wc => {
+        if (wc.members.length === 0) return;
+        const rateSum = wc.members.reduce((sum, m) => {
+            const ct = m.cycle_time || 0;
+            return ct > 0 ? sum + 1.0 / ct : sum;
+        }, 0);
+        if (rateSum > 0) {
+            effective.push({ name: wc.name || wc.members[0].name, ct: 1.0 / rateSum, id: wc.members[0].id });
+        }
+    });
+
+    if (effective.length === 0) return null;
+    const maxCT = Math.max(...effective.map(e => e.ct));
+    const bn = effective.find(e => e.ct === maxCT);
+    return { name: bn.name, ct: maxCT, throughput: 3600.0 / maxCT, id: bn.id };
+}
+
+function renderSuggestedCalcs(bottleneck) {
+    const container = document.getElementById('suggested-calcs');
+    const list = document.getElementById('suggested-calcs-list');
+    const suggestions = [];
+
+    if (!currentVSM || (currentVSM.process_steps || []).length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    if (!currentVSM.takt_time) {
+        suggestions.push({ name: 'Takt Time', id: 'takt', reason: 'Set takt to flag overloaded steps' });
+    }
+    if (bottleneck) {
+        if (currentVSM.takt_time && bottleneck.ct > currentVSM.takt_time) {
+            suggestions.push({ name: 'SMED', id: 'smed', reason: 'Reduce changeover at bottleneck' });
+            suggestions.push({ name: 'Line Simulator', id: 'line-sim', reason: 'Model flow impact' });
+        } else {
+            suggestions.push({ name: 'Bottleneck Analysis', id: 'bottleneck', reason: 'Detailed constraint analysis' });
+        }
+    }
+    if ((currentVSM.process_steps || []).some(s => !s.uptime || s.uptime < 100)) {
+        suggestions.push({ name: 'OEE', id: 'oee', reason: 'Measure equipment effectiveness' });
+    }
+
+    if (suggestions.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    list.innerHTML = suggestions.slice(0, 3).map(s =>
+        `<a href="/app/calculators/" target="_blank" style="display:block; padding:0.3rem 0.4rem; margin-bottom:0.25rem; background:var(--bg-tertiary); border-radius:4px; text-decoration:none; font-size:0.75rem; color:var(--accent-primary);" title="${s.reason}">
+            ${s.name} <span style="color:var(--text-dim); font-size:0.65rem;">— ${s.reason}</span>
+        </a>`
+    ).join('');
 }
 
 function setTaktDirect() {
@@ -2917,7 +3064,7 @@ function renderProposalCards(proposals) {
     container.innerHTML = proposals.map((p, i) => `
         <div style="background:var(--bg-tertiary); border:1px solid var(--border); border-radius:4px; padding:1rem; margin-bottom:0.75rem;">
             <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                <input type="checkbox" id="proposal-${i}" checked style="accent-color:#7c3aed;">
+                <input type="checkbox" id="proposal-${i}" checked>
                 <label for="proposal-${i}" style="font-weight:500; flex:1; cursor:pointer;">${p.suggested_title}</label>
                 <span style="font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:2px; background:${priorityColors[p.priority] || '#6b7280'}22; color:${priorityColors[p.priority] || '#6b7280'}; text-transform:uppercase;">${p.priority}</span>
             </div>
