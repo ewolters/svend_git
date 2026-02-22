@@ -15,6 +15,41 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-22 — KPI aggregation + calculator mapping for X-Matrix
+**Files changed:**
+- `agents_api/models.py` — HoshinKPI: added `aggregation` (sum/weighted_avg/latest/manual), `calculator_result_type`, `calculator_field` fields; rewrote `effective_actual` property for 4 aggregation modes; updated `to_dict()`
+- `agents_api/xmatrix_views.py` — Added per-KPI rollup in `get_xmatrix_data()` (aggregates across correlated projects by mode); updated create/update KPI endpoints with new fields
+- `templates/hoshin.html` — KPI modal: aggregation dropdown + conditional calculator fields; `renderXMRollup()`: KPI performance section with unit-aware formatting, achievement bars, volume notes
+- Migration `0037_kpi_aggregation_fields` — 3 new fields on HoshinKPI
+
+**Why:** Dollar KPIs sum naturally, but non-dollar volume-sensitive measures (%, ppm, Cpk) need volume-weighted averaging. The 4 modes extend the existing GAAP-compliant calculation engine: sum (dollars), weighted_avg (Σ(actual×volume)/Σ(volume)), latest (calculator result like Cpk), manual.
+**Verify:** Create KPI with different aggregation modes in X-Matrix → rollup section shows correct format per mode.
+
+---
+
+### 2026-02-22 — NaN-in-JSON fix across all numerical endpoints
+**Files changed:**
+- `agents_api/dsw/common.py` — Added `sanitize_for_json()` (recursive NaN/Inf/numpy→JSON-safe) and `safe_json_response()` helper
+- `agents_api/dsw/dispatch.py` — Main analysis return uses `safe_json_response()` (covers all 200+ analyses)
+- `agents_api/dsw_views.py` — `from_intent` and `from_data` returns wrapped with `sanitize_for_json()`
+- `agents_api/spc_views.py` — 6 data-returning JsonResponse calls wrapped (control chart, summary, capability, analysis, statistical summary, gage R&R)
+- `agents_api/experimenter_views.py` — 5 data-returning JsonResponse calls wrapped with existing `_sanitize()` (power_analysis, design_experiment, full_experiment_design, contour_plot, optimize_response)
+- `agents_api/dsw/endpoints_ml.py` — `dsw_from_intent` and `dsw_from_data` returns wrapped with `sanitize_for_json()`
+- `agents_api/forecast_views.py` — `forecast` and `quote` returns wrapped with `sanitize_for_json()`
+
+**Why:** numpy NaN/Inf serialize as bare `NaN`/`Infinity` in JSON, which is invalid per RFC 7159. This caused "Unexpected token 'N'" errors in the browser when any analysis produced NaN (e.g., Cpk with zero variance, division by zero in stats). Fix replaces NaN/Inf with `null` recursively before serialization.
+**Verify:** Run any DSW analysis (e.g., Cpk) — no more "Unexpected token 'N'" errors. `python manage.py check` passes.
+
+### 2026-02-22 — CSRF cookie fix + SHAP 3D array fix + ML Hub error handling
+**Files changed:**
+- `templates/base_app.html` — Added `{% csrf_token %}` after `<body>` to force CSRF cookie refresh on every page load
+- `templates/base_guest.html` — Same CSRF token fix
+- `agents_api/autopilot_views.py` — Moved `cv_folds`/`n_trials` int() conversions inside try-except; added SHAP 0.49 3D array handling (`ndim==3` → take last class); added `logger.warning` for SHAP failures
+- `templates/models.html` — Check `content-type` header before calling `res.json()` to avoid parsing HTML 403 as JSON; removed duplicate X-CSRFToken header
+
+**Why:** After changing CSRF_COOKIE_HTTPONLY to False, browser still had old httponly cookie — JS couldn't read it, so every POST got 403. The `{% csrf_token %}` tag forces middleware to send a fresh non-httponly cookie. SHAP 0.49 changed return format from list-of-2D to 3D array for classification, silently breaking feature importance.
+**Verify:** ML Hub Full Pipeline completes without 403. SHAP step shows checkmark for classification models.
+
 ### 2026-02-22 — X-Matrix Strategy Deployment + VSM Lifecycle + Fiscal Year Rollover
 **Files changed:**
 - `agents_api/models.py` — Added 4 new models: StrategicObjective, AnnualObjective, HoshinKPI, XMatrixCorrelation. Added `fiscal_year` and `paired_with` fields to ValueStreamMap. Added `post_delete` signal handlers for correlation cleanup (UUID orphan prevention).

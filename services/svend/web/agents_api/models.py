@@ -2432,14 +2432,32 @@ class AnnualObjective(models.Model):
 class HoshinKPI(models.Model):
     """Measurable KPI for the East quadrant of the X-matrix.
 
-    Can be manual (user enters actual_value) or derived (actual_value
-    pulled from a linked HoshinProject's computed savings).
+    Four derivation modes controlled by ``aggregation``:
+
+    * **sum** — dollar KPIs. ``effective_actual`` sums ``savings`` from
+      monthly_actuals on the linked project.  X-matrix rollup sums
+      across correlated projects.
+    * **weighted_avg** — volume-sensitive rates (waste %, yield %, OEE,
+      ppm).  ``effective_actual`` computes the volume-weighted average
+      of the ``actual`` metric from monthly_actuals:
+      Σ(actual × volume) / Σ(volume).  Rollup does the same across
+      correlated projects.
+    * **latest** — point-in-time measures (Cpk, sigma level) pulled from
+      the most recent DSWResult of ``calculator_result_type`` linked to
+      the project.  Not aggregated in rollup — displayed individually.
+    * **manual** — user enters ``actual_value`` by hand.
     """
 
     class Frequency(models.TextChoices):
         MONTHLY = "monthly", "Monthly"
         QUARTERLY = "quarterly", "Quarterly"
         ANNUAL = "annual", "Annual"
+
+    class Aggregation(models.TextChoices):
+        SUM = "sum", "Sum (dollars)"
+        WEIGHTED_AVG = "weighted_avg", "Volume-weighted average"
+        LATEST = "latest", "Latest calculator result"
+        MANUAL = "manual", "Manual entry"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
@@ -2463,14 +2481,27 @@ class HoshinKPI(models.Model):
         max_length=10, default="up",
         help_text="'up' = higher is better, 'down' = lower is better",
     )
+    aggregation = models.CharField(
+        max_length=20, choices=Aggregation.choices, default=Aggregation.SUM,
+        help_text="How this KPI aggregates across projects in the X-matrix rollup",
+    )
     derived_from = models.ForeignKey(
         HoshinProject, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="derived_kpis",
-        help_text="If set, actual_value is computed from this project's savings",
+        help_text="If set, actual_value is computed from this project's data",
     )
     derived_field = models.CharField(
         max_length=30, blank=True, default="ytd_savings",
-        help_text="Which project field to pull: ytd_savings, savings_pct",
+        help_text="Which project field to pull: ytd_savings, savings_pct, raw_metric",
+    )
+    calculator_result_type = models.CharField(
+        max_length=60, blank=True, default="",
+        help_text="DSWResult.result_type to pull from, e.g. spc_capability. "
+                  "Used with aggregation=latest.",
+    )
+    calculator_field = models.CharField(
+        max_length=60, blank=True, default="",
+        help_text="JSON path within DSWResult.data to extract, e.g. cpk, yield_percent",
     )
     sort_order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2485,10 +2516,59 @@ class HoshinKPI(models.Model):
 
     @property
     def effective_actual(self):
-        """Return derived value if linked, else manual actual_value."""
-        if self.derived_from_id and self.derived_from:
-            val = getattr(self.derived_from, self.derived_field or "ytd_savings", 0)
+        """Return the KPI's actual value based on its aggregation mode."""
+        if self.aggregation == "manual" or (not self.derived_from_id):
+            return float(self.actual_value) if self.actual_value is not None else None
+
+        proj = self.derived_from
+        if not proj:
+            return float(self.actual_value) if self.actual_value is not None else None
+
+        if self.aggregation == "sum":
+            # Dollar KPI — sum savings from monthly actuals
+            val = getattr(proj, self.derived_field or "ytd_savings", 0)
             return float(val) if val is not None else None
+
+        if self.aggregation == "weighted_avg":
+            # Volume-weighted average of the raw metric
+            entries = proj.monthly_actuals or []
+            total_weighted = 0.0
+            total_volume = 0.0
+            for entry in entries:
+                actual = entry.get("actual")
+                volume = entry.get("volume")
+                if actual is not None and volume:
+                    total_weighted += float(actual) * float(volume)
+                    total_volume += float(volume)
+            if total_volume > 0:
+                return round(total_weighted / total_volume, 4)
+            return None
+
+        if self.aggregation == "latest":
+            # Pull from the most recent DSWResult of the specified type
+            if self.calculator_result_type and hasattr(proj, "project_id"):
+                try:
+                    from agents_api.models import DSWResult
+                    result = DSWResult.objects.filter(
+                        user=proj.project.user,
+                        result_type=self.calculator_result_type,
+                        project=proj.project,
+                    ).order_by("-created_at").first()
+                    if result and result.data:
+                        import json as _json
+                        data = _json.loads(result.data) if isinstance(result.data, str) else result.data
+                        field = self.calculator_field or "cpk"
+                        # Check top-level, then statistics sub-dict
+                        if field in data:
+                            return float(data[field])
+                        stats = data.get("statistics", {})
+                        if field in stats:
+                            return float(stats[field])
+                except Exception:
+                    pass
+            return float(self.actual_value) if self.actual_value is not None else None
+
+        # Fallback
         return float(self.actual_value) if self.actual_value is not None else None
 
     def __str__(self):
@@ -2506,8 +2586,11 @@ class HoshinKPI(models.Model):
             "unit": self.unit,
             "frequency": self.frequency,
             "direction": self.direction,
+            "aggregation": self.aggregation,
             "derived_from_id": str(self.derived_from_id) if self.derived_from_id else None,
             "derived_field": self.derived_field,
+            "calculator_result_type": self.calculator_result_type,
+            "calculator_field": self.calculator_field,
             "sort_order": self.sort_order,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),

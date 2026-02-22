@@ -147,6 +147,66 @@ def get_xmatrix_data(request):
     total_target = float(sum(p.annual_savings_target for p in projects))
     total_ytd = float(sum(p.ytd_savings for p in projects))
 
+    # KPI rollup — aggregate across correlated projects per KPI
+    kpi_map = {str(k.id): k for k in kpis}
+    project_kpi_links = [c for c in correlations if c.pair_type == "project_kpi"]
+    kpi_rollup = []
+    for kpi in kpis:
+        kpi_id = str(kpi.id)
+        correlated_pids = set()
+        for link in project_kpi_links:
+            if str(link.col_id) == kpi_id and str(link.row_id) in project_map:
+                correlated_pids.add(str(link.row_id))
+
+        agg = getattr(kpi, "aggregation", "sum")
+        rollup_entry = {
+            "id": kpi_id,
+            "name": kpi.name,
+            "unit": kpi.unit,
+            "aggregation": agg,
+            "direction": kpi.direction,
+            "target_value": float(kpi.target_value) if kpi.target_value else None,
+            "project_count": len(correlated_pids),
+        }
+
+        if agg == "sum":
+            # Sum dollar savings across correlated projects
+            agg_value = sum(
+                float(project_map[pid].ytd_savings)
+                for pid in correlated_pids if pid in project_map
+            )
+            rollup_entry["aggregated_value"] = round(agg_value, 2)
+
+        elif agg == "weighted_avg":
+            # Volume-weighted average of raw metric across correlated projects
+            total_weighted = 0.0
+            total_volume = 0.0
+            for pid in correlated_pids:
+                proj = project_map.get(pid)
+                if not proj:
+                    continue
+                for entry in (proj.monthly_actuals or []):
+                    actual = entry.get("actual")
+                    volume = entry.get("volume")
+                    if actual is not None and volume:
+                        total_weighted += float(actual) * float(volume)
+                        total_volume += float(volume)
+            if total_volume > 0:
+                rollup_entry["aggregated_value"] = round(total_weighted / total_volume, 4)
+                rollup_entry["total_volume"] = round(total_volume, 2)
+            else:
+                rollup_entry["aggregated_value"] = None
+
+        elif agg == "latest":
+            # Not aggregatable — use the KPI's own effective_actual
+            rollup_entry["aggregated_value"] = kpi.effective_actual
+
+        else:
+            # manual
+            rollup_entry["aggregated_value"] = kpi.effective_actual
+
+        kpi_rollup.append(rollup_entry)
+
     return JsonResponse({
         "fiscal_year": fiscal_year,
         "strategic_objectives": [s.to_dict() for s in strategic],
@@ -158,6 +218,7 @@ def get_xmatrix_data(request):
             "total_target": round(total_target, 2),
             "total_ytd": round(total_ytd, 2),
             "by_strategic_objective": rollup_by_strategic,
+            "by_kpi": kpi_rollup,
         },
     })
 
@@ -546,8 +607,11 @@ def list_create_kpis(request):
         unit=data.get("unit", ""),
         frequency=data.get("frequency", "monthly"),
         direction=data.get("direction", "up"),
+        aggregation=data.get("aggregation", "sum"),
         derived_from=derived_from,
         derived_field=data.get("derived_field", "ytd_savings"),
+        calculator_result_type=data.get("calculator_result_type", ""),
+        calculator_field=data.get("calculator_field", ""),
         sort_order=data.get("sort_order", 0),
     )
     return JsonResponse({"success": True, "kpi": obj.to_dict()}, status=201)
@@ -574,7 +638,8 @@ def update_delete_kpi(request, kpi_id):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     for field in ["name", "description", "unit", "frequency", "direction",
-                  "derived_field"]:
+                  "derived_field", "aggregation", "calculator_result_type",
+                  "calculator_field"]:
         if field in data:
             setattr(obj, field, data[field])
     if "fiscal_year" in data:

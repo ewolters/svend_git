@@ -469,6 +469,9 @@
 .xm-rollup-card .rollup-values .ytd { font-weight: 600; }
 .xm-rollup-card .rollup-bar { height: 4px; background: var(--bg-secondary); border-radius: 2px; margin-top: 6px; overflow: hidden; }
 .xm-rollup-card .rollup-bar-fill { height: 100%; border-radius: 2px; }
+.xm-rollup-divider { border-top: 1px solid var(--border); margin: 12px 0 8px; grid-column: 1 / -1; }
+.xm-rollup-card .rollup-dim { font-size: 10px; color: var(--text-dim); font-weight: 400; margin-left: 6px; }
+.xm-kpi-rollup { border-left: 3px solid var(--accent); }
 
 /* Inline edit for X-matrix items */
 .xm-inline-edit { width: 100%; padding: 4px 6px; background: var(--bg-secondary); border: 1px solid var(--accent);
@@ -1069,9 +1072,32 @@
             <div><label>Target Value</label><input id="xm-kpi-target" type="number" step="0.01"></div>
             <div><label>Unit</label><input id="xm-kpi-unit" placeholder="$, %, ppm"></div>
             <div><label>Direction</label><select id="xm-kpi-direction"><option value="up">Higher is better</option><option value="down">Lower is better</option></select></div>
+            <div>
+                <label>Aggregation</label>
+                <select id="xm-kpi-aggregation" onchange="toggleKPIAggFields()">
+                    <option value="sum">Sum (dollars)</option>
+                    <option value="weighted_avg">Volume-weighted average</option>
+                    <option value="latest">Latest calculator result</option>
+                    <option value="manual">Manual entry</option>
+                </select>
+            </div>
             <div><label>Frequency</label><select id="xm-kpi-frequency"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option></select></div>
-            <div><label>Derived from Project</label><select id="xm-kpi-derived"><option value="">Manual entry</option></select></div>
-            <div><label>Derived Field</label><select id="xm-kpi-derived-field"><option value="ytd_savings">YTD Savings</option><option value="savings_pct">Savings %</option></select></div>
+            <div id="xm-kpi-derived-row"><label>Derived from Project</label><select id="xm-kpi-derived"><option value="">None</option></select></div>
+            <div id="xm-kpi-derived-field-row"><label>Derived Field</label><select id="xm-kpi-derived-field"><option value="ytd_savings">YTD Savings</option><option value="savings_pct">Savings %</option><option value="raw_metric">Raw Metric (native unit)</option></select></div>
+            <div id="xm-kpi-calc-type-row" style="display:none;"><label>Calculator Type</label>
+                <select id="xm-kpi-calc-type">
+                    <option value="">— Select —</option>
+                    <option value="spc_capability">SPC Capability (Cpk)</option>
+                    <option value="spc_control_chart">SPC Control Chart</option>
+                    <option value="spc_gage_rr">Gage R&R</option>
+                    <option value="stats_correlation">Correlation</option>
+                    <option value="stats_t_test">t-Test</option>
+                    <option value="stats_anova">ANOVA</option>
+                </select>
+            </div>
+            <div id="xm-kpi-calc-field-row" style="display:none;"><label>Result Field</label>
+                <input id="xm-kpi-calc-field" placeholder="e.g. cpk, yield_percent, grr_percent">
+            </div>
             <div class="full" style="display:flex;gap:8px;margin-top:8px;">
                 <button class="btn-h primary" onclick="saveXMKPI()">Save</button>
                 <button class="btn-h secondary" onclick="closeXMModal('xm-kpi-modal')">Cancel</button>
@@ -3391,12 +3417,9 @@ async function renderXMatrix() {
         return;
     }
 
-    const hasData = xmData.strategic_objectives.length || xmData.annual_objectives.length ||
-                    xmData.kpis.length || xmData.projects.length;
-    document.getElementById('xm-empty').style.display = hasData ? 'none' : 'block';
-    document.getElementById('xm-matrix').style.display = hasData ? 'block' : 'none';
-
-    if (!hasData) return;
+    // Always show the grid — even empty, the structure should be visible
+    document.getElementById('xm-empty').style.display = 'none';
+    document.getElementById('xm-matrix').style.display = 'block';
 
     // Render quadrant lists
     renderXMItems('xm-strategic-list', xmData.strategic_objectives, 'strategic');
@@ -3427,7 +3450,7 @@ async function renderXMatrix() {
 function renderXMItems(containerId, items, type) {
     const ul = document.getElementById(containerId);
     if (!items.length) {
-        ul.innerHTML = '<li style="padding:8px;font-size:11px;color:var(--text-dim);">None</li>';
+        ul.innerHTML = '<li style="padding:8px;font-size:11px;color:var(--text-dim);font-style:italic;">No items yet</li>';
         return;
     }
     ul.innerHTML = items.map(item => {
@@ -3628,6 +3651,42 @@ function renderXMRollup() {
         <div class="rollup-bar"><div class="rollup-bar-fill" style="width:${Math.min(totalPct,100)}%;background:${totalColor};"></div></div>
     </div>`;
 
+    // KPI rollup
+    if (rollup.by_kpi && rollup.by_kpi.length) {
+        html += '<div class="xm-rollup-divider"></div><div class="rollup-title" style="font-weight:600;margin-bottom:8px;">KPI Performance</div>';
+        for (const kpi of rollup.by_kpi) {
+            const val = kpi.aggregated_value;
+            const target = kpi.target_value;
+            const unit = kpi.unit || '';
+            const isUp = kpi.direction !== 'down';
+
+            // Format value with unit
+            const fmtVal = val != null ? (unit === '$' ? '$' + fmtNum(val) : fmtNum(val) + (unit ? ' ' + unit : '')) : '—';
+            const fmtTarget = target != null ? (unit === '$' ? '$' + fmtNum(target) : fmtNum(target) + (unit ? ' ' + unit : '')) : '—';
+
+            // Calculate achievement
+            let pct = 0;
+            if (target && val != null) {
+                pct = isUp ? Math.round(val / target * 100) : (target > 0 ? Math.round((2 * target - val) / target * 100) : 0);
+            }
+            const kColor = pct >= 90 ? 'var(--accent)' : pct >= 70 ? '#e89547' : 'var(--error)';
+
+            // Aggregation label
+            const aggLabel = {sum: 'Sum', weighted_avg: 'Wtd Avg', latest: 'Latest', manual: 'Manual'}[kpi.aggregation] || '';
+            const volNote = kpi.total_volume ? ` (vol: ${fmtNum(kpi.total_volume)})` : '';
+            const projNote = kpi.project_count ? `${kpi.project_count} project${kpi.project_count > 1 ? 's' : ''}` : 'no projects';
+
+            html += `<div class="xm-rollup-card xm-kpi-rollup">
+                <div class="rollup-title">${kpi.name} <span class="rollup-dim">${aggLabel} · ${projNote}${volNote}</span></div>
+                <div class="rollup-values">
+                    <span class="target">Target: ${fmtTarget}</span>
+                    <span class="ytd" style="color:${kColor}">Actual: ${fmtVal}${target && val != null ? ' (' + pct + '%)' : ''}</span>
+                </div>
+                ${target && val != null ? `<div class="rollup-bar"><div class="rollup-bar-fill" style="width:${Math.min(Math.max(pct,0),100)}%;background:${kColor};"></div></div>` : ''}
+            </div>`;
+        }
+    }
+
     container.innerHTML = html;
 }
 
@@ -3811,6 +3870,20 @@ function editXMObjective(type, id) {
     if (item) openXMObjectiveModal(type, item);
 }
 
+function toggleKPIAggFields() {
+    const agg = document.getElementById('xm-kpi-aggregation').value;
+    const derivedRow = document.getElementById('xm-kpi-derived-row');
+    const derivedFieldRow = document.getElementById('xm-kpi-derived-field-row');
+    const calcTypeRow = document.getElementById('xm-kpi-calc-type-row');
+    const calcFieldRow = document.getElementById('xm-kpi-calc-field-row');
+
+    // Show/hide based on aggregation mode
+    derivedRow.style.display = (agg === 'manual') ? 'none' : 'block';
+    derivedFieldRow.style.display = (agg === 'sum' || agg === 'weighted_avg') ? 'block' : 'none';
+    calcTypeRow.style.display = (agg === 'latest') ? 'block' : 'none';
+    calcFieldRow.style.display = (agg === 'latest') ? 'block' : 'none';
+}
+
 function openXMKPIModal(editItem) {
     xmEditingKPI = editItem ? editItem.id : null;
     const modal = document.getElementById('xm-kpi-modal');
@@ -3820,7 +3893,7 @@ function openXMKPIModal(editItem) {
 
     // Populate derived-from dropdown
     const derivedSel = document.getElementById('xm-kpi-derived');
-    derivedSel.innerHTML = '<option value="">Manual entry</option>';
+    derivedSel.innerHTML = '<option value="">None</option>';
     if (xmData) {
         xmData.projects.forEach(p => {
             derivedSel.innerHTML += `<option value="${p.id}">${p.project_title}</option>`;
@@ -3833,20 +3906,27 @@ function openXMKPIModal(editItem) {
         document.getElementById('xm-kpi-target').value = editItem.target_value || '';
         document.getElementById('xm-kpi-unit').value = editItem.unit || '';
         document.getElementById('xm-kpi-direction').value = editItem.direction || 'up';
+        document.getElementById('xm-kpi-aggregation').value = editItem.aggregation || 'sum';
         document.getElementById('xm-kpi-frequency').value = editItem.frequency || 'monthly';
         document.getElementById('xm-kpi-derived').value = editItem.derived_from_id || '';
         document.getElementById('xm-kpi-derived-field').value = editItem.derived_field || 'ytd_savings';
+        document.getElementById('xm-kpi-calc-type').value = editItem.calculator_result_type || '';
+        document.getElementById('xm-kpi-calc-field').value = editItem.calculator_field || '';
     } else {
         document.getElementById('xm-kpi-name').value = '';
         document.getElementById('xm-kpi-desc').value = '';
         document.getElementById('xm-kpi-target').value = '';
         document.getElementById('xm-kpi-unit').value = '$';
         document.getElementById('xm-kpi-direction').value = 'up';
+        document.getElementById('xm-kpi-aggregation').value = 'sum';
         document.getElementById('xm-kpi-frequency').value = 'monthly';
         document.getElementById('xm-kpi-derived').value = '';
         document.getElementById('xm-kpi-derived-field').value = 'ytd_savings';
+        document.getElementById('xm-kpi-calc-type').value = '';
+        document.getElementById('xm-kpi-calc-field').value = '';
     }
 
+    toggleKPIAggFields();
     modal.classList.add('open');
 }
 
@@ -3860,9 +3940,12 @@ async function saveXMKPI() {
         target_value: document.getElementById('xm-kpi-target').value || null,
         unit: document.getElementById('xm-kpi-unit').value,
         direction: document.getElementById('xm-kpi-direction').value,
+        aggregation: document.getElementById('xm-kpi-aggregation').value,
         frequency: document.getElementById('xm-kpi-frequency').value,
         derived_from_id: document.getElementById('xm-kpi-derived').value || null,
         derived_field: document.getElementById('xm-kpi-derived-field').value,
+        calculator_result_type: document.getElementById('xm-kpi-calc-type').value,
+        calculator_field: document.getElementById('xm-kpi-calc-field').value,
         fiscal_year: selectedFY,
     };
 
