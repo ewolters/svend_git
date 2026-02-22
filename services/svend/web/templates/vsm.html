@@ -2031,6 +2031,21 @@ function renderKaizenBurst(burst, layer) {
         g.appendChild(prob);
     }
 
+    // Realized savings badge (written back from Hoshin)
+    if (burst.realized_savings) {
+        const yPos = (burst.hypothesis_id && burst._hypothesis_prob != null) ? 82 : 70;
+        const savBadge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        savBadge.setAttribute('x', '40');
+        savBadge.setAttribute('y', String(yPos));
+        savBadge.setAttribute('text-anchor', 'middle');
+        savBadge.setAttribute('fill', '#6fcf97');
+        savBadge.setAttribute('font-size', '8');
+        savBadge.setAttribute('font-weight', '600');
+        const amt = Math.abs(burst.realized_savings);
+        savBadge.textContent = amt >= 1000 ? `$${(amt/1000).toFixed(1)}K` : `$${amt.toFixed(0)}`;
+        g.appendChild(savBadge);
+    }
+
     g.addEventListener('mousedown', (e) => startDragElement(e, burst, 'kaizen'));
     g.addEventListener('dblclick', () => showKaizenProperties(burst));
 
@@ -3585,20 +3600,70 @@ function showVSMList(maps) {
     const container = document.getElementById('canvas-container');
     const emptyState = document.getElementById('empty-state');
 
-    let html = '<div class="vsm-list"><h3 style="margin-bottom:1rem;">Your Value Stream Maps</h3>';
+    // Group by fiscal year
+    const groups = {};
     maps.forEach(m => {
-        html += `
-            <div class="vsm-item" onclick="window.location.href='/app/vsm/${m.id}/'">
-                <div class="vsm-title">${m.name}
-                    <span class="vsm-status ${m.status}">${m.status}</span>
+        const fy = m.fiscal_year || 'Unscoped';
+        if (!groups[fy]) groups[fy] = [];
+        groups[fy].push(m);
+    });
+
+    // Sort FY keys: numbered years descending, then "Unscoped" last
+    const fyKeys = Object.keys(groups).sort((a, b) => {
+        if (a === 'Unscoped') return 1;
+        if (b === 'Unscoped') return -1;
+        return parseInt(b) - parseInt(a);
+    });
+
+    let html = '<div class="vsm-list"><h3 style="margin-bottom:1rem;">Your Value Stream Maps</h3>';
+
+    fyKeys.forEach(fy => {
+        const fyLabel = fy === 'Unscoped' ? 'Unscoped' : `FY ${fy}`;
+        html += `<div style="margin-bottom:1.5rem;">
+            <h4 style="font-size:13px;color:var(--text-secondary);margin:0 0 8px;text-transform:uppercase;letter-spacing:0.5px;">${fyLabel}</h4>`;
+
+        groups[fy].forEach(m => {
+            const promoteBtn = m.status === 'future' && m.paired_with_id
+                ? `<button class="btn btn-outline" style="font-size:10px;padding:2px 8px;margin-left:8px;" onclick="event.stopPropagation();promoteVSM('${m.id}')">Promote to Current</button>`
+                : '';
+            const pairedLabel = m.paired_with_id
+                ? '<span style="font-size:10px;color:var(--text-dim);margin-left:6px;">paired</span>'
+                : '';
+
+            html += `
+                <div class="vsm-item" onclick="window.location.href='/app/vsm/${m.id}/'">
+                    <div class="vsm-title">${m.name}
+                        <span class="vsm-status ${m.status}">${m.status}</span>${pairedLabel}${promoteBtn}
+                    </div>
+                    <div class="vsm-meta">${m.product_family || 'No product family'} &middot; Updated ${new Date(m.updated_at).toLocaleDateString()}</div>
                 </div>
-                <div class="vsm-meta">${m.product_family || 'No product family'} &middot; Updated ${new Date(m.updated_at).toLocaleDateString()}</div>
-            </div>
-        `;
+            `;
+        });
+        html += '</div>';
     });
     html += '</div>';
 
     emptyState.innerHTML = html + '<button class="btn btn-primary" style="margin:1rem;" onclick="showNewVSMDialog()">+ New VSM</button>';
+}
+
+async function promoteVSM(vsmId) {
+    if (!confirm('Promote this future-state VSM to current? The old current state will be archived.')) return;
+    try {
+        const resp = await fetch(`/api/hoshin/vsm/${vsmId}/promote/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ action: 'promote' }),
+        });
+        if (!resp.ok) {
+            const err = await resp.json();
+            alert(err.error || 'Promotion failed');
+            return;
+        }
+        alert('VSM promoted to current state. Old current archived.');
+        location.reload();
+    } catch (e) {
+        console.error('Promote VSM error:', e);
+    }
 }
 </script>
 {% endblock %}

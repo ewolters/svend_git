@@ -397,6 +397,7 @@ def create_future_state(request, vsm_id):
         project=vsm.project,
         name=f"{vsm.name} (Future State)",
         status=ValueStreamMap.Status.FUTURE,
+        fiscal_year=vsm.fiscal_year,
         product_family=vsm.product_family,
         customer_name=vsm.customer_name,
         customer_demand=vsm.customer_demand,
@@ -416,6 +417,10 @@ def create_future_state(request, vsm_id):
 
     future.calculate_metrics()
     future.save()
+
+    # Set pairing: future points to current (one-to-one, one direction)
+    future.paired_with = vsm
+    future.save(update_fields=["paired_with"])
 
     return JsonResponse({
         "success": True,

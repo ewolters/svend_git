@@ -15,6 +15,22 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-22 — X-Matrix Strategy Deployment + VSM Lifecycle + Fiscal Year Rollover
+**Files changed:**
+- `agents_api/models.py` — Added 4 new models: StrategicObjective, AnnualObjective, HoshinKPI, XMatrixCorrelation. Added `fiscal_year` and `paired_with` fields to ValueStreamMap. Added `post_delete` signal handlers for correlation cleanup (UUID orphan prevention).
+- `agents_api/xmatrix_views.py` — **NEW** (~500 lines). All X-matrix endpoints: `get_xmatrix_data()` (4 quadrants + correlations + dollar rollup), `update_correlation()` (upsert/cycle/delete), CRUD for strategic/annual objectives and KPIs, `promote_vsm()` (future→current lifecycle), `rollover_fiscal_year()` (clone annual objectives + KPIs forward, carry strategic↔annual correlations). Auto-suggestion engine pre-computes correlations from data lineage (FK relationships, site matching, keyword matching).
+- `agents_api/hoshin_urls.py` — Added 11 new URL patterns for X-matrix, objectives, KPIs, VSM promote, rollover.
+- `agents_api/hoshin_views.py` — Added alignment metrics to `hoshin_dashboard()` response (projects_linked, projects_unlinked, annual_objectives_count, objectives_on_track, objectives_at_risk).
+- `agents_api/vsm_views.py` — Updated `create_future_state()` to set `paired_with` and copy `fiscal_year`.
+- `templates/hoshin.html` — X-Matrix tab + interactive view (CSS grid layout, 4 quadrant lists, 4 correlation grids with click-to-cycle dots, cross-quadrant highlighting, dollar rollup per strategic objective). Dashboard alignment warning banner (amber when unlinked projects exist) + alignment card. Rollover button + confirmation modal.
+- `templates/vsm.html` — VSM list grouped by fiscal year. "Promote to Current" button on future-state VSMs. Realized savings badge on kaizen bursts.
+- `agents_api/migrations/0036_xmatrix_and_vsm_lifecycle.py` — Migration for all new models and fields.
+
+**Why:** The X-matrix is the keystone of Hoshin Kanri — it connects strategic objectives (3-5yr) → annual objectives → improvement projects → KPIs. The bottom two quadrants (projects + KPIs) are fed by live operational data; the top two are human judgment. Correlation matrices use a "both" approach: system auto-suggests from data lineage, humans confirm during catchball. Unlinked projects warning enforces strategic alignment governance. Fiscal year rollover enables annual planning cycles.
+**Verify:** `python manage.py check` passes. Navigate to `#/x-matrix` in Hoshin → create objectives, KPIs, click correlation dots. Dashboard shows alignment warning when projects lack strategic links.
+
+---
+
 ### 2026-02-22 — VSM Integration: Phases 3–5 (Metrics Overlay, Timeline, Hypothesis Tracking)
 **Files changed:**
 - `agents_api/models.py` — Added `metric_snapshots` JSONField to ValueStreamMap. `calculate_metrics()` now auto-appends snapshot on metric changes (capped at 100). `to_dict()` includes snapshots.

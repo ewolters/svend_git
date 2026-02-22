@@ -45,7 +45,7 @@
 .filter-menu label { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-size: 12px;
     color: var(--text-primary); cursor: pointer; border-radius: 4px; }
 .filter-menu label:hover { background: var(--bg-hover); }
-.filter-menu input[type=checkbox], .filter-menu input[type=radio] { accent-color: var(--accent); }
+/* checkbox/radio styling handled by global branded rules */
 .filter-menu .divider { border-top: 1px solid var(--border); margin: 6px 0; }
 .filter-menu .select-all { font-weight: 600; color: var(--text-secondary); padding-bottom: 6px;
     border-bottom: 1px solid var(--border); margin-bottom: 6px; }
@@ -201,7 +201,7 @@
 /* Proposal cards */
 .proposal-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 16px;
     margin-bottom: 12px; display: flex; gap: 16px; align-items: flex-start; }
-.proposal-card input[type=checkbox] { margin-top: 4px; accent-color: var(--accent); }
+.proposal-card input[type=checkbox] { margin-top: 4px; }
 .proposal-card .proposal-info { flex: 1; }
 .proposal-card .proposal-title { color: var(--text-primary); font-weight: 500; font-size: 14px; }
 .proposal-card .proposal-meta { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
@@ -392,6 +392,98 @@
     .charter-grid { grid-template-columns: 1fr; }
     .formula-test-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============ X-MATRIX ============ */
+.xm-container { max-width: 1200px; margin: 0 auto; }
+
+/* Unlinked projects warning banner */
+.xm-warning-banner { background: rgba(207,111,111,0.12); border: 1px solid rgba(207,111,111,0.3); border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.xm-warning-banner .warn-icon { font-size: 18px; }
+.xm-warning-banner .warn-text { flex: 1; font-size: 13px; color: var(--text-primary); }
+.xm-warning-banner .warn-text strong { color: var(--error); }
+.xm-warning-banner .warn-link { color: var(--accent); text-decoration: none; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.xm-warning-banner .warn-link:hover { text-decoration: underline; }
+
+/* Dashboard alignment card */
+.dash-alignment-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.dash-alignment-card .align-stat { text-align: center; min-width: 100px; }
+.dash-alignment-card .align-stat .stat-value { font-size: 22px; font-weight: 600; }
+.dash-alignment-card .align-stat .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); }
+.dash-alignment-card .align-divider { width: 1px; height: 36px; background: var(--border); }
+
+/* X-matrix grid layout */
+.xm-grid-layout { display: grid; grid-template-columns: 200px 1fr 200px; grid-template-rows: auto auto auto;
+    gap: 0; position: relative; }
+
+/* Quadrant item lists */
+.xm-quadrant { padding: 8px; }
+.xm-quadrant h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim);
+    margin: 0 0 6px; }
+.xm-items { list-style: none; padding: 0; margin: 0; }
+.xm-item { padding: 5px 8px; font-size: 11px; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer; border-radius: 4px; border-left: 3px solid transparent; display: flex; justify-content: space-between;
+    align-items: center; gap: 6px; }
+.xm-item:hover { background: var(--bg-hover); }
+.xm-item.highlighted { background: rgba(74,159,110,0.1); border-left-color: var(--accent); }
+.xm-item .xm-item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-item .xm-item-value { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+.xm-item .xm-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.xm-add-btn { display: block; width: 100%; padding: 4px 8px; background: transparent; border: 1px dashed var(--border);
+    border-radius: 4px; color: var(--text-dim); font-size: 11px; cursor: pointer; margin-top: 4px; text-align: center; }
+.xm-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Correlation grid tables */
+.xm-corr-grid { border-collapse: collapse; font-size: 11px; }
+.xm-corr-grid th { padding: 3px 4px; color: var(--text-dim); font-size: 9px; font-weight: 400;
+    max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-corr-grid th.xm-row-header { text-align: right; padding-right: 6px; }
+.xm-corr-grid th.xm-col-header { writing-mode: vertical-lr; text-orientation: mixed; transform: rotate(180deg);
+    max-height: 80px; padding: 4px 2px; }
+.xm-dot { width: 22px; height: 22px; text-align: center; vertical-align: middle; cursor: pointer; border-radius: 50%;
+    transition: background 0.15s; line-height: 22px; }
+.xm-dot:hover { background: rgba(74,159,110,0.15); }
+.xm-dot-strong { color: var(--accent); font-size: 16px; }
+.xm-dot-moderate { color: var(--accent); font-size: 14px; opacity: 0.7; }
+.xm-dot-weak { color: var(--text-dim); font-size: 10px; }
+.xm-dot-auto { border: 1px dashed var(--text-dim); border-radius: 50%; }
+.xm-dot-auto.xm-dot-strong,
+.xm-dot-auto.xm-dot-moderate { border-color: var(--accent); }
+
+/* Center area with 4 correlation grids */
+.xm-center { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px;
+    padding: 8px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
+.xm-center .xm-corner { overflow: auto; }
+.xm-center .xm-corner-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.3px; margin-bottom: 4px; }
+
+/* Rollup bar */
+.xm-rollup { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px;
+    margin-top: 20px; }
+.xm-rollup-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.xm-rollup-card .rollup-title { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-rollup-card .rollup-values { display: flex; gap: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+.xm-rollup-card .rollup-values .target { color: var(--text-dim); }
+.xm-rollup-card .rollup-values .ytd { font-weight: 600; }
+.xm-rollup-card .rollup-bar { height: 4px; background: var(--bg-secondary); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.xm-rollup-card .rollup-bar-fill { height: 100%; border-radius: 2px; }
+
+/* Inline edit for X-matrix items */
+.xm-inline-edit { width: 100%; padding: 4px 6px; background: var(--bg-secondary); border: 1px solid var(--accent);
+    border-radius: 4px; color: var(--text-primary); font-size: 11px; font-family: inherit; }
+.xm-inline-edit:focus { outline: none; }
+
+/* X-matrix CRUD modal */
+.xm-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.xm-form .full { grid-column: 1 / -1; }
+.xm-form label { display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px;
+    text-transform: uppercase; letter-spacing: 0.5px; }
+.xm-form input, .xm-form select, .xm-form textarea {
+    width: 100%; padding: 6px 10px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text-primary); font-size: 12px; font-family: inherit; box-sizing: border-box; }
+.xm-form input:focus, .xm-form select:focus { outline: none; border-color: var(--accent); }
 </style>
 {% endblock %}
 
@@ -416,6 +508,7 @@
         <a class="hoshin-tab" href="#/projects">Projects</a>
         <a class="hoshin-tab" href="#/calendar">Calendar</a>
         <a class="hoshin-tab" href="#/sites">Sites</a>
+        <a class="hoshin-tab" href="#/x-matrix">X-Matrix</a>
         <a class="hoshin-tab" href="#/calc-library">Calculations</a>
     </div>
 
@@ -501,13 +594,17 @@
                 </div>
             </div>
 
-            <!-- Include contingency checkbox -->
-            <label class="filter-check">
-                <input type="checkbox" id="include-contingency"> Include Contingency in Target
+            <!-- Include contingency toggle -->
+            <label class="svend-toggle">
+                <input type="checkbox" id="include-contingency">
+                <span>Include Contingency in Target</span>
             </label>
 
             <button class="filter-reset" onclick="resetFilters()">Reset</button>
         </div>
+
+        <!-- Alignment warning banner -->
+        <div id="dash-alignment-banner" style="display:none;"></div>
 
         <!-- Summary cards -->
         <div class="summary-row" id="dash-summary"></div>
@@ -858,6 +955,151 @@
             </div>
         </div>
     </div>
+
+    <!-- ============ X-MATRIX ============ -->
+    <div id="tab-x-matrix" class="hoshin-panel">
+        <div class="section-header">
+            <h2>X-Matrix — Strategy Deployment</h2>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-h secondary small" id="xm-rollover-btn" style="display:none;" onclick="openRolloverModal()">Start FY<span id="xm-rollover-year"></span></button>
+                <button class="btn-h secondary small" onclick="openXMObjectiveModal('strategic')">+ Strategic Objective</button>
+                <button class="btn-h secondary small" onclick="openXMObjectiveModal('annual')">+ Annual Objective</button>
+                <button class="btn-h secondary small" onclick="openXMKPIModal()">+ KPI</button>
+            </div>
+        </div>
+        <div id="xm-warning-area"></div>
+        <div class="xm-container" id="xm-container">
+            <div class="empty-state" id="xm-empty">
+                <div class="icon">X</div>
+                <p>No X-matrix data for this fiscal year. Add strategic objectives, annual objectives, and KPIs to begin.</p>
+            </div>
+            <div id="xm-matrix" style="display:none;">
+                <div class="xm-grid-layout">
+                    <!-- North: Projects -->
+                    <div style="grid-column:2;grid-row:1;" class="xm-quadrant">
+                        <h4>Improvement Projects (North)</h4>
+                        <ul class="xm-items" id="xm-projects-list"></ul>
+                    </div>
+                    <!-- West: Annual Objectives -->
+                    <div style="grid-column:1;grid-row:2;" class="xm-quadrant">
+                        <h4>Annual Objectives (West)</h4>
+                        <ul class="xm-items" id="xm-annual-list"></ul>
+                        <button class="xm-add-btn" onclick="openXMObjectiveModal('annual')">+ Add</button>
+                    </div>
+                    <!-- Center: 4 correlation grids -->
+                    <div style="grid-column:2;grid-row:2;" class="xm-center">
+                        <div class="xm-corner" id="xm-corner-nw">
+                            <div class="xm-corner-label">Annual x Projects</div>
+                            <div id="xm-grid-annual-project"></div>
+                        </div>
+                        <div class="xm-corner" id="xm-corner-ne">
+                            <div class="xm-corner-label">Projects x KPIs</div>
+                            <div id="xm-grid-project-kpi"></div>
+                        </div>
+                        <div class="xm-corner" id="xm-corner-sw">
+                            <div class="xm-corner-label">Strategic x Annual</div>
+                            <div id="xm-grid-strategic-annual"></div>
+                        </div>
+                        <div class="xm-corner" id="xm-corner-se">
+                            <div class="xm-corner-label">KPIs x Strategic</div>
+                            <div id="xm-grid-kpi-strategic"></div>
+                        </div>
+                    </div>
+                    <!-- East: KPIs -->
+                    <div style="grid-column:3;grid-row:2;" class="xm-quadrant">
+                        <h4>KPIs / Metrics (East)</h4>
+                        <ul class="xm-items" id="xm-kpi-list"></ul>
+                        <button class="xm-add-btn" onclick="openXMKPIModal()">+ Add</button>
+                    </div>
+                    <!-- South: Strategic Objectives -->
+                    <div style="grid-column:2;grid-row:3;" class="xm-quadrant">
+                        <h4>Strategic Objectives (South)</h4>
+                        <ul class="xm-items" id="xm-strategic-list"></ul>
+                        <button class="xm-add-btn" onclick="openXMObjectiveModal('strategic')">+ Add</button>
+                    </div>
+                </div>
+                <!-- Dollar rollup -->
+                <div class="xm-rollup" id="xm-rollup"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ X-MATRIX MODALS ============ -->
+<div class="hoshin-modal" id="xm-obj-modal">
+    <div class="hoshin-modal-content" style="max-width:600px;">
+        <h3 id="xm-obj-modal-title">New Objective</h3>
+        <div class="xm-form" id="xm-obj-form">
+            <div class="full"><label>Title</label><input id="xm-obj-title" placeholder="e.g. Reduce manufacturing costs by 30%"></div>
+            <div class="full"><label>Description</label><textarea id="xm-obj-desc" rows="2"></textarea></div>
+            <div><label>Owner</label><input id="xm-obj-owner" placeholder="Name"></div>
+            <div><label>Status</label><select id="xm-obj-status"></select></div>
+            <div><label>Target Value</label><input id="xm-obj-target" type="number" step="0.01"></div>
+            <div><label>Unit</label><input id="xm-obj-unit" placeholder="$, %, etc."></div>
+            <!-- Strategic-specific -->
+            <div id="xm-obj-strategic-fields">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div><label>Start Year</label><input id="xm-obj-start-year" type="number"></div>
+                    <div><label>End Year</label><input id="xm-obj-end-year" type="number"></div>
+                </div>
+                <div style="margin-top:12px;"><label>Target Metric</label><input id="xm-obj-metric" placeholder="e.g. Manufacturing cost %"></div>
+            </div>
+            <!-- Annual-specific -->
+            <div id="xm-obj-annual-fields" style="display:none;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div><label>Site</label><select id="xm-obj-site"><option value="">Org-wide</option></select></div>
+                    <div><label>Strategic Objective</label><select id="xm-obj-parent"><option value="">None</option></select></div>
+                </div>
+            </div>
+            <div class="full" style="display:flex;gap:8px;margin-top:8px;">
+                <button class="btn-h primary" onclick="saveXMObjective()">Save</button>
+                <button class="btn-h secondary" onclick="closeXMModal('xm-obj-modal')">Cancel</button>
+                <button class="btn-h danger small" id="xm-obj-delete-btn" style="margin-left:auto;display:none;" onclick="deleteXMObjective()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="hoshin-modal" id="xm-kpi-modal">
+    <div class="hoshin-modal-content" style="max-width:600px;">
+        <h3 id="xm-kpi-modal-title">New KPI</h3>
+        <div class="xm-form" id="xm-kpi-form">
+            <div class="full"><label>Name</label><input id="xm-kpi-name" placeholder="e.g. YTD Scrap Savings"></div>
+            <div class="full"><label>Description</label><textarea id="xm-kpi-desc" rows="2"></textarea></div>
+            <div><label>Target Value</label><input id="xm-kpi-target" type="number" step="0.01"></div>
+            <div><label>Unit</label><input id="xm-kpi-unit" placeholder="$, %, ppm"></div>
+            <div><label>Direction</label><select id="xm-kpi-direction"><option value="up">Higher is better</option><option value="down">Lower is better</option></select></div>
+            <div><label>Frequency</label><select id="xm-kpi-frequency"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option></select></div>
+            <div><label>Derived from Project</label><select id="xm-kpi-derived"><option value="">Manual entry</option></select></div>
+            <div><label>Derived Field</label><select id="xm-kpi-derived-field"><option value="ytd_savings">YTD Savings</option><option value="savings_pct">Savings %</option></select></div>
+            <div class="full" style="display:flex;gap:8px;margin-top:8px;">
+                <button class="btn-h primary" onclick="saveXMKPI()">Save</button>
+                <button class="btn-h secondary" onclick="closeXMModal('xm-kpi-modal')">Cancel</button>
+                <button class="btn-h danger small" id="xm-kpi-delete-btn" style="margin-left:auto;display:none;" onclick="deleteXMKPI()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ ROLLOVER MODAL ============ -->
+<div class="hoshin-modal" id="rollover-modal">
+    <div class="hoshin-modal-content" style="max-width:500px;">
+        <h3>Start New Fiscal Year</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin:12px 0;">
+            Roll forward from <strong>FY<span class="rollover-from"></span></strong> to <strong>FY<span class="rollover-to"></span></strong>:
+        </p>
+        <ul style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;padding-left:20px;line-height:1.8;">
+            <li>Annual objectives will be cloned with actuals reset</li>
+            <li>KPIs will be cloned with derived links cleared</li>
+            <li>Strategic&#8594;annual correlations will carry forward (unconfirmed)</li>
+            <li>Project-level correlations will start fresh</li>
+        </ul>
+        <div id="rollover-counts" style="font-size:12px;color:var(--text-dim);margin-bottom:16px;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn-h secondary" onclick="closeXMModal('rollover-modal')">Cancel</button>
+            <button class="btn-h primary" id="btn-do-rollover" onclick="executeRollover()">Roll Forward</button>
+        </div>
+    </div>
 </div>
 
 <!-- ============ NEW PROJECT MODAL ============ -->
@@ -992,6 +1234,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 let allProjects = [];
 let sitesCache = [];
 let calcMethods = [];
+let alignmentData = null;
 let selectedFY = new Date().getFullYear();
 let expandedProjectId = null;
 let editingProjectId = null;
@@ -1079,6 +1322,10 @@ function navigate(hash) {
         const projectId = parts[1];
         const subTab = parts[2] || 'overview';
         loadProjectDetail(projectId, subTab);
+    } else if (route === 'x-matrix') {
+        document.getElementById('tab-x-matrix').classList.add('active');
+        document.querySelector('#main-tabs [href="#/x-matrix"]').classList.add('active');
+        renderXMatrix();
     } else if (route === 'calc-library') {
         document.getElementById('tab-calc-library').classList.add('active');
         document.querySelector('#main-tabs [href="#/calc-library"]').classList.add('active');
@@ -1407,6 +1654,61 @@ function updateDashboard() {
 
     document.getElementById('dash-site-table').innerHTML = siteRows ||
         `<tr><td colspan="6" class="empty-state" style="padding:40px;"><p>No sites configured. Add sites first.</p></td></tr>`;
+
+    // Render alignment banner
+    const banner = document.getElementById('dash-alignment-banner');
+    if (alignmentData) {
+        const a = alignmentData;
+        const unlinked = a.projects_unlinked || 0;
+        const linked = a.projects_linked || 0;
+        const total = linked + unlinked;
+        const objCount = a.annual_objectives_count || 0;
+        const onTrack = a.objectives_on_track || 0;
+        const atRisk = a.objectives_at_risk || 0;
+
+        let html = '';
+
+        // Warning banner if unlinked projects exist
+        if (unlinked > 0) {
+            html += `<div class="xm-warning-banner" style="margin-bottom:12px;">
+                <span class="warn-icon">&#9888;</span>
+                <span class="warn-text"><strong>${unlinked} project${unlinked > 1 ? 's' : ''}</strong> consuming resources with no strategic alignment.</span>
+                <a class="warn-link" href="#/x-matrix">Review in X-Matrix &rarr;</a>
+            </div>`;
+        }
+
+        // Alignment summary card
+        if (objCount > 0 || total > 0) {
+            const alignPct = total > 0 ? Math.round(linked / total * 100) : 0;
+            const alignClass = alignPct >= 90 ? 'positive' : alignPct >= 70 ? 'warning-color' : 'negative';
+            html += `<div class="dash-alignment-card">
+                <div class="align-stat">
+                    <div class="stat-value ${alignClass}">${linked}/${total}</div>
+                    <div class="stat-label">Projects Aligned</div>
+                </div>
+                <div class="align-divider"></div>
+                <div class="align-stat">
+                    <div class="stat-value positive">${onTrack}</div>
+                    <div class="stat-label">Objectives On Track</div>
+                </div>
+                <div class="align-divider"></div>
+                <div class="align-stat">
+                    <div class="stat-value ${atRisk > 0 ? 'negative' : ''}">${atRisk}</div>
+                    <div class="stat-label">At Risk / Behind</div>
+                </div>
+                <div class="align-divider"></div>
+                <div class="align-stat">
+                    <div class="stat-value">${objCount}</div>
+                    <div class="stat-label">Annual Objectives</div>
+                </div>
+            </div>`;
+        }
+
+        banner.innerHTML = html;
+        banner.style.display = html ? 'block' : 'none';
+    } else {
+        banner.style.display = 'none';
+    }
 }
 
 function filterBySite(siteId) {
@@ -2847,8 +3149,12 @@ async function loadSites() {
 }
 
 async function loadAllProjects() {
-    const data = await api(`/projects/?fiscal_year=${selectedFY}`);
-    allProjects = data.projects || [];
+    const [projData, dashData] = await Promise.all([
+        api(`/projects/?fiscal_year=${selectedFY}`),
+        api(`/dashboard/?fiscal_year=${selectedFY}`),
+    ]);
+    allProjects = projData.projects || [];
+    alignmentData = dashData.alignment || null;
 }
 
 function populateSiteFilters() {
@@ -3063,6 +3369,634 @@ async function init() {
 
     // Initial navigate from hash
     navigate(location.hash || '#/dashboard');
+}
+
+// ================================================================
+// X-MATRIX
+// ================================================================
+let xmData = null;
+let xmEditingObj = null; // {type: 'strategic'|'annual', id: ...} for editing
+let xmEditingKPI = null;
+let xmHighlighted = null;
+
+async function renderXMatrix() {
+    try {
+        const resp = await fetch(`/api/hoshin/x-matrix/?fiscal_year=${selectedFY}`, {
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        });
+        if (!resp.ok) throw new Error('Failed to load X-matrix data');
+        xmData = await resp.json();
+    } catch (e) {
+        console.error('X-matrix load error:', e);
+        return;
+    }
+
+    const hasData = xmData.strategic_objectives.length || xmData.annual_objectives.length ||
+                    xmData.kpis.length || xmData.projects.length;
+    document.getElementById('xm-empty').style.display = hasData ? 'none' : 'block';
+    document.getElementById('xm-matrix').style.display = hasData ? 'block' : 'none';
+
+    if (!hasData) return;
+
+    // Render quadrant lists
+    renderXMItems('xm-strategic-list', xmData.strategic_objectives, 'strategic');
+    renderXMItems('xm-annual-list', xmData.annual_objectives, 'annual');
+    renderXMItems('xm-projects-list', xmData.projects, 'project');
+    renderXMItems('xm-kpi-list', xmData.kpis, 'kpi');
+
+    // Render correlation grids
+    renderCorrelationGrid('xm-grid-strategic-annual', 'strategic_annual',
+        xmData.strategic_objectives, xmData.annual_objectives);
+    renderCorrelationGrid('xm-grid-annual-project', 'annual_project',
+        xmData.annual_objectives, xmData.projects);
+    renderCorrelationGrid('xm-grid-project-kpi', 'project_kpi',
+        xmData.projects, xmData.kpis);
+    renderCorrelationGrid('xm-grid-kpi-strategic', 'kpi_strategic',
+        xmData.kpis, xmData.strategic_objectives);
+
+    // Render dollar rollup
+    renderXMRollup();
+
+    // Render warning banner
+    renderXMWarning();
+
+    // Show/hide rollover button
+    updateRolloverButton();
+}
+
+function renderXMItems(containerId, items, type) {
+    const ul = document.getElementById(containerId);
+    if (!items.length) {
+        ul.innerHTML = '<li style="padding:8px;font-size:11px;color:var(--text-dim);">None</li>';
+        return;
+    }
+    ul.innerHTML = items.map(item => {
+        const title = item.title || item.project_title || item.name || '';
+        const id = item.id;
+        let value = '';
+        let statusColor = 'var(--text-dim)';
+
+        if (type === 'strategic') {
+            value = item.target_value ? `${item.target_unit || '$'}${fmtNum(item.target_value)}` : '';
+            statusColor = { draft: 'var(--text-dim)', active: 'var(--accent)', achieved: '#6fcf97', deferred: '#e89547' }[item.status] || 'var(--text-dim)';
+        } else if (type === 'annual') {
+            value = item.target_value ? `${item.target_unit || '$'}${fmtNum(item.target_value)}` : '';
+            statusColor = { on_track: 'var(--accent)', at_risk: '#e89547', behind: 'var(--error)', achieved: '#6fcf97' }[item.status] || 'var(--text-dim)';
+        } else if (type === 'project') {
+            value = `$${fmtNum(item.ytd_savings || 0)}`;
+            statusColor = { proposed: 'var(--text-dim)', budgeted: '#3a7f8f', active: 'var(--accent)', delayed: '#e89547', completed: '#6fcf97' }[item.hoshin_status] || 'var(--text-dim)';
+        } else if (type === 'kpi') {
+            const act = item.actual_value;
+            value = act != null ? `${item.unit || ''}${fmtNum(act)}` : '—';
+            const pct = item.target_value && act != null ? (act / item.target_value * 100) : 0;
+            statusColor = pct >= 90 ? 'var(--accent)' : pct >= 70 ? '#e89547' : 'var(--error)';
+        }
+
+        const clickAction = type === 'project'
+            ? `location.hash='#/project/${id}'`
+            : type === 'kpi'
+                ? `editXMKPI('${id}')`
+                : `editXMObjective('${type}','${id}')`;
+
+        return `<li class="xm-item" data-xm-id="${id}" data-xm-type="${type}"
+                    onclick="${clickAction}" oncontextmenu="xmItemContext(event,'${type}','${id}')">
+            <span class="xm-status-dot" style="background:${statusColor};"></span>
+            <span class="xm-item-title" title="${title}">${title}</span>
+            <span class="xm-item-value">${value}</span>
+        </li>`;
+    }).join('');
+
+    // Attach hover-highlight
+    ul.querySelectorAll('.xm-item').forEach(li => {
+        li.addEventListener('mouseenter', () => highlightCorrelations(li.dataset.xmId));
+        li.addEventListener('mouseleave', clearHighlights);
+    });
+}
+
+function renderCorrelationGrid(containerId, pairType, rowItems, colItems) {
+    const container = document.getElementById(containerId);
+    if (!rowItems.length || !colItems.length) {
+        container.innerHTML = '<span style="font-size:10px;color:var(--text-dim);">No data</span>';
+        return;
+    }
+
+    const corrs = xmData.correlations[pairType] || [];
+    const corrMap = {};
+    corrs.forEach(c => { corrMap[c.row_id + ':' + c.col_id] = c; });
+
+    let html = '<table class="xm-corr-grid"><thead><tr><th></th>';
+    colItems.forEach(c => {
+        const label = (c.title || c.project_title || c.name || '').substring(0, 12);
+        html += `<th class="xm-col-header" title="${c.title || c.project_title || c.name || ''}">${label}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    rowItems.forEach(r => {
+        const rLabel = (r.title || r.project_title || r.name || '').substring(0, 15);
+        html += `<tr><th class="xm-row-header" title="${r.title || r.project_title || r.name || ''}">${rLabel}</th>`;
+        colItems.forEach(c => {
+            const key = r.id + ':' + c.id;
+            const corr = corrMap[key];
+            let dotClass = '';
+            let dotContent = '';
+            let extraClass = '';
+
+            if (corr) {
+                if (corr.source === 'auto' && !corr.confirmed) extraClass = ' xm-dot-auto';
+                if (corr.strength === 'strong') { dotClass = 'xm-dot-strong'; dotContent = '\u25CF'; }
+                else if (corr.strength === 'moderate') { dotClass = 'xm-dot-moderate'; dotContent = '\u25CB'; }
+                else if (corr.strength === 'weak') { dotClass = 'xm-dot-weak'; dotContent = '\u25E6'; }
+            }
+
+            html += `<td class="xm-dot ${dotClass}${extraClass}"
+                data-pair="${pairType}" data-row="${r.id}" data-col="${c.id}"
+                data-strength="${corr ? corr.strength : ''}"
+                data-source="${corr ? corr.source : ''}"
+                data-confirmed="${corr ? corr.confirmed : ''}"
+                onclick="cycleCorrelation(this)"
+                title="${(r.title||r.project_title||r.name||'')} × ${(c.title||c.project_title||c.name||'')}">${dotContent}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+async function cycleCorrelation(td) {
+    const pairType = td.dataset.pair;
+    const rowId = td.dataset.row;
+    const colId = td.dataset.col;
+    const currentStrength = td.dataset.strength;
+    const source = td.dataset.source;
+    const confirmed = td.dataset.confirmed === 'true';
+
+    let nextStrength, isConfirm = false;
+
+    if (!currentStrength) {
+        // Empty → strong manual
+        nextStrength = 'strong';
+    } else if (source === 'auto' && !confirmed) {
+        // Unconfirmed auto → confirm it
+        nextStrength = currentStrength;
+        isConfirm = true;
+    } else {
+        // Cycle: strong → moderate → weak → delete
+        nextStrength = { strong: 'moderate', moderate: 'weak', weak: null }[currentStrength];
+    }
+
+    try {
+        const body = {
+            pair_type: pairType,
+            row_id: rowId,
+            col_id: colId,
+            fiscal_year: selectedFY,
+        };
+        if (isConfirm) {
+            body.strength = nextStrength;
+            body.confirm = true;
+        } else {
+            body.strength = nextStrength;
+        }
+
+        const resp = await fetch('/api/hoshin/x-matrix/correlations/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(body),
+        });
+        if (!resp.ok) throw new Error('Failed to update correlation');
+
+        // Re-render the whole matrix to stay consistent
+        renderXMatrix();
+    } catch (e) {
+        console.error('Correlation update error:', e);
+    }
+}
+
+function highlightCorrelations(itemId) {
+    if (!xmData) return;
+    clearHighlights();
+    xmHighlighted = itemId;
+
+    const related = new Set();
+    for (const corrs of Object.values(xmData.correlations)) {
+        for (const c of corrs) {
+            if (c.row_id === itemId) related.add(c.col_id);
+            if (c.col_id === itemId) related.add(c.row_id);
+        }
+    }
+
+    document.querySelectorAll('.xm-item').forEach(el => {
+        if (related.has(el.dataset.xmId)) el.classList.add('highlighted');
+    });
+}
+
+function clearHighlights() {
+    xmHighlighted = null;
+    document.querySelectorAll('.xm-item.highlighted').forEach(el => el.classList.remove('highlighted'));
+}
+
+function renderXMRollup() {
+    const rollup = xmData.rollup;
+    const container = document.getElementById('xm-rollup');
+    if (!rollup.by_strategic_objective.length) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = rollup.by_strategic_objective.map(so => {
+        const pct = so.linked_target ? Math.round(so.linked_ytd / so.linked_target * 100) : 0;
+        const color = pct >= 90 ? 'var(--accent)' : pct >= 70 ? '#e89547' : 'var(--error)';
+        return `<div class="xm-rollup-card">
+            <div class="rollup-title">${so.title}</div>
+            <div class="rollup-values">
+                <span class="target">Target: $${fmtNum(so.linked_target)}</span>
+                <span class="ytd" style="color:${color}">YTD: $${fmtNum(so.linked_ytd)}</span>
+            </div>
+            <div class="rollup-bar"><div class="rollup-bar-fill" style="width:${Math.min(pct,100)}%;background:${color};"></div></div>
+        </div>`;
+    }).join('');
+
+    // Total
+    const totalPct = rollup.total_target ? Math.round(rollup.total_ytd / rollup.total_target * 100) : 0;
+    const totalColor = totalPct >= 90 ? 'var(--accent)' : totalPct >= 70 ? '#e89547' : 'var(--error)';
+    html += `<div class="xm-rollup-card" style="border-color:var(--accent);">
+        <div class="rollup-title" style="font-weight:600;">Portfolio Total</div>
+        <div class="rollup-values">
+            <span class="target">Target: $${fmtNum(rollup.total_target)}</span>
+            <span class="ytd" style="color:${totalColor}">YTD: $${fmtNum(rollup.total_ytd)} (${totalPct}%)</span>
+        </div>
+        <div class="rollup-bar"><div class="rollup-bar-fill" style="width:${Math.min(totalPct,100)}%;background:${totalColor};"></div></div>
+    </div>`;
+
+    container.innerHTML = html;
+}
+
+function renderXMWarning() {
+    const container = document.getElementById('xm-warning-area');
+    if (!xmData || !xmData.projects.length) { container.innerHTML = ''; return; }
+
+    // Count unlinked projects
+    const linkedIds = new Set();
+    (xmData.correlations.annual_project || []).forEach(c => linkedIds.add(c.col_id));
+    const unlinked = xmData.projects.filter(p => !linkedIds.has(p.id)).length;
+
+    if (unlinked > 0) {
+        container.innerHTML = `<div class="xm-warning-banner">
+            <span class="warn-icon">!</span>
+            <span class="warn-text"><strong>${unlinked} project${unlinked>1?'s':''}</strong> consuming resources with no strategic alignment.</span>
+            <span style="font-size:12px;color:var(--text-dim);">Review correlations below</span>
+        </div>`;
+    } else {
+        container.innerHTML = '';
+    }
+}
+
+function fmtNum(n) {
+    if (n == null) return '0';
+    n = parseFloat(n);
+    if (Math.abs(n) >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toFixed(n % 1 === 0 ? 0 : 1);
+}
+
+// --- X-Matrix CRUD ---
+function openXMObjectiveModal(type, editItem) {
+    xmEditingObj = editItem ? { type, id: editItem.id } : null;
+    const modal = document.getElementById('xm-obj-modal');
+    const title = document.getElementById('xm-obj-modal-title');
+    const deleteBtn = document.getElementById('xm-obj-delete-btn');
+
+    title.textContent = editItem
+        ? `Edit ${type === 'strategic' ? 'Strategic' : 'Annual'} Objective`
+        : `New ${type === 'strategic' ? 'Strategic' : 'Annual'} Objective`;
+
+    deleteBtn.style.display = editItem ? 'inline-block' : 'none';
+
+    // Show/hide type-specific fields
+    document.getElementById('xm-obj-strategic-fields').style.display = type === 'strategic' ? 'block' : 'none';
+    document.getElementById('xm-obj-annual-fields').style.display = type === 'annual' ? 'block' : 'none';
+
+    // Status options
+    const statusSel = document.getElementById('xm-obj-status');
+    if (type === 'strategic') {
+        statusSel.innerHTML = '<option value="draft">Draft</option><option value="active">Active</option><option value="achieved">Achieved</option><option value="deferred">Deferred</option>';
+    } else {
+        statusSel.innerHTML = '<option value="on_track">On Track</option><option value="at_risk">At Risk</option><option value="behind">Behind</option><option value="achieved">Achieved</option>';
+    }
+
+    // Populate site dropdown for annual
+    if (type === 'annual') {
+        const siteSel = document.getElementById('xm-obj-site');
+        siteSel.innerHTML = '<option value="">Org-wide</option>' +
+            sitesCache.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+        const parentSel = document.getElementById('xm-obj-parent');
+        parentSel.innerHTML = '<option value="">None</option>';
+        if (xmData) {
+            xmData.strategic_objectives.forEach(so => {
+                parentSel.innerHTML += `<option value="${so.id}">${so.title}</option>`;
+            });
+        }
+    }
+
+    // Fill form if editing
+    if (editItem) {
+        document.getElementById('xm-obj-title').value = editItem.title || '';
+        document.getElementById('xm-obj-desc').value = editItem.description || '';
+        document.getElementById('xm-obj-owner').value = editItem.owner_name || '';
+        document.getElementById('xm-obj-status').value = editItem.status || '';
+        document.getElementById('xm-obj-target').value = editItem.target_value || '';
+        document.getElementById('xm-obj-unit').value = editItem.target_unit || '';
+
+        if (type === 'strategic') {
+            document.getElementById('xm-obj-start-year').value = editItem.start_year || selectedFY;
+            document.getElementById('xm-obj-end-year').value = editItem.end_year || selectedFY + 3;
+            document.getElementById('xm-obj-metric').value = editItem.target_metric || '';
+        } else {
+            document.getElementById('xm-obj-site').value = editItem.site_id || '';
+            document.getElementById('xm-obj-parent').value = editItem.strategic_objective_id || '';
+        }
+    } else {
+        document.getElementById('xm-obj-title').value = '';
+        document.getElementById('xm-obj-desc').value = '';
+        document.getElementById('xm-obj-owner').value = '';
+        document.getElementById('xm-obj-status').value = type === 'strategic' ? 'draft' : 'on_track';
+        document.getElementById('xm-obj-target').value = '';
+        document.getElementById('xm-obj-unit').value = '$';
+        if (type === 'strategic') {
+            document.getElementById('xm-obj-start-year').value = selectedFY;
+            document.getElementById('xm-obj-end-year').value = selectedFY + 3;
+            document.getElementById('xm-obj-metric').value = '';
+        }
+    }
+
+    // Store type for save
+    modal.dataset.objType = type;
+    modal.classList.add('open');
+}
+
+async function saveXMObjective() {
+    const modal = document.getElementById('xm-obj-modal');
+    const type = modal.dataset.objType;
+    const title = document.getElementById('xm-obj-title').value.trim();
+    if (!title) { alert('Title is required'); return; }
+
+    const body = {
+        title,
+        description: document.getElementById('xm-obj-desc').value,
+        owner_name: document.getElementById('xm-obj-owner').value,
+        status: document.getElementById('xm-obj-status').value,
+        target_value: document.getElementById('xm-obj-target').value || null,
+        target_unit: document.getElementById('xm-obj-unit').value,
+    };
+
+    if (type === 'strategic') {
+        body.start_year = parseInt(document.getElementById('xm-obj-start-year').value) || selectedFY;
+        body.end_year = parseInt(document.getElementById('xm-obj-end-year').value) || selectedFY + 3;
+        body.target_metric = document.getElementById('xm-obj-metric').value;
+    } else {
+        body.fiscal_year = selectedFY;
+        body.site_id = document.getElementById('xm-obj-site').value || null;
+        body.strategic_objective_id = document.getElementById('xm-obj-parent').value || null;
+    }
+
+    const endpoint = type === 'strategic' ? 'strategic-objectives' : 'annual-objectives';
+    let url, method;
+
+    if (xmEditingObj) {
+        url = `/api/hoshin/${endpoint}/${xmEditingObj.id}/`;
+        method = 'PUT';
+    } else {
+        url = `/api/hoshin/${endpoint}/`;
+        method = 'POST';
+    }
+
+    try {
+        const resp = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(body),
+        });
+        if (!resp.ok) {
+            const err = await resp.json();
+            alert(err.error || 'Save failed');
+            return;
+        }
+        closeXMModal('xm-obj-modal');
+        renderXMatrix();
+    } catch (e) {
+        console.error('Save objective error:', e);
+    }
+}
+
+async function deleteXMObjective() {
+    if (!xmEditingObj || !confirm('Delete this objective? All correlations will be removed.')) return;
+    const endpoint = xmEditingObj.type === 'strategic' ? 'strategic-objectives' : 'annual-objectives';
+    try {
+        await fetch(`/api/hoshin/${endpoint}/${xmEditingObj.id}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        });
+        closeXMModal('xm-obj-modal');
+        renderXMatrix();
+    } catch (e) {
+        console.error('Delete objective error:', e);
+    }
+}
+
+function editXMObjective(type, id) {
+    if (!xmData) return;
+    const list = type === 'strategic' ? xmData.strategic_objectives : xmData.annual_objectives;
+    const item = list.find(x => x.id === id);
+    if (item) openXMObjectiveModal(type, item);
+}
+
+function openXMKPIModal(editItem) {
+    xmEditingKPI = editItem ? editItem.id : null;
+    const modal = document.getElementById('xm-kpi-modal');
+    const deleteBtn = document.getElementById('xm-kpi-delete-btn');
+    document.getElementById('xm-kpi-modal-title').textContent = editItem ? 'Edit KPI' : 'New KPI';
+    deleteBtn.style.display = editItem ? 'inline-block' : 'none';
+
+    // Populate derived-from dropdown
+    const derivedSel = document.getElementById('xm-kpi-derived');
+    derivedSel.innerHTML = '<option value="">Manual entry</option>';
+    if (xmData) {
+        xmData.projects.forEach(p => {
+            derivedSel.innerHTML += `<option value="${p.id}">${p.project_title}</option>`;
+        });
+    }
+
+    if (editItem) {
+        document.getElementById('xm-kpi-name').value = editItem.name || '';
+        document.getElementById('xm-kpi-desc').value = editItem.description || '';
+        document.getElementById('xm-kpi-target').value = editItem.target_value || '';
+        document.getElementById('xm-kpi-unit').value = editItem.unit || '';
+        document.getElementById('xm-kpi-direction').value = editItem.direction || 'up';
+        document.getElementById('xm-kpi-frequency').value = editItem.frequency || 'monthly';
+        document.getElementById('xm-kpi-derived').value = editItem.derived_from_id || '';
+        document.getElementById('xm-kpi-derived-field').value = editItem.derived_field || 'ytd_savings';
+    } else {
+        document.getElementById('xm-kpi-name').value = '';
+        document.getElementById('xm-kpi-desc').value = '';
+        document.getElementById('xm-kpi-target').value = '';
+        document.getElementById('xm-kpi-unit').value = '$';
+        document.getElementById('xm-kpi-direction').value = 'up';
+        document.getElementById('xm-kpi-frequency').value = 'monthly';
+        document.getElementById('xm-kpi-derived').value = '';
+        document.getElementById('xm-kpi-derived-field').value = 'ytd_savings';
+    }
+
+    modal.classList.add('open');
+}
+
+async function saveXMKPI() {
+    const name = document.getElementById('xm-kpi-name').value.trim();
+    if (!name) { alert('Name is required'); return; }
+
+    const body = {
+        name,
+        description: document.getElementById('xm-kpi-desc').value,
+        target_value: document.getElementById('xm-kpi-target').value || null,
+        unit: document.getElementById('xm-kpi-unit').value,
+        direction: document.getElementById('xm-kpi-direction').value,
+        frequency: document.getElementById('xm-kpi-frequency').value,
+        derived_from_id: document.getElementById('xm-kpi-derived').value || null,
+        derived_field: document.getElementById('xm-kpi-derived-field').value,
+        fiscal_year: selectedFY,
+    };
+
+    let url, method;
+    if (xmEditingKPI) {
+        url = `/api/hoshin/kpis/${xmEditingKPI}/`;
+        method = 'PUT';
+    } else {
+        url = '/api/hoshin/kpis/';
+        method = 'POST';
+    }
+
+    try {
+        const resp = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(body),
+        });
+        if (!resp.ok) {
+            const err = await resp.json();
+            alert(err.error || 'Save failed');
+            return;
+        }
+        closeXMModal('xm-kpi-modal');
+        renderXMatrix();
+    } catch (e) {
+        console.error('Save KPI error:', e);
+    }
+}
+
+async function deleteXMKPI() {
+    if (!xmEditingKPI || !confirm('Delete this KPI? All correlations will be removed.')) return;
+    try {
+        await fetch(`/api/hoshin/kpis/${xmEditingKPI}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        });
+        closeXMModal('xm-kpi-modal');
+        renderXMatrix();
+    } catch (e) {
+        console.error('Delete KPI error:', e);
+    }
+}
+
+function editXMKPI(id) {
+    if (!xmData) return;
+    const item = xmData.kpis.find(k => k.id === id);
+    if (item) openXMKPIModal(item);
+}
+
+function closeXMModal(modalId) {
+    document.getElementById(modalId).classList.remove('open');
+    xmEditingObj = null;
+    xmEditingKPI = null;
+}
+
+function xmItemContext(e, type, id) {
+    e.preventDefault();
+    if (type === 'project') return; // Projects edit via their own detail page
+    if (type === 'kpi') editXMKPI(id);
+    else editXMObjective(type, id);
+}
+
+// --- Fiscal Year Rollover ---
+function updateRolloverButton() {
+    const btn = document.getElementById('xm-rollover-btn');
+    if (!xmData) { btn.style.display = 'none'; return; }
+
+    const nextFY = selectedFY + 1;
+    // Show button if current FY has annual objectives (something to roll forward)
+    // and we have data that could be rolled
+    if (xmData.annual_objectives.length > 0 || xmData.kpis.length > 0) {
+        document.getElementById('xm-rollover-year').textContent = nextFY;
+        btn.style.display = 'inline-block';
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+function openRolloverModal() {
+    if (!xmData) return;
+    const fromFY = selectedFY;
+    const toFY = selectedFY + 1;
+
+    document.querySelectorAll('.rollover-from').forEach(el => el.textContent = fromFY);
+    document.querySelectorAll('.rollover-to').forEach(el => el.textContent = toFY);
+
+    const objCount = xmData.annual_objectives.length;
+    const kpiCount = xmData.kpis.length;
+    document.getElementById('rollover-counts').textContent =
+        `${objCount} annual objective${objCount !== 1 ? 's' : ''} and ${kpiCount} KPI${kpiCount !== 1 ? 's' : ''} will be cloned.`;
+
+    document.getElementById('rollover-modal').classList.add('open');
+}
+
+async function executeRollover() {
+    const btn = document.getElementById('btn-do-rollover');
+    btn.disabled = true;
+    btn.textContent = 'Rolling forward...';
+
+    try {
+        const resp = await fetch('/api/hoshin/x-matrix/rollover/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({
+                from_year: selectedFY,
+                to_year: selectedFY + 1,
+            }),
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+            alert(data.error || 'Rollover failed');
+            return;
+        }
+
+        closeXMModal('rollover-modal');
+
+        // Navigate to the new FY's X-matrix
+        selectedFY = selectedFY + 1;
+        renderFYButtons();
+        await loadAllProjects();
+        updateDashboard();
+        renderXMatrix();
+    } catch (e) {
+        console.error('Rollover error:', e);
+        alert('Rollover failed: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Roll Forward';
+    }
 }
 
 init();

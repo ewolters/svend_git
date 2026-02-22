@@ -5,6 +5,9 @@ import uuid
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.db.models import Q
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 from core.encryption import EncryptedTextField
 
@@ -1680,6 +1683,15 @@ class ValueStreamMap(models.Model):
     # Header
     name = models.CharField(max_length=255, default="Untitled VSM")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.CURRENT)
+    fiscal_year = models.CharField(
+        max_length=10, blank=True, default="",
+        help_text="Fiscal year scope, e.g. '2026'. Empty = unscoped.",
+    )
+    paired_with = models.OneToOneField(
+        "self", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="paired_map",
+        help_text="Current <-> Future state pairing",
+    )
     product_family = models.CharField(max_length=255, blank=True, help_text="Product or service being mapped")
 
     # Customer info (right side of VSM)
@@ -1822,6 +1834,8 @@ class ValueStreamMap(models.Model):
             "project_id": str(self.project_id) if self.project_id else None,
             "name": self.name,
             "status": self.status,
+            "fiscal_year": self.fiscal_year,
+            "paired_with_id": str(self.paired_with_id) if self.paired_with_id else None,
             "product_family": self.product_family,
             "customer_name": self.customer_name,
             "customer_demand": self.customer_demand,
@@ -2271,3 +2285,320 @@ class ActionItem(models.Model):
         }
 
 
+# =============================================================================
+# X-Matrix / Strategy Deployment Models
+# =============================================================================
+
+
+class StrategicObjective(models.Model):
+    """3-5 year breakthrough goal. South quadrant of X-matrix.
+
+    Tenant-level, multi-year span. Manual entry by leadership.
+    Examples: "Reduce manufacturing costs by 30%", "Zero workplace injuries"
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ACTIVE = "active", "Active"
+        ACHIEVED = "achieved", "Achieved"
+        DEFERRED = "deferred", "Deferred"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant", on_delete=models.CASCADE,
+        related_name="strategic_objectives",
+    )
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    owner_name = models.CharField(max_length=255, blank=True)
+    start_year = models.IntegerField(help_text="First fiscal year of this objective")
+    end_year = models.IntegerField(help_text="Target completion fiscal year")
+    target_metric = models.CharField(
+        max_length=255, blank=True,
+        help_text="What is being measured, e.g. 'Manufacturing cost %'",
+    )
+    target_value = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+    target_unit = models.CharField(max_length=50, blank=True, help_text="$, %, units, etc.")
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.DRAFT,
+    )
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hoshin_strategic_objectives"
+        ordering = ["sort_order", "start_year"]
+
+    def __str__(self):
+        return f"{self.title} ({self.start_year}-{self.end_year})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "tenant_id": str(self.tenant_id),
+            "title": self.title,
+            "description": self.description,
+            "owner_name": self.owner_name,
+            "start_year": self.start_year,
+            "end_year": self.end_year,
+            "target_metric": self.target_metric,
+            "target_value": float(self.target_value) if self.target_value else None,
+            "target_unit": self.target_unit,
+            "status": self.status,
+            "sort_order": self.sort_order,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class AnnualObjective(models.Model):
+    """This FY's specific target cascaded from a strategic objective. West quadrant.
+
+    FK to StrategicObjective (optional). FK to Site (optional).
+    Examples: "Reduce scrap from 3.2% to 2.1% at Plant A"
+    """
+
+    class Status(models.TextChoices):
+        ON_TRACK = "on_track", "On Track"
+        AT_RISK = "at_risk", "At Risk"
+        BEHIND = "behind", "Behind"
+        ACHIEVED = "achieved", "Achieved"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant", on_delete=models.CASCADE,
+        related_name="annual_objectives",
+    )
+    strategic_objective = models.ForeignKey(
+        StrategicObjective, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="annual_objectives",
+    )
+    site = models.ForeignKey(
+        Site, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="annual_objectives",
+    )
+    fiscal_year = models.IntegerField(default=_current_year)
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    owner_name = models.CharField(max_length=255, blank=True)
+    target_value = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+    actual_value = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+    target_unit = models.CharField(max_length=50, blank=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ON_TRACK,
+    )
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hoshin_annual_objectives"
+        ordering = ["sort_order", "title"]
+        indexes = [
+            models.Index(fields=["tenant", "fiscal_year"]),
+        ]
+
+    def __str__(self):
+        return f"FY{self.fiscal_year}: {self.title}"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "tenant_id": str(self.tenant_id),
+            "strategic_objective_id": str(self.strategic_objective_id) if self.strategic_objective_id else None,
+            "site_id": str(self.site_id) if self.site_id else None,
+            "site_name": self.site.name if self.site else None,
+            "fiscal_year": self.fiscal_year,
+            "title": self.title,
+            "description": self.description,
+            "owner_name": self.owner_name,
+            "target_value": float(self.target_value) if self.target_value else None,
+            "actual_value": float(self.actual_value) if self.actual_value else None,
+            "target_unit": self.target_unit,
+            "status": self.status,
+            "sort_order": self.sort_order,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class HoshinKPI(models.Model):
+    """Measurable KPI for the East quadrant of the X-matrix.
+
+    Can be manual (user enters actual_value) or derived (actual_value
+    pulled from a linked HoshinProject's computed savings).
+    """
+
+    class Frequency(models.TextChoices):
+        MONTHLY = "monthly", "Monthly"
+        QUARTERLY = "quarterly", "Quarterly"
+        ANNUAL = "annual", "Annual"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant", on_delete=models.CASCADE,
+        related_name="hoshin_kpis",
+    )
+    fiscal_year = models.IntegerField(default=_current_year)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    target_value = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+    actual_value = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+    unit = models.CharField(max_length=50, blank=True, help_text="$, %, ppm, etc.")
+    frequency = models.CharField(
+        max_length=20, choices=Frequency.choices, default=Frequency.MONTHLY,
+    )
+    direction = models.CharField(
+        max_length=10, default="up",
+        help_text="'up' = higher is better, 'down' = lower is better",
+    )
+    derived_from = models.ForeignKey(
+        HoshinProject, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="derived_kpis",
+        help_text="If set, actual_value is computed from this project's savings",
+    )
+    derived_field = models.CharField(
+        max_length=30, blank=True, default="ytd_savings",
+        help_text="Which project field to pull: ytd_savings, savings_pct",
+    )
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hoshin_kpis"
+        ordering = ["sort_order", "name"]
+        indexes = [
+            models.Index(fields=["tenant", "fiscal_year"]),
+        ]
+
+    @property
+    def effective_actual(self):
+        """Return derived value if linked, else manual actual_value."""
+        if self.derived_from_id and self.derived_from:
+            val = getattr(self.derived_from, self.derived_field or "ytd_savings", 0)
+            return float(val) if val is not None else None
+        return float(self.actual_value) if self.actual_value is not None else None
+
+    def __str__(self):
+        return self.name
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "tenant_id": str(self.tenant_id),
+            "fiscal_year": self.fiscal_year,
+            "name": self.name,
+            "description": self.description,
+            "target_value": float(self.target_value) if self.target_value else None,
+            "actual_value": self.effective_actual,
+            "unit": self.unit,
+            "frequency": self.frequency,
+            "direction": self.direction,
+            "derived_from_id": str(self.derived_from_id) if self.derived_from_id else None,
+            "derived_field": self.derived_field,
+            "sort_order": self.sort_order,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class XMatrixCorrelation(models.Model):
+    """Relationship strength between X-matrix items.
+
+    The four correlation matrices:
+    - strategic_annual: StrategicObjective <-> AnnualObjective  (SW corner)
+    - annual_project:   AnnualObjective <-> HoshinProject       (NW corner)
+    - project_kpi:      HoshinProject <-> HoshinKPI             (NE corner)
+    - kpi_strategic:    HoshinKPI <-> StrategicObjective         (SE corner)
+    """
+
+    class Strength(models.TextChoices):
+        STRONG = "strong", "Strong"
+        MODERATE = "moderate", "Moderate"
+        WEAK = "weak", "Weak"
+
+    class Source(models.TextChoices):
+        AUTO = "auto", "Auto-suggested"
+        MANUAL = "manual", "Manual"
+
+    PAIR_CHOICES = [
+        ("strategic_annual", "Strategic <-> Annual"),
+        ("annual_project", "Annual <-> Project"),
+        ("project_kpi", "Project <-> KPI"),
+        ("kpi_strategic", "KPI <-> Strategic"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "core.Tenant", on_delete=models.CASCADE,
+        related_name="xmatrix_correlations",
+    )
+    fiscal_year = models.IntegerField(default=_current_year)
+    pair_type = models.CharField(max_length=30, choices=PAIR_CHOICES)
+    row_id = models.UUIDField(help_text="ID of the row-axis item")
+    col_id = models.UUIDField(help_text="ID of the column-axis item")
+    strength = models.CharField(max_length=10, choices=Strength.choices)
+    source = models.CharField(
+        max_length=10, choices=Source.choices, default=Source.MANUAL,
+    )
+    confirmed = models.BooleanField(
+        default=False,
+        help_text="Auto-suggested correlations start unconfirmed; clicking confirms",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hoshin_xmatrix_correlations"
+        unique_together = [["tenant", "pair_type", "row_id", "col_id"]]
+        indexes = [
+            models.Index(fields=["tenant", "fiscal_year"]),
+        ]
+
+    def __str__(self):
+        return f"{self.pair_type}: {self.row_id} <-> {self.col_id} ({self.strength})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "pair_type": self.pair_type,
+            "row_id": str(self.row_id),
+            "col_id": str(self.col_id),
+            "strength": self.strength,
+            "source": self.source,
+            "confirmed": self.confirmed,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Correlation cleanup signals — prevent UUID orphaning
+# ---------------------------------------------------------------------------
+
+@receiver(post_delete, sender=StrategicObjective)
+@receiver(post_delete, sender=AnnualObjective)
+@receiver(post_delete, sender=HoshinKPI)
+def _cleanup_xmatrix_correlations(sender, instance, **kwargs):
+    """Delete all correlations referencing a deleted X-matrix entity."""
+    XMatrixCorrelation.objects.filter(
+        Q(row_id=instance.id) | Q(col_id=instance.id)
+    ).delete()
+
+
+@receiver(post_delete, sender=HoshinProject)
+def _cleanup_project_correlations(sender, instance, **kwargs):
+    """Delete all correlations referencing a deleted HoshinProject."""
+    XMatrixCorrelation.objects.filter(
+        Q(row_id=instance.id) | Q(col_id=instance.id)
+    ).delete()
