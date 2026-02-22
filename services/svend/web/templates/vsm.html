@@ -1012,6 +1012,14 @@
                     <option value="medium">Medium (orange)</option>
                 </select>
             </div>
+            <div class="property-group" id="prop-kaizen-hypothesis-group" style="display:none;">
+                <label>Linked Hypothesis</label>
+                <select id="prop-kaizen-hypothesis" style="margin-bottom:6px;">
+                    <option value="">— None —</option>
+                </select>
+                <div id="prop-kaizen-prob" style="font-size:0.7rem; color:var(--accent); margin-bottom:6px; display:none;"></div>
+                <button onclick="createHypothesisFromKaizen()" style="width:100%; padding:4px 8px; font-size:0.7rem; background:rgba(74,159,110,0.1); border:1px solid rgba(74,159,110,0.3); border-radius:4px; color:var(--accent); cursor:pointer;">Create Hypothesis from Kaizen</button>
+            </div>
             <!-- Customer/Supplier properties -->
             <div class="property-group" id="prop-entity-detail-group" style="display:none;">
                 <label id="prop-entity-detail-label">Demand</label>
@@ -1307,6 +1315,8 @@ async function loadVSM(id) {
         vsmHistory = [];
         vsmHistoryIndex = -1;
         saveVSMState();
+        // Load hypothesis probabilities for kaizen bursts
+        loadHypothesisProbabilities().then(() => renderVSM());
     } catch (err) {
         console.error('Load VSM error:', err);
     }
@@ -1763,6 +1773,7 @@ function showWorkCenterProperties(wc) {
     document.getElementById('prop-dos-group').style.display = 'none';
     document.getElementById('prop-kaizen-text-group').style.display = 'none';
     document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'none';
     document.getElementById('prop-entity-detail-group').style.display = 'none';
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
     // Show WC fields
@@ -2006,6 +2017,19 @@ function renderKaizenBurst(burst, layer) {
 
     g.appendChild(star);
     g.appendChild(text);
+
+    // Probability badge if linked to hypothesis
+    if (burst.hypothesis_id && burst._hypothesis_prob != null) {
+        const prob = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        prob.setAttribute('x', '40');
+        prob.setAttribute('y', '70');
+        prob.setAttribute('text-anchor', 'middle');
+        prob.setAttribute('fill', 'var(--accent)');
+        prob.setAttribute('font-size', '9');
+        prob.setAttribute('font-weight', '600');
+        prob.textContent = `P=${Math.round(burst._hypothesis_prob * 100)}%`;
+        g.appendChild(prob);
+    }
 
     g.addEventListener('mousedown', (e) => startDragElement(e, burst, 'kaizen'));
     g.addEventListener('dblclick', () => showKaizenProperties(burst));
@@ -2733,6 +2757,7 @@ function showProperties(element) {
     document.getElementById('prop-dos-group').style.display = 'none';
     document.getElementById('prop-kaizen-text-group').style.display = 'none';
     document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'none';
     document.getElementById('prop-entity-detail-group').style.display = 'none';
     document.getElementById('prop-wc-group').style.display = 'none';
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'flex');
@@ -2761,6 +2786,7 @@ function showInventoryProperties(inv) {
     document.getElementById('prop-dos-group').style.display = 'block';
     document.getElementById('prop-kaizen-text-group').style.display = 'none';
     document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'none';
     document.getElementById('prop-entity-detail-group').style.display = 'none';
     document.getElementById('prop-wc-group').style.display = 'none';
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
@@ -2792,6 +2818,10 @@ function showKaizenProperties(burst) {
     document.getElementById('prop-kaizen-text').value = burst.text || '';
     document.getElementById('prop-kaizen-priority').value = burst.priority || 'medium';
 
+    // Hypothesis linking
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'block';
+    loadKaizenHypotheses(burst);
+
     selectedElement = burst;
 }
 
@@ -2807,6 +2837,7 @@ function showEntityProperties(entity, entityType) {
     document.getElementById('prop-dos-group').style.display = 'none';
     document.getElementById('prop-kaizen-text-group').style.display = 'none';
     document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'none';
     document.getElementById('prop-wc-group').style.display = 'none';
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
     // Show entity detail field
@@ -2830,6 +2861,8 @@ function saveProperties() {
     } else if (selectedElementType === 'kaizen') {
         selectedElement.text = document.getElementById('prop-kaizen-text').value;
         selectedElement.priority = document.getElementById('prop-kaizen-priority').value;
+        const hId = document.getElementById('prop-kaizen-hypothesis').value;
+        selectedElement.hypothesis_id = hId || null;
     } else if (selectedElementType === 'customer' || selectedElementType === 'supplier') {
         selectedElement.name = document.getElementById('prop-name').value;
         selectedElement.detail = document.getElementById('prop-entity-detail').value;
@@ -3105,6 +3138,103 @@ function removeAnnotation(stepId, idx) {
 
 function closeStepMetrics() {
     document.getElementById('step-metrics-panel').classList.remove('visible');
+}
+
+// --- Hypothesis-driven kaizen tracking (Phase 5) ---
+
+async function loadKaizenHypotheses(burst) {
+    const select = document.getElementById('prop-kaizen-hypothesis');
+    const probEl = document.getElementById('prop-kaizen-prob');
+    select.innerHTML = '<option value="">— None —</option>';
+    probEl.style.display = 'none';
+
+    if (!currentVSM || !currentVSM.project_id) {
+        select.innerHTML = '<option value="">— Link VSM to project first —</option>';
+        return;
+    }
+    try {
+        const resp = await fetch(`/api/synara/${currentVSM.project_id}/hypotheses/`, { credentials: 'same-origin' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const hypotheses = data.hypotheses || [];
+        for (const h of hypotheses) {
+            const opt = document.createElement('option');
+            opt.value = h.id;
+            opt.textContent = `${h.description.slice(0, 40)}${h.description.length > 40 ? '...' : ''} (P=${Math.round((h.posterior || h.prior || 0.5) * 100)}%)`;
+            if (burst.hypothesis_id === h.id) opt.selected = true;
+            select.appendChild(opt);
+        }
+        if (burst.hypothesis_id) {
+            const linked = hypotheses.find(h => h.id === burst.hypothesis_id);
+            if (linked) {
+                const prob = linked.posterior || linked.prior || 0.5;
+                probEl.textContent = `Current P(H) = ${Math.round(prob * 100)}%`;
+                probEl.style.display = 'block';
+            }
+        }
+    } catch (e) {
+        // Silently fail — hypothesis linking is optional
+    }
+}
+
+async function createHypothesisFromKaizen() {
+    if (!currentVSM || !currentVSM.project_id) {
+        alert('Link this VSM to a project first (in VSM properties).');
+        return;
+    }
+    if (!selectedElement || selectedElementType !== 'kaizen') return;
+
+    const burstText = selectedElement.text || 'improvement';
+    // Find nearest process step
+    let nearestStep = 'the process';
+    let minDist = Infinity;
+    for (const step of (currentVSM.process_steps || [])) {
+        const dx = (step.x || 0) - (selectedElement.x || 0);
+        const dy = (step.y || 0) - (selectedElement.y || 0);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDist) { minDist = dist; nearestStep = step.name || 'this step'; }
+    }
+
+    const description = `If we ${burstText.toLowerCase()} at ${nearestStep}, then lead time decreases and throughput improves`;
+    try {
+        const resp = await fetch(`/api/synara/${currentVSM.project_id}/hypotheses/add/`, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                description: description,
+                behavior_class: 'improvement',
+                prior: 0.5
+            })
+        });
+        if (!resp.ok) throw new Error('Failed to create hypothesis');
+        const data = await resp.json();
+        const h = data.hypothesis;
+        selectedElement.hypothesis_id = h.id;
+        await loadKaizenHypotheses(selectedElement);
+        document.getElementById('prop-kaizen-hypothesis').value = h.id;
+        renderVSM();
+        saveVSM();
+    } catch (e) {
+        alert('Failed to create hypothesis: ' + e.message);
+    }
+}
+
+async function loadHypothesisProbabilities() {
+    // Called after loading a VSM — enrich kaizen bursts with hypothesis probabilities
+    if (!currentVSM || !currentVSM.project_id) return;
+    const bursts = currentVSM.kaizen_bursts || [];
+    const linked = bursts.filter(b => b.hypothesis_id);
+    if (linked.length === 0) return;
+    try {
+        const resp = await fetch(`/api/synara/${currentVSM.project_id}/hypotheses/`, { credentials: 'same-origin' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const hMap = {};
+        for (const h of (data.hypotheses || [])) { hMap[h.id] = h.posterior || h.prior || 0.5; }
+        for (const b of linked) {
+            b._hypothesis_prob = hMap[b.hypothesis_id] || null;
+        }
+    } catch (e) { /* optional enrichment */ }
 }
 
 function showTimeline() {

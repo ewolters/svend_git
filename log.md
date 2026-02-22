@@ -15,6 +15,31 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-22 — VSM Integration: Phases 3–5 (Metrics Overlay, Timeline, Hypothesis Tracking)
+**Files changed:**
+- `agents_api/models.py` — Added `metric_snapshots` JSONField to ValueStreamMap. `calculate_metrics()` now auto-appends snapshot on metric changes (capped at 100). `to_dict()` includes snapshots.
+- `agents_api/migrations/0035_add_vsm_metric_snapshots.py` — Migration for metric_snapshots field.
+- `templates/vsm.html` — Phase 3: Step metrics overlay panel (click process step → KPI panel with C/T, C/O, uptime, takt ratio, annotations, remove button). Single click/double click distinction via 200ms timer + wasDragged flag. Phase 4: "Metric Timeline" sidebar button + Plotly modal showing lead time & PCE evolution. Phase 5: Kaizen hypothesis linking (dropdown + "Create Hypothesis" button + P(H) badge on canvas). `loadHypothesisProbabilities()` enriches bursts from Synara API on VSM load.
+- `templates/calculators.html` — `pinDSWResultToVSM()` and `pinSPCResultToVSM()` utility functions. "Pin to VSM" button on SPC Rare Events. `pullVSMCompareIntoBA()` for Before/After auto-populate from current-vs-future VSM comparison.
+
+**Why:** Completes the VSM integration suite. Process steps now aggregate KPIs from all linked tools with visual indicators. Metric timeline tracks improvement over time. Kaizen bursts connect to Synara hypotheses for evidence-based improvement tracking.
+**Verify:** `python manage.py check` passes. VSM: click step → metrics panel shows. Save multiple times → Metric Timeline shows chart. Link kaizen burst to hypothesis → P=XX% badge appears.
+
+---
+
+### 2026-02-22 — Fix RCA Access Control + LLM Prompt Injection
+**Debt items:** [INFRA] RCA critique views gated wrong (P2), [SEC] LLM prompt injection (P2)
+**Files changed:**
+- `agents_api/rca_views.py` — Changed `@gated_paid` to `@require_enterprise` on `critique`, `evaluate_chain`, `critique_countermeasure` (3 views that call Anthropic API directly). XML-wrapped all user inputs with descriptive tags. Added boundary instruction to `RCA_SYSTEM_PROMPT`. Added 2000-char limits on text fields, 20-item limit on chain arrays.
+- `agents_api/dsw/endpoints_data.py` — XML-wrapped `prompt`, `hypothesis`, `mechanism` in `generate_code()` for both Claude and Qwen code paths. Added length limits.
+- `agents_api/guide_views.py` — XML-wrapped project context in `guide_chat()` system prompt. XML-wrapped project data and template instruction in `summarize_project()`. Added length limits.
+- `agents_api/synara/llm_interface.py` — XML-wrapped evidence fields in `generate_hypothesis_prompt()`.
+
+**Why:** Non-enterprise users could hit Anthropic API through RCA critique endpoints. User input was f-string interpolated directly into LLM prompts across 7 functions, enabling prompt injection.
+**Verify:** Non-enterprise user hitting `/api/rca/critique/` gets 403. `python manage.py check` passes. RCA critique works for enterprise users.
+
+---
+
 ### 2026-02-22 — VSM Integration: Phase 1 (Auto-Bottleneck) + Phase 2 (Bidirectional Calculator Sync)
 **Files changed:**
 - `agents_api/vsm_views.py` — Added `detect_bottleneck(vsm)` helper (bottleneck detection with parallel-machine effective CT logic). Called from `get_vsm()` and `update_vsm()`. Added `auto_kaizen` handling in `update_vsm()` for calculator exports to auto-create kaizen bursts. Added `import time`.
