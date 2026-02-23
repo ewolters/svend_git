@@ -15,6 +15,54 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-22 — Enrich Hoshin seed data with charters, baselines, actuals, and action items
+**Files changed:**
+- `services/svend/web/seed_enrich.py` — one-time script (committed then removed) that enriched all 10 X-Matrix seed projects with:
+  - Core project fields (champion, leader, team, methodology, phase, goals, problem statements)
+  - Kaizen charters with full event details, metrics, scope, team rosters
+  - 12-month baseline data with realistic variation per calc method
+  - Monthly actuals (4–10 months depending on project maturity) with savings and improvement %
+  - 63 action items with dates, owners, statuses, dependencies, and progress tracking
+**Verification:** Open Hoshin calendar view — all 10 projects should show populated detail cards with charters, trend sparklines, and action item lists.
+**Commit:** ce89932
+
+---
+
+### 2026-02-22 — Fix Hoshin calendar double-prefix bug
+**Files changed:**
+- `templates/hoshin.html` line 3225 — `renderCalendar()` was building URL as `/api/hoshin/calendar/...` then passing to `api()` which prepends `/api/hoshin`, resulting in `/api/hoshin/api/hoshin/calendar/` (404). Fixed to `/calendar/...`.
+
+**Why:** Calendar tab showed nothing — the fetch URL was double-prefixed and silently 404'd.
+**Verify:** Hoshin → Calendar tab. Should show projects grouped by site with monthly savings bars.
+
+---
+
+### 2026-02-22 — Seed X-Matrix with realistic auto parts manufacturing CI portfolio
+**Files changed:**
+- `seed_xmatrix.py` (temporary, deleted after run) — Django ORM script to populate FY2026 data
+
+**Data created:**
+- 2 Sites: Plant A (Stamping), Plant B (Assembly)
+- 4 Strategic Objectives: Scrap rate 4.2%→2%, OEE 72%→85%, Customer PPM 1200→600, Energy costs -15%
+- 6 Annual Objectives: Year 1 interim targets for each strategic goal
+- 10 Improvement Projects: Die changeover kaizen, SPC bore diameter, compressed air audit, weld cell optimization, LED retrofit, PM overhaul, assembly rebalance, supplier Cpk, HVAC scheduling, surface finish containment — each with 4-10 months of monthly actuals
+- 8 KPIs: Scrap %, OEE %, Customer PPM, Energy savings $, Changeover time, Bore Cpk, First Pass Yield, COPQ $
+- 52 Correlations: 8 strategic×annual, 16 annual×project, 17 project×KPI, 11 KPI×strategic — realistic relationships (not everything-to-everything)
+
+**Why:** Test the X-Matrix layout at scale with realistic data to verify correlation grids, rollup calculations, and hover highlighting work properly.
+**Verify:** Hoshin → X-Matrix tab. All 4 corners should show dot grids with mix of strong (●), moderate (○), and empty cells. Rollup section should show YTD vs target with progress bars.
+
+---
+
+### 2026-02-22 — X-Matrix proper 3×3 grid layout
+**Files changed:**
+- `templates/hoshin.html` — Rebuilt X-Matrix as proper 3×3 grid: 4 corners = correlation dot-grids (dominant, `5fr` columns, `min-height:160px`, `bg-secondary`); 4 edges = item lists (N=projects, S=strategic, W=annual, E=KPIs); center = minimal with subtle SVG diagonal X lines at 20% opacity. All text horizontal (no rotation). Column headers in correlation grids are horizontal with truncation + tooltip on hover. Rollup cards below as companion section.
+
+**Why:** Previous iterations had the layout inverted (items dominant, correlations tiny) or used illegible rotated text. The canonical X-Matrix format has correlation grids as the dominant visual — they are the intersections that show strategic alignment. Digital readability > paper tradition.
+**Verify:** Hoshin → X-Matrix tab. Four large correlation grids in corners with clickable dots. Four item lists along edges. Center is near-empty with faint X. Hover any item → correlated items highlight. Click dots to cycle strength. All CRUD (add/edit/delete objectives, KPIs) works.
+
+---
+
 ### 2026-02-22 — Metric catalog as single source of truth for X-Matrix
 **Files changed:**
 - `agents_api/models.py` — StrategicObjective: `target_metric` now stores metric catalog key (not free text); `to_dict()` returns `metric_label`, `metric_unit`, `metric_aggregation`, `metric_direction` derived from catalog
