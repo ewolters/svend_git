@@ -1099,9 +1099,189 @@ async function deleteRecord(id) {
 }
 
 // =========================================================================
-// Management Reviews tab (placeholder)
+// Management Reviews tab
 // =========================================================================
-function loadReviews() { document.getElementById('panel-reviews').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+let reviewList = [];
+
+async function loadReviews() {
+    const el = document.getElementById('panel-reviews');
+    try {
+        reviewList = await apiFetch('/reviews/');
+        renderReviewList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderReviewList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="createReview()">+ New Review</button>';
+    html += '</div>';
+
+    if (!reviewList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No management reviews. Create one to auto-populate QMS data.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += '<th>Title</th><th>Status</th><th>Meeting Date</th><th>Attendees</th><th></th>';
+    html += '</tr></thead><tbody>';
+    reviewList.forEach(r => {
+        const attendees = Array.isArray(r.attendees) ? r.attendees : [];
+        html += `<tr onclick="loadReviewDetail('${r.id}')" style="cursor:pointer">`;
+        html += `<td>${escHtml(r.title)}</td>`;
+        html += `<td>${badge(r.status)}</td>`;
+        html += `<td>${fmtDate(r.meeting_date)}</td>`;
+        html += `<td style="font-size:12px">${attendees.length ? escHtml(attendees.join(', ')) : '—'}</td>`;
+        html += `<td style="text-align:right"><button class="iso-btn small danger" onclick="event.stopPropagation();deleteReview('${r.id}')">Delete</button></td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+async function createReview() {
+    try {
+        const r = await apiFetch('/reviews/', { method: 'POST', body: {} });
+        toast('Review created with auto-populated QMS data');
+        loadReviewDetail(r.id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadReviewDetail(id) {
+    const el = document.getElementById('panel-reviews');
+    try {
+        const r = await apiFetch(`/reviews/${id}/`);
+        const snap = r.data_snapshot || {};
+        let html = '<button class="iso-btn ghost" onclick="loadReviews()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+                <h2>${escHtml(r.title)}</h2>
+                <div style="margin-top:4px">${badge(r.status)} <span style="font-size:12px;color:var(--text-dim);margin-left:8px">${fmtDate(r.meeting_date)}</span></div>
+            </div>
+            <div style="display:flex;gap:8px">
+                ${r.status === 'scheduled' ? `<button class="iso-btn primary" onclick="updateReviewStatus('${r.id}','in_progress')">Start Review</button>` : ''}
+                ${r.status === 'in_progress' ? `<button class="iso-btn primary" onclick="updateReviewStatus('${r.id}','complete')">Complete Review</button>` : ''}
+            </div></div>`;
+
+        // Auto-populated QMS snapshot
+        html += '<div style="margin:20px 0;padding:16px;background:var(--bg-secondary);border-radius:8px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Auto-Populated QMS Snapshot</h4>';
+        html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">';
+
+        const ncrS = snap.ncr_summary || {};
+        html += `<div><div class="iso-label">NCR Status</div>
+            <div style="font-size:13px">${ncrS.open || 0} open / ${ncrS.closed || 0} closed / ${ncrS.total || 0} total</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:4px">Critical: ${ncrS.by_severity?.critical || 0} | Major: ${ncrS.by_severity?.major || 0} | Minor: ${ncrS.by_severity?.minor || 0}</div></div>`;
+
+        const auditS = snap.audit_summary || {};
+        html += `<div><div class="iso-label">Audit Status</div>
+            <div style="font-size:13px">${auditS.completed || 0} completed, ${auditS.open_findings || 0} open findings</div></div>`;
+
+        const trainS = snap.training_summary || {};
+        html += `<div><div class="iso-label">Training</div>
+            <div style="font-size:13px">${trainS.compliance_rate ?? 100}% compliance, ${trainS.gap_count || 0} gaps</div></div>`;
+        html += '</div>';
+
+        if (snap.prior_actions && Object.keys(snap.prior_actions).length) {
+            html += `<div style="margin-top:12px"><div class="iso-label">Prior Review Actions</div>
+                <pre style="font-size:12px;color:var(--text-secondary);white-space:pre-wrap">${escHtml(JSON.stringify(snap.prior_actions, null, 2))}</pre></div>`;
+        }
+        html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">Captured: ${snap.captured_at ? fmtDate(snap.captured_at) : '—'}</div>`;
+        html += '</div>';
+
+        // Structured form per ISO 9001:2015 clause 9.3
+        // Inputs (9.3.2)
+        html += '<div class="review-section">';
+        html += '<h4>Review Inputs <span class="clause-ref">ISO 9001:2015 clause 9.3.2</span></h4>';
+        const inputs = r.inputs || {};
+        html += `<div class="iso-form-grid">
+            <div><label class="iso-label">Actions from Previous Reviews</label><textarea class="iso-textarea" id="rev-inp-actions" rows="2">${escHtml(inputs.prior_actions || '')}</textarea></div>
+            <div><label class="iso-label">Changes in External/Internal Issues</label><textarea class="iso-textarea" id="rev-inp-changes" rows="2">${escHtml(inputs.changes || '')}</textarea></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Customer Feedback</label><textarea class="iso-textarea" id="rev-inp-feedback" rows="2">${escHtml(inputs.customer_feedback || '')}</textarea></div>
+            <div><label class="iso-label">Process Performance / Conformity</label><textarea class="iso-textarea" id="rev-inp-process" rows="2">${escHtml(inputs.process_performance || '')}</textarea></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Nonconformity / Corrective Action</label><textarea class="iso-textarea" id="rev-inp-ncr" rows="2">${escHtml(inputs.ncr_corrective || '')}</textarea></div>
+            <div><label class="iso-label">Risks & Opportunities</label><textarea class="iso-textarea" id="rev-inp-risks" rows="2">${escHtml(inputs.risks_opportunities || '')}</textarea></div>
+        </div>`;
+        html += '</div>';
+
+        // Outputs (9.3.3)
+        html += '<div class="review-section">';
+        html += '<h4>Review Outputs <span class="clause-ref">ISO 9001:2015 clause 9.3.3</span></h4>';
+        const outputs = r.outputs || {};
+        html += `<div class="iso-form-grid">
+            <div><label class="iso-label">Improvement Opportunities</label><textarea class="iso-textarea" id="rev-out-improve" rows="2">${escHtml(outputs.improvement_opportunities || '')}</textarea></div>
+            <div><label class="iso-label">Resource Needs</label><textarea class="iso-textarea" id="rev-out-resources" rows="2">${escHtml(outputs.resource_needs || '')}</textarea></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Changes to QMS</label><textarea class="iso-textarea" id="rev-out-qms" rows="2">${escHtml(outputs.qms_changes || '')}</textarea></div>
+            <div><label class="iso-label">Action Items</label><textarea class="iso-textarea" id="rev-out-actions" rows="2">${escHtml(outputs.action_items || '')}</textarea></div>
+        </div>`;
+        html += '</div>';
+
+        // General fields
+        html += '<div class="review-section">';
+        html += `<div class="iso-form-grid">
+            <div><label class="iso-label">Attendees (one per line)</label><textarea class="iso-textarea" id="rev-attendees" rows="3">${escHtml(Array.isArray(r.attendees) ? r.attendees.join('\n') : '')}</textarea></div>
+            <div><label class="iso-label">Meeting Minutes</label><textarea class="iso-textarea" id="rev-minutes" rows="3">${escHtml(r.minutes || '')}</textarea></div>
+        </div>`;
+        html += '</div>';
+
+        html += `<button class="iso-btn primary" onclick="saveReviewDetail('${r.id}')">Save Changes</button>`;
+        html += '</div>';
+        el.innerHTML = html;
+    } catch (e) { toast(e.message, true); }
+}
+
+async function saveReviewDetail(id) {
+    try {
+        const inputs = {
+            prior_actions: document.getElementById('rev-inp-actions').value,
+            changes: document.getElementById('rev-inp-changes').value,
+            customer_feedback: document.getElementById('rev-inp-feedback').value,
+            process_performance: document.getElementById('rev-inp-process').value,
+            ncr_corrective: document.getElementById('rev-inp-ncr').value,
+            risks_opportunities: document.getElementById('rev-inp-risks').value,
+        };
+        const outputs = {
+            improvement_opportunities: document.getElementById('rev-out-improve').value,
+            resource_needs: document.getElementById('rev-out-resources').value,
+            qms_changes: document.getElementById('rev-out-qms').value,
+            action_items: document.getElementById('rev-out-actions').value,
+        };
+        const attendees = document.getElementById('rev-attendees').value.split('\n').map(s => s.trim()).filter(Boolean);
+        await apiFetch(`/reviews/${id}/`, { method: 'PUT', body: {
+            inputs, outputs, attendees,
+            minutes: document.getElementById('rev-minutes').value,
+        }});
+        toast('Review saved');
+        loadReviewDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateReviewStatus(id, status) {
+    try {
+        await apiFetch(`/reviews/${id}/`, { method: 'PUT', body: { status } });
+        toast(`Review status updated to ${status}`);
+        loadReviewDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteReview(id) {
+    if (!confirm('Delete this review?')) return;
+    try {
+        await apiFetch(`/reviews/${id}/`, { method: 'DELETE' });
+        toast('Review deleted');
+        loadReviews();
+    } catch (e) { toast(e.message, true); }
+}
 
 // =========================================================================
 // Document Control tab (placeholder)
