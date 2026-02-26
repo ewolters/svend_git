@@ -15,6 +15,16 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-26 — DOE Workbench: Phase 2 — Live preview & design space viz
+
+**Files changed:**
+- `services/svend/web/templates/experimenter/_design_configure.html` — Two-column configure layout (form left, live preview right), preview panel with stats bar (runs/factors/error DF) and Plotly visualization area
+- `services/svend/web/static/js/doe-design.js` — `updateLivePreview()` generates design space visualization: 1 factor → dot plot, 2 factors → 2D scatter, 3 factors → 3D scatter, 4+ → summary card with factor grid. Updates on every factor/option change. `_cartesianProduct()` and `_cartesianProduct3()` helpers. Run count color-coded (green/yellow/red).
+- `services/svend/web/static/css/experimenter.css` — `.configure-layout` two-column grid, `.live-preview-panel` sticky positioning, `.preview-stats` bar, run count color classes, `.preview-plot-area`, responsive single-column on mobile
+**Verification:** Navigate to Configure step → add 2 factors with levels → see 2D scatter preview update live. Change to 3 factors → 3D scatter. Run count badge colors: green <50, yellow 50-100, red >100.
+
+---
+
 ### 2026-02-26 — DOE Workbench: Phase 5 — Context panel & guided help
 
 **Files changed:**

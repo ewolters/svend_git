@@ -174,6 +174,7 @@ function updateRunEstimate() {
     el.style.color = total > 100 ? 'var(--error, #ef4444)' : total > 50 ? 'var(--warning, #f59e0b)' : 'var(--text-dim)';
 
     validateFactors();
+    updateLivePreview(k, levelCounts, total, runs, reps, cp);
 }
 
 // Factor management
@@ -694,4 +695,142 @@ function downloadDesign(format) {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// Live preview — updates visualization in the Configure step
+function updateLivePreview(k, levelCounts, total, baseRuns, reps, cp) {
+    // Update stat cards
+    const runsEl = document.getElementById('preview-runs');
+    const factorsEl = document.getElementById('preview-factors');
+    const dfEl = document.getElementById('preview-df');
+    if (!runsEl) return; // No preview panel
+
+    runsEl.textContent = total || '--';
+    runsEl.className = 'preview-stat-value ' + (total > 100 ? 'runs-red' : total > 50 ? 'runs-yellow' : 'runs-green');
+    factorsEl.textContent = k;
+
+    // Estimate error degrees of freedom
+    const numTerms = 1 + k + (k * (k - 1)) / 2; // constant + main + 2FI
+    const errorDF = Math.max(0, total - numTerms);
+    dfEl.textContent = k > 0 ? errorDF : '--';
+
+    // Generate visualization
+    const plotEl = document.getElementById('preview-plot');
+    if (!plotEl) return;
+
+    if (k === 0) {
+        plotEl.innerHTML = '<div class="empty-state" style="padding:2rem;"><p style="font-size:0.85rem;">Add factors to preview design points</p></div>';
+        return;
+    }
+
+    // Collect factor names and levels
+    const factors = [];
+    document.querySelectorAll('.factor-row').forEach(row => {
+        const name = row.querySelector('.factor-name').value.trim() || 'Factor';
+        const levelsStr = row.querySelector('.factor-levels').value.trim();
+        if (levelsStr) {
+            const levels = levelsStr.split(',').map(l => {
+                const trimmed = l.trim();
+                const num = parseFloat(trimmed);
+                return isNaN(num) ? trimmed : num;
+            }).filter(l => l !== '');
+            if (levels.length >= 2) factors.push({ name, levels });
+        }
+    });
+
+    if (factors.length === 0) return;
+
+    // Build approximate design points (full factorial of first 2-3 factors)
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+
+    if (factors.length === 1) {
+        // 1D: dot plot on a number line
+        const pts = factors[0].levels;
+        Plotly.react(plotEl, [{
+            x: pts,
+            y: pts.map(() => 0),
+            type: 'scatter',
+            mode: 'markers',
+            marker: { size: 12, color: 'var(--accent-primary)' },
+        }], {
+            xaxis: { title: factors[0].name },
+            yaxis: { visible: false, range: [-0.5, 0.5] },
+            margin: { t: 10, r: 20, b: 40, l: 40 },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: textColor, size: 11 },
+            height: 250,
+        }, { responsive: true, displayModeBar: false });
+    } else if (factors.length === 2) {
+        // 2D scatter of design points
+        const pts = _cartesianProduct(factors[0].levels, factors[1].levels);
+        Plotly.react(plotEl, [{
+            x: pts.map(p => p[0]),
+            y: pts.map(p => p[1]),
+            type: 'scatter',
+            mode: 'markers',
+            marker: { size: 10, color: 'var(--accent-primary)' },
+        }], {
+            xaxis: { title: factors[0].name },
+            yaxis: { title: factors[1].name },
+            margin: { t: 10, r: 20, b: 40, l: 55 },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: textColor, size: 11 },
+            height: 250,
+        }, { responsive: true, displayModeBar: false });
+    } else if (factors.length === 3) {
+        // 3D scatter
+        const pts = _cartesianProduct3(factors[0].levels, factors[1].levels, factors[2].levels);
+        Plotly.react(plotEl, [{
+            x: pts.map(p => p[0]),
+            y: pts.map(p => p[1]),
+            z: pts.map(p => p[2]),
+            type: 'scatter3d',
+            mode: 'markers',
+            marker: { size: 5, color: 'var(--accent-primary)' },
+        }], {
+            scene: {
+                xaxis: { title: factors[0].name },
+                yaxis: { title: factors[1].name },
+                zaxis: { title: factors[2].name },
+                bgcolor: 'rgba(0,0,0,0)',
+            },
+            margin: { t: 10, r: 10, b: 10, l: 10 },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: textColor, size: 10 },
+            height: 250,
+        }, { responsive: true, displayModeBar: false });
+    } else {
+        // 4+ factors: summary card
+        plotEl.innerHTML = `
+            <div style="padding:1.5rem;text-align:center;">
+                <div style="font-size:2rem;font-weight:700;color:var(--accent-primary);">${k}</div>
+                <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">Factors</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.8rem;">
+                    ${factors.map(f => `
+                        <div style="background:var(--bg-tertiary);padding:0.4rem;border-radius:4px;">
+                            <div style="font-weight:600;color:var(--text-primary);">${f.name}</div>
+                            <div style="color:var(--text-dim);">${f.levels.length} levels</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="margin-top:1rem;font-size:0.85rem;color:var(--text-secondary);">
+                    ${total} runs &middot; ${errorDF} error DF
+                </div>
+            </div>
+        `;
+    }
+}
+
+function _cartesianProduct(a, b) {
+    const result = [];
+    for (const x of a) for (const y of b) result.push([x, y]);
+    return result;
+}
+
+function _cartesianProduct3(a, b, c) {
+    const result = [];
+    for (const x of a) for (const y of b) for (const z of c) result.push([x, y, z]);
+    return result;
 }
