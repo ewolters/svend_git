@@ -1,1 +1,52 @@
-<!-- Wizard progress bar — Phase 1 -->
+<!-- Wizard Progress Bar -->
+<div class="wizard-progress">
+    <div class="wizard-step-indicator" data-step="configure" onclick="goToStep('configure')">
+        <div class="wizard-circle">
+            <svg class="wizard-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="wizard-number">1</span>
+        </div>
+        <span class="wizard-label">Configure</span>
+    </div>
+    <div class="wizard-connector" data-after="configure"></div>
+    <div class="wizard-step-indicator" data-step="design" onclick="goToStep('design')">
+        <div class="wizard-circle">
+            <svg class="wizard-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="wizard-number">2</span>
+        </div>
+        <span class="wizard-label">Design</span>
+    </div>
+    <div class="wizard-connector" data-after="design"></div>
+    <div class="wizard-step-indicator" data-step="results" onclick="goToStep('results')">
+        <div class="wizard-circle">
+            <svg class="wizard-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="wizard-number">3</span>
+        </div>
+        <span class="wizard-label">Results</span>
+    </div>
+    <div class="wizard-connector" data-after="results"></div>
+    <div class="wizard-step-indicator" data-step="analyze" onclick="goToStep('analyze')">
+        <div class="wizard-circle">
+            <svg class="wizard-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="wizard-number">4</span>
+        </div>
+        <span class="wizard-label">Analyze</span>
+    </div>
+    <div class="wizard-connector" data-after="analyze"></div>
+    <div class="wizard-step-indicator" data-step="optimize" onclick="goToStep('optimize')">
+        <div class="wizard-circle">
+            <svg class="wizard-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="wizard-number">5</span>
+        </div>
+        <span class="wizard-label">Optimize</span>
+    </div>
+</div>

@@ -53,8 +53,13 @@ async function analyzeResults() {
             currentAnalysis = result;
             saveState();
             displayAnalysis(result);
-            showSubTab('analysis', 'anova');
             updateContextBadge();
+            // Wizard: mark results complete and advance to analyze step
+            completeStep('design');
+            completeStep('results');
+            completeStep('analyze');
+            goToStep('analyze');
+            showSubTab('step-analyze', 'anova');
         } else {
             alert(result.error || 'Analysis failed');
         }

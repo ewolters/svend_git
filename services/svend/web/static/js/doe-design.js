@@ -514,6 +514,9 @@ async function generateDesign() {
             updateResultsPanel();
             updateContextBadge();
             svendTrack('feature_use', {category: 'experimenter', action: selectedDesignType});
+            // Wizard: mark configure complete and advance to design step
+            completeStep('configure');
+            goToStep('design');
         } else {
             alert(result.error || 'Failed to generate design');
         }

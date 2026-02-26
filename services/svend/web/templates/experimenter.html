@@ -28,77 +28,62 @@
         </div>
     </div>
 
-    <!-- Component Navigation -->
-    <div class="component-nav">
-        <button class="component-btn active" onclick="showComponent('design')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
-                <path d="M2 20h20M5 20V10l7-7 7 7v10M9 20v-6h6v6"/>
-            </svg>
-            <span class="component-label">Design</span>
-            <span class="component-desc">Create Experiments</span>
-        </button>
-        <button class="component-btn" onclick="showComponent('analysis')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
-                <line x1="18" y1="20" x2="18" y2="10"/>
-                <line x1="12" y1="20" x2="12" y2="4"/>
-                <line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
-            <span class="component-label">Analysis</span>
-            <span class="component-desc">ANOVA & Effects</span>
-        </button>
-        <button class="component-btn" onclick="showComponent('optimize')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="component-icon">
-                <circle cx="12" cy="12" r="10"/>
-                <circle cx="12" cy="12" r="6"/>
-                <circle cx="12" cy="12" r="2"/>
-            </svg>
-            <span class="component-label">Optimize</span>
-            <span class="component-desc">Response Surface</span>
-        </button>
+    {% include "experimenter/_wizard_progress.html" %}
+
+    <!-- Step 1: Configure -->
+    <div id="step-configure" class="wizard-step active">
+        <div class="wizard-step-content">
+            {% include "experimenter/_design_configure.html" %}
+        </div>
     </div>
 
-    <!-- DESIGN COMPONENT -->
-    <div id="design-component" class="component-content active">
-        <div class="sub-tabs">
-            <button class="sub-tab active" onclick="showSubTab('design', 'create')">Create Design</button>
-            <button class="sub-tab" onclick="showSubTab('design', 'power')">Power Analysis</button>
-        </div>
-
-        <!-- Create Design -->
-        <div id="design-create" class="sub-content active">
-            <div class="two-column">
-                {% include "experimenter/_design_configure.html" %}
+    <!-- Step 2: Design Output + Power Analysis -->
+    <div id="step-design" class="wizard-step">
+        <div class="wizard-step-content">
+            <div class="sub-tabs">
+                <button class="sub-tab active" onclick="showSubTab('step-design', 'matrix')">Design Matrix</button>
+                <button class="sub-tab" onclick="showSubTab('step-design', 'power')">Power Analysis</button>
+            </div>
+            <div id="step-design-matrix" class="sub-content active">
                 {% include "experimenter/_design_output.html" %}
             </div>
+            <div id="step-design-power" class="sub-content">
+                {% include "experimenter/_power_analysis.html" %}
+            </div>
         </div>
-
-        {% include "experimenter/_power_analysis.html" %}
     </div>
 
-    <!-- ANALYSIS COMPONENT -->
-    <div id="analysis-component" class="component-content">
-        <div class="sub-tabs">
-            <button class="sub-tab active" onclick="showSubTab('analysis', 'results')">Enter Results</button>
-            <button class="sub-tab" onclick="showSubTab('analysis', 'anova')">ANOVA</button>
-            <button class="sub-tab" onclick="showSubTab('analysis', 'effects')">Effects Plots</button>
-            <button class="sub-tab" onclick="showSubTab('analysis', 'residuals')">Residuals</button>
+    <!-- Step 3: Enter Results -->
+    <div id="step-results" class="wizard-step">
+        <div class="wizard-step-content">
+            {% include "experimenter/_analysis_results.html" %}
         </div>
-
-        {% include "experimenter/_analysis_results.html" %}
-        {% include "experimenter/_analysis_anova.html" %}
-        {% include "experimenter/_analysis_effects.html" %}
-        {% include "experimenter/_analysis_residuals.html" %}
     </div>
 
-    <!-- OPTIMIZE COMPONENT -->
-    <div id="optimize-component" class="component-content">
-        <div class="sub-tabs">
-            <button class="sub-tab active" onclick="showSubTab('optimize', 'contour')">Contour Plot</button>
-            <button class="sub-tab" onclick="showSubTab('optimize', 'optimizer')">Response Optimizer</button>
+    <!-- Step 4: Analyze -->
+    <div id="step-analyze" class="wizard-step">
+        <div class="wizard-step-content">
+            <div class="sub-tabs">
+                <button class="sub-tab active" onclick="showSubTab('step-analyze', 'anova')">ANOVA</button>
+                <button class="sub-tab" onclick="showSubTab('step-analyze', 'effects')">Effects Plots</button>
+                <button class="sub-tab" onclick="showSubTab('step-analyze', 'residuals')">Residuals</button>
+            </div>
+            {% include "experimenter/_analysis_anova.html" %}
+            {% include "experimenter/_analysis_effects.html" %}
+            {% include "experimenter/_analysis_residuals.html" %}
         </div>
+    </div>
 
-        {% include "experimenter/_optimize_contour.html" %}
-        {% include "experimenter/_optimize_response.html" %}
+    <!-- Step 5: Optimize -->
+    <div id="step-optimize" class="wizard-step">
+        <div class="wizard-step-content">
+            <div class="sub-tabs">
+                <button class="sub-tab active" onclick="showSubTab('step-optimize', 'contour')">Contour Plot</button>
+                <button class="sub-tab" onclick="showSubTab('step-optimize', 'optimizer')">Response Optimizer</button>
+            </div>
+            {% include "experimenter/_optimize_contour.html" %}
+            {% include "experimenter/_optimize_response.html" %}
+        </div>
     </div>
 
     {% include "experimenter/_chat_modal.html" %}
