@@ -394,6 +394,20 @@ def audit_detail(request, audit_id):
         return JsonResponse({"ok": True})
 
     data = json.loads(request.body)
+    new_status = data.get("status")
+
+    # Enforce: "complete" requires >= 1 finding
+    if new_status == "complete" and audit.findings.count() == 0:
+        return JsonResponse({"error": "Cannot complete audit with no findings"}, status=400)
+    # Enforce: "report_issued" requires all findings not "open"
+    if new_status == "report_issued":
+        open_findings = audit.findings.filter(status="open").count()
+        if open_findings > 0:
+            return JsonResponse(
+                {"error": f"Cannot issue report: {open_findings} finding(s) still open"},
+                status=400,
+            )
+
     for field in ["title", "status", "lead_auditor", "iso_clauses",
                    "departments", "scope", "summary"]:
         if field in data:
@@ -402,7 +416,7 @@ def audit_detail(request, audit_id):
         audit.scheduled_date = data["scheduled_date"]
     if "completed_date" in data:
         audit.completed_date = data["completed_date"] or None
-    if data.get("status") == "complete" and not audit.completed_date:
+    if new_status == "complete" and not audit.completed_date:
         audit.completed_date = date.today()
     audit.save()
     return JsonResponse(audit.to_dict())
@@ -411,22 +425,49 @@ def audit_detail(request, audit_id):
 @require_team
 @require_http_methods(["POST"])
 def audit_finding_create(request, audit_id):
-    """Add a finding to an audit."""
+    """Add a finding to an audit. Auto-creates NCR for NC findings."""
     try:
         audit = InternalAudit.objects.get(id=audit_id, owner=request.user)
     except InternalAudit.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
     data = json.loads(request.body)
+    finding_type = data.get("finding_type", "observation")
+    clause = data.get("iso_clause", "")
+
     finding = AuditFinding.objects.create(
         audit=audit,
-        finding_type=data.get("finding_type", "observation"),
+        finding_type=finding_type,
         description=data.get("description", ""),
-        iso_clause=data.get("iso_clause", ""),
+        iso_clause=clause,
+        evidence=data.get("evidence", ""),
         corrective_action=data.get("corrective_action", ""),
         due_date=data.get("due_date") or None,
+        status=data.get("status", "open"),
     )
-    return JsonResponse(finding.to_dict(), status=201)
+
+    # Auto-create NCR for nonconformity findings
+    ncr_id = None
+    if finding_type in ("nc_major", "nc_minor"):
+        severity_map = {"nc_major": "critical", "nc_minor": "major"}
+        clause_label = f" — {clause}" if clause else ""
+        ncr = NonconformanceRecord.objects.create(
+            owner=request.user,
+            raised_by=request.user,
+            title=f"Audit Finding — {audit.title}{clause_label}",
+            description=finding.description,
+            severity=severity_map[finding_type],
+            source="internal_audit",
+            iso_clause=clause,
+        )
+        finding.ncr = ncr
+        finding.save(update_fields=["ncr"])
+        ncr_id = str(ncr.id)
+
+    result = finding.to_dict()
+    if ncr_id:
+        result["ncr_id"] = ncr_id
+    return JsonResponse(result, status=201)
 
 
 # =========================================================================
