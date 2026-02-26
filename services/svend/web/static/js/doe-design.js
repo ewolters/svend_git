@@ -548,8 +548,8 @@ function displayDesign(result) {
     tableHtml += '</tr></thead><tbody>';
 
     design.runs.sort((a, b) => a.run_order - b.run_order).forEach(run => {
-        const cpMark = run.center_point ? ' *' : '';
-        tableHtml += `<tr><td class="center">${run.run_order}${cpMark}</td>`;
+        const rowClass = run.center_point ? ' class="center-point-row"' : '';
+        tableHtml += `<tr${rowClass}><td class="center run-number">${run.run_order}</td>`;
         design.factors.forEach(f => {
             tableHtml += `<td class="center">${run.levels[f.name]}</td>`;
         });
@@ -602,7 +602,7 @@ function updateResultsPanel() {
     tableHtml += '<th>Response</th></tr></thead><tbody>';
 
     currentDesign.runs.sort((a, b) => a.run_order - b.run_order).forEach(run => {
-        tableHtml += `<tr><td class="center">${run.run_order}</td>`;
+        tableHtml += `<tr><td class="center run-number">${run.run_order}</td>`;
         currentDesign.factors.forEach(f => {
             tableHtml += `<td class="center">${run.levels[f.name]}</td>`;
         });

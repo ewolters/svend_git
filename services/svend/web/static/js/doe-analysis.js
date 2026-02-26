@@ -86,9 +86,21 @@ function displayAnalysis(result) {
     const alphaLabel = document.getElementById('alpha-effects-value');
     if (alphaLabel) alphaLabel.textContent = '0.05';
 
-    // Model summary
-    document.getElementById('r-squared').textContent = analysis.model_summary.r_squared + '%';
-    document.getElementById('r-squared-adj').textContent = analysis.model_summary.r_squared_adj != null ? analysis.model_summary.r_squared_adj + '%' : 'N/A';
+    // Model summary — with R² color-coding
+    const r2El = document.getElementById('r-squared');
+    const r2Val = parseFloat(analysis.model_summary.r_squared);
+    r2El.textContent = analysis.model_summary.r_squared + '%';
+    r2El.className = 'stat-value ' + (r2Val >= 90 ? 'r2-excellent' : r2Val >= 70 ? 'r2-good' : r2Val >= 50 ? 'r2-moderate' : 'r2-poor');
+
+    const r2AdjEl = document.getElementById('r-squared-adj');
+    const r2AdjVal = parseFloat(analysis.model_summary.r_squared_adj);
+    r2AdjEl.textContent = analysis.model_summary.r_squared_adj != null ? analysis.model_summary.r_squared_adj + '%' : 'N/A';
+    if (!isNaN(r2AdjVal)) {
+        r2AdjEl.className = 'stat-value ' + (r2AdjVal >= 90 ? 'r2-excellent' : r2AdjVal >= 70 ? 'r2-good' : r2AdjVal >= 50 ? 'r2-moderate' : 'r2-poor');
+    } else {
+        r2AdjEl.className = 'stat-value';
+    }
+
     document.getElementById('model-s').textContent = analysis.model_summary.s || 'N/A';
 
     // Saturated model warning
@@ -111,15 +123,26 @@ function displayAnalysis(result) {
             </thead>
             <tbody>
     `;
+    const alpha = parseFloat(document.getElementById('alpha-effects-slider')?.value || '0.05');
     for (let i = 0; i < anova.source.length; i++) {
+        let pCell = '-';
+        if (anova.p[i] != null) {
+            const pVal = anova.p[i];
+            const isSig = pVal < alpha;
+            const isWarn = !isSig && pVal < alpha * 2;
+            const badgeClass = isSig ? 'sig-yes' : isWarn ? 'sig-warn' : 'sig-no';
+            const badgeLabel = isSig ? 'Sig' : isWarn ? 'Marginal' : 'NS';
+            pCell = `${pVal} <span class="sig-badge ${badgeClass}">${badgeLabel}</span>`;
+        }
+        const rowClass = anova.p[i] != null && anova.p[i] < alpha ? ' class="anova-significant-row"' : '';
         anovaHtml += `
-            <tr>
+            <tr${rowClass}>
                 <td>${anova.source[i]}</td>
                 <td class="right">${anova.df[i]}</td>
                 <td class="right">${anova.ss[i]}</td>
                 <td class="right">${anova.ms[i] ?? '-'}</td>
                 <td class="right">${anova.f[i] ?? '-'}</td>
-                <td class="right ${anova.p[i] != null && anova.p[i] < 0.05 ? 'significant' : ''}">${anova.p[i] ?? '-'}</td>
+                <td class="right">${pCell}</td>
             </tr>
         `;
     }
@@ -291,6 +314,23 @@ function onAlphaSliderChange() {
     if (!cachedCoefficients || cachedResidualDF <= 0) return;
 
     const tCrit = tInv2(alpha, cachedResidualDF);
+
+    // Update ANOVA table badges
+    const anovaRows = document.querySelectorAll('#anova-table-container tbody tr');
+    anovaRows.forEach(row => {
+        const pCell = row.cells[5];
+        if (!pCell) return;
+        // Extract raw p-value from text (before badge span)
+        const rawText = pCell.textContent.replace(/Sig|Marginal|NS/g, '').trim();
+        const pVal = parseFloat(rawText);
+        if (isNaN(pVal)) return;
+        const isSig = pVal < alpha;
+        const isWarn = !isSig && pVal < alpha * 2;
+        const badgeClass = isSig ? 'sig-yes' : isWarn ? 'sig-warn' : 'sig-no';
+        const badgeLabel = isSig ? 'Sig' : isWarn ? 'Marginal' : 'NS';
+        pCell.innerHTML = `${rawText} <span class="sig-badge ${badgeClass}">${badgeLabel}</span>`;
+        row.className = isSig ? 'anova-significant-row' : '';
+    });
 
     // Update coefficients table significance flags
     const rows = document.querySelectorAll('#coefficients-table-container tbody tr');

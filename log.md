@@ -15,6 +15,16 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-26 — DOE Workbench: Phase 3 — Visual polish & result cards
+
+**Files changed:**
+- `services/svend/web/static/css/experimenter.css` — Panel hover effects, significance badge pills (.sig-badge), green dot indicators on significant cells, stat card enhancements (top accent border, hover lift, R² color-coding classes), enhanced empty states, design type card hover/selected improvements, ANOVA significant row highlight, alternate table row shading, center point row styling, monospace run numbers, responsive wizard progress bar fix
+- `services/svend/web/static/js/doe-analysis.js` — R² color-coding (dynamically applies r2-excellent/good/moderate/poor classes), significance badge pills in ANOVA table (Sig/Marginal/NS), alpha slider now updates ANOVA badges + row highlights live
+- `services/svend/web/static/js/doe-design.js` — Design matrix uses .run-number class and .center-point-row class for enhanced table display
+**Verification:** Hard-reload DOE page, generate design → verify table styling (run numbers monospace, center points italic), analyze → verify R² colored, ANOVA badges appear, alpha slider updates both tables.
+
+---
+
 ### 2026-02-26 — DOE Workbench: Phase 0 — Break up monolith
 
 **Files changed:**
