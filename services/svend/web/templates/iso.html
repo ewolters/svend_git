@@ -671,9 +671,224 @@ async function launchRCA(id) {
 }
 
 // =========================================================================
-// Internal Audits tab (placeholder)
+// Internal Audits tab
 // =========================================================================
-function loadAudits() { document.getElementById('panel-audits').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+let auditList = [];
+
+async function loadAudits() {
+    const el = document.getElementById('panel-audits');
+    try {
+        auditList = await apiFetch('/audits/');
+        renderAuditList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderAuditList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showAuditForm()">+ New Audit</button>';
+    html += '</div>';
+    html += '<div id="audit-form-area"></div>';
+
+    // Simple calendar view — group by month
+    const months = {};
+    auditList.forEach(a => {
+        const d = new Date(a.scheduled_date);
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        if (!months[key]) months[key] = [];
+        months[key].push(a);
+    });
+    const sortedMonths = Object.keys(months).sort();
+    if (sortedMonths.length) {
+        html += '<div class="audit-calendar">';
+        sortedMonths.slice(-8).forEach(key => {
+            const [y, m] = key.split('-');
+            const mName = new Date(y, m - 1).toLocaleString('en', { month: 'short', year: 'numeric' });
+            html += `<div class="cal-month"><div class="cal-month-name">${mName}</div><div class="cal-dots">`;
+            months[key].forEach(a => {
+                html += `<div class="cal-dot ${a.status}" title="${escHtml(a.title)} — ${a.status}" onclick="loadAuditDetail('${a.id}')"></div>`;
+            });
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
+
+    // Table
+    if (!auditList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No audits scheduled. Create one to get started.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += '<th>Title</th><th>Status</th><th>Scheduled</th><th>Lead Auditor</th><th>Clauses</th><th>Findings</th>';
+    html += '</tr></thead><tbody>';
+    auditList.forEach(a => {
+        const fCount = a.findings?.length || 0;
+        html += `<tr onclick="loadAuditDetail('${a.id}')">`;
+        html += `<td>${escHtml(a.title)}</td>`;
+        html += `<td>${badge(a.status)}</td>`;
+        html += `<td>${fmtDate(a.scheduled_date)}</td>`;
+        html += `<td style="font-size:12px">${escHtml(a.lead_auditor || '—')}</td>`;
+        html += `<td style="font-size:12px">${(a.iso_clauses || []).join(', ') || '—'}</td>`;
+        html += `<td>${fCount}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+function showAuditForm() {
+    const area = document.getElementById('audit-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="audit-title"></div>
+            <div><label class="iso-label">Scheduled Date *</label><input class="iso-input" type="date" id="audit-date"></div>
+            <div><label class="iso-label">Lead Auditor</label><input class="iso-input" id="audit-lead"></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">ISO Clauses (comma-separated)</label><input class="iso-input" id="audit-clauses" placeholder="4.1, 8.5, 9.2"></div>
+            <div><label class="iso-label">Departments (comma-separated)</label><input class="iso-input" id="audit-depts" placeholder="Production, Quality"></div>
+        </div>
+        <div style="margin-bottom:12px"><label class="iso-label">Scope</label><textarea class="iso-textarea" id="audit-scope" rows="2"></textarea></div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveAudit()">Create Audit</button>
+            <button class="iso-btn" onclick="document.getElementById('audit-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveAudit() {
+    const title = document.getElementById('audit-title').value.trim();
+    const dateVal = document.getElementById('audit-date').value;
+    if (!title || !dateVal) return toast('Title and date are required', true);
+    try {
+        await apiFetch('/audits/', { method: 'POST', body: {
+            title, scheduled_date: dateVal,
+            lead_auditor: document.getElementById('audit-lead').value,
+            iso_clauses: document.getElementById('audit-clauses').value.split(',').map(s => s.trim()).filter(Boolean),
+            departments: document.getElementById('audit-depts').value.split(',').map(s => s.trim()).filter(Boolean),
+            scope: document.getElementById('audit-scope').value,
+        }});
+        toast('Audit created');
+        document.getElementById('audit-form-area').innerHTML = '';
+        loadAudits();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadAuditDetail(id) {
+    const el = document.getElementById('panel-audits');
+    try {
+        const a = await apiFetch(`/audits/${id}/`);
+        let html = '<button class="iso-btn ghost" onclick="loadAudits()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <h2>${escHtml(a.title)}</h2>
+            <div style="display:flex;gap:8px">
+                ${badge(a.status)}
+                <button class="iso-btn small danger" onclick="deleteAudit('${a.id}')">Delete</button>
+            </div></div>`;
+
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Scheduled</label><span style="font-size:13px">${fmtDate(a.scheduled_date)}</span></div>`;
+        html += `<div><label class="iso-label">Completed</label><span style="font-size:13px">${fmtDate(a.completed_date)}</span></div>`;
+        html += `<div><label class="iso-label">Lead Auditor</label><span style="font-size:13px">${escHtml(a.lead_auditor || '—')}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">ISO Clauses</label><span style="font-size:13px">${(a.iso_clauses || []).join(', ') || '—'}</span></div>`;
+        html += `<div><label class="iso-label">Departments</label><span style="font-size:13px">${(a.departments || []).join(', ') || '—'}</span></div>`;
+        html += `<div><label class="iso-label">Scope</label><span style="font-size:13px">${escHtml(a.scope || '—')}</span></div>`;
+        html += '</div>';
+        if (a.summary) html += `<div style="margin:12px 0"><label class="iso-label">Summary</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(a.summary)}</div></div>`;
+
+        // Status controls
+        html += '<div style="margin:16px 0;display:flex;gap:8px">';
+        const statusFlow = ['planned', 'in_progress', 'complete', 'report_issued'];
+        const curIdx = statusFlow.indexOf(a.status);
+        if (curIdx >= 0 && curIdx < statusFlow.length - 1) {
+            const next = statusFlow[curIdx + 1];
+            html += `<button class="iso-btn primary" onclick="updateAuditStatus('${a.id}','${next}')">Advance to ${next.replace(/_/g,' ')}</button>`;
+        }
+        if (a.status !== 'cancelled') {
+            html += `<button class="iso-btn" onclick="updateAuditStatus('${a.id}','cancelled')">Cancel</button>`;
+        }
+        html += '</div>';
+
+        // Findings table
+        html += '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Findings</h4>';
+        if (a.findings?.length) {
+            html += '<table class="iso-table"><thead><tr><th>Type</th><th>Description</th><th>Clause</th><th>Status</th><th>NCR</th></tr></thead><tbody>';
+            a.findings.forEach(f => {
+                html += '<tr>';
+                html += `<td>${badge(f.finding_type)}</td>`;
+                html += `<td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f.description)}</td>`;
+                html += `<td>${escHtml(f.iso_clause || '—')}</td>`;
+                html += `<td>${badge(f.status)}</td>`;
+                html += `<td>${f.ncr_id ? `<a href="#" onclick="event.preventDefault();navigate('ncrs');setTimeout(()=>loadNCRDetail('${f.ncr_id}'),200)" style="color:var(--accent)">View NCR</a>` : '—'}</td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<div style="color:var(--text-dim);font-size:13px;margin-bottom:12px">No findings yet.</div>';
+        }
+
+        // Add finding form
+        html += `<div class="iso-form" style="margin-top:12px">
+            <h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Add Finding</h4>
+            <div class="iso-form-grid cols-3">
+                <div><label class="iso-label">Type</label><select class="iso-input" id="finding-type">
+                    <option value="observation">Observation</option><option value="opportunity">Opportunity for Improvement</option>
+                    <option value="nc_minor">Minor Nonconformity</option><option value="nc_major">Major Nonconformity</option></select></div>
+                <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="finding-clause" placeholder="e.g. 8.5.1"></div>
+                <div><label class="iso-label">Due Date</label><input class="iso-input" type="date" id="finding-due"></div>
+            </div>
+            <div style="margin-bottom:8px"><label class="iso-label">Description *</label><textarea class="iso-textarea" id="finding-desc" rows="2"></textarea></div>
+            <div style="margin-bottom:8px"><label class="iso-label">Evidence</label><textarea class="iso-textarea" id="finding-evidence" rows="2"></textarea></div>
+            <button class="iso-btn primary" onclick="addFinding('${a.id}')">Add Finding</button>
+        </div>`;
+
+        html += '</div>';
+        el.innerHTML = html;
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateAuditStatus(id, status) {
+    try {
+        await apiFetch(`/audits/${id}/`, { method: 'PUT', body: { status } });
+        toast(`Audit status updated to ${status}`);
+        loadAuditDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function addFinding(auditId) {
+    const desc = document.getElementById('finding-desc').value.trim();
+    if (!desc) return toast('Description is required', true);
+    try {
+        const result = await apiFetch(`/audits/${auditId}/findings/`, { method: 'POST', body: {
+            finding_type: document.getElementById('finding-type').value,
+            description: desc,
+            iso_clause: document.getElementById('finding-clause').value,
+            evidence: document.getElementById('finding-evidence').value,
+            due_date: document.getElementById('finding-due').value || null,
+        }});
+        let msg = 'Finding added';
+        if (result.ncr_id) msg += ' — NCR auto-created';
+        toast(msg);
+        loadAuditDetail(auditId);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteAudit(id) {
+    if (!confirm('Delete this audit?')) return;
+    try {
+        await apiFetch(`/audits/${id}/`, { method: 'DELETE' });
+        toast('Audit deleted');
+        loadAudits();
+    } catch (e) { toast(e.message, true); }
+}
 
 // =========================================================================
 // Training Matrix tab (placeholder)
