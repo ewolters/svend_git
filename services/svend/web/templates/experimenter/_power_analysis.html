@@ -1,0 +1,78 @@
+        <div id="design-power" class="sub-content">
+            <div class="two-column">
+                <div class="panel">
+                    <h3>Statistical Power Analysis <!-- v2 --></h3>
+
+                    <div class="form-group">
+                        <label>Test Type</label>
+                        <select id="test-type" onchange="updatePowerHelp(); debouncedPowerRefresh()">
+                            <option value="ttest_ind">Independent t-test (2 groups)</option>
+                            <option value="ttest_paired">Paired t-test</option>
+                            <option value="anova">ANOVA (3+ groups)</option>
+                            <option value="correlation">Correlation</option>
+                            <option value="proportion">Two Proportions</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="groups-container">
+                        <label>Number of Groups</label>
+                        <input type="number" id="num-groups" value="2" min="2" max="10">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Effect Size</label>
+                        <div class="effect-size-control">
+                            <input type="range" id="effect-size" min="0.1" max="1.5" step="0.05" value="0.5"
+                                   oninput="updateEffectSize()">
+                            <div class="effect-display">
+                                <span class="effect-value" id="effect-value">0.50</span>
+                                <span class="effect-label" id="effect-label">Medium</span>
+                            </div>
+                        </div>
+                        <div class="effect-scale">
+                            <span>0.2 Small</span>
+                            <span>0.5 Medium</span>
+                            <span>0.8 Large</span>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Significance (alpha)</label>
+                            <select id="alpha" onchange="debouncedPowerRefresh()">
+                                <option value="0.01">0.01</option>
+                                <option value="0.05" selected>0.05</option>
+                                <option value="0.10">0.10</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Power (1-beta)</label>
+                            <select id="power-level" onchange="debouncedPowerRefresh()">
+                                <option value="0.70">70%</option>
+                                <option value="0.80" selected>80%</option>
+                                <option value="0.90">90%</option>
+                                <option value="0.95">95%</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="runPowerAnalysis()">Calculate Sample Size</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Power Results</h3>
+                    <div id="power-output-empty" class="empty-text">
+                        <p>Configure parameters and calculate to see required sample size.</p>
+                    </div>
+                    <div id="power-output" style="display: none;">
+                        <div class="power-result">
+                            <div class="big-number" id="sample-size-result">--</div>
+                            <div class="big-label">Total Sample Size</div>
+                            <div id="per-group-result"></div>
+                        </div>
+                        <div id="power-interpretation" class="interpretation-box"></div>
+                        <div id="power-curve-chart" style="width:100%; height:280px; margin-top:1rem;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>

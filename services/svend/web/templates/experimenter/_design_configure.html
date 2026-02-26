@@ -1,0 +1,65 @@
+                <div class="panel">
+                    <h3>Create Experimental Design</h3>
+
+                    <!-- Design Type Selection -->
+                    <div class="form-group">
+                        <label>Design Type</label>
+                        <div class="design-categories">
+                            <button class="cat-btn active" onclick="filterDesigns('all')">All</button>
+                            <button class="cat-btn" onclick="filterDesigns('factorial')">Factorial</button>
+                            <button class="cat-btn" onclick="filterDesigns('screening')">Screening</button>
+                            <button class="cat-btn" onclick="filterDesigns('rsm')">RSM</button>
+                            <button class="cat-btn" onclick="filterDesigns('robust')">Robust</button>
+                        </div>
+                        <div class="design-type-grid" id="design-type-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                        <p id="design-guidance" class="design-guidance"></p>
+                    </div>
+
+                    <!-- Factors -->
+                    <div class="form-group">
+                        <label>Factors
+                            <span class="factor-template-trigger" onclick="toggleTemplatePanel()">Use template &#x25BE;</span>
+                        </label>
+                        <div id="factor-templates" class="factor-templates" style="display:none;"></div>
+                        <div id="factors-container">
+                            <!-- Dynamic factor rows -->
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="addFactor()">+ Add Factor</button>
+                    </div>
+
+                    <!-- Options -->
+                    <div class="form-group">
+                        <label>Options</label>
+                        <div class="options-grid">
+                            <div class="form-group-inline">
+                                <label>Replicates</label>
+                                <input type="number" id="replicates" value="1" min="1" max="10" oninput="updateRunEstimate()">
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Center Points</label>
+                                <input type="number" id="center-points" value="0" min="0" max="10" oninput="updateRunEstimate()">
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Resolution (Fractional)</label>
+                                <select id="resolution" onchange="updateRunEstimate()">
+                                    <option value="3">III (Main effects only)</option>
+                                    <option value="4" selected>IV (Main + some 2FI)</option>
+                                    <option value="5">V (Main + 2FI)</option>
+                                </select>
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Random Seed</label>
+                                <input type="number" id="seed" placeholder="Optional">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="factor-validation" class="factor-validation"></div>
+
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <button class="btn btn-primary" onclick="generateDesign()">Generate Design</button>
+                        <span id="run-estimate" style="font-size:0.85rem;color:var(--text-dim);font-weight:500;"></span>
+                    </div>
+                </div>

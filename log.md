@@ -15,6 +15,129 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-26 — DOE Workbench: Phase 0 — Break up monolith
+
+**Files changed:**
+- `services/svend/web/templates/experimenter.html` — Rewritten from 3,925-line monolith to 117-line shell using `{% include %}` partials and `{% static %}` for external CSS/JS
+- `services/svend/web/templates/experimenter/_design_configure.html` — NEW: Design type grid, factors form, options panel
+- `services/svend/web/templates/experimenter/_design_output.html` — NEW: Design matrix table, summary, alias structure, export
+- `services/svend/web/templates/experimenter/_power_analysis.html` — NEW: Power analysis form + results + curve chart
+- `services/svend/web/templates/experimenter/_analysis_results.html` — NEW: Enter results table
+- `services/svend/web/templates/experimenter/_analysis_anova.html` — NEW: ANOVA table, coefficients, model equation, interpretation
+- `services/svend/web/templates/experimenter/_analysis_effects.html` — NEW: Main effects, interactions, Pareto plots
+- `services/svend/web/templates/experimenter/_analysis_residuals.html` — NEW: Normal plot, fitted, order, lack of fit
+- `services/svend/web/templates/experimenter/_optimize_contour.html` — NEW: Contour/surface plot + hold sliders
+- `services/svend/web/templates/experimenter/_optimize_response.html` — NEW: Response optimizer + desirability
+- `services/svend/web/templates/experimenter/_chat_modal.html` — NEW: DOE assistant chat modal
+- `services/svend/web/templates/experimenter/_wizard_progress.html` — NEW: Placeholder for Phase 1 wizard
+- `services/svend/web/static/css/experimenter.css` — NEW: All page-specific CSS (~1,240 lines) extracted from inline `<style>` block
+- `services/svend/web/static/js/doe-state.js` — NEW: State management, sessionStorage, navigation
+- `services/svend/web/static/js/doe-design.js` — NEW: Design type selection, factor management, generation
+- `services/svend/web/static/js/doe-analysis.js` — NEW: Results entry, ANOVA display, effects plots, residuals
+- `services/svend/web/static/js/doe-optimize.js` — NEW: Contour, surface, optimizer, desirability
+- `services/svend/web/static/js/doe-power.js` — NEW: Power analysis + curve rendering
+- `services/svend/web/static/js/doe-chat.js` — NEW: Chat modal logic
+**Verification:** Hard-reload DOE page, full flow unchanged. `python manage.py collectstatic --noinput` run. Template loads clean. No backend changes.
+
+---
+
+### 2026-02-25 — CRM Cleanup + Site Analytics + Click Tracking Fix
+
+**Files changed:**
+- `services/svend/web/api/models.py` — Added `SiteVisit` model for anonymous site-wide visitor tracking (IP hashing, bot detection, referrer tracking)
+- `services/svend/web/accounts/middleware.py` — Added `SiteVisitMiddleware` (tracks GET requests to user-facing pages, skips API/static/admin)
+- `services/svend/web/svend/settings.py` — Added SiteVisitMiddleware to MIDDLEWARE list
+- `services/svend/web/api/internal_views.py` — Added `api_site_analytics()` endpoint, added `SiteVisit` import, added auto-linkify safety net in `_markdown_to_html()`
+- `services/svend/web/api/urls.py` — Added `internal/site-analytics/` route
+- `services/svend/web/templates/internal_dashboard.html` — Added "Site" tab with daily visitor chart, top pages bar, referrer doughnut, KPI cards, pages table
+- `services/svend/site/site/index.html` — Added Cloudflare Web Analytics beacon
+- `services/svend/web/templates/landing.html` — Added Cloudflare Web Analytics beacon
+- `services/svend/web/templates/base_app.html` — Added Cloudflare Web Analytics beacon
+- `services/svend/web/api/migrations/0015_site_visit_model.py` — Migration for SiteVisit table
+
+**CRM cleanup (DB changes via shell):**
+- 14 bounced leads: emails corrected (wrong domains, wrong conventions), moved to prospect, enriched with contact names/phones/LinkedIn
+- 3 leads marked invalid (Creative Insights, Saral Six Sigma, SigmaWay — dead/dormant)
+- 2 sequence reassignments (Business Future → Established Markets, Lean Sigma Solutions → Price-Sensitive)
+- 15 corrected leads sent Step 1 outreach emails
+- All 8 sequence step bodies: bare `svend.ai` converted to `[svend.ai](https://svend.ai)` markdown links (fixes click tracking)
+
+**Verification:**
+- `python3 manage.py check` — no issues
+- SiteVisit model: create/query/delete works
+- `_markdown_to_html()` produces `<a href>` tags for both markdown links and bare URLs
+- Dashboard "Site" tab loads from `/api/internal/site-analytics/`
+
+---
+
+### 2026-02-23 — Enterprise Demo Account for Next Level Partners
+**Files changed:**
+- `services/svend/web/core/management/commands/seed_nlp_demo.py` — New management command (~600 lines) creating a complete enterprise demo under "Apex Manufacturing" packaging scenario
+**What it seeds:**
+- Tenant (Next Level Partners, enterprise) + Membership (owner) for existing nlp_tmp user
+- Site (Fort Worth Plant, FW-01)
+- 3 Strategic Objectives (3-5 year) + 3 Annual Objectives (FY2026) + 4 Hoshin KPIs
+- 3 Projects: Scrap Reduction (DMAIC/ANALYZE, 3 hypotheses, 5 evidence, Bayesian), OEE Improvement (DMAIC/MEASURE, 2 hypotheses, 3 evidence), SMED Kaizen (completed)
+- Current/Future VSM pair (5 process steps, inventory, material/info flow, kaizen bursts)
+- 4 DSW results (capability study, gage R&R, t-test, DOE)
+- A3 Report, FMEA (6 rows with RPN scoring), RCA Session (5-why chain)
+- 7 Action Items with cross-tool source tracking
+- 18 X-Matrix correlations (strategic↔annual↔project↔KPI)
+**Usage:** `export SVEND_FIELD_ENCRYPTION_KEY=$(cat ~/.svend_encryption_key) && python3 manage.py seed_nlp_demo --user nlp_tmp` (add `--clean` to recreate)
+**Verification:** Log in as nlp_tmp → Hoshin X-Matrix renders with all quadrants populated → VSM shows current/future pair → Studies show Bayesian probability tracking → DSW has saved analyses → Quality tools (A3, FMEA, RCA) cross-linked
+
+---
+
+### 2026-02-23 — DOE Interactive Overhaul (5 features)
+**Files changed:**
+- `services/svend/web/agents_api/experimenter_views.py` — Added `_compute_power_curve()` with server-side cache keyed by (test_type, alpha, power, groups); modified `power_analysis()` to accept `include_curve: true` and return 39-point grid (d=0.10→2.00); modified `contour_plot()` to return model coefficients, terms, and factor metadata for client-side recomputation
+- `services/svend/web/templates/experimenter.html` — Five interactive features:
+  1. **Design preview run counter**: Live "≈ N runs" badge updates as factors/replicates/design type change (pure JS)
+  2. **Live power curve**: Plotly chart with 39-point curve + draggable cursor; slider interpolates client-side from cached grid; alpha/power/test-type changes trigger debounced 300ms re-fetch
+  3. **Contour hold-value sliders**: After first generate, sliders for non-axis factors; slider movement recomputes 25×25 contour grid client-side via JS model evaluation; robust term parser handles A, A*B, A^2
+  4. **Interactive alpha slider**: Alpha slider (0.01-0.20) moves Pareto reference line and updates significance flags in coefficients table; uses Abramowitz & Stegun t-inverse rational approximation (no jStat dependency)
+  5. **Live desirability optimizer**: Client-side grid search with adaptive resolution (11^k for k≤4, 7^k for k>4, coarse→refine two-pass for k>5); goal/lower/target/upper/weight inputs trigger instant re-optimization; pure piecewise desirability function
+**Verification:** Navigate to DOE → Design tab: add factors, run count updates live. Power tab: calculate → curve appears, move effect size slider → cursor animates instantly. After analyzing results: ANOVA tab alpha slider moves Pareto line. Contour tab: generate → hold sliders appear, slide → surface updates without spinner. Optimizer: change goal/bounds/weight → results update instantly.
+
+---
+
+### 2026-02-23 — SHAP Pipeline unwrapping + StandardScaler serialization fixes
+**Files changed:**
+- `services/svend/web/agents_api/autopilot_views.py` — Added `_safe_params()` helper; catch-all in `_NumpySafeEncoder.default()`; SHAP Pipeline unwrapping (transform X through preprocessing, pass final estimator to explainer)
+- `services/svend/web/agents_api/ml_pipeline.py` — Added `_safe_params()` for `train_with_recipe()` recipe generation
+- `services/svend/web/agents_api/dsw/common.py` — Added `_strip_non_serializable()` recursive sanitizer for `save_model_to_disk()` JSONField
+**Verification:** Train a Pipeline model in ML Hub → Full Pipeline Results loads without "StandardScaler is not JSON serializable"; SHAP runs successfully on Pipeline models.
+
+---
+
+### 2026-02-23 — Regional Stripe pricing (15 regions, 27 countries)
+**Files changed:**
+- `services/svend/web/accounts/billing.py` — Added 48 entries to PRICE_TO_TIER; added REGIONAL_PRICES dict (15 regions × 3 tiers); added COUNTRY_TO_REGION (27 countries); added `get_price_for_region()` helper; updated `create_checkout_session` for `?region=` param
+**Verification:** Checkout URLs with `?plan=pro&region=th` route to correct THB Stripe price. Webhook resolves all 48 price IDs to correct tiers.
+
+---
+
+### 2026-02-23 — CRM bounced/invalid lead stages
+**Files changed:**
+- `services/svend/web/api/models.py` — Added BOUNCED, INVALID to CRMLead.Stage
+- `services/svend/web/api/migrations/0014_crm_lead_bounced_invalid_stages.py` — Migration
+- `services/svend/web/templates/internal_dashboard.html` — Added bounced/invalid to filter dropdown, inline selector, stage colors, chart labels
+**Verification:** Dashboard → CRM → Leads filter dropdown shows Bounced/Invalid options.
+
+---
+
+### 2026-02-23 — CRM module for outbound outreach management
+**Files changed:**
+- `services/svend/web/api/models.py` — Added 3 models: CRMLead (pipeline stages, source tracking, follow-up scheduling), OutreachSequence (multi-step A/B sequences), OutreachEnrollment (SHA256 variant assignment, send log)
+- `services/svend/web/api/internal_views.py` — Added 12 views: leads CRUD, pipeline overview, sequences CRUD, enrollment, Claude email generation (sonnet), outreach metrics, ad-hoc send, queue processing
+- `services/svend/web/api/urls.py` — Added 11 URL patterns under `/api/internal/crm/`
+- `services/svend/web/templates/internal_dashboard.html` — New CRM tab with 3 sub-tabs (Leads, Sequences, Outreach Metrics): pipeline KPIs, filterable lead table, sequence editor with per-step A/B preview and AI generation, enrollment modal, metrics charts
+- `services/svend/web/api/tasks.py` — Added `crm_send_one_email` tempora task for staggered email delivery
+- `services/svend/web/api/migrations/0013_crm_models.py` — Auto-generated migration
+**Verification:** Navigate to `/internal/dashboard/` → CRM tab loads with pipeline KPIs, create a lead, select leads via checkboxes, click "Generate & Send Campaign", Claude generates A/B variants, review/edit, send schedules via tempora staggered 5s apart through hello@svend.ai
+
+---
+
 ### 2026-02-22 — Enrich Hoshin seed data with charters, baselines, actuals, and action items
 **Files changed:**
 - `services/svend/web/seed_enrich.py` — one-time script (committed then removed) that enriched all 10 X-Matrix seed projects with:

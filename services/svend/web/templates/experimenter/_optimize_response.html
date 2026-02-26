@@ -1,0 +1,31 @@
+        <div id="optimize-optimizer" class="sub-content">
+            <div class="panel">
+                <div id="no-optimize-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <circle cx="12" cy="12" r="10"/>
+                        <circle cx="12" cy="12" r="6"/>
+                        <circle cx="12" cy="12" r="2"/>
+                    </svg>
+                    <p>Analyze results first to use the optimizer.</p>
+                </div>
+                <div id="optimize-content" style="display: none;">
+                    <h3>Response Optimizer</h3>
+                    <div class="section-title">Response Goals</div>
+                    <div id="response-goals-container"></div>
+
+                    <div style="margin-top: 1rem;">
+                        <button class="btn btn-primary" onclick="runOptimization()">Find Optimal Settings</button>
+                    </div>
+
+                    <div id="optimization-results" style="display: none;">
+                        <div class="section-title">Optimal Settings</div>
+                        <div id="optimal-settings-table"></div>
+                        <div class="desirability-display">
+                            <div class="big-number" id="composite-desirability">--</div>
+                            <div class="big-label">Composite Desirability</div>
+                        </div>
+                        <div id="optimization-interpretation" class="interpretation-box"></div>
+                    </div>
+                </div>
+            </div>
+        </div>

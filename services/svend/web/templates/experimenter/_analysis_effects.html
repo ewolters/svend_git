@@ -1,0 +1,21 @@
+        <div id="analysis-effects" class="sub-content">
+            <div class="panel">
+                <div id="no-effects-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    <p>Analyze results first to see effects plots.</p>
+                </div>
+                <div id="effects-content" style="display: none;">
+                    <h3>Effects Plots</h3>
+                    <div class="plot-tabs">
+                        <button class="plot-tab active" onclick="showPlot('main-effects')">Main Effects</button>
+                        <button class="plot-tab" onclick="showPlot('interactions')">Interactions</button>
+                        <button class="plot-tab" onclick="showPlot('pareto')">Pareto</button>
+                    </div>
+                    <div id="main-effects-plot" class="plot-container active"></div>
+                    <div id="interactions-plot" class="plot-container"></div>
+                    <div id="pareto-plot" class="plot-container"></div>
+                </div>
+            </div>
+        </div>
