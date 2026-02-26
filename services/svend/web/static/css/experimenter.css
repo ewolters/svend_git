@@ -1183,7 +1183,8 @@
 }
 
 .plot-small {
-    height: 180px;
+    min-height: 200px;
+    height: 220px;
     background: var(--bg-secondary);
     border-radius: 4px;
 }

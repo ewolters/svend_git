@@ -52,8 +52,15 @@ function goToStep(stepId) {
     // Update guidance panel if open
     if (contextPanelOpen) updateGuidance();
 
-    // Trigger resize for any Plotly charts in the newly visible step
-    window.dispatchEvent(new Event('resize'));
+    // Force Plotly resize on all plots in the newly visible step
+    setTimeout(() => {
+        if (target && typeof Plotly !== 'undefined') {
+            target.querySelectorAll('.js-plotly-plot').forEach(el => {
+                try { Plotly.Plots.resize(el); } catch (e) {}
+            });
+        }
+        window.dispatchEvent(new Event('resize'));
+    }, 50);
 }
 
 // Mark a step as completed and update progress bar
@@ -195,7 +202,17 @@ function showSubTab(containerId, tab) {
     const tabBtn = container.querySelector(`.sub-tab[onclick*="'${tab}'"]`);
     if (tabBtn) tabBtn.classList.add('active');
 
-    window.dispatchEvent(new Event('resize'));
+    // Force Plotly to resize all plots inside the newly visible tab.
+    // Plotly.newPlot into display:none containers creates 0-dimension plots
+    // that don't auto-recover when the container becomes visible.
+    setTimeout(() => {
+        if (target && typeof Plotly !== 'undefined') {
+            target.querySelectorAll('.js-plotly-plot').forEach(el => {
+                try { Plotly.Plots.resize(el); } catch (e) {}
+            });
+        }
+        window.dispatchEvent(new Event('resize'));
+    }, 50);
 }
 
 // Context Panel (right sidebar)

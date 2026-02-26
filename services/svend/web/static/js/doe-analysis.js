@@ -284,13 +284,27 @@ function displayEffectsPlots(plots) {
 }
 
 function showPlot(plotId) {
-    document.querySelectorAll('.plot-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.plot-container').forEach(p => p.classList.remove('active'));
+    // Scope to the effects panel only (not all plot containers on page)
+    const panel = document.getElementById('effects-content');
+    if (!panel) return;
+    panel.querySelectorAll('.plot-tab').forEach(t => t.classList.remove('active'));
+    panel.querySelectorAll('.plot-container').forEach(p => p.classList.remove('active'));
 
-    event.target.classList.add('active');
-    document.getElementById(`${plotId}-plot`).classList.add('active');
+    // Activate the clicked tab button
+    const clickedBtn = panel.querySelector(`.plot-tab[onclick*="'${plotId}'"]`);
+    if (clickedBtn) clickedBtn.classList.add('active');
 
-    window.dispatchEvent(new Event('resize'));
+    const plotEl = document.getElementById(`${plotId}-plot`);
+    if (plotEl) {
+        plotEl.classList.add('active');
+        // Force Plotly resize after making visible
+        setTimeout(() => {
+            if (typeof Plotly !== 'undefined' && plotEl.classList.contains('js-plotly-plot')) {
+                try { Plotly.Plots.resize(plotEl); } catch (e) {}
+            }
+            window.dispatchEvent(new Event('resize'));
+        }, 50);
+    }
 }
 
 // t-distribution inverse (Abramowitz & Stegun 26.2.16 approximation)
