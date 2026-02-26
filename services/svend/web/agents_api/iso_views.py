@@ -42,82 +42,127 @@ from .models import (
 @require_team
 @require_http_methods(["GET"])
 def iso_dashboard(request):
-    """QMS dashboard overview — KPIs across all modules."""
+    """QMS dashboard overview — clause coverage, KPIs, trends."""
     user = request.user
     now = timezone.now()
+    today = now.date()
+    fourteen_days = today + timedelta(days=14)
     thirty_days = now + timedelta(days=30)
-    ninety_ago = now - timedelta(days=90)
 
-    # NCR stats
+    # ---- NCR KPIs ----
     ncrs = NonconformanceRecord.objects.filter(owner=user)
     open_ncrs = ncrs.exclude(status="closed")
-    overdue = open_ncrs.filter(capa_due_date__lt=now.date()).count()
+    overdue = open_ncrs.filter(capa_due_date__lt=today).count()
+    capa_due_soon = list(
+        open_ncrs.filter(
+            capa_due_date__isnull=False,
+            capa_due_date__lte=fourteen_days,
+            capa_due_date__gte=today,
+        ).values_list("id", "title", "capa_due_date")[:10]
+    )
 
-    # Audit stats
+    # NCR by severity
+    by_severity = {}
+    for s in ["minor", "major", "critical"]:
+        by_severity[s] = open_ncrs.filter(severity=s).count()
+
+    # NCR trend — last 4 weeks
+    trend = []
+    for i in range(4):
+        week_end = today - timedelta(days=i * 7)
+        week_start = week_end - timedelta(days=7)
+        cnt = ncrs.filter(created_at__date__gte=week_start, created_at__date__lt=week_end).count()
+        trend.append({"week": str(week_start), "count": cnt})
+    trend.reverse()
+
+    # ---- Audit KPIs ----
     audits = InternalAudit.objects.filter(owner=user)
-    upcoming = audits.filter(
-        scheduled_date__gte=now.date(),
-        scheduled_date__lte=thirty_days.date(),
-        status__in=["planned", "in_progress"],
-    ).count()
+    upcoming_audits = list(
+        audits.filter(
+            scheduled_date__gte=today,
+            status__in=["planned", "in_progress"],
+        ).order_by("scheduled_date").values("id", "title", "scheduled_date", "status")[:3]
+    )
+    for a in upcoming_audits:
+        a["id"] = str(a["id"])
+        a["scheduled_date"] = str(a["scheduled_date"])
 
-    # Training stats
+    # ---- Training KPIs ----
     reqs = TrainingRequirement.objects.filter(owner=user)
     all_records = TrainingRecord.objects.filter(requirement__owner=user)
     total_records = all_records.count()
     complete_records = all_records.filter(status="complete").count()
-    expiring = all_records.filter(
-        expires_at__isnull=False,
-        expires_at__lte=thirty_days,
+    compliance_rate = round(complete_records / total_records * 100) if total_records else 100
+    gaps_count = all_records.exclude(status="complete").count()
+    expiring_count = all_records.filter(
+        expires_at__isnull=False, expires_at__lte=thirty_days,
     ).count()
 
-    # Review stats
-    reviews = ManagementReview.objects.filter(owner=user)
-    next_review = reviews.filter(
-        meeting_date__gte=now.date(), status__in=["scheduled", "in_progress"],
-    ).order_by("meeting_date").values_list("meeting_date", flat=True).first()
+    # ---- Last review ----
+    last_review = ManagementReview.objects.filter(
+        owner=user, status="complete",
+    ).order_by("-meeting_date").values("meeting_date").first()
+    last_review_data = None
+    if last_review:
+        days_ago = (today - last_review["meeting_date"]).days
+        last_review_data = {"date": str(last_review["meeting_date"]), "days_ago": days_ago}
 
-    # Document stats
+    # ---- Clause coverage ----
+    # Determine which clauses have active records (NCRs, audits, training, docs, reviews)
+    active_clauses = set()
+    for c in ncrs.values_list("iso_clause", flat=True):
+        if c:
+            active_clauses.add(c.split(".")[0] if "." in c else c)
+    for a in audits.values_list("iso_clauses", flat=True):
+        if a:
+            for c in a:
+                active_clauses.add(c.split(".")[0] if "." in c else c)
+    for t in reqs.values_list("iso_clause", flat=True):
+        if t:
+            active_clauses.add(t.split(".")[0] if "." in t else t)
     docs = ControlledDocument.objects.filter(owner=user)
-    docs_approved = docs.filter(status="approved").count()
-    docs_overdue = docs.filter(
-        review_due_date__lt=now.date(), status="approved",
-    ).count()
+    for d in docs.values_list("iso_clause", flat=True):
+        if d:
+            active_clauses.add(d.split(".")[0] if "." in d else d)
 
-    # Supplier stats
-    suppliers = SupplierRecord.objects.filter(owner=user)
-    suppliers_approved = suppliers.filter(status="approved").count()
-    eval_due = suppliers.filter(
-        next_evaluation_date__lt=now.date(),
-    ).count()
+    ISO_CLAUSES = [
+        ("4", "Context of the Organization"),
+        ("5", "Leadership"),
+        ("6", "Planning"),
+        ("7", "Support"),
+        ("8", "Operation"),
+        ("9", "Performance Evaluation"),
+        ("10", "Improvement"),
+    ]
+    clause_coverage = []
+    for clause_num, clause_name in ISO_CLAUSES:
+        if clause_num in active_clauses:
+            status = "active"
+        elif reqs.count() > 0 or audits.count() > 0:
+            status = "framed"
+        else:
+            status = "planned"
+        clause_coverage.append({"clause": clause_num, "name": clause_name, "status": status})
 
     return JsonResponse({
+        "clause_coverage": clause_coverage,
         "ncrs": {
             "open": open_ncrs.count(),
-            "overdue": overdue,
-            "total_90d": ncrs.filter(created_at__gte=ninety_ago).count(),
-            "closed_90d": ncrs.filter(closed_at__gte=ninety_ago).count(),
+            "by_severity": by_severity,
+            "overdue_capas": overdue,
+            "trend": trend,
         },
-        "audits": {"upcoming_30d": upcoming, "total": audits.count()},
+        "upcoming_audits": upcoming_audits,
         "training": {
-            "compliance_rate": round(complete_records / total_records * 100) if total_records else 100,
-            "expiring_30d": expiring,
-            "total_requirements": reqs.count(),
+            "compliance_rate": compliance_rate,
+            "gaps_count": gaps_count,
+            "expiring_count": expiring_count,
         },
-        "reviews": {
-            "next_review": str(next_review) if next_review else None,
-            "total": reviews.count(),
-        },
-        "documents": {
-            "total": docs.count(),
-            "approved": docs_approved,
-            "review_overdue": docs_overdue,
-        },
-        "suppliers": {
-            "total": suppliers.count(),
-            "approved": suppliers_approved,
-            "evaluation_due": eval_due,
-        },
+        "last_review": last_review_data,
+        "capa_due_soon": [
+            {"id": str(c[0]), "title": c[1], "due_date": str(c[2])}
+            for c in capa_due_soon
+        ],
     })
 
 
