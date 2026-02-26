@@ -891,9 +891,212 @@ async function deleteAudit(id) {
 }
 
 // =========================================================================
-// Training Matrix tab (placeholder)
+// Training Matrix tab
 // =========================================================================
-function loadTraining() { document.getElementById('panel-training').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+let trainingData = [];
+let trainingView = 'grid'; // 'grid' or 'list'
+
+async function loadTraining() {
+    const el = document.getElementById('panel-training');
+    try {
+        trainingData = await apiFetch('/training/');
+        renderTraining(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderTraining(el) {
+    let html = '<div class="iso-toolbar">';
+    html += `<button class="iso-btn ${trainingView==='grid'?'primary':''}" onclick="trainingView='grid';renderTraining(document.getElementById('panel-training'))">Grid View</button>`;
+    html += `<button class="iso-btn ${trainingView==='list'?'primary':''}" onclick="trainingView='list';renderTraining(document.getElementById('panel-training'))">List View</button>`;
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showTrainingForm()">+ Add Requirement</button>';
+    html += '</div>';
+    html += '<div id="training-form-area"></div>';
+
+    if (!trainingData.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No training requirements. Add one to start building your matrix.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    if (trainingView === 'grid') {
+        html += renderTrainingGrid();
+    } else {
+        html += renderTrainingList();
+    }
+    el.innerHTML = html;
+}
+
+function renderTrainingGrid() {
+    // Collect all unique employees
+    const employees = new Set();
+    trainingData.forEach(req => {
+        (req.records || []).forEach(r => employees.add(r.employee_name));
+    });
+    const empList = [...employees].sort();
+    if (!empList.length) {
+        return '<div style="text-align:center;padding:20px;color:var(--text-dim)">No training records yet. Add employees via the list view.</div>';
+    }
+
+    // Build lookup
+    const lookup = {};
+    trainingData.forEach(req => {
+        (req.records || []).forEach(r => {
+            lookup[`${req.id}|${r.employee_name}`] = r;
+        });
+    });
+
+    let html = '<div class="training-grid"><table>';
+    html += '<thead><tr><th>Requirement</th>';
+    empList.forEach(e => html += `<th>${escHtml(e)}</th>`);
+    html += '</tr></thead><tbody>';
+
+    trainingData.forEach(req => {
+        html += `<tr><td>${escHtml(req.name)} ${req.is_mandatory ? '<span style="color:#f87171">*</span>' : ''}</td>`;
+        empList.forEach(emp => {
+            const record = lookup[`${req.id}|${emp}`];
+            if (record) {
+                const s = record.status;
+                html += `<td><div class="training-cell ${s}" title="${emp}: ${s.replace(/_/g,' ')}"></div></td>`;
+            } else {
+                html += '<td><div class="training-cell not_started" title="Not assigned" style="opacity:0.3"></div></td>';
+            }
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // Legend
+    html += '<div style="margin-top:12px;display:flex;gap:16px;font-size:12px;color:var(--text-secondary)">';
+    html += '<span><span class="training-cell complete" style="width:12px;height:12px;vertical-align:middle"></span> Complete</span>';
+    html += '<span><span class="training-cell in_progress" style="width:12px;height:12px;vertical-align:middle"></span> In Progress</span>';
+    html += '<span><span class="training-cell not_started" style="width:12px;height:12px;vertical-align:middle"></span> Not Started</span>';
+    html += '<span><span class="training-cell expired" style="width:12px;height:12px;vertical-align:middle"></span> Expired</span>';
+    html += '<span style="color:#f87171">* Mandatory</span>';
+    html += '</div>';
+    return html;
+}
+
+function renderTrainingList() {
+    let html = '';
+    trainingData.forEach(req => {
+        html += `<div class="iso-form" style="margin-bottom:12px">`;
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div><strong>${escHtml(req.name)}</strong>
+                ${req.is_mandatory ? '<span style="color:#f87171;margin-left:4px;font-size:11px">MANDATORY</span>' : ''}
+                <span style="font-size:12px;color:var(--text-dim);margin-left:8px">${escHtml(req.iso_clause || '')}</span>
+                <span style="font-size:12px;color:var(--text-dim);margin-left:8px">${req.frequency_months > 0 ? `Every ${req.frequency_months}mo` : 'One-time'}</span>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center">
+                <span style="font-size:12px;color:var(--text-secondary)">${req.completion_rate}% complete</span>
+                <button class="iso-btn small danger" onclick="deleteTraining('${req.id}')">Delete</button>
+            </div>
+        </div>`;
+
+        if (req.records?.length) {
+            html += '<table class="iso-table" style="margin-bottom:8px"><thead><tr><th>Employee</th><th>Status</th><th>Completed</th><th>Expires</th><th></th></tr></thead><tbody>';
+            req.records.forEach(r => {
+                html += `<tr>
+                    <td>${escHtml(r.employee_name)}</td>
+                    <td>${badge(r.status)}</td>
+                    <td style="font-size:12px">${fmtDate(r.completed_at)}</td>
+                    <td style="font-size:12px">${fmtDate(r.expires_at)}</td>
+                    <td style="text-align:right">
+                        ${r.status !== 'complete' ? `<button class="iso-btn small" onclick="completeRecord('${r.id}')">Complete</button>` : ''}
+                        <button class="iso-btn small danger" onclick="deleteRecord('${r.id}')">Remove</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+        }
+
+        // Add employee to this requirement
+        html += `<div style="display:flex;gap:8px;align-items:end">
+            <div><label class="iso-label">Employee Name</label><input class="iso-input" id="emp-name-${req.id}" style="width:180px"></div>
+            <div><label class="iso-label">Email</label><input class="iso-input" id="emp-email-${req.id}" style="width:180px"></div>
+            <button class="iso-btn small" onclick="addEmployee('${req.id}')">Add Employee</button>
+        </div>`;
+        html += '</div>';
+    });
+    return html;
+}
+
+function showTrainingForm() {
+    const area = document.getElementById('training-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Name *</label><input class="iso-input" id="train-name"></div>
+            <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="train-clause" placeholder="e.g. 7.2"></div>
+            <div><label class="iso-label">Frequency (months, 0=one-time)</label><input class="iso-input" type="number" id="train-freq" value="0" min="0"></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Description</label><textarea class="iso-textarea" id="train-desc" rows="2"></textarea></div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:16px"><input type="checkbox" id="train-mandatory"> <label for="train-mandatory" style="font-size:13px">Mandatory</label></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveTraining()">Create Requirement</button>
+            <button class="iso-btn" onclick="document.getElementById('training-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveTraining() {
+    const name = document.getElementById('train-name').value.trim();
+    if (!name) return toast('Name is required', true);
+    try {
+        await apiFetch('/training/', { method: 'POST', body: {
+            name, description: document.getElementById('train-desc').value,
+            iso_clause: document.getElementById('train-clause').value,
+            frequency_months: parseInt(document.getElementById('train-freq').value) || 0,
+            is_mandatory: document.getElementById('train-mandatory').checked,
+        }});
+        toast('Training requirement created');
+        document.getElementById('training-form-area').innerHTML = '';
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteTraining(id) {
+    if (!confirm('Delete this training requirement and all records?')) return;
+    try {
+        await apiFetch(`/training/${id}/`, { method: 'DELETE' });
+        toast('Training requirement deleted');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function addEmployee(reqId) {
+    const name = document.getElementById(`emp-name-${reqId}`).value.trim();
+    if (!name) return toast('Employee name required', true);
+    try {
+        await apiFetch(`/training/${reqId}/records/`, { method: 'POST', body: {
+            employee_name: name,
+            employee_email: document.getElementById(`emp-email-${reqId}`).value,
+        }});
+        toast('Employee added');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function completeRecord(id) {
+    try {
+        await apiFetch(`/training/records/${id}/`, { method: 'PUT', body: { status: 'complete' } });
+        toast('Record marked complete');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteRecord(id) {
+    if (!confirm('Remove this training record?')) return;
+    try {
+        await apiFetch(`/training/records/${id}/`, { method: 'DELETE' });
+        toast('Record removed');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
 
 // =========================================================================
 // Management Reviews tab (placeholder)
