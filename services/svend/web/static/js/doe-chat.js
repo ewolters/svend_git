@@ -9,50 +9,38 @@ async function loadAvailableModels() {
     try {
         const response = await fetch('/api/experimenter/models/', { credentials: 'include' });
         const data = await response.json();
-
-        const selector = document.getElementById('llm-model-selector');
-        selector.innerHTML = data.models.map(m =>
-            `<option value="${m.id}" ${m.id === data.default ? 'selected' : ''}>${m.name}</option>`
-        ).join('');
-
         selectedModel = data.default;
     } catch (err) {
         console.error('Failed to load models:', err);
     }
 }
 
-function onModelChange(modelId) {
-    selectedModel = modelId;
-}
-
+// Legacy compat — old code may call toggleChatModal
 function toggleChatModal() {
-    const modal = document.getElementById('chat-modal');
-    chatModalOpen = !chatModalOpen;
-    modal.style.display = chatModalOpen ? 'block' : 'none';
-    if (chatModalOpen) {
-        document.getElementById('chat-input').focus();
-    }
+    if (!contextPanelOpen) toggleContextPanel();
+    showContextTab('chat');
 }
 
 function updateContextBadge() {
-    const badge = document.getElementById('context-badge');
-
-    if (currentAnalysis) {
-        badge.textContent = `Analysis: ${currentAnalysis.analysis?.model_summary?.r_squared || '?'}% R-squared`;
-        badge.className = 'context-badge has-analysis';
-    } else if (currentDesign) {
-        badge.textContent = `Design: ${currentDesign.name || currentDesign.design_type} (${currentDesign.runs?.length || 0} runs)`;
-        badge.className = 'context-badge has-design';
-    } else {
-        badge.textContent = 'No design';
-        badge.className = 'context-badge';
-    }
+    // Update both panel badge and any legacy badge
+    const badges = document.querySelectorAll('#context-badge, #panel-context-badge');
+    badges.forEach(badge => {
+        if (currentAnalysis) {
+            badge.textContent = `Analysis: ${currentAnalysis.analysis?.model_summary?.r_squared || '?'}% R²`;
+            badge.className = 'context-badge has-analysis';
+        } else if (currentDesign) {
+            badge.textContent = `Design: ${currentDesign.name || currentDesign.design_type} (${currentDesign.runs?.length || 0} runs)`;
+            badge.className = 'context-badge has-design';
+        } else {
+            badge.textContent = 'No design';
+            badge.className = 'context-badge';
+        }
+    });
 }
 
 function getSessionContext() {
     const context = {
-        component: currentComponent,
-        subTab: currentSubTab,
+        step: currentStep,
     };
 
     if (currentDesign) {
@@ -101,12 +89,16 @@ function autoResizeInput(textarea) {
 }
 
 function askQuickQuestion(question) {
-    document.getElementById('chat-input').value = question;
+    const input = document.getElementById('panel-chat-input');
+    if (input) input.value = question;
+    // Ensure panel is open on chat tab
+    if (!contextPanelOpen) toggleContextPanel();
+    showContextTab('chat');
     sendChatMessage();
 }
 
 async function sendChatMessage() {
-    const input = document.getElementById('chat-input');
+    const input = document.getElementById('panel-chat-input');
     const message = input.value.trim();
 
     if (!message) return;
@@ -154,7 +146,7 @@ async function sendChatMessage() {
 }
 
 function addChatMessage(role, content) {
-    const container = document.getElementById('chat-messages');
+    const container = document.getElementById('panel-chat-messages');
 
     const msgDiv = document.createElement('div');
     msgDiv.className = `chat-message ${role}`;
@@ -182,7 +174,7 @@ function addChatMessage(role, content) {
 }
 
 function showTypingIndicator() {
-    const container = document.getElementById('chat-messages');
+    const container = document.getElementById('panel-chat-messages');
     const id = 'typing-' + Date.now();
 
     const typingDiv = document.createElement('div');

@@ -1,0 +1,60 @@
+    <!-- Context Panel (collapsible right sidebar) -->
+    <button class="context-panel-toggle" id="context-panel-toggle" onclick="toggleContextPanel()" title="Help & DOE Assistant">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+    </button>
+
+    <div class="context-panel" id="context-panel">
+        <div class="context-panel-header">
+            <div class="context-panel-tabs">
+                <button class="context-tab active" onclick="showContextTab('guidance')">Guidance</button>
+                <button class="context-tab" onclick="showContextTab('chat')">Chat</button>
+            </div>
+            <button class="btn-close" onclick="toggleContextPanel()" style="font-size:1.2rem;">&times;</button>
+        </div>
+
+        <!-- Guidance Tab -->
+        <div id="context-tab-guidance" class="context-tab-content active">
+            <div class="guidance-content" id="guidance-content">
+                <!-- Populated per wizard step by JS -->
+            </div>
+        </div>
+
+        <!-- Chat Tab -->
+        <div id="context-tab-chat" class="context-tab-content">
+            <div class="panel-chat-messages" id="panel-chat-messages">
+                <div class="chat-welcome">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="welcome-icon-svg">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    <h4>DOE Assistant</h4>
+                    <p>I can help with design selection, factor definition, ANOVA interpretation, and optimization.</p>
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="askQuickQuestion('What design should I use?')">Design selection</button>
+                        <button class="quick-btn" onclick="askQuickQuestion('How do I interpret my ANOVA results?')">ANOVA help</button>
+                        <button class="quick-btn" onclick="askQuickQuestion('What are the best practices for DOE?')">Best practices</button>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-chat-input">
+                <div class="context-indicator">
+                    <span class="context-badge" id="panel-context-badge">No design</span>
+                </div>
+                <div class="input-row">
+                    <textarea id="panel-chat-input" placeholder="Ask about DOE..." rows="1"
+                              onkeydown="handleChatKeydown(event)" oninput="autoResizeInput(this)"></textarea>
+                    <button class="send-btn" onclick="sendChatMessage()" id="panel-send-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>

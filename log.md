@@ -15,6 +15,19 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-26 — DOE Workbench: Phase 5 — Context panel & guided help
+
+**Files changed:**
+- `services/svend/web/templates/experimenter/_context_panel.html` — NEW: Collapsible right sidebar with Guidance and Chat tabs, FAB toggle button
+- `services/svend/web/templates/experimenter.html` — Replaced chat modal include with context panel, header button opens panel on chat tab
+- `services/svend/web/static/js/doe-state.js` — Context panel toggle, `showContextTab()`, step-aware guidance content (GUIDANCE object with content for all 5 steps), `updateGuidance()`, panel state persistence in sessionStorage
+- `services/svend/web/static/js/doe-chat.js` — Chat relocated to panel (panel-chat-messages, panel-chat-input), `toggleChatModal()` now opens panel on chat tab, `updateContextBadge()` updates both badges, context uses `step` instead of `component/subTab`
+- `services/svend/web/static/css/experimenter.css` — Context panel styles (fixed sidebar, 320px, slide-in transition, FAB toggle, guidance sections, tips, panel tabs), main content margin-right transition, responsive full-width on mobile
+- `services/svend/web/templates/experimenter/_chat_modal.html` — No longer included (replaced by context panel)
+**Verification:** Click ? FAB → panel slides in from right, main content shifts left. Guidance tab shows step-aware content that updates when navigating wizard. Chat tab has DOE assistant with quick actions. Panel state persists across refresh.
+
+---
+
 ### 2026-02-26 — DOE Workbench: Phase 4 — Surface hidden backend features
 
 **Files changed:**

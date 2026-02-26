@@ -19,7 +19,7 @@
             <select id="project-selector" onchange="onProjectChange(this.value)">
                 <option value="">No Study Linked</option>
             </select>
-            <button class="btn btn-secondary btn-sm" onclick="toggleChatModal()">
+            <button class="btn btn-secondary btn-sm" onclick="toggleContextPanel(); showContextTab('chat');">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon-svg">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
@@ -86,7 +86,7 @@
         </div>
     </div>
 
-    {% include "experimenter/_chat_modal.html" %}
+    {% include "experimenter/_context_panel.html" %}
 
     <!-- Loading Overlay -->
     <div id="loading" class="loading-overlay" style="display: none;">
