@@ -638,6 +638,128 @@
     min-height: 1.2em;
 }
 
+/* Resolution Picker (button group) */
+.resolution-picker {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.res-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    border: none;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    min-width: 70px;
+}
+
+.res-btn + .res-btn {
+    border-left: 1px solid var(--border);
+}
+
+.res-btn:hover {
+    background: var(--bg-hover);
+}
+
+.res-btn.active {
+    background: var(--accent-primary-dim, rgba(74, 159, 110, 0.15));
+    color: var(--accent-primary);
+}
+
+.res-level {
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.res-desc {
+    font-size: 0.65rem;
+    opacity: 0.8;
+    margin-top: 1px;
+}
+
+/* Alias resolution badge */
+.alias-resolution-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
+.alias-resolution-badge.res-iii {
+    background: var(--warning-dim, rgba(245, 158, 11, 0.15));
+    color: var(--warning);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.alias-resolution-badge.res-iv {
+    background: var(--accent-primary-dim, rgba(74, 159, 110, 0.15));
+    color: var(--accent-primary);
+    border: 1px solid rgba(74, 159, 110, 0.3);
+}
+
+.alias-resolution-badge.res-v {
+    background: var(--success-dim, rgba(34, 197, 94, 0.15));
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* Lack of fit traffic-light card */
+.lof-card {
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
+.lof-card.lof-pass {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: var(--success-dim, rgba(34, 197, 94, 0.06));
+}
+
+.lof-card.lof-fail {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.06);
+}
+
+.lof-card.lof-na {
+    background: var(--bg-secondary);
+}
+
+.lof-status {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.lof-card.lof-pass .lof-status { color: var(--success); }
+.lof-card.lof-fail .lof-status { color: var(--error); }
+.lof-card.lof-na .lof-status { color: var(--text-dim); }
+
+.lof-detail {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.lof-interpretation {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
 /* Output */
 .output-header {
     display: flex;
@@ -1073,6 +1195,20 @@
     background: var(--bg-secondary);
     border-radius: 6px;
     margin-top: 1rem;
+}
+
+/* Response Goal Cards (optimizer) */
+.response-goal-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    transition: border-color 0.2s;
+}
+
+.response-goal-card:hover {
+    border-color: var(--accent-primary-border, rgba(74, 159, 110, 0.3));
 }
 
 /* Desirability Display */

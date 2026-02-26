@@ -74,8 +74,21 @@ function selectDesignType(typeId) {
     const design = designTypes.find(d => d.id === typeId);
     document.getElementById('center-points').parentElement.style.display =
         design?.supports_center_points ? 'inline-block' : 'none';
-    document.getElementById('resolution').parentElement.style.display =
-        typeId === 'fractional_factorial' ? 'inline-block' : 'none';
+
+    // Resolution picker: show for fractional_factorial and full_factorial
+    const resGroup = document.getElementById('resolution-group');
+    if (resGroup) resGroup.style.display =
+        (typeId === 'fractional_factorial' || typeId === 'full_factorial') ? 'inline-block' : 'none';
+
+    // D-optimal / I-optimal conditional fields
+    const optimalOpts = document.getElementById('optimal-design-options');
+    if (optimalOpts) optimalOpts.style.display =
+        (typeId === 'd_optimal' || typeId === 'i_optimal') ? 'flex' : 'none';
+
+    // Taguchi array selector
+    const taguchiOpts = document.getElementById('taguchi-options');
+    if (taguchiOpts) taguchiOpts.style.display =
+        typeId === 'taguchi' ? 'flex' : 'none';
 
     // Show design guidance
     const guidance = document.getElementById('design-guidance');
@@ -83,6 +96,14 @@ function selectDesignType(typeId) {
         guidance.textContent = design.when_to_use || '';
     }
 
+    updateRunEstimate();
+}
+
+function setResolution(value) {
+    document.getElementById('resolution').value = value;
+    document.querySelectorAll('.res-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.value) === value);
+    });
     updateRunEstimate();
 }
 
@@ -136,6 +157,9 @@ function updateRunEstimate() {
         // Nearest standard Taguchi array
         if (allTwo) runs = Math.pow(2, Math.ceil(Math.log2(k + 1)));
         else runs = levelCounts.reduce((a, b) => a * b, 1); // fallback
+    } else if (dt === 'd_optimal' || dt === 'i_optimal') {
+        const userRuns = parseInt(document.getElementById('optimal-num-runs')?.value);
+        runs = (!isNaN(userRuns) && userRuns > 0) ? userRuns : Math.max(k * 2 + 1, 12);
     } else if (dt === 'latin_square' && k >= 2) {
         const maxLevel = Math.max(...levelCounts);
         runs = maxLevel * maxLevel;
@@ -496,6 +520,18 @@ async function generateDesign() {
         seed: document.getElementById('seed').value || undefined,
     };
 
+    // D-optimal / I-optimal: add num_runs and model
+    if (selectedDesignType === 'd_optimal' || selectedDesignType === 'i_optimal') {
+        const numRuns = parseInt(document.getElementById('optimal-num-runs').value);
+        if (!isNaN(numRuns) && numRuns > 0) data.num_runs = numRuns;
+        data.model = document.getElementById('optimal-model').value;
+    }
+
+    // Taguchi: add array selection
+    if (selectedDesignType === 'taguchi') {
+        data.taguchi_array = document.getElementById('taguchi-array').value;
+    }
+
     try {
         const response = await fetch('/api/experimenter/design/', {
             method: 'POST',
@@ -563,14 +599,27 @@ function displayDesign(result) {
 
     document.getElementById('design-matrix-container').innerHTML = tableHtml;
 
-    // Alias structure
+    // Alias structure with resolution badge
     if (result.alias_structure) {
         const aliasBox = document.getElementById('alias-structure');
         aliasBox.style.display = 'block';
-        aliasBox.innerHTML = `
-            <h4>Alias Structure (Resolution ${['', 'I', 'II', 'III', 'IV', 'V'][result.alias_structure.resolution] || result.alias_structure.resolution})</h4>
+        const resNum = result.alias_structure.resolution;
+        const resRoman = ['', 'I', 'II', 'III', 'IV', 'V'][resNum] || resNum;
+        const badgeClass = resNum <= 3 ? 'res-iii' : resNum === 4 ? 'res-iv' : 'res-v';
+        let aliasHtml = `
+            <h4>Alias Structure <span class="alias-resolution-badge ${badgeClass}">Resolution ${resRoman}</span></h4>
             <p>${result.alias_structure.interpretation}</p>
         `;
+        // Show alias table if available
+        if (result.alias_structure.aliases && result.alias_structure.aliases.length > 0) {
+            aliasHtml += '<details style="margin-top:0.5rem;"><summary style="cursor:pointer;font-size:0.8rem;color:var(--text-secondary);">Show alias pairs</summary>';
+            aliasHtml += '<table class="data-table" style="margin-top:0.5rem;font-size:0.8rem;"><tbody>';
+            result.alias_structure.aliases.forEach(a => {
+                aliasHtml += `<tr><td>${a}</td></tr>`;
+            });
+            aliasHtml += '</tbody></table></details>';
+        }
+        aliasBox.innerHTML = aliasHtml;
     } else {
         document.getElementById('alias-structure').style.display = 'none';
     }

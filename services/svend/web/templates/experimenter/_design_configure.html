@@ -41,17 +41,58 @@
                                 <label>Center Points</label>
                                 <input type="number" id="center-points" value="0" min="0" max="10" oninput="updateRunEstimate()">
                             </div>
-                            <div class="form-group-inline">
-                                <label>Resolution (Fractional)</label>
-                                <select id="resolution" onchange="updateRunEstimate()">
-                                    <option value="3">III (Main effects only)</option>
-                                    <option value="4" selected>IV (Main + some 2FI)</option>
-                                    <option value="5">V (Main + 2FI)</option>
-                                </select>
+                            <div class="form-group-inline" id="resolution-group">
+                                <label>Resolution</label>
+                                <div class="resolution-picker" id="resolution-picker">
+                                    <button type="button" class="res-btn" data-value="3" onclick="setResolution(3)">
+                                        <span class="res-level">III</span>
+                                        <span class="res-desc">Screening</span>
+                                    </button>
+                                    <button type="button" class="res-btn active" data-value="4" onclick="setResolution(4)">
+                                        <span class="res-level">IV</span>
+                                        <span class="res-desc">Standard</span>
+                                    </button>
+                                    <button type="button" class="res-btn" data-value="5" onclick="setResolution(5)">
+                                        <span class="res-level">V</span>
+                                        <span class="res-desc">Full 2FI</span>
+                                    </button>
+                                </div>
+                                <input type="hidden" id="resolution" value="4">
                             </div>
                             <div class="form-group-inline">
                                 <label>Random Seed</label>
                                 <input type="number" id="seed" placeholder="Optional">
+                            </div>
+                        </div>
+                        <!-- D-Optimal / I-Optimal conditional fields -->
+                        <div id="optimal-design-options" class="options-grid" style="display:none; margin-top:0.75rem;">
+                            <div class="form-group-inline">
+                                <label>Number of Runs</label>
+                                <input type="number" id="optimal-num-runs" min="3" placeholder="Auto" oninput="updateRunEstimate()">
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Model</label>
+                                <select id="optimal-model" onchange="updateRunEstimate()">
+                                    <option value="linear">Linear</option>
+                                    <option value="interaction">+ Interactions</option>
+                                    <option value="quadratic">Quadratic</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Taguchi array selector -->
+                        <div id="taguchi-options" class="options-grid" style="display:none; margin-top:0.75rem;">
+                            <div class="form-group-inline">
+                                <label>Orthogonal Array</label>
+                                <select id="taguchi-array" onchange="updateRunEstimate()">
+                                    <option value="auto" selected>Auto (best fit)</option>
+                                    <option value="L4">L4 (4 runs, 2-level)</option>
+                                    <option value="L8">L8 (8 runs, 2-level)</option>
+                                    <option value="L9">L9 (9 runs, 3-level)</option>
+                                    <option value="L12">L12 (12 runs, 2-level)</option>
+                                    <option value="L16">L16 (16 runs, 2-level)</option>
+                                    <option value="L18">L18 (18 runs, mixed)</option>
+                                    <option value="L27">L27 (27 runs, 3-level)</option>
+                                </select>
                             </div>
                         </div>
                     </div>

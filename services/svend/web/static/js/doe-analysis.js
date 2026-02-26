@@ -434,24 +434,25 @@ function displayResiduals(result) {
         document.getElementById('dw-test').innerHTML = `Durbin-Watson: ${dw} - ${dwStatus}`;
     }
 
-    // Lack of Fit
+    // Lack of Fit — traffic-light card
     const lof = diagnostics.lack_of_fit;
     if (lof) {
-        const status = lof.significant ? 'Significant lack of fit' : 'No significant lack of fit';
+        const cardClass = lof.significant ? 'lof-fail' : 'lof-pass';
+        const statusText = lof.significant ? 'Significant Lack of Fit' : 'Model Adequate';
         document.getElementById('lof-result').innerHTML = `
-            <div style="font-size: 1.1rem; font-weight: bold; color: ${lof.significant ? 'var(--warning)' : 'var(--success)'};">
-                ${status}
-            </div>
-            <div style="margin-top: 0.5rem;">
-                F = ${lof.f_value}, p = ${lof.p_value}
-            </div>
-            <div style="margin-top: 0.25rem; font-size: 0.8rem; color: var(--text-dim);">
-                ${lof.interpretation}
+            <div class="lof-card ${cardClass}">
+                <div class="lof-status">${statusText}</div>
+                <div class="lof-detail">F = ${lof.f_value}, p = ${lof.p_value}</div>
+                <div class="lof-interpretation">${lof.interpretation}</div>
             </div>
         `;
     } else {
-        document.getElementById('lof-result').innerHTML =
-            '<div style="color: var(--text-dim);">Requires replicates to test</div>';
+        document.getElementById('lof-result').innerHTML = `
+            <div class="lof-card lof-na">
+                <div class="lof-status">No Replicates</div>
+                <div class="lof-interpretation">Add replicates or center points to enable lack-of-fit testing.</div>
+            </div>
+        `;
     }
 }
 

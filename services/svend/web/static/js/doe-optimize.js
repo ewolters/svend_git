@@ -99,28 +99,64 @@ async function generateContourPlot() {
     }
 }
 
+// Cache last contour data for 2D/3D toggle
+let lastContourData = null;
+let lastContourOptimal = null;
+
 function renderContourFromData(contour, optimalPoint) {
-    Plotly.react('contour-plot-container', [{
-        x: contour.x,
-        y: contour.y,
-        z: contour.z,
-        type: 'contour',
-        colorscale: 'Viridis',
-        contours: { coloring: 'heatmap', showlabels: true },
-    }], {
-        xaxis: { title: contour.x_label },
-        yaxis: { title: contour.y_label },
-        margin: { t: 10, r: 20, b: 40, l: 55 },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') },
-    }, { responsive: true });
+    lastContourData = contour;
+    lastContourOptimal = optimalPoint;
+
+    const is3D = document.getElementById('contour-3d')?.checked;
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
+
+    if (is3D) {
+        Plotly.react('contour-plot-container', [{
+            x: contour.x,
+            y: contour.y,
+            z: contour.z,
+            type: 'surface',
+            colorscale: 'Viridis',
+        }], {
+            scene: {
+                xaxis: { title: contour.x_label },
+                yaxis: { title: contour.y_label },
+                zaxis: { title: 'Response' },
+                bgcolor: 'rgba(0,0,0,0)',
+            },
+            margin: { t: 10, r: 20, b: 40, l: 55 },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: textColor },
+        }, { responsive: true });
+    } else {
+        Plotly.react('contour-plot-container', [{
+            x: contour.x,
+            y: contour.y,
+            z: contour.z,
+            type: 'contour',
+            colorscale: 'Viridis',
+            contours: { coloring: 'heatmap', showlabels: true },
+        }], {
+            xaxis: { title: contour.x_label },
+            yaxis: { title: contour.y_label },
+            margin: { t: 10, r: 20, b: 40, l: 55 },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: textColor },
+        }, { responsive: true });
+    }
 
     document.getElementById('contour-optimal').innerHTML = `
         <strong>Optimal Point:</strong> ${contour.x_label} = ${optimalPoint.x},
         ${contour.y_label} = ${optimalPoint.y}
         (Predicted: ${optimalPoint.z})
     `;
+}
+
+function toggle3DSurface() {
+    if (lastContourData && lastContourOptimal) {
+        renderContourFromData(lastContourData, lastContourOptimal);
+    }
 }
 
 function renderHoldSliders() {
@@ -252,6 +288,8 @@ function round4(v) { return Math.round(v * 10000) / 10000; }
 // Optimizer — model cache for live client-side re-optimization
 let optimizerModelCache = null;
 
+let responseGoalCounter = 0;
+
 function updateOptimizerPanel() {
     if (!currentDesign || !currentAnalysis) {
         document.getElementById('no-optimize-message').style.display = 'block';
@@ -262,42 +300,12 @@ function updateOptimizerPanel() {
     document.getElementById('no-optimize-message').style.display = 'none';
     document.getElementById('optimize-content').style.display = 'block';
 
+    // Reset and add primary response
+    responseGoalCounter = 0;
+    document.getElementById('response-goals-container').innerHTML = '';
     const responseName = document.getElementById('response-name').value || 'Response';
     const overall = currentAnalysis.analysis.overall;
-
-    document.getElementById('response-goals-container').innerHTML = `
-        <div class="form-group">
-            <h4>${responseName}</h4>
-            <div class="options-grid">
-                <div class="form-group-inline">
-                    <label>Goal</label>
-                    <select id="opt-goal" onchange="recomputeDesirability()">
-                        <option value="maximize">Maximize</option>
-                        <option value="minimize">Minimize</option>
-                        <option value="target">Target</option>
-                    </select>
-                </div>
-                <div class="form-group-inline">
-                    <label>Lower Bound</label>
-                    <input type="number" id="opt-lower" value="${overall.min}" oninput="recomputeDesirability()">
-                </div>
-                <div class="form-group-inline">
-                    <label>Target</label>
-                    <input type="number" id="opt-target" value="${overall.mean}" oninput="recomputeDesirability()">
-                </div>
-                <div class="form-group-inline">
-                    <label>Upper Bound</label>
-                    <input type="number" id="opt-upper" value="${overall.max}" oninput="recomputeDesirability()">
-                </div>
-                <div class="form-group-inline">
-                    <label>Weight</label>
-                    <input type="range" id="opt-weight" min="0.1" max="10" step="0.1" value="1"
-                           oninput="document.getElementById('opt-weight-val').textContent=this.value; recomputeDesirability()">
-                    <span id="opt-weight-val" style="min-width:30px; text-align:right;">1</span>
-                </div>
-            </div>
-        </div>
-    `;
+    _addResponseGoalCard(responseName, overall.min, overall.mean, overall.max, false);
 
     // Pre-cache the model from analysis coefficients for live optimization
     _buildOptimizerModel();
@@ -313,6 +321,53 @@ function updateOptimizerPanel() {
             interpretation: [`To maximize ${responseName}: ${Object.entries(opt.maximize.settings).map(([k,v]) => `${k}=${v}`).join(', ')}`],
         });
     }
+}
+
+function _addResponseGoalCard(name, lower, target, upper, removable) {
+    const idx = responseGoalCounter++;
+    const container = document.getElementById('response-goals-container');
+    const card = document.createElement('div');
+    card.className = 'response-goal-card';
+    card.dataset.goalIdx = idx;
+    card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h4 style="margin:0;">${removable ? `<input type="text" class="goal-name" value="${name}" placeholder="Response name" style="border:1px solid var(--border);border-radius:4px;padding:0.25rem 0.5rem;font-size:0.9rem;background:var(--bg-secondary);color:var(--text-primary);font-weight:600;width:160px;">` : name}</h4>
+            ${removable ? '<button class="factor-remove" onclick="this.closest(\'.response-goal-card\').remove();">&times;</button>' : ''}
+        </div>
+        <div class="options-grid" style="margin-top:0.5rem;">
+            <div class="form-group-inline">
+                <label>Goal</label>
+                <select class="goal-type">
+                    <option value="maximize">Maximize</option>
+                    <option value="minimize">Minimize</option>
+                    <option value="target">Target</option>
+                </select>
+            </div>
+            <div class="form-group-inline">
+                <label>Lower</label>
+                <input type="number" class="goal-lower" value="${lower}">
+            </div>
+            <div class="form-group-inline">
+                <label>Target</label>
+                <input type="number" class="goal-target" value="${target}">
+            </div>
+            <div class="form-group-inline">
+                <label>Upper</label>
+                <input type="number" class="goal-upper" value="${upper}">
+            </div>
+            <div class="form-group-inline">
+                <label>Weight</label>
+                <input type="range" class="goal-weight" min="0.1" max="10" step="0.1" value="1"
+                       oninput="this.nextElementSibling.textContent=this.value">
+                <span style="min-width:30px;text-align:right;font-size:0.85rem;">1</span>
+            </div>
+        </div>
+    `;
+    container.appendChild(card);
+}
+
+function addResponseGoal() {
+    _addResponseGoalCard('Response ' + (responseGoalCounter + 1), 0, 50, 100, true);
 }
 
 function _buildOptimizerModel() {
@@ -333,17 +388,36 @@ function _buildOptimizerModel() {
     optimizerModelCache = { terms, coefficients: values, factors };
 }
 
+function _collectResponseGoals() {
+    const goals = [];
+    document.querySelectorAll('.response-goal-card').forEach(card => {
+        const nameEl = card.querySelector('.goal-name');
+        const name = nameEl ? nameEl.value.trim() : card.querySelector('h4').textContent.trim();
+        goals.push({
+            name: name || 'Response',
+            goal: card.querySelector('.goal-type').value,
+            lower: parseFloat(card.querySelector('.goal-lower').value),
+            target: parseFloat(card.querySelector('.goal-target').value),
+            upper: parseFloat(card.querySelector('.goal-upper').value),
+            weight: parseFloat(card.querySelector('.goal-weight').value) || 1,
+        });
+    });
+    return goals;
+}
+
 async function runOptimization() {
     if (!currentDesign || !currentAnalysis) return;
 
-    // If we have a cached model, optimize client-side (instant)
-    if (optimizerModelCache) {
+    const goals = _collectResponseGoals();
+    if (goals.length === 0) return;
+
+    // Single-response with cached model: optimize client-side (instant)
+    if (goals.length === 1 && optimizerModelCache) {
         recomputeDesirability();
         return;
     }
 
-    // Fallback: server-side optimization
-    const responseName = document.getElementById('response-name').value || 'Response';
+    // Multi-response or no cache: server-side optimization
     const results = [];
     document.querySelectorAll('.response-input').forEach(input => {
         const value = parseFloat(input.value);
@@ -352,17 +426,20 @@ async function runOptimization() {
         }
     });
 
+    const responses = goals.map(g => ({
+        name: g.name,
+        results: results,
+        goal: g.goal,
+        lower: g.lower,
+        target: g.target,
+        upper: g.upper,
+        weight: g.weight,
+    }));
+
     const data = {
         design: currentDesign,
-        responses: [{
-            name: responseName, results,
-            goal: document.getElementById('opt-goal').value,
-            lower: parseFloat(document.getElementById('opt-lower').value),
-            target: parseFloat(document.getElementById('opt-target').value),
-            upper: parseFloat(document.getElementById('opt-upper').value),
-            weight: 1,
-        }],
-        importance: [1],
+        responses: responses,
+        importance: goals.map(g => g.weight),
     };
 
     try {
@@ -386,14 +463,15 @@ async function runOptimization() {
 function recomputeDesirability() {
     if (!optimizerModelCache) return;
 
+    const goals = _collectResponseGoals();
+    if (goals.length === 0) return;
+
+    // Use first response for client-side single-response optimization
+    const { goal, lower, target, upper, weight } = goals[0];
+    const responseName = goals[0].name;
+
     const m = optimizerModelCache;
     const k = m.factors.length;
-    const goal = document.getElementById('opt-goal').value;
-    const lower = parseFloat(document.getElementById('opt-lower').value);
-    const target = parseFloat(document.getElementById('opt-target').value);
-    const upper = parseFloat(document.getElementById('opt-upper').value);
-    const weight = parseFloat(document.getElementById('opt-weight')?.value || '1');
-    const responseName = document.getElementById('response-name').value || 'Response';
 
     // Adaptive grid resolution
     const gridPts = k <= 4 ? 11 : (k <= 5 ? 7 : 5);
@@ -564,8 +642,28 @@ function displayOptimizationResults(result) {
     }
     settingsHtml += '</tbody></table>';
 
+    // Predicted responses
     for (const [name, pred] of Object.entries(opt.predicted_responses)) {
         settingsHtml += `<p style="margin-top: 0.5rem;"><strong>Predicted ${name}:</strong> ${pred}</p>`;
+    }
+
+    // Individual desirability bars (when available)
+    if (opt.individual_desirabilities) {
+        settingsHtml += '<div style="margin-top:1rem;">';
+        for (const [name, d] of Object.entries(opt.individual_desirabilities)) {
+            const pct = Math.round(d * 100);
+            const barColor = d >= 0.8 ? 'var(--success)' : d >= 0.5 ? 'var(--accent-primary)' : 'var(--warning)';
+            settingsHtml += `
+                <div style="margin-bottom:0.5rem;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:2px;">
+                        <span>${name}</span><span style="font-weight:600;">${d.toFixed(3)}</span>
+                    </div>
+                    <div style="height:6px;background:var(--bg-tertiary);border-radius:3px;overflow:hidden;">
+                        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.3s;"></div>
+                    </div>
+                </div>`;
+        }
+        settingsHtml += '</div>';
     }
 
     document.getElementById('optimal-settings-table').innerHTML = settingsHtml;

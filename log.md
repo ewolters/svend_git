@@ -15,6 +15,20 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-26 — DOE Workbench: Phase 4 — Surface hidden backend features
+
+**Files changed:**
+- `services/svend/web/templates/experimenter/_design_configure.html` — Resolution picker as visual button group (III/IV/V), D/I-optimal conditional fields (num_runs, model), Taguchi array selector dropdown
+- `services/svend/web/templates/experimenter/_optimize_contour.html` — Added 3D Surface toggle checkbox
+- `services/svend/web/templates/experimenter/_optimize_response.html` — Added "+ Add Response" button for multi-response optimization
+- `services/svend/web/static/js/doe-design.js` — `selectDesignType()` shows/hides conditional options, `setResolution()` for button group, `generateDesign()` passes num_runs/model for d/i_optimal and taguchi_array, enhanced alias display with resolution badge and expandable alias table, run estimate for d/i_optimal
+- `services/svend/web/static/js/doe-optimize.js` — 3D surface toggle (`toggle3DSurface()`), multi-response goal cards (`addResponseGoal()`, `_collectResponseGoals()`), individual desirability progress bars, server-side multi-response optimization
+- `services/svend/web/static/js/doe-analysis.js` — Lack-of-fit traffic-light card (pass/fail/no-replicates states)
+- `services/svend/web/static/css/experimenter.css` — Resolution picker CSS, alias resolution badges (color-coded III/IV/V), lack-of-fit traffic-light card, response goal cards
+**Verification:** Select D-Optimal → see num_runs/model fields; select Taguchi → see array dropdown; contour → toggle 3D surface; optimizer → add multiple responses; residuals → lack-of-fit card with traffic light.
+
+---
+
 ### 2026-02-26 — DOE Workbench: Phase 3 — Visual polish & result cards
 
 **Files changed:**
