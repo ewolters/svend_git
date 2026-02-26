@@ -390,9 +390,285 @@ async function loadDashboard() {
 }
 
 // =========================================================================
-// NCR Tracker tab (placeholder — will be added in next commit)
+// NCR Tracker tab
 // =========================================================================
-function loadNCRs() { document.getElementById('panel-ncrs').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+let ncrList = [];
+let ncrSort = '-created_at';
+let ncrFilterStatus = '';
+let ncrFilterSeverity = '';
+
+async function loadNCRs() {
+    const el = document.getElementById('panel-ncrs');
+    let params = `?sort=${ncrSort}`;
+    if (ncrFilterStatus) params += `&status=${ncrFilterStatus}`;
+    if (ncrFilterSeverity) params += `&severity=${ncrFilterSeverity}`;
+    try {
+        ncrList = await apiFetch(`/ncrs/${params}`);
+        renderNCRList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderNCRList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:140px" onchange="ncrFilterStatus=this.value;loadNCRs()">
+        <option value="">All Statuses</option>
+        <option value="open" ${ncrFilterStatus==='open'?'selected':''}>Open</option>
+        <option value="investigation" ${ncrFilterStatus==='investigation'?'selected':''}>Investigation</option>
+        <option value="capa" ${ncrFilterStatus==='capa'?'selected':''}>CAPA</option>
+        <option value="verification" ${ncrFilterStatus==='verification'?'selected':''}>Verification</option>
+        <option value="closed" ${ncrFilterStatus==='closed'?'selected':''}>Closed</option>
+    </select>`;
+    html += `<select class="iso-input" style="width:120px" onchange="ncrFilterSeverity=this.value;loadNCRs()">
+        <option value="">All Severity</option>
+        <option value="minor" ${ncrFilterSeverity==='minor'?'selected':''}>Minor</option>
+        <option value="major" ${ncrFilterSeverity==='major'?'selected':''}>Major</option>
+        <option value="critical" ${ncrFilterSeverity==='critical'?'selected':''}>Critical</option>
+    </select>`;
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showNCRForm()">+ New NCR</button>';
+    html += '</div>';
+
+    html += '<div id="ncr-form-area"></div>';
+
+    if (!ncrList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No NCRs found. Create one to get started.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    const sortIcon = (field) => {
+        const asc = ncrSort === field, desc = ncrSort === `-${field}`;
+        return `<span class="sort-arrow">${desc ? '&#9660;' : asc ? '&#9650;' : '&#9650;'}</span>`;
+    };
+    const sortClick = (field) => `onclick="ncrSort=(ncrSort==='-${field}'?'${field}':'-${field}');loadNCRs()"`;
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += `<th ${sortClick('title')} ${ncrSort.includes('title')?'class="sorted"':''}>Title ${sortIcon('title')}</th>`;
+    html += `<th ${sortClick('severity')} ${ncrSort.includes('severity')?'class="sorted"':''}>Severity ${sortIcon('severity')}</th>`;
+    html += `<th ${sortClick('status')} ${ncrSort.includes('status')?'class="sorted"':''}>Status ${sortIcon('status')}</th>`;
+    html += '<th>Source</th>';
+    html += '<th>Clause</th>';
+    html += `<th ${sortClick('capa_due_date')} ${ncrSort.includes('capa_due_date')?'class="sorted"':''}>CAPA Due ${sortIcon('capa_due_date')}</th>`;
+    html += `<th ${sortClick('created_at')} ${ncrSort.includes('created_at')?'class="sorted"':''}>Created ${sortIcon('created_at')}</th>`;
+    html += '</tr></thead><tbody>';
+    const today = new Date().toISOString().split('T')[0];
+    ncrList.forEach(n => {
+        const overdue = n.capa_due_date && n.capa_due_date < today && n.status !== 'closed';
+        html += `<tr class="${overdue ? 'overdue' : ''}" onclick="loadNCRDetail('${n.id}')">`;
+        html += `<td>${escHtml(n.title)}</td>`;
+        html += `<td>${badge(n.severity)}</td>`;
+        html += `<td>${badge(n.status)}</td>`;
+        html += `<td style="font-size:12px;color:var(--text-secondary)">${escHtml(n.source.replace(/_/g,' '))}</td>`;
+        html += `<td style="font-size:12px">${escHtml(n.iso_clause || '—')}</td>`;
+        html += `<td style="${overdue ? 'color:#f87171;font-weight:600' : ''}">${fmtDate(n.capa_due_date)}</td>`;
+        html += `<td style="font-size:12px;color:var(--text-dim)">${fmtDate(n.created_at)}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+function showNCRForm() {
+    const area = document.getElementById('ncr-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="ncr-title"></div>
+            <div><label class="iso-label">Severity</label><select class="iso-input" id="ncr-severity">
+                <option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option></select></div>
+            <div><label class="iso-label">Source</label><select class="iso-input" id="ncr-source">
+                <option value="other">Other</option><option value="internal_audit">Internal Audit</option>
+                <option value="customer_complaint">Customer Complaint</option><option value="supplier">Supplier</option>
+                <option value="process">Process</option><option value="external_audit">External Audit</option>
+                <option value="management_review">Management Review</option></select></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="ncr-clause" placeholder="e.g. 8.7, 10.2"></div>
+            <div><label class="iso-label">CAPA Due Date</label><input class="iso-input" type="date" id="ncr-due"></div>
+        </div>
+        <div style="margin-bottom:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="ncr-desc" rows="2"></textarea></div>
+        <div style="margin-bottom:12px"><label class="iso-label">Containment Action</label><textarea class="iso-textarea" id="ncr-contain" rows="2"></textarea></div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveNCR()">Create NCR</button>
+            <button class="iso-btn" onclick="document.getElementById('ncr-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveNCR() {
+    const title = document.getElementById('ncr-title').value.trim();
+    if (!title) return toast('Title is required', true);
+    try {
+        await apiFetch('/ncrs/', { method: 'POST', body: {
+            title, description: document.getElementById('ncr-desc').value,
+            severity: document.getElementById('ncr-severity').value,
+            source: document.getElementById('ncr-source').value,
+            iso_clause: document.getElementById('ncr-clause').value,
+            containment_action: document.getElementById('ncr-contain').value,
+            capa_due_date: document.getElementById('ncr-due').value || null,
+        }});
+        toast('NCR created');
+        document.getElementById('ncr-form-area').innerHTML = '';
+        loadNCRs();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadNCRDetail(id) {
+    const el = document.getElementById('panel-ncrs');
+    try {
+        const n = await apiFetch(`/ncrs/${id}/`);
+        const statuses = ['open', 'investigation', 'capa', 'verification', 'closed'];
+        const statusIdx = statuses.indexOf(n.status);
+
+        let html = '<button class="iso-btn ghost" onclick="loadNCRs()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <h2>${escHtml(n.title)}</h2>
+            <div style="display:flex;gap:8px">
+                <button class="iso-btn small" onclick="launchRCA('${n.id}')">Launch 5-Why</button>
+                <button class="iso-btn small danger" onclick="deleteNCR('${n.id}')">Delete</button>
+            </div></div>`;
+
+        // Status progression bar
+        html += '<div class="status-bar">';
+        statuses.forEach((s, i) => {
+            let cls = '';
+            if (i < statusIdx) cls = 'done';
+            else if (i === statusIdx) cls = 'current';
+            html += `<div class="status-step ${cls}">${s.replace(/_/g, ' ')}</div>`;
+        });
+        html += '</div>';
+
+        // Info fields
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Severity</label>${badge(n.severity)}</div>`;
+        html += `<div><label class="iso-label">Source</label><span style="font-size:13px">${escHtml(n.source.replace(/_/g,' '))}</span></div>`;
+        html += `<div><label class="iso-label">ISO Clause</label><span style="font-size:13px">${escHtml(n.iso_clause || '—')}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Raised By</label><span style="font-size:13px">${n.raised_by ? escHtml(n.raised_by.name) : '—'}</span></div>`;
+        html += `<div><label class="iso-label">Assigned To</label><span style="font-size:13px">${n.assigned_to ? escHtml(n.assigned_to.name) : '—'}</span></div>`;
+        html += `<div><label class="iso-label">Approved By</label><span style="font-size:13px">${n.approved_by ? escHtml(n.approved_by.name) : '—'}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">CAPA Due</label><span style="font-size:13px">${fmtDate(n.capa_due_date)}</span></div>`;
+        html += `<div><label class="iso-label">Created</label><span style="font-size:13px">${fmtDate(n.created_at)}</span></div>`;
+        html += `<div><label class="iso-label">Closed</label><span style="font-size:13px">${fmtDate(n.closed_at)}</span></div>`;
+        html += '</div>';
+
+        // Text fields
+        const fields = [
+            ['Description', n.description], ['Containment Action', n.containment_action],
+            ['Root Cause', n.root_cause], ['Corrective Action', n.corrective_action],
+            ['Verification Result', n.verification_result],
+        ];
+        fields.forEach(([label, val]) => {
+            if (val) html += `<div style="margin:12px 0"><label class="iso-label">${label}</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(val)}</div></div>`;
+        });
+
+        // RCA / CAPA links
+        if (n.rca_session_id) {
+            html += `<div style="margin:12px 0"><a href="/app/rca/" class="iso-btn small" style="text-decoration:none">View RCA Session &rarr;</a></div>`;
+        }
+        if (n.capa_report_id) {
+            html += `<div style="margin:12px 0"><a href="/app/report/${n.capa_report_id}/" class="iso-btn small" style="text-decoration:none">View CAPA Report &rarr;</a></div>`;
+        }
+
+        // File attachments
+        if (n.file_ids?.length) {
+            html += `<div style="margin:12px 0"><label class="iso-label">Attachments</label><div>${n.file_ids.length} file(s) attached</div></div>`;
+        }
+
+        // Status transition
+        if (n.status !== 'closed') {
+            html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+            html += '<h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Advance Status</h4>';
+            html += '<div style="display:flex;gap:8px;align-items:end">';
+            const next = { open: 'investigation', investigation: 'capa', capa: 'verification', verification: 'closed' };
+            const nextStatus = next[n.status];
+            if (nextStatus) {
+                html += `<div><label class="iso-label">Next Status</label><input class="iso-input" value="${nextStatus}" disabled style="width:140px"></div>`;
+                html += `<div><label class="iso-label">Note</label><input class="iso-input" id="ncr-transition-note" placeholder="Optional note" style="width:200px"></div>`;
+                html += `<button class="iso-btn primary" onclick="advanceNCR('${n.id}','${nextStatus}')">Advance to ${nextStatus.replace(/_/g,' ')}</button>`;
+            }
+            html += '</div></div>';
+        }
+
+        // Status history timeline
+        if (n.status_changes?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+            html += '<div class="status-timeline">';
+            n.status_changes.forEach(sc => {
+                html += `<div class="timeline-entry">
+                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
+                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
+                    <div class="time">${fmtDate(sc.created_at)}</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+
+        // Edit form
+        html += '<div class="iso-form" style="margin-top:16px"><h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Edit NCR</h4>';
+        html += '<div class="iso-form-grid">';
+        html += `<div><label class="iso-label">Root Cause</label><textarea class="iso-textarea" id="ncr-edit-rc" rows="2">${escHtml(n.root_cause)}</textarea></div>`;
+        html += `<div><label class="iso-label">Corrective Action</label><textarea class="iso-textarea" id="ncr-edit-ca" rows="2">${escHtml(n.corrective_action)}</textarea></div>`;
+        html += '</div>';
+        html += '<div class="iso-form-grid">';
+        html += `<div><label class="iso-label">Verification Result</label><textarea class="iso-textarea" id="ncr-edit-vr" rows="2">${escHtml(n.verification_result)}</textarea></div>`;
+        html += `<div><label class="iso-label">CAPA Due Date</label><input class="iso-input" type="date" id="ncr-edit-due" value="${n.capa_due_date || ''}"></div>`;
+        html += '</div>';
+        html += `<button class="iso-btn primary" onclick="updateNCRFields('${n.id}')">Save Changes</button>`;
+        html += '</div>';
+
+        el.innerHTML = html;
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+async function advanceNCR(id, newStatus) {
+    try {
+        const note = document.getElementById('ncr-transition-note')?.value || '';
+        await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body: { status: newStatus, status_note: note } });
+        toast(`NCR advanced to ${newStatus}`);
+        loadNCRDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateNCRFields(id) {
+    try {
+        await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body: {
+            root_cause: document.getElementById('ncr-edit-rc').value,
+            corrective_action: document.getElementById('ncr-edit-ca').value,
+            verification_result: document.getElementById('ncr-edit-vr').value,
+            capa_due_date: document.getElementById('ncr-edit-due').value || null,
+        }});
+        toast('NCR updated');
+        loadNCRDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteNCR(id) {
+    if (!confirm('Delete this NCR?')) return;
+    try {
+        await apiFetch(`/ncrs/${id}/`, { method: 'DELETE' });
+        toast('NCR deleted');
+        loadNCRs();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function launchRCA(id) {
+    try {
+        const r = await apiFetch(`/ncrs/${id}/launch-rca/`, { method: 'POST' });
+        toast('RCA session created');
+        window.location.href = '/app/rca/';
+    } catch (e) { toast(e.message, true); }
+}
 
 // =========================================================================
 // Internal Audits tab (placeholder)
