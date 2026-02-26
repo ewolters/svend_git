@@ -19,6 +19,10 @@ urlpatterns = [
     path("audits/<uuid:audit_id>/", iso_views.audit_detail, name="iso_audit_detail"),
     path("audits/<uuid:audit_id>/findings/", iso_views.audit_finding_create, name="iso_audit_finding"),
 
+    # Audit Checklists
+    path("checklists/", iso_views.audit_checklist_list_create, name="iso_checklist_list"),
+    path("checklists/<uuid:checklist_id>/", iso_views.audit_checklist_detail, name="iso_checklist_detail"),
+
     # Training Matrix (clause 7.2)
     path("training/", iso_views.training_list_create, name="iso_training_list"),
     path("training/<uuid:req_id>/", iso_views.training_detail, name="iso_training_detail"),

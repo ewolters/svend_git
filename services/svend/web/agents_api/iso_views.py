@@ -516,6 +516,54 @@ def audit_finding_create(request, audit_id):
 
 
 # =========================================================================
+# Audit Checklists
+# =========================================================================
+
+@require_team
+@require_http_methods(["GET", "POST"])
+def audit_checklist_list_create(request):
+    """List or create audit checklists."""
+    user = request.user
+
+    if request.method == "GET":
+        checklists = AuditChecklist.objects.filter(owner=user)
+        return JsonResponse([c.to_dict() for c in checklists], safe=False)
+
+    data = json.loads(request.body)
+    checklist = AuditChecklist.objects.create(
+        owner=user,
+        name=data.get("name", ""),
+        iso_clause=data.get("iso_clause", ""),
+        check_items=data.get("check_items", []),
+    )
+    return JsonResponse(checklist.to_dict(), status=201)
+
+
+@require_team
+@require_http_methods(["GET", "PUT", "DELETE"])
+def audit_checklist_detail(request, checklist_id):
+    """Get, update, or delete an audit checklist."""
+    try:
+        checklist = AuditChecklist.objects.get(id=checklist_id, owner=request.user)
+    except AuditChecklist.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(checklist.to_dict())
+
+    if request.method == "DELETE":
+        checklist.delete()
+        return JsonResponse({"ok": True})
+
+    data = json.loads(request.body)
+    for field in ["name", "iso_clause", "check_items"]:
+        if field in data:
+            setattr(checklist, field, data[field])
+    checklist.save()
+    return JsonResponse(checklist.to_dict())
+
+
+# =========================================================================
 # Training Matrix
 # =========================================================================
 
@@ -637,27 +685,56 @@ def review_list_create(request):
         reviews = ManagementReview.objects.filter(owner=user)
         return JsonResponse([r.to_dict() for r in reviews[:50]], safe=False)
 
-    # Auto-populate snapshot
+    # Auto-populate rich snapshot per ISO 9001:2015 clause 9.3.2
     ncrs = NonconformanceRecord.objects.filter(owner=user)
     audits = InternalAudit.objects.filter(owner=user)
     records = TrainingRecord.objects.filter(requirement__owner=user)
     total_records = records.count()
     complete_records = records.filter(status="complete").count()
 
+    # Prior actions from most recent completed review
+    prior_actions = {}
+    last_review = ManagementReview.objects.filter(
+        owner=user, status="complete",
+    ).order_by("-meeting_date").first()
+    if last_review:
+        prior_actions = last_review.outputs or {}
+
+    # NCR summary
+    open_ncrs = ncrs.exclude(status="closed")
+    ncr_summary = {
+        "total": ncrs.count(),
+        "open": open_ncrs.count(),
+        "closed": ncrs.filter(status="closed").count(),
+        "by_severity": {
+            "minor": open_ncrs.filter(severity="minor").count(),
+            "major": open_ncrs.filter(severity="major").count(),
+            "critical": open_ncrs.filter(severity="critical").count(),
+        },
+    }
+
+    # Audit summary
+    completed_audits = audits.filter(status__in=["complete", "report_issued"])
+    open_findings = AuditFinding.objects.filter(
+        audit__owner=user, status="open",
+    ).count()
+    audit_summary = {
+        "completed": completed_audits.count(),
+        "open_findings": open_findings,
+    }
+
+    # Training summary
+    gap_count = records.exclude(status="complete").count()
+    training_summary = {
+        "compliance_rate": round(complete_records / total_records * 100) if total_records else 100,
+        "gap_count": gap_count,
+    }
+
     snapshot = {
-        "ncrs": {
-            "total": ncrs.count(),
-            "open": ncrs.exclude(status="closed").count(),
-        },
-        "audits": {
-            "total": audits.count(),
-            "complete": audits.filter(status="complete").count(),
-        },
-        "training": {
-            "total_records": total_records,
-            "complete": complete_records,
-            "rate": round(complete_records / total_records * 100) if total_records else 100,
-        },
+        "prior_actions": prior_actions,
+        "ncr_summary": ncr_summary,
+        "audit_summary": audit_summary,
+        "training_summary": training_summary,
         "captured_at": timezone.now().isoformat(),
     }
 
