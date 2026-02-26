@@ -1,0 +1,423 @@
+{% extends "base_app.html" %}
+{% block title %}ISO 9001 QMS — SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+.iso-app { padding: 24px; max-width: 1440px; margin: 0 auto; }
+.iso-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.iso-header h1 { margin: 0; font-size: 22px; font-weight: 500; color: var(--text-primary); }
+
+/* Tabs */
+.iso-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; overflow-x: auto; }
+.iso-tab { padding: 10px 20px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+    font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; white-space: nowrap; }
+.iso-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.iso-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.iso-panel { display: none; }
+.iso-panel.active { display: block; }
+
+/* KPI cards */
+.iso-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+.iso-kpi { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+.iso-kpi:hover { border-color: var(--accent); }
+.iso-kpi .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.iso-kpi .value { font-size: 28px; font-weight: 600; color: var(--text-primary); margin: 4px 0; font-family: 'JetBrains Mono', monospace; }
+.iso-kpi .sub { font-size: 12px; color: var(--text-dim); }
+.iso-kpi.alert .value { color: #f87171; }
+.iso-kpi.warn .value { color: #facc15; }
+.iso-kpi.good .value { color: #4ade80; }
+
+/* Clause coverage map */
+.clause-map { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 24px; }
+.clause-box { background: var(--card-bg); border: 2px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; transition: all 0.2s; }
+.clause-box.active { border-color: #4ade80; background: rgba(34,197,94,0.06); }
+.clause-box.framed { border-color: #facc15; background: rgba(250,204,21,0.04); }
+.clause-box.planned { border-color: var(--border); }
+.clause-num { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text-primary); }
+.clause-name { font-size: 11px; color: var(--text-secondary); margin-top: 4px; line-height: 1.3; }
+.clause-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-top: 8px; }
+.clause-dot.active { background: #4ade80; }
+.clause-dot.framed { background: #facc15; }
+.clause-dot.planned { background: var(--text-dim); }
+
+/* Tables */
+.iso-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.iso-table th { text-align: left; padding: 10px 12px; color: var(--text-secondary); font-weight: 500; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+.iso-table th:hover { color: var(--text-primary); }
+.iso-table th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+.iso-table th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+.iso-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-primary); }
+.iso-table tr:hover td { background: var(--bg-hover); cursor: pointer; }
+.iso-table tr.overdue td { background: rgba(239,68,68,0.04); }
+
+/* Buttons */
+.iso-btn { padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-primary); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.iso-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
+.iso-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.iso-btn.primary:hover { opacity: 0.9; }
+.iso-btn.danger { color: #e74c3c; border-color: #e74c3c; }
+.iso-btn.danger:hover { background: #e74c3c; color: white; }
+.iso-btn.small { padding: 4px 10px; font-size: 12px; }
+.iso-btn.ghost { background: transparent; border: none; color: var(--text-secondary); }
+.iso-btn.ghost:hover { color: var(--accent); background: transparent; }
+
+/* Forms */
+.iso-form { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+.iso-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.iso-form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.iso-input { width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 13px; box-sizing: border-box; }
+.iso-input:focus { border-color: var(--accent); outline: none; }
+select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.iso-textarea { width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 13px; resize: vertical; box-sizing: border-box; min-height: 60px; font-family: inherit; }
+.iso-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
+
+/* Badges */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-open { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-investigation { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-capa { background: rgba(250,204,21,0.15); color: #facc15; }
+.badge-verification { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-closed { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-minor { background: rgba(250,204,21,0.15); color: #facc15; }
+.badge-major { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-critical { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-planned { background: rgba(147,51,234,0.15); color: #a78bfa; }
+.badge-in_progress { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-complete { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-report_issued { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-cancelled { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-not_started { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-expired { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-draft { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-review { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-approved { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-obsolete { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-observation { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-nc_minor { background: rgba(250,204,21,0.15); color: #facc15; }
+.badge-nc_major { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-opportunity { background: rgba(147,51,234,0.15); color: #a78bfa; }
+.badge-corrective_action_required { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-pending { background: rgba(250,204,21,0.15); color: #facc15; }
+.badge-conditional { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-disqualified { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-scheduled { background: rgba(147,51,234,0.15); color: #a78bfa; }
+
+/* Toolbar */
+.iso-toolbar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+.iso-toolbar .spacer { flex: 1; }
+
+/* Detail view */
+.iso-detail { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+.iso-detail h2 { margin: 0 0 16px; font-size: 18px; font-weight: 500; }
+.iso-field-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+/* Status progression bar */
+.status-bar { display: flex; gap: 2px; margin: 16px 0; }
+.status-step { flex: 1; padding: 8px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; background: var(--bg-secondary); border-radius: 4px; color: var(--text-dim); transition: all 0.2s; }
+.status-step.current { background: var(--accent); color: white; }
+.status-step.done { background: rgba(34,197,94,0.2); color: #4ade80; }
+
+/* Status history timeline */
+.status-timeline { margin: 16px 0; padding-left: 20px; border-left: 2px solid var(--border); }
+.timeline-entry { padding: 8px 0 8px 16px; position: relative; }
+.timeline-entry::before { content: ''; position: absolute; left: -25px; top: 12px; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--card-bg); }
+.timeline-entry .time { font-size: 11px; color: var(--text-dim); }
+.timeline-entry .desc { font-size: 13px; color: var(--text-primary); }
+
+/* Coming soon stub */
+.coming-soon { padding: 60px 40px; text-align: center; color: var(--text-dim); }
+.coming-soon h3 { margin: 0 0 8px; font-size: 20px; color: var(--text-secondary); }
+.coming-soon p { margin: 4px 0; font-size: 14px; max-width: 500px; margin-left: auto; margin-right: auto; }
+.coming-soon .features { margin-top: 24px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.coming-soon .feature-chip { padding: 6px 14px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 20px; font-size: 12px; color: var(--text-secondary); }
+
+/* Training grid */
+.training-grid { overflow-x: auto; }
+.training-grid table { border-collapse: collapse; font-size: 12px; }
+.training-grid th, .training-grid td { padding: 8px 12px; border: 1px solid var(--border); text-align: center; min-width: 100px; }
+.training-grid th { background: var(--bg-secondary); font-weight: 500; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; }
+.training-grid th:first-child { text-align: left; min-width: 200px; position: sticky; left: 0; background: var(--bg-secondary); z-index: 1; }
+.training-grid td:first-child { text-align: left; font-weight: 500; position: sticky; left: 0; background: var(--card-bg); z-index: 1; }
+.training-cell { width: 24px; height: 24px; border-radius: 4px; display: inline-block; cursor: help; }
+.training-cell.complete { background: #4ade80; }
+.training-cell.in_progress { background: #facc15; }
+.training-cell.not_started { background: #6b7280; }
+.training-cell.expired { background: #f87171; }
+
+/* Review structured form */
+.review-section { margin-bottom: 20px; }
+.review-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.review-section .clause-ref { font-size: 11px; color: var(--text-dim); font-weight: normal; margin-left: 8px; }
+
+/* Audit calendar */
+.audit-calendar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.cal-month { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.cal-month-name { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-align: center; }
+.cal-dots { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.cal-dot { width: 10px; height: 10px; border-radius: 50%; cursor: pointer; }
+.cal-dot.planned { background: #a78bfa; }
+.cal-dot.in_progress { background: #60a5fa; }
+.cal-dot.complete { background: #4ade80; }
+.cal-dot.report_issued { background: #4ade80; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .iso-kpis { grid-template-columns: repeat(3, 1fr); }
+    .clause-map { grid-template-columns: repeat(4, 1fr); }
+    .audit-calendar { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+    .iso-kpis { grid-template-columns: repeat(2, 1fr); }
+    .clause-map { grid-template-columns: repeat(3, 1fr); }
+    .iso-form-grid, .iso-form-grid.cols-3 { grid-template-columns: 1fr; }
+    .iso-field-row { grid-template-columns: 1fr; }
+    .audit-calendar { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="iso-app">
+    <div class="iso-header">
+        <h1>ISO 9001 Quality Management System</h1>
+    </div>
+
+    <div class="iso-tabs" id="main-tabs">
+        <a class="iso-tab" href="#/dashboard">Dashboard</a>
+        <a class="iso-tab" href="#/ncrs">NCR Tracker</a>
+        <a class="iso-tab" href="#/audits">Internal Audits</a>
+        <a class="iso-tab" href="#/training">Training Matrix</a>
+        <a class="iso-tab" href="#/reviews">Management Reviews</a>
+        <a class="iso-tab" href="#/documents">Document Control</a>
+        <a class="iso-tab" href="#/suppliers">Suppliers</a>
+    </div>
+
+    <div id="panel-dashboard" class="iso-panel"></div>
+    <div id="panel-ncrs" class="iso-panel"></div>
+    <div id="panel-audits" class="iso-panel"></div>
+    <div id="panel-training" class="iso-panel"></div>
+    <div id="panel-reviews" class="iso-panel"></div>
+    <div id="panel-documents" class="iso-panel"></div>
+    <div id="panel-suppliers" class="iso-panel"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// =========================================================================
+// Core utilities
+// =========================================================================
+const API = '/api/iso';
+
+async function apiFetch(path, opts = {}) {
+    const url = path.startsWith('http') ? path : `${API}${path}`;
+    const o = { headers: { 'Content-Type': 'application/json' }, ...opts };
+    if (opts.body && typeof opts.body === 'object') o.body = JSON.stringify(opts.body);
+    const r = await fetch(url, o);
+    if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: r.statusText }));
+        throw new Error(err.error || r.statusText);
+    }
+    return r.json();
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtDate(d) { if (!d || d === 'None') return '—'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function badge(val, label) { return `<span class="badge badge-${val}">${escHtml(label || val)}</span>`; }
+function toast(msg, isErr) {
+    const t = document.createElement('div');
+    t.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;font-size:13px;z-index:9999;color:white;background:${isErr ? '#e74c3c' : '#22c55e'};`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+// =========================================================================
+// Navigation
+// =========================================================================
+const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers'];
+let currentTab = 'dashboard';
+
+function navigate(tab) {
+    tab = tab || 'dashboard';
+    if (!TABS.includes(tab)) tab = 'dashboard';
+    currentTab = tab;
+    document.querySelectorAll('.iso-tab').forEach(t => t.classList.toggle('active', t.getAttribute('href') === `#/${tab}`));
+    document.querySelectorAll('.iso-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`));
+    const loader = {
+        dashboard: loadDashboard,
+        ncrs: loadNCRs,
+        audits: loadAudits,
+        training: loadTraining,
+        reviews: loadReviews,
+        documents: loadDocuments,
+        suppliers: loadSuppliers,
+    };
+    if (loader[tab]) loader[tab]();
+}
+
+window.addEventListener('hashchange', () => navigate(location.hash.replace('#/', '')));
+document.addEventListener('DOMContentLoaded', () => navigate(location.hash.replace('#/', '') || 'dashboard'));
+
+// =========================================================================
+// Dashboard tab
+// =========================================================================
+async function loadDashboard() {
+    const el = document.getElementById('panel-dashboard');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading dashboard...</div>';
+    try {
+        const d = await apiFetch('/dashboard/');
+        let html = '';
+
+        // Clause coverage map
+        html += '<h3 style="margin:0 0 12px;font-size:14px;color:var(--text-secondary)">ISO 9001:2015 Clause Coverage</h3>';
+        html += '<div class="clause-map">';
+        (d.clause_coverage || []).forEach(c => {
+            html += `<div class="clause-box ${c.status}">
+                <div class="clause-num">${escHtml(c.clause)}</div>
+                <div class="clause-name">${escHtml(c.name)}</div>
+                <span class="clause-dot ${c.status}"></span>
+            </div>`;
+        });
+        html += '</div>';
+
+        // KPI cards
+        html += '<div class="iso-kpis">';
+        const openN = d.ncrs?.open || 0;
+        const overdueN = d.ncrs?.overdue_capas || 0;
+        html += `<div class="iso-kpi ${openN > 0 ? 'alert' : 'good'}" onclick="navigate('ncrs')">
+            <div class="label">Open NCRs</div><div class="value">${openN}</div>
+            <div class="sub">${overdueN} overdue CAPA${overdueN !== 1 ? 's' : ''}</div></div>`;
+
+        const upAudits = d.upcoming_audits?.length || 0;
+        html += `<div class="iso-kpi" onclick="navigate('audits')">
+            <div class="label">Upcoming Audits</div><div class="value">${upAudits}</div>
+            <div class="sub">Next 30 days</div></div>`;
+
+        const trainRate = d.training?.compliance_rate ?? 100;
+        html += `<div class="iso-kpi ${trainRate < 80 ? 'warn' : 'good'}" onclick="navigate('training')">
+            <div class="label">Training %</div><div class="value">${trainRate}%</div>
+            <div class="sub">${d.training?.gaps_count || 0} gap${d.training?.gaps_count !== 1 ? 's' : ''}</div></div>`;
+
+        const lr = d.last_review;
+        html += `<div class="iso-kpi ${lr && lr.days_ago > 180 ? 'warn' : ''}" onclick="navigate('reviews')">
+            <div class="label">Last Review</div><div class="value">${lr ? lr.days_ago + 'd' : '—'}</div>
+            <div class="sub">${lr ? fmtDate(lr.date) : 'No reviews yet'}</div></div>`;
+
+        const capaSoon = d.capa_due_soon?.length || 0;
+        html += `<div class="iso-kpi ${capaSoon > 0 ? 'warn' : 'good'}" onclick="navigate('ncrs')">
+            <div class="label">CAPA Due Soon</div><div class="value">${capaSoon}</div>
+            <div class="sub">Next 14 days</div></div>`;
+        html += '</div>';
+
+        // NCR severity breakdown + trend
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">';
+        // Severity
+        const sev = d.ncrs?.by_severity || {};
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Open NCRs by Severity</h4>';
+        ['critical', 'major', 'minor'].forEach(s => {
+            const cnt = sev[s] || 0;
+            const max = Math.max(openN, 1);
+            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="width:60px;font-size:12px;color:var(--text-secondary)">${s}</span>
+                <div style="flex:1;height:16px;background:var(--bg-secondary);border-radius:4px;overflow:hidden">
+                    <div style="width:${cnt / max * 100}%;height:100%;border-radius:4px" class="badge-${s}"></div>
+                </div>
+                <span style="width:24px;font-size:12px;font-weight:600;text-align:right">${cnt}</span>
+            </div>`;
+        });
+        html += '</div>';
+        // Trend
+        const trend = d.ncrs?.trend || [];
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">NCR Trend (4 Weeks)</h4>';
+        const maxT = Math.max(...trend.map(t => t.count), 1);
+        html += '<div style="display:flex;gap:8px;align-items:flex-end;height:80px">';
+        trend.forEach(t => {
+            const pct = t.count / maxT * 100;
+            html += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+                <span style="font-size:11px;font-weight:600">${t.count}</span>
+                <div style="width:100%;height:${Math.max(pct, 4)}%;background:var(--accent);border-radius:4px"></div>
+                <span style="font-size:10px;color:var(--text-dim)">${fmtDate(t.week)}</span>
+            </div>`;
+        });
+        html += '</div></div>';
+        html += '</div>';
+
+        // Upcoming audits + CAPA due soon
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Upcoming Audits</h4>';
+        if (d.upcoming_audits?.length) {
+            d.upcoming_audits.forEach(a => {
+                html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <span style="font-size:13px">${escHtml(a.title)}</span>
+                    <span style="font-size:12px;color:var(--text-dim)">${fmtDate(a.scheduled_date)}</span>
+                </div>`;
+            });
+        } else {
+            html += '<div style="color:var(--text-dim);font-size:13px">No upcoming audits</div>';
+        }
+        html += '</div>';
+
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">CAPA Due Soon</h4>';
+        if (d.capa_due_soon?.length) {
+            d.capa_due_soon.forEach(c => {
+                html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <span style="font-size:13px">${escHtml(c.title)}</span>
+                    <span style="font-size:12px;color:#f87171">${fmtDate(c.due_date)}</span>
+                </div>`;
+            });
+        } else {
+            html += '<div style="color:var(--text-dim);font-size:13px">No CAPAs due soon</div>';
+        }
+        html += '</div></div>';
+
+        el.innerHTML = html;
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+// =========================================================================
+// NCR Tracker tab (placeholder — will be added in next commit)
+// =========================================================================
+function loadNCRs() { document.getElementById('panel-ncrs').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+
+// =========================================================================
+// Internal Audits tab (placeholder)
+// =========================================================================
+function loadAudits() { document.getElementById('panel-audits').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+
+// =========================================================================
+// Training Matrix tab (placeholder)
+// =========================================================================
+function loadTraining() { document.getElementById('panel-training').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+
+// =========================================================================
+// Management Reviews tab (placeholder)
+// =========================================================================
+function loadReviews() { document.getElementById('panel-reviews').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+
+// =========================================================================
+// Document Control tab (placeholder)
+// =========================================================================
+function loadDocuments() { document.getElementById('panel-documents').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+
+// =========================================================================
+// Suppliers tab (placeholder)
+// =========================================================================
+function loadSuppliers() { document.getElementById('panel-suppliers').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+
+</script>
+{% endblock %}
