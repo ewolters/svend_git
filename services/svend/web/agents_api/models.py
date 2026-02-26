@@ -2471,11 +2471,15 @@ class HoshinKPI(models.Model):
     # the single "Metric" dropdown.
     METRIC_CATALOG = {
         # --- Dollar savings (sum across projects) ---
+        # All dollar metrics: savings = per-project calculate_savings() → $
+        # KPI actual = Σ monthly_actuals[].savings across linked projects
+        # Rollup = Σ across all correlated projects
         "dollar_savings": {
             "label": "Total Dollar Savings",
             "group": "Dollar Savings",
             "unit": "$", "direction": "up", "aggregation": "sum",
             "derived_field": "ytd_savings",
+            "calc": "Σ project.monthly_actuals[].savings — all calc methods",
         },
         "waste_pct": {
             "label": "Waste/Scrap Savings",
@@ -2483,6 +2487,7 @@ class HoshinKPI(models.Model):
             "unit": "$", "direction": "up", "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "waste_pct",
+            "calc": "(Baseline% − Actual%) × Volume × CostPerUnit → $",
         },
         "time_reduction": {
             "label": "Cycle Time Savings",
@@ -2490,6 +2495,7 @@ class HoshinKPI(models.Model):
             "unit": "$", "direction": "up", "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "time_reduction",
+            "calc": "(BaselineSec − ActualSec) / 3600 × Volume × LaborRate → $",
         },
         "headcount": {
             "label": "Headcount Savings",
@@ -2497,6 +2503,7 @@ class HoshinKPI(models.Model):
             "unit": "$", "direction": "up", "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "headcount",
+            "calc": "(BaselineHC − ActualHC) × CostPerEmployee → $",
         },
         "claims": {
             "label": "Quality Claims Savings",
@@ -2504,6 +2511,7 @@ class HoshinKPI(models.Model):
             "unit": "$", "direction": "up", "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "claims",
+            "calc": "(Baseline% − Actual%) × SalesDollars → $",
         },
         "freight": {
             "label": "Freight/Logistics Savings",
@@ -2511,6 +2519,7 @@ class HoshinKPI(models.Model):
             "unit": "$", "direction": "up", "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "freight",
+            "calc": "(BaselineCost − ActualCost) × ShipmentCount → $",
         },
         "energy": {
             "label": "Energy Savings",
@@ -2518,6 +2527,7 @@ class HoshinKPI(models.Model):
             "unit": "$", "direction": "up", "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "energy",
+            "calc": "(BaselineUsage − ActualUsage) × CostPerUnit → $ (usage in any unit: kWh, therms, etc.)",
         },
         "direct": {
             "label": "Direct Cost Savings",
@@ -2525,62 +2535,77 @@ class HoshinKPI(models.Model):
             "unit": "$", "direction": "up", "aggregation": "sum",
             "derived_field": "ytd_savings",
             "filter_method": "direct",
+            "calc": "BaselineCost − ActualCost → $",
         },
         # --- Volume-weighted rates (non-dollar numerators) ---
+        # Rate metrics: actual = monthly_actuals[].actual (the raw rate)
+        # KPI actual = Σ(actual × volume) / Σ(volume) from linked project
+        # Rollup = same weighted avg across all correlated projects
         "scrap_rate": {
             "label": "Scrap/Waste Rate",
             "group": "Process Rates",
             "unit": "%", "direction": "down", "aggregation": "weighted_avg",
             "derived_field": "raw_metric",
+            "calc": "Σ(actual% × volume) / Σ(volume) → % (volume-weighted avg)",
         },
         "defect_rate": {
             "label": "Defect Rate",
             "group": "Process Rates",
             "unit": "ppm", "direction": "down", "aggregation": "weighted_avg",
             "derived_field": "raw_metric",
+            "calc": "Σ(actual_ppm × volume) / Σ(volume) → ppm (volume-weighted avg)",
         },
         "first_pass_yield": {
             "label": "First Pass Yield",
             "group": "Process Rates",
             "unit": "%", "direction": "up", "aggregation": "weighted_avg",
             "derived_field": "raw_metric",
+            "calc": "Σ(actual% × volume) / Σ(volume) → % (volume-weighted avg)",
         },
         "oee": {
             "label": "OEE",
             "group": "Process Rates",
             "unit": "%", "direction": "up", "aggregation": "weighted_avg",
             "derived_field": "raw_metric",
+            "calc": "Σ(OEE% × volume) / Σ(volume) → % (volume-weighted avg)",
         },
         # --- SPC / calculator point values ---
+        # SPC metrics: pulled from most recent DSWResult for the linked project
+        # Rollup = latest value (point-in-time, not aggregated across projects)
         "spc_capability": {
             "label": "Process Capability (Cpk)",
             "group": "SPC Metrics",
             "unit": "index", "direction": "up", "aggregation": "latest",
             "calculator_field": "cpk",
+            "calc": "Latest DSWResult.data.cpk → dimensionless index (≥1.33 capable)",
         },
         "spc_ppk": {
             "label": "Process Performance (Ppk)",
             "group": "SPC Metrics",
             "unit": "index", "direction": "up", "aggregation": "latest",
             "calculator_field": "ppk",
+            "calc": "Latest DSWResult.data.ppk → dimensionless index (≥1.33 capable)",
         },
         "spc_yield": {
             "label": "Process Yield",
             "group": "SPC Metrics",
             "unit": "%", "direction": "up", "aggregation": "latest",
             "calculator_field": "yield_percent",
+            "calc": "Latest DSWResult.data.yield_percent → % (from capability study)",
         },
         "spc_gage_rr": {
             "label": "Gage R&R",
             "group": "SPC Metrics",
             "unit": "%", "direction": "down", "aggregation": "latest",
             "calculator_field": "grr_percent",
+            "calc": "Latest DSWResult.data.grr_percent → % of tolerance (<10% excellent, <30% acceptable)",
         },
         # --- Manual ---
         "manual": {
             "label": "Manual Entry",
             "group": "Other",
             "unit": "", "direction": "up", "aggregation": "manual",
+            "calc": "User-entered value, no automatic calculation",
         },
     }
 
@@ -2814,3 +2839,553 @@ def _cleanup_project_correlations(sender, instance, **kwargs):
     XMatrixCorrelation.objects.filter(
         Q(row_id=instance.id) | Q(col_id=instance.id)
     ).delete()
+
+
+# ---------------------------------------------------------------------------
+# ISO 9001 Quality Management System — Team/Enterprise tier
+# ---------------------------------------------------------------------------
+
+class NonconformanceRecord(models.Model):
+    """NCR tracker per ISO 9001 clause 10.2."""
+
+    class Severity(models.TextChoices):
+        MINOR = "minor", "Minor"
+        MAJOR = "major", "Major"
+        CRITICAL = "critical", "Critical"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        INVESTIGATION = "investigation", "Investigation"
+        CAPA = "capa", "CAPA"
+        VERIFICATION = "verification", "Verification"
+        CLOSED = "closed", "Closed"
+
+    class Source(models.TextChoices):
+        INTERNAL_AUDIT = "internal_audit", "Internal Audit"
+        CUSTOMER_COMPLAINT = "customer_complaint", "Customer Complaint"
+        SUPPLIER = "supplier", "Supplier"
+        PROCESS = "process", "Process"
+        EXTERNAL_AUDIT = "external_audit", "External Audit"
+        MANAGEMENT_REVIEW = "management_review", "Management Review"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="ncrs",
+    )
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    severity = models.CharField(max_length=20, choices=Severity.choices, default=Severity.MINOR)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    source = models.CharField(max_length=30, choices=Source.choices, default=Source.OTHER)
+    iso_clause = models.CharField(max_length=20, blank=True, help_text="e.g. 8.7, 10.2")
+    containment_action = models.TextField(blank=True)
+    root_cause = models.TextField(blank=True)
+    corrective_action = models.TextField(blank=True)
+    verification_result = models.TextField(blank=True)
+    capa_due_date = models.DateField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Optional project link
+    project = models.ForeignKey(
+        "core.Project", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="ncrs",
+    )
+
+    # Workflow fields
+    raised_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="raised_ncrs",
+    )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="assigned_ncrs",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="approved_ncrs",
+    )
+
+    # Cross-tool links
+    rca_session = models.ForeignKey(
+        "agents_api.RCASession", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="ncrs",
+    )
+    capa_report = models.ForeignKey(
+        "agents_api.Report", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="ncrs",
+    )
+
+    # Evidence attachments
+    files = models.ManyToManyField(
+        "files.UserFile", blank=True, related_name="ncrs",
+    )
+
+    # Valid status transitions (forward and backward)
+    TRANSITIONS = {
+        "open": {"investigation"},
+        "investigation": {"open", "capa"},
+        "capa": {"investigation", "verification"},
+        "verification": {"capa", "closed"},
+        "closed": {"verification"},
+    }
+    # Requirements per transition target
+    TRANSITION_REQUIRES = {
+        "investigation": ["assigned_to"],
+        "closed": ["approved_by"],
+    }
+
+    class Meta:
+        db_table = "iso_ncrs"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"NCR: {self.title} ({self.severity})"
+
+    def can_transition(self, new_status):
+        """Check if transition is valid and requirements are met."""
+        allowed = self.TRANSITIONS.get(self.status, set())
+        if new_status not in allowed:
+            return False, f"Cannot transition from '{self.status}' to '{new_status}'"
+        for field in self.TRANSITION_REQUIRES.get(new_status, []):
+            if not getattr(self, f"{field}_id", None):
+                return False, f"'{field}' is required to transition to '{new_status}'"
+        return True, ""
+
+    def to_dict(self):
+        d = {
+            "id": str(self.id),
+            "title": self.title,
+            "description": self.description,
+            "severity": self.severity,
+            "status": self.status,
+            "source": self.source,
+            "iso_clause": self.iso_clause,
+            "containment_action": self.containment_action,
+            "root_cause": self.root_cause,
+            "corrective_action": self.corrective_action,
+            "verification_result": self.verification_result,
+            "capa_due_date": str(self.capa_due_date) if self.capa_due_date else None,
+            "closed_at": self.closed_at.isoformat() if self.closed_at else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "raised_by": None,
+            "assigned_to": None,
+            "approved_by": None,
+            "rca_session_id": str(self.rca_session_id) if self.rca_session_id else None,
+            "capa_report_id": str(self.capa_report_id) if self.capa_report_id else None,
+            "file_ids": [str(f.id) for f in self.files.all()],
+            "status_changes": [],
+        }
+        if self.raised_by:
+            d["raised_by"] = {"id": self.raised_by_id, "name": self.raised_by.display_name or self.raised_by.email}
+        if self.assigned_to:
+            d["assigned_to"] = {"id": self.assigned_to_id, "name": self.assigned_to.display_name or self.assigned_to.email}
+        if self.approved_by:
+            d["approved_by"] = {"id": self.approved_by_id, "name": self.approved_by.display_name or self.approved_by.email}
+        try:
+            d["status_changes"] = [sc.to_dict() for sc in self.status_changes.order_by("created_at")]
+        except Exception:
+            pass
+        return d
+
+
+class NCRStatusChange(models.Model):
+    """Status change history for NCRs."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ncr = models.ForeignKey(
+        NonconformanceRecord, on_delete=models.CASCADE,
+        related_name="status_changes",
+    )
+    from_status = models.CharField(max_length=20)
+    to_status = models.CharField(max_length=20)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_ncr_status_changes"
+        ordering = ["created_at"]
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "from_status": self.from_status,
+            "to_status": self.to_status,
+            "changed_by": (self.changed_by.display_name or self.changed_by.email) if self.changed_by else None,
+            "note": self.note,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+class InternalAudit(models.Model):
+    """Internal audit scheduler per ISO 9001 clause 9.2."""
+
+    class Status(models.TextChoices):
+        PLANNED = "planned", "Planned"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETE = "complete", "Complete"
+        REPORT_ISSUED = "report_issued", "Report Issued"
+        CANCELLED = "cancelled", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="internal_audits",
+    )
+    title = models.CharField(max_length=300)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
+    scheduled_date = models.DateField()
+    completed_date = models.DateField(null=True, blank=True)
+    lead_auditor = models.CharField(max_length=200, blank=True)
+    iso_clauses = models.JSONField(default=list, blank=True, help_text="List of clause refs")
+    departments = models.JSONField(default=list, blank=True)
+    scope = models.TextField(blank=True)
+    summary = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_audits"
+        ordering = ["scheduled_date"]
+
+    def __str__(self):
+        return f"Audit: {self.title} ({self.scheduled_date})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "title": self.title,
+            "status": self.status,
+            "scheduled_date": str(self.scheduled_date),
+            "completed_date": str(self.completed_date) if self.completed_date else None,
+            "lead_auditor": self.lead_auditor,
+            "iso_clauses": self.iso_clauses,
+            "departments": self.departments,
+            "scope": self.scope,
+            "summary": self.summary,
+            "findings": [f.to_dict() for f in self.findings.all()],
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+class AuditFinding(models.Model):
+    """Finding from an internal audit."""
+
+    class FindingType(models.TextChoices):
+        NC_MAJOR = "nc_major", "Major Nonconformity"
+        NC_MINOR = "nc_minor", "Minor Nonconformity"
+        OBSERVATION = "observation", "Observation"
+        OPPORTUNITY = "opportunity", "Opportunity for Improvement"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        CORRECTIVE_ACTION_REQUIRED = "corrective_action_required", "Corrective Action Required"
+        CLOSED = "closed", "Closed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    audit = models.ForeignKey(InternalAudit, on_delete=models.CASCADE, related_name="findings")
+    finding_type = models.CharField(max_length=20, choices=FindingType.choices)
+    description = models.TextField()
+    iso_clause = models.CharField(max_length=20, blank=True)
+    evidence = models.TextField(blank=True)
+    corrective_action = models.TextField(blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    resolved = models.BooleanField(default=False)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Optional link to NCR created from this finding
+    ncr = models.ForeignKey(
+        NonconformanceRecord, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="audit_findings",
+    )
+
+    class Meta:
+        db_table = "iso_audit_findings"
+        ordering = ["-created_at"]
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "finding_type": self.finding_type,
+            "description": self.description,
+            "iso_clause": self.iso_clause,
+            "evidence": self.evidence,
+            "corrective_action": self.corrective_action,
+            "due_date": str(self.due_date) if self.due_date else None,
+            "resolved": self.resolved,
+            "status": self.status,
+            "ncr_id": str(self.ncr_id) if self.ncr_id else None,
+        }
+
+
+class TrainingRequirement(models.Model):
+    """Training requirement per ISO 9001 clause 7.2."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="training_requirements",
+    )
+    name = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    iso_clause = models.CharField(max_length=20, blank=True, help_text="e.g. 7.2, 8.5.1")
+    frequency_months = models.IntegerField(default=0, help_text="0 = one-time")
+    is_mandatory = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_training_requirements"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def to_dict(self):
+        records = list(self.records.all())
+        total = len(records)
+        complete = sum(1 for r in records if r.status == TrainingRecord.Status.COMPLETE)
+        expiring = sum(1 for r in records if r.is_expiring_soon())
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "description": self.description,
+            "iso_clause": self.iso_clause,
+            "frequency_months": self.frequency_months,
+            "is_mandatory": self.is_mandatory,
+            "completion_rate": round(complete / total * 100) if total else 0,
+            "expiring_soon": expiring,
+            "records": [r.to_dict() for r in records],
+        }
+
+
+class TrainingRecord(models.Model):
+    """Individual training record for an employee."""
+
+    class Status(models.TextChoices):
+        NOT_STARTED = "not_started", "Not Started"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETE = "complete", "Complete"
+        EXPIRED = "expired", "Expired"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requirement = models.ForeignKey(TrainingRequirement, on_delete=models.CASCADE, related_name="records")
+    employee_name = models.CharField(max_length=200)
+    employee_email = models.EmailField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NOT_STARTED)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_training_records"
+        ordering = ["employee_name"]
+
+    def is_expiring_soon(self):
+        if not self.expires_at:
+            return False
+        from django.utils import timezone
+        from datetime import timedelta
+        return self.expires_at <= timezone.now() + timedelta(days=30)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "employee_name": self.employee_name,
+            "employee_email": self.employee_email,
+            "status": self.status,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "notes": self.notes,
+        }
+
+
+class ManagementReview(models.Model):
+    """Management review per ISO 9001 clause 9.3."""
+
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETE = "complete", "Complete"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="management_reviews",
+    )
+    title = models.CharField(max_length=300)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SCHEDULED)
+    meeting_date = models.DateField()
+    attendees = models.JSONField(default=list, blank=True, help_text="List of attendee names")
+    # ISO 9001:2015 clause 9.3.2 inputs
+    inputs = models.JSONField(default=dict, blank=True, help_text="Prior actions, audit results, customer feedback, process performance, NCRs, risks, opportunities")
+    # ISO 9001:2015 clause 9.3.3 outputs
+    outputs = models.JSONField(default=dict, blank=True, help_text="Improvement opportunities, resource needs, changes to QMS")
+    minutes = models.TextField(blank=True)
+    data_snapshot = models.JSONField(default=dict, blank=True, help_text="Auto-captured QMS metrics at review time")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_management_reviews"
+        ordering = ["-meeting_date"]
+
+    def __str__(self):
+        return f"Review: {self.title} ({self.meeting_date})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "title": self.title,
+            "status": self.status,
+            "meeting_date": str(self.meeting_date),
+            "attendees": self.attendees,
+            "inputs": self.inputs,
+            "outputs": self.outputs,
+            "minutes": self.minutes,
+            "data_snapshot": self.data_snapshot,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+class ControlledDocument(models.Model):
+    """Document control per ISO 9001 clause 7.5 — skeleton."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        REVIEW = "review", "Under Review"
+        APPROVED = "approved", "Approved"
+        OBSOLETE = "obsolete", "Obsolete"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="controlled_documents",
+    )
+    title = models.CharField(max_length=300)
+    document_number = models.CharField(max_length=50, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    category = models.CharField(max_length=100, blank=True, help_text="e.g. SOP, Work Instruction, Policy")
+    iso_clause = models.CharField(max_length=20, blank=True)
+    current_version = models.CharField(max_length=20, default="1.0")
+    review_due_date = models.DateField(null=True, blank=True)
+    approved_by = models.CharField(max_length=200, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    content = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_controlled_documents"
+        ordering = ["document_number", "title"]
+
+    def __str__(self):
+        return f"{self.document_number} - {self.title}" if self.document_number else self.title
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "title": self.title,
+            "document_number": self.document_number,
+            "status": self.status,
+            "category": self.category,
+            "iso_clause": self.iso_clause,
+            "current_version": self.current_version,
+            "review_due_date": str(self.review_due_date) if self.review_due_date else None,
+            "approved_by": self.approved_by,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+class SupplierRecord(models.Model):
+    """Supplier management per ISO 9001 clause 8.4 — skeleton."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending Approval"
+        APPROVED = "approved", "Approved"
+        CONDITIONAL = "conditional", "Conditional"
+        DISQUALIFIED = "disqualified", "Disqualified"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="supplier_records",
+    )
+    name = models.CharField(max_length=300)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    contact_name = models.CharField(max_length=200, blank=True)
+    contact_email = models.EmailField(blank=True)
+    products_services = models.TextField(blank=True, help_text="What they supply")
+    iso_clause = models.CharField(max_length=20, blank=True)
+    last_evaluation_date = models.DateField(null=True, blank=True)
+    next_evaluation_date = models.DateField(null=True, blank=True)
+    quality_rating = models.IntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    notes = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_suppliers"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "status": self.status,
+            "contact_name": self.contact_name,
+            "contact_email": self.contact_email,
+            "products_services": self.products_services,
+            "quality_rating": self.quality_rating,
+            "last_evaluation_date": str(self.last_evaluation_date) if self.last_evaluation_date else None,
+            "next_evaluation_date": str(self.next_evaluation_date) if self.next_evaluation_date else None,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+class AuditChecklist(models.Model):
+    """Reusable audit checklist template."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="audit_checklists",
+    )
+    name = models.CharField(max_length=300)
+    iso_clause = models.CharField(max_length=20, blank=True)
+    check_items = models.JSONField(default=list, help_text='[{"question": "...", "guidance": "..."}]')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_audit_checklists"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "iso_clause": self.iso_clause,
+            "check_items": self.check_items,
+            "created_at": self.created_at.isoformat(),
+        }
