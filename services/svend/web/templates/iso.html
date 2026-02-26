@@ -1284,14 +1284,199 @@ async function deleteReview(id) {
 }
 
 // =========================================================================
-// Document Control tab (placeholder)
+// Document Control tab — Coming Soon + early access CRUD
 // =========================================================================
-function loadDocuments() { document.getElementById('panel-documents').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+let docList = [];
+let docShowEarlyAccess = false;
+
+async function loadDocuments() {
+    const el = document.getElementById('panel-documents');
+    let html = '<div class="coming-soon">';
+    html += '<h3>Document Control</h3>';
+    html += '<p>Full document control per ISO 9001:2015 clause 7.5 — version control, approval workflows, distribution tracking, and retention schedules.</p>';
+    html += '<div class="features">';
+    ['Version Control', 'Approval Workflows', 'Clause Mapping', 'Review Reminders', 'Distribution Lists', 'Retention Schedules'].forEach(f => {
+        html += `<span class="feature-chip">${f}</span>`;
+    });
+    html += '</div>';
+    html += `<div style="margin-top:24px"><button class="iso-btn" onclick="docShowEarlyAccess=!docShowEarlyAccess;loadDocuments()">
+        ${docShowEarlyAccess ? 'Hide' : 'Show'} Early Access CRUD</button></div>`;
+    html += '</div>';
+
+    if (docShowEarlyAccess) {
+        try {
+            docList = await apiFetch('/documents/');
+        } catch (e) { docList = []; }
+
+        html += '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">';
+        html += '<div class="iso-toolbar"><div class="spacer"></div><button class="iso-btn primary" onclick="showDocForm()">+ New Document</button></div>';
+        html += '<div id="doc-form-area"></div>';
+
+        if (docList.length) {
+            html += '<table class="iso-table"><thead><tr><th>Doc #</th><th>Title</th><th>Status</th><th>Category</th><th>Version</th><th>Review Due</th><th></th></tr></thead><tbody>';
+            docList.forEach(d => {
+                html += `<tr>`;
+                html += `<td style="font-size:12px;font-family:monospace">${escHtml(d.document_number || '—')}</td>`;
+                html += `<td>${escHtml(d.title)}</td>`;
+                html += `<td>${badge(d.status)}</td>`;
+                html += `<td style="font-size:12px">${escHtml(d.category || '—')}</td>`;
+                html += `<td style="font-size:12px">${escHtml(d.current_version)}</td>`;
+                html += `<td style="font-size:12px">${fmtDate(d.review_due_date)}</td>`;
+                html += `<td style="text-align:right"><button class="iso-btn small danger" onclick="deleteDoc('${d.id}')">Delete</button></td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<div style="text-align:center;padding:20px;color:var(--text-dim)">No documents yet.</div>';
+        }
+        html += '</div>';
+    }
+    el.innerHTML = html;
+}
+
+function showDocForm() {
+    const area = document.getElementById('doc-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="doc-title"></div>
+            <div><label class="iso-label">Document Number</label><input class="iso-input" id="doc-number" placeholder="e.g. SOP-001"></div>
+            <div><label class="iso-label">Category</label><select class="iso-input" id="doc-category">
+                <option value="">Select...</option><option value="SOP">SOP</option><option value="Work Instruction">Work Instruction</option>
+                <option value="Policy">Policy</option><option value="Form">Form</option><option value="Other">Other</option></select></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="doc-clause" placeholder="e.g. 7.5"></div>
+            <div><label class="iso-label">Review Due Date</label><input class="iso-input" type="date" id="doc-due"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveDoc()">Create Document</button>
+            <button class="iso-btn" onclick="document.getElementById('doc-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveDoc() {
+    const title = document.getElementById('doc-title').value.trim();
+    if (!title) return toast('Title is required', true);
+    try {
+        await apiFetch('/documents/', { method: 'POST', body: {
+            title, document_number: document.getElementById('doc-number').value,
+            category: document.getElementById('doc-category').value,
+            iso_clause: document.getElementById('doc-clause').value,
+            review_due_date: document.getElementById('doc-due').value || null,
+        }});
+        toast('Document created');
+        document.getElementById('doc-form-area').innerHTML = '';
+        loadDocuments();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteDoc(id) {
+    if (!confirm('Delete this document?')) return;
+    try {
+        await apiFetch(`/documents/${id}/`, { method: 'DELETE' });
+        toast('Document deleted');
+        loadDocuments();
+    } catch (e) { toast(e.message, true); }
+}
 
 // =========================================================================
-// Suppliers tab (placeholder)
+// Supplier Management tab — Coming Soon + early access CRUD
 // =========================================================================
-function loadSuppliers() { document.getElementById('panel-suppliers').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim)">Loading...</div>'; }
+let supplierList = [];
+let supplierShowEarlyAccess = false;
+
+async function loadSuppliers() {
+    const el = document.getElementById('panel-suppliers');
+    let html = '<div class="coming-soon">';
+    html += '<h3>Supplier Management</h3>';
+    html += '<p>Comprehensive supplier evaluation and management per ISO 9001:2015 clause 8.4 — approved supplier lists, performance tracking, and re-evaluation schedules.</p>';
+    html += '<div class="features">';
+    ['Approved Supplier List', 'Quality Ratings', 'Evaluation Schedules', 'Risk Assessment', 'Performance Metrics', 'Audit Integration'].forEach(f => {
+        html += `<span class="feature-chip">${f}</span>`;
+    });
+    html += '</div>';
+    html += `<div style="margin-top:24px"><button class="iso-btn" onclick="supplierShowEarlyAccess=!supplierShowEarlyAccess;loadSuppliers()">
+        ${supplierShowEarlyAccess ? 'Hide' : 'Show'} Early Access CRUD</button></div>`;
+    html += '</div>';
+
+    if (supplierShowEarlyAccess) {
+        try {
+            supplierList = await apiFetch('/suppliers/');
+        } catch (e) { supplierList = []; }
+
+        html += '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">';
+        html += '<div class="iso-toolbar"><div class="spacer"></div><button class="iso-btn primary" onclick="showSupplierForm()">+ New Supplier</button></div>';
+        html += '<div id="supplier-form-area"></div>';
+
+        if (supplierList.length) {
+            html += '<table class="iso-table"><thead><tr><th>Name</th><th>Status</th><th>Contact</th><th>Rating</th><th>Last Eval</th><th>Next Eval</th><th></th></tr></thead><tbody>';
+            supplierList.forEach(s => {
+                const stars = s.quality_rating ? '&#9733;'.repeat(s.quality_rating) + '&#9734;'.repeat(5 - s.quality_rating) : '—';
+                html += `<tr>`;
+                html += `<td>${escHtml(s.name)}</td>`;
+                html += `<td>${badge(s.status)}</td>`;
+                html += `<td style="font-size:12px">${escHtml(s.contact_name || '—')}</td>`;
+                html += `<td style="color:#facc15">${stars}</td>`;
+                html += `<td style="font-size:12px">${fmtDate(s.last_evaluation_date)}</td>`;
+                html += `<td style="font-size:12px">${fmtDate(s.next_evaluation_date)}</td>`;
+                html += `<td style="text-align:right"><button class="iso-btn small danger" onclick="deleteSupplier('${s.id}')">Delete</button></td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<div style="text-align:center;padding:20px;color:var(--text-dim)">No suppliers yet.</div>';
+        }
+        html += '</div>';
+    }
+    el.innerHTML = html;
+}
+
+function showSupplierForm() {
+    const area = document.getElementById('supplier-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Company Name *</label><input class="iso-input" id="sup-name"></div>
+            <div><label class="iso-label">Contact Name</label><input class="iso-input" id="sup-contact"></div>
+            <div><label class="iso-label">Contact Email</label><input class="iso-input" type="email" id="sup-email"></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Products/Services</label><textarea class="iso-textarea" id="sup-products" rows="2"></textarea></div>
+            <div><label class="iso-label">Notes</label><textarea class="iso-textarea" id="sup-notes" rows="2"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveSupplier()">Create Supplier</button>
+            <button class="iso-btn" onclick="document.getElementById('supplier-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveSupplier() {
+    const name = document.getElementById('sup-name').value.trim();
+    if (!name) return toast('Name is required', true);
+    try {
+        await apiFetch('/suppliers/', { method: 'POST', body: {
+            name, contact_name: document.getElementById('sup-contact').value,
+            contact_email: document.getElementById('sup-email').value,
+            products_services: document.getElementById('sup-products').value,
+            notes: document.getElementById('sup-notes').value,
+        }});
+        toast('Supplier created');
+        document.getElementById('supplier-form-area').innerHTML = '';
+        loadSuppliers();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteSupplier(id) {
+    if (!confirm('Delete this supplier?')) return;
+    try {
+        await apiFetch(`/suppliers/${id}/`, { method: 'DELETE' });
+        toast('Supplier deleted');
+        loadSuppliers();
+    } catch (e) { toast(e.message, true); }
+}
 
 </script>
 {% endblock %}
