@@ -4425,9 +4425,11 @@ async function loadBoardFromServer() {
         isOwner = data.is_owner;
 
         // Set project from loaded board
-        if (data.project_id) {
-            currentProjectId = data.project_id;
-            document.getElementById('project-select').value = currentProjectId;
+        const boardProjectId = data.project_id || (data.project && data.project.id);
+        if (boardProjectId) {
+            currentProjectId = boardProjectId;
+            const sel = document.getElementById('project-select');
+            sel.value = currentProjectId;
             updateProjectLink(currentProjectId);
         }
 
@@ -4817,9 +4819,9 @@ async function setupProjectSelector() {
             select.appendChild(opt);
         });
 
-        // Check for project param in URL
+        // Check for project param in URL or pre-loaded from board data
         const urlParams = new URLSearchParams(window.location.search);
-        const projectId = urlParams.get('project');
+        const projectId = urlParams.get('project') || currentProjectId;
         if (projectId) {
             select.value = projectId;
             currentProjectId = projectId;
@@ -4851,7 +4853,7 @@ async function setupProjectSelector() {
 function updateProjectLink(projectId) {
     const link = document.getElementById('project-link');
     if (projectId) {
-        link.href = '/app/projects/';
+        link.href = `/app/projects/#${projectId}`;
         link.style.display = 'flex';
     } else {
         link.style.display = 'none';

@@ -157,7 +157,7 @@
         </a>
         <div class="card">
             <h1>Create account</h1>
-            <p class="subtitle">Start with 5 free agent runs per day</p>
+            <p class="subtitle" id="regSubtitle">Track NCRs, run experiments, monitor processes — free, no credit card</p>
 
             <div id="error" class="error"></div>
 
@@ -193,6 +193,7 @@
 
         // Plan can come directly (?plan=founder) or from next URL
         let plan = urlParams.get('plan') || '';
+        let region = urlParams.get('region') || '';
         let nextUrl = urlParams.get('next') || '';
 
         // If no direct plan, try to extract from next URL (for @login_required redirect flow)
@@ -201,6 +202,7 @@
             if (decodedNextUrl.includes('/billing/checkout')) {
                 const nextParams = new URLSearchParams(decodedNextUrl.split('?')[1] || '');
                 plan = nextParams.get('plan') || '';
+                if (!region) region = nextParams.get('region') || '';
             }
         }
 
@@ -210,9 +212,22 @@
 
         // If paid plan signup, redirect to checkout after registration
         // Otherwise use nextUrl or default to /app/
+        const checkoutUrl = '/billing/checkout/?plan=' + plan + (region ? '&region=' + region : '');
         const redirectUrl = isPaidSignup
-            ? '/billing/checkout/?plan=' + plan
+            ? checkoutUrl
             : (nextUrl ? decodeURIComponent(nextUrl) : '/app/onboarding/');
+
+        // Update subtitle for paid plan signups
+        if (isPaidSignup) {
+            var sub = document.getElementById('regSubtitle');
+            var planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+            var trialPlans = ['team', 'enterprise'];
+            if (trialPlans.includes(plan)) {
+                sub.textContent = 'Create your account to start your 14-day free ' + planName + ' trial';
+            } else {
+                sub.textContent = 'Create your account, then choose your ' + planName + ' billing';
+            }
+        }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();

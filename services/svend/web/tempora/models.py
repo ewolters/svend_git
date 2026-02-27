@@ -464,22 +464,24 @@ class CognitiveTask(TemporaEntity):
     def to_context(self) -> TaskContext:
         """Convert to TaskContext for scheduler operations."""
         return TaskContext(
-            task_id=str(self.id),
-            correlation_id=str(self.correlation_id),
-            tenant_id=str(self.tenant_id),
-            root_correlation_id=str(self.root_correlation_id) if self.root_correlation_id else None,
-            parent_task_id=str(self.parent_task_id) if self.parent_task_id else None,
-            cascade_depth=self.cascade_depth,
-            reflex_source=self.reflex_source,
-            confidence_score=self.confidence_score,
-            urgency=self.urgency,
-            governance_risk=self.governance_risk,
-            resource_weight=self.resource_weight,
-            created_at=self.created_at,
-            scheduled_at=self.scheduled_at,
-            deadline=self.deadline,
-            attempts=self.attempts,
+            task_id=self.id,
+            correlation_id=self.correlation_id,
+            tenant_id=self.tenant_id,
+            task_name=self.task_name,
+            attempt=self.attempts,
             max_attempts=self.max_attempts,
+            created_at=self.created_at,
+            deadline=self.deadline,
+            parent_task_id=self.parent_task_id,
+            metadata={
+                "root_correlation_id": str(self.root_correlation_id) if self.root_correlation_id else None,
+                "cascade_depth": self.cascade_depth,
+                "reflex_source": self.reflex_source,
+                "confidence_score": self.confidence_score,
+                "urgency": self.urgency,
+                "governance_risk": self.governance_risk,
+                "resource_weight": self.resource_weight,
+            },
         )
 
     # =========================================================================
@@ -914,7 +916,7 @@ class Schedule(TemporaEntity):
         """
         Calculate next run time based on schedule type.
 
-        For production use with cron, consider using croniter library.
+        Uses croniter for accurate cron expression parsing.
         """
         from_time = from_time or timezone.now()
 
@@ -929,15 +931,19 @@ class Schedule(TemporaEntity):
             return from_time + timedelta(seconds=self.interval_seconds)
 
         if self.schedule_type == ScheduleType.CRON.value:
-            # Simplified cron calculation - for production use croniter
-            # This is a placeholder that returns next hour for "0 * * * *"
-            if self.cron_minute == "0" and self.cron_hour == "*":
-                next_hour = from_time.replace(minute=0, second=0, microsecond=0)
-                if next_hour <= from_time:
-                    next_hour += timedelta(hours=1)
-                return next_hour
-            # Default: next minute
-            return from_time + timedelta(minutes=1)
+            cron_expr = self.cron_expression
+            try:
+                from croniter import croniter
+                next_run = croniter(cron_expr, from_time).get_next(datetime)
+                if timezone.is_naive(next_run):
+                    next_run = timezone.make_aware(next_run)
+                return next_run
+            except ImportError:
+                logger.warning("croniter not installed, using interval fallback for cron schedule")
+                return from_time + timedelta(minutes=1)
+            except Exception as e:
+                logger.error(f"Failed to parse cron expression '{cron_expr}': {e}")
+                return from_time + timedelta(minutes=1)
 
         return None
 
@@ -1178,7 +1184,7 @@ class DeadLetterEntry(TemporaEntity):
         original = self.original_task
         payload = modified_payload or original.payload
 
-        new_task = CognitiveTask.create_task(
+        new_task, _ = CognitiveTask.create_task(
             tenant_id=original.tenant_id,
             task_name=original.task_name,
             payload=payload,
@@ -1425,7 +1431,7 @@ class CircuitBreakerState(TemporaEntity):
             service_name=service_name,
             defaults={
                 "failure_threshold": config.failure_threshold,
-                "recovery_timeout_seconds": config.recovery_timeout_seconds,
+                "recovery_timeout_seconds": config.timeout_seconds,
                 "success_threshold": config.success_threshold,
                 "half_open_max_calls": config.half_open_max_calls,
             },

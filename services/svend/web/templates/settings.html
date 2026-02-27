@@ -147,16 +147,16 @@
                         <option value="contrast">High Contrast</option>
                     </select>
                 </div>
-                <div class="form-group checkbox-group">
-                    <label>
+                <div class="form-group">
+                    <label class="svend-toggle">
                         <input type="checkbox" id="pref-show-reasoning" name="show_reasoning">
-                        Show reasoning traces by default
+                        <span>Show reasoning traces by default</span>
                     </label>
                 </div>
-                <div class="form-group checkbox-group">
-                    <label>
+                <div class="form-group">
+                    <label class="svend-toggle">
                         <input type="checkbox" id="pref-auto-scroll" name="auto_scroll" checked>
-                        Auto-scroll to new messages
+                        <span>Auto-scroll to new messages</span>
                     </label>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Preferences</button>
@@ -292,20 +292,7 @@
         margin-bottom: 1.25rem;
     }
 
-    .checkbox-group label {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        cursor: pointer;
-        text-transform: none;
-        font-weight: 400;
-        color: var(--text-secondary);
-    }
-
-    .checkbox-group input[type="checkbox"] {
-        width: auto;
-        accent-color: var(--accent-primary);
-    }
+    /* checkbox-group styles now handled by global .svend-toggle */
 
     .subscription-info {
         margin-bottom: 1.5rem;

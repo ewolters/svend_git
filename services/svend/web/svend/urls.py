@@ -11,6 +11,7 @@ from django.views.generic import TemplateView
 
 from api.blog_views import blog_list, blog_detail
 from api.internal_views import dashboard_view
+from api.landing_views import landing_view, iso_qms_view, svend_vs_minitab_view
 from api.models import BlogPost, WhitePaper
 from api.whitepaper_views import whitepaper_list, whitepaper_detail, whitepaper_pdf
 from agents_api.whiteboard_views import guest_board_view
@@ -29,7 +30,15 @@ class StaticSitemap(Sitemap):
         return ["/", "/blog/", "/privacy/", "/terms/", "/whitepapers/",
                 "/tools/", "/tools/cpk-calculator/", "/tools/sample-size-calculator/",
                 "/tools/oee-calculator/", "/tools/sigma-calculator/",
-                "/tools/takt-time-calculator/"]
+                "/tools/takt-time-calculator/",
+                "/tools/kanban-card-generator/",
+                "/tools/control-chart-generator/",
+                "/tools/gage-rr-calculator/",
+                "/tools/pareto-chart-generator/",
+                "/tools/bayesian-cpk-calculator/",
+                "/svend-vs-minitab/",
+                "/classical-vs-bayesian-spc/",
+                "/iso-9001-qms-software/"]
 
     def location(self, item):
         return item
@@ -73,7 +82,7 @@ sitemaps = {
 
 
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="landing.html"), name="home"),
+    path("", landing_view, name="home"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
     path("register/", TemplateView.as_view(template_name="register.html"), name="register"),
     path("verify", TemplateView.as_view(template_name="verify_email.html"), name="verify_email"),
@@ -112,6 +121,7 @@ urlpatterns = [
     path("app/fmea/", TemplateView.as_view(template_name="fmea.html"), name="fmea"),
     path("app/fmea/<uuid:fmea_id>/", TemplateView.as_view(template_name="fmea.html"), name="fmea_edit"),
     path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
+    path("app/iso/", TemplateView.as_view(template_name="iso.html"), name="iso"),
 
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),
@@ -125,6 +135,16 @@ urlpatterns = [
     path("tools/oee-calculator/", TemplateView.as_view(template_name="tools/oee_calculator.html"), name="tool_oee"),
     path("tools/sigma-calculator/", TemplateView.as_view(template_name="tools/sigma_calculator.html"), name="tool_sigma"),
     path("tools/takt-time-calculator/", TemplateView.as_view(template_name="tools/takt_time_calculator.html"), name="tool_takt_time"),
+    path("tools/kanban-card-generator/", TemplateView.as_view(template_name="tools/kanban_card_generator.html"), name="tool_kanban"),
+    path("tools/control-chart-generator/", TemplateView.as_view(template_name="tools/control_chart_generator.html"), name="tool_control_chart"),
+    path("tools/gage-rr-calculator/", TemplateView.as_view(template_name="tools/gage_rr_calculator.html"), name="tool_gage_rr"),
+    path("tools/pareto-chart-generator/", TemplateView.as_view(template_name="tools/pareto_chart_generator.html"), name="tool_pareto"),
+    path("tools/bayesian-cpk-calculator/", TemplateView.as_view(template_name="tools/bayesian_cpk_calculator.html"), name="tool_bayesian_cpk"),
+
+    # Comparison pages (public, no auth — SEO)
+    path("svend-vs-minitab/", svend_vs_minitab_view, name="svend_vs_minitab"),
+    path("classical-vs-bayesian-spc/", TemplateView.as_view(template_name="classical_vs_bayesian_spc.html"), name="classical_vs_bayesian_spc"),
+    path("iso-9001-qms-software/", iso_qms_view, name="iso_9001_qms"),
 
     # Blog (public, no auth)
     path("blog/", blog_list, name="blog_list"),
@@ -157,6 +177,7 @@ urlpatterns = [
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
+    path("api/iso/", include("agents_api.iso_urls")),  # ISO 9001 QMS (Team/Enterprise)
     path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),

@@ -44,11 +44,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "accounts.middleware.NoCacheDynamicMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.SiteVisitMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Svend custom middleware
@@ -126,7 +128,7 @@ SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
 
 # HTTPS hardening (production only — Caddy handles TLS)
 if not DEBUG:
@@ -143,7 +145,7 @@ FIELD_ENCRYPTION_KEY = config.field_encryption_key
 # REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "api.auth.CsrfExemptSessionAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -154,6 +156,12 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "user": f"{config.rate_limit_per_minute}/minute",
     },
+    # Cloudflare is the single proxy in front of Gunicorn. This tells DRF
+    # to use the *rightmost* entry in X-Forwarded-For (the one Cloudflare
+    # appended) instead of the leftmost (which the client controls).
+    # Without this, all anonymous rate limits are bypassable via a fake
+    # X-Forwarded-For header.
+    "NUM_PROXIES": 1,
 }
 
 # Tempora (distributed task scheduling)
@@ -245,6 +253,10 @@ STRIPE_SECRET_KEY = config.stripe_secret_key
 STRIPE_WEBHOOK_SECRET = config.stripe_webhook_secret
 STRIPE_PRICE_ID_PRO = config.stripe_price_id_pro
 
+
+# Evidence integration — problem-solving tools → core.Evidence
+# Flip to False to disable all tool → evidence hooks (rollback switch).
+EVIDENCE_INTEGRATION_ENABLED = True
 
 # Pipeline selection
 SVEND_USE_SYNARA = config.use_synara  # True = Synara (alpha-ready), False = MoE

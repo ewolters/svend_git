@@ -393,8 +393,8 @@
     .formula-test-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* ============ X-MATRIX ============ */
-.xm-container { max-width: 1200px; margin: 0 auto; }
+/* ============ X-MATRIX (Diamond Layout) ============ */
+.xm-container { max-width: 1100px; margin: 0 auto; }
 
 /* Unlinked projects warning banner */
 .xm-warning-banner { background: rgba(207,111,111,0.12); border: 1px solid rgba(207,111,111,0.3); border-radius: 8px;
@@ -402,8 +402,6 @@
 .xm-warning-banner .warn-icon { font-size: 18px; }
 .xm-warning-banner .warn-text { flex: 1; font-size: 13px; color: var(--text-primary); }
 .xm-warning-banner .warn-text strong { color: var(--error); }
-.xm-warning-banner .warn-link { color: var(--accent); text-decoration: none; font-size: 12px; font-weight: 600; white-space: nowrap; }
-.xm-warning-banner .warn-link:hover { text-decoration: underline; }
 
 /* Dashboard alignment card */
 .dash-alignment-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px;
@@ -413,55 +411,76 @@
 .dash-alignment-card .align-stat .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); }
 .dash-alignment-card .align-divider { width: 1px; height: 36px; background: var(--border); }
 
-/* X-matrix grid layout */
-.xm-grid-layout { display: grid; grid-template-columns: 200px 1fr 200px; grid-template-rows: auto auto auto;
-    gap: 0; position: relative; }
+/* ---- X-Matrix: 3×3 grid. Corners = correlation dot-grids (dominant). Edges = item lists. Center = minimal. ---- */
+.xm-diamond-wrap { position: relative; }
+.xm-grid-layout {
+    display: grid;
+    grid-template-columns: 5fr 3fr 5fr;
+    grid-template-rows: 1fr auto 1fr;
+    gap: 0; position: relative;
+    border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+}
+/* ---- Corners: correlation grids — the dominant, biggest elements ---- */
+.xm-corner { padding: 10px; overflow: auto; background: var(--bg-secondary);
+    display: flex; flex-direction: column; align-items: center; min-height: 160px;
+    border: 1px solid var(--border); }
+.xm-corner-label { font-size: 8px; color: var(--accent); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 6px; text-align: center; }
+.xm-corner-nw { grid-column: 1; grid-row: 1; border-top: none; border-left: none; }
+.xm-corner-ne { grid-column: 3; grid-row: 1; border-top: none; border-right: none; }
+.xm-corner-sw { grid-column: 1; grid-row: 3; border-bottom: none; border-left: none; }
+.xm-corner-se { grid-column: 3; grid-row: 3; border-bottom: none; border-right: none; }
 
-/* Quadrant item lists */
-.xm-quadrant { padding: 8px; }
-.xm-quadrant h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim);
-    margin: 0 0 6px; }
+/* ---- Edges: item lists ---- */
+.xm-quadrant { padding: 8px 6px; background: var(--bg-primary); }
+.xm-quadrant h4 { font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--accent);
+    margin: 0 0 4px; text-align: center; }
+.xm-edge-north { grid-column: 2; grid-row: 1; border-bottom: 1px solid var(--border); }
+.xm-edge-west  { grid-column: 1; grid-row: 2; border-right: 1px solid var(--border); }
+.xm-edge-east  { grid-column: 3; grid-row: 2; border-left: 1px solid var(--border); }
+.xm-edge-south { grid-column: 2; grid-row: 3; border-top: 1px solid var(--border); }
+
+/* Center — near-invisible, with subtle X lines */
+.xm-center-x { grid-column: 2; grid-row: 2; position: relative; overflow: hidden; }
+.xm-center-x svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.xm-center-x svg line { stroke: var(--accent); stroke-width: 1; opacity: 0.20; }
+
+/* ---- Item styles: all horizontal, readable ---- */
 .xm-items { list-style: none; padding: 0; margin: 0; }
-.xm-item { padding: 5px 8px; font-size: 11px; color: var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.04);
-    cursor: pointer; border-radius: 4px; border-left: 3px solid transparent; display: flex; justify-content: space-between;
-    align-items: center; gap: 6px; }
+.xm-item { padding: 4px 6px; font-size: 11px; color: var(--text-primary);
+    cursor: pointer; border-radius: 3px; display: flex; justify-content: space-between;
+    align-items: center; gap: 6px; transition: background 0.12s;
+    border-left: 3px solid transparent; border-bottom: 1px solid rgba(255,255,255,0.03); }
 .xm-item:hover { background: var(--bg-hover); }
-.xm-item.highlighted { background: rgba(74,159,110,0.1); border-left-color: var(--accent); }
+.xm-item.highlighted { background: rgba(74,159,110,0.12); border-left-color: var(--accent); }
 .xm-item .xm-item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xm-item .xm-item-sub { display: block; font-size: 9px; color: var(--text-dim); font-weight: 400; margin-top: 1px; }
 .xm-item .xm-item-value { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); white-space: nowrap; }
 .xm-item .xm-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.xm-add-btn { display: block; width: 100%; padding: 4px 8px; background: transparent; border: 1px dashed var(--border);
-    border-radius: 4px; color: var(--text-dim); font-size: 11px; cursor: pointer; margin-top: 4px; text-align: center; }
+.xm-add-btn { display: block; width: 100%; padding: 3px 8px; background: transparent; border: 1px dashed var(--border);
+    border-radius: 4px; color: var(--text-dim); font-size: 10px; cursor: pointer; margin-top: 4px; text-align: center; }
 .xm-add-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Correlation grid tables */
-.xm-corr-grid { border-collapse: collapse; font-size: 11px; }
+/* ---- Correlation grid tables — horizontal headers, no rotation ---- */
+.xm-corr-grid { border-collapse: collapse; font-size: 10px; width: 100%; }
 .xm-corr-grid th { padding: 3px 4px; color: var(--text-dim); font-size: 9px; font-weight: 400;
-    max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.xm-corr-grid th.xm-row-header { text-align: right; padding-right: 6px; }
-.xm-corr-grid th.xm-col-header { writing-mode: vertical-lr; text-orientation: mixed; transform: rotate(180deg);
-    max-height: 80px; padding: 4px 2px; }
-.xm-dot { width: 22px; height: 22px; text-align: center; vertical-align: middle; cursor: pointer; border-radius: 50%;
-    transition: background 0.15s; line-height: 22px; }
-.xm-dot:hover { background: rgba(74,159,110,0.15); }
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xm-corr-grid th.xm-row-header { text-align: right; padding-right: 6px; max-width: 100px; }
+.xm-corr-grid th.xm-col-header { text-align: center; max-width: 60px; font-size: 8px;
+    padding-bottom: 4px; }
+.xm-dot { width: 24px; height: 24px; text-align: center; vertical-align: middle; cursor: pointer; border-radius: 50%;
+    transition: background 0.15s; line-height: 24px; }
+.xm-dot:hover { background: rgba(74,159,110,0.2); }
 .xm-dot-strong { color: var(--accent); font-size: 16px; }
 .xm-dot-moderate { color: var(--accent); font-size: 14px; opacity: 0.7; }
-.xm-dot-weak { color: var(--text-dim); font-size: 10px; }
+.xm-dot-weak { color: var(--text-dim); font-size: 11px; }
 .xm-dot-auto { border: 1px dashed var(--text-dim); border-radius: 50%; }
 .xm-dot-auto.xm-dot-strong,
 .xm-dot-auto.xm-dot-moderate { border-color: var(--accent); }
 
-/* Center area with 4 correlation grids */
-.xm-center { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px;
-    padding: 8px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
-.xm-center .xm-corner { overflow: auto; }
-.xm-center .xm-corner-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase;
-    letter-spacing: 0.3px; margin-bottom: 4px; }
-
-/* Rollup bar */
+/* Rollup bar — below diamond as companion */
 .xm-rollup { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px;
-    margin-top: 20px; }
+    margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
 .xm-rollup-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
 .xm-rollup-card .rollup-title { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -814,14 +833,14 @@
                         <h3>Team Roster</h3>
                         <div class="team-list" id="ch-team-list"></div>
                         <div style="display:flex;gap:8px;margin-top:10px;">
-                            <input id="ch-team-name" placeholder="Name" style="flex:1;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
-                            <select id="ch-team-role" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <input id="ch-team-name" placeholder="Name" style="flex:3;min-width:0;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <select id="ch-team-role" style="flex:2;min-width:0;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
                                 <option value="Member">Member</option>
                                 <option value="Team Leader">Team Leader</option>
                                 <option value="Facilitator">Facilitator</option>
                                 <option value="SME">SME</option>
                             </select>
-                            <input id="ch-team-dept" placeholder="Department" style="width:120px;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <input id="ch-team-dept" placeholder="Department" style="flex:2;min-width:0;padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
                             <button class="btn-h small primary" onclick="addTeamMember()">Add</button>
                         </div>
                     </div>
@@ -978,51 +997,50 @@
                 <p>No X-matrix data for this fiscal year. Add strategic objectives, annual objectives, and KPIs to begin.</p>
             </div>
             <div id="xm-matrix" style="display:none;">
-                <div class="xm-grid-layout">
-                    <!-- North: Projects -->
-                    <div style="grid-column:2;grid-row:1;" class="xm-quadrant">
-                        <h4>Improvement Projects (North)</h4>
-                        <ul class="xm-items" id="xm-projects-list"></ul>
-                    </div>
-                    <!-- West: Annual Objectives -->
-                    <div style="grid-column:1;grid-row:2;" class="xm-quadrant">
-                        <h4>Annual Objectives (West)</h4>
-                        <ul class="xm-items" id="xm-annual-list"></ul>
-                        <button class="xm-add-btn" onclick="openXMObjectiveModal('annual')">+ Add</button>
-                    </div>
-                    <!-- Center: 4 correlation grids -->
-                    <div style="grid-column:2;grid-row:2;" class="xm-center">
-                        <div class="xm-corner" id="xm-corner-nw">
-                            <div class="xm-corner-label">Annual x Projects</div>
+                <div class="xm-diamond-wrap">
+                    <div class="xm-grid-layout">
+                        <!-- Row 1: [Annual×Projects corr] [Projects list] [Projects×KPIs corr] -->
+                        <div class="xm-corner xm-corner-nw">
+                            <div class="xm-corner-label">Annual &times; Projects</div>
                             <div id="xm-grid-annual-project"></div>
                         </div>
-                        <div class="xm-corner" id="xm-corner-ne">
-                            <div class="xm-corner-label">Projects x KPIs</div>
+                        <div class="xm-quadrant xm-edge-north">
+                            <h4>Improvement Projects</h4>
+                            <ul class="xm-items" id="xm-projects-list"></ul>
+                        </div>
+                        <div class="xm-corner xm-corner-ne">
+                            <div class="xm-corner-label">Projects &times; KPIs</div>
                             <div id="xm-grid-project-kpi"></div>
                         </div>
-                        <div class="xm-corner" id="xm-corner-sw">
-                            <div class="xm-corner-label">Strategic x Annual</div>
+                        <!-- Row 2: [Annual Obj list] [center] [KPIs list] -->
+                        <div class="xm-quadrant xm-edge-west">
+                            <h4>Annual Objectives</h4>
+                            <ul class="xm-items" id="xm-annual-list"></ul>
+                            <button class="xm-add-btn" onclick="openXMObjectiveModal('annual')">+ Add</button>
+                        </div>
+                        <div class="xm-center-x"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="0" y1="0" x2="100" y2="100"/><line x1="100" y1="0" x2="0" y2="100"/></svg></div>
+                        <div class="xm-quadrant xm-edge-east">
+                            <h4>KPIs / Metrics</h4>
+                            <ul class="xm-items" id="xm-kpi-list"></ul>
+                            <button class="xm-add-btn" onclick="openXMKPIModal()">+ Add</button>
+                        </div>
+                        <!-- Row 3: [Strategic×Annual corr] [Strategic list] [KPIs×Strategic corr] -->
+                        <div class="xm-corner xm-corner-sw">
+                            <div class="xm-corner-label">Strategic &times; Annual</div>
                             <div id="xm-grid-strategic-annual"></div>
                         </div>
-                        <div class="xm-corner" id="xm-corner-se">
-                            <div class="xm-corner-label">KPIs x Strategic</div>
+                        <div class="xm-quadrant xm-edge-south">
+                            <h4>Strategic Objectives</h4>
+                            <ul class="xm-items" id="xm-strategic-list"></ul>
+                            <button class="xm-add-btn" onclick="openXMObjectiveModal('strategic')">+ Add</button>
+                        </div>
+                        <div class="xm-corner xm-corner-se">
+                            <div class="xm-corner-label">KPIs &times; Strategic</div>
                             <div id="xm-grid-kpi-strategic"></div>
                         </div>
                     </div>
-                    <!-- East: KPIs -->
-                    <div style="grid-column:3;grid-row:2;" class="xm-quadrant">
-                        <h4>KPIs / Metrics (East)</h4>
-                        <ul class="xm-items" id="xm-kpi-list"></ul>
-                        <button class="xm-add-btn" onclick="openXMKPIModal()">+ Add</button>
-                    </div>
-                    <!-- South: Strategic Objectives -->
-                    <div style="grid-column:2;grid-row:3;" class="xm-quadrant">
-                        <h4>Strategic Objectives (South)</h4>
-                        <ul class="xm-items" id="xm-strategic-list"></ul>
-                        <button class="xm-add-btn" onclick="openXMObjectiveModal('strategic')">+ Add</button>
-                    </div>
                 </div>
-                <!-- Dollar rollup -->
+                <!-- Rollup — companion section below the diamond -->
                 <div class="xm-rollup" id="xm-rollup"></div>
             </div>
         </div>
@@ -3204,7 +3222,7 @@ function calBarCell(m) {
 
 async function renderCalendar() {
     const siteFilter = document.getElementById('cal-filter-site').value;
-    let url = `/api/hoshin/calendar/?fiscal_year=${selectedFY}`;
+    let url = `/calendar/?fiscal_year=${selectedFY}`;
     if (siteFilter) url += `&site_id=${siteFilter}`;
     const data = await api(url);
     if (!data || !data.sites) return;
@@ -3404,23 +3422,23 @@ async function renderXMatrix() {
     document.getElementById('xm-empty').style.display = 'none';
     document.getElementById('xm-matrix').style.display = 'block';
 
-    // Render quadrant lists
+    // Render quadrant lists (edge items with rotated text)
     renderXMItems('xm-strategic-list', xmData.strategic_objectives, 'strategic');
     renderXMItems('xm-annual-list', xmData.annual_objectives, 'annual');
     renderXMItems('xm-projects-list', xmData.projects, 'project');
     renderXMItems('xm-kpi-list', xmData.kpis, 'kpi');
 
-    // Render correlation grids
-    renderCorrelationGrid('xm-grid-strategic-annual', 'strategic_annual',
-        xmData.strategic_objectives, xmData.annual_objectives);
+    // Render 4 corner correlation grids
     renderCorrelationGrid('xm-grid-annual-project', 'annual_project',
         xmData.annual_objectives, xmData.projects);
     renderCorrelationGrid('xm-grid-project-kpi', 'project_kpi',
         xmData.projects, xmData.kpis);
+    renderCorrelationGrid('xm-grid-strategic-annual', 'strategic_annual',
+        xmData.strategic_objectives, xmData.annual_objectives);
     renderCorrelationGrid('xm-grid-kpi-strategic', 'kpi_strategic',
         xmData.kpis, xmData.strategic_objectives);
 
-    // Render dollar rollup
+    // Render dollar rollup (below diamond)
     renderXMRollup();
 
     // Render warning banner
@@ -3489,7 +3507,7 @@ function renderXMItems(containerId, items, type) {
 function renderCorrelationGrid(containerId, pairType, rowItems, colItems) {
     const container = document.getElementById(containerId);
     if (!rowItems.length || !colItems.length) {
-        container.innerHTML = '<span style="font-size:10px;color:var(--text-dim);">No data</span>';
+        container.innerHTML = '<div style="font-size:10px;color:var(--text-dim);padding:20px;text-align:center;">No data yet</div>';
         return;
     }
 
@@ -3499,14 +3517,16 @@ function renderCorrelationGrid(containerId, pairType, rowItems, colItems) {
 
     let html = '<table class="xm-corr-grid"><thead><tr><th></th>';
     colItems.forEach(c => {
-        const label = (c.title || c.project_title || c.name || '').substring(0, 12);
-        html += `<th class="xm-col-header" title="${c.title || c.project_title || c.name || ''}">${label}</th>`;
+        const fullName = c.title || c.project_title || c.name || '';
+        const label = fullName.length > 10 ? fullName.substring(0, 9) + '\u2026' : fullName;
+        html += `<th class="xm-col-header" title="${fullName}">${label}</th>`;
     });
     html += '</tr></thead><tbody>';
 
     rowItems.forEach(r => {
-        const rLabel = (r.title || r.project_title || r.name || '').substring(0, 15);
-        html += `<tr><th class="xm-row-header" title="${r.title || r.project_title || r.name || ''}">${rLabel}</th>`;
+        const fullName = r.title || r.project_title || r.name || '';
+        const rLabel = fullName.length > 18 ? fullName.substring(0, 17) + '\u2026' : fullName;
+        html += `<tr><th class="xm-row-header" title="${fullName}">${rLabel}</th>`;
         colItems.forEach(c => {
             const key = r.id + ':' + c.id;
             const corr = corrMap[key];
@@ -3945,7 +3965,10 @@ function onStrategicMetricChange() {
     const metaDiv = document.getElementById('xm-obj-metric-meta');
     if (meta) {
         const aggLabel = {sum:'Sum across projects', weighted_avg:'Volume-weighted average', latest:'Latest value', manual:'Manual'}[meta.aggregation] || meta.aggregation;
-        metaDiv.textContent = `Unit: ${meta.unit || '—'} · ${meta.direction === 'down' ? 'Lower is better' : 'Higher is better'} · ${aggLabel}`;
+        let text = `Unit: ${meta.unit || '—'} · ${meta.direction === 'down' ? 'Lower is better' : 'Higher is better'} · ${aggLabel}`;
+        if (meta.calc) text += `\n${meta.calc}`;
+        metaDiv.textContent = text;
+        metaDiv.style.whiteSpace = 'pre-line';
     } else {
         metaDiv.textContent = '';
     }

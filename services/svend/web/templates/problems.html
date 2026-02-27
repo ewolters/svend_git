@@ -91,10 +91,10 @@
                     placeholder="e.g., CRM export, sales data, customer surveys, server logs..."></textarea>
             </div>
 
-            <div class="form-group checkbox-group">
-                <label>
+            <div class="form-group">
+                <label class="svend-toggle">
                     <input type="checkbox" id="can-experiment" checked>
-                    I can run controlled experiments (not just observe)
+                    <span>I can run controlled experiments (not just observe)</span>
                 </label>
             </div>
 
@@ -830,7 +830,7 @@
 
 .interview-answer .choice-option.selected {
     border-color: var(--accent-primary);
-    background: rgba(99, 102, 241, 0.1);
+    background: var(--accent-primary-dim);
 }
 
 .interview-answer .choice-option input {
@@ -868,8 +868,8 @@
 }
 
 .recommendation-panel {
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: var(--accent-primary-dim);
+    border: 1px solid var(--accent-primary-border);
     border-radius: 8px;
     padding: 1.25rem;
     margin-bottom: 1rem;
@@ -895,13 +895,13 @@
 }
 
 .btn-accent {
-    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    background: var(--accent-primary);
     color: white;
     border: none;
 }
 
 .btn-accent:hover {
-    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+    filter: brightness(0.85);
 }
 
 .detail-header {

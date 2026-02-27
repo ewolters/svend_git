@@ -1265,7 +1265,7 @@ async function setupProjectSelector() {
 function updateProjectLink(projectId) {
     const link = document.getElementById('project-link');
     if (projectId) {
-        link.href = '/app/projects/';
+        link.href = `/app/projects/#${projectId}`;
         link.style.display = 'flex';
     } else {
         link.style.display = 'none';

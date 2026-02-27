@@ -54,13 +54,13 @@
         "name": "Svend",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web",
-        "description": "Experimentation platform for quality and operations teams. 200+ statistical analyses, DOE, SPC, hypothesis tracking, root cause analysis, FMEA, value stream mapping, and hoshin kanri deployment.",
+        "description": "Experimentation platform for quality and operations teams. 200+ statistical analyses, DOE, SPC, hypothesis tracking, root cause analysis, FMEA, value stream mapping, hoshin kanri deployment, and ISO 9001:2015 QMS with NCR tracking, internal audits, training matrix, and management review.",
         "url": "https://svend.ai",
         "offers": {
             "@type": "AggregateOffer",
             "lowPrice": "0",
             "highPrice": "299",
-            "priceCurrency": "USD",
+            "priceCurrency": "{{ currency }}",
             "offerCount": "4"
         },
         "featureList": [
@@ -76,7 +76,8 @@
             "200+ Statistical Tests & ML Models",
             "Bayesian SPC — Adaptive Control Limits, Bayesian Cpk, Online Changepoint Detection",
             "Anytime-Valid Sequential Testing (E-Processes)",
-            "Collaborative Whiteboard & Knowledge Graph"
+            "Collaborative Whiteboard & Knowledge Graph",
+            "ISO 9001:2015 QMS — NCR Tracker, Internal Audit Scheduler, Training Matrix, Management Review, Document Control, Supplier Management"
         ]
     }
     </script>
@@ -100,7 +101,7 @@
                 "name": "How much does a typical quality tool stack cost?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Quality engineering teams typically spend $3,000-$10,000+ per seat per year across separate subscriptions: statistical analysis software ($1,300-$1,900/yr), DOE tools ($500-$2,000/yr), lean/CI project management ($1,200-$3,600/yr), and FMEA/risk analysis tools ($500-$1,500/yr). Svend consolidates all of these into one platform. The Professional plan is $588/year. A free tier is available to evaluate the platform before committing."
+                    "text": "Quality engineering teams typically spend $3,000-$10,000+ per seat per year across separate subscriptions: statistical analysis software ($1,300-$1,900/yr), DOE tools ($500-$2,000/yr), lean/CI project management ($1,200-$3,600/yr), and FMEA/risk analysis tools ($500-$1,500/yr). Svend consolidates all of these into one platform. The Professional plan starts at $588/year (USD) with purchasing power pricing available for emerging markets. A free tier is available to evaluate the platform before committing."
                 }
             },
             {
@@ -153,10 +154,18 @@
             },
             {
                 "@type": "Question",
+                "name": "Does Svend support ISO 9001:2015 compliance?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. The Team and Enterprise plans include a full ISO 9001:2015 QMS module covering clauses 4 through 10. This includes NCR tracking with CAPA workflow (clause 10.2), internal audit scheduling with finding management (clause 9.2), a training matrix with competence records and expiry tracking (clause 7.2), management review with auto-captured QMS data snapshots (clause 9.3), controlled document registers (clause 7.5), and supplier evaluation (clause 8.4). The platform's existing statistical tools directly support clauses 8 and 9 for process monitoring, measurement, and analysis."
+                }
+            },
+            {
+                "@type": "Question",
                 "name": "Can I cancel anytime?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Absolutely. No contracts, no commitments. Cancel with one click and keep access until the end of your billing period."
+                    "text": "Absolutely. No contracts, no commitments. Team and Enterprise plans include a 14-day free trial — cancel during the trial and you won't be charged. After that, cancel with one click and keep access until the end of your billing period."
                 }
             }
         ]
@@ -296,9 +305,23 @@
         .hero-subtitle {
             font-size: 1.25rem;
             color: var(--text-secondary);
-            max-width: 600px;
-            margin-bottom: 3rem;
+            max-width: 650px;
+            margin-bottom: 1.5rem;
         }
+
+        .hero-stats-inline {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+        .hero-stat { font-weight: 500; }
+        .hero-stat-dim { color: var(--text-dim); font-weight: 400; font-size: 0.85rem; }
+        .hero-stat-sep { color: var(--text-dim); }
 
         .hero-cta {
             display: flex;
@@ -1184,15 +1207,64 @@
             }
         }
 
+        /* ISO 9001 QMS */
+        .iso-coverage { padding: 5rem 2rem; background: var(--bg-secondary); border-top: 1px solid rgba(255,255,255,0.03); }
+        .iso-coverage-inner { max-width: 1100px; margin: 0 auto; }
+        .iso-module-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem; }
+        .iso-module-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 1.25rem; text-align: center; transition: border-color 0.2s; }
+        .iso-module-card:hover { border-color: rgba(74,159,110,0.3); }
+        .iso-module-clause { font-family: 'JetBrains Mono', monospace; color: var(--accent-primary); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .iso-module-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem; }
+        .iso-module-desc { color: var(--text-secondary); font-size: 0.8rem; line-height: 1.4; }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .pricing-cards { grid-template-columns: repeat(3, 1fr); }
         }
+        /* Hamburger menu */
+        .nav-hamburger {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            z-index: 102;
+        }
+        .nav-hamburger span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: var(--text-primary);
+            margin: 5px 0;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+        .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+        .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
         @media (max-width: 900px) {
-            .nav-links { display: none; }
+            .nav-hamburger { display: block; }
+            .nav-links {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(10, 15, 10, 0.97);
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                gap: 1.5rem;
+                z-index: 101;
+            }
+            .nav-links.open { display: flex; }
+            .nav-links .nav-link { font-size: 1.2rem; }
+            .nav-links .nav-btn { font-size: 1.1rem; padding: 0.75rem 2rem; }
             .hero-title { font-size: 2.5rem; }
             .features-grid { grid-template-columns: 1fr; }
             .pricing-cards { grid-template-columns: repeat(2, 1fr); }
+            .iso-module-cards { grid-template-columns: 1fr 1fr; }
             .footer-inner { grid-template-columns: 1fr 1fr; text-align: center; }
             .footer-col { align-items: center; }
         }
@@ -1212,32 +1284,43 @@
             </span>
             SVEND
         </div>
-        <div class="nav-links">
+        <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="nav-links" id="navLinks">
             <a href="#features" class="nav-link">Features</a>
             <a href="#hoshin" class="nav-link">Strategy</a>
             <a href="#spine" class="nav-link">How It Works</a>
             <a href="/tools/" class="nav-link">Free Tools</a>
             <a href="/whitepapers/" class="nav-link">Whitepapers</a>
+            <a href="/iso-9001-qms-software/" class="nav-link">ISO 9001</a>
             <a href="#pricing" class="nav-link">Pricing</a>
             <a href="#faq" class="nav-link">FAQ</a>
             <a href="/blog/" class="nav-link">Blog</a>
             <a href="/login/" class="nav-link">Login</a>
-            <a href="/register/" class="nav-btn">Get Started</a>
+            <a href="/register/?region={{ region }}" class="nav-btn">Get Started</a>
         </div>
     </nav>
 
     <!-- Hero -->
     <section class="hero">
-        <h1 class="hero-title">From signal to <strong>verified improvement</strong></h1>
+        <h1 class="hero-title">Quality engineering software for <strong>SPC, DOE, and ISO 9001</strong></h1>
         <p class="hero-subtitle">
-            DOE, SPC, and capability studies connected to hypothesis tracking, root cause analysis, and strategic deployment. One platform instead of five disconnected tools.
+            Track NCRs, run experiments, monitor processes, and deploy strategy — one platform instead of Minitab + spreadsheets + a separate QMS. 200+ statistical analyses. Free tier available.
         </p>
+        <div class="hero-stats-inline">
+            <span class="hero-stat">200+ analyses</span>
+            <span class="hero-stat-sep">&middot;</span>
+            <span class="hero-stat">{{ price_pro }}/mo <span class="hero-stat-dim">vs $2,594/yr Minitab</span></span>
+            <span class="hero-stat-sep">&middot;</span>
+            <span class="hero-stat">No setup required</span>
+        </div>
         <div class="hero-cta">
-            <a href="/register/" class="btn-primary">Start Free</a>
-            <a href="#spine" class="btn-secondary">See the Workflow</a>
+            <a href="/register/?region={{ region }}" class="btn-primary">Start Free</a>
+            <a href="/tools/" class="btn-secondary">Try Free Tools</a>
         </div>
 
-        <!-- Demo Preview -->
+        <!-- Product Screenshots -->
         <div class="demo-preview">
             <div class="demo-header">
                 <div class="demo-dot"></div>
@@ -1246,281 +1329,31 @@
             </div>
             <div class="demo-content">
                 <div class="showcase-tabs">
-                    <button class="showcase-tab active" onclick="showShowcase(0)">Line Simulator</button>
-                    <button class="showcase-tab" onclick="showShowcase(1)">Cpk Study</button>
-                    <button class="showcase-tab" onclick="showShowcase(2)">Value Stream Map</button>
+                    <button class="showcase-tab active" onclick="showShowcase(0)">Bayesian SPC</button>
+                    <button class="showcase-tab" onclick="showShowcase(1)">Cpk &amp; Taguchi Loss</button>
+                    <button class="showcase-tab" onclick="showShowcase(2)">X-Matrix</button>
                 </div>
 
-                <!-- Panel 1: Live Simulator -->
+                <!-- Panel 1: Bayesian SPC -->
                 <div class="showcase-panel active" id="showcase-0">
-                    <div class="mock-stat-bar">
-                        <span>Throughput: <strong id="sim-tput">0</strong> units/hr</span>
-                        <span>WIP: <strong id="sim-wip-total">0</strong></span>
-                        <span>Bottleneck: <span class="mock-stat-accent">Station 3</span></span>
-                        <span>Time: <strong id="sim-clock">00:00</strong></span>
-                    </div>
-                    <div class="sim-line" id="sim-line">
-                        <div class="sim-station" id="sim-s0">
-                            <div class="sim-wip" id="sim-w0">0</div>
-                            <div class="sim-station-name">Station 1</div>
-                            <div class="sim-station-ct">45s</div>
-                            <div class="sim-station-util" id="sim-u0">0%</div>
-                        </div>
-                        <div class="sim-arrow">&rarr;</div>
-                        <div class="sim-station" id="sim-s1">
-                            <div class="sim-wip" id="sim-w1">0</div>
-                            <div class="sim-station-name">Station 2</div>
-                            <div class="sim-station-ct">38s</div>
-                            <div class="sim-station-util" id="sim-u1">0%</div>
-                        </div>
-                        <div class="sim-arrow">&rarr;</div>
-                        <div class="sim-station bottleneck" id="sim-s2">
-                            <div class="sim-wip" id="sim-w2">0</div>
-                            <div class="sim-station-name">Station 3</div>
-                            <div class="sim-station-ct">62s</div>
-                            <div class="sim-station-util" id="sim-u2">0%</div>
-                        </div>
-                        <div class="sim-arrow">&rarr;</div>
-                        <div class="sim-station" id="sim-s3">
-                            <div class="sim-wip" id="sim-w3">0</div>
-                            <div class="sim-station-name">Station 4</div>
-                            <div class="sim-station-ct">41s</div>
-                            <div class="sim-station-util" id="sim-u3">0%</div>
-                        </div>
-                        <div class="sim-arrow">&rarr;</div>
-                        <div class="sim-station" id="sim-s4">
-                            <div class="sim-wip" id="sim-w4">0</div>
-                            <div class="sim-station-name">Station 5</div>
-                            <div class="sim-station-ct">35s</div>
-                            <div class="sim-station-util" id="sim-u4">0%</div>
-                        </div>
-                    </div>
-                    <div class="sim-bar-row" id="sim-tput-bars"></div>
-                    <div class="sim-bar-label"><span>Throughput over time</span><span id="sim-bar-latest"></span></div>
+                    <img src="/static/screenshots/sv3.png" alt="Bayesian SPC — Belief Chart, Evidence Accumulation, and E-Detector changepoint detection" style="width:100%; border-radius: 4px;" loading="lazy">
                 </div>
 
-                <!-- Panel 2: Cpk Study -->
+                <!-- Panel 2: Cpk & Taguchi Loss -->
                 <div class="showcase-panel" id="showcase-1">
-                    <div class="mock-stat-bar">
-                        <span>Process: <strong>Bore Diameter</strong></span>
-                        <span>n = <strong>150</strong></span>
-                        <span>Target: <strong>25.000 mm</strong></span>
-                        <span>Spec: <strong>24.970 – 25.030</strong></span>
-                    </div>
-                    <div class="cpk-chart">
-                        <div class="cpk-spec lsl" data-label="LSL" style="left:10%;"></div>
-                        <div class="cpk-target"></div>
-                        <div class="cpk-spec usl" data-label="USL" style="right:10%;"></div>
-                        <div class="cpk-bar" style="height:5%; background:rgba(74,159,110,0.2);"></div>
-                        <div class="cpk-bar" style="height:8%; background:rgba(74,159,110,0.25);"></div>
-                        <div class="cpk-bar" style="height:14%; background:rgba(74,159,110,0.3);"></div>
-                        <div class="cpk-bar" style="height:22%; background:rgba(74,159,110,0.35);"></div>
-                        <div class="cpk-bar" style="height:35%; background:rgba(74,159,110,0.4);"></div>
-                        <div class="cpk-bar" style="height:52%; background:rgba(74,159,110,0.5);"></div>
-                        <div class="cpk-bar" style="height:68%; background:rgba(74,159,110,0.55);"></div>
-                        <div class="cpk-bar" style="height:82%; background:rgba(74,159,110,0.65);"></div>
-                        <div class="cpk-bar" style="height:93%; background:rgba(74,159,110,0.75);"></div>
-                        <div class="cpk-bar" style="height:100%; background:rgba(74,159,110,0.85);"></div>
-                        <div class="cpk-bar" style="height:97%; background:rgba(74,159,110,0.8);"></div>
-                        <div class="cpk-bar" style="height:88%; background:rgba(74,159,110,0.7);"></div>
-                        <div class="cpk-bar" style="height:74%; background:rgba(74,159,110,0.6);"></div>
-                        <div class="cpk-bar" style="height:56%; background:rgba(74,159,110,0.5);"></div>
-                        <div class="cpk-bar" style="height:40%; background:rgba(74,159,110,0.4);"></div>
-                        <div class="cpk-bar" style="height:26%; background:rgba(74,159,110,0.35);"></div>
-                        <div class="cpk-bar" style="height:16%; background:rgba(74,159,110,0.3);"></div>
-                        <div class="cpk-bar" style="height:9%; background:rgba(74,159,110,0.25);"></div>
-                        <div class="cpk-bar" style="height:4%; background:rgba(74,159,110,0.2);"></div>
-                        <div class="cpk-bar" style="height:2%; background:rgba(74,159,110,0.15);"></div>
-                    </div>
-                    <div class="cpk-stats">
-                        <div class="cpk-stat"><div class="cpk-stat-val">1.34</div><div class="cpk-stat-lbl">Cpk</div></div>
-                        <div class="cpk-stat"><div class="cpk-stat-val">1.52</div><div class="cpk-stat-lbl">Cp</div></div>
-                        <div class="cpk-stat"><div class="cpk-stat-val">25.002</div><div class="cpk-stat-lbl">X&#772;</div></div>
-                        <div class="cpk-stat"><div class="cpk-stat-val">0.0065</div><div class="cpk-stat-lbl">&sigma;</div></div>
-                    </div>
+                    <img src="/static/screenshots/sv4.png" alt="Bayesian Cpk Posterior with credible intervals and Taguchi Loss per Regime showing dollar impact" style="width:100%; border-radius: 4px;" loading="lazy">
                 </div>
 
-                <!-- Panel 3: VSM (matches actual tool rendering) -->
+                <!-- Panel 3: X-Matrix -->
                 <div class="showcase-panel" id="showcase-2">
-                    <div class="mock-stat-bar">
-                        <span>Lead Time: <strong>23.5 days</strong></span>
-                        <span>Process Time: <strong>2.0 min</strong></span>
-                        <span>PCE: <span class="mock-stat-accent">0.006%</span></span>
-                    </div>
-                    <svg viewBox="0 0 1000 340" style="width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                            <marker id="vsm-push" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-                                <path d="M0,0 L0,6 L9,3 z" fill="#9aaa9a"/>
-                            </marker>
-                        </defs>
-
-                        <!-- Info flow (dashed blue) -->
-                        <line x1="110" y1="25" x2="890" y2="25" stroke="#3a7f8f" stroke-width="1.5" stroke-dasharray="6 4"/>
-                        <text x="500" y="18" text-anchor="middle" fill="#3a7f8f" font-size="9" font-weight="500">Production Control</text>
-
-                        <!-- Supplier entity box (100x80) -->
-                        <g transform="translate(10, 15)">
-                            <rect width="100" height="80" fill="#121a12" stroke="#3a7f8f" stroke-width="2" rx="4"/>
-                            <svg x="38" y="8" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3a7f8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V11l5 3v-3l5 3V6h6v15"/><line x1="2" y1="21" x2="22" y2="21"/></svg>
-                            <text x="50" y="52" text-anchor="middle" fill="#e8efe8" font-size="11" font-weight="600">Supplier</text>
-                            <text x="50" y="68" text-anchor="middle" fill="#7a8f7a" font-size="9">Weekly</text>
-                        </g>
-
-                        <!-- Customer entity box (100x80) -->
-                        <g transform="translate(890, 15)">
-                            <rect width="100" height="80" fill="#121a12" stroke="#3a7f8f" stroke-width="2" rx="4"/>
-                            <svg x="38" y="8" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3a7f8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
-                            <text x="50" y="52" text-anchor="middle" fill="#e8efe8" font-size="11" font-weight="600">Customer</text>
-                            <text x="50" y="68" text-anchor="middle" fill="#7a8f7a" font-size="9">18,400/mo</text>
-                        </g>
-
-                        <!-- Material flow push arrows at y=140 (process box midpoint) -->
-                        <line x1="110" y1="140" x2="150" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
-                        <line x1="280" y1="140" x2="340" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
-                        <line x1="470" y1="140" x2="530" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
-                        <line x1="660" y1="140" x2="720" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
-                        <line x1="850" y1="140" x2="890" y2="140" stroke="#9aaa9a" stroke-width="3" marker-end="url(#vsm-push)"/>
-
-                        <!-- Process 1: Stamp (130x140) -->
-                        <g transform="translate(150, 70)">
-                            <rect width="130" height="140" fill="#0d120d" stroke="#4a9f6e" stroke-width="2"/>
-                            <rect width="130" height="25" fill="#4a9f6e"/>
-                            <text x="65" y="17" text-anchor="middle" fill="white" font-size="11" font-weight="500">Stamp</text>
-                            <text x="8" y="40" fill="#7a8f7a" font-size="9">C/T</text><text x="122" y="40" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">12s</text>
-                            <text x="8" y="54" fill="#7a8f7a" font-size="9">C/O</text><text x="122" y="54" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">45m</text>
-                            <text x="8" y="68" fill="#7a8f7a" font-size="9">Uptime</text><text x="122" y="68" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">87%</text>
-                            <text x="8" y="82" fill="#7a8f7a" font-size="9">Batch</text><text x="122" y="82" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1000</text>
-                            <text x="8" y="96" fill="#7a8f7a" font-size="9">Scrap</text><text x="122" y="96" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2%</text>
-                            <text x="8" y="110" fill="#7a8f7a" font-size="9">Ops</text><text x="122" y="110" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
-                            <text x="8" y="124" fill="#7a8f7a" font-size="9">Shifts</text><text x="122" y="124" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
-                        </g>
-
-                        <!-- Inventory 1 (60x52 triangle between Stamp and Weld) -->
-                        <g transform="translate(280, 114)">
-                            <polygon points="30,0 60,52 0,52" fill="#e89547" opacity="0.8"/>
-                            <text x="30" y="40" text-anchor="middle" fill="#0a0f0a" font-size="10" font-weight="600">5d</text>
-                        </g>
-
-                        <!-- Process 2: Weld (130x140) -->
-                        <g transform="translate(340, 70)">
-                            <rect width="130" height="140" fill="#0d120d" stroke="#4a9f6e" stroke-width="2"/>
-                            <rect width="130" height="25" fill="#4a9f6e"/>
-                            <text x="65" y="17" text-anchor="middle" fill="white" font-size="11" font-weight="500">Weld</text>
-                            <text x="8" y="40" fill="#7a8f7a" font-size="9">C/T</text><text x="122" y="40" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">38s</text>
-                            <text x="8" y="54" fill="#7a8f7a" font-size="9">C/O</text><text x="122" y="54" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">20m</text>
-                            <text x="8" y="68" fill="#7a8f7a" font-size="9">Uptime</text><text x="122" y="68" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">92%</text>
-                            <text x="8" y="82" fill="#7a8f7a" font-size="9">Batch</text><text x="122" y="82" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
-                            <text x="8" y="96" fill="#7a8f7a" font-size="9">Scrap</text><text x="122" y="96" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1%</text>
-                            <text x="8" y="110" fill="#7a8f7a" font-size="9">Ops</text><text x="122" y="110" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
-                            <text x="8" y="124" fill="#7a8f7a" font-size="9">Shifts</text><text x="122" y="124" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
-                        </g>
-
-                        <!-- Inventory 2 (60x52 triangle between Weld and Paint) -->
-                        <g transform="translate(470, 114)">
-                            <polygon points="30,0 60,52 0,52" fill="#e89547" opacity="0.8"/>
-                            <text x="30" y="40" text-anchor="middle" fill="#0a0f0a" font-size="10" font-weight="600">8d</text>
-                        </g>
-
-                        <!-- Process 3: Paint (130x140) -->
-                        <g transform="translate(530, 70)">
-                            <rect width="130" height="140" fill="#0d120d" stroke="#4a9f6e" stroke-width="2"/>
-                            <rect width="130" height="25" fill="#4a9f6e"/>
-                            <text x="65" y="17" text-anchor="middle" fill="white" font-size="11" font-weight="500">Paint</text>
-                            <text x="8" y="40" fill="#7a8f7a" font-size="9">C/T</text><text x="122" y="40" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">8s</text>
-                            <text x="8" y="54" fill="#7a8f7a" font-size="9">C/O</text><text x="122" y="54" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">60m</text>
-                            <text x="8" y="68" fill="#7a8f7a" font-size="9">Uptime</text><text x="122" y="68" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">78%</text>
-                            <text x="8" y="82" fill="#7a8f7a" font-size="9">Batch</text><text x="122" y="82" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">100</text>
-                            <text x="8" y="96" fill="#7a8f7a" font-size="9">Scrap</text><text x="122" y="96" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">3%</text>
-                            <text x="8" y="110" fill="#7a8f7a" font-size="9">Ops</text><text x="122" y="110" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
-                            <text x="8" y="124" fill="#7a8f7a" font-size="9">Shifts</text><text x="122" y="124" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
-                        </g>
-
-                        <!-- Inventory 3 (60x52 triangle between Paint and Assemble) -->
-                        <g transform="translate(660, 114)">
-                            <polygon points="30,0 60,52 0,52" fill="#e89547" opacity="0.8"/>
-                            <text x="30" y="40" text-anchor="middle" fill="#0a0f0a" font-size="10" font-weight="600">7.5d</text>
-                        </g>
-
-                        <!-- Process 4: Assemble (130x140) -->
-                        <g transform="translate(720, 70)">
-                            <rect width="130" height="140" fill="#0d120d" stroke="#4a9f6e" stroke-width="2"/>
-                            <rect width="130" height="25" fill="#4a9f6e"/>
-                            <text x="65" y="17" text-anchor="middle" fill="white" font-size="11" font-weight="500">Assemble</text>
-                            <text x="8" y="40" fill="#7a8f7a" font-size="9">C/T</text><text x="122" y="40" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">62s</text>
-                            <text x="8" y="54" fill="#7a8f7a" font-size="9">C/O</text><text x="122" y="54" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">10m</text>
-                            <text x="8" y="68" fill="#7a8f7a" font-size="9">Uptime</text><text x="122" y="68" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">95%</text>
-                            <text x="8" y="82" fill="#7a8f7a" font-size="9">Batch</text><text x="122" y="82" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">1</text>
-                            <text x="8" y="96" fill="#7a8f7a" font-size="9">Scrap</text><text x="122" y="96" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">0.5%</text>
-                            <text x="8" y="110" fill="#7a8f7a" font-size="9">Ops</text><text x="122" y="110" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
-                            <text x="8" y="124" fill="#7a8f7a" font-size="9">Shifts</text><text x="122" y="124" text-anchor="end" fill="#e8efe8" font-size="9" font-weight="500">2</text>
-                        </g>
-
-                        <!-- Kaizen burst on Assemble (bottleneck — highest C/T) -->
-                        <g transform="translate(810, 52)">
-                            <polygon points="15,0 19,10 30,10 21,17 24,28 15,21 6,28 9,17 0,10 11,10" fill="#e85a5a" opacity="0.9"/>
-                            <text x="15" y="18" text-anchor="middle" fill="white" font-size="6" font-weight="600">C/T!</text>
-                        </g>
-
-                        <!-- Lead time ladder -->
-                        <!-- Baseline -->
-                        <line x1="140" y1="248" x2="860" y2="248" stroke="#7a8f7a" stroke-width="2"/>
-
-                        <!-- Wait segments (above baseline, height 25, centered on inventory) -->
-                        <rect x="285" y="223" width="50" height="25" fill="#e89547" opacity="0.7"/>
-                        <text x="310" y="218" text-anchor="middle" fill="#e89547" font-size="10" font-weight="500">5d</text>
-
-                        <rect x="475" y="223" width="50" height="25" fill="#e89547" opacity="0.7"/>
-                        <text x="500" y="218" text-anchor="middle" fill="#e89547" font-size="10" font-weight="500">8d</text>
-
-                        <rect x="665" y="223" width="50" height="25" fill="#e89547" opacity="0.7"/>
-                        <text x="690" y="218" text-anchor="middle" fill="#e89547" font-size="10" font-weight="500">7.5d</text>
-
-                        <!-- Cycle time segments (below baseline, height 25, aligned to process boxes) -->
-                        <rect x="150" y="248" width="130" height="25" fill="#4a9f6e" opacity="0.7"/>
-                        <text x="215" y="285" text-anchor="middle" fill="#4a9f6e" font-size="10" font-weight="500">12s</text>
-
-                        <rect x="340" y="248" width="130" height="25" fill="#4a9f6e" opacity="0.7"/>
-                        <text x="405" y="285" text-anchor="middle" fill="#4a9f6e" font-size="10" font-weight="500">38s</text>
-
-                        <rect x="530" y="248" width="130" height="25" fill="#4a9f6e" opacity="0.7"/>
-                        <text x="595" y="285" text-anchor="middle" fill="#4a9f6e" font-size="10" font-weight="500">8s</text>
-
-                        <rect x="720" y="248" width="130" height="25" fill="#4a9f6e" opacity="0.7"/>
-                        <text x="785" y="285" text-anchor="middle" fill="#4a9f6e" font-size="10" font-weight="500">62s</text>
-
-                        <!-- Totals -->
-                        <text x="150" y="318" fill="#7a8f7a" font-size="10">Lead Time: <tspan fill="#e8efe8" font-weight="600">23.5 days</tspan></text>
-                        <text x="380" y="318" fill="#7a8f7a" font-size="10">VA Time: <tspan fill="#4a9f6e" font-weight="600">120s</tspan></text>
-                        <text x="570" y="318" fill="#7a8f7a" font-size="10">PCE: <tspan fill="#4a9f6e" font-weight="600">0.006%</tspan></text>
-                    </svg>
+                    <img src="/static/screenshots/sv5.png" alt="Hoshin Kanri X-Matrix with strategic objectives, annual objectives, improvement projects, and KPIs" style="width:100%; border-radius: 4px;" loading="lazy">
                 </div>
             </div>
         </div>
     </section>
-
-    <!-- Stats Ribbon -->
-    <div class="stats-ribbon">
-        <div class="stat-item">
-            <div class="stat-number">200+</div>
-            <div class="stat-label">Statistical Analyses</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number">$49</div>
-            <div class="stat-label">/month<br><span class="stat-compare">vs $2,594/yr Minitab</span></div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number">10</div>
-            <div class="stat-label">Free Tools</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number">Zero</div>
-            <div class="stat-label">Setup Required</div>
-        </div>
-    </div>
-
     <!-- Features -->
     <section class="features" id="features">
-        <h2 class="section-title">The experimentation lifecycle, connected</h2>
+        <h2 class="section-title">Everything quality teams need, connected</h2>
         <p class="section-subtitle">Every stage of improvement — from data collection to strategic verification — in one platform.</p>
 
         <div class="features-grid">
@@ -1712,13 +1545,16 @@
     <section class="pricing" id="pricing">
         <h2 class="section-title">One platform, not five subscriptions</h2>
         <p class="section-subtitle">Quality teams typically spend $3,000–$10,000+/yr per seat across separate tools for statistics, DOE, lean project management, and risk analysis. Svend replaces the stack.</p>
+        {% if region != "us" %}
+        <p class="section-subtitle" style="color: var(--accent-primary); font-size: 0.95rem; margin-top: -0.5rem;">Purchasing power pricing: prices shown in {{ currency }} for your region. No conversion fees.</p>
+        {% endif %}
 
         <div class="pricing-cards">
             <div class="pricing-card">
                 <h3 class="pricing-name">Free</h3>
                 <p class="pricing-desc">Explore the platform</p>
                 <div class="pricing-price">
-                    <span class="pricing-amount">$0</span>
+                    <span class="pricing-amount">{{ price_free }}</span>
                     <span class="pricing-period">/month</span>
                 </div>
                 <ul class="pricing-features">
@@ -1727,15 +1563,16 @@
                     <li>SPC charts</li>
                     <li>Community support</li>
                 </ul>
-                <a href="/register/" class="pricing-btn pricing-btn-secondary">Start Free</a>
+                <a href="/register/?region={{ region }}" class="pricing-btn pricing-btn-secondary">Start Free</a>
             </div>
 
+            {% if has_founder %}
             <div class="pricing-card featured" id="founder-card">
                 <div class="pricing-popular">Limited</div>
                 <h3 class="pricing-name">Founder</h3>
-                <p class="pricing-desc">Locked at $19 — forever</p>
+                <p class="pricing-desc">Locked at {{ price_founder }} — forever</p>
                 <div class="pricing-price">
-                    <span class="pricing-amount">$19</span>
+                    <span class="pricing-amount">{{ price_founder }}</span>
                     <span class="pricing-period">/month</span>
                 </div>
                 <div style="font-size: 0.8rem; color: var(--accent-primary); margin-top: -0.5rem; margin-bottom: 1rem;" id="founder-slots">Loading availability...</div>
@@ -1746,17 +1583,18 @@
                     <li>A3, RCA, FMEA & VSM</li>
                     <li>Priority support</li>
                 </ul>
-                <a href="/register/?plan=founder" class="pricing-btn pricing-btn-primary" id="founder-btn">Get Founder Rate</a>
+                <a href="/register/?plan=founder&region={{ region }}" class="pricing-btn pricing-btn-primary" id="founder-btn">Get Founder Rate</a>
             </div>
+            {% endif %}
 
-            <div class="pricing-card">
+            <div class="pricing-card{% if not has_founder %} featured{% endif %}">
                 <h3 class="pricing-name">Professional</h3>
                 <p class="pricing-desc">Full experimentation platform</p>
                 <div class="pricing-price">
-                    <span class="pricing-amount">$49</span>
+                    <span class="pricing-amount">{{ price_pro }}</span>
                     <span class="pricing-period">/month</span>
                 </div>
-                <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: -0.5rem; margin-bottom: 1rem;">$588/year — replaces your entire tool stack</div>
+                <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: -0.5rem; margin-bottom: 1rem;">{{ price_pro_annual }}/year — replaces your entire tool stack</div>
                 <ul class="pricing-features">
                     <li>200+ analyses incl. Bayesian SPC</li>
                     <li>DOE with response optimization</li>
@@ -1764,31 +1602,32 @@
                     <li>Hypothesis tracking (Synara)</li>
                     <li>A3, RCA, FMEA & VSM</li>
                 </ul>
-                <a href="/register/?plan=pro" class="pricing-btn pricing-btn-secondary">Get Professional</a>
+                <a href="/register/?plan=pro&region={{ region }}" class="pricing-btn {% if not has_founder %}pricing-btn-primary{% else %}pricing-btn-secondary{% endif %}">Get Professional</a>
             </div>
 
             <div class="pricing-card">
                 <h3 class="pricing-name">Team</h3>
                 <p class="pricing-desc">Shared improvement programs</p>
                 <div class="pricing-price">
-                    <span class="pricing-amount">$99</span>
+                    <span class="pricing-amount">{{ price_team }}</span>
                     <span class="pricing-period">/seat/mo</span>
                 </div>
                 <ul class="pricing-features">
                     <li>Everything in Professional</li>
                     <li>Shared projects & dashboards</li>
                     <li>FMEA, A3 & VSM collaboration</li>
+                    <li>ISO 9001 QMS suite</li>
                     <li>Knowledge graph</li>
                     <li>Admin controls</li>
                 </ul>
-                <a href="/register/?plan=team" class="pricing-btn pricing-btn-secondary">Get Team</a>
+                <a href="/register/?plan=team&region={{ region }}" class="pricing-btn pricing-btn-secondary">Try Free for 14 Days</a>
             </div>
 
             <div class="pricing-card">
                 <h3 class="pricing-name">Enterprise</h3>
                 <p class="pricing-desc">Organization-wide deployment</p>
                 <div class="pricing-price">
-                    <span class="pricing-amount">$299</span>
+                    <span class="pricing-amount">{{ price_enterprise }}</span>
                     <span class="pricing-period">/seat/mo</span>
                 </div>
                 <ul class="pricing-features">
@@ -1804,13 +1643,65 @@
         </div>
 
         <p style="text-align: center; margin-top: 2rem; color: var(--text-dim); font-size: 0.9rem;">
-            All plans include unlimited exports. Annual billing available — <a href="mailto:hello@svend.ai" style="color: var(--accent-primary);">contact us</a> for volume discounts.
+            Team and Enterprise include a 14-day free trial — no charge until day 15. All plans include unlimited exports. Annual billing available — <a href="mailto:hello@svend.ai" style="color: var(--accent-primary);">contact us</a> for volume discounts.
         </p>
         <p style="text-align: center; margin-top: 0.75rem; font-size: 0.9rem;">
             <a href="/svend-vs-minitab/" style="color: var(--accent-primary);">See how Svend compares to Minitab &rarr;</a>
             &nbsp;&middot;&nbsp;
             <a href="/classical-vs-bayesian-spc/" style="color: var(--accent-primary);">Classical vs Bayesian SPC &rarr;</a>
         </p>
+    </section>
+
+    <!-- ISO 9001 QMS -->
+    <section class="iso-coverage" id="iso">
+        <div class="iso-coverage-inner">
+            <h2 class="section-title">ISO 9001:2015 QMS</h2>
+            <p class="section-subtitle">Built-in QMS tools for nonconformance tracking, internal audits, competence records, management review, document control, and supplier evaluation — no separate QMS software required.</p>
+
+            <div class="iso-module-cards">
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">10.2</div>
+                    <div class="iso-module-title">NCR Tracking</div>
+                    <div class="iso-module-desc">Full CAPA workflow from logging to verified closure</div>
+                </div>
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">9.2</div>
+                    <div class="iso-module-title">Internal Audits</div>
+                    <div class="iso-module-desc">Schedule, record findings, track corrective actions</div>
+                </div>
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">7.2</div>
+                    <div class="iso-module-title">Training Matrix</div>
+                    <div class="iso-module-desc">Competence tracking with expiry alerts</div>
+                </div>
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">9.3</div>
+                    <div class="iso-module-title">Management Review</div>
+                    <div class="iso-module-desc">Auto-captured QMS snapshot with action outputs</div>
+                </div>
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">7.5</div>
+                    <div class="iso-module-title">Document Control</div>
+                    <div class="iso-module-desc">Version tracking, approval workflow, review scheduling</div>
+                </div>
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">8.4</div>
+                    <div class="iso-module-title">Supplier Management</div>
+                    <div class="iso-module-desc">Approval status, quality ratings, evaluation tracking</div>
+                </div>
+            </div>
+
+            <p style="text-align:center; margin-top:1.5rem; color:var(--text-secondary); font-size:0.9rem;">
+                Covers all 32 clauses from 4.1 through 10.3. All active.
+                <a href="/iso-9001-qms-software/" style="color: var(--accent-primary); font-weight: 500;">See full clause coverage &rarr;</a>
+            </p>
+            <p style="text-align:center; margin-top:0.75rem; color:var(--text-dim); font-size:0.85rem;">
+                QMS features require Team ({{ price_team }}/mo) or Enterprise ({{ price_enterprise }}/mo) plan. 14-day free trial.
+            </p>
+            <p style="text-align:center; margin-top:1rem;">
+                <a href="/register/?plan=team&region={{ region }}" style="color: var(--accent-primary); font-weight: 500;">Start 14-day free trial &rarr;</a>
+            </p>
+        </div>
     </section>
 
     <!-- FAQ -->
@@ -1825,7 +1716,7 @@
 
             <div class="faq-item">
                 <div class="faq-question">How much does a typical quality tool stack cost?</div>
-                <div class="faq-answer">Quality engineering teams typically spend $3,000–$10,000+ per seat per year across separate subscriptions: statistical analysis software ($1,300–$1,900/yr), DOE tools ($500–$2,000/yr), lean/CI project management ($1,200–$3,600/yr), and FMEA/risk analysis tools ($500–$1,500/yr). Svend consolidates all of these into one platform. The Professional plan is $588/year. A free tier is available to evaluate the platform before committing.</div>
+                <div class="faq-answer">Quality engineering teams typically spend $3,000–$10,000+ per seat per year across separate subscriptions: statistical analysis software ($1,300–$1,900/yr), DOE tools ($500–$2,000/yr), lean/CI project management ($1,200–$3,600/yr), and FMEA/risk analysis tools ($500–$1,500/yr). Svend consolidates all of these into one platform. The Professional plan is {{ price_pro_annual }}/year. A free tier is available to evaluate the platform before committing.</div>
             </div>
 
             <div class="faq-item">
@@ -1859,8 +1750,13 @@
             </div>
 
             <div class="faq-item">
+                <div class="faq-question">Does Svend support ISO 9001:2015 compliance?</div>
+                <div class="faq-answer">Yes. The Team and Enterprise plans include a full ISO 9001:2015 QMS module covering clauses 4 through 10. This includes NCR tracking with CAPA workflow (clause 10.2), internal audit scheduling with finding management (clause 9.2), a training matrix with competence records and expiry tracking (clause 7.2), management review with auto-captured QMS data snapshots (clause 9.3), controlled document registers (clause 7.5), and supplier evaluation (clause 8.4). The platform's existing statistical tools — SPC, capability analysis, FMEA, root cause analysis, and value stream mapping — directly support clauses 8 and 9 for process monitoring, measurement, and analysis. See the <a href="/iso-9001-qms-software/" style="color: var(--accent-primary);">full clause coverage table</a>.</div>
+            </div>
+
+            <div class="faq-item">
                 <div class="faq-question">Can I cancel anytime?</div>
-                <div class="faq-answer">Absolutely. No contracts, no commitments. Cancel with one click and keep access until the end of your billing period.</div>
+                <div class="faq-answer">Absolutely. No contracts, no commitments. Team and Enterprise plans include a 14-day free trial — cancel during the trial and you won't be charged. After that, cancel with one click and keep access until the end of your billing period.</div>
             </div>
         </div>
     </section>
@@ -1884,6 +1780,7 @@
                 <a href="#hoshin" class="footer-link">Strategy Deployment</a>
                 <a href="#spine" class="footer-link">How It Works</a>
                 <a href="#pricing" class="footer-link">Pricing</a>
+                <a href="/iso-9001-qms-software/" class="footer-link">ISO 9001 QMS</a>
                 <a href="/tools/" class="footer-link">Free Tools</a>
                 <a href="/svend-vs-minitab/" class="footer-link">Svend vs Minitab</a>
                 <a href="/classical-vs-bayesian-spc/" class="footer-link">Classical vs Bayesian SPC</a>
@@ -1987,25 +1884,27 @@
             });
         });
 
-        // Founder slot availability
-        fetch('/billing/founder-availability/')
-            .then(r => r.json())
-            .then(data => {
-                const slotsEl = document.getElementById('founder-slots');
-                const btnEl = document.getElementById('founder-btn');
-                if (data.available) {
-                    slotsEl.textContent = data.remaining + ' of ' + data.total + ' spots left';
-                } else {
-                    slotsEl.textContent = 'All founder spots claimed';
-                    btnEl.textContent = 'Sold Out';
-                    btnEl.style.opacity = '0.5';
-                    btnEl.style.pointerEvents = 'none';
-                    btnEl.removeAttribute('href');
-                }
-            })
-            .catch(() => {
-                document.getElementById('founder-slots').textContent = 'Limited spots available';
-            });
+        // Founder slot availability (only rendered for US/EU visitors)
+        if (document.getElementById('founder-slots')) {
+            fetch('/billing/founder-availability/')
+                .then(r => r.json())
+                .then(data => {
+                    const slotsEl = document.getElementById('founder-slots');
+                    const btnEl = document.getElementById('founder-btn');
+                    if (data.available) {
+                        slotsEl.textContent = data.remaining + ' of ' + data.total + ' spots left';
+                    } else {
+                        slotsEl.textContent = 'All founder spots claimed';
+                        btnEl.textContent = 'Sold Out';
+                        btnEl.style.opacity = '0.5';
+                        btnEl.style.pointerEvents = 'none';
+                        btnEl.removeAttribute('href');
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('founder-slots').textContent = 'Limited spots available';
+                });
+        }
 
         // =====================================================================
         // Showcase tabs + auto-rotation
@@ -2130,5 +2029,78 @@
             setInterval(tick, 50);
         })();
     </script>
+    <!-- Time-on-page tracking -->
+    <script>
+    (function(){
+        var t0 = Date.now();
+        var sent = false;
+        function sendDuration() {
+            if (sent) return;
+            sent = true;
+            var ms = Date.now() - t0;
+            if (ms < 1000) return;
+            var d = JSON.stringify({path: location.pathname, duration_ms: ms});
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon('/api/site-duration/', new Blob([d], {type: 'application/json'}));
+            }
+        }
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') sendDuration();
+        });
+        window.addEventListener('pagehide', sendDuration);
+    })();
+    </script>
+    <!-- Svend Toast Notifications -->
+    <div id="sv-toast-container" style="position:fixed;top:1rem;right:1rem;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:420px;width:100%;"></div>
+    <style>
+    .sv-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;font-size:0.85rem;line-height:1.5;color:#e8efe8;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:svToastIn .3s ease;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;border:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+    .sv-toast.sv-out{animation:svToastOut .25s ease forwards}
+    .sv-toast-icon{flex-shrink:0;font-size:1rem;margin-top:1px}
+    .sv-toast-msg{flex:1;word-break:break-word}
+    .sv-toast-close{flex-shrink:0;background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:1.1rem;padding:0 0 0 6px;line-height:1}
+    .sv-toast-close:hover{opacity:1}
+    .sv-toast.sv-t-success{background:rgba(16,95,46,0.92);border-color:rgba(16,185,129,0.3)}
+    .sv-toast.sv-t-error{background:rgba(127,29,29,0.92);border-color:rgba(239,68,68,0.3)}
+    .sv-toast.sv-t-warning{background:rgba(120,90,10,0.92);border-color:rgba(232,197,71,0.3)}
+    .sv-toast.sv-t-info{background:rgba(18,26,18,0.95);border-color:rgba(74,159,110,0.2)}
+    @keyframes svToastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes svToastOut{to{opacity:0;transform:translateX(40px)}}
+    </style>
+    <script>
+    (function(){
+        var icons={success:'\u2713',error:'\u2716',warning:'\u26A0',info:'\u2139'};
+        function detect(msg){
+            var m=String(msg).toLowerCase();
+            if(/^(error|failed|cannot|could not|unable)/.test(m)||/error[:!]/.test(m))return'error';
+            if(/(saved|created|exported|success|updated|deleted|sent|copied|applied|imported|removed|completed)/.test(m))return'success';
+            if(/^please\b/.test(m)||/required|must |need to|invalid|missing/.test(m))return'warning';
+            return'info';
+        }
+        window.svToast=function(message,type,duration){
+            var t=type||detect(message);
+            var dur=duration||(t==='error'?6000:t==='success'?3000:4000);
+            var c=document.getElementById('sv-toast-container');
+            if(!c)return;
+            var el=document.createElement('div');
+            el.className='sv-toast sv-t-'+t;
+            el.innerHTML='<span class="sv-toast-icon">'+icons[t]+'</span><span class="sv-toast-msg"></span><button class="sv-toast-close" aria-label="Dismiss">\u00D7</button>';
+            el.querySelector('.sv-toast-msg').textContent=message;
+            el.querySelector('.sv-toast-close').onclick=function(){dismiss(el)};
+            c.appendChild(el);
+            var timer=setTimeout(function(){dismiss(el)},dur);
+            function dismiss(e){clearTimeout(timer);e.classList.add('sv-out');setTimeout(function(){e.remove()},250)}
+        };
+        window.alert=function(msg){window.svToast(String(msg))};
+    })();
+    </script>
+    <script>
+    (function(){
+        var btn=document.getElementById('navHamburger'),menu=document.getElementById('navLinks');
+        btn.addEventListener('click',function(){btn.classList.toggle('open');menu.classList.toggle('open')});
+        menu.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){btn.classList.remove('open');menu.classList.remove('open')})});
+    })();
+    </script>
+    <!-- Cloudflare Web Analytics -->
+    <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "322c2cefd22b4002b8aecf303abbb639"}'></script>
 </body>
 </html>
