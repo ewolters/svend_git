@@ -2975,6 +2975,7 @@ class NonconformanceRecord(models.Model):
             "raised_by": None,
             "assigned_to": None,
             "approved_by": None,
+            "project_id": str(self.project_id) if self.project_id else None,
             "rca_session_id": str(self.rca_session_id) if self.rca_session_id else None,
             "capa_report_id": str(self.capa_report_id) if self.capa_report_id else None,
             "file_ids": [str(f.id) for f in self.files.all()],
@@ -3258,7 +3259,7 @@ class ManagementReview(models.Model):
 
 
 class ControlledDocument(models.Model):
-    """Document control per ISO 9001 clause 7.5 — skeleton."""
+    """Document control per ISO 9001 clause 7.5."""
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
@@ -3279,11 +3280,39 @@ class ControlledDocument(models.Model):
     current_version = models.CharField(max_length=20, default="1.0")
     review_due_date = models.DateField(null=True, blank=True)
     approved_by = models.CharField(max_length=200, blank=True)
+    approved_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="approved_documents",
+    )
     approved_at = models.DateTimeField(null=True, blank=True)
     content = models.TextField(blank=True)
+    retention_years = models.IntegerField(default=7, help_text="Document retention period in years")
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Evidence attachments
+    files = models.ManyToManyField(
+        "files.UserFile", blank=True, related_name="controlled_documents",
+    )
+
+    # Study linkage — set when created via "Request Document Update" action
+    source_study = models.ForeignKey(
+        "core.Project", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="controlled_documents",
+    )
+
+    # Valid status transitions
+    TRANSITIONS = {
+        "draft": {"review"},
+        "review": {"approved", "draft"},
+        "approved": {"review", "obsolete"},
+        "obsolete": set(),
+    }
+    TRANSITION_REQUIRES = {
+        "review": ["content"],
+        "approved": ["approved_by_user"],
+    }
 
     class Meta:
         db_table = "iso_controlled_documents"
@@ -3292,8 +3321,20 @@ class ControlledDocument(models.Model):
     def __str__(self):
         return f"{self.document_number} - {self.title}" if self.document_number else self.title
 
+    def can_transition(self, new_status):
+        """Check if transition is valid and requirements are met."""
+        allowed = self.TRANSITIONS.get(self.status, set())
+        if new_status not in allowed:
+            return False, f"Cannot transition from '{self.status}' to '{new_status}'"
+        for field in self.TRANSITION_REQUIRES.get(new_status, []):
+            fk_val = getattr(self, f"{field}_id", None)
+            val = getattr(self, field, None)
+            if fk_val is None and not val:
+                return False, f"'{field}' is required to transition to '{new_status}'"
+        return True, ""
+
     def to_dict(self):
-        return {
+        d = {
             "id": str(self.id),
             "title": self.title,
             "document_number": self.document_number,
@@ -3303,18 +3344,138 @@ class ControlledDocument(models.Model):
             "current_version": self.current_version,
             "review_due_date": str(self.review_due_date) if self.review_due_date else None,
             "approved_by": self.approved_by,
+            "approved_by_user": None,
+            "approved_at": self.approved_at.isoformat() if self.approved_at else None,
+            "content": self.content,
+            "retention_years": self.retention_years,
+            "source_study_id": str(self.source_study_id) if self.source_study_id else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "file_ids": [],
+            "status_changes": [],
+            "revisions": [],
+        }
+        if self.approved_by_user_id:
+            try:
+                u = self.approved_by_user
+                name = u.display_name or u.email
+            except Exception:
+                name = str(self.approved_by_user_id)
+            d["approved_by_user"] = {"id": self.approved_by_user_id, "name": name}
+        try:
+            d["file_ids"] = [str(f.id) for f in self.files.all()]
+        except Exception:
+            pass
+        try:
+            d["status_changes"] = [sc.to_dict() for sc in self.status_changes.order_by("created_at")]
+        except Exception:
+            pass
+        try:
+            d["revisions"] = [r.to_dict() for r in self.revisions.order_by("-created_at")[:20]]
+        except Exception:
+            pass
+        return d
+
+
+class DocumentRevision(models.Model):
+    """Version history for controlled documents."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(
+        ControlledDocument, on_delete=models.CASCADE,
+        related_name="revisions",
+    )
+    version = models.CharField(max_length=20)
+    change_summary = models.TextField(blank=True)
+    content_snapshot = models.TextField(blank=True, help_text="Content at this revision")
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_document_revisions"
+        ordering = ["-created_at"]
+
+    def _safe_changed_by(self):
+        if not self.changed_by_id:
+            return None
+        try:
+            u = self.changed_by
+            return u.display_name or u.email
+        except Exception:
+            return str(self.changed_by_id)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "version": self.version,
+            "change_summary": self.change_summary,
+            "changed_by": self._safe_changed_by(),
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+class DocumentStatusChange(models.Model):
+    """Status change history for controlled documents."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(
+        ControlledDocument, on_delete=models.CASCADE,
+        related_name="status_changes",
+    )
+    from_status = models.CharField(max_length=20)
+    to_status = models.CharField(max_length=20)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_document_status_changes"
+        ordering = ["created_at"]
+
+    def _safe_changed_by(self):
+        if not self.changed_by_id:
+            return None
+        try:
+            u = self.changed_by
+            return u.display_name or u.email
+        except Exception:
+            return str(self.changed_by_id)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "from_status": self.from_status,
+            "to_status": self.to_status,
+            "changed_by": self._safe_changed_by(),
+            "note": self.note,
             "created_at": self.created_at.isoformat(),
         }
 
 
 class SupplierRecord(models.Model):
-    """Supplier management per ISO 9001 clause 8.4 — skeleton."""
+    """Supplier management per ISO 9001 clause 8.4."""
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending Approval"
         APPROVED = "approved", "Approved"
         CONDITIONAL = "conditional", "Conditional"
+        SUSPENDED = "suspended", "Suspended"
         DISQUALIFIED = "disqualified", "Disqualified"
+
+    SUPPLIER_TYPE_CHOICES = [
+        ("raw_material", "Raw Material"),
+        ("component", "Component"),
+        ("service", "Service"),
+        ("equipment", "Equipment"),
+        ("calibration", "Calibration"),
+        ("other", "Other"),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
@@ -3323,8 +3484,10 @@ class SupplierRecord(models.Model):
     )
     name = models.CharField(max_length=300)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    supplier_type = models.CharField(max_length=30, choices=SUPPLIER_TYPE_CHOICES, default="other")
     contact_name = models.CharField(max_length=200, blank=True)
     contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=50, blank=True)
     products_services = models.TextField(blank=True, help_text="What they supply")
     iso_clause = models.CharField(max_length=20, blank=True)
     last_evaluation_date = models.DateField(null=True, blank=True)
@@ -3333,10 +3496,30 @@ class SupplierRecord(models.Model):
         null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(5)],
     )
+    evaluation_scores = models.JSONField(
+        default=dict, blank=True,
+        help_text='{"quality": 1-5, "delivery": 1-5, "price": 1-5, "communication": 1-5}',
+    )
+    disqualification_reason = models.TextField(blank=True)
     notes = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Valid status transitions
+    TRANSITIONS = {
+        "pending": {"approved", "conditional", "disqualified"},
+        "approved": {"suspended", "disqualified"},
+        "conditional": {"approved", "disqualified"},
+        "suspended": {"approved", "disqualified"},
+        "disqualified": set(),
+    }
+    TRANSITION_REQUIRES = {
+        "approved": ["quality_rating"],
+        "conditional": ["notes"],
+        "suspended": ["notes"],
+        "disqualified": ["disqualification_reason"],
+    }
 
     class Meta:
         db_table = "iso_suppliers"
@@ -3345,18 +3528,82 @@ class SupplierRecord(models.Model):
     def __str__(self):
         return self.name
 
+    def can_transition(self, new_status):
+        """Check if transition is valid and requirements are met."""
+        allowed = self.TRANSITIONS.get(self.status, set())
+        if new_status not in allowed:
+            return False, f"Cannot transition from '{self.status}' to '{new_status}'"
+        for field in self.TRANSITION_REQUIRES.get(new_status, []):
+            val = getattr(self, field, None)
+            if not val:
+                return False, f"'{field}' is required to transition to '{new_status}'"
+        return True, ""
+
     def to_dict(self):
-        return {
+        d = {
             "id": str(self.id),
             "name": self.name,
             "status": self.status,
+            "supplier_type": self.supplier_type,
             "contact_name": self.contact_name,
             "contact_email": self.contact_email,
+            "contact_phone": self.contact_phone,
             "products_services": self.products_services,
             "quality_rating": self.quality_rating,
+            "evaluation_scores": self.evaluation_scores,
+            "disqualification_reason": self.disqualification_reason,
             "last_evaluation_date": str(self.last_evaluation_date) if self.last_evaluation_date else None,
             "next_evaluation_date": str(self.next_evaluation_date) if self.next_evaluation_date else None,
             "notes": self.notes,
+            "metadata": self.metadata,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "status_changes": [],
+        }
+        try:
+            d["status_changes"] = [sc.to_dict() for sc in self.status_changes.order_by("created_at")]
+        except Exception:
+            pass
+        return d
+
+
+class SupplierStatusChange(models.Model):
+    """Status change history for suppliers."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    supplier = models.ForeignKey(
+        SupplierRecord, on_delete=models.CASCADE,
+        related_name="status_changes",
+    )
+    from_status = models.CharField(max_length=20)
+    to_status = models.CharField(max_length=20)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_supplier_status_changes"
+        ordering = ["created_at"]
+
+    def _safe_changed_by(self):
+        if not self.changed_by_id:
+            return None
+        try:
+            u = self.changed_by
+            return u.display_name or u.email
+        except Exception:
+            return str(self.changed_by_id)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "from_status": self.from_status,
+            "to_status": self.to_status,
+            "changed_by": self._safe_changed_by(),
+            "note": self.note,
             "created_at": self.created_at.isoformat(),
         }
 

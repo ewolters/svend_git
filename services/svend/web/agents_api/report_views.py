@@ -7,11 +7,11 @@ import json
 import logging
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import gated_paid
+from .evidence_bridge import create_tool_evidence
 from .models import Report, Board, DSWResult, RCASession
 from .report_types import REPORT_TYPES
 from core.models import Project, Hypothesis
@@ -19,7 +19,6 @@ from core.models import Project, Hypothesis
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def list_report_types(request):
@@ -37,7 +36,6 @@ def list_report_types(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def list_reports(request):
@@ -67,7 +65,6 @@ def list_reports(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_report(request):
@@ -114,13 +111,13 @@ def create_report(request):
         sections=sections,
     )
 
+    project.log_event("report_created", f"{report_type.upper()} report: {title}", user=request.user)
     return JsonResponse({
         "id": str(report.id),
         "report": report.to_dict(),
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def get_report(request, report_id):
@@ -150,7 +147,7 @@ def get_report(request, report_id):
         "project": {
             "id": str(project.id),
             "title": project.title,
-            "description": project.description,
+            "description": getattr(project, 'problem_statement', '') or '',
         },
         "available_imports": {
             "hypotheses": [
@@ -177,7 +174,6 @@ def get_report(request, report_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_report(request, report_id):
@@ -206,13 +202,31 @@ def update_report(request, report_id):
 
     report.save()
 
+    # Evidence hooks — check creates_evidence flag on updated sections
+    if "sections" in data and isinstance(data["sections"], dict):
+        type_def = REPORT_TYPES.get(report.report_type, {})
+        section_defs = {s["key"]: s for s in type_def.get("sections", [])}
+
+        for key, content in data["sections"].items():
+            sec_def = section_defs.get(key, {})
+            if sec_def.get("creates_evidence") and content:
+                create_tool_evidence(
+                    project=report.project,
+                    user=request.user,
+                    summary=f"{report.report_type.upper()} {sec_def.get('label', key)}: {content[:200]}",
+                    source_tool="report",
+                    source_id=str(report.id),
+                    source_field=key,
+                    details=content,
+                    source_type=sec_def.get("evidence_source_type", "analysis"),
+                )
+
     return JsonResponse({
         "success": True,
         "report": report.to_dict(),
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_report(request, report_id):
@@ -222,7 +236,6 @@ def delete_report(request, report_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def import_to_report(request, report_id):
@@ -293,7 +306,7 @@ def import_to_report(request, report_id):
             return JsonResponse({"error": "Whiteboard not found"}, status=404)
 
     elif source_type == "project":
-        content = f"**Study:** {report.project.title}\n\n{report.project.description or ''}"
+        content = f"**Study:** {report.project.title}\n\n{getattr(report.project, 'problem_statement', '') or ''}"
         import_ref["summary"] = report.project.title
 
     elif source_type == "dsw":
@@ -360,7 +373,6 @@ def import_to_report(request, report_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def auto_populate_report(request, report_id):
@@ -393,8 +405,8 @@ def auto_populate_report(request, report_id):
     boards = list(Board.objects.filter(project=project)[:5])
 
     context_parts = [f"Study: {project.title}"]
-    if project.description:
-        context_parts.append(f"Description: {project.description}")
+    if getattr(project, 'problem_statement', ''):
+        context_parts.append(f"Description: {project.problem_statement}")
     if hypotheses:
         context_parts.append("\nHypotheses:")
         for h in hypotheses:
@@ -461,7 +473,6 @@ Write a concise but thorough response (3-5 sentences) suitable for this report s
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def embed_diagram(request, report_id):
@@ -552,7 +563,6 @@ def embed_diagram(request, report_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def remove_diagram(request, report_id, diagram_id):

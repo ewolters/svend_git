@@ -10,6 +10,7 @@ Covers:
 """
 
 import json
+import logging
 from datetime import date, timedelta
 
 from django.http import JsonResponse
@@ -19,7 +20,9 @@ from django.views.decorators.http import require_http_methods
 from accounts.permissions import require_team
 
 from accounts.models import User
+from core.models import Project, Evidence, StudyAction
 
+from .evidence_bridge import create_tool_evidence
 from .models import (
     NonconformanceRecord,
     NCRStatusChange,
@@ -30,9 +33,70 @@ from .models import (
     TrainingRecord,
     ManagementReview,
     ControlledDocument,
+    DocumentRevision,
+    DocumentStatusChange,
     SupplierRecord,
+    SupplierStatusChange,
     RCASession,
+    Report,
+    FMEA,
 )
+from .report_types import REPORT_TYPES
+
+logger = logging.getLogger(__name__)
+
+
+def _ensure_ncr_project(ncr, user):
+    """Silently create a Study (core.Project) for an NCR if it doesn't have one.
+
+    Invisible to the user — no toast, no notification. The Study is
+    plumbing, not UX. Tagged ["auto-created", "ncr"] so it can be
+    filtered or annotated later.
+    """
+    if ncr.project_id:
+        return ncr.project
+
+    project = Project.objects.create(
+        user=user,
+        title=ncr.title or "NCR Investigation",
+        methodology="none",
+        tags=["auto-created", "ncr"],
+    )
+    ncr.project = project
+    ncr.save(update_fields=["project"])
+    project.log_event("study_created", f"Auto-created from NCR: {ncr.title}", user=user)
+    logger.info("Auto-created project %s for NCR %s", project.id, ncr.id)
+    return project
+
+
+def _ncr_evidence_hooks(ncr, data, user):
+    """Create evidence for NCR field updates. Called after ncr.save().
+
+    Evidence fields: root_cause, corrective_action, verification_result.
+    All evidence created with confidence=0.5 (Synara elevates).
+    """
+    project = ncr.project
+    if not project:
+        return
+
+    evidence_fields = {
+        "root_cause": ("analysis", "NCR root cause: {}"),
+        "corrective_action": ("analysis", "NCR corrective action: {}"),
+        "verification_result": ("experiment", "NCR verification result: {}"),
+    }
+
+    for field, (source_type, summary_fmt) in evidence_fields.items():
+        if field in data and data[field]:
+            create_tool_evidence(
+                project=project,
+                user=user,
+                summary=summary_fmt.format(data[field][:200]),
+                source_tool="ncr",
+                source_id=str(ncr.id),
+                source_field=field,
+                details=data[field],
+                source_type=source_type,
+            )
 
 
 # =========================================================================
@@ -107,6 +171,22 @@ def iso_dashboard(request):
         days_ago = (today - last_review["meeting_date"]).days
         last_review_data = {"date": str(last_review["meeting_date"]), "days_ago": days_ago}
 
+    # ---- Document KPIs ----
+    docs_qs = ControlledDocument.objects.filter(owner=user)
+    review_due_count = docs_qs.filter(
+        review_due_date__isnull=False,
+        review_due_date__lte=fourteen_days,
+        status="approved",
+    ).count()
+
+    # ---- Supplier KPIs ----
+    suppliers_qs = SupplierRecord.objects.filter(owner=user)
+    eval_overdue_count = suppliers_qs.filter(
+        next_evaluation_date__isnull=False,
+        next_evaluation_date__lt=today,
+        status__in=["approved", "conditional"],
+    ).count()
+
     # ---- Clause coverage ----
     # Determine which clauses have active records (NCRs, audits, training, docs, reviews)
     active_clauses = set()
@@ -120,8 +200,7 @@ def iso_dashboard(request):
     for t in reqs.values_list("iso_clause", flat=True):
         if t:
             active_clauses.add(t.split(".")[0] if "." in t else t)
-    docs = ControlledDocument.objects.filter(owner=user)
-    for d in docs.values_list("iso_clause", flat=True):
+    for d in docs_qs.values_list("iso_clause", flat=True):
         if d:
             active_clauses.add(d.split(".")[0] if "." in d else d)
 
@@ -163,6 +242,16 @@ def iso_dashboard(request):
             {"id": str(c[0]), "title": c[1], "due_date": str(c[2])}
             for c in capa_due_soon
         ],
+        "documents": {
+            "total": docs_qs.count(),
+            "approved": docs_qs.filter(status="approved").count(),
+            "review_due_soon": review_due_count,
+        },
+        "suppliers": {
+            "total": suppliers_qs.count(),
+            "approved": suppliers_qs.filter(status="approved").count(),
+            "eval_overdue": eval_overdue_count,
+        },
     })
 
 
@@ -225,6 +314,12 @@ def ncr_list_create(request):
         from files.models import UserFile
         files = UserFile.objects.filter(id__in=file_ids, user=user)
         ncr.files.set(files)
+
+    # Auto-create Study (invisible)
+    _ensure_ncr_project(ncr, user)
+    if ncr.project:
+        ncr.project.log_event("ncr_created", f"NCR raised: {ncr.title} [{ncr.severity}]", user=user)
+
     return JsonResponse(ncr.to_dict(), status=201)
 
 
@@ -317,6 +412,27 @@ def ncr_detail(request, ncr_id):
         files = UserFile.objects.filter(id__in=data["file_ids"], user=request.user)
         ncr.files.set(files)
     ncr.save()
+
+    # Ensure project exists, then create evidence for field updates
+    _ensure_ncr_project(ncr, request.user)
+    _ncr_evidence_hooks(ncr, data, request.user)
+
+    # Evidence on status transition to closed
+    if new_status == "closed" and ncr.project:
+        create_tool_evidence(
+            project=ncr.project,
+            user=request.user,
+            summary=f"NCR closed: {ncr.title}",
+            source_tool="ncr",
+            source_id=str(ncr.id),
+            source_field="status_closed",
+            details=(
+                f"Resolution: {ncr.corrective_action or 'N/A'}\n"
+                f"Verification: {ncr.verification_result or 'N/A'}"
+            ),
+            source_type="observation",
+        )
+
     return JsonResponse(ncr.to_dict())
 
 
@@ -353,14 +469,20 @@ def ncr_launch_rca(request, ncr_id):
     except NonconformanceRecord.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
 
+    # Ensure NCR has a project before linking
+    _ensure_ncr_project(ncr, request.user)
+
     session = RCASession.objects.create(
         owner=request.user,
         title=f"RCA for {ncr.title}",
         event=ncr.description or ncr.title,
+        project=ncr.project,  # Land in same Study as NCR
         status="draft",
     )
     ncr.rca_session = session
     ncr.save(update_fields=["rca_session"])
+    if ncr.project:
+        ncr.project.log_event("rca_launched", f"RCA started for NCR: {ncr.title}", user=request.user)
     return JsonResponse({"rca_session_id": str(session.id)}, status=201)
 
 
@@ -505,6 +627,7 @@ def audit_finding_create(request, audit_id):
             source="internal_audit",
             iso_clause=clause,
         )
+        _ensure_ncr_project(ncr, request.user)
         finding.ncr = ncr
         finding.save(update_fields=["ncr"])
         ncr_id = str(ncr.id)
@@ -775,7 +898,7 @@ def review_detail(request, review_id):
 
 
 # =========================================================================
-# Document Control — skeleton
+# Document Control (clause 7.5)
 # =========================================================================
 
 @require_team
@@ -786,6 +909,25 @@ def document_list_create(request):
 
     if request.method == "GET":
         docs = ControlledDocument.objects.filter(owner=user)
+        status = request.GET.get("status")
+        category = request.GET.get("category")
+        search = request.GET.get("search")
+        sort = request.GET.get("sort", "-updated_at")
+        if status:
+            docs = docs.filter(status=status)
+        if category:
+            docs = docs.filter(category=category)
+        if search:
+            from django.db.models import Q
+            docs = docs.filter(Q(title__icontains=search) | Q(document_number__icontains=search))
+        allowed_sorts = {
+            "title", "-title", "document_number", "-document_number",
+            "status", "-status", "current_version", "-current_version",
+            "review_due_date", "-review_due_date", "created_at", "-created_at",
+            "updated_at", "-updated_at",
+        }
+        if sort in allowed_sorts:
+            docs = docs.order_by(sort)
         return JsonResponse([d.to_dict() for d in docs[:100]], safe=False)
 
     data = json.loads(request.body)
@@ -797,6 +939,7 @@ def document_list_create(request):
         iso_clause=data.get("iso_clause", ""),
         content=data.get("content", ""),
         review_due_date=data.get("review_due_date") or None,
+        retention_years=data.get("retention_years", 7),
     )
     return JsonResponse(doc.to_dict(), status=201)
 
@@ -818,20 +961,113 @@ def document_detail(request, doc_id):
         return JsonResponse({"ok": True})
 
     data = json.loads(request.body)
-    for field in ["title", "document_number", "status", "category",
-                   "iso_clause", "current_version", "approved_by", "content"]:
+
+    # Handle status transitions with workflow enforcement
+    new_status = data.get("status")
+    if new_status and new_status != doc.status:
+        # Pre-set approved_by_user before transition check
+        if "approved_by_user" in data and data["approved_by_user"]:
+            try:
+                doc.approved_by_user = User.objects.get(id=data["approved_by_user"])
+            except User.DoesNotExist:
+                pass
+
+        ok, msg = doc.can_transition(new_status)
+        if not ok:
+            return JsonResponse({"error": msg}, status=400)
+
+        old_status = doc.status
+        old_version = doc.current_version
+
+        # Revision cycle: approved → review creates a version snapshot and bumps version
+        if old_status == "approved" and new_status == "review":
+            DocumentRevision.objects.create(
+                document=doc,
+                version=old_version,
+                content_snapshot=doc.content,
+                change_summary=data.get("revision_note", "Revision cycle initiated"),
+                changed_by=request.user,
+            )
+            # Bump version: "1.0" → "1.1", "2.3" → "2.4"
+            try:
+                parts = old_version.split(".")
+                parts[-1] = str(int(parts[-1]) + 1)
+                doc.current_version = ".".join(parts)
+            except (ValueError, IndexError):
+                doc.current_version = old_version + ".1"
+
+        doc.status = new_status
+
+        # Set approved_at on approval
+        if new_status == "approved":
+            doc.approved_at = timezone.now()
+            if doc.approved_by_user:
+                doc.approved_by = doc.approved_by_user.display_name or doc.approved_by_user.email
+
+        # Clear approved_at when leaving approved state
+        if old_status == "approved" and new_status != "approved":
+            doc.approved_at = None
+
+        DocumentStatusChange.objects.create(
+            document=doc,
+            from_status=old_status,
+            to_status=new_status,
+            changed_by=request.user,
+            note=data.get("status_note", ""),
+        )
+
+    # Update fields (skip status — handled above)
+    for field in ["title", "document_number", "category", "iso_clause",
+                   "current_version", "content"]:
         if field in data:
             setattr(doc, field, data[field])
     if "review_due_date" in data:
         doc.review_due_date = data["review_due_date"] or None
-    if data.get("status") == "approved" and not doc.approved_at:
-        doc.approved_at = timezone.now()
+    if "retention_years" in data:
+        doc.retention_years = data["retention_years"]
+    if "approved_by_user" in data and not new_status:
+        if data["approved_by_user"]:
+            try:
+                doc.approved_by_user = User.objects.get(id=data["approved_by_user"])
+            except User.DoesNotExist:
+                pass
+        else:
+            doc.approved_by_user = None
+
     doc.save()
     return JsonResponse(doc.to_dict())
 
 
+@require_team
+@require_http_methods(["POST", "DELETE"])
+def document_files(request, doc_id):
+    """Attach or detach files from a document."""
+    try:
+        doc = ControlledDocument.objects.get(id=doc_id, owner=request.user)
+    except ControlledDocument.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
+
+    data = json.loads(request.body)
+    file_id = data.get("file_id")
+    if not file_id:
+        return JsonResponse({"error": "file_id required"}, status=400)
+
+    from files.models import UserFile
+    try:
+        uf = UserFile.objects.get(id=file_id, user=request.user)
+    except UserFile.DoesNotExist:
+        return JsonResponse({"error": "File not found"}, status=404)
+
+    if request.method == "POST":
+        doc.files.add(uf)
+    else:
+        doc.files.remove(uf)
+
+    return JsonResponse({"ok": True, "file_ids": [str(f.id) for f in doc.files.all()]})
+
+
 # =========================================================================
-# Supplier Management — skeleton
+# Supplier Management (clause 8.4)
 # =========================================================================
 
 @require_team
@@ -842,14 +1078,36 @@ def supplier_list_create(request):
 
     if request.method == "GET":
         suppliers = SupplierRecord.objects.filter(owner=user)
+        status = request.GET.get("status")
+        supplier_type = request.GET.get("supplier_type")
+        search = request.GET.get("search")
+        sort = request.GET.get("sort", "name")
+        if status:
+            suppliers = suppliers.filter(status=status)
+        if supplier_type:
+            suppliers = suppliers.filter(supplier_type=supplier_type)
+        if search:
+            from django.db.models import Q
+            suppliers = suppliers.filter(Q(name__icontains=search) | Q(contact_name__icontains=search))
+        allowed_sorts = {
+            "name", "-name", "status", "-status",
+            "quality_rating", "-quality_rating",
+            "next_evaluation_date", "-next_evaluation_date",
+            "last_evaluation_date", "-last_evaluation_date",
+            "created_at", "-created_at",
+        }
+        if sort in allowed_sorts:
+            suppliers = suppliers.order_by(sort)
         return JsonResponse([s.to_dict() for s in suppliers[:100]], safe=False)
 
     data = json.loads(request.body)
     supplier = SupplierRecord.objects.create(
         owner=user,
         name=data.get("name", ""),
+        supplier_type=data.get("supplier_type", "other"),
         contact_name=data.get("contact_name", ""),
         contact_email=data.get("contact_email", ""),
+        contact_phone=data.get("contact_phone", ""),
         products_services=data.get("products_services", ""),
         notes=data.get("notes", ""),
     )
@@ -873,13 +1131,335 @@ def supplier_detail(request, supplier_id):
         return JsonResponse({"ok": True})
 
     data = json.loads(request.body)
-    for field in ["name", "status", "contact_name", "contact_email",
-                   "products_services", "quality_rating", "notes"]:
-        if field in data:
+
+    # Handle status transitions with workflow enforcement
+    new_status = data.get("status")
+    if new_status and new_status != supplier.status:
+        # Pre-set fields that transitions depend on
+        if "quality_rating" in data:
+            supplier.quality_rating = data["quality_rating"]
+        if "notes" in data:
+            supplier.notes = data["notes"]
+        if "disqualification_reason" in data:
+            supplier.disqualification_reason = data["disqualification_reason"]
+
+        ok, msg = supplier.can_transition(new_status)
+        if not ok:
+            return JsonResponse({"error": msg}, status=400)
+
+        old_status = supplier.status
+        supplier.status = new_status
+
+        SupplierStatusChange.objects.create(
+            supplier=supplier,
+            from_status=old_status,
+            to_status=new_status,
+            changed_by=request.user,
+            note=data.get("status_note", ""),
+        )
+
+    # Update other fields (skip fields already set during transition)
+    transition_fields = {"notes", "quality_rating", "disqualification_reason"} if new_status else set()
+    for field in ["name", "supplier_type", "contact_name", "contact_email",
+                   "contact_phone", "products_services", "quality_rating", "notes",
+                   "disqualification_reason"]:
+        if field in data and field not in transition_fields:
             setattr(supplier, field, data[field])
     if "next_evaluation_date" in data:
         supplier.next_evaluation_date = data["next_evaluation_date"] or None
     if "last_evaluation_date" in data:
         supplier.last_evaluation_date = data["last_evaluation_date"] or None
+    # Evaluation scores — auto-compute quality_rating from average
+    if "evaluation_scores" in data:
+        supplier.evaluation_scores = data["evaluation_scores"]
+        scores = [v for v in data["evaluation_scores"].values() if isinstance(v, (int, float))]
+        if scores:
+            supplier.quality_rating = round(sum(scores) / len(scores))
+    if "metadata" in data:
+        supplier.metadata = data["metadata"]
+
     supplier.save()
     return JsonResponse(supplier.to_dict())
+
+
+# =============================================================================
+# Study Output Actions (Phase 7) — QMS routing from Studies
+# =============================================================================
+
+def _get_study_for_action(request):
+    """Validate and return the study (project) from request body."""
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return None, {}, JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    project_id = data.get("project_id")
+    if not project_id:
+        return None, data, JsonResponse({"error": "project_id required"}, status=400)
+
+    try:
+        project = Project.objects.get(id=project_id, user=request.user)
+    except Project.DoesNotExist:
+        return None, data, JsonResponse({"error": "Study not found"}, status=404)
+
+    return project, data, None
+
+
+def _get_study_context(project):
+    """Extract problem statement and root cause from Study evidence for pre-fill."""
+    context = {"problem": project.title, "root_cause": ""}
+
+    # Use 5W2H problem description if available
+    whats = project.problem_whats or []
+    if whats:
+        context["problem"] = "; ".join(whats)
+
+    # Find root cause evidence (from RCA or NCR)
+    rca_evidence = (
+        Evidence.objects.filter(project=project, source_description__contains=":root_cause")
+        .order_by("-created_at")
+        .first()
+    )
+    if rca_evidence:
+        context["root_cause"] = rca_evidence.summary
+
+    return context
+
+
+@require_team
+@require_http_methods(["POST"])
+def study_raise_capa(request):
+    """Create a CAPA report from a Study.
+
+    Pre-fills problem description and root cause from Study evidence.
+    Creates StudyAction for traceability.
+    """
+    project, data, err = _get_study_for_action(request)
+    if err:
+        return err
+
+    context = _get_study_context(project)
+    type_def = REPORT_TYPES["capa"]
+    title = data.get("title", f"CAPA — {project.title}")
+
+    # Initialize sections with pre-fill from study context
+    sections = {s["key"]: "" for s in type_def["sections"]}
+    sections["problem_description"] = context["problem"]
+    if context["root_cause"]:
+        sections["root_cause_analysis"] = context["root_cause"]
+
+    report = Report.objects.create(
+        owner=request.user,
+        project=project,
+        report_type="capa",
+        title=title,
+        sections=sections,
+    )
+
+    StudyAction.objects.create(
+        project=project,
+        action_type="raise_capa",
+        target_type="report",
+        target_id=report.id,
+        notes=f"CAPA raised from Study: {project.title}",
+        created_by=request.user,
+    )
+
+    project.log_event("capa_raised", f"CAPA report created: {report.title}", user=request.user)
+    logger.info("Study %s: raised CAPA report %s", project.id, report.id)
+    return JsonResponse({
+        "ok": True,
+        "action": "raise_capa",
+        "report": report.to_dict(),
+    }, status=201)
+
+
+@require_team
+@require_http_methods(["POST"])
+def study_schedule_audit(request):
+    """Schedule a verification audit from a Study.
+
+    Pre-fills scope from Study title and corrective action summary.
+    Creates StudyAction for traceability.
+    """
+    project, data, err = _get_study_for_action(request)
+    if err:
+        return err
+
+    context = _get_study_context(project)
+    scheduled_date = data.get("scheduled_date")
+    if not scheduled_date:
+        scheduled_date = date.today() + timedelta(days=30)
+
+    scope = data.get("scope", "")
+    if not scope:
+        scope = f"Verification audit for Study: {project.title}"
+        if context["root_cause"]:
+            scope += f"\nRoot cause: {context['root_cause'][:200]}"
+
+    audit = InternalAudit.objects.create(
+        owner=request.user,
+        title=data.get("title", f"Verification Audit — {project.title}"),
+        scheduled_date=scheduled_date,
+        scope=scope,
+        lead_auditor=data.get("lead_auditor", ""),
+    )
+
+    StudyAction.objects.create(
+        project=project,
+        action_type="schedule_audit",
+        target_type="audit",
+        target_id=audit.id,
+        notes=f"Verification audit scheduled from Study: {project.title}",
+        created_by=request.user,
+    )
+
+    project.log_event("audit_scheduled", f"Verification audit scheduled: {audit.title}", user=request.user)
+    logger.info("Study %s: scheduled verification audit %s", project.id, audit.id)
+    return JsonResponse({
+        "ok": True,
+        "action": "schedule_audit",
+        "audit": audit.to_dict(),
+    }, status=201)
+
+
+@require_team
+@require_http_methods(["POST"])
+def study_request_doc_update(request):
+    """Request a document update from a Study.
+
+    Creates a controlled document change request with justification
+    linked to Study findings. Creates StudyAction for traceability.
+    """
+    project, data, err = _get_study_for_action(request)
+    if err:
+        return err
+
+    context = _get_study_context(project)
+    title = data.get("title", f"Document Update — {project.title}")
+
+    # Build justification from study context
+    justification = data.get("content", "")
+    if not justification:
+        justification = f"Change requested based on Study: {project.title}\n"
+        if context["root_cause"]:
+            justification += f"\nRoot cause: {context['root_cause'][:300]}"
+
+    doc = ControlledDocument.objects.create(
+        owner=request.user,
+        title=title,
+        category=data.get("category", "Change Request"),
+        content=justification,
+        document_number=data.get("document_number", ""),
+        iso_clause=data.get("iso_clause", ""),
+        source_study=project,
+    )
+
+    StudyAction.objects.create(
+        project=project,
+        action_type="request_doc_update",
+        target_type="document",
+        target_id=doc.id,
+        notes=f"Document update requested from Study: {project.title}",
+        created_by=request.user,
+    )
+
+    project.log_event("doc_update_requested", f"Document update requested: {title}", user=request.user)
+    logger.info("Study %s: requested document update %s", project.id, doc.id)
+    return JsonResponse({
+        "ok": True,
+        "action": "request_doc_update",
+        "document": doc.to_dict(),
+    }, status=201)
+
+
+@require_team
+@require_http_methods(["POST"])
+def study_flag_training_gap(request):
+    """Flag a training gap from a Study.
+
+    Creates a training requirement with justification linked to the Study.
+    Creates StudyAction for traceability.
+    """
+    project, data, err = _get_study_for_action(request)
+    if err:
+        return err
+
+    name = data.get("name", "")
+    if not name:
+        return JsonResponse({"error": "Training requirement name is required"}, status=400)
+
+    description = data.get("description", "")
+    if not description:
+        description = f"Training gap identified from Study: {project.title}"
+
+    req = TrainingRequirement.objects.create(
+        owner=request.user,
+        name=name,
+        description=description,
+        iso_clause=data.get("iso_clause", ""),
+        frequency_months=data.get("frequency_months", 0),
+        is_mandatory=data.get("is_mandatory", True),
+    )
+
+    StudyAction.objects.create(
+        project=project,
+        action_type="flag_training_gap",
+        target_type="training",
+        target_id=req.id,
+        notes=f"Training gap flagged from Study: {project.title}",
+        created_by=request.user,
+    )
+
+    project.log_event("training_gap_flagged", f"Training gap: {name}", user=request.user)
+    logger.info("Study %s: flagged training gap %s", project.id, req.id)
+    return JsonResponse({
+        "ok": True,
+        "action": "flag_training_gap",
+        "training": req.to_dict(),
+    }, status=201)
+
+
+@require_team
+@require_http_methods(["POST"])
+def study_flag_fmea_update(request):
+    """Flag an FMEA for review from a Study.
+
+    Sets FMEA status to "review" and creates a StudyAction link.
+    Lightweight — no new record type needed.
+    """
+    project, data, err = _get_study_for_action(request)
+    if err:
+        return err
+
+    fmea_id = data.get("fmea_id")
+    if not fmea_id:
+        return JsonResponse({"error": "fmea_id required"}, status=400)
+
+    try:
+        fmea = FMEA.objects.get(id=fmea_id, owner=request.user)
+    except FMEA.DoesNotExist:
+        return JsonResponse({"error": "FMEA not found"}, status=404)
+
+    # Set status to review if it's not already
+    if fmea.status != "review":
+        fmea.status = "review"
+        fmea.save(update_fields=["status", "updated_at"])
+
+    StudyAction.objects.create(
+        project=project,
+        action_type="flag_fmea_update",
+        target_type="fmea",
+        target_id=fmea.id,
+        notes=data.get("notes", f"FMEA review needed — see Study: {project.title}"),
+        created_by=request.user,
+    )
+
+    project.log_event("fmea_review_flagged", f"FMEA flagged for review: {fmea.title}", user=request.user)
+    logger.info("Study %s: flagged FMEA %s for review", project.id, fmea.id)
+    return JsonResponse({
+        "ok": True,
+        "action": "flag_fmea_update",
+        "fmea_id": str(fmea.id),
+        "fmea_title": fmea.title,
+    }, status=201)

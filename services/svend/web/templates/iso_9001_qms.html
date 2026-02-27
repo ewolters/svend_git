@@ -1,0 +1,728 @@
+{% extends "tool_base.html" %}
+
+{% block title %}ISO 9001:2015 QMS Software — Compliance Built Into Your CI Platform{% endblock %}
+{% block meta_description %}ISO 9001 QMS software with NCR tracking, internal audits, training matrix, management review, document control, and supplier management. Covers all 32 clauses from 4.1 through 10.3. No separate QMS needed — built into Svend's CI platform. Starting at {{ price_team }}/mo.{% endblock %}
+{% block meta_keywords %}ISO 9001 QMS software, ISO 9001 compliance software, ISO 9001 nonconformance tracking software, ISO 9001 internal audit software, ISO 9001 training matrix software, ISO 9001 management review software, ISO 9001 document control software, quality management system software, ISO 9001 CAPA software{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/iso-9001-qms-software/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/iso-9001-qms-software/">
+<meta property="og:title" content="ISO 9001:2015 QMS Software — Built Into Your CI Platform">
+<meta property="og:description" content="NCR tracking, internal audits, training matrix, management review, document control, and supplier management. All 32 ISO 9001 clauses. Starting at {{ price_team }}/mo.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "ISO 9001:2015 QMS Software — Built Into Your CI Platform",
+    "url": "https://svend.ai/iso-9001-qms-software/",
+    "description": "ISO 9001 quality management system software with NCR tracking, internal audits, training matrix, management review, document control, and supplier management. Covers all 32 clauses.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "ISO 9001 QMS Software", "item": "https://svend.ai/iso-9001-qms-software/" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What ISO 9001 clauses does Svend cover?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "All 32 clauses from 4.1 (Context of the organization) through 10.3 (Continual improvement). Every clause is fully active with CRUD, filtering, and analytics."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Do I need separate QMS software if I use Svend?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Svend's QMS module is built into the same platform you use for SPC, DOE, capability analysis, and root cause analysis. NCR tracking, internal audits, training records, management review, and document control are all native features on Team and Enterprise plans."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does Svend handle nonconformance tracking for ISO 9001?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Full CAPA workflow per clause 10.2. Log NCRs with severity classification and ISO clause reference. Record containment actions, conduct root cause analysis (5 Whys, fishbone diagram), define corrective actions with owners and due dates, verify effectiveness, and close."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Can Svend schedule and track ISO 9001 internal audits?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, per clause 9.2. Create audit programs with lead auditors, department scoping, and ISO clause mapping. Record findings as observations, minor nonconformities, major nonconformities, or opportunities for improvement. Each finding generates corrective actions tracked to closure."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Does Svend include a training matrix for ISO 9001 competence requirements?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, per clause 7.2. Define competence requirements by role, track employee training records with completion dates and expiry dates, monitor compliance rates per ISO clause, and receive alerts before certifications expire."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does Svend handle document control for ISO 9001?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Per clause 7.5. Controlled document register with document numbers, categories, version tracking, and approval workflows. Schedule reviews, track revisions with change summaries, and maintain a full audit trail. Supports quality manuals, SOPs, work instructions, and forms."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Can Svend manage supplier quality for ISO 9001 clause 8.4?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Supplier register with approval status, quality ratings, evaluation scheduling, and product/service records. Track approved supplier lists, schedule periodic re-evaluations, and link supplier performance data to incoming inspection NCRs."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How much does Svend's ISO 9001 QMS cost?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "QMS features are included in Team and Enterprise plans with no additional per-module charge. Both include a 14-day free trial — no charge until day 15. Purchasing power pricing is available for Southeast Asia, India, Latin America, Africa, and other emerging markets."
+            }
+        }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    /* Hero */
+    .iso-hero { text-align: center; margin-bottom: 2rem; padding-top: 1rem; }
+    .iso-hero h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .iso-hero h1 strong { color: var(--accent-primary); }
+    .iso-hero .hero-diff {
+        color: var(--text-primary); font-size: 1.1rem; max-width: 720px; margin: 0 auto 1rem;
+        line-height: 1.6; font-weight: 500;
+    }
+    .iso-hero .hero-body {
+        color: var(--text-secondary); font-size: 0.95rem; max-width: 680px; margin: 0 auto 1rem; line-height: 1.7;
+    }
+    .iso-hero .hero-pricing {
+        display: inline-block; background: var(--accent-primary-dim); border: 1px solid var(--accent-primary-border);
+        border-radius: 6px; padding: 0.5rem 1.25rem; font-size: 0.85rem; color: var(--accent-primary); font-weight: 500;
+    }
+
+    /* Product showcase */
+    .showcase { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin: 2.5rem 0; }
+    .showcase-panel {
+        background: #0d120d; border: 1px solid rgba(74,159,110,0.2); border-radius: 10px;
+        overflow: hidden; transition: border-color 0.2s;
+    }
+    .showcase-panel:hover { border-color: rgba(74,159,110,0.4); }
+    .showcase-label {
+        padding: 10px 14px 8px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;
+        font-weight: 600; color: #9aaa9a; border-bottom: 1px solid rgba(74,159,110,0.15);
+    }
+    .showcase-body { padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
+
+    /* NCR mockup */
+    .mock-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .mock-row:last-child { border-bottom: none; }
+    .mock-title { flex: 1; color: #e8efe8; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mock-badge {
+        display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 0.6rem;
+        font-weight: 600; white-space: nowrap;
+    }
+    .mock-badge.critical { background: rgba(239,68,68,0.15); color: #f87171; }
+    .mock-badge.major { background: rgba(249,115,22,0.15); color: #fb923c; }
+    .mock-badge.minor { background: rgba(250,204,21,0.15); color: #facc15; }
+    .mock-badge.open { background: rgba(239,68,68,0.15); color: #f87171; }
+    .mock-badge.investigation { background: rgba(249,115,22,0.15); color: #fb923c; }
+    .mock-badge.capa { background: rgba(250,204,21,0.15); color: #facc15; }
+    .mock-badge.closed { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .mock-clause { color: #7a8f7a; font-size: 0.65rem; white-space: nowrap; }
+    .mock-overdue { color: #f87171; font-weight: 600; font-size: 0.65rem; white-space: nowrap; }
+
+    /* RCA challenge mockup */
+    .mock-chain { padding: 4px 0; }
+    .mock-why-label { color: #7a8f7a; font-size: 0.6rem; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+    .mock-claim {
+        background: #121a12; border: 1px solid rgba(74,159,110,0.2); border-radius: 6px;
+        padding: 8px 10px; color: #e8efe8; font-size: 0.72rem; line-height: 1.5; margin-bottom: 8px;
+    }
+    .mock-challenge {
+        background: rgba(243,156,18,0.08); border: 1px solid rgba(243,156,18,0.25); border-radius: 6px;
+        padding: 8px 10px;
+    }
+    .mock-challenge-header {
+        font-size: 0.6rem; text-transform: uppercase; font-weight: 600; color: #f39c12;
+        margin-bottom: 4px; letter-spacing: 0.3px;
+    }
+    .mock-challenge-text { color: #9aaa9a; font-size: 0.68rem; line-height: 1.5; margin-bottom: 6px; }
+    .mock-error-badge {
+        display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 0.58rem; font-weight: 600;
+    }
+    .mock-error-badge.flaw { background: rgba(231,76,60,0.2); color: #f87171; }
+    .mock-error-badge.solid { background: rgba(39,174,96,0.2); color: #4ade80; }
+
+    /* Training matrix mockup */
+    .mock-matrix { display: grid; gap: 0; }
+    .mock-matrix-header {
+        display: grid; grid-template-columns: 100px repeat(4, 1fr); gap: 0;
+        font-size: 0.58rem; color: #7a8f7a; font-weight: 600; text-transform: uppercase;
+        border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px; margin-bottom: 4px;
+    }
+    .mock-matrix-header span { text-align: center; }
+    .mock-matrix-header span:first-child { text-align: left; }
+    .mock-matrix-row {
+        display: grid; grid-template-columns: 100px repeat(4, 1fr); gap: 3px;
+        padding: 3px 0; align-items: center;
+    }
+    .mock-matrix-name { color: #9aaa9a; font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mock-cell {
+        width: 20px; height: 20px; border-radius: 3px; margin: 0 auto;
+    }
+    .mock-cell.complete { background: rgba(34,197,94,0.3); border: 1px solid rgba(74,222,128,0.4); }
+    .mock-cell.expired { background: rgba(239,68,68,0.3); border: 1px solid rgba(248,113,113,0.4); }
+    .mock-cell.progress { background: rgba(250,204,21,0.3); border: 1px solid rgba(250,204,21,0.4); }
+    .mock-cell.not-started { background: rgba(107,114,128,0.2); border: 1px solid rgba(107,114,128,0.3); }
+    .mock-legend { display: flex; gap: 10px; margin-top: 8px; justify-content: center; }
+    .mock-legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.55rem; color: #7a8f7a; }
+    .mock-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+    .mock-legend-dot.complete { background: #4ade80; }
+    .mock-legend-dot.expired { background: #f87171; }
+    .mock-legend-dot.progress { background: #facc15; }
+    .mock-legend-dot.not-started { background: #6b7280; }
+
+    /* Document control mockup */
+    .mock-doc-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .mock-doc-row:last-child { border-bottom: none; }
+    .mock-doc-id { color: #60a5fa; font-size: 0.6rem; font-weight: 600; white-space: nowrap; }
+    .mock-doc-title { flex: 1; color: #e8efe8; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mock-doc-ver { color: #7a8f7a; font-size: 0.6rem; white-space: nowrap; }
+    .mock-badge.approved { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .mock-badge.review { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .mock-badge.draft { background: rgba(107,114,128,0.2); color: #9ca3af; }
+    .mock-badge.overdue-review { background: rgba(239,68,68,0.15); color: #f87171; }
+
+    /* Supplier mockup */
+    .mock-supplier-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .mock-supplier-row:last-child { border-bottom: none; }
+    .mock-supplier-name { flex: 1; color: #e8efe8; font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mock-rating { font-size: 0.6rem; font-weight: 600; white-space: nowrap; }
+    .mock-rating.high { color: #4ade80; }
+    .mock-rating.medium { color: #facc15; }
+    .mock-rating.low { color: #f87171; }
+
+    /* Module cards */
+    .module-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2.5rem 0; }
+    .module-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.5rem; transition: border-color 0.2s;
+    }
+    .module-card:hover { border-color: var(--accent-primary-border); }
+    .module-clause {
+        font-family: 'JetBrains Mono', monospace; color: var(--accent-primary);
+        font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem;
+    }
+    .module-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.4rem; }
+    .module-desc { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; }
+    .module-status { font-size: 0.7rem; margin-top: 0.5rem; font-weight: 600; }
+    .module-status.active { color: var(--accent-primary); }
+    .module-status.framed { color: var(--warning); }
+
+    /* Founder */
+    .founder-section {
+        margin: 2.5rem 0; padding: 2rem;
+        border-left: 3px solid var(--accent-primary); background: var(--bg-card);
+        border-radius: 0 10px 10px 0;
+    }
+    .founder-section p {
+        color: var(--text-secondary); font-size: 0.92rem; line-height: 1.75; margin: 0;
+    }
+    .founder-section .founder-name {
+        color: var(--text-primary); font-weight: 600; margin-top: 1rem; font-size: 0.85rem;
+    }
+    .founder-section .founder-lineage {
+        color: var(--text-dim); font-size: 0.78rem; font-family: 'JetBrains Mono', monospace;
+        margin-top: 0.25rem;
+    }
+
+    /* Clause table */
+    .iso-clause-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 2rem; }
+    .iso-clause-table th {
+        text-align: left; padding: 10px 14px; background: rgba(74,159,110,0.1); color: var(--accent-primary);
+        font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .iso-clause-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-secondary); line-height: 1.5; }
+    .iso-clause-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .iso-clause-table .clause-num {
+        font-family: 'JetBrains Mono', monospace; color: var(--accent-primary);
+        white-space: nowrap; font-weight: 500; width: 80px;
+    }
+    .iso-clause-table .status-active { color: var(--accent-primary); font-weight: 600; }
+    .iso-clause-table .status-skeleton { color: #e89547; font-weight: 600; }
+
+    .clause-section-title { margin: 2.5rem 0 0.5rem; }
+    .clause-section-title h2 { font-size: 1.25rem; font-weight: 600; }
+
+    /* CTA */
+    .iso-cta {
+        text-align: center; margin: 3rem 0 2rem; padding: 2.5rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .iso-cta h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .iso-cta p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; }
+    .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .cta-primary {
+        background: var(--accent-primary); color: #fff; padding: 0.7rem 2rem;
+        border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.95rem;
+        transition: background 0.2s;
+    }
+    .cta-primary:hover { background: #3a8a5a; }
+    .cta-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.7rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 500;
+        font-size: 0.95rem; transition: all 0.2s;
+    }
+    .cta-secondary:hover { border-color: var(--accent-primary-border); }
+
+    .status-legend {
+        text-align: center; margin-top: 1.5rem; color: var(--text-dim); font-size: 0.85rem;
+    }
+
+    @media (max-width: 768px) {
+        .showcase { grid-template-columns: 1fr; }
+        .module-cards { grid-template-columns: 1fr; }
+        .iso-hero h1 { font-size: 1.6rem; }
+        .iso-hero .hero-diff { font-size: 0.95rem; }
+    }
+
+    /* Sticky CTA — shown on all devices after scrolling past hero */
+    .sticky-cta {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 99;
+        background: rgba(10, 15, 10, 0.95);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(74, 159, 110, 0.3);
+        padding: 0.75rem 1rem;
+        text-align: center;
+        transform: translateY(100%);
+        transition: transform 0.3s;
+    }
+    .sticky-cta.visible {
+        display: block;
+        transform: translateY(0);
+    }
+    .sticky-cta a {
+        display: inline-block;
+        background: var(--accent-primary);
+        color: #fff;
+        padding: 0.65rem 1.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    .sticky-cta .sticky-sub {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        margin-top: 0.25rem;
+    }
+    .sticky-cta.visible ~ .tool-container { padding-bottom: 5rem; }
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="iso-hero">
+    <h1>ISO 9001:2015 <strong>QMS Software</strong></h1>
+    <p class="hero-diff">The only QMS with an AI that challenges your root cause analysis — so you never close an NCR with "human error" again.</p>
+    <p class="hero-body">NCR tracking, internal audits, training matrix, management review, document control, and supplier management — built into the same platform you use for SPC, DOE, and 200+ statistical analyses. One system. No duplicate data entry.</p>
+    <span class="hero-pricing">14-day free trial — then {{ price_team }}/mo with purchasing power pricing</span>
+    <div class="cta-buttons" style="margin-top: 1.5rem;">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="#clause-table" class="cta-secondary">See Clause Coverage</a>
+    </div>
+</div>
+
+<!-- Real product screenshot -->
+<div style="max-width: 900px; margin: 0 auto 2rem; border: 1px solid rgba(74,159,110,0.2); border-radius: 8px; overflow: hidden;">
+    <img src="/static/screenshots/sv3.png" alt="Bayesian SPC — Belief Chart, Evidence Accumulation, and E-Detector" style="width: 100%; display: block;" loading="lazy">
+    <div style="padding: 0.75rem 1rem; background: rgba(13,18,13,0.8); font-size: 0.8rem; color: var(--text-secondary);">
+        Process Belief System — Bayesian SPC with belief chart, evidence accumulation (E-value: 10,000:1 DECISIVE), and distribution-free changepoint detection. Built into the same platform as your QMS.
+    </div>
+</div>
+
+<!-- Product showcase: CSS mockups of actual UX -->
+<div class="showcase">
+    <!-- Panel 1: NCR Tracker -->
+    <div class="showcase-panel">
+        <div class="showcase-label">NCR Tracker — Clause 10.2</div>
+        <div class="showcase-body">
+            <div class="mock-row">
+                <span class="mock-title">Weld porosity on frame assy</span>
+                <span class="mock-badge critical">Critical</span>
+                <span class="mock-badge open">Open</span>
+                <span class="mock-clause">8.5</span>
+                <span class="mock-overdue">Due 3/1</span>
+            </div>
+            <div class="mock-row">
+                <span class="mock-title">Label misalignment lot #4217</span>
+                <span class="mock-badge major">Major</span>
+                <span class="mock-badge investigation">Investigation</span>
+                <span class="mock-clause">8.7</span>
+            </div>
+            <div class="mock-row">
+                <span class="mock-title">Surface finish out of spec</span>
+                <span class="mock-badge minor">Minor</span>
+                <span class="mock-badge capa">CAPA</span>
+                <span class="mock-clause">8.6</span>
+            </div>
+            <div class="mock-row">
+                <span class="mock-title">Incoming material hardness low</span>
+                <span class="mock-badge major">Major</span>
+                <span class="mock-badge closed">Closed</span>
+                <span class="mock-clause">8.4</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 2: RCA Challenge (the selling moment) -->
+    <div class="showcase-panel">
+        <div class="showcase-label">Root Cause Analysis — Synara Challenge</div>
+        <div class="showcase-body">
+            <div class="mock-chain">
+                <div class="mock-why-label">Why #3</div>
+                <div class="mock-claim">"The operator didn't follow the SOP."</div>
+                <div class="mock-challenge">
+                    <div class="mock-challenge-header">Challenge</div>
+                    <div class="mock-challenge-text">This attributes the failure to an individual rather than examining the system that allowed it. Was the SOP accessible at the workstation? Was the operator trained and assessed on this revision? Was the step ambiguous?</div>
+                    <span class="mock-error-badge flaw">STOPPING TOO EARLY</span>
+                    <span class="mock-error-badge flaw">BLAME FRAMING</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 3: Training Matrix -->
+    <div class="showcase-panel">
+        <div class="showcase-label">Training Matrix — Clause 7.2</div>
+        <div class="showcase-body">
+            <div class="mock-matrix">
+                <div class="mock-matrix-header">
+                    <span>Requirement</span>
+                    <span>A. Chen</span>
+                    <span>R. Patel</span>
+                    <span>M. Santos</span>
+                    <span>J. Kim</span>
+                </div>
+                <div class="mock-matrix-row">
+                    <span class="mock-matrix-name">GD&T Fundamentals</span>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell expired"></div>
+                    <div class="mock-cell complete"></div>
+                </div>
+                <div class="mock-matrix-row">
+                    <span class="mock-matrix-name">SPC Level II *</span>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell progress"></div>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell not-started"></div>
+                </div>
+                <div class="mock-matrix-row">
+                    <span class="mock-matrix-name">Internal Auditor</span>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell not-started"></div>
+                    <div class="mock-cell not-started"></div>
+                    <div class="mock-cell complete"></div>
+                </div>
+                <div class="mock-matrix-row">
+                    <span class="mock-matrix-name">ISO 9001 Awareness</span>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell progress"></div>
+                </div>
+                <div class="mock-matrix-row">
+                    <span class="mock-matrix-name">FMEA Practitioner</span>
+                    <div class="mock-cell progress"></div>
+                    <div class="mock-cell complete"></div>
+                    <div class="mock-cell not-started"></div>
+                    <div class="mock-cell complete"></div>
+                </div>
+            </div>
+            <div class="mock-legend">
+                <span class="mock-legend-item"><span class="mock-legend-dot complete"></span> Complete</span>
+                <span class="mock-legend-item"><span class="mock-legend-dot expired"></span> Expired</span>
+                <span class="mock-legend-item"><span class="mock-legend-dot progress"></span> In Progress</span>
+                <span class="mock-legend-item"><span class="mock-legend-dot not-started"></span> Not Started</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Second showcase row: Document Control + Supplier Management -->
+<div class="showcase" style="grid-template-columns: repeat(2, 1fr);">
+    <!-- Panel 4: Document Control -->
+    <div class="showcase-panel">
+        <div class="showcase-label">Document Control — Clause 7.5</div>
+        <div class="showcase-body">
+            <div class="mock-doc-row">
+                <span class="mock-doc-id">QM-001</span>
+                <span class="mock-doc-title">Quality Manual</span>
+                <span class="mock-doc-ver">v3.2</span>
+                <span class="mock-badge approved">Approved</span>
+            </div>
+            <div class="mock-doc-row">
+                <span class="mock-doc-id">SOP-042</span>
+                <span class="mock-doc-title">Incoming Inspection Procedure</span>
+                <span class="mock-doc-ver">v2.1</span>
+                <span class="mock-badge review">In Review</span>
+            </div>
+            <div class="mock-doc-row">
+                <span class="mock-doc-id">WI-017</span>
+                <span class="mock-doc-title">Weld Visual Inspection Criteria</span>
+                <span class="mock-doc-ver">v1.4</span>
+                <span class="mock-badge approved">Approved</span>
+            </div>
+            <div class="mock-doc-row">
+                <span class="mock-doc-id">FRM-009</span>
+                <span class="mock-doc-title">Corrective Action Request Form</span>
+                <span class="mock-doc-ver">v1.0</span>
+                <span class="mock-badge draft">Draft</span>
+            </div>
+            <div class="mock-doc-row">
+                <span class="mock-doc-id">SOP-018</span>
+                <span class="mock-doc-title">Supplier Evaluation Procedure</span>
+                <span class="mock-doc-ver">v2.0</span>
+                <span class="mock-badge overdue-review">Review Overdue</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 5: Supplier Management -->
+    <div class="showcase-panel">
+        <div class="showcase-label">Supplier Management — Clause 8.4</div>
+        <div class="showcase-body">
+            <div class="mock-supplier-row">
+                <span class="mock-supplier-name">Alcoa Fastening Systems</span>
+                <span class="mock-badge approved">Approved</span>
+                <span class="mock-rating high">A (94%)</span>
+            </div>
+            <div class="mock-supplier-row">
+                <span class="mock-supplier-name">Nippon Steel Trading</span>
+                <span class="mock-badge approved">Approved</span>
+                <span class="mock-rating high">A (91%)</span>
+            </div>
+            <div class="mock-supplier-row">
+                <span class="mock-supplier-name">PT Krakatau Wajatama</span>
+                <span class="mock-badge review">Re-evaluation</span>
+                <span class="mock-rating medium">B (76%)</span>
+            </div>
+            <div class="mock-supplier-row">
+                <span class="mock-supplier-name">Tata Steel BSL</span>
+                <span class="mock-badge approved">Approved</span>
+                <span class="mock-rating high">A (88%)</span>
+            </div>
+            <div class="mock-supplier-row">
+                <span class="mock-supplier-name">Guangzhou Metals Co.</span>
+                <span class="mock-badge capa">CAPA Open</span>
+                <span class="mock-rating low">C (62%)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Module cards -->
+<div class="module-cards">
+    <div class="module-card">
+        <div class="module-clause">Clause 10.2</div>
+        <div class="module-title">NCR Tracking & CAPA</div>
+        <div class="module-desc">Full nonconformance workflow: severity classification, containment actions, root cause analysis (5 Whys, fishbone), corrective action, effectiveness verification, and closure. Every NCR links to its ISO clause.</div>
+        <div class="module-status active">Active</div>
+    </div>
+    <div class="module-card">
+        <div class="module-clause">Clause 9.2</div>
+        <div class="module-title">Internal Audits</div>
+        <div class="module-desc">Schedule audits by department and ISO clause. Assign lead auditors, record findings (observation, NC minor, NC major, opportunity), and track corrective actions to closure.</div>
+        <div class="module-status active">Active</div>
+    </div>
+    <div class="module-card">
+        <div class="module-clause">Clause 7.2</div>
+        <div class="module-title">Training Matrix</div>
+        <div class="module-desc">Competence requirements per role, employee training records, completion dates, expiry alerts, and compliance rates per ISO clause. Auto-flags gaps before audits.</div>
+        <div class="module-status active">Active</div>
+    </div>
+    <div class="module-card">
+        <div class="module-clause">Clause 9.3</div>
+        <div class="module-title">Management Review</div>
+        <div class="module-desc">Auto-captured QMS data snapshot: NCR stats, audit completion, training compliance, supplier performance. Attendee tracking, structured agenda, minutes, and action items.</div>
+        <div class="module-status active">Active</div>
+    </div>
+    <div class="module-card">
+        <div class="module-clause">Clause 7.5</div>
+        <div class="module-title">Document Control</div>
+        <div class="module-desc">Controlled document register with document numbers, categories, version tracking, approval workflows, and review scheduling.</div>
+        <div class="module-status active">Active</div>
+    </div>
+    <div class="module-card">
+        <div class="module-clause">Clause 8.4</div>
+        <div class="module-title">Supplier Management</div>
+        <div class="module-desc">Supplier register with approval status, quality ratings, evaluation scheduling, and product/service records.</div>
+        <div class="module-status active">Active</div>
+    </div>
+</div>
+
+<!-- Founder -->
+<div class="founder-section">
+    <p>Svend was built by a continuous improvement practitioner, not a software company that hired one. The operational doctrine encoded in this platform was proven on the factory floor — applied under Charles Protzman Sr.'s integrated framework at Fort Dearborn's Fort Worth plant, where it drove a Heidelberg Speedmaster XL 106 to a world record of 82 million impressions and more than double the industry average OEE. This is that system, digitized.</p>
+    <div class="founder-name">Eric, Founder</div>
+    <div class="founder-lineage">CCS 1948 &rarr; Protzman &rarr; Shingo/Ohno &rarr; Charlie Protzman &rarr; Eric &rarr; SVEND</div>
+</div>
+
+<!-- CTA -->
+<div class="iso-cta">
+    <h3>Start your ISO 9001 QMS</h3>
+    <p>Team ({{ price_team }}/mo) and Enterprise ({{ price_enterprise }}/mo) include full QMS access. 14-day free trial, no charge until day 15. Purchasing power pricing for Southeast Asia, India, Latin America, and Africa.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="/#pricing" class="cta-secondary">See Pricing</a>
+    </div>
+</div>
+
+<!-- Full clause table -->
+<div id="clause-table" class="clause-section-title">
+    <h2>Full ISO 9001:2015 Clause Coverage</h2>
+</div>
+
+<table class="iso-clause-table">
+    <thead>
+        <tr><th>Clause</th><th>Requirement</th><th>Svend Coverage</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+        <tr><td class="clause-num">4.1</td><td>Context of the organization</td><td>Knowledge graph captures internal/external factors; hoshin objectives link strategic context to operational plans</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">4.2</td><td>Interested parties</td><td>Stakeholder mapping in hoshin kanri and project scoping; CRM tracks external party relationships</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">4.3</td><td>Scope of the QMS</td><td>Controlled document register for QMS scope statement with version control and review scheduling</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">4.4</td><td>QMS and its processes</td><td>Value stream mapping (current/future state); process metrics tracked through SPC and capability studies</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">5.1</td><td>Leadership and commitment</td><td>Management review module auto-captures QMS snapshot; hoshin X-matrix connects leadership direction to operations</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">5.2</td><td>Quality policy</td><td>Document control for quality policy with approval workflow, version history, and review due dates</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">5.3</td><td>Organizational roles</td><td>Multi-tenancy with role-based access (owner, admin, member, viewer); audit trail on all actions</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">6.1</td><td>Actions to address risks and opportunities</td><td>FMEA with evidence-based RPN scoring; Bayesian risk quantification; Synara belief engine for risk hypotheses</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">6.2</td><td>Quality objectives and planning</td><td>Hoshin annual objectives with target/actual tracking; KPI dashboards with Monte Carlo forecasting</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">6.3</td><td>Planning of changes</td><td>A3 reports for structured change management; project-linked evidence chains track change rationale</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">7.1</td><td>Resources</td><td>OEE calculator; takt time planning; capacity analysis through DOE and SPC modules</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">7.1.5</td><td>Monitoring and measuring resources</td><td>Gage R&R studies (ANOVA and range method); measurement system analysis with Bayesian capability</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">7.1.6</td><td>Organizational knowledge</td><td>Knowledge graph with entity-relationship mapping; workbench epistemic log captures reasoning history</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">7.2</td><td>Competence</td><td>Training matrix with requirement tracking, employee records, completion dates, expiry alerts, and compliance rates per ISO clause</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">7.3</td><td>Awareness</td><td>Learning module with courses, assessments, progress tracking, and certification; training requirements link to ISO clauses</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">7.4</td><td>Communication</td><td>Collaborative whiteboards with real-time updates; team dashboards; project-scoped conversation threads</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">7.5</td><td>Documented information</td><td>Controlled document register with document numbers, categories, version tracking, approval workflow, and review scheduling</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">8.1</td><td>Operational planning and control</td><td>Project management with hypothesis-driven workflow; VSM for process planning; Kanban card generation</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">8.2</td><td>Requirements for products/services</td><td>A3 reports capture requirements; FMEA links requirements to failure modes; evidence chains maintain traceability</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">8.3</td><td>Design and development</td><td>DOE for design optimization; sequential testing; experiment tracking with statistical verification</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">8.4</td><td>Control of externally provided processes</td><td>Supplier register with approval status, quality ratings, evaluation scheduling, and product/service records</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">8.5</td><td>Production and service provision</td><td>SPC control charts (Shewhart, CUSUM, EWMA); real-time process monitoring; Bayesian process belief system</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">8.5.2</td><td>Identification and traceability</td><td>UUID-based entity tracking; evidence chains link findings to data sources; full audit trail on all records</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">8.6</td><td>Release of products/services</td><td>Capability analysis (Cp, Cpk, Pp, Ppk) with Bayesian credible intervals; acceptance sampling via sample size calculator</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">8.7</td><td>Control of nonconforming outputs</td><td>NCR tracker with severity classification, containment actions, root cause analysis, corrective actions, and verification</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">9.1</td><td>Monitoring, measurement, analysis and evaluation</td><td>200+ statistical analyses; SPC dashboards; capability trending; Pareto analysis; hypothesis testing with p-values and effect sizes</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">9.1.3</td><td>Analysis and evaluation</td><td>DSW workbench for ad-hoc analysis; forecast module; time series decomposition; control chart interpretation</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">9.2</td><td>Internal audit</td><td>Audit scheduler with lead auditor, ISO clause mapping, department scoping, findings (observation/NC minor/NC major/opportunity), and corrective action tracking</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">9.3</td><td>Management review</td><td>Management review with auto-captured QMS data snapshot (NCR stats, audit completion, training compliance), attendee tracking, agenda inputs, minutes, and action outputs</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">10.1</td><td>Improvement — general</td><td>Synara belief engine surfaces improvement opportunities from data patterns; hoshin tracks improvement project ROI</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">10.2</td><td>Nonconformity and corrective action</td><td>Full CAPA workflow: NCR logging with ISO clause reference, containment, root cause (5 Whys, fishbone), corrective action, effectiveness verification, and closure tracking</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">10.3</td><td>Continual improvement</td><td>Hoshin kanri PDCA cycles; VSM current&rarr;future state promotion; trend analysis; kaizen burst tracking with savings verification</td><td class="status-active">Active</td></tr>
+    </tbody>
+</table>
+
+<div class="status-legend">
+    All 32 clauses <strong>Active</strong> — fully implemented with CRUD, filtering, and analytics.
+</div>
+
+<div class="tool-faq">
+    <h2>ISO 9001 QMS — Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">What ISO 9001 clauses does Svend cover?</div>
+        <div class="faq-a">All 32 clauses from 4.1 (Context of the organization) through 10.3 (Continual improvement). Every clause is fully active with CRUD, filtering, and analytics. See the full table above.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Do I need separate QMS software if I use Svend?</div>
+        <div class="faq-a">No. Svend's QMS module is built into the same platform you use for SPC, DOE, capability analysis, and root cause analysis. NCR tracking, internal audits, training records, management review, and document control are all native features on Team and Enterprise plans. No duplicate data entry or third-party integrations required.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does Svend handle nonconformance tracking for ISO 9001?</div>
+        <div class="faq-a">Full CAPA workflow per clause 10.2. Log NCRs with severity classification (minor, major, critical) and ISO clause reference. Record containment actions, conduct root cause analysis using 5 Whys or fishbone diagrams, define corrective actions with owners and due dates, verify effectiveness, and close. Every NCR traces to its root cause analysis and any linked FMEA failure mode.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Can Svend schedule and track ISO 9001 internal audits?</div>
+        <div class="faq-a">Yes, per clause 9.2. Create audit programs with lead auditors, department scoping, and ISO clause mapping. Record findings as observations, minor nonconformities, major nonconformities, or opportunities for improvement. Each finding generates corrective actions tracked to closure with verification.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Does Svend include a training matrix for ISO 9001 competence requirements?</div>
+        <div class="faq-a">Yes, per clause 7.2. Define competence requirements by role, track employee training records with completion dates and expiry dates, monitor compliance rates per ISO clause, and receive alerts before certifications expire. The training matrix integrates with the learning module for course delivery and assessment.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does Svend handle document control for ISO 9001?</div>
+        <div class="faq-a">Per clause 7.5. Controlled document register with document numbers, categories, version tracking, and approval workflows. Schedule reviews, track revisions with change summaries, and maintain a full audit trail. Obsolete versions are automatically archived. Supports quality manuals, SOPs, work instructions, and forms.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Can Svend manage supplier quality for ISO 9001 clause 8.4?</div>
+        <div class="faq-a">Yes. Supplier register with approval status, quality ratings, evaluation scheduling, and product/service records. Track approved supplier lists, schedule periodic re-evaluations, and link supplier performance data to incoming inspection NCRs. Integrates with the NCR tracker for externally provided product nonconformances.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How much does Svend's ISO 9001 QMS cost?</div>
+        <div class="faq-a">QMS features are included in Team ({{ price_team }}/mo) and Enterprise ({{ price_enterprise }}/mo) plans. Both include a 14-day free trial — no charge until day 15. Cancel anytime during the trial and you won't be billed. No additional per-module charge. Purchasing power pricing is available for Southeast Asia, India, Latin America, Africa, and other emerging markets. The same plans include SPC, DOE, 200+ statistical analyses, FMEA, A3 reports, value stream mapping, and hoshin kanri.</div>
+    </div>
+</div>
+
+<!-- Sticky CTA — appears after scrolling past hero -->
+<div class="sticky-cta" id="stickyCta">
+    <a href="/register/?plan=team&region={{ region }}">Try QMS Free for 14 Days</a>
+    <div class="sticky-sub">Full access — {{ price_team }}/mo after trial</div>
+</div>
+
+<script>
+(function() {
+    var sticky = document.getElementById('stickyCta');
+    var hero = document.querySelector('.iso-hero');
+    if (!sticky || !hero) return;
+    // Show sticky once hero scrolls out of view
+    var observer = new IntersectionObserver(function(entries) {
+        sticky.classList.toggle('visible', !entries[0].isIntersecting);
+    }, { threshold: 0 });
+    observer.observe(hero);
+})();
+</script>
+
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}
+{% block faq %}{% endblock %}

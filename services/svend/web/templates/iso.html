@@ -17,12 +17,13 @@
 .iso-panel.active { display: block; }
 
 /* KPI cards */
-.iso-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+.iso-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .iso-kpi { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
 .iso-kpi:hover { border-color: var(--accent); }
 .iso-kpi .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .iso-kpi .value { font-size: 28px; font-weight: 600; color: var(--text-primary); margin: 4px 0; font-family: 'JetBrains Mono', monospace; }
 .iso-kpi .sub { font-size: 12px; color: var(--text-dim); }
+.iso-kpi.alert { padding: 20px; border-radius: 10px; margin-bottom: 0; }
 .iso-kpi.alert .value { color: #f87171; }
 .iso-kpi.warn .value { color: #facc15; }
 .iso-kpi.good .value { color: #4ade80; }
@@ -67,6 +68,7 @@
 .iso-form { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
 .iso-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .iso-form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.iso-form-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .iso-input { width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
     border-radius: 6px; color: var(--text-primary); font-size: 13px; box-sizing: border-box; }
 .iso-input:focus { border-color: var(--accent); outline: none; }
@@ -105,6 +107,8 @@ select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%
 .badge-pending { background: rgba(250,204,21,0.15); color: #facc15; }
 .badge-conditional { background: rgba(249,115,22,0.15); color: #fb923c; }
 .badge-disqualified { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-suspended { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-obsolete { background: rgba(107,114,128,0.15); color: #9ca3af; }
 .badge-scheduled { background: rgba(147,51,234,0.15); color: #a78bfa; }
 
 /* Toolbar */
@@ -316,6 +320,16 @@ async function loadDashboard() {
         html += `<div class="iso-kpi ${capaSoon > 0 ? 'warn' : 'good'}" onclick="navigate('ncrs')">
             <div class="label">CAPA Due Soon</div><div class="value">${capaSoon}</div>
             <div class="sub">Next 14 days</div></div>`;
+
+        const docReview = d.documents?.review_due_soon || 0;
+        html += `<div class="iso-kpi ${docReview > 0 ? 'warn' : ''}" onclick="navigate('documents')">
+            <div class="label">Documents</div><div class="value">${d.documents?.approved || 0}</div>
+            <div class="sub">${docReview} review${docReview !== 1 ? 's' : ''} due</div></div>`;
+
+        const evalOver = d.suppliers?.eval_overdue || 0;
+        html += `<div class="iso-kpi ${evalOver > 0 ? 'warn' : ''}" onclick="navigate('suppliers')">
+            <div class="label">Suppliers</div><div class="value">${d.suppliers?.approved || 0}</div>
+            <div class="sub">${evalOver} eval${evalOver !== 1 ? 's' : ''} overdue</div></div>`;
         html += '</div>';
 
         // NCR severity breakdown + trend
@@ -570,7 +584,7 @@ async function loadNCRDetail(id) {
 
         // RCA / CAPA links
         if (n.rca_session_id) {
-            html += `<div style="margin:12px 0"><a href="/app/rca/" class="iso-btn small" style="text-decoration:none">View RCA Session &rarr;</a></div>`;
+            html += `<div style="margin:12px 0"><a href="/app/rca/?session=${n.rca_session_id}" class="iso-btn small" style="text-decoration:none">View RCA Session &rarr;</a></div>`;
         }
         if (n.capa_report_id) {
             html += `<div style="margin:12px 0"><a href="/app/report/${n.capa_report_id}/" class="iso-btn small" style="text-decoration:none">View CAPA Report &rarr;</a></div>`;
@@ -666,7 +680,7 @@ async function launchRCA(id) {
     try {
         const r = await apiFetch(`/ncrs/${id}/launch-rca/`, { method: 'POST' });
         toast('RCA session created');
-        window.location.href = '/app/rca/';
+        window.location.href = `/app/rca/?session=${r.rca_session_id}`;
     } catch (e) { toast(e.message, true); }
 }
 
@@ -1284,53 +1298,91 @@ async function deleteReview(id) {
 }
 
 // =========================================================================
-// Document Control tab — Coming Soon + early access CRUD
+// Document Control tab (clause 7.5)
 // =========================================================================
 let docList = [];
-let docShowEarlyAccess = false;
+let docSort = '-updated_at';
+let docFilterStatus = '';
+let docFilterCategory = '';
+let docSearch = '';
 
 async function loadDocuments() {
     const el = document.getElementById('panel-documents');
-    let html = '<div class="coming-soon">';
-    html += '<h3>Document Control</h3>';
-    html += '<p>Full document control per ISO 9001:2015 clause 7.5 — version control, approval workflows, distribution tracking, and retention schedules.</p>';
-    html += '<div class="features">';
-    ['Version Control', 'Approval Workflows', 'Clause Mapping', 'Review Reminders', 'Distribution Lists', 'Retention Schedules'].forEach(f => {
-        html += `<span class="feature-chip">${f}</span>`;
-    });
-    html += '</div>';
-    html += `<div style="margin-top:24px"><button class="iso-btn" onclick="docShowEarlyAccess=!docShowEarlyAccess;loadDocuments()">
-        ${docShowEarlyAccess ? 'Hide' : 'Show'} Early Access CRUD</button></div>`;
-    html += '</div>';
-
-    if (docShowEarlyAccess) {
-        try {
-            docList = await apiFetch('/documents/');
-        } catch (e) { docList = []; }
-
-        html += '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">';
-        html += '<div class="iso-toolbar"><div class="spacer"></div><button class="iso-btn primary" onclick="showDocForm()">+ New Document</button></div>';
-        html += '<div id="doc-form-area"></div>';
-
-        if (docList.length) {
-            html += '<table class="iso-table"><thead><tr><th>Doc #</th><th>Title</th><th>Status</th><th>Category</th><th>Version</th><th>Review Due</th><th></th></tr></thead><tbody>';
-            docList.forEach(d => {
-                html += `<tr>`;
-                html += `<td style="font-size:12px;font-family:monospace">${escHtml(d.document_number || '—')}</td>`;
-                html += `<td>${escHtml(d.title)}</td>`;
-                html += `<td>${badge(d.status)}</td>`;
-                html += `<td style="font-size:12px">${escHtml(d.category || '—')}</td>`;
-                html += `<td style="font-size:12px">${escHtml(d.current_version)}</td>`;
-                html += `<td style="font-size:12px">${fmtDate(d.review_due_date)}</td>`;
-                html += `<td style="text-align:right"><button class="iso-btn small danger" onclick="deleteDoc('${d.id}')">Delete</button></td>`;
-                html += '</tr>';
-            });
-            html += '</tbody></table>';
-        } else {
-            html += '<div style="text-align:center;padding:20px;color:var(--text-dim)">No documents yet.</div>';
-        }
-        html += '</div>';
+    let params = `?sort=${docSort}`;
+    if (docFilterStatus) params += `&status=${docFilterStatus}`;
+    if (docFilterCategory) params += `&category=${docFilterCategory}`;
+    if (docSearch) params += `&search=${encodeURIComponent(docSearch)}`;
+    try {
+        docList = await apiFetch(`/documents/${params}`);
+        renderDocList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
     }
+}
+
+function renderDocList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:140px" onchange="docFilterStatus=this.value;loadDocuments()">
+        <option value="">All Statuses</option>
+        <option value="draft" ${docFilterStatus==='draft'?'selected':''}>Draft</option>
+        <option value="review" ${docFilterStatus==='review'?'selected':''}>Under Review</option>
+        <option value="approved" ${docFilterStatus==='approved'?'selected':''}>Approved</option>
+        <option value="obsolete" ${docFilterStatus==='obsolete'?'selected':''}>Obsolete</option>
+    </select>`;
+    html += `<select class="iso-input" style="width:140px" onchange="docFilterCategory=this.value;loadDocuments()">
+        <option value="">All Categories</option>
+        <option value="SOP" ${docFilterCategory==='SOP'?'selected':''}>SOP</option>
+        <option value="Work Instruction" ${docFilterCategory==='Work Instruction'?'selected':''}>Work Instruction</option>
+        <option value="Policy" ${docFilterCategory==='Policy'?'selected':''}>Policy</option>
+        <option value="Form" ${docFilterCategory==='Form'?'selected':''}>Form</option>
+        <option value="Other" ${docFilterCategory==='Other'?'selected':''}>Other</option>
+    </select>`;
+    html += `<input class="iso-input" style="width:180px" placeholder="Search..." value="${escHtml(docSearch)}"
+        onkeyup="if(event.key==='Enter'){docSearch=this.value;loadDocuments()}"
+        onblur="if(docSearch!==this.value){docSearch=this.value;loadDocuments()}">`;
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showDocForm()">+ New Document</button>';
+    html += '</div>';
+
+    html += '<div id="doc-form-area"></div>';
+
+    if (!docList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No documents found. Create one to get started.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    const sortIcon = (field) => {
+        const asc = docSort === field, desc = docSort === `-${field}`;
+        return `<span class="sort-arrow">${desc ? '&#9660;' : asc ? '&#9650;' : '&#9650;'}</span>`;
+    };
+    const sortClick = (field) => `onclick="docSort=(docSort==='-${field}'?'${field}':'-${field}');loadDocuments()"`;
+    const today = new Date().toISOString().split('T')[0];
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += `<th style="width:100px">Doc #</th>`;
+    html += `<th ${sortClick('title')} ${docSort.includes('title')?'class="sorted"':''}>Title ${sortIcon('title')}</th>`;
+    html += '<th>Category</th>';
+    html += `<th ${sortClick('status')} ${docSort.includes('status')?'class="sorted"':''}>Status ${sortIcon('status')}</th>`;
+    html += '<th>Version</th>';
+    html += '<th>Approved By</th>';
+    html += `<th ${sortClick('review_due_date')} ${docSort.includes('review_due_date')?'class="sorted"':''}>Review Due ${sortIcon('review_due_date')}</th>`;
+    html += `<th ${sortClick('updated_at')} ${docSort.includes('updated_at')?'class="sorted"':''}>Updated ${sortIcon('updated_at')}</th>`;
+    html += '</tr></thead><tbody>';
+    docList.forEach(d => {
+        const overdue = d.review_due_date && d.review_due_date < today && d.status === 'approved';
+        html += `<tr class="${overdue ? 'overdue' : ''}" onclick="loadDocDetail('${d.id}')">`;
+        html += `<td style="font-size:12px;font-family:monospace">${escHtml(d.document_number || '—')}</td>`;
+        html += `<td>${escHtml(d.title)}</td>`;
+        html += `<td style="font-size:12px">${escHtml(d.category || '—')}</td>`;
+        html += `<td>${badge(d.status)}</td>`;
+        html += `<td style="font-size:12px">${escHtml(d.current_version)}</td>`;
+        html += `<td style="font-size:12px">${d.approved_by_user ? escHtml(d.approved_by_user.name) : escHtml(d.approved_by || '—')}</td>`;
+        html += `<td style="${overdue ? 'color:#f87171;font-weight:600' : ''};font-size:12px">${fmtDate(d.review_due_date)}</td>`;
+        html += `<td style="font-size:12px;color:var(--text-dim)">${fmtDate(d.updated_at)}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
     el.innerHTML = html;
 }
 
@@ -1345,10 +1397,12 @@ function showDocForm() {
                 <option value="">Select...</option><option value="SOP">SOP</option><option value="Work Instruction">Work Instruction</option>
                 <option value="Policy">Policy</option><option value="Form">Form</option><option value="Other">Other</option></select></div>
         </div>
-        <div class="iso-form-grid">
+        <div class="iso-form-grid cols-3">
             <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="doc-clause" placeholder="e.g. 7.5"></div>
             <div><label class="iso-label">Review Due Date</label><input class="iso-input" type="date" id="doc-due"></div>
+            <div><label class="iso-label">Retention (years)</label><input class="iso-input" type="number" id="doc-retention" value="7" min="1" max="99"></div>
         </div>
+        <div style="margin-bottom:12px"><label class="iso-label">Content</label><textarea class="iso-textarea" id="doc-content" rows="3" placeholder="Document body or summary..."></textarea></div>
         <div style="display:flex;gap:8px">
             <button class="iso-btn primary" onclick="saveDoc()">Create Document</button>
             <button class="iso-btn" onclick="document.getElementById('doc-form-area').innerHTML=''">Cancel</button>
@@ -1364,11 +1418,186 @@ async function saveDoc() {
             title, document_number: document.getElementById('doc-number').value,
             category: document.getElementById('doc-category').value,
             iso_clause: document.getElementById('doc-clause').value,
+            content: document.getElementById('doc-content').value,
             review_due_date: document.getElementById('doc-due').value || null,
+            retention_years: parseInt(document.getElementById('doc-retention').value) || 7,
         }});
         toast('Document created');
         document.getElementById('doc-form-area').innerHTML = '';
         loadDocuments();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadDocDetail(id) {
+    const el = document.getElementById('panel-documents');
+    try {
+        const d = await apiFetch(`/documents/${id}/`);
+        const statuses = ['draft', 'review', 'approved', 'obsolete'];
+        const statusIdx = statuses.indexOf(d.status);
+        const TRANSITIONS = { draft: ['review'], review: ['approved', 'draft'], approved: ['review', 'obsolete'], obsolete: [] };
+        const nextStatuses = TRANSITIONS[d.status] || [];
+
+        let html = '<button class="iso-btn ghost" onclick="loadDocuments()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+                <h2 style="margin:0">${escHtml(d.title)}</h2>
+                ${d.document_number ? `<div style="font-size:13px;color:var(--text-secondary);margin-top:2px">${escHtml(d.document_number)}</div>` : ''}
+                ${d.source_study_id ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">From Study: <a href="/app/projects/" style="color:var(--primary)">${escHtml(d.source_study_id)}</a></div>` : ''}
+            </div>
+            <div style="display:flex;gap:8px">
+                ${badge(d.status)}
+                <button class="iso-btn small danger" onclick="deleteDoc('${d.id}')">Delete</button>
+            </div></div>`;
+
+        // Status progression bar
+        html += '<div class="status-bar">';
+        statuses.forEach((s, i) => {
+            let cls = '';
+            if (i < statusIdx) cls = 'done';
+            else if (i === statusIdx) cls = 'current';
+            html += `<div class="status-step ${cls}">${s === 'review' ? 'under review' : s}</div>`;
+        });
+        html += '</div>';
+
+        // Info fields
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Category</label><span style="font-size:13px">${escHtml(d.category || '—')}</span></div>`;
+        html += `<div><label class="iso-label">ISO Clause</label><span style="font-size:13px">${escHtml(d.iso_clause || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Version</label><span style="font-size:13px;font-weight:600">${escHtml(d.current_version)}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Approved By</label><span style="font-size:13px">${d.approved_by_user ? escHtml(d.approved_by_user.name) : escHtml(d.approved_by || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Approved Date</label><span style="font-size:13px">${fmtDate(d.approved_at)}</span></div>`;
+        html += `<div><label class="iso-label">Review Due</label><span style="font-size:13px">${fmtDate(d.review_due_date)}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Retention</label><span style="font-size:13px">${d.retention_years} years</span></div>`;
+        html += `<div><label class="iso-label">Created</label><span style="font-size:13px">${fmtDate(d.created_at)}</span></div>`;
+        html += `<div><label class="iso-label">Updated</label><span style="font-size:13px">${fmtDate(d.updated_at)}</span></div>`;
+        html += '</div>';
+
+        // Content
+        if (d.content) {
+            html += `<div style="margin:16px 0"><label class="iso-label">Content</label><div style="font-size:13px;white-space:pre-wrap;background:var(--bg-secondary);padding:12px;border-radius:6px;max-height:300px;overflow-y:auto">${escHtml(d.content)}</div></div>`;
+        }
+
+        // File attachments
+        html += '<div style="margin:16px 0"><label class="iso-label">Attachments</label>';
+        if (d.file_ids?.length) {
+            html += `<div style="font-size:13px">${d.file_ids.length} file(s) attached</div>`;
+        } else {
+            html += '<div style="font-size:13px;color:var(--text-dim)">No files attached</div>';
+        }
+        html += '</div>';
+
+        // Status transition
+        if (nextStatuses.length) {
+            html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+            html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Advance Status</h4>';
+            nextStatuses.forEach(ns => {
+                html += '<div style="display:flex;gap:8px;align-items:end;margin-bottom:8px">';
+                if (ns === 'approved') {
+                    const u = window.svendUser || {};
+                    html += `<div><label class="iso-label">Approver *</label><select class="iso-input" id="doc-approver-${ns}" style="width:180px">
+                        <option value="">Select approver...</option>
+                        <option value="${u.id || ''}">${escHtml(u.username || u.email || 'Me')}</option>
+                    </select></div>`;
+                }
+                if (d.status === 'approved' && ns === 'review') {
+                    html += `<div><label class="iso-label">Revision Note</label><input class="iso-input" id="doc-revision-note" placeholder="What changed?" style="width:200px"></div>`;
+                }
+                html += `<div><label class="iso-label">Note</label><input class="iso-input" id="doc-tn-${ns}" placeholder="Optional note" style="width:200px"></div>`;
+                const label = ns === 'review' && d.status === 'approved' ? 'Start Revision' : ns === 'draft' ? 'Reject to Draft' : `Advance to ${ns === 'review' ? 'Under Review' : ns}`;
+                const btnClass = ns === 'draft' ? 'iso-btn small' : 'iso-btn primary';
+                html += `<button class="${btnClass}" onclick="advanceDocStatus('${d.id}','${ns}')">${label}</button>`;
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Version history
+        if (d.revisions?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Version History</h4>';
+            html += '<table class="iso-table" style="font-size:12px"><thead><tr><th>Version</th><th>Changed By</th><th>Summary</th><th>Date</th></tr></thead><tbody>';
+            d.revisions.forEach(r => {
+                html += `<tr><td style="font-weight:600">${escHtml(r.version)}</td>`;
+                html += `<td>${escHtml(r.changed_by || '—')}</td>`;
+                html += `<td>${escHtml(r.change_summary || '—')}</td>`;
+                html += `<td>${fmtDate(r.created_at)}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+        }
+
+        // Status history timeline
+        if (d.status_changes?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+            html += '<div class="status-timeline">';
+            d.status_changes.forEach(sc => {
+                html += `<div class="timeline-entry">
+                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
+                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
+                    <div class="time">${fmtDate(sc.created_at)}</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+
+        // Edit form
+        html += '<div class="iso-form" style="margin-top:16px"><h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Edit Document</h4>';
+        html += '<div class="iso-form-grid cols-3">';
+        html += `<div><label class="iso-label">Title</label><input class="iso-input" id="doc-edit-title" value="${escHtml(d.title)}"></div>`;
+        html += `<div><label class="iso-label">Document Number</label><input class="iso-input" id="doc-edit-number" value="${escHtml(d.document_number)}"></div>`;
+        html += `<div><label class="iso-label">Category</label><select class="iso-input" id="doc-edit-category">
+            <option value="">Select...</option>
+            ${['SOP','Work Instruction','Policy','Form','Other'].map(c => `<option value="${c}" ${d.category===c?'selected':''}>${c}</option>`).join('')}
+        </select></div>`;
+        html += '</div>';
+        html += '<div class="iso-form-grid cols-3">';
+        html += `<div><label class="iso-label">ISO Clause</label><input class="iso-input" id="doc-edit-clause" value="${escHtml(d.iso_clause)}"></div>`;
+        html += `<div><label class="iso-label">Review Due Date</label><input class="iso-input" type="date" id="doc-edit-due" value="${d.review_due_date || ''}"></div>`;
+        html += `<div><label class="iso-label">Retention (years)</label><input class="iso-input" type="number" id="doc-edit-retention" value="${d.retention_years}" min="1" max="99"></div>`;
+        html += '</div>';
+        html += `<div style="margin-bottom:12px"><label class="iso-label">Content</label><textarea class="iso-textarea" id="doc-edit-content" rows="4">${escHtml(d.content)}</textarea></div>`;
+        html += `<button class="iso-btn primary" onclick="updateDocFields('${d.id}')">Save Changes</button>`;
+        html += '</div>';
+
+        el.innerHTML = html;
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+async function advanceDocStatus(id, newStatus) {
+    try {
+        const body = { status: newStatus, status_note: document.getElementById(`doc-tn-${newStatus}`)?.value || '' };
+        // For approval, include approver
+        const approverEl = document.getElementById(`doc-approver-${newStatus}`);
+        if (approverEl && approverEl.value) body.approved_by_user = parseInt(approverEl.value);
+        // For revision cycle, include note
+        const revNoteEl = document.getElementById('doc-revision-note');
+        if (revNoteEl) body.revision_note = revNoteEl.value;
+        await apiFetch(`/documents/${id}/`, { method: 'PUT', body });
+        toast(`Document status updated to ${newStatus}`);
+        loadDocDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateDocFields(id) {
+    try {
+        await apiFetch(`/documents/${id}/`, { method: 'PUT', body: {
+            title: document.getElementById('doc-edit-title').value,
+            document_number: document.getElementById('doc-edit-number').value,
+            category: document.getElementById('doc-edit-category').value,
+            iso_clause: document.getElementById('doc-edit-clause').value,
+            content: document.getElementById('doc-edit-content').value,
+            review_due_date: document.getElementById('doc-edit-due').value || null,
+            retention_years: parseInt(document.getElementById('doc-edit-retention').value) || 7,
+        }});
+        toast('Document updated');
+        loadDocDetail(id);
     } catch (e) { toast(e.message, true); }
 }
 
@@ -1382,54 +1611,96 @@ async function deleteDoc(id) {
 }
 
 // =========================================================================
-// Supplier Management tab — Coming Soon + early access CRUD
+// Supplier Management tab (clause 8.4)
 // =========================================================================
 let supplierList = [];
-let supplierShowEarlyAccess = false;
+let supplierSort = 'name';
+let supplierFilterStatus = '';
+let supplierFilterType = '';
+let supplierSearch = '';
+
+function starsHtml(rating) {
+    if (!rating) return '<span style="color:var(--text-dim)">—</span>';
+    return '<span style="color:#facc15">' + '&#9733;'.repeat(rating) + '&#9734;'.repeat(5 - rating) + '</span>';
+}
 
 async function loadSuppliers() {
     const el = document.getElementById('panel-suppliers');
-    let html = '<div class="coming-soon">';
-    html += '<h3>Supplier Management</h3>';
-    html += '<p>Comprehensive supplier evaluation and management per ISO 9001:2015 clause 8.4 — approved supplier lists, performance tracking, and re-evaluation schedules.</p>';
-    html += '<div class="features">';
-    ['Approved Supplier List', 'Quality Ratings', 'Evaluation Schedules', 'Risk Assessment', 'Performance Metrics', 'Audit Integration'].forEach(f => {
-        html += `<span class="feature-chip">${f}</span>`;
-    });
-    html += '</div>';
-    html += `<div style="margin-top:24px"><button class="iso-btn" onclick="supplierShowEarlyAccess=!supplierShowEarlyAccess;loadSuppliers()">
-        ${supplierShowEarlyAccess ? 'Hide' : 'Show'} Early Access CRUD</button></div>`;
-    html += '</div>';
-
-    if (supplierShowEarlyAccess) {
-        try {
-            supplierList = await apiFetch('/suppliers/');
-        } catch (e) { supplierList = []; }
-
-        html += '<div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">';
-        html += '<div class="iso-toolbar"><div class="spacer"></div><button class="iso-btn primary" onclick="showSupplierForm()">+ New Supplier</button></div>';
-        html += '<div id="supplier-form-area"></div>';
-
-        if (supplierList.length) {
-            html += '<table class="iso-table"><thead><tr><th>Name</th><th>Status</th><th>Contact</th><th>Rating</th><th>Last Eval</th><th>Next Eval</th><th></th></tr></thead><tbody>';
-            supplierList.forEach(s => {
-                const stars = s.quality_rating ? '&#9733;'.repeat(s.quality_rating) + '&#9734;'.repeat(5 - s.quality_rating) : '—';
-                html += `<tr>`;
-                html += `<td>${escHtml(s.name)}</td>`;
-                html += `<td>${badge(s.status)}</td>`;
-                html += `<td style="font-size:12px">${escHtml(s.contact_name || '—')}</td>`;
-                html += `<td style="color:#facc15">${stars}</td>`;
-                html += `<td style="font-size:12px">${fmtDate(s.last_evaluation_date)}</td>`;
-                html += `<td style="font-size:12px">${fmtDate(s.next_evaluation_date)}</td>`;
-                html += `<td style="text-align:right"><button class="iso-btn small danger" onclick="deleteSupplier('${s.id}')">Delete</button></td>`;
-                html += '</tr>';
-            });
-            html += '</tbody></table>';
-        } else {
-            html += '<div style="text-align:center;padding:20px;color:var(--text-dim)">No suppliers yet.</div>';
-        }
-        html += '</div>';
+    let params = `?sort=${supplierSort}`;
+    if (supplierFilterStatus) params += `&status=${supplierFilterStatus}`;
+    if (supplierFilterType) params += `&supplier_type=${supplierFilterType}`;
+    if (supplierSearch) params += `&search=${encodeURIComponent(supplierSearch)}`;
+    try {
+        supplierList = await apiFetch(`/suppliers/${params}`);
+        renderSupplierList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
     }
+}
+
+function renderSupplierList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:140px" onchange="supplierFilterStatus=this.value;loadSuppliers()">
+        <option value="">All Statuses</option>
+        <option value="pending" ${supplierFilterStatus==='pending'?'selected':''}>Pending</option>
+        <option value="approved" ${supplierFilterStatus==='approved'?'selected':''}>Approved</option>
+        <option value="conditional" ${supplierFilterStatus==='conditional'?'selected':''}>Conditional</option>
+        <option value="suspended" ${supplierFilterStatus==='suspended'?'selected':''}>Suspended</option>
+        <option value="disqualified" ${supplierFilterStatus==='disqualified'?'selected':''}>Disqualified</option>
+    </select>`;
+    html += `<select class="iso-input" style="width:140px" onchange="supplierFilterType=this.value;loadSuppliers()">
+        <option value="">All Types</option>
+        <option value="raw_material" ${supplierFilterType==='raw_material'?'selected':''}>Raw Material</option>
+        <option value="component" ${supplierFilterType==='component'?'selected':''}>Component</option>
+        <option value="service" ${supplierFilterType==='service'?'selected':''}>Service</option>
+        <option value="equipment" ${supplierFilterType==='equipment'?'selected':''}>Equipment</option>
+        <option value="calibration" ${supplierFilterType==='calibration'?'selected':''}>Calibration</option>
+        <option value="other" ${supplierFilterType==='other'?'selected':''}>Other</option>
+    </select>`;
+    html += `<input class="iso-input" style="width:180px" placeholder="Search..." value="${escHtml(supplierSearch)}"
+        onkeyup="if(event.key==='Enter'){supplierSearch=this.value;loadSuppliers()}"
+        onblur="if(supplierSearch!==this.value){supplierSearch=this.value;loadSuppliers()}">`;
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showSupplierForm()">+ New Supplier</button>';
+    html += '</div>';
+
+    html += '<div id="supplier-form-area"></div>';
+
+    if (!supplierList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No suppliers found. Create one to get started.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    const sortIcon = (field) => {
+        const asc = supplierSort === field, desc = supplierSort === `-${field}`;
+        return `<span class="sort-arrow">${desc ? '&#9660;' : asc ? '&#9650;' : '&#9650;'}</span>`;
+    };
+    const sortClick = (field) => `onclick="supplierSort=(supplierSort==='-${field}'?'${field}':'-${field}');loadSuppliers()"`;
+    const today = new Date().toISOString().split('T')[0];
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += `<th ${sortClick('name')} ${supplierSort.includes('name')?'class="sorted"':''}>Name ${sortIcon('name')}</th>`;
+    html += '<th>Type</th>';
+    html += `<th ${sortClick('status')} ${supplierSort.includes('status')?'class="sorted"':''}>Status ${sortIcon('status')}</th>`;
+    html += `<th ${sortClick('quality_rating')} ${supplierSort.includes('quality_rating')?'class="sorted"':''}>Rating ${sortIcon('quality_rating')}</th>`;
+    html += '<th>Contact</th>';
+    html += `<th ${sortClick('last_evaluation_date')} ${supplierSort.includes('last_evaluation_date')?'class="sorted"':''}>Last Eval ${sortIcon('last_evaluation_date')}</th>`;
+    html += `<th ${sortClick('next_evaluation_date')} ${supplierSort.includes('next_evaluation_date')?'class="sorted"':''}>Next Eval ${sortIcon('next_evaluation_date')}</th>`;
+    html += '</tr></thead><tbody>';
+    supplierList.forEach(s => {
+        const evalOverdue = s.next_evaluation_date && s.next_evaluation_date < today && !['disqualified'].includes(s.status);
+        html += `<tr class="${evalOverdue ? 'overdue' : ''}" onclick="loadSupplierDetail('${s.id}')">`;
+        html += `<td>${escHtml(s.name)}</td>`;
+        html += `<td style="font-size:12px">${escHtml((s.supplier_type || 'other').replace(/_/g, ' '))}</td>`;
+        html += `<td>${badge(s.status)}</td>`;
+        html += `<td>${starsHtml(s.quality_rating)}</td>`;
+        html += `<td style="font-size:12px">${escHtml(s.contact_name || '—')}</td>`;
+        html += `<td style="font-size:12px">${fmtDate(s.last_evaluation_date)}</td>`;
+        html += `<td style="${evalOverdue ? 'color:#f87171;font-weight:600' : ''};font-size:12px">${fmtDate(s.next_evaluation_date)}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
     el.innerHTML = html;
 }
 
@@ -1439,8 +1710,16 @@ function showSupplierForm() {
     area.innerHTML = `<div class="iso-form">
         <div class="iso-form-grid cols-3">
             <div><label class="iso-label">Company Name *</label><input class="iso-input" id="sup-name"></div>
+            <div><label class="iso-label">Supplier Type</label><select class="iso-input" id="sup-type">
+                <option value="other">Other</option><option value="raw_material">Raw Material</option>
+                <option value="component">Component</option><option value="service">Service</option>
+                <option value="equipment">Equipment</option><option value="calibration">Calibration</option></select></div>
             <div><label class="iso-label">Contact Name</label><input class="iso-input" id="sup-contact"></div>
+        </div>
+        <div class="iso-form-grid cols-3">
             <div><label class="iso-label">Contact Email</label><input class="iso-input" type="email" id="sup-email"></div>
+            <div><label class="iso-label">Contact Phone</label><input class="iso-input" id="sup-phone"></div>
+            <div><label class="iso-label">Next Evaluation</label><input class="iso-input" type="date" id="sup-next-eval"></div>
         </div>
         <div class="iso-form-grid">
             <div><label class="iso-label">Products/Services</label><textarea class="iso-textarea" id="sup-products" rows="2"></textarea></div>
@@ -1458,14 +1737,258 @@ async function saveSupplier() {
     if (!name) return toast('Name is required', true);
     try {
         await apiFetch('/suppliers/', { method: 'POST', body: {
-            name, contact_name: document.getElementById('sup-contact').value,
+            name,
+            supplier_type: document.getElementById('sup-type').value,
+            contact_name: document.getElementById('sup-contact').value,
             contact_email: document.getElementById('sup-email').value,
+            contact_phone: document.getElementById('sup-phone').value,
             products_services: document.getElementById('sup-products').value,
             notes: document.getElementById('sup-notes').value,
         }});
         toast('Supplier created');
         document.getElementById('supplier-form-area').innerHTML = '';
         loadSuppliers();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadSupplierDetail(id) {
+    const el = document.getElementById('panel-suppliers');
+    try {
+        const s = await apiFetch(`/suppliers/${id}/`);
+        const TRANSITIONS = {
+            pending: ['approved', 'conditional', 'disqualified'],
+            approved: ['suspended', 'disqualified'],
+            conditional: ['approved', 'disqualified'],
+            suspended: ['approved', 'disqualified'],
+            disqualified: [],
+        };
+        const nextStatuses = TRANSITIONS[s.status] || [];
+        const today = new Date().toISOString().split('T')[0];
+        const evalOverdue = s.next_evaluation_date && s.next_evaluation_date < today;
+
+        let html = '<button class="iso-btn ghost" onclick="loadSuppliers()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <h2 style="margin:0">${escHtml(s.name)}</h2>
+            <div style="display:flex;gap:8px">
+                ${badge(s.status)}
+                <button class="iso-btn small danger" onclick="deleteSupplier('${s.id}')">Delete</button>
+            </div></div>`;
+
+        // Status progression — show relevant path
+        const mainPath = ['pending', 'approved'];
+        if (s.status === 'conditional') mainPath.splice(1, 0, 'conditional');
+        if (s.status === 'suspended') mainPath.push('suspended');
+        html += '<div class="status-bar">';
+        mainPath.forEach(st => {
+            let cls = st === s.status ? 'current' : '';
+            if (st === 'pending' && s.status !== 'pending') cls = 'done';
+            if (st === 'conditional' && s.status === 'approved') cls = 'done';
+            html += `<div class="status-step ${cls}">${st}</div>`;
+        });
+        if (s.status === 'disqualified') {
+            html += '<div class="status-step current" style="background:rgba(239,68,68,0.15);color:#f87171">disqualified</div>';
+        }
+        html += '</div>';
+
+        // Info fields
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Type</label><span style="font-size:13px">${escHtml((s.supplier_type || 'other').replace(/_/g, ' '))}</span></div>`;
+        html += `<div><label class="iso-label">Contact Name</label><span style="font-size:13px">${escHtml(s.contact_name || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Contact Email</label><span style="font-size:13px">${escHtml(s.contact_email || '—')}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Contact Phone</label><span style="font-size:13px">${escHtml(s.contact_phone || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Products/Services</label><span style="font-size:13px">${escHtml(s.products_services || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Overall Rating</label><div>${starsHtml(s.quality_rating)}</div></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Last Evaluation</label><span style="font-size:13px">${fmtDate(s.last_evaluation_date)}</span></div>`;
+        html += `<div><label class="iso-label">Next Evaluation</label><span style="font-size:13px;${evalOverdue ? 'color:#f87171;font-weight:600' : ''}">${fmtDate(s.next_evaluation_date)}${evalOverdue ? ' (OVERDUE)' : ''}</span></div>`;
+        html += `<div><label class="iso-label">Created</label><span style="font-size:13px">${fmtDate(s.created_at)}</span></div>`;
+        html += '</div>';
+
+        // Notes
+        if (s.notes) {
+            html += `<div style="margin:12px 0"><label class="iso-label">Notes</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(s.notes)}</div></div>`;
+        }
+        if (s.disqualification_reason) {
+            html += `<div style="margin:12px 0;padding:12px;background:rgba(239,68,68,0.08);border-radius:6px"><label class="iso-label" style="color:#f87171">Disqualification Reason</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(s.disqualification_reason)}</div></div>`;
+        }
+
+        // Evaluation section
+        html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Evaluation Scores</h4>';
+        const scores = s.evaluation_scores || {};
+        html += '<div class="iso-form-grid cols-4" style="max-width:600px">';
+        ['quality', 'delivery', 'price', 'communication'].forEach(dim => {
+            const val = scores[dim] || '';
+            html += `<div><label class="iso-label">${dim.charAt(0).toUpperCase() + dim.slice(1)}</label>
+                <select class="iso-input" id="eval-${dim}">
+                    <option value="">—</option>
+                    ${[1,2,3,4,5].map(v => `<option value="${v}" ${val==v?'selected':''}>${v}</option>`).join('')}
+                </select></div>`;
+        });
+        html += '</div>';
+        const computed = Object.values(scores).filter(v => typeof v === 'number');
+        if (computed.length) {
+            html += `<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Computed overall: ${(computed.reduce((a,b)=>a+b,0)/computed.length).toFixed(1)} / 5</div>`;
+        }
+        html += `<button class="iso-btn primary" style="margin-top:8px" onclick="saveEvaluation('${s.id}')">Save Evaluation</button>`;
+        html += '</div>';
+
+        // Certifications
+        const certs = (s.metadata && s.metadata.certifications) || [];
+        html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+        html += '<h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Certifications</h4>';
+        if (certs.length) {
+            certs.forEach((c, i) => {
+                html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                    <span style="font-size:13px">${escHtml(c)}</span>
+                    <button class="iso-btn small danger" onclick="removeCertification('${s.id}', ${i})" style="padding:2px 6px;font-size:11px">x</button>
+                </div>`;
+            });
+        } else {
+            html += '<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">No certifications recorded</div>';
+        }
+        html += `<div style="display:flex;gap:8px;margin-top:8px">
+            <input class="iso-input" id="new-cert" placeholder="e.g. ISO 9001:2015" style="width:220px">
+            <button class="iso-btn small" onclick="addCertification('${s.id}')">Add</button>
+        </div>`;
+        html += '</div>';
+
+        // Status transition
+        if (nextStatuses.length) {
+            html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+            html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Change Status</h4>';
+            nextStatuses.forEach(ns => {
+                html += '<div style="display:flex;gap:8px;align-items:end;margin-bottom:8px">';
+                if (ns === 'disqualified') {
+                    html += `<div><label class="iso-label">Reason *</label><input class="iso-input" id="sup-dq-reason" placeholder="Disqualification reason" style="width:240px"></div>`;
+                }
+                html += `<div><label class="iso-label">Note</label><input class="iso-input" id="sup-tn-${ns}" placeholder="Optional note" style="width:200px"></div>`;
+                const btnClass = ['suspended', 'disqualified'].includes(ns) ? 'iso-btn small danger' : 'iso-btn primary';
+                html += `<button class="${btnClass}" onclick="advanceSupplierStatus('${s.id}','${ns}')">${ns === 'approved' ? 'Approve' : ns === 'conditional' ? 'Conditional Approve' : ns === 'suspended' ? 'Suspend' : 'Disqualify'}</button>`;
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Status history timeline
+        if (s.status_changes?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+            html += '<div class="status-timeline">';
+            s.status_changes.forEach(sc => {
+                html += `<div class="timeline-entry">
+                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
+                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
+                    <div class="time">${fmtDate(sc.created_at)}</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+
+        // Edit form
+        html += '<div class="iso-form" style="margin-top:16px"><h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Edit Supplier</h4>';
+        html += '<div class="iso-form-grid cols-3">';
+        html += `<div><label class="iso-label">Company Name</label><input class="iso-input" id="sup-edit-name" value="${escHtml(s.name)}"></div>`;
+        html += `<div><label class="iso-label">Type</label><select class="iso-input" id="sup-edit-type">
+            ${[['other','Other'],['raw_material','Raw Material'],['component','Component'],['service','Service'],['equipment','Equipment'],['calibration','Calibration']].map(([v,l]) => `<option value="${v}" ${s.supplier_type===v?'selected':''}>${l}</option>`).join('')}
+        </select></div>`;
+        html += `<div><label class="iso-label">Contact Name</label><input class="iso-input" id="sup-edit-contact" value="${escHtml(s.contact_name)}"></div>`;
+        html += '</div>';
+        html += '<div class="iso-form-grid cols-3">';
+        html += `<div><label class="iso-label">Contact Email</label><input class="iso-input" id="sup-edit-email" value="${escHtml(s.contact_email)}"></div>`;
+        html += `<div><label class="iso-label">Contact Phone</label><input class="iso-input" id="sup-edit-phone" value="${escHtml(s.contact_phone)}"></div>`;
+        html += `<div><label class="iso-label">Next Evaluation</label><input class="iso-input" type="date" id="sup-edit-nexteval" value="${s.next_evaluation_date || ''}"></div>`;
+        html += '</div>';
+        html += `<div style="margin-bottom:12px"><label class="iso-label">Products/Services</label><textarea class="iso-textarea" id="sup-edit-products" rows="2">${escHtml(s.products_services)}</textarea></div>`;
+        html += `<div style="margin-bottom:12px"><label class="iso-label">Notes</label><textarea class="iso-textarea" id="sup-edit-notes" rows="2">${escHtml(s.notes)}</textarea></div>`;
+        html += `<button class="iso-btn primary" onclick="updateSupplierFields('${s.id}')">Save Changes</button>`;
+        html += '</div>';
+
+        el.innerHTML = html;
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+async function advanceSupplierStatus(id, newStatus) {
+    try {
+        const body = { status: newStatus, status_note: document.getElementById(`sup-tn-${newStatus}`)?.value || '' };
+        if (newStatus === 'disqualified') {
+            const reason = document.getElementById('sup-dq-reason')?.value;
+            if (!reason) return toast('Disqualification reason is required', true);
+            body.disqualification_reason = reason;
+        }
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body });
+        toast(`Supplier status updated to ${newStatus}`);
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function saveEvaluation(id) {
+    const scores = {};
+    let hasScore = false;
+    ['quality', 'delivery', 'price', 'communication'].forEach(dim => {
+        const val = document.getElementById(`eval-${dim}`).value;
+        if (val) { scores[dim] = parseInt(val); hasScore = true; }
+    });
+    if (!hasScore) return toast('Set at least one score', true);
+    try {
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: {
+            evaluation_scores: scores,
+            last_evaluation_date: new Date().toISOString().split('T')[0],
+        }});
+        toast('Evaluation saved');
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function addCertification(id) {
+    const cert = document.getElementById('new-cert').value.trim();
+    if (!cert) return toast('Enter certification name', true);
+    try {
+        const s = await apiFetch(`/suppliers/${id}/`);
+        const meta = s.metadata || {};
+        const certs = meta.certifications || [];
+        certs.push(cert);
+        meta.certifications = certs;
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: { metadata: meta } });
+        toast('Certification added');
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function removeCertification(id, idx) {
+    try {
+        const s = await apiFetch(`/suppliers/${id}/`);
+        const meta = s.metadata || {};
+        const certs = meta.certifications || [];
+        certs.splice(idx, 1);
+        meta.certifications = certs;
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: { metadata: meta } });
+        toast('Certification removed');
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateSupplierFields(id) {
+    try {
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: {
+            name: document.getElementById('sup-edit-name').value,
+            supplier_type: document.getElementById('sup-edit-type').value,
+            contact_name: document.getElementById('sup-edit-contact').value,
+            contact_email: document.getElementById('sup-edit-email').value,
+            contact_phone: document.getElementById('sup-edit-phone').value,
+            products_services: document.getElementById('sup-edit-products').value,
+            notes: document.getElementById('sup-edit-notes').value,
+            next_evaluation_date: document.getElementById('sup-edit-nexteval').value || null,
+        }});
+        toast('Supplier updated');
+        loadSupplierDetail(id);
     } catch (e) { toast(e.message, true); }
 }
 

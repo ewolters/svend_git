@@ -36,8 +36,16 @@ urlpatterns = [
     # Document Control (clause 7.5) — skeleton
     path("documents/", iso_views.document_list_create, name="iso_document_list"),
     path("documents/<uuid:doc_id>/", iso_views.document_detail, name="iso_document_detail"),
+    path("documents/<uuid:doc_id>/files/", iso_views.document_files, name="iso_document_files"),
 
     # Supplier Management (clause 8.4) — skeleton
     path("suppliers/", iso_views.supplier_list_create, name="iso_supplier_list"),
     path("suppliers/<uuid:supplier_id>/", iso_views.supplier_detail, name="iso_supplier_detail"),
+
+    # Study Output Actions (Phase 7) — QMS routing from Studies
+    path("study-actions/raise-capa/", iso_views.study_raise_capa, name="iso_study_raise_capa"),
+    path("study-actions/schedule-audit/", iso_views.study_schedule_audit, name="iso_study_schedule_audit"),
+    path("study-actions/request-doc-update/", iso_views.study_request_doc_update, name="iso_study_request_doc_update"),
+    path("study-actions/flag-training-gap/", iso_views.study_flag_training_gap, name="iso_study_flag_training_gap"),
+    path("study-actions/flag-fmea-update/", iso_views.study_flag_fmea_update, name="iso_study_flag_fmea_update"),
 ]

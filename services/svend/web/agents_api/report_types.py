@@ -19,6 +19,8 @@ REPORT_TYPES = {
                 "label": "Root Cause Analysis",
                 "help": "Document the investigation. What is the root cause? Include 5-Why, fishbone, or other analysis.",
                 "import_sources": ["hypothesis", "rca", "dsw", "whiteboard"],
+                "creates_evidence": True,
+                "evidence_source_type": "analysis",
             },
             {
                 "key": "corrective_actions",
@@ -43,6 +45,8 @@ REPORT_TYPES = {
                 "label": "Effectiveness Check",
                 "help": "Document results of verification. Was the problem resolved? Include data.",
                 "import_sources": [],
+                "creates_evidence": True,
+                "evidence_source_type": "experiment",
             },
         ],
         "layout": "single_column",
@@ -80,6 +84,8 @@ REPORT_TYPES = {
                 "label": "D4: Root Cause Analysis",
                 "help": "Identify all potential causes. Verify root cause(s) with data.",
                 "import_sources": ["hypothesis", "rca", "dsw", "whiteboard"],
+                "creates_evidence": True,
+                "evidence_source_type": "analysis",
             },
             {
                 "key": "d5_corrective",
@@ -92,6 +98,8 @@ REPORT_TYPES = {
                 "label": "D6: Implementation & Validation",
                 "help": "Implement permanent corrective actions. Validate effectiveness with data.",
                 "import_sources": [],
+                "creates_evidence": True,
+                "evidence_source_type": "experiment",
             },
             {
                 "key": "d7_preventive",
