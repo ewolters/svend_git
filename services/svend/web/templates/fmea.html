@@ -600,6 +600,17 @@
             <button class="fmea-btn primary" onclick="showCreateModal()">+ New FMEA</button>
         </div>
         <div id="fmea-cards" class="fmea-cards"></div>
+        <div id="fmea-empty-help" style="display:none; text-align:center; padding:3rem 1rem; color:var(--text-secondary);">
+            <h3 style="margin-bottom:0.5rem; color:var(--text-primary);">Failure Mode and Effects Analysis</h3>
+            <p style="max-width:500px; margin:0 auto 1rem; font-size:0.85rem; line-height:1.5;">
+                FMEA helps you systematically identify what could go wrong, how bad it would be, and how likely you are to catch it.
+                Score each failure mode on Severity, Occurrence, and Detection (1-10) to calculate Risk Priority Numbers.
+            </p>
+            <p style="max-width:500px; margin:0 auto 1rem; font-size:0.85rem; line-height:1.5;">
+                <strong>Unique to Svend:</strong> Link failure modes to hypotheses and the RPN automatically feeds into Bayesian probability updates. Your FMEA becomes living evidence, not a static spreadsheet.
+            </p>
+            <button class="fmea-btn primary" onclick="showCreateModal()">Create your first FMEA</button>
+        </div>
     </div>
 
     <!-- Editor View -->
@@ -631,6 +642,42 @@
                 <button class="fmea-btn small danger" onclick="confirmDeleteFmea()">Delete</button>
             </div>
         </div>
+
+        <!-- Quick Reference -->
+        <details style="margin:0 12px 12px; padding:0.6rem 0.8rem; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; cursor:pointer;">
+            <summary style="font-size:0.78rem; font-weight:600; color:var(--accent-primary); list-style:none; display:flex; align-items:center; gap:0.35rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Scoring guide &amp; hypothesis linking
+            </summary>
+            <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.5; padding-top:0.5rem;">
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.75rem; margin-bottom:0.6rem;">
+                    <div>
+                        <strong>Severity (S)</strong> — How bad is the effect?<br>
+                        1 = No effect<br>
+                        4-6 = Moderate disruption<br>
+                        8 = Major (customer affected)<br>
+                        10 = Safety/regulatory hazard
+                    </div>
+                    <div>
+                        <strong>Occurrence (O)</strong> — How often does it happen?<br>
+                        1 = Almost never<br>
+                        4-6 = Occasional<br>
+                        8 = Frequent<br>
+                        10 = Almost certain
+                    </div>
+                    <div>
+                        <strong>Detection (D)</strong> — Can you catch it before it reaches the customer?<br>
+                        1 = Always detected<br>
+                        4-6 = Moderate chance of detection<br>
+                        8 = Low chance<br>
+                        10 = Undetectable
+                    </div>
+                </div>
+                <p style="margin:0 0 0.4rem;"><strong>RPN</strong> = S &times; O &times; D (1-1000). Focus on the highest RPNs first. Color coding: <span style="color:#e74c3c;">red &gt;200</span>, <span style="color:#f39c12;">orange 100-200</span>, <span style="color:#f1c40f;">yellow 50-100</span>, <span style="color:#27ae60;">green &lt;50</span>.</p>
+                <p style="margin:0 0 0.4rem;"><strong>Linking to hypotheses:</strong> Link a study above, then click the circle icon on any row to connect a failure mode to a hypothesis. This creates formal evidence with a computed likelihood ratio (from S&times;O) and automatically updates hypothesis probability via Bayes' theorem.</p>
+                <p style="margin:0;"><strong>After corrective action:</strong> Fill in revised S/O/D scores. If the RPN decreases and the row is linked, Svend records the improvement as opposing evidence — the hypothesis probability adjusts downward.</p>
+            </div>
+        </details>
 
         <!-- FMEA Table -->
         <div class="fmea-table-wrapper">
@@ -792,14 +839,13 @@ async function loadList() {
     const fmeas = data.fmeas || [];
 
     const container = document.getElementById('fmea-cards');
+    const emptyHelp = document.getElementById('fmea-empty-help');
     if (fmeas.length === 0) {
-        container.innerHTML = `
-            <div class="fmea-empty" style="grid-column:1/-1;">
-                <h3>No FMEA studies yet</h3>
-                <p>Create your first Failure Mode and Effects Analysis</p>
-            </div>`;
+        container.innerHTML = '';
+        if (emptyHelp) emptyHelp.style.display = '';
         return;
     }
+    if (emptyHelp) emptyHelp.style.display = 'none';
 
     container.innerHTML = fmeas.map(f => `
         <a href="/app/fmea/${f.id}/" class="fmea-card">

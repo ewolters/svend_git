@@ -1,6 +1,6 @@
 # SVEND Agents
 
-Multi-agent service with documented outputs. From $19/month.
+Multi-agent service with documented outputs. From $49/month.
 
 **Philosophy:** The LLM executes tasks. The tools provide value. Deterministic outputs you can trust.
 

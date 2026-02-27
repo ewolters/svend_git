@@ -1,0 +1,2005 @@
+{% extends "base_app.html" %}
+{% block title %}Quality Management — SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+.iso-app { padding: 24px; max-width: 1440px; margin: 0 auto; }
+.iso-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.iso-header h1 { margin: 0; font-size: 22px; font-weight: 500; color: var(--text-primary); }
+
+/* Tabs */
+.iso-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; overflow-x: auto; }
+.iso-tab { padding: 10px 20px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+    font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; white-space: nowrap; }
+.iso-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.iso-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.iso-panel { display: none; }
+.iso-panel.active { display: block; }
+
+/* KPI cards */
+.iso-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.iso-kpi { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+.iso-kpi:hover { border-color: var(--accent); }
+.iso-kpi .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.iso-kpi .value { font-size: 28px; font-weight: 600; color: var(--text-primary); margin: 4px 0; font-family: 'JetBrains Mono', monospace; }
+.iso-kpi .sub { font-size: 12px; color: var(--text-dim); }
+.iso-kpi.alert { padding: 20px; border-radius: 10px; margin-bottom: 0; }
+.iso-kpi.alert .value { color: #f87171; }
+.iso-kpi.warn .value { color: #facc15; }
+.iso-kpi.good .value { color: #4ade80; }
+
+/* Clause coverage map */
+.clause-map { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 24px; }
+.clause-box { background: var(--card-bg); border: 2px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; transition: all 0.2s; }
+.clause-box.active { border-color: #4ade80; background: rgba(34,197,94,0.06); }
+.clause-box.framed { border-color: #facc15; background: rgba(250,204,21,0.04); }
+.clause-box.planned { border-color: var(--border); }
+.clause-num { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text-primary); }
+.clause-name { font-size: 11px; color: var(--text-secondary); margin-top: 4px; line-height: 1.3; }
+.clause-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-top: 8px; }
+.clause-dot.active { background: #4ade80; }
+.clause-dot.framed { background: #facc15; }
+.clause-dot.planned { background: var(--text-dim); }
+
+/* Tables */
+.iso-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.iso-table th { text-align: left; padding: 10px 12px; color: var(--text-secondary); font-weight: 500; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+.iso-table th:hover { color: var(--text-primary); }
+.iso-table th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+.iso-table th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+.iso-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-primary); }
+.iso-table tr:hover td { background: var(--bg-hover); cursor: pointer; }
+.iso-table tr.overdue td { background: rgba(239,68,68,0.04); }
+
+/* Buttons */
+.iso-btn { padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-primary); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.iso-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
+.iso-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.iso-btn.primary:hover { opacity: 0.9; }
+.iso-btn.danger { color: #e74c3c; border-color: #e74c3c; }
+.iso-btn.danger:hover { background: #e74c3c; color: white; }
+.iso-btn.small { padding: 4px 10px; font-size: 12px; }
+.iso-btn.ghost { background: transparent; border: none; color: var(--text-secondary); }
+.iso-btn.ghost:hover { color: var(--accent); background: transparent; }
+
+/* Forms */
+.iso-form { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+.iso-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.iso-form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.iso-form-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.iso-input { width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 13px; box-sizing: border-box; }
+.iso-input:focus { border-color: var(--accent); outline: none; }
+select.iso-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.iso-textarea { width: 100%; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 13px; resize: vertical; box-sizing: border-box; min-height: 60px; font-family: inherit; }
+.iso-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
+
+/* Badges */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-open { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-investigation { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-capa { background: rgba(250,204,21,0.15); color: #facc15; }
+.badge-verification { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-closed { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-minor { background: rgba(250,204,21,0.15); color: #facc15; }
+.badge-major { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-critical { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-planned { background: rgba(147,51,234,0.15); color: #a78bfa; }
+.badge-in_progress { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-complete { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-report_issued { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-cancelled { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-not_started { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-expired { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-draft { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-review { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-approved { background: rgba(34,197,94,0.15); color: #4ade80; }
+.badge-obsolete { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-observation { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-nc_minor { background: rgba(250,204,21,0.15); color: #facc15; }
+.badge-nc_major { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-opportunity { background: rgba(147,51,234,0.15); color: #a78bfa; }
+.badge-corrective_action_required { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-pending { background: rgba(250,204,21,0.15); color: #facc15; }
+.badge-conditional { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-disqualified { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge-suspended { background: rgba(249,115,22,0.15); color: #fb923c; }
+.badge-obsolete { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.badge-scheduled { background: rgba(147,51,234,0.15); color: #a78bfa; }
+
+/* Toolbar */
+.iso-toolbar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+.iso-toolbar .spacer { flex: 1; }
+
+/* Detail view */
+.iso-detail { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+.iso-detail h2 { margin: 0 0 16px; font-size: 18px; font-weight: 500; }
+.iso-field-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+/* Status progression bar */
+.status-bar { display: flex; gap: 2px; margin: 16px 0; }
+.status-step { flex: 1; padding: 8px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; background: var(--bg-secondary); border-radius: 4px; color: var(--text-dim); transition: all 0.2s; }
+.status-step.current { background: var(--accent); color: white; }
+.status-step.done { background: rgba(34,197,94,0.2); color: #4ade80; }
+
+/* Status history timeline */
+.status-timeline { margin: 16px 0; padding-left: 20px; border-left: 2px solid var(--border); }
+.timeline-entry { padding: 8px 0 8px 16px; position: relative; }
+.timeline-entry::before { content: ''; position: absolute; left: -25px; top: 12px; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--card-bg); }
+.timeline-entry .time { font-size: 11px; color: var(--text-dim); }
+.timeline-entry .desc { font-size: 13px; color: var(--text-primary); }
+
+/* Coming soon stub */
+.coming-soon { padding: 60px 40px; text-align: center; color: var(--text-dim); }
+.coming-soon h3 { margin: 0 0 8px; font-size: 20px; color: var(--text-secondary); }
+.coming-soon p { margin: 4px 0; font-size: 14px; max-width: 500px; margin-left: auto; margin-right: auto; }
+.coming-soon .features { margin-top: 24px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.coming-soon .feature-chip { padding: 6px 14px; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 20px; font-size: 12px; color: var(--text-secondary); }
+
+/* Training grid */
+.training-grid { overflow-x: auto; }
+.training-grid table { border-collapse: collapse; font-size: 12px; }
+.training-grid th, .training-grid td { padding: 8px 12px; border: 1px solid var(--border); text-align: center; min-width: 100px; }
+.training-grid th { background: var(--bg-secondary); font-weight: 500; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; }
+.training-grid th:first-child { text-align: left; min-width: 200px; position: sticky; left: 0; background: var(--bg-secondary); z-index: 1; }
+.training-grid td:first-child { text-align: left; font-weight: 500; position: sticky; left: 0; background: var(--card-bg); z-index: 1; }
+.training-cell { width: 24px; height: 24px; border-radius: 4px; display: inline-block; cursor: help; }
+.training-cell.complete { background: #4ade80; }
+.training-cell.in_progress { background: #facc15; }
+.training-cell.not_started { background: #6b7280; }
+.training-cell.expired { background: #f87171; }
+
+/* Review structured form */
+.review-section { margin-bottom: 20px; }
+.review-section h4 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.review-section .clause-ref { font-size: 11px; color: var(--text-dim); font-weight: normal; margin-left: 8px; }
+
+/* Audit calendar */
+.audit-calendar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.cal-month { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.cal-month-name { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-align: center; }
+.cal-dots { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.cal-dot { width: 10px; height: 10px; border-radius: 50%; cursor: pointer; }
+.cal-dot.planned { background: #a78bfa; }
+.cal-dot.in_progress { background: #60a5fa; }
+.cal-dot.complete { background: #4ade80; }
+.cal-dot.report_issued { background: #4ade80; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .iso-kpis { grid-template-columns: repeat(3, 1fr); }
+    .clause-map { grid-template-columns: repeat(4, 1fr); }
+    .audit-calendar { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+    .iso-kpis { grid-template-columns: repeat(2, 1fr); }
+    .clause-map { grid-template-columns: repeat(3, 1fr); }
+    .iso-form-grid, .iso-form-grid.cols-3 { grid-template-columns: 1fr; }
+    .iso-field-row { grid-template-columns: 1fr; }
+    .audit-calendar { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="iso-app">
+    <div class="iso-header">
+        <h1>Quality Management System</h1>
+    </div>
+
+    <div class="iso-tabs" id="main-tabs">
+        <a class="iso-tab" href="#/dashboard">Dashboard</a>
+        <a class="iso-tab" href="#/ncrs">NCR Tracker</a>
+        <a class="iso-tab" href="#/audits">Internal Audits</a>
+        <a class="iso-tab" href="#/training">Training Matrix</a>
+        <a class="iso-tab" href="#/reviews">Management Reviews</a>
+        <a class="iso-tab" href="#/documents">Document Control</a>
+        <a class="iso-tab" href="#/suppliers">Suppliers</a>
+    </div>
+
+    <div id="panel-dashboard" class="iso-panel"></div>
+    <div id="panel-ncrs" class="iso-panel"></div>
+    <div id="panel-audits" class="iso-panel"></div>
+    <div id="panel-training" class="iso-panel"></div>
+    <div id="panel-reviews" class="iso-panel"></div>
+    <div id="panel-documents" class="iso-panel"></div>
+    <div id="panel-suppliers" class="iso-panel"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// =========================================================================
+// Core utilities
+// =========================================================================
+const API = '/api/iso';
+
+async function apiFetch(path, opts = {}) {
+    const url = path.startsWith('http') ? path : `${API}${path}`;
+    const o = { headers: { 'Content-Type': 'application/json' }, ...opts };
+    if (opts.body && typeof opts.body === 'object') o.body = JSON.stringify(opts.body);
+    const r = await fetch(url, o);
+    if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: r.statusText }));
+        throw new Error(err.error || r.statusText);
+    }
+    return r.json();
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtDate(d) { if (!d || d === 'None') return '—'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function badge(val, label) { return `<span class="badge badge-${val}">${escHtml(label || val)}</span>`; }
+function toast(msg, isErr) {
+    const t = document.createElement('div');
+    t.style.cssText = `position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;font-size:13px;z-index:9999;color:white;background:${isErr ? '#e74c3c' : '#22c55e'};`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+// =========================================================================
+// Navigation
+// =========================================================================
+const TABS = ['dashboard', 'ncrs', 'audits', 'training', 'reviews', 'documents', 'suppliers'];
+let currentTab = 'dashboard';
+
+function navigate(tab) {
+    tab = tab || 'dashboard';
+    if (!TABS.includes(tab)) tab = 'dashboard';
+    currentTab = tab;
+    document.querySelectorAll('.iso-tab').forEach(t => t.classList.toggle('active', t.getAttribute('href') === `#/${tab}`));
+    document.querySelectorAll('.iso-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`));
+    const loader = {
+        dashboard: loadDashboard,
+        ncrs: loadNCRs,
+        audits: loadAudits,
+        training: loadTraining,
+        reviews: loadReviews,
+        documents: loadDocuments,
+        suppliers: loadSuppliers,
+    };
+    if (loader[tab]) loader[tab]();
+}
+
+window.addEventListener('hashchange', () => navigate(location.hash.replace('#/', '')));
+document.addEventListener('DOMContentLoaded', () => navigate(location.hash.replace('#/', '') || 'dashboard'));
+
+// =========================================================================
+// Dashboard tab
+// =========================================================================
+async function loadDashboard() {
+    const el = document.getElementById('panel-dashboard');
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Loading dashboard...</div>';
+    try {
+        const d = await apiFetch('/dashboard/');
+        let html = '';
+
+        // Clause coverage map
+        html += '<h3 style="margin:0 0 12px;font-size:14px;color:var(--text-secondary)">ISO 9001:2015 Clause Coverage</h3>';
+        html += '<div class="clause-map">';
+        (d.clause_coverage || []).forEach(c => {
+            html += `<div class="clause-box ${c.status}">
+                <div class="clause-num">${escHtml(c.clause)}</div>
+                <div class="clause-name">${escHtml(c.name)}</div>
+                <span class="clause-dot ${c.status}"></span>
+            </div>`;
+        });
+        html += '</div>';
+
+        // KPI cards
+        html += '<div class="iso-kpis">';
+        const openN = d.ncrs?.open || 0;
+        const overdueN = d.ncrs?.overdue_capas || 0;
+        html += `<div class="iso-kpi ${openN > 0 ? 'alert' : 'good'}" onclick="navigate('ncrs')">
+            <div class="label">Open NCRs</div><div class="value">${openN}</div>
+            <div class="sub">${overdueN} overdue CAPA${overdueN !== 1 ? 's' : ''}</div></div>`;
+
+        const upAudits = d.upcoming_audits?.length || 0;
+        html += `<div class="iso-kpi" onclick="navigate('audits')">
+            <div class="label">Upcoming Audits</div><div class="value">${upAudits}</div>
+            <div class="sub">Next 30 days</div></div>`;
+
+        const trainRate = d.training?.compliance_rate ?? 100;
+        html += `<div class="iso-kpi ${trainRate < 80 ? 'warn' : 'good'}" onclick="navigate('training')">
+            <div class="label">Training %</div><div class="value">${trainRate}%</div>
+            <div class="sub">${d.training?.gaps_count || 0} gap${d.training?.gaps_count !== 1 ? 's' : ''}</div></div>`;
+
+        const lr = d.last_review;
+        html += `<div class="iso-kpi ${lr && lr.days_ago > 180 ? 'warn' : ''}" onclick="navigate('reviews')">
+            <div class="label">Last Review</div><div class="value">${lr ? lr.days_ago + 'd' : '—'}</div>
+            <div class="sub">${lr ? fmtDate(lr.date) : 'No reviews yet'}</div></div>`;
+
+        const capaSoon = d.capa_due_soon?.length || 0;
+        html += `<div class="iso-kpi ${capaSoon > 0 ? 'warn' : 'good'}" onclick="navigate('ncrs')">
+            <div class="label">CAPA Due Soon</div><div class="value">${capaSoon}</div>
+            <div class="sub">Next 14 days</div></div>`;
+
+        const docReview = d.documents?.review_due_soon || 0;
+        html += `<div class="iso-kpi ${docReview > 0 ? 'warn' : ''}" onclick="navigate('documents')">
+            <div class="label">Documents</div><div class="value">${d.documents?.approved || 0}</div>
+            <div class="sub">${docReview} review${docReview !== 1 ? 's' : ''} due</div></div>`;
+
+        const evalOver = d.suppliers?.eval_overdue || 0;
+        html += `<div class="iso-kpi ${evalOver > 0 ? 'warn' : ''}" onclick="navigate('suppliers')">
+            <div class="label">Suppliers</div><div class="value">${d.suppliers?.approved || 0}</div>
+            <div class="sub">${evalOver} eval${evalOver !== 1 ? 's' : ''} overdue</div></div>`;
+        html += '</div>';
+
+        // NCR severity breakdown + trend
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">';
+        // Severity
+        const sev = d.ncrs?.by_severity || {};
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Open NCRs by Severity</h4>';
+        ['critical', 'major', 'minor'].forEach(s => {
+            const cnt = sev[s] || 0;
+            const max = Math.max(openN, 1);
+            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="width:60px;font-size:12px;color:var(--text-secondary)">${s}</span>
+                <div style="flex:1;height:16px;background:var(--bg-secondary);border-radius:4px;overflow:hidden">
+                    <div style="width:${cnt / max * 100}%;height:100%;border-radius:4px" class="badge-${s}"></div>
+                </div>
+                <span style="width:24px;font-size:12px;font-weight:600;text-align:right">${cnt}</span>
+            </div>`;
+        });
+        html += '</div>';
+        // Trend
+        const trend = d.ncrs?.trend || [];
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">NCR Trend (4 Weeks)</h4>';
+        const maxT = Math.max(...trend.map(t => t.count), 1);
+        html += '<div style="display:flex;gap:8px;align-items:flex-end;height:80px">';
+        trend.forEach(t => {
+            const pct = t.count / maxT * 100;
+            html += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+                <span style="font-size:11px;font-weight:600">${t.count}</span>
+                <div style="width:100%;height:${Math.max(pct, 4)}%;background:var(--accent);border-radius:4px"></div>
+                <span style="font-size:10px;color:var(--text-dim)">${fmtDate(t.week)}</span>
+            </div>`;
+        });
+        html += '</div></div>';
+        html += '</div>';
+
+        // Upcoming audits + CAPA due soon
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Upcoming Audits</h4>';
+        if (d.upcoming_audits?.length) {
+            d.upcoming_audits.forEach(a => {
+                html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <span style="font-size:13px">${escHtml(a.title)}</span>
+                    <span style="font-size:12px;color:var(--text-dim)">${fmtDate(a.scheduled_date)}</span>
+                </div>`;
+            });
+        } else {
+            html += '<div style="color:var(--text-dim);font-size:13px">No upcoming audits</div>';
+        }
+        html += '</div>';
+
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:20px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">CAPA Due Soon</h4>';
+        if (d.capa_due_soon?.length) {
+            d.capa_due_soon.forEach(c => {
+                html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <span style="font-size:13px">${escHtml(c.title)}</span>
+                    <span style="font-size:12px;color:#f87171">${fmtDate(c.due_date)}</span>
+                </div>`;
+            });
+        } else {
+            html += '<div style="color:var(--text-dim);font-size:13px">No CAPAs due soon</div>';
+        }
+        html += '</div></div>';
+
+        el.innerHTML = html;
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+// =========================================================================
+// NCR Tracker tab
+// =========================================================================
+let ncrList = [];
+let ncrSort = '-created_at';
+let ncrFilterStatus = '';
+let ncrFilterSeverity = '';
+
+async function loadNCRs() {
+    const el = document.getElementById('panel-ncrs');
+    let params = `?sort=${ncrSort}`;
+    if (ncrFilterStatus) params += `&status=${ncrFilterStatus}`;
+    if (ncrFilterSeverity) params += `&severity=${ncrFilterSeverity}`;
+    try {
+        ncrList = await apiFetch(`/ncrs/${params}`);
+        renderNCRList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderNCRList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:140px" onchange="ncrFilterStatus=this.value;loadNCRs()">
+        <option value="">All Statuses</option>
+        <option value="open" ${ncrFilterStatus==='open'?'selected':''}>Open</option>
+        <option value="investigation" ${ncrFilterStatus==='investigation'?'selected':''}>Investigation</option>
+        <option value="capa" ${ncrFilterStatus==='capa'?'selected':''}>CAPA</option>
+        <option value="verification" ${ncrFilterStatus==='verification'?'selected':''}>Verification</option>
+        <option value="closed" ${ncrFilterStatus==='closed'?'selected':''}>Closed</option>
+    </select>`;
+    html += `<select class="iso-input" style="width:120px" onchange="ncrFilterSeverity=this.value;loadNCRs()">
+        <option value="">All Severity</option>
+        <option value="minor" ${ncrFilterSeverity==='minor'?'selected':''}>Minor</option>
+        <option value="major" ${ncrFilterSeverity==='major'?'selected':''}>Major</option>
+        <option value="critical" ${ncrFilterSeverity==='critical'?'selected':''}>Critical</option>
+    </select>`;
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showNCRForm()">+ New NCR</button>';
+    html += '</div>';
+
+    html += '<div id="ncr-form-area"></div>';
+
+    if (!ncrList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No NCRs found. Create one to get started.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    const sortIcon = (field) => {
+        const asc = ncrSort === field, desc = ncrSort === `-${field}`;
+        return `<span class="sort-arrow">${desc ? '&#9660;' : asc ? '&#9650;' : '&#9650;'}</span>`;
+    };
+    const sortClick = (field) => `onclick="ncrSort=(ncrSort==='-${field}'?'${field}':'-${field}');loadNCRs()"`;
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += `<th ${sortClick('title')} ${ncrSort.includes('title')?'class="sorted"':''}>Title ${sortIcon('title')}</th>`;
+    html += `<th ${sortClick('severity')} ${ncrSort.includes('severity')?'class="sorted"':''}>Severity ${sortIcon('severity')}</th>`;
+    html += `<th ${sortClick('status')} ${ncrSort.includes('status')?'class="sorted"':''}>Status ${sortIcon('status')}</th>`;
+    html += '<th>Source</th>';
+    html += '<th>Clause</th>';
+    html += `<th ${sortClick('capa_due_date')} ${ncrSort.includes('capa_due_date')?'class="sorted"':''}>CAPA Due ${sortIcon('capa_due_date')}</th>`;
+    html += `<th ${sortClick('created_at')} ${ncrSort.includes('created_at')?'class="sorted"':''}>Created ${sortIcon('created_at')}</th>`;
+    html += '</tr></thead><tbody>';
+    const today = new Date().toISOString().split('T')[0];
+    ncrList.forEach(n => {
+        const overdue = n.capa_due_date && n.capa_due_date < today && n.status !== 'closed';
+        html += `<tr class="${overdue ? 'overdue' : ''}" onclick="loadNCRDetail('${n.id}')">`;
+        html += `<td>${escHtml(n.title)}</td>`;
+        html += `<td>${badge(n.severity)}</td>`;
+        html += `<td>${badge(n.status)}</td>`;
+        html += `<td style="font-size:12px;color:var(--text-secondary)">${escHtml(n.source.replace(/_/g,' '))}</td>`;
+        html += `<td style="font-size:12px">${escHtml(n.iso_clause || '—')}</td>`;
+        html += `<td style="${overdue ? 'color:#f87171;font-weight:600' : ''}">${fmtDate(n.capa_due_date)}</td>`;
+        html += `<td style="font-size:12px;color:var(--text-dim)">${fmtDate(n.created_at)}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+function showNCRForm() {
+    const area = document.getElementById('ncr-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="ncr-title"></div>
+            <div><label class="iso-label">Severity</label><select class="iso-input" id="ncr-severity">
+                <option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option></select></div>
+            <div><label class="iso-label">Source</label><select class="iso-input" id="ncr-source">
+                <option value="other">Other</option><option value="internal_audit">Internal Audit</option>
+                <option value="customer_complaint">Customer Complaint</option><option value="supplier">Supplier</option>
+                <option value="process">Process</option><option value="external_audit">External Audit</option>
+                <option value="management_review">Management Review</option></select></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="ncr-clause" placeholder="e.g. 8.7, 10.2"></div>
+            <div><label class="iso-label">CAPA Due Date</label><input class="iso-input" type="date" id="ncr-due"></div>
+        </div>
+        <div style="margin-bottom:12px"><label class="iso-label">Description</label><textarea class="iso-textarea" id="ncr-desc" rows="2"></textarea></div>
+        <div style="margin-bottom:12px"><label class="iso-label">Containment Action</label><textarea class="iso-textarea" id="ncr-contain" rows="2"></textarea></div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveNCR()">Create NCR</button>
+            <button class="iso-btn" onclick="document.getElementById('ncr-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveNCR() {
+    const title = document.getElementById('ncr-title').value.trim();
+    if (!title) return toast('Title is required', true);
+    try {
+        await apiFetch('/ncrs/', { method: 'POST', body: {
+            title, description: document.getElementById('ncr-desc').value,
+            severity: document.getElementById('ncr-severity').value,
+            source: document.getElementById('ncr-source').value,
+            iso_clause: document.getElementById('ncr-clause').value,
+            containment_action: document.getElementById('ncr-contain').value,
+            capa_due_date: document.getElementById('ncr-due').value || null,
+        }});
+        toast('NCR created');
+        document.getElementById('ncr-form-area').innerHTML = '';
+        loadNCRs();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadNCRDetail(id) {
+    const el = document.getElementById('panel-ncrs');
+    try {
+        const n = await apiFetch(`/ncrs/${id}/`);
+        const statuses = ['open', 'investigation', 'capa', 'verification', 'closed'];
+        const statusIdx = statuses.indexOf(n.status);
+
+        let html = '<button class="iso-btn ghost" onclick="loadNCRs()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <h2>${escHtml(n.title)}</h2>
+            <div style="display:flex;gap:8px">
+                <button class="iso-btn small" onclick="launchRCA('${n.id}')">Launch 5-Why</button>
+                <button class="iso-btn small danger" onclick="deleteNCR('${n.id}')">Delete</button>
+            </div></div>`;
+
+        // Status progression bar
+        html += '<div class="status-bar">';
+        statuses.forEach((s, i) => {
+            let cls = '';
+            if (i < statusIdx) cls = 'done';
+            else if (i === statusIdx) cls = 'current';
+            html += `<div class="status-step ${cls}">${s.replace(/_/g, ' ')}</div>`;
+        });
+        html += '</div>';
+
+        // Info fields
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Severity</label>${badge(n.severity)}</div>`;
+        html += `<div><label class="iso-label">Source</label><span style="font-size:13px">${escHtml(n.source.replace(/_/g,' '))}</span></div>`;
+        html += `<div><label class="iso-label">ISO Clause</label><span style="font-size:13px">${escHtml(n.iso_clause || '—')}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Raised By</label><span style="font-size:13px">${n.raised_by ? escHtml(n.raised_by.name) : '—'}</span></div>`;
+        html += `<div><label class="iso-label">Assigned To</label><span style="font-size:13px">${n.assigned_to ? escHtml(n.assigned_to.name) : '—'}</span></div>`;
+        html += `<div><label class="iso-label">Approved By</label><span style="font-size:13px">${n.approved_by ? escHtml(n.approved_by.name) : '—'}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">CAPA Due</label><span style="font-size:13px">${fmtDate(n.capa_due_date)}</span></div>`;
+        html += `<div><label class="iso-label">Created</label><span style="font-size:13px">${fmtDate(n.created_at)}</span></div>`;
+        html += `<div><label class="iso-label">Closed</label><span style="font-size:13px">${fmtDate(n.closed_at)}</span></div>`;
+        html += '</div>';
+
+        // Text fields
+        const fields = [
+            ['Description', n.description], ['Containment Action', n.containment_action],
+            ['Root Cause', n.root_cause], ['Corrective Action', n.corrective_action],
+            ['Verification Result', n.verification_result],
+        ];
+        fields.forEach(([label, val]) => {
+            if (val) html += `<div style="margin:12px 0"><label class="iso-label">${label}</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(val)}</div></div>`;
+        });
+
+        // RCA / CAPA links
+        if (n.rca_session_id) {
+            html += `<div style="margin:12px 0"><a href="/app/rca/?session=${n.rca_session_id}" class="iso-btn small" style="text-decoration:none">View RCA Session &rarr;</a></div>`;
+        }
+        if (n.capa_report_id) {
+            html += `<div style="margin:12px 0"><a href="/app/report/${n.capa_report_id}/" class="iso-btn small" style="text-decoration:none">View CAPA Report &rarr;</a></div>`;
+        }
+
+        // File attachments
+        if (n.file_ids?.length) {
+            html += `<div style="margin:12px 0"><label class="iso-label">Attachments</label><div>${n.file_ids.length} file(s) attached</div></div>`;
+        }
+
+        // Status transition
+        if (n.status !== 'closed') {
+            html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+            html += '<h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Advance Status</h4>';
+            html += '<div style="display:flex;gap:8px;align-items:end">';
+            const next = { open: 'investigation', investigation: 'capa', capa: 'verification', verification: 'closed' };
+            const nextStatus = next[n.status];
+            if (nextStatus) {
+                html += `<div><label class="iso-label">Next Status</label><input class="iso-input" value="${nextStatus}" disabled style="width:140px"></div>`;
+                html += `<div><label class="iso-label">Note</label><input class="iso-input" id="ncr-transition-note" placeholder="Optional note" style="width:200px"></div>`;
+                html += `<button class="iso-btn primary" onclick="advanceNCR('${n.id}','${nextStatus}')">Advance to ${nextStatus.replace(/_/g,' ')}</button>`;
+            }
+            html += '</div></div>';
+        }
+
+        // Status history timeline
+        if (n.status_changes?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+            html += '<div class="status-timeline">';
+            n.status_changes.forEach(sc => {
+                html += `<div class="timeline-entry">
+                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
+                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
+                    <div class="time">${fmtDate(sc.created_at)}</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+
+        // Edit form
+        html += '<div class="iso-form" style="margin-top:16px"><h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Edit NCR</h4>';
+        html += '<div class="iso-form-grid">';
+        html += `<div><label class="iso-label">Root Cause</label><textarea class="iso-textarea" id="ncr-edit-rc" rows="2">${escHtml(n.root_cause)}</textarea></div>`;
+        html += `<div><label class="iso-label">Corrective Action</label><textarea class="iso-textarea" id="ncr-edit-ca" rows="2">${escHtml(n.corrective_action)}</textarea></div>`;
+        html += '</div>';
+        html += '<div class="iso-form-grid">';
+        html += `<div><label class="iso-label">Verification Result</label><textarea class="iso-textarea" id="ncr-edit-vr" rows="2">${escHtml(n.verification_result)}</textarea></div>`;
+        html += `<div><label class="iso-label">CAPA Due Date</label><input class="iso-input" type="date" id="ncr-edit-due" value="${n.capa_due_date || ''}"></div>`;
+        html += '</div>';
+        html += `<button class="iso-btn primary" onclick="updateNCRFields('${n.id}')">Save Changes</button>`;
+        html += '</div>';
+
+        el.innerHTML = html;
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+async function advanceNCR(id, newStatus) {
+    try {
+        const note = document.getElementById('ncr-transition-note')?.value || '';
+        await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body: { status: newStatus, status_note: note } });
+        toast(`NCR advanced to ${newStatus}`);
+        loadNCRDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateNCRFields(id) {
+    try {
+        await apiFetch(`/ncrs/${id}/`, { method: 'PUT', body: {
+            root_cause: document.getElementById('ncr-edit-rc').value,
+            corrective_action: document.getElementById('ncr-edit-ca').value,
+            verification_result: document.getElementById('ncr-edit-vr').value,
+            capa_due_date: document.getElementById('ncr-edit-due').value || null,
+        }});
+        toast('NCR updated');
+        loadNCRDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteNCR(id) {
+    if (!confirm('Delete this NCR?')) return;
+    try {
+        await apiFetch(`/ncrs/${id}/`, { method: 'DELETE' });
+        toast('NCR deleted');
+        loadNCRs();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function launchRCA(id) {
+    try {
+        const r = await apiFetch(`/ncrs/${id}/launch-rca/`, { method: 'POST' });
+        toast('RCA session created');
+        window.location.href = `/app/rca/?session=${r.rca_session_id}`;
+    } catch (e) { toast(e.message, true); }
+}
+
+// =========================================================================
+// Internal Audits tab
+// =========================================================================
+let auditList = [];
+
+async function loadAudits() {
+    const el = document.getElementById('panel-audits');
+    try {
+        auditList = await apiFetch('/audits/');
+        renderAuditList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderAuditList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showAuditForm()">+ New Audit</button>';
+    html += '</div>';
+    html += '<div id="audit-form-area"></div>';
+
+    // Simple calendar view — group by month
+    const months = {};
+    auditList.forEach(a => {
+        const d = new Date(a.scheduled_date);
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        if (!months[key]) months[key] = [];
+        months[key].push(a);
+    });
+    const sortedMonths = Object.keys(months).sort();
+    if (sortedMonths.length) {
+        html += '<div class="audit-calendar">';
+        sortedMonths.slice(-8).forEach(key => {
+            const [y, m] = key.split('-');
+            const mName = new Date(y, m - 1).toLocaleString('en', { month: 'short', year: 'numeric' });
+            html += `<div class="cal-month"><div class="cal-month-name">${mName}</div><div class="cal-dots">`;
+            months[key].forEach(a => {
+                html += `<div class="cal-dot ${a.status}" title="${escHtml(a.title)} — ${a.status}" onclick="loadAuditDetail('${a.id}')"></div>`;
+            });
+            html += '</div></div>';
+        });
+        html += '</div>';
+    }
+
+    // Table
+    if (!auditList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No audits scheduled. Create one to get started.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += '<th>Title</th><th>Status</th><th>Scheduled</th><th>Lead Auditor</th><th>Clauses</th><th>Findings</th>';
+    html += '</tr></thead><tbody>';
+    auditList.forEach(a => {
+        const fCount = a.findings?.length || 0;
+        html += `<tr onclick="loadAuditDetail('${a.id}')">`;
+        html += `<td>${escHtml(a.title)}</td>`;
+        html += `<td>${badge(a.status)}</td>`;
+        html += `<td>${fmtDate(a.scheduled_date)}</td>`;
+        html += `<td style="font-size:12px">${escHtml(a.lead_auditor || '—')}</td>`;
+        html += `<td style="font-size:12px">${(a.iso_clauses || []).join(', ') || '—'}</td>`;
+        html += `<td>${fCount}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+function showAuditForm() {
+    const area = document.getElementById('audit-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="audit-title"></div>
+            <div><label class="iso-label">Scheduled Date *</label><input class="iso-input" type="date" id="audit-date"></div>
+            <div><label class="iso-label">Lead Auditor</label><input class="iso-input" id="audit-lead"></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">ISO Clauses (comma-separated)</label><input class="iso-input" id="audit-clauses" placeholder="4.1, 8.5, 9.2"></div>
+            <div><label class="iso-label">Departments (comma-separated)</label><input class="iso-input" id="audit-depts" placeholder="Production, Quality"></div>
+        </div>
+        <div style="margin-bottom:12px"><label class="iso-label">Scope</label><textarea class="iso-textarea" id="audit-scope" rows="2"></textarea></div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveAudit()">Create Audit</button>
+            <button class="iso-btn" onclick="document.getElementById('audit-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveAudit() {
+    const title = document.getElementById('audit-title').value.trim();
+    const dateVal = document.getElementById('audit-date').value;
+    if (!title || !dateVal) return toast('Title and date are required', true);
+    try {
+        await apiFetch('/audits/', { method: 'POST', body: {
+            title, scheduled_date: dateVal,
+            lead_auditor: document.getElementById('audit-lead').value,
+            iso_clauses: document.getElementById('audit-clauses').value.split(',').map(s => s.trim()).filter(Boolean),
+            departments: document.getElementById('audit-depts').value.split(',').map(s => s.trim()).filter(Boolean),
+            scope: document.getElementById('audit-scope').value,
+        }});
+        toast('Audit created');
+        document.getElementById('audit-form-area').innerHTML = '';
+        loadAudits();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadAuditDetail(id) {
+    const el = document.getElementById('panel-audits');
+    try {
+        const a = await apiFetch(`/audits/${id}/`);
+        let html = '<button class="iso-btn ghost" onclick="loadAudits()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <h2>${escHtml(a.title)}</h2>
+            <div style="display:flex;gap:8px">
+                ${badge(a.status)}
+                <button class="iso-btn small danger" onclick="deleteAudit('${a.id}')">Delete</button>
+            </div></div>`;
+
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Scheduled</label><span style="font-size:13px">${fmtDate(a.scheduled_date)}</span></div>`;
+        html += `<div><label class="iso-label">Completed</label><span style="font-size:13px">${fmtDate(a.completed_date)}</span></div>`;
+        html += `<div><label class="iso-label">Lead Auditor</label><span style="font-size:13px">${escHtml(a.lead_auditor || '—')}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">ISO Clauses</label><span style="font-size:13px">${(a.iso_clauses || []).join(', ') || '—'}</span></div>`;
+        html += `<div><label class="iso-label">Departments</label><span style="font-size:13px">${(a.departments || []).join(', ') || '—'}</span></div>`;
+        html += `<div><label class="iso-label">Scope</label><span style="font-size:13px">${escHtml(a.scope || '—')}</span></div>`;
+        html += '</div>';
+        if (a.summary) html += `<div style="margin:12px 0"><label class="iso-label">Summary</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(a.summary)}</div></div>`;
+
+        // Status controls
+        html += '<div style="margin:16px 0;display:flex;gap:8px">';
+        const statusFlow = ['planned', 'in_progress', 'complete', 'report_issued'];
+        const curIdx = statusFlow.indexOf(a.status);
+        if (curIdx >= 0 && curIdx < statusFlow.length - 1) {
+            const next = statusFlow[curIdx + 1];
+            html += `<button class="iso-btn primary" onclick="updateAuditStatus('${a.id}','${next}')">Advance to ${next.replace(/_/g,' ')}</button>`;
+        }
+        if (a.status !== 'cancelled') {
+            html += `<button class="iso-btn" onclick="updateAuditStatus('${a.id}','cancelled')">Cancel</button>`;
+        }
+        html += '</div>';
+
+        // Findings table
+        html += '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-secondary)">Findings</h4>';
+        if (a.findings?.length) {
+            html += '<table class="iso-table"><thead><tr><th>Type</th><th>Description</th><th>Clause</th><th>Status</th><th>NCR</th></tr></thead><tbody>';
+            a.findings.forEach(f => {
+                html += '<tr>';
+                html += `<td>${badge(f.finding_type)}</td>`;
+                html += `<td style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f.description)}</td>`;
+                html += `<td>${escHtml(f.iso_clause || '—')}</td>`;
+                html += `<td>${badge(f.status)}</td>`;
+                html += `<td>${f.ncr_id ? `<a href="#" onclick="event.preventDefault();navigate('ncrs');setTimeout(()=>loadNCRDetail('${f.ncr_id}'),200)" style="color:var(--accent)">View NCR</a>` : '—'}</td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<div style="color:var(--text-dim);font-size:13px;margin-bottom:12px">No findings yet.</div>';
+        }
+
+        // Add finding form
+        html += `<div class="iso-form" style="margin-top:12px">
+            <h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Add Finding</h4>
+            <div class="iso-form-grid cols-3">
+                <div><label class="iso-label">Type</label><select class="iso-input" id="finding-type">
+                    <option value="observation">Observation</option><option value="opportunity">Opportunity for Improvement</option>
+                    <option value="nc_minor">Minor Nonconformity</option><option value="nc_major">Major Nonconformity</option></select></div>
+                <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="finding-clause" placeholder="e.g. 8.5.1"></div>
+                <div><label class="iso-label">Due Date</label><input class="iso-input" type="date" id="finding-due"></div>
+            </div>
+            <div style="margin-bottom:8px"><label class="iso-label">Description *</label><textarea class="iso-textarea" id="finding-desc" rows="2"></textarea></div>
+            <div style="margin-bottom:8px"><label class="iso-label">Evidence</label><textarea class="iso-textarea" id="finding-evidence" rows="2"></textarea></div>
+            <button class="iso-btn primary" onclick="addFinding('${a.id}')">Add Finding</button>
+        </div>`;
+
+        html += '</div>';
+        el.innerHTML = html;
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateAuditStatus(id, status) {
+    try {
+        await apiFetch(`/audits/${id}/`, { method: 'PUT', body: { status } });
+        toast(`Audit status updated to ${status}`);
+        loadAuditDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function addFinding(auditId) {
+    const desc = document.getElementById('finding-desc').value.trim();
+    if (!desc) return toast('Description is required', true);
+    try {
+        const result = await apiFetch(`/audits/${auditId}/findings/`, { method: 'POST', body: {
+            finding_type: document.getElementById('finding-type').value,
+            description: desc,
+            iso_clause: document.getElementById('finding-clause').value,
+            evidence: document.getElementById('finding-evidence').value,
+            due_date: document.getElementById('finding-due').value || null,
+        }});
+        let msg = 'Finding added';
+        if (result.ncr_id) msg += ' — NCR auto-created';
+        toast(msg);
+        loadAuditDetail(auditId);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteAudit(id) {
+    if (!confirm('Delete this audit?')) return;
+    try {
+        await apiFetch(`/audits/${id}/`, { method: 'DELETE' });
+        toast('Audit deleted');
+        loadAudits();
+    } catch (e) { toast(e.message, true); }
+}
+
+// =========================================================================
+// Training Matrix tab
+// =========================================================================
+let trainingData = [];
+let trainingView = 'grid'; // 'grid' or 'list'
+
+async function loadTraining() {
+    const el = document.getElementById('panel-training');
+    try {
+        trainingData = await apiFetch('/training/');
+        renderTraining(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderTraining(el) {
+    let html = '<div class="iso-toolbar">';
+    html += `<button class="iso-btn ${trainingView==='grid'?'primary':''}" onclick="trainingView='grid';renderTraining(document.getElementById('panel-training'))">Grid View</button>`;
+    html += `<button class="iso-btn ${trainingView==='list'?'primary':''}" onclick="trainingView='list';renderTraining(document.getElementById('panel-training'))">List View</button>`;
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showTrainingForm()">+ Add Requirement</button>';
+    html += '</div>';
+    html += '<div id="training-form-area"></div>';
+
+    if (!trainingData.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No training requirements. Add one to start building your matrix.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    if (trainingView === 'grid') {
+        html += renderTrainingGrid();
+    } else {
+        html += renderTrainingList();
+    }
+    el.innerHTML = html;
+}
+
+function renderTrainingGrid() {
+    // Collect all unique employees
+    const employees = new Set();
+    trainingData.forEach(req => {
+        (req.records || []).forEach(r => employees.add(r.employee_name));
+    });
+    const empList = [...employees].sort();
+    if (!empList.length) {
+        return '<div style="text-align:center;padding:20px;color:var(--text-dim)">No training records yet. Add employees via the list view.</div>';
+    }
+
+    // Build lookup
+    const lookup = {};
+    trainingData.forEach(req => {
+        (req.records || []).forEach(r => {
+            lookup[`${req.id}|${r.employee_name}`] = r;
+        });
+    });
+
+    let html = '<div class="training-grid"><table>';
+    html += '<thead><tr><th>Requirement</th>';
+    empList.forEach(e => html += `<th>${escHtml(e)}</th>`);
+    html += '</tr></thead><tbody>';
+
+    trainingData.forEach(req => {
+        html += `<tr><td>${escHtml(req.name)} ${req.is_mandatory ? '<span style="color:#f87171">*</span>' : ''}</td>`;
+        empList.forEach(emp => {
+            const record = lookup[`${req.id}|${emp}`];
+            if (record) {
+                const s = record.status;
+                html += `<td><div class="training-cell ${s}" title="${emp}: ${s.replace(/_/g,' ')}"></div></td>`;
+            } else {
+                html += '<td><div class="training-cell not_started" title="Not assigned" style="opacity:0.3"></div></td>';
+            }
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // Legend
+    html += '<div style="margin-top:12px;display:flex;gap:16px;font-size:12px;color:var(--text-secondary)">';
+    html += '<span><span class="training-cell complete" style="width:12px;height:12px;vertical-align:middle"></span> Complete</span>';
+    html += '<span><span class="training-cell in_progress" style="width:12px;height:12px;vertical-align:middle"></span> In Progress</span>';
+    html += '<span><span class="training-cell not_started" style="width:12px;height:12px;vertical-align:middle"></span> Not Started</span>';
+    html += '<span><span class="training-cell expired" style="width:12px;height:12px;vertical-align:middle"></span> Expired</span>';
+    html += '<span style="color:#f87171">* Mandatory</span>';
+    html += '</div>';
+    return html;
+}
+
+function renderTrainingList() {
+    let html = '';
+    trainingData.forEach(req => {
+        html += `<div class="iso-form" style="margin-bottom:12px">`;
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div><strong>${escHtml(req.name)}</strong>
+                ${req.is_mandatory ? '<span style="color:#f87171;margin-left:4px;font-size:11px">MANDATORY</span>' : ''}
+                <span style="font-size:12px;color:var(--text-dim);margin-left:8px">${escHtml(req.iso_clause || '')}</span>
+                <span style="font-size:12px;color:var(--text-dim);margin-left:8px">${req.frequency_months > 0 ? `Every ${req.frequency_months}mo` : 'One-time'}</span>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center">
+                <span style="font-size:12px;color:var(--text-secondary)">${req.completion_rate}% complete</span>
+                <button class="iso-btn small danger" onclick="deleteTraining('${req.id}')">Delete</button>
+            </div>
+        </div>`;
+
+        if (req.records?.length) {
+            html += '<table class="iso-table" style="margin-bottom:8px"><thead><tr><th>Employee</th><th>Status</th><th>Completed</th><th>Expires</th><th></th></tr></thead><tbody>';
+            req.records.forEach(r => {
+                html += `<tr>
+                    <td>${escHtml(r.employee_name)}</td>
+                    <td>${badge(r.status)}</td>
+                    <td style="font-size:12px">${fmtDate(r.completed_at)}</td>
+                    <td style="font-size:12px">${fmtDate(r.expires_at)}</td>
+                    <td style="text-align:right">
+                        ${r.status !== 'complete' ? `<button class="iso-btn small" onclick="completeRecord('${r.id}')">Complete</button>` : ''}
+                        <button class="iso-btn small danger" onclick="deleteRecord('${r.id}')">Remove</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+        }
+
+        // Add employee to this requirement
+        html += `<div style="display:flex;gap:8px;align-items:end">
+            <div><label class="iso-label">Employee Name</label><input class="iso-input" id="emp-name-${req.id}" style="width:180px"></div>
+            <div><label class="iso-label">Email</label><input class="iso-input" id="emp-email-${req.id}" style="width:180px"></div>
+            <button class="iso-btn small" onclick="addEmployee('${req.id}')">Add Employee</button>
+        </div>`;
+        html += '</div>';
+    });
+    return html;
+}
+
+function showTrainingForm() {
+    const area = document.getElementById('training-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Name *</label><input class="iso-input" id="train-name"></div>
+            <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="train-clause" placeholder="e.g. 7.2"></div>
+            <div><label class="iso-label">Frequency (months, 0=one-time)</label><input class="iso-input" type="number" id="train-freq" value="0" min="0"></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Description</label><textarea class="iso-textarea" id="train-desc" rows="2"></textarea></div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:16px"><input type="checkbox" id="train-mandatory"> <label for="train-mandatory" style="font-size:13px">Mandatory</label></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveTraining()">Create Requirement</button>
+            <button class="iso-btn" onclick="document.getElementById('training-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveTraining() {
+    const name = document.getElementById('train-name').value.trim();
+    if (!name) return toast('Name is required', true);
+    try {
+        await apiFetch('/training/', { method: 'POST', body: {
+            name, description: document.getElementById('train-desc').value,
+            iso_clause: document.getElementById('train-clause').value,
+            frequency_months: parseInt(document.getElementById('train-freq').value) || 0,
+            is_mandatory: document.getElementById('train-mandatory').checked,
+        }});
+        toast('Training requirement created');
+        document.getElementById('training-form-area').innerHTML = '';
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteTraining(id) {
+    if (!confirm('Delete this training requirement and all records?')) return;
+    try {
+        await apiFetch(`/training/${id}/`, { method: 'DELETE' });
+        toast('Training requirement deleted');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function addEmployee(reqId) {
+    const name = document.getElementById(`emp-name-${reqId}`).value.trim();
+    if (!name) return toast('Employee name required', true);
+    try {
+        await apiFetch(`/training/${reqId}/records/`, { method: 'POST', body: {
+            employee_name: name,
+            employee_email: document.getElementById(`emp-email-${reqId}`).value,
+        }});
+        toast('Employee added');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function completeRecord(id) {
+    try {
+        await apiFetch(`/training/records/${id}/`, { method: 'PUT', body: { status: 'complete' } });
+        toast('Record marked complete');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteRecord(id) {
+    if (!confirm('Remove this training record?')) return;
+    try {
+        await apiFetch(`/training/records/${id}/`, { method: 'DELETE' });
+        toast('Record removed');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+// =========================================================================
+// Management Reviews tab
+// =========================================================================
+let reviewList = [];
+
+async function loadReviews() {
+    const el = document.getElementById('panel-reviews');
+    try {
+        reviewList = await apiFetch('/reviews/');
+        renderReviewList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderReviewList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="createReview()">+ New Review</button>';
+    html += '</div>';
+
+    if (!reviewList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No management reviews. Create one to auto-populate QMS data.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += '<th>Title</th><th>Status</th><th>Meeting Date</th><th>Attendees</th><th></th>';
+    html += '</tr></thead><tbody>';
+    reviewList.forEach(r => {
+        const attendees = Array.isArray(r.attendees) ? r.attendees : [];
+        html += `<tr onclick="loadReviewDetail('${r.id}')" style="cursor:pointer">`;
+        html += `<td>${escHtml(r.title)}</td>`;
+        html += `<td>${badge(r.status)}</td>`;
+        html += `<td>${fmtDate(r.meeting_date)}</td>`;
+        html += `<td style="font-size:12px">${attendees.length ? escHtml(attendees.join(', ')) : '—'}</td>`;
+        html += `<td style="text-align:right"><button class="iso-btn small danger" onclick="event.stopPropagation();deleteReview('${r.id}')">Delete</button></td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+async function createReview() {
+    try {
+        const r = await apiFetch('/reviews/', { method: 'POST', body: {} });
+        toast('Review created with auto-populated QMS data');
+        loadReviewDetail(r.id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadReviewDetail(id) {
+    const el = document.getElementById('panel-reviews');
+    try {
+        const r = await apiFetch(`/reviews/${id}/`);
+        const snap = r.data_snapshot || {};
+        let html = '<button class="iso-btn ghost" onclick="loadReviews()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+                <h2>${escHtml(r.title)}</h2>
+                <div style="margin-top:4px">${badge(r.status)} <span style="font-size:12px;color:var(--text-dim);margin-left:8px">${fmtDate(r.meeting_date)}</span></div>
+            </div>
+            <div style="display:flex;gap:8px">
+                ${r.status === 'scheduled' ? `<button class="iso-btn primary" onclick="updateReviewStatus('${r.id}','in_progress')">Start Review</button>` : ''}
+                ${r.status === 'in_progress' ? `<button class="iso-btn primary" onclick="updateReviewStatus('${r.id}','complete')">Complete Review</button>` : ''}
+            </div></div>`;
+
+        // Auto-populated QMS snapshot
+        html += '<div style="margin:20px 0;padding:16px;background:var(--bg-secondary);border-radius:8px">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Auto-Populated QMS Snapshot</h4>';
+        html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">';
+
+        const ncrS = snap.ncr_summary || {};
+        html += `<div><div class="iso-label">NCR Status</div>
+            <div style="font-size:13px">${ncrS.open || 0} open / ${ncrS.closed || 0} closed / ${ncrS.total || 0} total</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:4px">Critical: ${ncrS.by_severity?.critical || 0} | Major: ${ncrS.by_severity?.major || 0} | Minor: ${ncrS.by_severity?.minor || 0}</div></div>`;
+
+        const auditS = snap.audit_summary || {};
+        html += `<div><div class="iso-label">Audit Status</div>
+            <div style="font-size:13px">${auditS.completed || 0} completed, ${auditS.open_findings || 0} open findings</div></div>`;
+
+        const trainS = snap.training_summary || {};
+        html += `<div><div class="iso-label">Training</div>
+            <div style="font-size:13px">${trainS.compliance_rate ?? 100}% compliance, ${trainS.gap_count || 0} gaps</div></div>`;
+        html += '</div>';
+
+        if (snap.prior_actions && Object.keys(snap.prior_actions).length) {
+            html += `<div style="margin-top:12px"><div class="iso-label">Prior Review Actions</div>
+                <pre style="font-size:12px;color:var(--text-secondary);white-space:pre-wrap">${escHtml(JSON.stringify(snap.prior_actions, null, 2))}</pre></div>`;
+        }
+        html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">Captured: ${snap.captured_at ? fmtDate(snap.captured_at) : '—'}</div>`;
+        html += '</div>';
+
+        // Structured form per ISO 9001:2015 clause 9.3
+        // Inputs (9.3.2)
+        html += '<div class="review-section">';
+        html += '<h4>Review Inputs <span class="clause-ref">ISO 9001:2015 clause 9.3.2</span></h4>';
+        const inputs = r.inputs || {};
+        html += `<div class="iso-form-grid">
+            <div><label class="iso-label">Actions from Previous Reviews</label><textarea class="iso-textarea" id="rev-inp-actions" rows="2">${escHtml(inputs.prior_actions || '')}</textarea></div>
+            <div><label class="iso-label">Changes in External/Internal Issues</label><textarea class="iso-textarea" id="rev-inp-changes" rows="2">${escHtml(inputs.changes || '')}</textarea></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Customer Feedback</label><textarea class="iso-textarea" id="rev-inp-feedback" rows="2">${escHtml(inputs.customer_feedback || '')}</textarea></div>
+            <div><label class="iso-label">Process Performance / Conformity</label><textarea class="iso-textarea" id="rev-inp-process" rows="2">${escHtml(inputs.process_performance || '')}</textarea></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Nonconformity / Corrective Action</label><textarea class="iso-textarea" id="rev-inp-ncr" rows="2">${escHtml(inputs.ncr_corrective || '')}</textarea></div>
+            <div><label class="iso-label">Risks & Opportunities</label><textarea class="iso-textarea" id="rev-inp-risks" rows="2">${escHtml(inputs.risks_opportunities || '')}</textarea></div>
+        </div>`;
+        html += '</div>';
+
+        // Outputs (9.3.3)
+        html += '<div class="review-section">';
+        html += '<h4>Review Outputs <span class="clause-ref">ISO 9001:2015 clause 9.3.3</span></h4>';
+        const outputs = r.outputs || {};
+        html += `<div class="iso-form-grid">
+            <div><label class="iso-label">Improvement Opportunities</label><textarea class="iso-textarea" id="rev-out-improve" rows="2">${escHtml(outputs.improvement_opportunities || '')}</textarea></div>
+            <div><label class="iso-label">Resource Needs</label><textarea class="iso-textarea" id="rev-out-resources" rows="2">${escHtml(outputs.resource_needs || '')}</textarea></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Changes to QMS</label><textarea class="iso-textarea" id="rev-out-qms" rows="2">${escHtml(outputs.qms_changes || '')}</textarea></div>
+            <div><label class="iso-label">Action Items</label><textarea class="iso-textarea" id="rev-out-actions" rows="2">${escHtml(outputs.action_items || '')}</textarea></div>
+        </div>`;
+        html += '</div>';
+
+        // General fields
+        html += '<div class="review-section">';
+        html += `<div class="iso-form-grid">
+            <div><label class="iso-label">Attendees (one per line)</label><textarea class="iso-textarea" id="rev-attendees" rows="3">${escHtml(Array.isArray(r.attendees) ? r.attendees.join('\n') : '')}</textarea></div>
+            <div><label class="iso-label">Meeting Minutes</label><textarea class="iso-textarea" id="rev-minutes" rows="3">${escHtml(r.minutes || '')}</textarea></div>
+        </div>`;
+        html += '</div>';
+
+        html += `<button class="iso-btn primary" onclick="saveReviewDetail('${r.id}')">Save Changes</button>`;
+        html += '</div>';
+        el.innerHTML = html;
+    } catch (e) { toast(e.message, true); }
+}
+
+async function saveReviewDetail(id) {
+    try {
+        const inputs = {
+            prior_actions: document.getElementById('rev-inp-actions').value,
+            changes: document.getElementById('rev-inp-changes').value,
+            customer_feedback: document.getElementById('rev-inp-feedback').value,
+            process_performance: document.getElementById('rev-inp-process').value,
+            ncr_corrective: document.getElementById('rev-inp-ncr').value,
+            risks_opportunities: document.getElementById('rev-inp-risks').value,
+        };
+        const outputs = {
+            improvement_opportunities: document.getElementById('rev-out-improve').value,
+            resource_needs: document.getElementById('rev-out-resources').value,
+            qms_changes: document.getElementById('rev-out-qms').value,
+            action_items: document.getElementById('rev-out-actions').value,
+        };
+        const attendees = document.getElementById('rev-attendees').value.split('\n').map(s => s.trim()).filter(Boolean);
+        await apiFetch(`/reviews/${id}/`, { method: 'PUT', body: {
+            inputs, outputs, attendees,
+            minutes: document.getElementById('rev-minutes').value,
+        }});
+        toast('Review saved');
+        loadReviewDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateReviewStatus(id, status) {
+    try {
+        await apiFetch(`/reviews/${id}/`, { method: 'PUT', body: { status } });
+        toast(`Review status updated to ${status}`);
+        loadReviewDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteReview(id) {
+    if (!confirm('Delete this review?')) return;
+    try {
+        await apiFetch(`/reviews/${id}/`, { method: 'DELETE' });
+        toast('Review deleted');
+        loadReviews();
+    } catch (e) { toast(e.message, true); }
+}
+
+// =========================================================================
+// Document Control tab (clause 7.5)
+// =========================================================================
+let docList = [];
+let docSort = '-updated_at';
+let docFilterStatus = '';
+let docFilterCategory = '';
+let docSearch = '';
+
+async function loadDocuments() {
+    const el = document.getElementById('panel-documents');
+    let params = `?sort=${docSort}`;
+    if (docFilterStatus) params += `&status=${docFilterStatus}`;
+    if (docFilterCategory) params += `&category=${docFilterCategory}`;
+    if (docSearch) params += `&search=${encodeURIComponent(docSearch)}`;
+    try {
+        docList = await apiFetch(`/documents/${params}`);
+        renderDocList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderDocList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:140px" onchange="docFilterStatus=this.value;loadDocuments()">
+        <option value="">All Statuses</option>
+        <option value="draft" ${docFilterStatus==='draft'?'selected':''}>Draft</option>
+        <option value="review" ${docFilterStatus==='review'?'selected':''}>Under Review</option>
+        <option value="approved" ${docFilterStatus==='approved'?'selected':''}>Approved</option>
+        <option value="obsolete" ${docFilterStatus==='obsolete'?'selected':''}>Obsolete</option>
+    </select>`;
+    html += `<select class="iso-input" style="width:140px" onchange="docFilterCategory=this.value;loadDocuments()">
+        <option value="">All Categories</option>
+        <option value="SOP" ${docFilterCategory==='SOP'?'selected':''}>SOP</option>
+        <option value="Work Instruction" ${docFilterCategory==='Work Instruction'?'selected':''}>Work Instruction</option>
+        <option value="Policy" ${docFilterCategory==='Policy'?'selected':''}>Policy</option>
+        <option value="Form" ${docFilterCategory==='Form'?'selected':''}>Form</option>
+        <option value="Other" ${docFilterCategory==='Other'?'selected':''}>Other</option>
+    </select>`;
+    html += `<input class="iso-input" style="width:180px" placeholder="Search..." value="${escHtml(docSearch)}"
+        onkeyup="if(event.key==='Enter'){docSearch=this.value;loadDocuments()}"
+        onblur="if(docSearch!==this.value){docSearch=this.value;loadDocuments()}">`;
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showDocForm()">+ New Document</button>';
+    html += '</div>';
+
+    html += '<div id="doc-form-area"></div>';
+
+    if (!docList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No documents found. Create one to get started.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    const sortIcon = (field) => {
+        const asc = docSort === field, desc = docSort === `-${field}`;
+        return `<span class="sort-arrow">${desc ? '&#9660;' : asc ? '&#9650;' : '&#9650;'}</span>`;
+    };
+    const sortClick = (field) => `onclick="docSort=(docSort==='-${field}'?'${field}':'-${field}');loadDocuments()"`;
+    const today = new Date().toISOString().split('T')[0];
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += `<th style="width:100px">Doc #</th>`;
+    html += `<th ${sortClick('title')} ${docSort.includes('title')?'class="sorted"':''}>Title ${sortIcon('title')}</th>`;
+    html += '<th>Category</th>';
+    html += `<th ${sortClick('status')} ${docSort.includes('status')?'class="sorted"':''}>Status ${sortIcon('status')}</th>`;
+    html += '<th>Version</th>';
+    html += '<th>Approved By</th>';
+    html += `<th ${sortClick('review_due_date')} ${docSort.includes('review_due_date')?'class="sorted"':''}>Review Due ${sortIcon('review_due_date')}</th>`;
+    html += `<th ${sortClick('updated_at')} ${docSort.includes('updated_at')?'class="sorted"':''}>Updated ${sortIcon('updated_at')}</th>`;
+    html += '</tr></thead><tbody>';
+    docList.forEach(d => {
+        const overdue = d.review_due_date && d.review_due_date < today && d.status === 'approved';
+        html += `<tr class="${overdue ? 'overdue' : ''}" onclick="loadDocDetail('${d.id}')">`;
+        html += `<td style="font-size:12px;font-family:monospace">${escHtml(d.document_number || '—')}</td>`;
+        html += `<td>${escHtml(d.title)}</td>`;
+        html += `<td style="font-size:12px">${escHtml(d.category || '—')}</td>`;
+        html += `<td>${badge(d.status)}</td>`;
+        html += `<td style="font-size:12px">${escHtml(d.current_version)}</td>`;
+        html += `<td style="font-size:12px">${d.approved_by_user ? escHtml(d.approved_by_user.name) : escHtml(d.approved_by || '—')}</td>`;
+        html += `<td style="${overdue ? 'color:#f87171;font-weight:600' : ''};font-size:12px">${fmtDate(d.review_due_date)}</td>`;
+        html += `<td style="font-size:12px;color:var(--text-dim)">${fmtDate(d.updated_at)}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+function showDocForm() {
+    const area = document.getElementById('doc-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Title *</label><input class="iso-input" id="doc-title"></div>
+            <div><label class="iso-label">Document Number</label><input class="iso-input" id="doc-number" placeholder="e.g. SOP-001"></div>
+            <div><label class="iso-label">Category</label><select class="iso-input" id="doc-category">
+                <option value="">Select...</option><option value="SOP">SOP</option><option value="Work Instruction">Work Instruction</option>
+                <option value="Policy">Policy</option><option value="Form">Form</option><option value="Other">Other</option></select></div>
+        </div>
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">ISO Clause</label><input class="iso-input" id="doc-clause" placeholder="e.g. 7.5"></div>
+            <div><label class="iso-label">Review Due Date</label><input class="iso-input" type="date" id="doc-due"></div>
+            <div><label class="iso-label">Retention (years)</label><input class="iso-input" type="number" id="doc-retention" value="7" min="1" max="99"></div>
+        </div>
+        <div style="margin-bottom:12px"><label class="iso-label">Content</label><textarea class="iso-textarea" id="doc-content" rows="3" placeholder="Document body or summary..."></textarea></div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveDoc()">Create Document</button>
+            <button class="iso-btn" onclick="document.getElementById('doc-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveDoc() {
+    const title = document.getElementById('doc-title').value.trim();
+    if (!title) return toast('Title is required', true);
+    try {
+        await apiFetch('/documents/', { method: 'POST', body: {
+            title, document_number: document.getElementById('doc-number').value,
+            category: document.getElementById('doc-category').value,
+            iso_clause: document.getElementById('doc-clause').value,
+            content: document.getElementById('doc-content').value,
+            review_due_date: document.getElementById('doc-due').value || null,
+            retention_years: parseInt(document.getElementById('doc-retention').value) || 7,
+        }});
+        toast('Document created');
+        document.getElementById('doc-form-area').innerHTML = '';
+        loadDocuments();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadDocDetail(id) {
+    const el = document.getElementById('panel-documents');
+    try {
+        const d = await apiFetch(`/documents/${id}/`);
+        const statuses = ['draft', 'review', 'approved', 'obsolete'];
+        const statusIdx = statuses.indexOf(d.status);
+        const TRANSITIONS = { draft: ['review'], review: ['approved', 'draft'], approved: ['review', 'obsolete'], obsolete: [] };
+        const nextStatuses = TRANSITIONS[d.status] || [];
+
+        let html = '<button class="iso-btn ghost" onclick="loadDocuments()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+                <h2 style="margin:0">${escHtml(d.title)}</h2>
+                ${d.document_number ? `<div style="font-size:13px;color:var(--text-secondary);margin-top:2px">${escHtml(d.document_number)}</div>` : ''}
+                ${d.source_study_id ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">From Study: <a href="/app/projects/" style="color:var(--primary)">${escHtml(d.source_study_id)}</a></div>` : ''}
+            </div>
+            <div style="display:flex;gap:8px">
+                ${badge(d.status)}
+                <button class="iso-btn small danger" onclick="deleteDoc('${d.id}')">Delete</button>
+            </div></div>`;
+
+        // Status progression bar
+        html += '<div class="status-bar">';
+        statuses.forEach((s, i) => {
+            let cls = '';
+            if (i < statusIdx) cls = 'done';
+            else if (i === statusIdx) cls = 'current';
+            html += `<div class="status-step ${cls}">${s === 'review' ? 'under review' : s}</div>`;
+        });
+        html += '</div>';
+
+        // Info fields
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Category</label><span style="font-size:13px">${escHtml(d.category || '—')}</span></div>`;
+        html += `<div><label class="iso-label">ISO Clause</label><span style="font-size:13px">${escHtml(d.iso_clause || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Version</label><span style="font-size:13px;font-weight:600">${escHtml(d.current_version)}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Approved By</label><span style="font-size:13px">${d.approved_by_user ? escHtml(d.approved_by_user.name) : escHtml(d.approved_by || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Approved Date</label><span style="font-size:13px">${fmtDate(d.approved_at)}</span></div>`;
+        html += `<div><label class="iso-label">Review Due</label><span style="font-size:13px">${fmtDate(d.review_due_date)}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Retention</label><span style="font-size:13px">${d.retention_years} years</span></div>`;
+        html += `<div><label class="iso-label">Created</label><span style="font-size:13px">${fmtDate(d.created_at)}</span></div>`;
+        html += `<div><label class="iso-label">Updated</label><span style="font-size:13px">${fmtDate(d.updated_at)}</span></div>`;
+        html += '</div>';
+
+        // Content
+        if (d.content) {
+            html += `<div style="margin:16px 0"><label class="iso-label">Content</label><div style="font-size:13px;white-space:pre-wrap;background:var(--bg-secondary);padding:12px;border-radius:6px;max-height:300px;overflow-y:auto">${escHtml(d.content)}</div></div>`;
+        }
+
+        // File attachments
+        html += '<div style="margin:16px 0"><label class="iso-label">Attachments</label>';
+        if (d.file_ids?.length) {
+            html += `<div style="font-size:13px">${d.file_ids.length} file(s) attached</div>`;
+        } else {
+            html += '<div style="font-size:13px;color:var(--text-dim)">No files attached</div>';
+        }
+        html += '</div>';
+
+        // Status transition
+        if (nextStatuses.length) {
+            html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+            html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Advance Status</h4>';
+            nextStatuses.forEach(ns => {
+                html += '<div style="display:flex;gap:8px;align-items:end;margin-bottom:8px">';
+                if (ns === 'approved') {
+                    const u = window.svendUser || {};
+                    html += `<div><label class="iso-label">Approver *</label><select class="iso-input" id="doc-approver-${ns}" style="width:180px">
+                        <option value="">Select approver...</option>
+                        <option value="${u.id || ''}">${escHtml(u.username || u.email || 'Me')}</option>
+                    </select></div>`;
+                }
+                if (d.status === 'approved' && ns === 'review') {
+                    html += `<div><label class="iso-label">Revision Note</label><input class="iso-input" id="doc-revision-note" placeholder="What changed?" style="width:200px"></div>`;
+                }
+                html += `<div><label class="iso-label">Note</label><input class="iso-input" id="doc-tn-${ns}" placeholder="Optional note" style="width:200px"></div>`;
+                const label = ns === 'review' && d.status === 'approved' ? 'Start Revision' : ns === 'draft' ? 'Reject to Draft' : `Advance to ${ns === 'review' ? 'Under Review' : ns}`;
+                const btnClass = ns === 'draft' ? 'iso-btn small' : 'iso-btn primary';
+                html += `<button class="${btnClass}" onclick="advanceDocStatus('${d.id}','${ns}')">${label}</button>`;
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Version history
+        if (d.revisions?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Version History</h4>';
+            html += '<table class="iso-table" style="font-size:12px"><thead><tr><th>Version</th><th>Changed By</th><th>Summary</th><th>Date</th></tr></thead><tbody>';
+            d.revisions.forEach(r => {
+                html += `<tr><td style="font-weight:600">${escHtml(r.version)}</td>`;
+                html += `<td>${escHtml(r.changed_by || '—')}</td>`;
+                html += `<td>${escHtml(r.change_summary || '—')}</td>`;
+                html += `<td>${fmtDate(r.created_at)}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+        }
+
+        // Status history timeline
+        if (d.status_changes?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+            html += '<div class="status-timeline">';
+            d.status_changes.forEach(sc => {
+                html += `<div class="timeline-entry">
+                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
+                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
+                    <div class="time">${fmtDate(sc.created_at)}</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+
+        // Edit form
+        html += '<div class="iso-form" style="margin-top:16px"><h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Edit Document</h4>';
+        html += '<div class="iso-form-grid cols-3">';
+        html += `<div><label class="iso-label">Title</label><input class="iso-input" id="doc-edit-title" value="${escHtml(d.title)}"></div>`;
+        html += `<div><label class="iso-label">Document Number</label><input class="iso-input" id="doc-edit-number" value="${escHtml(d.document_number)}"></div>`;
+        html += `<div><label class="iso-label">Category</label><select class="iso-input" id="doc-edit-category">
+            <option value="">Select...</option>
+            ${['SOP','Work Instruction','Policy','Form','Other'].map(c => `<option value="${c}" ${d.category===c?'selected':''}>${c}</option>`).join('')}
+        </select></div>`;
+        html += '</div>';
+        html += '<div class="iso-form-grid cols-3">';
+        html += `<div><label class="iso-label">ISO Clause</label><input class="iso-input" id="doc-edit-clause" value="${escHtml(d.iso_clause)}"></div>`;
+        html += `<div><label class="iso-label">Review Due Date</label><input class="iso-input" type="date" id="doc-edit-due" value="${d.review_due_date || ''}"></div>`;
+        html += `<div><label class="iso-label">Retention (years)</label><input class="iso-input" type="number" id="doc-edit-retention" value="${d.retention_years}" min="1" max="99"></div>`;
+        html += '</div>';
+        html += `<div style="margin-bottom:12px"><label class="iso-label">Content</label><textarea class="iso-textarea" id="doc-edit-content" rows="4">${escHtml(d.content)}</textarea></div>`;
+        html += `<button class="iso-btn primary" onclick="updateDocFields('${d.id}')">Save Changes</button>`;
+        html += '</div>';
+
+        el.innerHTML = html;
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+async function advanceDocStatus(id, newStatus) {
+    try {
+        const body = { status: newStatus, status_note: document.getElementById(`doc-tn-${newStatus}`)?.value || '' };
+        // For approval, include approver
+        const approverEl = document.getElementById(`doc-approver-${newStatus}`);
+        if (approverEl && approverEl.value) body.approved_by_user = parseInt(approverEl.value);
+        // For revision cycle, include note
+        const revNoteEl = document.getElementById('doc-revision-note');
+        if (revNoteEl) body.revision_note = revNoteEl.value;
+        await apiFetch(`/documents/${id}/`, { method: 'PUT', body });
+        toast(`Document status updated to ${newStatus}`);
+        loadDocDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateDocFields(id) {
+    try {
+        await apiFetch(`/documents/${id}/`, { method: 'PUT', body: {
+            title: document.getElementById('doc-edit-title').value,
+            document_number: document.getElementById('doc-edit-number').value,
+            category: document.getElementById('doc-edit-category').value,
+            iso_clause: document.getElementById('doc-edit-clause').value,
+            content: document.getElementById('doc-edit-content').value,
+            review_due_date: document.getElementById('doc-edit-due').value || null,
+            retention_years: parseInt(document.getElementById('doc-edit-retention').value) || 7,
+        }});
+        toast('Document updated');
+        loadDocDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteDoc(id) {
+    if (!confirm('Delete this document?')) return;
+    try {
+        await apiFetch(`/documents/${id}/`, { method: 'DELETE' });
+        toast('Document deleted');
+        loadDocuments();
+    } catch (e) { toast(e.message, true); }
+}
+
+// =========================================================================
+// Supplier Management tab (clause 8.4)
+// =========================================================================
+let supplierList = [];
+let supplierSort = 'name';
+let supplierFilterStatus = '';
+let supplierFilterType = '';
+let supplierSearch = '';
+
+function starsHtml(rating) {
+    if (!rating) return '<span style="color:var(--text-dim)">—</span>';
+    return '<span style="color:#facc15">' + '&#9733;'.repeat(rating) + '&#9734;'.repeat(5 - rating) + '</span>';
+}
+
+async function loadSuppliers() {
+    const el = document.getElementById('panel-suppliers');
+    let params = `?sort=${supplierSort}`;
+    if (supplierFilterStatus) params += `&status=${supplierFilterStatus}`;
+    if (supplierFilterType) params += `&supplier_type=${supplierFilterType}`;
+    if (supplierSearch) params += `&search=${encodeURIComponent(supplierSearch)}`;
+    try {
+        supplierList = await apiFetch(`/suppliers/${params}`);
+        renderSupplierList(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#f87171;padding:20px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderSupplierList(el) {
+    let html = '<div class="iso-toolbar">';
+    html += `<select class="iso-input" style="width:140px" onchange="supplierFilterStatus=this.value;loadSuppliers()">
+        <option value="">All Statuses</option>
+        <option value="pending" ${supplierFilterStatus==='pending'?'selected':''}>Pending</option>
+        <option value="approved" ${supplierFilterStatus==='approved'?'selected':''}>Approved</option>
+        <option value="conditional" ${supplierFilterStatus==='conditional'?'selected':''}>Conditional</option>
+        <option value="suspended" ${supplierFilterStatus==='suspended'?'selected':''}>Suspended</option>
+        <option value="disqualified" ${supplierFilterStatus==='disqualified'?'selected':''}>Disqualified</option>
+    </select>`;
+    html += `<select class="iso-input" style="width:140px" onchange="supplierFilterType=this.value;loadSuppliers()">
+        <option value="">All Types</option>
+        <option value="raw_material" ${supplierFilterType==='raw_material'?'selected':''}>Raw Material</option>
+        <option value="component" ${supplierFilterType==='component'?'selected':''}>Component</option>
+        <option value="service" ${supplierFilterType==='service'?'selected':''}>Service</option>
+        <option value="equipment" ${supplierFilterType==='equipment'?'selected':''}>Equipment</option>
+        <option value="calibration" ${supplierFilterType==='calibration'?'selected':''}>Calibration</option>
+        <option value="other" ${supplierFilterType==='other'?'selected':''}>Other</option>
+    </select>`;
+    html += `<input class="iso-input" style="width:180px" placeholder="Search..." value="${escHtml(supplierSearch)}"
+        onkeyup="if(event.key==='Enter'){supplierSearch=this.value;loadSuppliers()}"
+        onblur="if(supplierSearch!==this.value){supplierSearch=this.value;loadSuppliers()}">`;
+    html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn primary" onclick="showSupplierForm()">+ New Supplier</button>';
+    html += '</div>';
+
+    html += '<div id="supplier-form-area"></div>';
+
+    if (!supplierList.length) {
+        html += '<div style="text-align:center;padding:40px;color:var(--text-dim)">No suppliers found. Create one to get started.</div>';
+        el.innerHTML = html;
+        return;
+    }
+
+    const sortIcon = (field) => {
+        const asc = supplierSort === field, desc = supplierSort === `-${field}`;
+        return `<span class="sort-arrow">${desc ? '&#9660;' : asc ? '&#9650;' : '&#9650;'}</span>`;
+    };
+    const sortClick = (field) => `onclick="supplierSort=(supplierSort==='-${field}'?'${field}':'-${field}');loadSuppliers()"`;
+    const today = new Date().toISOString().split('T')[0];
+
+    html += '<table class="iso-table"><thead><tr>';
+    html += `<th ${sortClick('name')} ${supplierSort.includes('name')?'class="sorted"':''}>Name ${sortIcon('name')}</th>`;
+    html += '<th>Type</th>';
+    html += `<th ${sortClick('status')} ${supplierSort.includes('status')?'class="sorted"':''}>Status ${sortIcon('status')}</th>`;
+    html += `<th ${sortClick('quality_rating')} ${supplierSort.includes('quality_rating')?'class="sorted"':''}>Rating ${sortIcon('quality_rating')}</th>`;
+    html += '<th>Contact</th>';
+    html += `<th ${sortClick('last_evaluation_date')} ${supplierSort.includes('last_evaluation_date')?'class="sorted"':''}>Last Eval ${sortIcon('last_evaluation_date')}</th>`;
+    html += `<th ${sortClick('next_evaluation_date')} ${supplierSort.includes('next_evaluation_date')?'class="sorted"':''}>Next Eval ${sortIcon('next_evaluation_date')}</th>`;
+    html += '</tr></thead><tbody>';
+    supplierList.forEach(s => {
+        const evalOverdue = s.next_evaluation_date && s.next_evaluation_date < today && !['disqualified'].includes(s.status);
+        html += `<tr class="${evalOverdue ? 'overdue' : ''}" onclick="loadSupplierDetail('${s.id}')">`;
+        html += `<td>${escHtml(s.name)}</td>`;
+        html += `<td style="font-size:12px">${escHtml((s.supplier_type || 'other').replace(/_/g, ' '))}</td>`;
+        html += `<td>${badge(s.status)}</td>`;
+        html += `<td>${starsHtml(s.quality_rating)}</td>`;
+        html += `<td style="font-size:12px">${escHtml(s.contact_name || '—')}</td>`;
+        html += `<td style="font-size:12px">${fmtDate(s.last_evaluation_date)}</td>`;
+        html += `<td style="${evalOverdue ? 'color:#f87171;font-weight:600' : ''};font-size:12px">${fmtDate(s.next_evaluation_date)}</td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+}
+
+function showSupplierForm() {
+    const area = document.getElementById('supplier-form-area');
+    if (area.innerHTML) { area.innerHTML = ''; return; }
+    area.innerHTML = `<div class="iso-form">
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Company Name *</label><input class="iso-input" id="sup-name"></div>
+            <div><label class="iso-label">Supplier Type</label><select class="iso-input" id="sup-type">
+                <option value="other">Other</option><option value="raw_material">Raw Material</option>
+                <option value="component">Component</option><option value="service">Service</option>
+                <option value="equipment">Equipment</option><option value="calibration">Calibration</option></select></div>
+            <div><label class="iso-label">Contact Name</label><input class="iso-input" id="sup-contact"></div>
+        </div>
+        <div class="iso-form-grid cols-3">
+            <div><label class="iso-label">Contact Email</label><input class="iso-input" type="email" id="sup-email"></div>
+            <div><label class="iso-label">Contact Phone</label><input class="iso-input" id="sup-phone"></div>
+            <div><label class="iso-label">Next Evaluation</label><input class="iso-input" type="date" id="sup-next-eval"></div>
+        </div>
+        <div class="iso-form-grid">
+            <div><label class="iso-label">Products/Services</label><textarea class="iso-textarea" id="sup-products" rows="2"></textarea></div>
+            <div><label class="iso-label">Notes</label><textarea class="iso-textarea" id="sup-notes" rows="2"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="iso-btn primary" onclick="saveSupplier()">Create Supplier</button>
+            <button class="iso-btn" onclick="document.getElementById('supplier-form-area').innerHTML=''">Cancel</button>
+        </div>
+    </div>`;
+}
+
+async function saveSupplier() {
+    const name = document.getElementById('sup-name').value.trim();
+    if (!name) return toast('Name is required', true);
+    try {
+        await apiFetch('/suppliers/', { method: 'POST', body: {
+            name,
+            supplier_type: document.getElementById('sup-type').value,
+            contact_name: document.getElementById('sup-contact').value,
+            contact_email: document.getElementById('sup-email').value,
+            contact_phone: document.getElementById('sup-phone').value,
+            products_services: document.getElementById('sup-products').value,
+            notes: document.getElementById('sup-notes').value,
+        }});
+        toast('Supplier created');
+        document.getElementById('supplier-form-area').innerHTML = '';
+        loadSuppliers();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function loadSupplierDetail(id) {
+    const el = document.getElementById('panel-suppliers');
+    try {
+        const s = await apiFetch(`/suppliers/${id}/`);
+        const TRANSITIONS = {
+            pending: ['approved', 'conditional', 'disqualified'],
+            approved: ['suspended', 'disqualified'],
+            conditional: ['approved', 'disqualified'],
+            suspended: ['approved', 'disqualified'],
+            disqualified: [],
+        };
+        const nextStatuses = TRANSITIONS[s.status] || [];
+        const today = new Date().toISOString().split('T')[0];
+        const evalOverdue = s.next_evaluation_date && s.next_evaluation_date < today;
+
+        let html = '<button class="iso-btn ghost" onclick="loadSuppliers()" style="margin-bottom:12px">&larr; Back to list</button>';
+        html += '<div class="iso-detail">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:start">
+            <h2 style="margin:0">${escHtml(s.name)}</h2>
+            <div style="display:flex;gap:8px">
+                ${badge(s.status)}
+                <button class="iso-btn small danger" onclick="deleteSupplier('${s.id}')">Delete</button>
+            </div></div>`;
+
+        // Status progression — show relevant path
+        const mainPath = ['pending', 'approved'];
+        if (s.status === 'conditional') mainPath.splice(1, 0, 'conditional');
+        if (s.status === 'suspended') mainPath.push('suspended');
+        html += '<div class="status-bar">';
+        mainPath.forEach(st => {
+            let cls = st === s.status ? 'current' : '';
+            if (st === 'pending' && s.status !== 'pending') cls = 'done';
+            if (st === 'conditional' && s.status === 'approved') cls = 'done';
+            html += `<div class="status-step ${cls}">${st}</div>`;
+        });
+        if (s.status === 'disqualified') {
+            html += '<div class="status-step current" style="background:rgba(239,68,68,0.15);color:#f87171">disqualified</div>';
+        }
+        html += '</div>';
+
+        // Info fields
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Type</label><span style="font-size:13px">${escHtml((s.supplier_type || 'other').replace(/_/g, ' '))}</span></div>`;
+        html += `<div><label class="iso-label">Contact Name</label><span style="font-size:13px">${escHtml(s.contact_name || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Contact Email</label><span style="font-size:13px">${escHtml(s.contact_email || '—')}</span></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Contact Phone</label><span style="font-size:13px">${escHtml(s.contact_phone || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Products/Services</label><span style="font-size:13px">${escHtml(s.products_services || '—')}</span></div>`;
+        html += `<div><label class="iso-label">Overall Rating</label><div>${starsHtml(s.quality_rating)}</div></div>`;
+        html += '</div>';
+        html += '<div class="iso-field-row">';
+        html += `<div><label class="iso-label">Last Evaluation</label><span style="font-size:13px">${fmtDate(s.last_evaluation_date)}</span></div>`;
+        html += `<div><label class="iso-label">Next Evaluation</label><span style="font-size:13px;${evalOverdue ? 'color:#f87171;font-weight:600' : ''}">${fmtDate(s.next_evaluation_date)}${evalOverdue ? ' (OVERDUE)' : ''}</span></div>`;
+        html += `<div><label class="iso-label">Created</label><span style="font-size:13px">${fmtDate(s.created_at)}</span></div>`;
+        html += '</div>';
+
+        // Notes
+        if (s.notes) {
+            html += `<div style="margin:12px 0"><label class="iso-label">Notes</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(s.notes)}</div></div>`;
+        }
+        if (s.disqualification_reason) {
+            html += `<div style="margin:12px 0;padding:12px;background:rgba(239,68,68,0.08);border-radius:6px"><label class="iso-label" style="color:#f87171">Disqualification Reason</label><div style="font-size:13px;white-space:pre-wrap">${escHtml(s.disqualification_reason)}</div></div>`;
+        }
+
+        // Evaluation section
+        html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+        html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Evaluation Scores</h4>';
+        const scores = s.evaluation_scores || {};
+        html += '<div class="iso-form-grid cols-4" style="max-width:600px">';
+        ['quality', 'delivery', 'price', 'communication'].forEach(dim => {
+            const val = scores[dim] || '';
+            html += `<div><label class="iso-label">${dim.charAt(0).toUpperCase() + dim.slice(1)}</label>
+                <select class="iso-input" id="eval-${dim}">
+                    <option value="">—</option>
+                    ${[1,2,3,4,5].map(v => `<option value="${v}" ${val==v?'selected':''}>${v}</option>`).join('')}
+                </select></div>`;
+        });
+        html += '</div>';
+        const computed = Object.values(scores).filter(v => typeof v === 'number');
+        if (computed.length) {
+            html += `<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Computed overall: ${(computed.reduce((a,b)=>a+b,0)/computed.length).toFixed(1)} / 5</div>`;
+        }
+        html += `<button class="iso-btn primary" style="margin-top:8px" onclick="saveEvaluation('${s.id}')">Save Evaluation</button>`;
+        html += '</div>';
+
+        // Certifications
+        const certs = (s.metadata && s.metadata.certifications) || [];
+        html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+        html += '<h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Certifications</h4>';
+        if (certs.length) {
+            certs.forEach((c, i) => {
+                html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                    <span style="font-size:13px">${escHtml(c)}</span>
+                    <button class="iso-btn small danger" onclick="removeCertification('${s.id}', ${i})" style="padding:2px 6px;font-size:11px">x</button>
+                </div>`;
+            });
+        } else {
+            html += '<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">No certifications recorded</div>';
+        }
+        html += `<div style="display:flex;gap:8px;margin-top:8px">
+            <input class="iso-input" id="new-cert" placeholder="e.g. ISO 9001:2015" style="width:220px">
+            <button class="iso-btn small" onclick="addCertification('${s.id}')">Add</button>
+        </div>`;
+        html += '</div>';
+
+        // Status transition
+        if (nextStatuses.length) {
+            html += '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+            html += '<h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Change Status</h4>';
+            nextStatuses.forEach(ns => {
+                html += '<div style="display:flex;gap:8px;align-items:end;margin-bottom:8px">';
+                if (ns === 'disqualified') {
+                    html += `<div><label class="iso-label">Reason *</label><input class="iso-input" id="sup-dq-reason" placeholder="Disqualification reason" style="width:240px"></div>`;
+                }
+                html += `<div><label class="iso-label">Note</label><input class="iso-input" id="sup-tn-${ns}" placeholder="Optional note" style="width:200px"></div>`;
+                const btnClass = ['suspended', 'disqualified'].includes(ns) ? 'iso-btn small danger' : 'iso-btn primary';
+                html += `<button class="${btnClass}" onclick="advanceSupplierStatus('${s.id}','${ns}')">${ns === 'approved' ? 'Approve' : ns === 'conditional' ? 'Conditional Approve' : ns === 'suspended' ? 'Suspend' : 'Disqualify'}</button>`;
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Status history timeline
+        if (s.status_changes?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+            html += '<div class="status-timeline">';
+            s.status_changes.forEach(sc => {
+                html += `<div class="timeline-entry">
+                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
+                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
+                    <div class="time">${fmtDate(sc.created_at)}</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+
+        // Edit form
+        html += '<div class="iso-form" style="margin-top:16px"><h4 style="margin:0 0 12px;font-size:13px;color:var(--text-secondary)">Edit Supplier</h4>';
+        html += '<div class="iso-form-grid cols-3">';
+        html += `<div><label class="iso-label">Company Name</label><input class="iso-input" id="sup-edit-name" value="${escHtml(s.name)}"></div>`;
+        html += `<div><label class="iso-label">Type</label><select class="iso-input" id="sup-edit-type">
+            ${[['other','Other'],['raw_material','Raw Material'],['component','Component'],['service','Service'],['equipment','Equipment'],['calibration','Calibration']].map(([v,l]) => `<option value="${v}" ${s.supplier_type===v?'selected':''}>${l}</option>`).join('')}
+        </select></div>`;
+        html += `<div><label class="iso-label">Contact Name</label><input class="iso-input" id="sup-edit-contact" value="${escHtml(s.contact_name)}"></div>`;
+        html += '</div>';
+        html += '<div class="iso-form-grid cols-3">';
+        html += `<div><label class="iso-label">Contact Email</label><input class="iso-input" id="sup-edit-email" value="${escHtml(s.contact_email)}"></div>`;
+        html += `<div><label class="iso-label">Contact Phone</label><input class="iso-input" id="sup-edit-phone" value="${escHtml(s.contact_phone)}"></div>`;
+        html += `<div><label class="iso-label">Next Evaluation</label><input class="iso-input" type="date" id="sup-edit-nexteval" value="${s.next_evaluation_date || ''}"></div>`;
+        html += '</div>';
+        html += `<div style="margin-bottom:12px"><label class="iso-label">Products/Services</label><textarea class="iso-textarea" id="sup-edit-products" rows="2">${escHtml(s.products_services)}</textarea></div>`;
+        html += `<div style="margin-bottom:12px"><label class="iso-label">Notes</label><textarea class="iso-textarea" id="sup-edit-notes" rows="2">${escHtml(s.notes)}</textarea></div>`;
+        html += `<button class="iso-btn primary" onclick="updateSupplierFields('${s.id}')">Save Changes</button>`;
+        html += '</div>';
+
+        el.innerHTML = html;
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+async function advanceSupplierStatus(id, newStatus) {
+    try {
+        const body = { status: newStatus, status_note: document.getElementById(`sup-tn-${newStatus}`)?.value || '' };
+        if (newStatus === 'disqualified') {
+            const reason = document.getElementById('sup-dq-reason')?.value;
+            if (!reason) return toast('Disqualification reason is required', true);
+            body.disqualification_reason = reason;
+        }
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body });
+        toast(`Supplier status updated to ${newStatus}`);
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function saveEvaluation(id) {
+    const scores = {};
+    let hasScore = false;
+    ['quality', 'delivery', 'price', 'communication'].forEach(dim => {
+        const val = document.getElementById(`eval-${dim}`).value;
+        if (val) { scores[dim] = parseInt(val); hasScore = true; }
+    });
+    if (!hasScore) return toast('Set at least one score', true);
+    try {
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: {
+            evaluation_scores: scores,
+            last_evaluation_date: new Date().toISOString().split('T')[0],
+        }});
+        toast('Evaluation saved');
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function addCertification(id) {
+    const cert = document.getElementById('new-cert').value.trim();
+    if (!cert) return toast('Enter certification name', true);
+    try {
+        const s = await apiFetch(`/suppliers/${id}/`);
+        const meta = s.metadata || {};
+        const certs = meta.certifications || [];
+        certs.push(cert);
+        meta.certifications = certs;
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: { metadata: meta } });
+        toast('Certification added');
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function removeCertification(id, idx) {
+    try {
+        const s = await apiFetch(`/suppliers/${id}/`);
+        const meta = s.metadata || {};
+        const certs = meta.certifications || [];
+        certs.splice(idx, 1);
+        meta.certifications = certs;
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: { metadata: meta } });
+        toast('Certification removed');
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function updateSupplierFields(id) {
+    try {
+        await apiFetch(`/suppliers/${id}/`, { method: 'PUT', body: {
+            name: document.getElementById('sup-edit-name').value,
+            supplier_type: document.getElementById('sup-edit-type').value,
+            contact_name: document.getElementById('sup-edit-contact').value,
+            contact_email: document.getElementById('sup-edit-email').value,
+            contact_phone: document.getElementById('sup-edit-phone').value,
+            products_services: document.getElementById('sup-edit-products').value,
+            notes: document.getElementById('sup-edit-notes').value,
+            next_evaluation_date: document.getElementById('sup-edit-nexteval').value || null,
+        }});
+        toast('Supplier updated');
+        loadSupplierDetail(id);
+    } catch (e) { toast(e.message, true); }
+}
+
+async function deleteSupplier(id) {
+    if (!confirm('Delete this supplier?')) return;
+    try {
+        await apiFetch(`/suppliers/${id}/`, { method: 'DELETE' });
+        toast('Supplier deleted');
+        loadSuppliers();
+    } catch (e) { toast(e.message, true); }
+}
+
+</script>
+{% endblock %}

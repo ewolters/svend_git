@@ -4,6 +4,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from core.encryption import EncryptedJSONField, EncryptedTextField
+
 
 class ModelVersion(models.Model):
     """Track deployed model checkpoints for hot-swapping.
@@ -187,7 +189,7 @@ class Message(models.Model):
         related_name="messages",
     )
     role = models.CharField(max_length=10, choices=Role.choices)
-    content = models.TextField()
+    content = EncryptedTextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     # Pipeline metadata (for assistant messages)
@@ -198,9 +200,9 @@ class Message(models.Model):
     blocked = models.BooleanField(default=False)
     block_reason = models.CharField(max_length=255, blank=True)
 
-    # Reasoning trace (JSON)
-    reasoning_trace = models.JSONField(null=True, blank=True)
-    tool_calls = models.JSONField(null=True, blank=True)
+    # Reasoning trace (encrypted JSON)
+    reasoning_trace = EncryptedJSONField(null=True, blank=True)
+    tool_calls = EncryptedJSONField(null=True, blank=True)
 
     # Timing
     inference_time_ms = models.IntegerField(null=True, blank=True)
@@ -208,6 +210,9 @@ class Message(models.Model):
     class Meta:
         db_table = "messages"
         ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["conversation", "created_at"]),
+        ]
 
     def __str__(self):
         return f"{self.role}: {self.content[:50]}..."
@@ -249,8 +254,8 @@ class TraceLog(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # Input
-    input_text = models.TextField()
+    # Input (encrypted at rest)
+    input_text = EncryptedTextField()
     user_id = models.UUIDField(null=True, blank=True)
 
     # Safety Router
@@ -262,19 +267,19 @@ class TraceLog(models.Model):
     difficulty = models.FloatField(null=True, blank=True)
     conditioning_norm = models.FloatField(null=True, blank=True)  # Sanity check
 
-    # Reasoner
-    reasoning_trace = models.JSONField(null=True, blank=True)
-    tool_calls = models.JSONField(null=True, blank=True)
-    reasoner_raw_output = models.TextField(blank=True)  # Raw model output
+    # Reasoner (encrypted at rest)
+    reasoning_trace = EncryptedJSONField(null=True, blank=True)
+    tool_calls = EncryptedJSONField(null=True, blank=True)
+    reasoner_raw_output = EncryptedTextField(blank=True)
 
     # Verifier
     verified = models.BooleanField(null=True)
     verification_confidence = models.FloatField(null=True, blank=True)
 
-    # Language Model
-    lm_prompt = models.TextField(blank=True)  # What we sent to LM
-    lm_raw_output = models.TextField(blank=True)  # Raw LM output before cleanup
-    response = models.TextField(blank=True)  # Final cleaned response
+    # Language Model (encrypted at rest)
+    lm_prompt = EncryptedTextField(blank=True)
+    lm_raw_output = EncryptedTextField(blank=True)
+    response = EncryptedTextField(blank=True)
 
     # Gate decisions
     gate_passed = models.BooleanField(default=True)
@@ -343,15 +348,15 @@ class TrainingCandidate(models.Model):
         default=Status.PENDING,
     )
 
-    # The actual data (duplicated for persistence if trace_log deleted)
-    input_text = models.TextField()
+    # The actual data (encrypted at rest, duplicated for persistence if trace_log deleted)
+    input_text = EncryptedTextField()
     domain = models.CharField(max_length=50, blank=True)
     difficulty = models.FloatField(null=True, blank=True)
-    reasoning_trace = models.JSONField(null=True, blank=True)
-    model_response = models.TextField(blank=True)
+    reasoning_trace = EncryptedJSONField(null=True, blank=True)
+    model_response = EncryptedTextField(blank=True)
 
-    # Correction (filled in during review)
-    corrected_response = models.TextField(blank=True)
+    # Correction (filled in during review, encrypted at rest)
+    corrected_response = EncryptedTextField(blank=True)
     reviewer_notes = models.TextField(blank=True)
 
     # Metadata for filtering

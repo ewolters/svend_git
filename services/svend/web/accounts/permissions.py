@@ -36,10 +36,10 @@ def rate_limited(view_func):
 
     Tier limits (from constants.py):
     - FREE: 5 queries/day
-    - FOUNDER: 50 queries/day ($19/month, first 100 users)
-    - PRO: 50 queries/day ($29/month)
-    - TEAM: 200 queries/day ($79/month)
-    - ENTERPRISE: 1000 queries/day ($199/month)
+    - FOUNDER: 50 queries/day ($19/month, legacy — no longer sold)
+    - PRO: 50 queries/day ($49/month)
+    - TEAM: 200 queries/day ($99/month)
+    - ENTERPRISE: 1000 queries/day ($299/month)
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
@@ -167,7 +167,7 @@ def require_ml(view_func):
                 "error": "ML features require a paid subscription",
                 "tier": request.user.tier,
                 "upgrade_url": "/billing/checkout/",
-                "message": "Upgrade to PRO ($29/mo) to access ML model training.",
+                "message": "Upgrade to Professional ($49/mo) to access ML model training.",
             }, status=403)
 
         return view_func(request, *args, **kwargs)
@@ -185,6 +185,79 @@ def gated_paid(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
+
+        user = request.user
+
+        if not has_feature(user.tier, "full_tools"):
+            return JsonResponse({
+                "error": "Upgrade required",
+                "feature": "full_tools",
+                "tier": user.tier,
+                "upgrade_url": "/billing/checkout/",
+                "message": "This tool requires a paid subscription. Upgrade to unlock all analysis tools.",
+            }, status=403)
+
+        if not user.can_query():
+            return JsonResponse({
+                "error": "Daily query limit reached",
+                "limit": user.daily_limit,
+                "used": user.queries_today,
+                "tier": user.tier,
+                "upgrade_url": "/billing/checkout/",
+            }, status=429)
+
+        response = view_func(request, *args, **kwargs)
+
+        if response.status_code < 400:
+            user.increment_queries()
+
+        return response
+    return wrapper
+
+
+def allow_guest(view_func):
+    """Auth for guest-accessible whiteboard endpoints.
+
+    Check order:
+    1. X-Guest-Token header -> validate guest invite
+    2. Fall back to normal gated_paid auth
+
+    On guest success: request.guest_invite = invite, request.is_guest = True
+    On normal success: request.guest_invite = None, request.is_guest = False
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        guest_token = request.headers.get("X-Guest-Token", "").strip()
+
+        if guest_token:
+            from agents_api.models import BoardGuestInvite
+            from django.utils import timezone
+            try:
+                invite = BoardGuestInvite.objects.select_related("board").get(
+                    token=guest_token,
+                )
+            except BoardGuestInvite.DoesNotExist:
+                return JsonResponse({"error": "Invalid guest token"}, status=401)
+
+            if not invite.is_active:
+                return JsonResponse({"error": "This invite has been revoked"}, status=403)
+
+            if invite.is_expired:
+                return JsonResponse({"error": "This invite has expired"}, status=403)
+
+            request.guest_invite = invite
+            request.is_guest = True
+
+            BoardGuestInvite.objects.filter(id=invite.id).update(last_seen=timezone.now())
+
+            return view_func(request, *args, **kwargs)
+
+        # Normal user path — same as gated_paid
+        request.guest_invite = None
+        request.is_guest = False
+
         if not request.user.is_authenticated:
             return JsonResponse({"error": "Authentication required"}, status=401)
 

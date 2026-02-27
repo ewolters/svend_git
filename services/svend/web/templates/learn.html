@@ -3149,7 +3149,7 @@ function renderBiasDetector(config) {
             <p style="color: var(--text-secondary); margin-bottom: 1rem;">Use this checklist to evaluate any study design for potential biases.</p>
             ${biases.map(b => `
                 <div style="display:flex; align-items:flex-start; gap:0.75rem; padding:0.75rem 0; border-bottom:1px solid var(--border);">
-                    <input type="checkbox" id="bias-${b.id}" style="margin-top:3px; width:auto;">
+                    <input type="checkbox" id="bias-${b.id}" style="margin-top:3px;">
                     <div>
                         <strong style="color:var(--text-primary);">${b.label}</strong>
                         <div style="color:var(--text-secondary); font-size:0.9rem;">${b.q}</div>
@@ -3243,7 +3243,7 @@ function renderEDAExplorer(config) {
                    'Look for subgroup patterns', 'Document all observations BEFORE testing',
                    'Flag hypotheses generated (not confirmed!) by EDA'].map((s, i) => `
                     <div style="display:flex; align-items:center; gap:0.75rem; padding:0.5rem 0;">
-                        <input type="checkbox" id="eda-${i}" style="width:auto;" onchange="updateEDAProgress()">
+                        <input type="checkbox" id="eda-${i}" onchange="updateEDAProgress()">
                         <label for="eda-${i}" style="color:var(--text-secondary); min-width:0;">${s}</label>
                     </div>
                 `).join('')}
@@ -3308,7 +3308,7 @@ function renderPaperEvaluator(config) {
                 'Check if conclusions match evidence strength',
             ].map((s, i) => `
                 <div style="display:flex; align-items:center; gap:0.75rem; padding:0.5rem 0; border-bottom:1px solid var(--border);">
-                    <input type="checkbox" style="width:auto;">
+                    <input type="checkbox">
                     <span style="color:var(--text-secondary);">${s}</span>
                 </div>
             `).join('')}
@@ -3433,7 +3433,7 @@ function renderCapstoneWorkspace(config) {
                 'Code/analysis files included',
             ].map((s, i) => `
                 <div style="display:flex; align-items:center; gap:0.75rem; padding:0.5rem 0; border-bottom:1px solid var(--border);">
-                    <input type="checkbox" id="cap-check-${i}" style="width:auto;">
+                    <input type="checkbox" id="cap-check-${i}">
                     <label for="cap-check-${i}" style="color:var(--text-secondary);">${s}</label>
                 </div>
             `).join('')}

@@ -1,0 +1,329 @@
+{% extends "tool_base.html" %}
+
+{% block title %}OEE Calculator — Free Overall Equipment Effectiveness Calculator{% endblock %}
+{% block meta_description %}Free OEE calculator. Enter production data to calculate Availability, Performance, Quality, and OEE%. Compare to world-class benchmarks. No signup required.{% endblock %}
+{% block meta_keywords %}OEE calculator, overall equipment effectiveness, availability, performance, quality, manufacturing efficiency, TPM, Six Sigma, lean manufacturing{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/oee-calculator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/oee-calculator/">
+<meta property="og:title" content="Free OEE Calculator — Overall Equipment Effectiveness">
+<meta property="og:description" content="Calculate OEE from your production data. Availability, Performance, Quality breakdown with world-class benchmarks.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "OEE Calculator",
+    "url": "https://svend.ai/tools/oee-calculator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free OEE (Overall Equipment Effectiveness) calculator. Calculate Availability, Performance, and Quality metrics from production data.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is OEE?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "OEE (Overall Equipment Effectiveness) is a manufacturing metric that combines three factors: Availability (uptime), Performance (speed), and Quality (yield). OEE = Availability x Performance x Quality. A perfect score is 100%. World-class OEE is typically 85%."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is a good OEE score?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "World-class OEE is 85% (90% Availability x 95% Performance x 99.9% Quality). Average manufacturing OEE is around 60%. An OEE below 40% is considered poor and indicates significant improvement opportunities."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I improve OEE?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Focus on the lowest of the three factors first. Low Availability: reduce changeovers, breakdowns, setup time. Low Performance: address speed losses, minor stops, idling. Low Quality: reduce scrap, rework, startup rejects. Track the Six Big Losses to find root causes."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What are the Six Big Losses?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The Six Big Losses in TPM are: (1) Equipment failure/breakdowns, (2) Setup/changeover, (3) Idling/minor stops, (4) Reduced speed, (5) Process defects, (6) Startup/yield losses. OEE measures the net effect of all six."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "OEE Calculator", "item": "https://svend.ai/tools/oee-calculator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.oee-gauges {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 1rem;
+}
+.oee-gauge {
+    text-align: center; padding: 1.5rem 1rem;
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
+}
+.oee-gauge .ring-wrap {
+    position: relative; width: 120px; height: 120px; margin: 0 auto 0.75rem;
+}
+.oee-gauge svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+.oee-gauge .ring-bg { fill: none; stroke: var(--border); stroke-width: 8; }
+.oee-gauge .ring-fg { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+.oee-gauge .ring-label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 1.5rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+}
+.oee-gauge .gauge-title {
+    font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;
+}
+.oee-gauge .gauge-sub {
+    font-size: 0.75rem; color: var(--text-dim);
+}
+.oee-gauge.main { border-color: var(--accent-primary-border); }
+.loss-breakdown { margin-top: 1rem; }
+.loss-row {
+    display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border); font-size: 0.85rem;
+}
+.loss-row:last-child { border-bottom: none; }
+.loss-label { flex: 1; color: var(--text-secondary); }
+.loss-bar-wrap { flex: 2; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+.loss-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.loss-value { width: 60px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+@media (max-width: 768px) {
+    .oee-gauges { grid-template-columns: 1fr 1fr; }
+}
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>OEE</strong> Calculator</h1>
+    <p>Calculate Overall Equipment Effectiveness from your production data. See Availability, Performance, and Quality breakdown with world-class benchmarks.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Production Data</h2>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Planned Production Time (minutes)</label>
+            <input type="number" id="planned-time" value="480" min="1" step="1">
+        </div>
+        <div class="form-group">
+            <label>Unplanned Downtime (minutes)</label>
+            <input type="number" id="downtime" value="52" min="0" step="1">
+        </div>
+        <div class="form-group">
+            <label>Ideal Cycle Time (seconds per part)</label>
+            <input type="number" id="cycle-time" value="6.0" min="0.01" step="0.1">
+        </div>
+        <div class="form-group">
+            <label>Total Parts Produced</label>
+            <input type="number" id="total-count" value="3800" min="0" step="1">
+        </div>
+        <div class="form-group">
+            <label>Good Parts (first pass)</label>
+            <input type="number" id="good-count" value="3650" min="0" step="1">
+        </div>
+        <div class="form-group">
+            <label>Planned Downtime / Breaks (minutes)</label>
+            <input type="number" id="breaks" value="0" min="0" step="1">
+        </div>
+    </div>
+    <button class="btn-calculate" onclick="calculate()" style="margin-top:1rem;">Calculate OEE</button>
+</div>
+
+<div id="results" style="display:none;">
+    <div class="tool-card">
+        <h2>OEE Results</h2>
+        <div class="oee-gauges" id="gauges"></div>
+        <div id="interpretation" class="interpretation" style="display:none;"></div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Six Big Losses</h2>
+        <div class="loss-breakdown" id="losses"></div>
+    </div>
+
+    <div class="tool-card">
+        <h2>World-Class Benchmark</h2>
+        <table class="ref-table" id="benchmark-table"></table>
+    </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is OEE (Overall Equipment Effectiveness)?</h2>
+    <p><strong>OEE</strong> is the gold-standard metric for measuring manufacturing productivity. Developed as part of <strong>Total Productive Maintenance (TPM)</strong>, it combines three independent factors — Availability, Performance, and Quality — into a single percentage that reveals how much of your planned production time is truly productive.</p>
+
+    <h3>The Three OEE Factors</h3>
+    <p><strong>Availability</strong> measures uptime: what fraction of planned time the equipment was actually running, excluding unplanned stops like breakdowns and changeovers. <strong>Performance</strong> measures speed: whether the equipment ran at its ideal cycle time or experienced slow cycles and minor stops. <strong>Quality</strong> measures yield: the proportion of parts that were good on first pass, excluding scrap and rework.</p>
+    <p>OEE = Availability &times; Performance &times; Quality. Each factor is a percentage, so even small losses in each compound into a large overall loss. For example, 90% &times; 90% &times; 90% = 72.9% OEE.</p>
+
+    <h3>World-Class Benchmarks</h3>
+    <p>The widely cited world-class benchmark is <strong>85% OEE</strong> (90% Availability &times; 95% Performance &times; 99.9% Quality). Most discrete manufacturers operate between 55-65%. An OEE below 40% indicates major losses that represent immediate improvement opportunities — often achievable through basic TPM practices like autonomous maintenance and focused improvement (kobetsu kaizen).</p>
+
+    <h3>The Six Big Losses</h3>
+    <p>OEE losses map directly to the <strong>Six Big Losses</strong> framework in TPM: equipment failure and breakdowns (Availability), setup and adjustment (Availability), idling and minor stops (Performance), reduced speed (Performance), process defects (Quality), and reduced yield at startup (Quality). Categorizing losses this way helps teams prioritize which problems to tackle first using tools like <a href="/app/rca/" style="color:var(--accent-primary);">root cause analysis</a> and <a href="/app/a3/" style="color:var(--accent-primary);">A3 problem-solving</a>.</p>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is OEE?</div>
+        <div class="faq-a">OEE (Overall Equipment Effectiveness) measures how effectively manufacturing equipment is used. It combines three factors: <strong>Availability</strong> (was the machine running?), <strong>Performance</strong> (was it running at full speed?), and <strong>Quality</strong> (were the parts good?). OEE = A &times; P &times; Q.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is a good OEE score?</div>
+        <div class="faq-a">World-class OEE is 85% (90% Availability &times; 95% Performance &times; 99.9% Quality). Most manufacturers operate around 60%. Below 40% is considered poor and indicates major opportunities for improvement through TPM or Lean initiatives.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do I improve OEE?</div>
+        <div class="faq-a">Focus on the lowest of the three factors first. Low <strong>Availability</strong>: reduce changeovers, breakdowns, setup time. Low <strong>Performance</strong>: address speed losses, minor stops, idling. Low <strong>Quality</strong>: reduce scrap, rework, startup rejects. Track the Six Big Losses to find root causes.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What are the Six Big Losses?</div>
+        <div class="faq-a">The Six Big Losses in TPM are: (1) Equipment failure/breakdowns, (2) Setup/changeover, (3) Idling/minor stops, (4) Reduced speed, (5) Process defects, (6) Startup/yield losses. OEE measures the net effect of all six.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function makeGauge(id, title, pct, subtitle, color, isMain) {
+    const r = 50, c = 2 * Math.PI * r;
+    const offset = c * (1 - Math.min(pct, 100) / 100);
+    const cls = pct >= 90 ? 'var(--success)' : pct >= 70 ? 'var(--warning)' : 'var(--danger)';
+    const strokeColor = color || cls;
+    return `<div class="oee-gauge${isMain ? ' main' : ''}">
+        <div class="ring-wrap">
+            <svg viewBox="0 0 120 120">
+                <circle class="ring-bg" cx="60" cy="60" r="${r}"/>
+                <circle class="ring-fg" cx="60" cy="60" r="${r}"
+                    stroke="${strokeColor}" stroke-dasharray="${c}" stroke-dashoffset="${offset}"/>
+            </svg>
+            <div class="ring-label" style="color:${strokeColor}">${pct.toFixed(1)}%</div>
+        </div>
+        <div class="gauge-title">${title}</div>
+        <div class="gauge-sub">${subtitle}</div>
+    </div>`;
+}
+
+function calculate() {
+    const planned = parseFloat(document.getElementById('planned-time').value);
+    const downtime = parseFloat(document.getElementById('downtime').value);
+    const cycleTime = parseFloat(document.getElementById('cycle-time').value);
+    const totalCount = parseFloat(document.getElementById('total-count').value);
+    const goodCount = parseFloat(document.getElementById('good-count').value);
+    const breaks = parseFloat(document.getElementById('breaks').value) || 0;
+
+    const netPlanned = planned - breaks;
+    if (netPlanned <= 0) { alert('Planned time must be greater than breaks.'); return; }
+
+    const runTime = netPlanned - downtime;
+    const availability = (runTime / netPlanned) * 100;
+    const performance = (totalCount * cycleTime / 60) / runTime * 100;
+    const quality = totalCount > 0 ? (goodCount / totalCount) * 100 : 0;
+    const oee = (availability / 100) * (performance / 100) * (quality / 100) * 100;
+
+    document.getElementById('results').style.display = '';
+
+    const oeeColor = oee >= 85 ? 'var(--success)' : oee >= 60 ? 'var(--warning)' : 'var(--danger)';
+    document.getElementById('gauges').innerHTML =
+        makeGauge('oee', 'OEE', oee, 'Overall', oeeColor, true) +
+        makeGauge('avail', 'Availability', Math.min(availability, 100), 'Uptime', null, false) +
+        makeGauge('perf', 'Performance', Math.min(performance, 100), 'Speed', null, false) +
+        makeGauge('qual', 'Quality', Math.min(quality, 100), 'Yield', null, false);
+
+    // Interpretation
+    const interp = document.getElementById('interpretation');
+    interp.style.display = '';
+    let msg = `<strong>OEE = ${oee.toFixed(1)}%</strong> `;
+    if (oee >= 85) msg += '— World-class performance. Your equipment is highly effective.';
+    else if (oee >= 60) msg += '— Typical manufacturing performance. Room for improvement.';
+    else if (oee >= 40) msg += '— Below average. Focus on the weakest factor to make gains.';
+    else msg += '— Significant losses present. Investigate root causes immediately.';
+
+    const weakest = Math.min(availability, performance, quality);
+    if (weakest === availability && availability < 90) msg += ` <strong>Availability (${availability.toFixed(1)}%)</strong> is your biggest opportunity — ${downtime} minutes of unplanned downtime.`;
+    else if (weakest === performance && performance < 95) msg += ` <strong>Performance (${performance.toFixed(1)}%)</strong> is the limiting factor — equipment is running below ideal speed.`;
+    else if (weakest === quality && quality < 99) msg += ` <strong>Quality (${quality.toFixed(1)}%)</strong> needs attention — ${totalCount - goodCount} defective parts.`;
+    interp.innerHTML = msg;
+
+    // Loss breakdown
+    const downtimeLoss = (downtime / netPlanned) * 100;
+    const speedLoss = Math.max(0, 100 - performance) * (runTime / netPlanned);
+    const qualityLoss = Math.max(0, 100 - quality) * (runTime / netPlanned) * (Math.min(performance, 100) / 100);
+    const maxLoss = Math.max(downtimeLoss, speedLoss, qualityLoss, 1);
+
+    function lossRow(label, pct, color) {
+        return `<div class="loss-row">
+            <div class="loss-label">${label}</div>
+            <div class="loss-bar-wrap"><div class="loss-bar" style="width:${(pct/maxLoss*100).toFixed(1)}%;background:${color}"></div></div>
+            <div class="loss-value" style="color:${color}">${pct.toFixed(1)}%</div>
+        </div>`;
+    }
+    document.getElementById('losses').innerHTML =
+        lossRow('Downtime Loss', downtimeLoss, 'var(--danger)') +
+        lossRow('Speed Loss', speedLoss, 'var(--warning)') +
+        lossRow('Quality Loss', qualityLoss, '#3a7f8f');
+
+    // Benchmark table
+    document.getElementById('benchmark-table').innerHTML = `
+        <thead><tr><th>Metric</th><th>Your Value</th><th>World-Class</th><th>Gap</th></tr></thead>
+        <tbody>
+            <tr class="${availability >= 90 ? 'highlight' : ''}">
+                <td>Availability</td><td>${availability.toFixed(1)}%</td><td>90.0%</td>
+                <td style="color:${availability >= 90 ? 'var(--success)' : 'var(--danger)'}">${availability >= 90 ? '+' : ''}${(availability - 90).toFixed(1)}%</td>
+            </tr>
+            <tr class="${performance >= 95 ? 'highlight' : ''}">
+                <td>Performance</td><td>${Math.min(performance, 100).toFixed(1)}%</td><td>95.0%</td>
+                <td style="color:${performance >= 95 ? 'var(--success)' : 'var(--danger)'}">${performance >= 95 ? '+' : ''}${(Math.min(performance, 100) - 95).toFixed(1)}%</td>
+            </tr>
+            <tr class="${quality >= 99.9 ? 'highlight' : ''}">
+                <td>Quality</td><td>${quality.toFixed(1)}%</td><td>99.9%</td>
+                <td style="color:${quality >= 99.9 ? 'var(--success)' : 'var(--danger)'}">${quality >= 99.9 ? '+' : ''}${(quality - 99.9).toFixed(1)}%</td>
+            </tr>
+            <tr class="${oee >= 85 ? 'highlight' : ''}" style="font-weight:700;">
+                <td>OEE</td><td>${oee.toFixed(1)}%</td><td>85.0%</td>
+                <td style="color:${oee >= 85 ? 'var(--success)' : 'var(--danger)'}">${oee >= 85 ? '+' : ''}${(oee - 85).toFixed(1)}%</td>
+            </tr>
+        </tbody>
+    `;
+}
+
+document.addEventListener('DOMContentLoaded', calculate);
+</script>
+{% endblock %}

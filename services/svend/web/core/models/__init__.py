@@ -9,7 +9,7 @@ This module contains the foundational models:
 
 from .tenant import Tenant, Membership, OrgInvitation
 from .graph import KnowledgeGraph, Entity, Relationship
-from .project import Project, Dataset, ExperimentDesign
+from .project import Project, Dataset, ExperimentDesign, StudyAction
 from .hypothesis import Hypothesis, Evidence, EvidenceLink
 
 __all__ = [
@@ -25,6 +25,7 @@ __all__ = [
     "Project",
     "Dataset",
     "ExperimentDesign",
+    "StudyAction",
     # Hypothesis & Evidence
     "Hypothesis",
     "Evidence",

@@ -8,14 +8,12 @@ import json
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
 from .models import ActionItem
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_action_item(request, action_id):
@@ -44,7 +42,6 @@ def update_action_item(request, action_id):
     return JsonResponse({"success": True, "action_item": item.to_dict()})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_action_item(request, action_id):

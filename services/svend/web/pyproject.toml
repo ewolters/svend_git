@@ -19,6 +19,7 @@ dependencies = [
     "torch>=2.0",
     "tiktoken>=0.5",
     "tempora-scheduler",  # Distributed task scheduling (github.com/ewolters/tempora)
+    "cryptography>=41.0",
 ]
 
 [project.optional-dependencies]

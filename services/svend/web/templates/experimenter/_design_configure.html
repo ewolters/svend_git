@@ -1,0 +1,140 @@
+            <div class="configure-layout">
+                <!-- Left: Configuration Form -->
+                <div class="panel">
+                    <h3>Create Experimental Design</h3>
+
+                    <!-- Design Type Selection -->
+                    <div class="form-group">
+                        <label>Design Type</label>
+                        <div class="design-categories">
+                            <button class="cat-btn active" onclick="filterDesigns('all')">All</button>
+                            <button class="cat-btn" onclick="filterDesigns('factorial')">Factorial</button>
+                            <button class="cat-btn" onclick="filterDesigns('screening')">Screening</button>
+                            <button class="cat-btn" onclick="filterDesigns('rsm')">RSM</button>
+                            <button class="cat-btn" onclick="filterDesigns('robust')">Robust</button>
+                        </div>
+                        <div class="design-type-grid" id="design-type-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                        <p id="design-guidance" class="design-guidance"></p>
+                    </div>
+
+                    <!-- Factors -->
+                    <div class="form-group">
+                        <label>Factors
+                            <span class="factor-template-trigger" onclick="toggleTemplatePanel()">Use template &#x25BE;</span>
+                        </label>
+                        <div id="factor-templates" class="factor-templates" style="display:none;"></div>
+                        <div id="factors-container">
+                            <!-- Dynamic factor rows -->
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="addFactor()">+ Add Factor</button>
+                    </div>
+
+                    <!-- Options -->
+                    <div class="form-group">
+                        <label>Options</label>
+                        <div class="options-grid">
+                            <div class="form-group-inline">
+                                <label>Replicates</label>
+                                <input type="number" id="replicates" value="1" min="1" max="10" oninput="updateRunEstimate()">
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Center Points</label>
+                                <input type="number" id="center-points" value="0" min="0" max="10" oninput="updateRunEstimate()">
+                            </div>
+                            <div class="form-group-inline" id="resolution-group">
+                                <label>Resolution</label>
+                                <div class="resolution-picker" id="resolution-picker">
+                                    <button type="button" class="res-btn" data-value="3" onclick="setResolution(3)">
+                                        <span class="res-level">III</span>
+                                        <span class="res-desc">Screening</span>
+                                    </button>
+                                    <button type="button" class="res-btn active" data-value="4" onclick="setResolution(4)">
+                                        <span class="res-level">IV</span>
+                                        <span class="res-desc">Standard</span>
+                                    </button>
+                                    <button type="button" class="res-btn" data-value="5" onclick="setResolution(5)">
+                                        <span class="res-level">V</span>
+                                        <span class="res-desc">Full 2FI</span>
+                                    </button>
+                                </div>
+                                <input type="hidden" id="resolution" value="4">
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Random Seed</label>
+                                <input type="number" id="seed" placeholder="Optional">
+                            </div>
+                        </div>
+                        <!-- D-Optimal / I-Optimal conditional fields -->
+                        <div id="optimal-design-options" class="options-grid" style="display:none; margin-top:0.75rem;">
+                            <div class="form-group-inline">
+                                <label>Number of Runs</label>
+                                <input type="number" id="optimal-num-runs" min="3" placeholder="Auto" oninput="updateRunEstimate()">
+                            </div>
+                            <div class="form-group-inline">
+                                <label>Model</label>
+                                <select id="optimal-model" onchange="updateRunEstimate()">
+                                    <option value="linear">Linear</option>
+                                    <option value="interaction">+ Interactions</option>
+                                    <option value="quadratic">Quadratic</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Taguchi array selector -->
+                        <div id="taguchi-options" class="options-grid" style="display:none; margin-top:0.75rem;">
+                            <div class="form-group-inline">
+                                <label>Orthogonal Array</label>
+                                <select id="taguchi-array" onchange="updateRunEstimate()">
+                                    <option value="auto" selected>Auto (best fit)</option>
+                                    <option value="L4">L4 (4 runs, 2-level)</option>
+                                    <option value="L8">L8 (8 runs, 2-level)</option>
+                                    <option value="L9">L9 (9 runs, 3-level)</option>
+                                    <option value="L12">L12 (12 runs, 2-level)</option>
+                                    <option value="L16">L16 (16 runs, 2-level)</option>
+                                    <option value="L18">L18 (18 runs, mixed)</option>
+                                    <option value="L27">L27 (27 runs, 3-level)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="factor-validation" class="factor-validation"></div>
+
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <button class="btn btn-primary" onclick="generateDesign()">Generate Design</button>
+                        <span id="run-estimate" style="font-size:0.85rem;color:var(--text-dim);font-weight:500;"></span>
+                    </div>
+                </div>
+
+                <!-- Right: Live Preview -->
+                <div class="panel live-preview-panel">
+                    <h3>Design Preview</h3>
+                    <div class="preview-stats" id="preview-stats">
+                        <div class="preview-stat">
+                            <span class="preview-stat-value" id="preview-runs">--</span>
+                            <span class="preview-stat-label">Total Runs</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="preview-stat-value" id="preview-factors">0</span>
+                            <span class="preview-stat-label">Factors</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="preview-stat-value" id="preview-df">--</span>
+                            <span class="preview-stat-label">Error DF</span>
+                        </div>
+                    </div>
+                    <div id="preview-plot" class="preview-plot-area">
+                        <div class="empty-state" style="padding:2rem;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon" style="width:40px;height:40px;">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <circle cx="15.5" cy="8.5" r="1.5"/>
+                                <circle cx="8.5" cy="15.5" r="1.5"/>
+                                <circle cx="15.5" cy="15.5" r="1.5"/>
+                            </svg>
+                            <p style="font-size:0.85rem;">Add factors to preview design points</p>
+                        </div>
+                    </div>
+                </div>
+            </div>

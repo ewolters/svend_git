@@ -24,4 +24,12 @@ urlpatterns = [
 
     # SVG Export for A3 embedding
     path("boards/<str:room_code>/svg/", whiteboard_views.export_svg, name="whiteboard_svg"),
+
+    # Guest invite management (owner endpoints)
+    path("boards/<str:room_code>/guests/", whiteboard_views.list_guest_invites, name="whiteboard_guest_list"),
+    path("boards/<str:room_code>/guests/create/", whiteboard_views.create_guest_invite, name="whiteboard_guest_create"),
+    path("boards/<str:room_code>/guests/<uuid:invite_id>/revoke/", whiteboard_views.revoke_guest_invite, name="whiteboard_guest_revoke"),
+
+    # Guest self-service
+    path("boards/<str:room_code>/guest-name/", whiteboard_views.set_guest_name, name="whiteboard_guest_name"),
 ]

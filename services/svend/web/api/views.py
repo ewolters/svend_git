@@ -2,9 +2,9 @@
 
 import logging
 import random
-from django.views.decorators.csrf import csrf_exempt
+import re
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, throttle_classes
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
@@ -25,6 +25,12 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class RegistrationThrottle(AnonRateThrottle):
+    """Limit registration attempts to 5/hour per IP."""
+    rate = "5/hour"
+
 
 # Model mappings for enterprise users
 ENTERPRISE_MODELS = {
@@ -679,6 +685,7 @@ class LoginRateThrottle(AnonRateThrottle):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 @throttle_classes([LoginRateThrottle])
 def login(request):
@@ -766,6 +773,9 @@ def me(request):
         "experience_level": user.experience_level,
         "organization_size": user.organization_size,
         "is_staff": user.is_staff,
+        "is_internal": user.is_staff or user.memberships.filter(
+            tenant__slug__in={"svend"}, role__in=("owner", "admin"), is_active=True,
+        ).exists(),
         "queries_today": user.queries_today,
         "daily_limit": user.daily_limit,
         "total_queries": user.total_queries,
@@ -826,28 +836,20 @@ def update_profile(request):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([AllowAny])
+@throttle_classes([RegistrationThrottle])
 def register(request):
-    """Register a new user.
-
-    Requires invite code when SVEND_REQUIRE_INVITE=true (default for alpha).
-    """
+    """Register a new user."""
     from django.contrib.auth import get_user_model
-    from accounts.models import InviteCode
-    from svend_config.config import get_settings
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
 
-    settings = get_settings()
     User = get_user_model()
 
     username = request.data.get("username", "").strip()
     email = request.data.get("email", "").strip()
     password = request.data.get("password", "")
-    invite_code = request.data.get("invite_code", "").strip().upper()
-    plan = request.data.get("plan", "").strip().lower()  # founder, pro, team, enterprise
-
-    # Paid plans bypass invite requirement (they're paying customers)
-    paid_plans = ["founder", "pro", "team", "enterprise"]
-    is_paid_signup = plan in paid_plans
 
     # Validation
     if not username or len(username) < 3:
@@ -859,6 +861,15 @@ def register(request):
     if not password or len(password) < 8:
         return Response(
             {"error": "Password must be at least 8 characters"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Apply Django's password validators (complexity, common passwords, etc.)
+    try:
+        validate_password(password)
+    except DjangoValidationError as e:
+        return Response(
+            {"error": e.messages[0]},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -874,28 +885,6 @@ def register(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Check invite code if required (paid plans bypass this)
-    invite = None
-    if settings.require_invite and not is_paid_signup:
-        if not invite_code:
-            return Response(
-                {"error": "Invite code required for alpha access"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            invite = InviteCode.objects.get(code=invite_code)
-            if not invite.is_valid:
-                return Response(
-                    {"error": "Invite code is expired or fully used"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        except InviteCode.DoesNotExist:
-            return Response(
-                {"error": "Invalid invite code"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
     # Create user
     user = User.objects.create_user(
         username=username,
@@ -903,10 +892,6 @@ def register(request):
         password=password,
         tier=User.Tier.FREE,  # New users start on free tier
     )
-
-    # Mark invite as used
-    if invite:
-        invite.use(user)
 
     # Send verification email
     verification_sent = False
@@ -918,7 +903,11 @@ def register(request):
         except Exception as e:
             logger.error(f"Failed to send verification email: {e}")
 
-    logger.info(f"New user registered: {username} (invite: {invite_code or 'none'})")
+    logger.info(f"New user registered: {username}")
+
+    # Auto-login so the user doesn't have to re-enter credentials
+    from django.contrib.auth import login as auth_login
+    auth_login(request, user)
 
     return Response({
         "status": "registered",
@@ -959,6 +948,17 @@ def change_password(request):
     if len(new_password) < 8:
         return Response(
             {"error": "New password must be at least 8 characters"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Apply Django's password validators
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    try:
+        validate_password(new_password, user=user)
+    except DjangoValidationError as e:
+        return Response(
+            {"error": e.messages[0]},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -1020,7 +1020,8 @@ def verify_email(request):
         )
 
     try:
-        user = User.objects.get(email_verification_token=token)
+        from core.encryption import hash_token
+        user = User.objects.get(email_verification_token=hash_token(token))
         if user.verify_email(token):
             logger.info(f"Email verified for user: {user.username}")
             return Response({
@@ -1084,6 +1085,22 @@ def export_pdf(request):
         html_content = f"<pre>{html.escape(content)}</pre>"
     else:
         html_content = content
+
+    # Sanitize HTML to prevent script injection in PDF renderer
+    # Strip dangerous tags and event handler attributes
+    html_content = re.sub(
+        r'<\s*(script|iframe|object|embed|applet|form|input|link|meta|base)[^>]*>.*?</\s*\1\s*>',
+        '', html_content, flags=re.IGNORECASE | re.DOTALL,
+    )
+    html_content = re.sub(
+        r'<\s*(script|iframe|object|embed|applet|form|input|link|meta|base)[^>]*/?\s*>',
+        '', html_content, flags=re.IGNORECASE,
+    )
+    # Strip event handlers (onclick, onerror, onload, etc.)
+    html_content = re.sub(r'\s+on\w+\s*=\s*["\'][^"\']*["\']', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'\s+on\w+\s*=\s*\S+', '', html_content, flags=re.IGNORECASE)
+    # Strip javascript: URLs
+    html_content = re.sub(r'(href|src|action)\s*=\s*["\']?\s*javascript:', r'\1="', html_content, flags=re.IGNORECASE)
 
     # Build full HTML document with Svend styling
     html_doc = f"""<!DOCTYPE html>
@@ -1155,7 +1172,8 @@ def export_pdf(request):
         # Try wkhtmltopdf first (faster, better CSS support)
         try:
             subprocess.run(
-                ['wkhtmltopdf', '--quiet', '--enable-local-file-access',
+                ['wkhtmltopdf', '--quiet',
+                 '--disable-local-file-access',
                  '--margin-top', '20mm', '--margin-bottom', '20mm',
                  '--margin-left', '15mm', '--margin-right', '15mm',
                  html_path, pdf_path],
@@ -1172,7 +1190,8 @@ def export_pdf(request):
                 # Last resort: return HTML for browser printing
                 os.unlink(html_path)
                 response = HttpResponse(html_doc, content_type='text/html')
-                response['Content-Disposition'] = f'inline; filename="{title}.html"'
+                safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', '_', title) or 'export'
+                response['Content-Disposition'] = f'inline; filename="{safe_title}.html"'
                 return response
 
         # Read and return PDF
@@ -1184,7 +1203,8 @@ def export_pdf(request):
         os.unlink(pdf_path)
 
         response = HttpResponse(pdf_content, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{title}.pdf"'
+        safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', '_', title) or 'export'
+        response['Content-Disposition'] = f'attachment; filename="{safe_title}.pdf"'
         return response
 
     except Exception as e:
@@ -1263,9 +1283,20 @@ def email_track_open(request, recipient_id):
 def email_track_click(request, recipient_id):
     """Track email link click and redirect."""
     from django.http import HttpResponseRedirect
+    from urllib.parse import urlparse
     from api.models import EmailRecipient
 
+    ALLOWED_REDIRECT_DOMAINS = {"svend.ai", "www.svend.ai"}
+
     url = request.GET.get("url", "https://svend.ai")
+
+    # Validate redirect URL to prevent open redirect
+    try:
+        parsed = urlparse(url)
+        if parsed.hostname not in ALLOWED_REDIRECT_DOMAINS:
+            url = "https://svend.ai"
+    except Exception:
+        url = "https://svend.ai"
 
     try:
         rcpt = EmailRecipient.objects.get(id=recipient_id)
@@ -1350,6 +1381,66 @@ def submit_feedback(request):
         page=request.data.get("page", ""),
     )
     return Response({"status": "submitted"})
+
+
+# ---------------------------------------------------------------------------
+# Site duration beacon (public — no auth, fired by sendBeacon)
+# ---------------------------------------------------------------------------
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def site_duration(request):
+    """Record time-on-page for a SiteVisit.
+
+    Called via navigator.sendBeacon on page hide. Matches the most recent
+    SiteVisit by ip_hash + path within the last hour and sets duration_ms.
+    """
+    import hashlib
+    from datetime import timedelta
+    from django.utils import timezone
+    from api.models import SiteVisit
+
+    path = (request.data.get("path") or "")[:300]
+    duration = request.data.get("duration_ms")
+
+    if not path or not duration:
+        return Response(status=204)
+
+    try:
+        duration = int(duration)
+    except (TypeError, ValueError):
+        return Response(status=204)
+
+    # Clamp: ignore durations < 1s or > 30min (stale tabs)
+    if duration < 1000 or duration > 1_800_000:
+        return Response(status=204)
+
+    ip = (
+        request.META.get("HTTP_CF_CONNECTING_IP", "")
+        or request.META.get("REMOTE_ADDR", "")
+    )
+    if not ip:
+        return Response(status=204)
+
+    ip_hash = hashlib.sha256(ip.encode()).hexdigest()
+    cutoff = timezone.now() - timedelta(hours=1)
+
+    try:
+        visit = (
+            SiteVisit.objects
+            .filter(ip_hash=ip_hash, path=path, viewed_at__gte=cutoff, duration_ms__isnull=True)
+            .order_by("-viewed_at")
+            .first()
+        )
+        if visit:
+            visit.duration_ms = duration
+            visit.save(update_fields=["duration_ms"])
+    except Exception:
+        pass
+
+    return Response(status=204)
 
 
 # ---------------------------------------------------------------------------

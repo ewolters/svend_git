@@ -12,6 +12,8 @@ import math
 import operator
 import re
 
+import numpy as np
+
 
 # ---------------------------------------------------------------------------
 # Core calculation dispatch
@@ -473,4 +475,68 @@ def estimate_savings_from_vsm_delta(
         "estimated_annual_savings": result["savings"],
         "suggested_method": suggested,
         "improvement_pct": result["improvement_pct"],
+    }
+
+
+def estimate_savings_monte_carlo(
+    current_step,
+    future_step,
+    method="time_reduction",
+    annual_volume=1.0,
+    cost_per_unit=1.0,
+    n_simulations=1000,
+):
+    """Monte Carlo simulation for VSM savings with confidence intervals.
+
+    Wraps the deterministic estimate_savings_from_vsm_delta() with three
+    uncertainty sources:
+      - Volume volatility (±15% std)
+      - Cost variation (±10% std)
+      - Improvement realization risk (Beta(4,2), mean ~0.67)
+
+    Returns percentile-based confidence intervals alongside the point estimate.
+    """
+    # Get deterministic baseline
+    det = estimate_savings_from_vsm_delta(
+        current_step, future_step, method, annual_volume, cost_per_unit
+    )
+
+    savings = np.empty(n_simulations)
+    for i in range(n_simulations):
+        # Perturb inputs
+        vol = annual_volume * max(0, np.random.normal(1.0, 0.15))
+        cpu = cost_per_unit * max(0, np.random.normal(1.0, 0.10))
+
+        # Improvement realization: scale the deltas
+        realization = np.random.beta(4, 2)
+
+        # Build perturbed future step (scale improvements toward current)
+        perturbed_future = {}
+        for key in ("cycle_time", "changeover_time", "operators"):
+            cur = float(current_step.get(key) or 0)
+            fut = float(future_step.get(key) or 0)
+            delta = cur - fut
+            perturbed_future[key] = cur - delta * realization
+        # Uptime improves (future > current), so scale differently
+        ut_cur = float(current_step.get("uptime") or 100)
+        ut_fut = float(future_step.get("uptime") or 100)
+        perturbed_future["uptime"] = ut_cur + (ut_fut - ut_cur) * realization
+        perturbed_future["batch_size"] = future_step.get("batch_size", 1)
+
+        sim = estimate_savings_from_vsm_delta(
+            current_step, perturbed_future, method, vol, cpu
+        )
+        savings[i] = sim["estimated_annual_savings"]
+
+    return {
+        **det,  # includes cycle_time_delta, suggested_method, etc.
+        "median_savings": float(np.median(savings)),
+        "mean_savings": float(np.mean(savings)),
+        "std_savings": float(np.std(savings)),
+        "lower_5": float(np.percentile(savings, 5)),
+        "upper_95": float(np.percentile(savings, 95)),
+        "lower_25": float(np.percentile(savings, 25)),
+        "upper_75": float(np.percentile(savings, 75)),
+        "p_positive": float(np.mean(savings > 0)),
+        "deterministic": det["estimated_annual_savings"],
     }

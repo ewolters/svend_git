@@ -10,21 +10,81 @@ Unlike a general whiteboard, VSM has structured elements:
 
 import json
 import logging
+import time as _time
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import gated_paid, require_feature
 from .models import ValueStreamMap
-from .hoshin_calculations import estimate_savings_from_vsm_delta
+from .hoshin_calculations import estimate_savings_from_vsm_delta, estimate_savings_monte_carlo
 from core.models import Project
 
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
+def detect_bottleneck(vsm):
+    """Identify bottleneck step and set flags on process_steps.
+
+    Sets per-step flags: is_bottleneck, takt_ratio, exceeds_takt.
+    Returns bottleneck summary dict or None if no steps.
+    """
+    steps = vsm.process_steps or []
+    if not steps:
+        return None
+
+    wc_steps = {}  # work_center_id -> [(step_dict, ct)]
+    standalone = []
+
+    for step in steps:
+        ct = step.get("cycle_time", 0) or 0
+        wc_id = step.get("work_center_id")
+        if wc_id:
+            wc_steps.setdefault(wc_id, []).append((step, ct))
+        else:
+            standalone.append((step, ct))
+
+    # Build effective station list: (step_dict, effective_ct)
+    effective = []
+    for step, ct in standalone:
+        effective.append((step, ct))
+    for wc_id, members in wc_steps.items():
+        rate_sum = sum(1.0 / ct for _, ct in members if ct > 0)
+        eff_ct = (1.0 / rate_sum) if rate_sum > 0 else 0
+        # Attribute to first member for display
+        effective.append((members[0][0], eff_ct))
+
+    valid = [(s, ct) for s, ct in effective if ct > 0]
+    if not valid:
+        # Clear flags if no valid cycle times
+        for step in steps:
+            step["flags"] = {}
+        return None
+
+    max_ct = max(ct for _, ct in valid)
+    bottleneck_step = next(s for s, ct in valid if ct == max_ct)
+    throughput = 3600.0 / max_ct if max_ct > 0 else 0
+    takt = vsm.takt_time
+
+    # Set flags on every step
+    for step in steps:
+        step_ct = step.get("cycle_time", 0) or 0
+        flags = {}
+        flags["is_bottleneck"] = (step.get("id") == bottleneck_step.get("id"))
+        if takt and takt > 0 and step_ct > 0:
+            flags["takt_ratio"] = round(step_ct / takt, 2)
+            flags["exceeds_takt"] = step_ct > takt
+        step["flags"] = flags
+
+    return {
+        "bottleneck_step_id": bottleneck_step.get("id", ""),
+        "bottleneck_step_name": bottleneck_step.get("name", ""),
+        "bottleneck_ct": max_ct,
+        "theoretical_throughput": round(throughput, 1),
+    }
+
+
 @gated_paid
 @require_http_methods(["GET"])
 def list_vsm(request):
@@ -49,7 +109,6 @@ def list_vsm(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_vsm(request):
@@ -85,19 +144,19 @@ def create_vsm(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def get_vsm(request, vsm_id):
     """Get a single VSM with full details."""
     vsm = get_object_or_404(ValueStreamMap, id=vsm_id, owner=request.user)
+    bottleneck_info = detect_bottleneck(vsm)
 
     return JsonResponse({
         "vsm": vsm.to_dict(),
+        "bottleneck": bottleneck_info,
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_vsm(request, vsm_id):
@@ -108,6 +167,16 @@ def update_vsm(request, vsm_id):
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    # Validate takt_time if provided
+    if 'takt_time' in data and data['takt_time'] is not None:
+        try:
+            tt = float(data['takt_time'])
+            if tt <= 0:
+                return JsonResponse({"error": "Takt time must be positive"}, status=400)
+            data['takt_time'] = tt
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Takt time must be a number"}, status=400)
 
     # Update simple fields
     for field in ['name', 'status', 'product_family', 'customer_name', 'customer_demand',
@@ -133,17 +202,44 @@ def update_vsm(request, vsm_id):
         else:
             vsm.project = None
 
-    # Recalculate metrics
+    # Handle auto_kaizen from calculator exports
+    auto_kaizen = data.get('auto_kaizen')
+    if auto_kaizen and isinstance(auto_kaizen, dict):
+        text = auto_kaizen.get('text', '').strip()
+        near_step = auto_kaizen.get('near_step', '')
+        priority = auto_kaizen.get('priority', 'medium')
+        if text:
+            bursts = vsm.kaizen_bursts or []
+            # Dedup: skip if burst with same text already exists
+            if not any(b.get('text') == text for b in bursts):
+                # Find position near the named step
+                x, y = 200, 50
+                for i, step in enumerate(vsm.process_steps or []):
+                    if step.get('name', '').lower() == near_step.lower():
+                        x = step.get('x', 200 + i * 200)
+                        y = max(0, step.get('y', 100) - 60)
+                        break
+                bursts.append({
+                    'id': f'kaizen_{len(bursts) + 1}_{int(_time.time())}',
+                    'text': text,
+                    'x': x,
+                    'y': y,
+                    'priority': priority,
+                })
+                vsm.kaizen_bursts = bursts
+
+    # Recalculate metrics and detect bottleneck
     vsm.calculate_metrics()
+    bottleneck_info = detect_bottleneck(vsm)
     vsm.save()
 
     return JsonResponse({
         "success": True,
         "vsm": vsm.to_dict(),
+        "bottleneck": bottleneck_info,
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_vsm(request, vsm_id):
@@ -154,7 +250,6 @@ def delete_vsm(request, vsm_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def add_process_step(request, vsm_id):
@@ -206,7 +301,6 @@ def add_process_step(request, vsm_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def add_inventory(request, vsm_id):
@@ -249,7 +343,6 @@ def add_inventory(request, vsm_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def add_kaizen_burst(request, vsm_id):
@@ -289,7 +382,6 @@ def add_kaizen_burst(request, vsm_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_future_state(request, vsm_id):
@@ -305,6 +397,7 @@ def create_future_state(request, vsm_id):
         project=vsm.project,
         name=f"{vsm.name} (Future State)",
         status=ValueStreamMap.Status.FUTURE,
+        fiscal_year=vsm.fiscal_year,
         product_family=vsm.product_family,
         customer_name=vsm.customer_name,
         customer_demand=vsm.customer_demand,
@@ -325,13 +418,16 @@ def create_future_state(request, vsm_id):
     future.calculate_metrics()
     future.save()
 
+    # Set pairing: future points to current (one-to-one, one direction)
+    future.paired_with = vsm
+    future.save(update_fields=["paired_with"])
+
     return JsonResponse({
         "success": True,
         "future_state": future.to_dict(),
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def compare_vsm(request, vsm_id):
@@ -397,7 +493,6 @@ def compare_vsm(request, vsm_id):
     })
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
 def generate_proposals(request, vsm_id):
@@ -472,13 +567,14 @@ def generate_proposals(request, vsm_id):
         # Match to current-state step by name
         current_step = current_steps.get(step_name, {})
 
-        # Estimate savings from metric deltas
+        # Estimate savings from metric deltas (Monte Carlo for confidence intervals)
         if current_step:
-            estimate = estimate_savings_from_vsm_delta(
+            estimate = estimate_savings_monte_carlo(
                 current_step, nearest_step,
                 annual_volume=annual_volume,
                 cost_per_unit=cost_per_unit,
             )
+            estimate["estimated_annual_savings"] = estimate["median_savings"]
         else:
             estimate = {
                 "cycle_time_delta": 0, "changeover_delta": 0,
@@ -486,6 +582,9 @@ def generate_proposals(request, vsm_id):
                 "estimated_annual_savings": 0,
                 "suggested_method": "direct",
                 "improvement_pct": 0,
+                "median_savings": 0, "lower_5": 0, "upper_95": 0,
+                "lower_25": 0, "upper_75": 0, "p_positive": 0,
+                "mean_savings": 0, "std_savings": 0, "deterministic": 0,
             }
 
         proposals.append({
@@ -503,6 +602,10 @@ def generate_proposals(request, vsm_id):
             "estimated_annual_savings": estimate["estimated_annual_savings"],
             "suggested_method": estimate["suggested_method"],
             "improvement_pct": estimate["improvement_pct"],
+            "median_savings": estimate.get("median_savings", 0),
+            "lower_5": estimate.get("lower_5", 0),
+            "upper_95": estimate.get("upper_95", 0),
+            "p_positive": estimate.get("p_positive", 0),
             "suggested_title": f"{burst_text} — {step_name}",
             "suggested_type": "labor" if estimate["suggested_method"] in ("time_reduction", "headcount") else "material",
         })

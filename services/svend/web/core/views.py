@@ -8,10 +8,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permissions import rate_limited, require_ml, require_org_admin
+from accounts.permissions import rate_limited, require_ml, require_org_admin, require_team
+from accounts.constants import has_feature
 from .models import (
     Tenant, Membership, OrgInvitation, KnowledgeGraph, Entity, Relationship,
     Project, Dataset, ExperimentDesign, Hypothesis, Evidence, EvidenceLink,
+    StudyAction,
 )
 from .serializers import (
     TenantSerializer, MembershipSerializer,
@@ -68,8 +70,10 @@ def get_user_projects(user):
 def project_list(request):
     """List user's projects or create a new one."""
     if request.method == "GET":
-        # Note: hypothesis_count and evidence_count are model properties
         projects = get_user_projects(request.user).order_by("-updated_at")
+        status_filter = request.query_params.get("status")
+        if status_filter and status_filter != "all":
+            projects = projects.filter(status=status_filter)
         serializer = ProjectListSerializer(projects, many=True)
         return Response(serializer.data)
 
@@ -123,12 +127,40 @@ def project_advance_phase(request, project_id):
     if new_phase not in dict(Project.Phase.choices):
         return Response({"error": f"Invalid phase: {new_phase}"}, status=status.HTTP_400_BAD_REQUEST)
 
-    project.advance_phase(new_phase, notes)
+    # Validate phase ordering (no skipping forward)
+    phase_order = [p.value for p in Project.Phase]
+    try:
+        current_idx = phase_order.index(project.current_phase)
+        new_idx = phase_order.index(new_phase)
+        if new_idx > current_idx + 1:
+            return Response(
+                {"error": f"Cannot skip from {project.current_phase} to {new_phase}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except ValueError:
+        pass  # Non-standard phase, allow it
+
+    project.advance_phase(new_phase, notes, user=request.user)
     return Response(ProjectDetailSerializer(project).data)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+def project_comment(request, project_id):
+    """Add a user comment to the project changelog."""
+    project = get_object_or_404(get_user_projects(request.user), id=project_id)
+
+    text = (request.data.get("text") or "").strip()
+    if not text:
+        return Response({"error": "text is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    project.log_event("comment", text, user=request.user)
+    return Response({"changelog": project.changelog})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@rate_limited
 def project_recalculate(request, project_id):
     """Recalculate all hypothesis probabilities in a project."""
     project = get_object_or_404(get_user_projects(request.user), id=project_id)
@@ -159,13 +191,37 @@ def project_hub(request, project_id):
     project = get_object_or_404(get_user_projects(request.user), id=project_id)
 
     # Import models from agents_api
-    from agents_api.models import Board, DSWResult, A3Report, ValueStreamMap
+    from agents_api.models import (
+        Board, DSWResult, A3Report, ValueStreamMap,
+        NonconformanceRecord, RCASession, Report, FMEA,
+    )
 
-    # Get linked tools
-    boards = Board.objects.filter(project=project).order_by('-updated_at')[:20]
-    dsw_results = DSWResult.objects.filter(project=project).order_by('-created_at')[:20]
-    a3_reports = A3Report.objects.filter(project=project).order_by('-updated_at')[:10]
-    vsm_maps = ValueStreamMap.objects.filter(project=project).order_by('-updated_at')[:10]
+    # Base querysets (unsliced) for total counts
+    boards_qs = Board.objects.filter(project=project)
+    dsw_qs = DSWResult.objects.filter(project=project)
+    a3_qs = A3Report.objects.filter(project=project)
+    vsm_qs = ValueStreamMap.objects.filter(project=project)
+    ncr_qs = NonconformanceRecord.objects.filter(project=project)
+    rca_qs = RCASession.objects.filter(project=project)
+    report_qs = Report.objects.filter(project=project)
+    fmea_qs = FMEA.objects.filter(project=project)
+
+    # Sliced for display
+    boards = boards_qs.order_by('-updated_at')[:20]
+    dsw_results = dsw_qs.order_by('-created_at')[:20]
+    a3_reports = a3_qs.order_by('-updated_at')[:10]
+    vsm_maps = vsm_qs.order_by('-updated_at')[:10]
+    ncrs = ncr_qs.order_by('-created_at')[:20]
+    rca_sessions = rca_qs.order_by('-updated_at')[:10]
+    reports = report_qs.order_by('-updated_at')[:10]
+    fmeas = fmea_qs.order_by('-updated_at')[:10]
+
+    # Evidence summary — count by source_tool prefix
+    evidence_qs = Evidence.objects.filter(project=project)
+    evidence_summary = {"total": evidence_qs.count(), "by_source": {}}
+    for ev in evidence_qs.values_list("source_description", flat=True):
+        tool = ev.split(":")[0] if ":" in ev else "other"
+        evidence_summary["by_source"][tool] = evidence_summary["by_source"].get(tool, 0) + 1
 
     return Response({
         "project": ProjectDetailSerializer(project).data,
@@ -211,16 +267,66 @@ def project_hub(request, project_id):
                 }
                 for v in vsm_maps
             ],
+            "ncrs": [
+                {
+                    "id": str(n.id),
+                    "title": n.title,
+                    "severity": n.severity,
+                    "status": n.status,
+                    "created_at": n.created_at.isoformat(),
+                }
+                for n in ncrs
+            ],
+            "rca_sessions": [
+                {
+                    "id": str(r.id),
+                    "title": r.title or r.event[:50],
+                    "event": r.event[:100] if r.event else "",
+                    "root_cause": r.root_cause[:100] if r.root_cause else "",
+                    "chain_length": len(r.chain or []),
+                    "status": r.status,
+                    "updated_at": r.updated_at.isoformat(),
+                }
+                for r in rca_sessions
+            ],
+            "reports": [
+                {
+                    "id": str(r.id),
+                    "title": r.title,
+                    "report_type": r.report_type,
+                    "status": r.status,
+                    "updated_at": r.updated_at.isoformat(),
+                }
+                for r in reports
+            ],
+            "fmeas": [
+                {
+                    "id": str(f.id),
+                    "title": f.title,
+                    "row_count": f.rows.count(),
+                    "updated_at": f.updated_at.isoformat(),
+                }
+                for f in fmeas
+            ],
         },
         "counts": {
             "hypotheses": project.hypotheses.count(),
             "datasets": project.datasets.count(),
             "experiments": project.experiment_designs.count(),
-            "whiteboards": boards.count(),
-            "dsw_analyses": dsw_results.count(),
-            "a3_reports": a3_reports.count(),
-            "vsm_maps": vsm_maps.count(),
+            "whiteboards": boards_qs.count(),
+            "dsw_analyses": dsw_qs.count(),
+            "a3_reports": a3_qs.count(),
+            "vsm_maps": vsm_qs.count(),
+            "ncrs": ncr_qs.count(),
+            "rca_sessions": rca_qs.count(),
+            "reports": report_qs.count(),
+            "fmeas": fmea_qs.count(),
         },
+        "evidence_summary": evidence_summary,
+        "changelog": project.changelog or [],
+        "study_actions": [
+            a.to_dict() for a in StudyAction.objects.filter(project=project)[:50]
+        ],
     })
 
 
@@ -244,6 +350,7 @@ def hypothesis_list(request, project_id):
         serializer = HypothesisSerializer(data=request.data)
         if serializer.is_valid():
             hypothesis = serializer.save(project=project, created_by=request.user)
+            project.log_event("hypothesis_added", hypothesis.statement, user=request.user)
             return Response(
                 HypothesisSerializer(hypothesis).data,
                 status=status.HTTP_201_CREATED,
@@ -270,12 +377,14 @@ def hypothesis_detail(request, project_id, hypothesis_id):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "DELETE":
+        project.log_event("hypothesis_removed", hypothesis.statement, user=request.user)
         hypothesis.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@rate_limited
 def hypothesis_recalculate(request, project_id, hypothesis_id):
     """Recalculate a single hypothesis probability."""
     project = get_object_or_404(get_user_projects(request.user), id=project_id)
@@ -329,11 +438,34 @@ def evidence_list(request, project_id):
                 except Hypothesis.DoesNotExist:
                     pass
 
+            project.log_event("evidence_added", evidence.source_description or evidence.source_type, user=request.user)
             return Response(
                 EvidenceSerializer(evidence).data,
                 status=status.HTTP_201_CREATED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET", "PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def evidence_detail(request, project_id, evidence_id):
+    """Get, update, or delete a specific evidence record."""
+    project = get_object_or_404(get_user_projects(request.user), id=project_id)
+    evidence = get_object_or_404(Evidence, id=evidence_id, project=project)
+
+    if request.method == "GET":
+        return Response(EvidenceSerializer(evidence).data)
+
+    elif request.method == "PUT":
+        serializer = EvidenceSerializer(evidence, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(EvidenceSerializer(evidence).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == "DELETE":
+        evidence.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
@@ -351,7 +483,9 @@ def link_evidence(request, project_id, hypothesis_id):
     if not evidence_id:
         return Response({"error": "evidence_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    evidence = get_object_or_404(Evidence, id=evidence_id)
+    # Scope evidence to user-accessible projects (prevent IDOR)
+    user_projects = get_user_projects(request.user)
+    evidence = get_object_or_404(Evidence, id=evidence_id, project__in=user_projects)
 
     # Create or update link
     link, created = EvidenceLink.objects.update_or_create(
@@ -401,7 +535,9 @@ def suggest_likelihood_ratio(request, project_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    evidence = get_object_or_404(Evidence, id=evidence_id)
+    # Scope evidence to user-accessible projects (prevent IDOR)
+    user_projects = get_user_projects(request.user)
+    evidence = get_object_or_404(Evidence, id=evidence_id, project__in=user_projects)
     hypothesis = get_object_or_404(project.hypotheses, id=hypothesis_id)
 
     suggested_lr, reasoning = synara.suggest_likelihood_ratio(evidence, hypothesis)
@@ -644,6 +780,7 @@ def relationship_list(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@rate_limited
 def check_consistency(request):
     """Check knowledge graph for logical consistency issues."""
     graph = get_user_graph(request.user)
@@ -850,6 +987,7 @@ def experiment_design_detail(request, project_id, design_id):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@rate_limited
 def review_design_execution(request, project_id, design_id):
     """
     Review how well an experiment was executed against the planned design.
@@ -1183,7 +1321,8 @@ def org_info(request):
     ).select_related("tenant").first()
 
     if not membership:
-        return Response({"has_org": False})
+        can_create = has_feature(request.user.tier, "collaboration")
+        return Response({"has_org": False, "can_create_org": can_create})
 
     tenant = membership.tenant
     return Response({
@@ -1204,6 +1343,78 @@ def org_info(request):
             "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
         },
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@require_team
+def org_create(request):
+    """Create a new organization. Requires Team or Enterprise tier.
+
+    The creating user becomes the owner. Only one org per user.
+    """
+    # Check user doesn't already belong to an org
+    if Membership.objects.filter(user=request.user, is_active=True).exists():
+        return Response({
+            "error": "You already belong to an organization",
+        }, status=400)
+
+    name = (request.data.get("name") or "").strip()
+    slug = (request.data.get("slug") or "").strip().lower()
+
+    if not name:
+        return Response({"error": "Organization name is required"}, status=400)
+    if len(name) > 255:
+        return Response({"error": "Name must be 255 characters or fewer"}, status=400)
+
+    if not slug:
+        return Response({"error": "Organization slug is required"}, status=400)
+
+    # Validate slug format: lowercase alphanumeric + hyphens
+    import re
+    if not re.match(r'^[a-z0-9][a-z0-9-]*[a-z0-9]$', slug) and len(slug) > 1:
+        return Response({
+            "error": "Slug must contain only lowercase letters, numbers, and hyphens",
+        }, status=400)
+    if len(slug) < 2 or len(slug) > 100:
+        return Response({
+            "error": "Slug must be between 2 and 100 characters",
+        }, status=400)
+
+    # Check slug uniqueness
+    if Tenant.objects.filter(slug=slug).exists():
+        return Response({"error": "This slug is already taken"}, status=400)
+
+    # Map user tier to tenant plan
+    from accounts.constants import Tier
+    plan = Tenant.Plan.ENTERPRISE if request.user.tier == Tier.ENTERPRISE else Tenant.Plan.TEAM
+
+    from django.utils import timezone as tz
+
+    with transaction.atomic():
+        tenant = Tenant.objects.create(
+            name=name,
+            slug=slug,
+            plan=plan,
+            max_members=10,
+        )
+        Membership.objects.create(
+            tenant=tenant,
+            user=request.user,
+            role=Membership.Role.OWNER,
+            joined_at=tz.now(),
+        )
+
+    return Response({
+        "success": True,
+        "org": {
+            "id": str(tenant.id),
+            "name": tenant.name,
+            "slug": tenant.slug,
+            "plan": tenant.plan,
+            "max_members": tenant.max_members,
+        },
+    }, status=201)
 
 
 @api_view(["GET"])

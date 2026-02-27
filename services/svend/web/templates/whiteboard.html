@@ -1,4 +1,4 @@
-{% extends "base_app.html" %}
+{% extends base_template|default:"base_app.html" %}
 {% block title %}Whiteboard - SVEND{% endblock %}
 
 {% block extra_head %}
@@ -320,6 +320,46 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     outline-offset: 2px;
 }
 
+/* Marquee selection box */
+#selection-marquee {
+    position: absolute;
+    border: 1px dashed var(--wb-accent);
+    background: rgba(74, 159, 110, 0.08);
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+}
+
+/* Resize handles */
+.wb-resize-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--wb-accent);
+    border: 1px solid white;
+    z-index: 101;
+    pointer-events: auto;
+}
+.wb-resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+.wb-resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+.wb-resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+.wb-resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+
+/* Image elements */
+.wb-image {
+    border: 1px solid var(--wb-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--wb-panel);
+}
+.wb-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    display: block;
+}
+
 /* Post-it Note */
 .wb-postit {
     width: 150px;
@@ -513,39 +553,115 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 .wb-connection-point.left { left: -6px; top: 50%; transform: translateY(-50%); }
 .wb-connection-point.right { right: -6px; top: 50%; transform: translateY(-50%); }
 
-/* Diamond connection points - position at corners and counter-rotate */
+/* Diamond connection points - at the vertices (corners of the unrotated box become tips after 45deg rotation) */
 .wb-process-shape.diamond .wb-connection-point.top {
-    top: -21%;
-    left: 50%;
-    transform: rotate(-45deg) translateX(-50%);
-}
-.wb-process-shape.diamond .wb-connection-point.bottom {
-    bottom: -21%;
-    top: auto;
-    left: 50%;
-    transform: rotate(-45deg) translateX(-50%);
-}
-.wb-process-shape.diamond .wb-connection-point.left {
-    left: -21%;
-    top: 50%;
-    transform: rotate(-45deg) translateY(-50%);
+    top: -6px; left: -6px;
+    transform: rotate(-45deg);
 }
 .wb-process-shape.diamond .wb-connection-point.right {
-    right: -21%;
-    left: auto;
-    top: 50%;
-    transform: rotate(-45deg) translateY(-50%);
+    top: -6px; right: -6px; left: auto;
+    transform: rotate(-45deg);
+}
+.wb-process-shape.diamond .wb-connection-point.bottom {
+    bottom: -6px; right: -6px; top: auto; left: auto;
+    transform: rotate(-45deg);
+}
+.wb-process-shape.diamond .wb-connection-point.left {
+    bottom: -6px; left: -6px; top: auto;
+    transform: rotate(-45deg);
 }
 
 /* Diamond connection point hover states */
 .wb-process-shape.diamond .wb-connection-point.top:hover,
-.wb-process-shape.diamond .wb-connection-point.bottom:hover {
-    transform: rotate(-45deg) translateX(-50%) scale(1.3);
-}
+.wb-process-shape.diamond .wb-connection-point.bottom:hover,
 .wb-process-shape.diamond .wb-connection-point.left:hover,
 .wb-process-shape.diamond .wb-connection-point.right:hover {
-    transform: rotate(-45deg) translateY(-50%) scale(1.3);
+    transform: rotate(-45deg) scale(1.3);
 }
+
+/* Guest name entry overlay */
+.wb-guest-name-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+.wb-guest-name-modal {
+    background: var(--wb-panel);
+    border: 1px solid var(--wb-border);
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 360px;
+    width: 90%;
+    text-align: center;
+}
+.wb-guest-name-modal h3 { color: var(--wb-accent); margin-bottom: 8px; font-size: 16px; }
+.wb-guest-name-modal p { color: var(--wb-text-dim); font-size: 13px; margin-bottom: 16px; }
+.wb-guest-name-input {
+    width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--wb-border);
+    background: var(--wb-bg); color: var(--wb-text); font-size: 14px; margin-bottom: 12px;
+    font-family: inherit; outline: none;
+}
+.wb-guest-name-input:focus { border-color: var(--wb-accent); }
+.wb-guest-name-btn {
+    width: 100%; padding: 10px; border-radius: 6px; border: none;
+    background: var(--wb-accent); color: #fff; font-size: 14px; cursor: pointer;
+    font-family: inherit; font-weight: 500;
+}
+.wb-guest-name-btn:hover { opacity: 0.9; }
+
+/* Guest invite management modal */
+.wb-guest-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+.wb-guest-modal {
+    background: var(--wb-panel);
+    border: 1px solid var(--wb-border);
+    border-radius: 12px;
+    width: 480px;
+    max-width: 95%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+.wb-guest-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--wb-border);
+}
+.wb-guest-modal-header h3 { font-size: 15px; color: var(--wb-text); font-weight: 500; }
+.wb-guest-modal-body {
+    padding: 16px 20px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 80px;
+}
+.wb-guest-modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--wb-border);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.wb-guest-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.wb-guest-item:last-child { border-bottom: none; }
 
 /* Temporary connection line while dragging */
 .wb-temp-connection {
@@ -661,47 +777,6 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 
 .wb-container.causal-mode .wb-connection-point {
     background: #e89547;
-}
-
-/* VSM Specific */
-.wb-vsm-process {
-    width: 100px;
-    height: 80px;
-    background: var(--wb-panel);
-    border: 2px solid #47a5e8;
-    border-radius: 4px;
-    display: flex;
-    flex-direction: column;
-}
-
-.wb-vsm-process .title {
-    padding: 6px;
-    background: #47a5e8;
-    color: white;
-    font-size: 11px;
-    font-weight: 600;
-    text-align: center;
-}
-
-.wb-vsm-process .metrics {
-    flex: 1;
-    padding: 6px;
-    font-size: 10px;
-    color: var(--wb-text-dim);
-}
-
-.wb-vsm-inventory {
-    width: 60px;
-    height: 60px;
-    background: #e89547;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 600;
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 }
 
 /* Text/Label */
@@ -1318,6 +1393,13 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                     <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
             </button>
+            <button class="wb-tool-btn" onclick="exportBoardSVG()" title="Export as SVG">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M7 12l3-3 2 2 3-3 2 2"/>
+                    <circle cx="8" cy="16" r="1" fill="currentColor"/>
+                </svg>
+            </button>
             <button class="wb-tool-btn" onclick="exportBoardJSON()" title="Export as JSON (backup)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -1377,12 +1459,21 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
             </a>
         </div>
 
-        <div class="wb-toolbar-group">
+        <div class="wb-toolbar-group" id="share-group">
             <button class="wb-tool-btn" onclick="shareBoard()" title="Share / Create Room">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                     <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
                     <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+            </button>
+        </div>
+        <div class="wb-toolbar-group" id="guest-manage-group" style="display:none;">
+            <button class="wb-tool-btn" onclick="openGuestModal()" title="Manage Guest Invites">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="8.5" cy="7" r="4"/>
+                    <line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
                 </svg>
             </button>
         </div>
@@ -1475,7 +1566,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                             <div class="desc">Document workflow steps</div>
                         </div>
                     </div>
-                    <div class="wb-template-item" onclick="loadTemplate('vsm')">
+                    <a href="/app/vsm/" class="wb-template-item" style="text-decoration:none;color:inherit;">
                         <div class="icon">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M4 4h4v6H4zM10 4h4v6h-4zM16 4h4v6h-4z"/>
@@ -1485,9 +1576,9 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                         </div>
                         <div class="info">
                             <div class="name">Value Stream Map</div>
-                            <div class="desc">Analyze flow & waste</div>
+                            <div class="desc">Open dedicated VSM tool</div>
                         </div>
-                    </div>
+                    </a>
                     <div class="wb-template-item" onclick="loadTemplate('fishbone')">
                         <div class="icon">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1554,6 +1645,7 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
 
         <!-- Canvas -->
         <div class="wb-canvas-container" id="canvas-container">
+            <div id="selection-marquee"></div>
             <div class="wb-canvas" id="canvas">
                 <svg class="wb-connections" id="connections-svg">
                     <defs>
@@ -1613,6 +1705,38 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     </div>
 </div>
 
+<!-- Guest Name Entry Modal -->
+<div class="wb-guest-name-overlay" id="guest-name-overlay" style="display:none;">
+    <div class="wb-guest-name-modal">
+        <h3>Welcome to this whiteboard</h3>
+        <p>Enter your name to join as a guest</p>
+        <input type="text" class="wb-guest-name-input" id="guest-name-input"
+               placeholder="Your name" maxlength="100" autocomplete="off">
+        <button class="wb-guest-name-btn" id="guest-name-submit" onclick="submitGuestName()">Join Board</button>
+    </div>
+</div>
+
+<!-- Guest Invite Management Modal (for board owners) -->
+<div class="wb-guest-modal-overlay" id="guest-modal-overlay" style="display:none;" onclick="if(event.target===this)closeGuestModal()">
+    <div class="wb-guest-modal">
+        <div class="wb-guest-modal-header">
+            <h3>Guest Invites</h3>
+            <button onclick="closeGuestModal()" style="background:none;border:none;color:var(--wb-text);cursor:pointer;font-size:18px;line-height:1;">&times;</button>
+        </div>
+        <div class="wb-guest-modal-body" id="guest-invite-list">
+            <p style="color:var(--wb-text-dim);text-align:center;padding:20px;">Loading...</p>
+        </div>
+        <div class="wb-guest-modal-footer">
+            <select id="guest-perm-select" style="flex:1;padding:6px 8px;font-size:12px;background:var(--wb-bg);color:var(--wb-text);border:1px solid var(--wb-border);border-radius:4px;">
+                <option value="view">View Only</option>
+                <option value="edit">Edit</option>
+                <option value="edit_vote">Edit + Vote</option>
+            </select>
+            <button onclick="createGuestInvite()" style="padding:6px 16px;font-size:12px;background:var(--wb-accent);color:#fff;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;">Create Invite</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ============================================================================
 // WHITEBOARD - Visual Mapping Tool
@@ -1622,6 +1746,7 @@ let currentTool = 'select';
 let currentColor = 'yellow';
 let connectorStyle = 'orthogonal';
 let selectedElement = null;
+let selectedElements = new Set(); // Multi-select: stores element IDs
 let elements = [];
 let connections = [];
 let zoom = 1;
@@ -1633,7 +1758,17 @@ let elementIdCounter = 0;
 let isDragging = false;
 let didDrag = false;
 let dragOffset = { x: 0, y: 0 };
+let dragLastPos = { x: 0, y: 0 }; // For multi-drag delta tracking
 let currentProjectId = null;
+let isMarquee = false;
+let marqueeStart = { x: 0, y: 0 };
+let clipboard = { elements: [], connections: [] }; // Copy/paste buffer
+let isResizing = false;
+let resizeHandle = null;
+let resizeStart = { x: 0, y: 0, width: 0, height: 0, elX: 0, elY: 0 };
+let resizeElement = null;
+const GRID_SIZE = 20;
+function snapToGrid(val) { return Math.round(val / GRID_SIZE) * GRID_SIZE; }
 
 // Undo/Redo history
 let history = [];
@@ -1828,22 +1963,6 @@ function createElement(type, x, y, options = {}, skipHistory = false) {
             elementData.text = options.text || 'Step';
             break;
 
-        case 'vsm-process':
-            el.className += ' wb-vsm-process';
-            el.innerHTML = `
-                <div class="title" contenteditable="true">${options.title || 'Process'}</div>
-                <div class="metrics">
-                    <div>CT: ${options.ct || '0'}</div>
-                    <div>C/O: ${options.co || '0'}</div>
-                </div>
-            `;
-            break;
-
-        case 'vsm-inventory':
-            el.className += ' wb-vsm-inventory';
-            el.innerHTML = `<div>${options.qty || '0'}</div><div>pcs</div>`;
-            break;
-
         case 'document':
             el.className += ' wb-process-shape document';
             el.innerHTML = `<span contenteditable="true">${options.text || 'Document'}</span>`;
@@ -1868,6 +1987,21 @@ function createElement(type, x, y, options = {}, skipHistory = false) {
             elementData.gateType = 'OR';
             break;
 
+        case 'image':
+            el.className += ' wb-image';
+            const img = document.createElement('img');
+            img.src = options.src || '';
+            img.draggable = false;
+            el.appendChild(img);
+            el.style.width = `${options.width || 200}px`;
+            el.style.height = `${options.height || 150}px`;
+            elementData.src = options.src || '';
+            elementData.width = options.width || 200;
+            elementData.height = options.height || 150;
+            elementData.originalWidth = options.originalWidth || elementData.width;
+            elementData.originalHeight = options.originalHeight || elementData.height;
+            break;
+
         case 'fishbone':
             // Fishbone is created separately, but handle restore
             el.className += ' wb-fishbone';
@@ -1878,6 +2012,17 @@ function createElement(type, x, y, options = {}, skipHistory = false) {
             canvas.appendChild(el);
             elements.push(elementData);
             return el;
+    }
+
+    // Apply stored width/height if present (for resize restore)
+    if (options.width && type !== 'image' && type !== 'group') {
+        el.style.width = `${options.width}px`;
+        elementData.width = options.width;
+    }
+    if (options.height && type !== 'image' && type !== 'group') {
+        el.style.height = `${options.height}px`;
+        elementData.height = options.height;
+        if (type === 'postit') el.style.minHeight = `${options.height}px`;
     }
 
     // Add connection points
@@ -1930,17 +2075,29 @@ function addConnectionPoints(el) {
 
 function onElementMouseDown(e, el) {
     if (e.target.classList.contains('wb-connection-point')) return;
+    if (e.target.classList.contains('wb-resize-handle')) return;
     if (el.contentEditable === 'true' && document.activeElement === el) return;
 
     e.stopPropagation();
 
-    selectElement(el);
+    if (e.shiftKey) {
+        selectElement(el, true); // Additive selection
+    } else if (!selectedElements.has(el.dataset.id)) {
+        selectElement(el); // Normal single select (only if not already selected)
+    } else {
+        // Already selected — just set as primary for properties
+        selectedElement = el;
+    }
 
     if (currentTool === 'select') {
         isDragging = true;
         didDrag = false;
+        const canvasRect = canvasContainer.getBoundingClientRect();
+        // Store initial canvas position for delta-based multi-drag
+        dragLastPos.x = (e.clientX - canvasRect.left - panX) / zoom;
+        dragLastPos.y = (e.clientY - canvasRect.top - panY) / zoom;
+        // Also store offset for single-element positioning
         const rect = el.getBoundingClientRect();
-        const canvasRect = canvas.getBoundingClientRect();
         dragOffset.x = e.clientX - rect.left;
         dragOffset.y = e.clientY - rect.top;
         el.style.cursor = 'grabbing';
@@ -1965,22 +2122,60 @@ function onElementContextMenu(e, el) {
     showContextMenu(e.clientX, e.clientY);
 }
 
-function selectElement(el) {
-    if (selectedElement) {
-        selectedElement.classList.remove('selected');
+function selectElement(el, addToSelection = false) {
+    if (addToSelection) {
+        // Shift+click: toggle in/out of multi-selection
+        const id = el.dataset.id;
+        if (selectedElements.has(id)) {
+            selectedElements.delete(id);
+            el.classList.remove('selected');
+            removeResizeHandles(el);
+            if (selectedElement === el) {
+                selectedElement = null;
+                document.getElementById('properties-panel').classList.remove('active');
+            }
+        } else {
+            selectedElements.add(id);
+            el.classList.add('selected');
+            selectedElement = el;
+            showProperties(el);
+        }
+        updateSelectionInfo();
+        return;
     }
+    // Normal click: clear multi-selection, select only this
+    deselectAll();
     selectedElement = el;
+    selectedElements.add(el.dataset.id);
     el.classList.add('selected');
     showProperties(el);
+    addResizeHandles(el);
 }
 
 function deselectAll() {
-    if (selectedElement) {
-        selectedElement.classList.remove('selected');
-        selectedElement = null;
-    }
+    selectedElements.forEach(id => {
+        const el = document.querySelector(`[data-id="${id}"]`);
+        if (el) {
+            el.classList.remove('selected');
+            removeResizeHandles(el);
+        }
+    });
+    selectedElements.clear();
+    selectedElement = null;
     hideContextMenu();
     document.getElementById('properties-panel').classList.remove('active');
+}
+
+function updateSelectionInfo() {
+    // Remove resize handles when multi-selecting (resize is single-element only)
+    if (selectedElements.size > 1) {
+        selectedElements.forEach(id => {
+            const el = document.querySelector(`[data-id="${id}"]`);
+            if (el) removeResizeHandles(el);
+        });
+    } else if (selectedElements.size === 1 && selectedElement) {
+        addResizeHandles(selectedElement);
+    }
 }
 
 // ============================================================================
@@ -2184,16 +2379,15 @@ function getConnectionPoint(el, position) {
     // Padding to keep arrows outside shape bounds
     const pad = 8;
 
-    // Check if this is a diamond shape (corners extend beyond bounding box)
-    const isDiamond = el.classList.contains('diamond');
-    // Diamond corners extend ~21% beyond the bounding box (sqrt(2)-1)/2 ≈ 0.207
+    // Diamond vertices extend beyond the bounding box by ~21% of half-width
+    const isDiamond = el.querySelector('.wb-process-shape.diamond') || el.classList.contains('diamond');
     const cornerExt = isDiamond ? 0.21 : 0;
 
     switch (position) {
-        case 'top': return { x: x + w/2, y: y - cornerExt * h - pad, dir: { x: 0, y: -1 } };
-        case 'bottom': return { x: x + w/2, y: y + h + cornerExt * h + pad, dir: { x: 0, y: 1 } };
-        case 'left': return { x: x - cornerExt * w - pad, y: y + h/2, dir: { x: -1, y: 0 } };
-        case 'right': return { x: x + w + cornerExt * w + pad, y: y + h/2, dir: { x: 1, y: 0 } };
+        case 'top': return { x: x + w/2, y: y - pad - h * cornerExt, dir: { x: 0, y: -1 } };
+        case 'bottom': return { x: x + w/2, y: y + h + pad + h * cornerExt, dir: { x: 0, y: 1 } };
+        case 'left': return { x: x - pad - w * cornerExt, y: y + h/2, dir: { x: -1, y: 0 } };
+        case 'right': return { x: x + w + pad + w * cornerExt, y: y + h/2, dir: { x: 1, y: 0 } };
         default: return { x: x + w/2, y: y + h/2, dir: { x: 0, y: 0 } };
     }
 }
@@ -2311,22 +2505,33 @@ function calculateCurvedPath(from, to) {
 // ============================================================================
 
 canvasContainer.addEventListener('mousedown', (e) => {
-    if (e.target === canvasContainer || e.target === canvas) {
-        deselectAll();
+    if (e.target === canvasContainer || e.target === canvas || e.target.id === 'selection-marquee') {
+        if (!e.shiftKey) deselectAll();
 
         if (currentTool === 'pan' || e.button === 1) {
             isPanning = true;
             canvasContainer.style.cursor = 'grabbing';
+        } else if (currentTool === 'select' && e.button === 0) {
+            // Start marquee selection
+            isMarquee = true;
+            const rect = canvasContainer.getBoundingClientRect();
+            marqueeStart.x = e.clientX - rect.left;
+            marqueeStart.y = e.clientY - rect.top;
+            const marquee = document.getElementById('selection-marquee');
+            marquee.style.left = `${marqueeStart.x}px`;
+            marquee.style.top = `${marqueeStart.y}px`;
+            marquee.style.width = '0px';
+            marquee.style.height = '0px';
         } else if (currentTool === 'postit') {
             const rect = canvasContainer.getBoundingClientRect();
-            const x = (e.clientX - rect.left - panX) / zoom;
-            const y = (e.clientY - rect.top - panY) / zoom;
+            const x = snapToGrid((e.clientX - rect.left - panX) / zoom);
+            const y = snapToGrid((e.clientY - rect.top - panY) / zoom);
             const el = createElement('postit', x, y);
             selectElement(el);
         } else if (currentTool === 'text') {
             const rect = canvasContainer.getBoundingClientRect();
-            const x = (e.clientX - rect.left - panX) / zoom;
-            const y = (e.clientY - rect.top - panY) / zoom;
+            const x = snapToGrid((e.clientX - rect.left - panX) / zoom);
+            const y = snapToGrid((e.clientY - rect.top - panY) / zoom);
             const el = createElement('text', x, y);
             selectElement(el);
         } else if (currentTool === 'group') {
@@ -2344,20 +2549,64 @@ canvasContainer.addEventListener('mousemove', (e) => {
         panX += e.movementX;
         panY += e.movementY;
         updateCanvasTransform();
+    } else if (isResizing && resizeElement) {
+        handleResize(e);
     } else if (isDragging && selectedElement) {
         if (!didDrag) {
-            saveState(); // Save state on first move
+            saveState();
             didDrag = true;
         }
         const rect = canvasContainer.getBoundingClientRect();
-        const x = (e.clientX - rect.left - panX) / zoom - dragOffset.x;
-        const y = (e.clientY - rect.top - panY) / zoom - dragOffset.y;
+        const curX = (e.clientX - rect.left - panX) / zoom;
+        const curY = (e.clientY - rect.top - panY) / zoom;
 
-        selectedElement.style.left = `${x}px`;
-        selectedElement.style.top = `${y}px`;
-
-        updateElementData(selectedElement.dataset.id, { x, y });
-        renderConnections();
+        if (selectedElements.size > 1) {
+            // Multi-drag: move all selected by delta
+            const dx = snapToGrid(curX - dragLastPos.x);
+            const dy = snapToGrid(curY - dragLastPos.y);
+            if (dx !== 0 || dy !== 0) {
+                selectedElements.forEach(id => {
+                    const domEl = document.querySelector(`[data-id="${id}"]`);
+                    const data = elements.find(el => el.id === id);
+                    if (domEl && data) {
+                        const newX = data.x + dx;
+                        const newY = data.y + dy;
+                        domEl.style.left = `${newX}px`;
+                        domEl.style.top = `${newY}px`;
+                        updateElementData(id, { x: newX, y: newY });
+                    }
+                });
+                dragLastPos.x += dx;
+                dragLastPos.y += dy;
+                renderConnections();
+            }
+        } else {
+            // Single drag: absolute positioning
+            const rawX = curX - dragOffset.x;
+            const rawY = curY - dragOffset.y;
+            const x = snapToGrid(rawX);
+            const y = snapToGrid(rawY);
+            selectedElement.style.left = `${x}px`;
+            selectedElement.style.top = `${y}px`;
+            updateElementData(selectedElement.dataset.id, { x, y });
+            renderConnections();
+        }
+    } else if (isMarquee) {
+        const rect = canvasContainer.getBoundingClientRect();
+        const curX = e.clientX - rect.left;
+        const curY = e.clientY - rect.top;
+        const marquee = document.getElementById('selection-marquee');
+        const left = Math.min(marqueeStart.x, curX);
+        const top = Math.min(marqueeStart.y, curY);
+        const width = Math.abs(curX - marqueeStart.x);
+        const height = Math.abs(curY - marqueeStart.y);
+        if (width > 5 || height > 5) {
+            marquee.style.display = 'block';
+            marquee.style.left = `${left}px`;
+            marquee.style.top = `${top}px`;
+            marquee.style.width = `${width}px`;
+            marquee.style.height = `${height}px`;
+        }
     } else if (isConnecting) {
         updateTempConnection(e);
     }
@@ -2368,21 +2617,62 @@ canvasContainer.addEventListener('mouseup', (e) => {
         isPanning = false;
         canvasContainer.style.cursor = currentTool === 'pan' ? 'grab' : 'default';
     }
+    if (isResizing) {
+        isResizing = false;
+        resizeElement = null;
+        resizeHandle = null;
+    }
     if (isDragging) {
         isDragging = false;
         if (selectedElement) {
             selectedElement.style.cursor = 'move';
         }
     }
+    if (isMarquee) {
+        isMarquee = false;
+        const marquee = document.getElementById('selection-marquee');
+        const mRect = {
+            left: parseFloat(marquee.style.left),
+            top: parseFloat(marquee.style.top),
+            width: parseFloat(marquee.style.width),
+            height: parseFloat(marquee.style.height),
+        };
+        marquee.style.display = 'none';
+        // Only select if marquee was actually dragged (not a simple click)
+        if (mRect.width > 5 || mRect.height > 5) {
+            const containerRect = canvasContainer.getBoundingClientRect();
+            // Convert marquee screen rect to canvas coords
+            const mCanvasLeft = (mRect.left - panX) / zoom;
+            const mCanvasTop = (mRect.top - panY) / zoom;
+            const mCanvasRight = (mRect.left + mRect.width - panX) / zoom;
+            const mCanvasBottom = (mRect.top + mRect.height - panY) / zoom;
+            elements.forEach(elData => {
+                const domEl = document.querySelector(`[data-id="${elData.id}"]`);
+                if (!domEl) return;
+                const elRight = elData.x + domEl.offsetWidth;
+                const elBottom = elData.y + domEl.offsetHeight;
+                // Check intersection
+                if (elData.x < mCanvasRight && elRight > mCanvasLeft &&
+                    elData.y < mCanvasBottom && elBottom > mCanvasTop) {
+                    selectedElements.add(elData.id);
+                    domEl.classList.add('selected');
+                    selectedElement = domEl; // Last one becomes primary
+                }
+            });
+            updateSelectionInfo();
+            if (selectedElements.size === 1 && selectedElement) {
+                showProperties(selectedElement);
+                addResizeHandles(selectedElement);
+            }
+        }
+    }
     if (isConnecting) {
-        // Check if mouse is over a connection point
         const target = e.target;
         if (target.classList.contains('wb-connection-point')) {
             const el = target.closest('.wb-element');
             const pos = ['top', 'bottom', 'left', 'right'].find(p => target.classList.contains(p));
             finishConnection(el, pos);
         } else {
-            // Cancel the connection if not dropped on a connection point
             cancelConnection();
         }
     }
@@ -2469,27 +2759,279 @@ function sendToBack() {
 }
 
 function deleteSelected() {
-    if (!selectedElement) return;
+    if (selectedElements.size === 0) return;
     hideContextMenu();
     saveState();
 
-    const id = selectedElement.dataset.id;
+    const idsToDelete = new Set(selectedElements);
 
-    // Remove connections to/from this element
+    // Remove connections to/from any deleted element
     connections = connections.filter(c =>
-        c.from.elementId !== id && c.to.elementId !== id
+        !idsToDelete.has(c.from.elementId) && !idsToDelete.has(c.to.elementId)
     );
-    renderConnections();
 
-    // Remove element data
-    elements = elements.filter(el => el.id !== id);
+    // Remove element data and DOM elements
+    idsToDelete.forEach(id => {
+        const domEl = document.querySelector(`[data-id="${id}"]`);
+        if (domEl) {
+            removeResizeHandles(domEl);
+            domEl.remove();
+        }
+    });
+    elements = elements.filter(el => !idsToDelete.has(el.id));
 
-    // Remove DOM element
-    selectedElement.remove();
+    selectedElements.clear();
     selectedElement = null;
-
+    renderConnections();
     document.getElementById('properties-panel').classList.remove('active');
 }
+
+// ============================================================================
+// Resize Handles
+// ============================================================================
+
+const RESIZE_SKIP_TYPES = ['fishbone', 'gate-and', 'gate-or'];
+const MIN_SIZES = {
+    postit: { w: 80, h: 60 },
+    text: { w: 60, h: 24 },
+    group: { w: 120, h: 80 },
+    image: { w: 40, h: 40 },
+    _default: { w: 60, h: 40 },
+};
+
+function addResizeHandles(el) {
+    if (!el) return;
+    const type = el.dataset.type;
+    if (RESIZE_SKIP_TYPES.includes(type)) return;
+    // Don't add if already present
+    if (el.querySelector('.wb-resize-handle')) return;
+    ['nw', 'ne', 'sw', 'se'].forEach(corner => {
+        const handle = document.createElement('div');
+        handle.className = `wb-resize-handle ${corner}`;
+        handle.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            isResizing = true;
+            resizeHandle = corner;
+            resizeElement = el;
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            const elData = elements.find(d => d.id === el.dataset.id);
+            resizeStart = {
+                x: e.clientX, y: e.clientY,
+                width: w, height: h,
+                elX: elData ? elData.x : parseFloat(el.style.left),
+                elY: elData ? elData.y : parseFloat(el.style.top),
+            };
+            saveState();
+        });
+        el.appendChild(handle);
+    });
+}
+
+function removeResizeHandles(el) {
+    if (!el) return;
+    el.querySelectorAll('.wb-resize-handle').forEach(h => h.remove());
+}
+
+function handleResize(e) {
+    if (!resizeElement || !resizeHandle) return;
+    const dx = (e.clientX - resizeStart.x) / zoom;
+    const dy = (e.clientY - resizeStart.y) / zoom;
+    const type = resizeElement.dataset.type;
+    const min = MIN_SIZES[type] || MIN_SIZES._default;
+
+    let newW = resizeStart.width;
+    let newH = resizeStart.height;
+    let newX = resizeStart.elX;
+    let newY = resizeStart.elY;
+
+    // Diamond: keep square (width = height)
+    const isDiamond = type === 'diamond';
+    // Image: lock aspect ratio
+    const isImage = type === 'image';
+    const aspect = resizeStart.width / resizeStart.height;
+
+    if (resizeHandle.includes('e')) newW = resizeStart.width + dx;
+    if (resizeHandle.includes('w')) { newW = resizeStart.width - dx; newX = resizeStart.elX + dx; }
+    if (resizeHandle.includes('s')) newH = resizeStart.height + dy;
+    if (resizeHandle.includes('n')) { newH = resizeStart.height - dy; newY = resizeStart.elY + dy; }
+
+    // Enforce minimums
+    if (newW < min.w) { if (resizeHandle.includes('w')) newX -= (min.w - newW); newW = min.w; }
+    if (newH < min.h) { if (resizeHandle.includes('n')) newY -= (min.h - newH); newH = min.h; }
+
+    // Constrain diamond to square
+    if (isDiamond) { const s = Math.max(newW, newH); newW = s; newH = s; }
+
+    // Lock aspect ratio for images
+    if (isImage) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+            newH = newW / aspect;
+        } else {
+            newW = newH * aspect;
+        }
+    }
+
+    newW = snapToGrid(newW);
+    newH = snapToGrid(newH);
+    newX = snapToGrid(newX);
+    newY = snapToGrid(newY);
+
+    resizeElement.style.width = `${newW}px`;
+    resizeElement.style.height = `${newH}px`;
+    if (type === 'postit') {
+        resizeElement.style.minHeight = `${newH}px`;
+    }
+    resizeElement.style.left = `${newX}px`;
+    resizeElement.style.top = `${newY}px`;
+
+    updateElementData(resizeElement.dataset.id, { x: newX, y: newY, width: newW, height: newH });
+    renderConnections();
+}
+
+// ============================================================================
+// Copy / Paste
+// ============================================================================
+
+function copySelected() {
+    if (selectedElements.size === 0) return;
+    const ids = new Set(selectedElements);
+    clipboard.elements = elements.filter(el => ids.has(el.id)).map(el => JSON.parse(JSON.stringify(el)));
+    clipboard.connections = connections.filter(c =>
+        ids.has(c.from.elementId) && ids.has(c.to.elementId)
+    ).map(c => JSON.parse(JSON.stringify(c)));
+}
+
+function pasteClipboard() {
+    if (clipboard.elements.length === 0) return;
+    saveState();
+    const idMap = {};
+    const newEls = [];
+
+    // Create elements with new IDs, offset by 40,40
+    clipboard.elements.forEach(elData => {
+        const oldId = elData.id;
+        const newId = `el-${++elementIdCounter}`;
+        idMap[oldId] = newId;
+        const opts = { ...elData, id: newId };
+        const newEl = createElement(elData.type, elData.x + 40, elData.y + 40, opts, true);
+        newEls.push({ el: newEl, id: newId });
+    });
+
+    // Recreate connections with remapped IDs
+    clipboard.connections.forEach(conn => {
+        const fromId = idMap[conn.from.elementId];
+        const toId = idMap[conn.to.elementId];
+        if (fromId && toId) {
+            createConnection(fromId, conn.from.position, toId, conn.to.position,
+                { type: conn.type, style: conn.style }, true);
+        }
+    });
+
+    // Select all pasted elements
+    deselectAll();
+    newEls.forEach(({ el, id }) => {
+        selectedElements.add(id);
+        el.classList.add('selected');
+        selectedElement = el;
+    });
+    updateSelectionInfo();
+
+    // Shift clipboard offset for subsequent pastes
+    clipboard.elements.forEach(el => { el.x += 40; el.y += 40; });
+    renderConnections();
+}
+
+function duplicateSelected() {
+    if (selectedElements.size === 0) return;
+    hideContextMenu();
+    copySelected();
+    pasteClipboard();
+}
+
+// ============================================================================
+// Image Drop / Paste
+// ============================================================================
+
+function processImageFile(file, canvasX, canvasY) {
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Image too large. Maximum size is 5MB.');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+            // Downscale if needed (max 800px on either axis)
+            let w = img.width;
+            let h = img.height;
+            const MAX_DIM = 800;
+            if (w > MAX_DIM || h > MAX_DIM) {
+                const scale = MAX_DIM / Math.max(w, h);
+                w = Math.round(w * scale);
+                h = Math.round(h * scale);
+            }
+            // Compress via offscreen canvas
+            const offscreen = document.createElement('canvas');
+            offscreen.width = w;
+            offscreen.height = h;
+            const octx = offscreen.getContext('2d');
+            octx.drawImage(img, 0, 0, w, h);
+            const dataUrl = offscreen.toDataURL('image/jpeg', 0.85);
+
+            // Check final size (base64 in JSON)
+            if (dataUrl.length > 2 * 1024 * 1024) {
+                alert('Image too large after processing. Try a smaller image.');
+                return;
+            }
+
+            const x = snapToGrid(canvasX - w / 2);
+            const y = snapToGrid(canvasY - h / 2);
+            const el = createElement('image', x, y, { src: dataUrl, width: w, height: h, originalWidth: w, originalHeight: h });
+            selectElement(el);
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+canvasContainer.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+});
+
+canvasContainer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+    const file = files[0];
+    if (!file.type.startsWith('image/')) return;
+    const rect = canvasContainer.getBoundingClientRect();
+    const canvasX = (e.clientX - rect.left - panX) / zoom;
+    const canvasY = (e.clientY - rect.top - panY) / zoom;
+    processImageFile(file, canvasX, canvasY);
+});
+
+document.addEventListener('paste', (e) => {
+    // Skip if typing in an editable field
+    if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+            e.preventDefault();
+            const file = items[i].getAsFile();
+            // Paste at center of current viewport
+            const rect = canvasContainer.getBoundingClientRect();
+            const canvasX = (rect.width / 2 - panX) / zoom;
+            const canvasY = (rect.height / 2 - panY) / zoom;
+            processImageFile(file, canvasX, canvasY);
+            break;
+        }
+    }
+});
 
 // ============================================================================
 // Properties Panel
@@ -2662,22 +3204,6 @@ function loadTemplate(template) {
             }, 100);
             break;
 
-        case 'vsm':
-            // Supplier
-            createElement('rectangle', 50, 100, { text: 'Supplier' });
-
-            // Process boxes
-            createElement('rectangle', 200, 100, { text: 'Process 1' });
-            createElement('rectangle', 380, 100, { text: 'Process 2' });
-            createElement('rectangle', 560, 100, { text: 'Process 3' });
-
-            // Customer
-            createElement('rectangle', 720, 100, { text: 'Customer' });
-
-            // Timeline
-            createElement('text', 50, 280, { text: 'Lead Time: ___' });
-            break;
-
         case 'fishbone':
             createFishbone(50, 100, 'Hypothesis / Effect');
             break;
@@ -2706,8 +3232,8 @@ canvasContainer.addEventListener('drop', (e) => {
     const shape = e.dataTransfer.getData('shape');
     if (shape) {
         const rect = canvasContainer.getBoundingClientRect();
-        const x = (e.clientX - rect.left - panX) / zoom;
-        const y = (e.clientY - rect.top - panY) / zoom;
+        const x = snapToGrid((e.clientX - rect.left - panX) / zoom);
+        const y = snapToGrid((e.clientY - rect.top - panY) / zoom);
         const el = createElement(shape, x, y);
         selectElement(el);
     }
@@ -2723,28 +3249,49 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
+    const mod = e.ctrlKey || e.metaKey;
     switch (e.key.toLowerCase()) {
+        case 'c':
+            if (mod) { e.preventDefault(); copySelected(); }
+            else { document.querySelector('[data-tool="connect"]').click(); }
+            break;
         case 'v':
-            document.querySelector('[data-tool="select"]').click();
+            if (mod) { e.preventDefault(); pasteClipboard(); }
+            else { document.querySelector('[data-tool="select"]').click(); }
+            break;
+        case 'd':
+            if (mod) { e.preventDefault(); duplicateSelected(); }
+            break;
+        case 'a':
+            if (mod) {
+                e.preventDefault();
+                // Select all elements
+                elements.forEach(elData => {
+                    const domEl = document.querySelector(`[data-id="${elData.id}"]`);
+                    if (domEl) {
+                        selectedElements.add(elData.id);
+                        domEl.classList.add('selected');
+                        selectedElement = domEl;
+                    }
+                });
+                updateSelectionInfo();
+            }
             break;
         case 'p':
-            document.querySelector('[data-tool="postit"]').click();
-            break;
-        case 'c':
-            document.querySelector('[data-tool="connect"]').click();
+            if (!mod) document.querySelector('[data-tool="postit"]').click();
             break;
         case 'i':
-            document.querySelector('[data-tool="causal"]').click();
+            if (!mod) document.querySelector('[data-tool="causal"]').click();
             break;
         case 't':
-            document.querySelector('[data-tool="text"]').click();
+            if (!mod) document.querySelector('[data-tool="text"]').click();
             break;
         case 'g':
-            document.querySelector('[data-tool="group"]').click();
+            if (!mod) document.querySelector('[data-tool="group"]').click();
             break;
         case 'delete':
         case 'backspace':
-            if (selectedElement) {
+            if (selectedElements.size > 0) {
                 deleteSelected();
             }
             break;
@@ -2759,26 +3306,16 @@ document.addEventListener('keydown', (e) => {
             zoomReset();
             break;
         case 's':
-            if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-                saveBoard();
-            }
+            if (mod) { e.preventDefault(); saveBoard(); }
             break;
         case 'z':
-            if (e.ctrlKey || e.metaKey) {
+            if (mod) {
                 e.preventDefault();
-                if (e.shiftKey) {
-                    redo();
-                } else {
-                    undo();
-                }
+                if (e.shiftKey) { redo(); } else { undo(); }
             }
             break;
         case 'y':
-            if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-                redo();
-            }
+            if (mod) { e.preventDefault(); redo(); }
             break;
         case 'escape':
             if (isConnecting) {
@@ -3087,6 +3624,8 @@ function exportBoard(format) {
                         });
                     });
                 }
+            } else if (el.type === 'image' && el.src) {
+                // Images drawn in second pass (see below)
             } else {
                 // Process shapes
                 ctx.fillStyle = '#121a12';
@@ -3120,11 +3659,37 @@ function exportBoard(format) {
             }
         });
 
-        // Download
-        const link = document.createElement('a');
-        link.download = 'whiteboard.png';
-        link.href = exportCanvas.toDataURL('image/png');
-        link.click();
+        // Second pass: draw images (preload them first)
+        const imageEls = elements.filter(el => el.type === 'image' && el.src);
+        let imagesLoaded = 0;
+        const totalImages = imageEls.length;
+
+        function finishExport() {
+            const link = document.createElement('a');
+            link.download = 'whiteboard.png';
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        if (totalImages === 0) {
+            finishExport();
+        } else {
+            imageEls.forEach(el => {
+                const domEl = document.querySelector(`[data-id="${el.id}"]`);
+                if (!domEl) { imagesLoaded++; return; }
+                const imgObj = new Image();
+                imgObj.onload = () => {
+                    const ix = el.x - minX + padding;
+                    const iy = el.y - minY + padding;
+                    ctx.drawImage(imgObj, ix, iy, domEl.offsetWidth, domEl.offsetHeight);
+                    imagesLoaded++;
+                    if (imagesLoaded >= totalImages) finishExport();
+                };
+                imgObj.onerror = () => { imagesLoaded++; if (imagesLoaded >= totalImages) finishExport(); };
+                imgObj.src = el.src;
+            });
+        }
+        return; // Exit early since download is async now
     }
 }
 
@@ -3487,6 +4052,136 @@ function analyzeIR() {
 }
 
 // ============================================================================
+// SVG Export
+// ============================================================================
+
+function exportBoardSVG() {
+    if (elements.length === 0) {
+        alert('Nothing to export. Add some elements first.');
+        return;
+    }
+
+    // Calculate bounds
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    elements.forEach(el => {
+        const domEl = document.querySelector(`[data-id="${el.id}"]`);
+        if (!domEl) return;
+        minX = Math.min(minX, el.x);
+        minY = Math.min(minY, el.y);
+        maxX = Math.max(maxX, el.x + domEl.offsetWidth);
+        maxY = Math.max(maxY, el.y + domEl.offsetHeight);
+    });
+
+    const pad = 40;
+    const width = maxX - minX + pad * 2;
+    const height = maxY - minY + pad * 2;
+    const ox = -minX + pad; // offset x
+    const oy = -minY + pad; // offset y
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n`;
+    svg += `<rect width="${width}" height="${height}" fill="#1a1a1a"/>\n`;
+
+    // Defs for arrowheads
+    svg += `<defs>
+  <marker id="ah" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto"><polygon points="0 0,12 4,0 8" fill="#4a9f6e"/></marker>
+  <marker id="ahc" markerWidth="14" markerHeight="10" refX="13" refY="5" orient="auto"><polygon points="0 0,14 5,0 10" fill="#e89547"/></marker>
+</defs>\n`;
+
+    // Connections
+    connections.forEach(conn => {
+        const fromEl = document.querySelector(`[data-id="${conn.from.elementId}"]`);
+        const toEl = document.querySelector(`[data-id="${conn.to.elementId}"]`);
+        if (!fromEl || !toEl) return;
+        const from = getConnectionPoint(fromEl, conn.from.position);
+        const to = getConnectionPoint(toEl, conn.to.position);
+        const f = { x: from.x + ox, y: from.y + oy, dir: from.dir };
+        const t = { x: to.x + ox, y: to.y + oy, dir: to.dir };
+
+        let pathD;
+        if (conn.style === 'straight') pathD = calculateStraightPath(f, t);
+        else if (conn.style === 'curved') pathD = calculateCurvedPath(f, t);
+        else pathD = calculateOrthogonalPath(f, t);
+
+        const isCausal = conn.type === 'causal';
+        const color = isCausal ? '#e89547' : '#4a9f6e';
+        const sw = isCausal ? 3 : 2;
+        const marker = isCausal ? 'ahc' : 'ah';
+        svg += `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="${sw}" marker-end="url(#${marker})"/>\n`;
+
+        if (isCausal) {
+            const mx = (f.x + t.x) / 2, my = (f.y + t.y) / 2;
+            svg += `<text x="${f.x + (t.x - f.x) * 0.2}" y="${f.y + (t.y - f.y) * 0.2 - 8}" fill="#e89547" font-size="11" font-family="Inter,sans-serif" font-weight="600">IF</text>\n`;
+            svg += `<text x="${f.x + (t.x - f.x) * 0.8}" y="${f.y + (t.y - f.y) * 0.8 - 8}" fill="#e89547" font-size="11" font-family="Inter,sans-serif" font-weight="600">THEN</text>\n`;
+        }
+    });
+
+    // Elements
+    const postitColors = { yellow: '#feff9c', green: '#7afcff', pink: '#ff7eb9', orange: '#ff9f43', blue: '#74b9ff', purple: '#a29bfe' };
+
+    elements.forEach(el => {
+        const domEl = document.querySelector(`[data-id="${el.id}"]`);
+        if (!domEl) return;
+        const ex = el.x + ox;
+        const ey = el.y + oy;
+        const w = domEl.offsetWidth;
+        const h = domEl.offsetHeight;
+
+        if (el.type === 'postit') {
+            const col = postitColors[el.color] || '#feff9c';
+            svg += `<rect x="${ex}" y="${ey}" width="${w}" height="${h}" fill="${col}" rx="2"/>\n`;
+            svg += `<foreignObject x="${ex}" y="${ey}" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" style="padding:12px;font-size:13px;color:#333;font-family:Inter,sans-serif;word-wrap:break-word;">${escapeHtml(domEl.textContent)}</div></foreignObject>\n`;
+        } else if (el.type === 'text') {
+            svg += `<text x="${ex}" y="${ey + 16}" fill="#e8efe8" font-size="14" font-family="Inter,sans-serif">${escapeHtml(domEl.textContent)}</text>\n`;
+        } else if (el.type === 'group') {
+            svg += `<rect x="${ex}" y="${ey}" width="${w}" height="${h}" fill="rgba(74,159,110,0.1)" stroke="#4a9f6e" stroke-width="2" stroke-dasharray="8,4" rx="8"/>\n`;
+            const title = el.title || 'Group';
+            svg += `<rect x="${ex + 8}" y="${ey + 8}" width="${w - 16}" height="32" fill="#4a9f6e" rx="4"/>\n`;
+            svg += `<text x="${ex + 20}" y="${ey + 28}" fill="white" font-size="14" font-weight="600" font-family="Inter,sans-serif">${escapeHtml(title)}</text>\n`;
+        } else if (el.type === 'rectangle') {
+            svg += `<rect x="${ex}" y="${ey}" width="${w}" height="${h}" fill="#121a12" stroke="#4a9f6e" stroke-width="2" rx="4"/>\n`;
+            svg += `<text x="${ex + w/2}" y="${ey + h/2 + 5}" fill="#e8efe8" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">${escapeHtml(el.text || '')}</text>\n`;
+        } else if (el.type === 'diamond') {
+            const cx = ex + w/2, cy = ey + h/2;
+            const hw = w/2, hh = h/2;
+            svg += `<polygon points="${cx},${cy-hh} ${cx+hw},${cy} ${cx},${cy+hh} ${cx-hw},${cy}" fill="#121a12" stroke="#4a9f6e" stroke-width="2"/>\n`;
+            svg += `<text x="${cx}" y="${cy + 5}" fill="#e8efe8" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">${escapeHtml(el.text || '')}</text>\n`;
+        } else if (el.type === 'oval') {
+            svg += `<ellipse cx="${ex + w/2}" cy="${ey + h/2}" rx="${w/2}" ry="${h/2}" fill="#121a12" stroke="#4a9f6e" stroke-width="2"/>\n`;
+            svg += `<text x="${ex + w/2}" y="${ey + h/2 + 5}" fill="#e8efe8" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">${escapeHtml(el.text || '')}</text>\n`;
+        } else if (el.type === 'parallelogram') {
+            const skew = w * 0.15;
+            svg += `<polygon points="${ex+skew},${ey} ${ex+w},${ey} ${ex+w-skew},${ey+h} ${ex},${ey+h}" fill="#121a12" stroke="#4a9f6e" stroke-width="2"/>\n`;
+            svg += `<text x="${ex + w/2}" y="${ey + h/2 + 5}" fill="#e8efe8" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">${escapeHtml(el.text || '')}</text>\n`;
+        } else if (el.type === 'document' || el.type === 'cylinder') {
+            svg += `<rect x="${ex}" y="${ey}" width="${w}" height="${h}" fill="#121a12" stroke="#4a9f6e" stroke-width="2" rx="2"/>\n`;
+            svg += `<text x="${ex + w/2}" y="${ey + h/2 + 5}" fill="#e8efe8" font-size="12" text-anchor="middle" font-family="Inter,sans-serif">${escapeHtml(el.text || '')}</text>\n`;
+        } else if (el.type === 'image' && el.src) {
+            svg += `<image href="${el.src}" x="${ex}" y="${ey}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>\n`;
+        } else if (el.type === 'gate-and') {
+            svg += `<rect x="${ex}" y="${ey}" width="${w}" height="${h}" fill="#121a12" stroke="#8a7fbf" stroke-width="2" rx="${h/2}"/>\n`;
+            svg += `<text x="${ex + w/2}" y="${ey + h/2 + 5}" fill="#8a7fbf" font-size="11" text-anchor="middle" font-weight="700" font-family="Inter,sans-serif">AND</text>\n`;
+        } else if (el.type === 'gate-or') {
+            svg += `<rect x="${ex}" y="${ey}" width="${w}" height="${h}" fill="#121a12" stroke="#ff7eb9" stroke-width="2" rx="${h/2}"/>\n`;
+            svg += `<text x="${ex + w/2}" y="${ey + h/2 + 5}" fill="#ff7eb9" font-size="11" text-anchor="middle" font-weight="700" font-family="Inter,sans-serif">OR</text>\n`;
+        }
+    });
+
+    svg += '</svg>';
+
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `whiteboard-${Date.now()}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ============================================================================
 // JSON Export/Import
 // ============================================================================
 
@@ -3668,8 +4363,38 @@ let myColor = '#4a9f6e';
 let isOwner = false;
 let lastCursorUpdate = 0;
 
+// Guest mode (set from Django template context)
+let isGuestMode = false;
+let guestToken = '{{ guest_token|default:"" }}';
+let guestPermission = '{{ guest_permission|default:"" }}';
+let guestDisplayName = '{{ guest_display_name|default:"" }}';
+let guestRoomCode = '{{ guest_room_code|default:"" }}';
+
+if (guestToken) {
+    isGuestMode = true;
+
+    // Override fetch to inject guest token on whiteboard API calls
+    const _guestOriginalFetch = window.fetch;
+    window.fetch = function(url, options) {
+        options = options || {};
+        if (typeof url === 'string' && url.startsWith('/api/whiteboard/')) {
+            if (!options.headers) options.headers = {};
+            if (typeof options.headers === 'object' && !(options.headers instanceof Headers)) {
+                options.headers['X-Guest-Token'] = guestToken;
+            }
+        }
+        return _guestOriginalFetch.call(this, url, options);
+    };
+}
+
 // Check if we're in a room (URL has room code)
 function initCollaboration() {
+    if (isGuestMode) {
+        roomCode = guestRoomCode.toUpperCase();
+        if (roomCode) loadBoardFromServer();
+        return;
+    }
+
     const pathParts = window.location.pathname.split('/');
     const roomIdx = pathParts.indexOf('whiteboard');
     if (roomIdx >= 0 && pathParts[roomIdx + 1] && pathParts[roomIdx + 1].length >= 4) {
@@ -3700,9 +4425,11 @@ async function loadBoardFromServer() {
         isOwner = data.is_owner;
 
         // Set project from loaded board
-        if (data.project_id) {
-            currentProjectId = data.project_id;
-            document.getElementById('project-select').value = currentProjectId;
+        const boardProjectId = data.project_id || (data.project && data.project.id);
+        if (boardProjectId) {
+            currentProjectId = boardProjectId;
+            const sel = document.getElementById('project-select');
+            sel.value = currentProjectId;
             updateProjectLink(currentProjectId);
         }
 
@@ -3711,6 +4438,7 @@ async function loadBoardFromServer() {
         document.getElementById('room-code-text').textContent = roomCode;
         if (isOwner) {
             document.getElementById('vote-toggle').style.display = 'block';
+            document.getElementById('guest-manage-group').style.display = 'flex';
         }
 
         // Clear and load board
@@ -3746,6 +4474,9 @@ async function loadBoardFromServer() {
         startPolling();
 
         showSyncStatus('synced', 'Connected');
+
+        // Apply guest mode restrictions after board loads
+        if (isGuestMode) applyGuestMode();
 
     } catch (err) {
         console.error('Error loading board:', err);
@@ -4088,9 +4819,9 @@ async function setupProjectSelector() {
             select.appendChild(opt);
         });
 
-        // Check for project param in URL
+        // Check for project param in URL or pre-loaded from board data
         const urlParams = new URLSearchParams(window.location.search);
-        const projectId = urlParams.get('project');
+        const projectId = urlParams.get('project') || currentProjectId;
         if (projectId) {
             select.value = projectId;
             currentProjectId = projectId;
@@ -4122,7 +4853,7 @@ async function setupProjectSelector() {
 function updateProjectLink(projectId) {
     const link = document.getElementById('project-link');
     if (projectId) {
-        link.href = '/app/projects/';
+        link.href = `/app/projects/#${projectId}`;
         link.style.display = 'flex';
     } else {
         link.style.display = 'none';
@@ -4130,17 +4861,207 @@ function updateProjectLink(projectId) {
 }
 
 // ============================================================================
+// Guest Mode
+// ============================================================================
+
+function applyGuestMode() {
+    // Hide sidebar sections not relevant to guests
+    document.querySelectorAll('.wb-sidebar-section').forEach(sec => {
+        const header = sec.querySelector('.wb-sidebar-header span');
+        if (!header) return;
+        const label = header.textContent.trim();
+        if (label === 'Boards' || label === 'Convert') {
+            sec.style.display = 'none';
+        }
+        if (guestPermission === 'view' && (label === 'Shapes' || label === 'Templates')) {
+            sec.style.display = 'none';
+        }
+    });
+
+    // Hide project selector
+    const projGroup = document.querySelector('.wb-project-group');
+    if (projGroup) projGroup.style.display = 'none';
+
+    // Hide share button
+    const shareGroup = document.getElementById('share-group');
+    if (shareGroup) shareGroup.style.display = 'none';
+
+    // Hide export buttons
+    document.querySelectorAll('[onclick*="exportCausal"], [onclick*="exportBoard"], [onclick*="exportBoardJSON"]').forEach(
+        btn => { btn.style.display = 'none'; }
+    );
+
+    // View-only: disable editing tools
+    if (guestPermission === 'view') {
+        document.querySelectorAll('.wb-tool-btn[data-tool]').forEach(btn => {
+            const tool = btn.getAttribute('data-tool');
+            if (tool !== 'select' && tool !== 'pan') {
+                btn.style.opacity = '0.3';
+                btn.style.pointerEvents = 'none';
+            }
+        });
+        // No-op save for view-only
+        saveBoardToServer = function() { return Promise.resolve(); };
+        debouncedSave = function() {};
+    }
+
+    // Show name entry if no display name set yet
+    if (!guestDisplayName) {
+        showGuestNameModal();
+    }
+}
+
+function showGuestNameModal() {
+    document.getElementById('guest-name-overlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('guest-name-input').focus(), 100);
+}
+
+async function submitGuestName() {
+    const input = document.getElementById('guest-name-input');
+    const name = input.value.trim();
+    if (!name) {
+        input.style.borderColor = '#d06060';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/guest-name/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Guest-Token': guestToken },
+            body: JSON.stringify({ display_name: name }),
+        });
+
+        if (response.ok) {
+            guestDisplayName = name;
+            document.getElementById('guest-name-overlay').style.display = 'none';
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to set name');
+        }
+    } catch (err) {
+        alert('Connection error. Please try again.');
+    }
+}
+
+// Enter key submits guest name
+document.getElementById('guest-name-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitGuestName();
+});
+
+// Guest invite management (for board owners)
+async function openGuestModal() {
+    document.getElementById('guest-modal-overlay').style.display = 'flex';
+    await refreshGuestList();
+}
+
+function closeGuestModal() {
+    document.getElementById('guest-modal-overlay').style.display = 'none';
+}
+
+async function refreshGuestList() {
+    try {
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/guests/`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const list = document.getElementById('guest-invite-list');
+
+        if (data.invites.length === 0) {
+            list.innerHTML = '<p style="color:var(--wb-text-dim);text-align:center;padding:20px;">No guest invites yet. Create one below.</p>';
+            return;
+        }
+
+        list.innerHTML = data.invites.map(inv => {
+            const permLabel = inv.permission === 'edit_vote' ? 'Edit+Vote' : inv.permission === 'edit' ? 'Edit' : 'View';
+            let statusBadge = '';
+            if (!inv.is_active) statusBadge = '<span style="color:#d06060;font-size:10px;margin-left:6px;">revoked</span>';
+            else if (inv.is_expired) statusBadge = '<span style="color:#e89547;font-size:10px;margin-left:6px;">expired</span>';
+            else if (inv.is_online) statusBadge = '<span style="color:#4a9f6e;font-size:10px;margin-left:6px;">online</span>';
+
+            const canRevoke = inv.is_active && !inv.is_expired;
+
+            return `<div class="wb-guest-item">
+                <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:${inv.color};display:inline-block;flex-shrink:0;"></span>
+                    <strong style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${inv.display_name}</strong>
+                    <span style="font-size:11px;color:var(--wb-text-dim);">${permLabel}</span>
+                    ${statusBadge}
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0;">
+                    ${canRevoke ? `<button onclick="copyGuestLink('${inv.url}')" style="padding:3px 8px;font-size:11px;background:var(--wb-bg);color:var(--wb-text);border:1px solid var(--wb-border);border-radius:3px;cursor:pointer;">Copy</button>
+                    <button onclick="revokeInvite('${inv.id}')" style="padding:3px 8px;font-size:11px;background:rgba(208,96,96,0.1);color:#d06060;border:1px solid rgba(208,96,96,0.3);border-radius:3px;cursor:pointer;">Revoke</button>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Failed to load guest list:', err);
+    }
+}
+
+async function createGuestInvite() {
+    const perm = document.getElementById('guest-perm-select').value;
+    try {
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/guests/create/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permission: perm }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const fullUrl = window.location.origin + data.url;
+            navigator.clipboard.writeText(fullUrl).catch(() => {});
+            const expDate = new Date(data.expires_at);
+            const permLabel = perm === 'edit_vote' ? 'Edit+Vote' : perm === 'edit' ? 'Edit' : 'View';
+            alert(`Guest invite created! Link copied.\n\nPermission: ${permLabel}\nExpires: ${expDate.toLocaleDateString()}\n\n${fullUrl}`);
+            await refreshGuestList();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to create invite');
+        }
+    } catch (err) {
+        alert('Connection error');
+    }
+}
+
+async function revokeInvite(inviteId) {
+    if (!confirm('Revoke this guest invite? They will lose access immediately.')) return;
+    try {
+        const response = await fetch(`/api/whiteboard/boards/${roomCode}/guests/${inviteId}/revoke/`, {
+            method: 'DELETE',
+        });
+        if (response.ok) {
+            await refreshGuestList();
+        } else {
+            alert('Failed to revoke invite');
+        }
+    } catch (err) {
+        alert('Connection error');
+    }
+}
+
+function copyGuestLink(url) {
+    const fullUrl = window.location.origin + url;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+        // Could show brief toast here
+    });
+}
+
+// ============================================================================
 // Initialize
 // ============================================================================
 
-setupProjectSelector();
-loadBoardsList();
+if (!isGuestMode) {
+    setupProjectSelector();
+    loadBoardsList();
+}
 saveState(); // Save initial empty state
 initCollaboration(); // Check for room code in URL
 </script>
 <script>
-window.addEventListener('svendUserReady', function(e) {
-    if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
-});
+if (!window.guestToken) {
+    window.addEventListener('svendUserReady', function(e) {
+        if (!e.detail.features || !e.detail.features.full_tools) showUpgradeModal();
+    });
+}
 </script>
 {% endblock %}

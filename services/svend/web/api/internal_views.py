@@ -1,6 +1,7 @@
-"""Internal telemetry dashboard — staff-only views."""
+"""Internal telemetry dashboard — staff and org-admin views."""
 
 import json
+import logging
 from collections import Counter
 from datetime import timedelta
 
@@ -12,7 +13,7 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import BasePermission, IsAdminUser
 from rest_framework.response import Response
 
 from accounts.models import Subscription, User
@@ -22,15 +23,50 @@ from api.models import (
     AutopilotReport,
     BlogPost,
     BlogView,
+    CRMLead,
     EmailCampaign,
+    OutreachEnrollment,
+    OutreachSequence,
+    SiteVisit,
+    WhitePaper,
+    WhitePaperDownload,
     Experiment,
     ExperimentAssignment,
     Feedback,
 )
 from chat.models import EventLog, TraceLog, UsageLog
 
+logger = logging.getLogger(__name__)
+
 TIER_PRICES = {"founder": 19, "pro": 29, "team": 79, "enterprise": 199}
 PAID_TIERS = list(TIER_PRICES.keys())
+
+# Internal/test accounts excluded from all analytics (non-staff accounts
+# that shouldn't inflate customer metrics — e.g. team members, test users).
+INTERNAL_USERNAMES = {"rtWzrd"}
+
+# Tenant slugs whose owner/admin members get internal dashboard access.
+INTERNAL_TENANT_SLUGS = {"svend"}
+
+
+def can_access_internal(user):
+    """Return True if user is staff OR an owner/admin of an internal tenant."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_staff:
+        return True
+    return user.memberships.filter(
+        tenant__slug__in=INTERNAL_TENANT_SLUGS,
+        role__in=("owner", "admin"),
+        is_active=True,
+    ).exists()
+
+
+class IsInternalUser(BasePermission):
+    """DRF permission: staff or internal-tenant admin."""
+
+    def has_permission(self, request, view):
+        return can_access_internal(request.user)
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +82,57 @@ def _get_days(request):
 
 def _customers():
     """Real customers — excludes staff/internal accounts."""
-    return User.objects.filter(is_staff=False)
+    return User.objects.filter(is_staff=False).exclude(username__in=INTERNAL_USERNAMES)
+
+
+def _resolve_recipients(target):
+    """Resolve a target string to a queryset of Users (with emails).
+
+    Returns (queryset | None, error_string | None).
+    Custom email addresses (containing @) return None for queryset.
+    """
+    now = timezone.now()
+    base = _customers().exclude(email="")
+
+    if target == "all":
+        return base, None
+    elif target.startswith("tier:"):
+        tier = target.split(":", 1)[1]
+        return base.filter(tier=tier), None
+    elif target.startswith("active:"):
+        days = int(target.split(":", 1)[1].rstrip("d"))
+        cutoff = now - timedelta(days=days)
+        return base.filter(last_active_at__gte=cutoff), None
+    elif target.startswith("inactive:"):
+        days = int(target.split(":", 1)[1].rstrip("d"))
+        cutoff = now - timedelta(days=days)
+        return base.filter(
+            Q(last_active_at__lt=cutoff) | Q(last_active_at__isnull=True)
+        ), None
+    elif target == "has_queries":
+        return base.filter(total_queries__gt=0), None
+    elif target == "no_queries":
+        return base.filter(total_queries=0), None
+    elif target.startswith("new:"):
+        days = int(target.split(":", 1)[1].rstrip("d"))
+        cutoff = now - timedelta(days=days)
+        return base.filter(date_joined__gte=cutoff), None
+    elif target.startswith("domain:"):
+        domain = target.split(":", 1)[1]
+        cutoff = now - timedelta(days=90)
+        user_ids = (
+            UsageLog.objects.filter(
+                date__gte=cutoff.date(),
+                domain_counts__has_key=domain,
+            )
+            .values_list("user_id", flat=True)
+            .distinct()
+        )
+        return base.filter(id__in=user_ids), None
+    elif "@" in target:
+        return None, None  # custom email — handled by caller
+    else:
+        return None, "Invalid recipient target."
 
 
 def _markdown_to_html(text):
@@ -148,6 +234,13 @@ def _markdown_to_html(text):
     html = re.sub(r"\*(.+?)\*", r"<em>\1</em>", html)
     html = re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r'<a href="\2" style="color:#4a9f6e;">\1</a>', html)
 
+    # Auto-linkify bare URLs not already inside an <a> tag (safety net for click tracking)
+    html = re.sub(
+        r'(?<!href=")(?<!">)(https?://[^\s<"]+)',
+        r'<a href="\1" style="color:#4a9f6e;">\1</a>',
+        html,
+    )
+
     # Restore inline code
     for j, code in enumerate(inline_codes):
         html = html.replace(
@@ -166,15 +259,19 @@ def _markdown_to_html(text):
 
 
 def _staff_ids():
-    """Staff user UUIDs for TraceLog filtering (uses UUIDField, not FK)."""
-    return list(User.objects.filter(is_staff=True).values_list("id", flat=True))
+    """Staff + internal user UUIDs for TraceLog filtering (uses UUIDField, not FK)."""
+    return list(
+        User.objects.filter(
+            Q(is_staff=True) | Q(username__in=INTERNAL_USERNAMES)
+        ).values_list("id", flat=True)
+    )
 
 
 # ---------------------------------------------------------------------------
 # Page view
 # ---------------------------------------------------------------------------
 
-@user_passes_test(lambda u: u.is_staff, login_url="/login/")
+@user_passes_test(can_access_internal, login_url="/login/")
 def dashboard_view(request):
     return render(request, "internal_dashboard.html")
 
@@ -184,7 +281,7 @@ def dashboard_view(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_overview(request):
     days = _get_days(request)
     now = timezone.now()
@@ -198,6 +295,7 @@ def api_overview(request):
     day_usage = (
         UsageLog.objects.filter(date=today)
         .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
         .aggregate(
             requests=Sum("request_count"),
             errors=Sum("error_count"),
@@ -220,6 +318,40 @@ def api_overview(request):
     paid = customers.filter(tier__in=PAID_TIERS).count()
     conversion = round(paid / total_users * 100, 1) if total_users else 0
 
+    # Week-over-week changes: compare last 7d vs preceding 7d
+    week_ago = today - timedelta(days=7)
+    two_weeks_ago = today - timedelta(days=14)
+    usage_base = (
+        UsageLog.objects.exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
+    )
+    this_week = usage_base.filter(date__gt=week_ago, date__lte=today).aggregate(
+        requests=Sum("request_count"), errors=Sum("error_count"),
+    )
+    last_week = usage_base.filter(date__gt=two_weeks_ago, date__lte=week_ago).aggregate(
+        requests=Sum("request_count"), errors=Sum("error_count"),
+    )
+    active_this_week = customers.filter(last_active_at__date__gt=week_ago).count()
+    active_last_week = customers.filter(
+        last_active_at__date__gt=two_weeks_ago, last_active_at__date__lte=week_ago
+    ).count()
+    signups_this_week = customers.filter(date_joined__date__gt=week_ago).count()
+    signups_last_week = customers.filter(
+        date_joined__date__gt=two_weeks_ago, date_joined__date__lte=week_ago
+    ).count()
+
+    def _wow(current, previous):
+        if not previous:
+            return None
+        return round((current - previous) / previous * 100, 1)
+
+    changes = {
+        "users": _wow(signups_this_week, signups_last_week),
+        "active": _wow(active_this_week, active_last_week),
+        "requests": _wow(this_week["requests"] or 0, last_week["requests"] or 0),
+        "errors": _wow(this_week["errors"] or 0, last_week["errors"] or 0),
+    }
+
     return Response({
         "total_users": total_users,
         "active_today": active_today,
@@ -228,6 +360,7 @@ def api_overview(request):
         "avg_latency_ms": round(avg_latency, 1) if avg_latency else None,
         "mrr": mrr,
         "conversion_rate": conversion,
+        "changes": changes,
     })
 
 
@@ -236,7 +369,7 @@ def api_overview(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_users(request):
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
@@ -288,6 +421,24 @@ def api_users(request):
     total = customers.count()
     verified = customers.filter(email_verified=True).count()
 
+    # Churn risk: paid users who haven't been active recently
+    now = timezone.now()
+    at_risk = []
+    paid_users = customers.filter(tier__in=PAID_TIERS)
+    for u in paid_users.order_by("last_active_at")[:20]:
+        days_inactive = (now - u.last_active_at).days if u.last_active_at else 999
+        if days_inactive < 14:
+            continue
+        at_risk.append({
+            "username": u.username,
+            "tier": u.tier,
+            "days_inactive": days_inactive,
+            "total_queries": u.total_queries,
+            "email": u.email,
+        })
+        if len(at_risk) >= 10:
+            break
+
     return Response({
         "signups": [{"date": str(s["date"]), "count": s["count"]} for s in signups],
         "tiers": list(tiers),
@@ -298,6 +449,7 @@ def api_users(request):
         "verification_rate": round(verified / total * 100, 1) if total else 0,
         "verified_count": verified,
         "total_count": total,
+        "churn_risk": at_risk,
     })
 
 
@@ -306,11 +458,11 @@ def api_users(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_usage(request):
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
-    logs = UsageLog.objects.filter(date__gte=since).exclude(user__is_staff=True)
+    logs = UsageLog.objects.filter(date__gte=since).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES)
 
     daily_requests = (
         logs.values("date")
@@ -369,7 +521,7 @@ def api_usage(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_performance(request):
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
@@ -437,7 +589,7 @@ def api_performance(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_business(request):
     days = _get_days(request)
     since = timezone.now().date() - timedelta(days=days)
@@ -458,10 +610,10 @@ def api_business(request):
     # Churn
     churning = Subscription.objects.filter(
         cancel_at_period_end=True,
-    ).exclude(user__is_staff=True).count()
+    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
     active_subs = Subscription.objects.filter(
         status="active",
-    ).exclude(user__is_staff=True).count()
+    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
 
     # Founder slots
     founder_count = customers.filter(tier="founder").count()
@@ -488,9 +640,77 @@ def api_business(request):
             "cancelling": churning,
             "active_subscriptions": active_subs,
         },
-        "founder_slots": {"used": founder_count, "total": 100},
+        "founder_slots": {"used": founder_count, "total": 50},
         "feature_adoption": tool_usage.most_common(15),
     })
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_cohort_retention(request):
+    """Monthly cohort retention: what % of each signup-month cohort were active in subsequent months."""
+    now = timezone.now()
+    months_back = min(int(request.GET.get("months", 6)), 12)
+    customers = _customers()
+
+    cohorts = []
+    for m in range(months_back - 1, -1, -1):
+        # First day of each cohort month
+        cohort_start = (now.replace(day=1) - timedelta(days=m * 30)).replace(day=1)
+        if cohort_start.month == 12:
+            cohort_end = cohort_start.replace(year=cohort_start.year + 1, month=1)
+        else:
+            cohort_end = cohort_start.replace(month=cohort_start.month + 1)
+
+        cohort_users = customers.filter(
+            date_joined__gte=cohort_start, date_joined__lt=cohort_end
+        )
+        cohort_size = cohort_users.count()
+        if cohort_size == 0:
+            continue
+
+        cohort_ids = list(cohort_users.values_list("id", flat=True))
+        label = cohort_start.strftime("%Y-%m")
+
+        retention = []
+        # Month 0 is always 100%
+        retention.append({"month": 0, "retained": 100})
+
+        # For each subsequent month
+        for offset in range(1, months_back - m):
+            check_start = cohort_start.replace(day=1)
+            # Advance by offset months
+            check_month = check_start.month + offset
+            check_year = check_start.year + (check_month - 1) // 12
+            check_month = ((check_month - 1) % 12) + 1
+            check_start = check_start.replace(year=check_year, month=check_month)
+
+            if check_start > now:
+                break
+
+            active_count = (
+                UsageLog.objects.filter(
+                    user_id__in=cohort_ids,
+                    date__gte=check_start.date(),
+                    date__lt=(check_start.replace(
+                        month=check_start.month + 1 if check_start.month < 12 else 1,
+                        year=check_start.year if check_start.month < 12 else check_start.year + 1
+                    )).date(),
+                )
+                .values("user_id")
+                .distinct()
+                .count()
+            )
+            pct = round(active_count / cohort_size * 100, 1)
+            retention.append({"month": offset, "retained": pct})
+
+        cohorts.append({
+            "label": label,
+            "size": cohort_size,
+            "retention": retention,
+        })
+
+    return Response({"cohorts": cohorts})
 
 
 # ---------------------------------------------------------------------------
@@ -498,7 +718,7 @@ def api_business(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_insights(request):
     prompt = request.data.get(
         "prompt",
@@ -518,8 +738,8 @@ def api_insights(request):
                 "You are an analytics advisor for Svend, a decision science SaaS. "
                 "Svend provides statistical analysis, DOE, SPC, Bayesian reasoning, "
                 "forecasting, A3 reports, value stream mapping, and other quality/"
-                "operations tools. Tiers: Free ($0), Founder ($19/mo), Pro ($29/mo), "
-                "Team ($79/mo), Enterprise ($199/mo). Target audience: engineers, "
+                "operations tools. Tiers: Free ($0), Professional ($49/mo), "
+                "Team ($99/mo), Enterprise ($299/mo). Target audience: engineers, "
                 "analysts, managers, and consultants in manufacturing, healthcare, "
                 "tech, and consulting. Analyze the data provided and give specific, "
                 "actionable insights. Cite numbers. Prioritize by impact. Use "
@@ -567,8 +787,21 @@ EMAIL_TEMPLATE = """\
 </html>"""
 
 
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_email_preview(request):
+    """Return count of users matching a segment target."""
+    target = request.GET.get("target", "")
+    if not target or "@" in target:
+        return Response({"count": None})
+    qs, err = _resolve_recipients(target)
+    if err:
+        return Response({"count": 0, "error": err})
+    return Response({"count": qs.count() if qs is not None else 0})
+
+
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_send_email(request):
     """Send HTML email to customers with tracking. Supports individual, tier-based, or all."""
     import re
@@ -590,15 +823,14 @@ def api_send_email(request):
     recipients = []  # list of (user_or_none, email)
     if test_mode:
         recipients = [(request.user, request.user.email)]
-    elif target == "all":
-        recipients = [(u, u.email) for u in _customers().exclude(email="")]
-    elif target.startswith("tier:"):
-        tier = target.split(":", 1)[1]
-        recipients = [(u, u.email) for u in _customers().filter(tier=tier).exclude(email="")]
     elif "@" in target:
         recipients = [(None, target)]
     else:
-        return Response({"error": "Invalid recipient target."}, status=400)
+        qs, err = _resolve_recipients(target)
+        if err:
+            return Response({"error": err}, status=400)
+        if qs is not None:
+            recipients = [(u, u.email) for u in qs]
 
     if not recipients:
         return Response({"error": "No recipients found."}, status=400)
@@ -691,7 +923,7 @@ def api_send_email(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_save_email_draft(request):
     """Save or update an email draft. Supports multiple drafts."""
     import uuid as _uuid
@@ -729,7 +961,7 @@ def api_save_email_draft(request):
 
 
 @api_view(["GET", "DELETE"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_get_email_draft(request):
     """GET: list all drafts. DELETE: remove a draft by ?id=."""
     user = request.user
@@ -760,7 +992,7 @@ def api_get_email_draft(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_email_campaigns(request):
     """List email campaigns with tracking stats."""
     from api.models import EmailCampaign, EmailRecipient
@@ -780,6 +1012,23 @@ def api_email_campaigns(request):
         .order_by("-created_at")
     )
 
+    # Compute conversions: recipients who upgraded within 7 days of campaign
+    campaign_list = list(campaigns)
+    conversion_map = {}
+    for c in campaign_list:
+        window_end = c.created_at + timedelta(days=7)
+        recipient_user_ids = (
+            EmailRecipient.objects.filter(campaign=c, user__isnull=False)
+            .values_list("user_id", flat=True)
+        )
+        conversions = Subscription.objects.filter(
+            user_id__in=recipient_user_ids,
+            status="active",
+            current_period_start__gte=c.created_at,
+            current_period_start__lte=window_end,
+        ).count()
+        conversion_map[c.id] = conversions
+
     return Response({
         "campaigns": [
             {
@@ -794,9 +1043,10 @@ def api_email_campaigns(request):
                 "clicked": c.total_clicked,
                 "open_rate": round(c.total_opened / c.total_sent * 100, 1) if c.total_sent else 0,
                 "click_rate": round(c.total_clicked / c.total_sent * 100, 1) if c.total_sent else 0,
+                "conversions": conversion_map.get(c.id, 0),
                 "created_at": c.created_at.isoformat(),
             }
-            for c in campaigns
+            for c in campaign_list
         ],
     })
 
@@ -806,11 +1056,11 @@ def api_email_campaigns(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_activity(request):
     days = _get_days(request)
     since = timezone.now() - timedelta(days=days)
-    events = EventLog.objects.filter(created_at__gte=since).exclude(user__is_staff=True)
+    events = EventLog.objects.filter(created_at__gte=since).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES)
 
     # Page popularity
     page_views = (
@@ -898,7 +1148,7 @@ def api_activity(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_onboarding(request):
     """Onboarding funnel, survey distributions, and email stats."""
     from api.models import OnboardingEmail, OnboardingSurvey
@@ -906,7 +1156,7 @@ def api_onboarding(request):
     customers = _customers()
     total = customers.count()
     completed = customers.filter(onboarding_completed_at__isnull=False).count()
-    surveys = OnboardingSurvey.objects.filter(user__is_staff=False)
+    surveys = OnboardingSurvey.objects.filter(user__is_staff=False).exclude(user__username__in=INTERNAL_USERNAMES)
 
     # Funnel
     verified = customers.filter(email_verified=True).count()
@@ -963,7 +1213,7 @@ def api_onboarding(request):
     )
 
     # Email stats
-    emails = OnboardingEmail.objects.filter(user__is_staff=False)
+    emails = OnboardingEmail.objects.filter(user__is_staff=False).exclude(user__username__in=INTERNAL_USERNAMES)
     email_stats = {}
     for key in ["welcome", "getting_started", "tips", "learning_path", "checkin"]:
         key_emails = emails.filter(email_key=key)
@@ -1017,7 +1267,7 @@ def api_onboarding(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_list(request):
     """List all blog posts (drafts, scheduled, and published)."""
     posts = BlogPost.objects.all().order_by("-created_at")
@@ -1046,7 +1296,7 @@ def api_blog_list(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_get(request, post_id):
     """Get full blog post content for editing."""
     try:
@@ -1067,7 +1317,7 @@ def api_blog_get(request, post_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_save(request):
     """Create or update a blog post."""
     data = request.data
@@ -1098,7 +1348,7 @@ def api_blog_save(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_publish(request, post_id):
     """Publish, schedule, or unpublish a blog post."""
     try:
@@ -1134,7 +1384,7 @@ def api_blog_publish(request, post_id):
 
 
 @api_view(["DELETE"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_delete(request, post_id):
     """Delete a blog post."""
     try:
@@ -1146,7 +1396,7 @@ def api_blog_delete(request, post_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_generate(request):
     """Generate a blog post draft using AI."""
     topic = request.data.get("topic", "").strip()
@@ -1223,7 +1473,7 @@ def api_blog_generate(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_blog_analytics(request):
     """Blog performance metrics: views, referrers, top posts, trends."""
     days = _get_days(request)
@@ -1294,6 +1544,188 @@ def api_blog_analytics(request):
 
 
 # ---------------------------------------------------------------------------
+# Whitepapers
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_whitepaper_list(request):
+    """List all white papers with counts."""
+    papers = WhitePaper.objects.annotate(
+        download_count=Count("downloads")
+    ).order_by("-created_at")
+    return Response({
+        "papers": [
+            {
+                "id": str(p.id),
+                "title": p.title,
+                "slug": p.slug,
+                "topic": p.topic,
+                "status": p.status,
+                "gated": p.gated,
+                "meta_description": p.meta_description,
+                "download_count": p.download_count,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+                "published_at": p.published_at.isoformat() if p.published_at else None,
+            }
+            for p in papers
+        ],
+        "counts": {
+            "total": papers.count(),
+            "published": papers.filter(status="published").count(),
+            "draft": papers.filter(status="draft").count(),
+        },
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_whitepaper_get(request, paper_id):
+    """Get a single white paper for editing."""
+    try:
+        p = WhitePaper.objects.get(id=paper_id)
+    except WhitePaper.DoesNotExist:
+        return Response({"error": "not found"}, status=404)
+    return Response({
+        "id": str(p.id),
+        "title": p.title,
+        "slug": p.slug,
+        "topic": p.topic,
+        "description": p.description,
+        "body": p.body,
+        "meta_description": p.meta_description,
+        "status": p.status,
+        "gated": p.gated,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "published_at": p.published_at.isoformat() if p.published_at else None,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_whitepaper_save(request):
+    """Create or update a white paper."""
+    data = request.data
+    paper_id = data.get("id")
+    if paper_id:
+        try:
+            paper = WhitePaper.objects.get(id=paper_id)
+        except WhitePaper.DoesNotExist:
+            return Response({"error": "not found"}, status=404)
+    else:
+        paper = WhitePaper(author=request.user)
+
+    paper.title = data.get("title", paper.title or "Untitled")
+    paper.body = data.get("body", paper.body or "")
+    paper.description = data.get("description", paper.description or "")
+    paper.meta_description = data.get("meta_description", paper.meta_description or "")
+    paper.topic = data.get("topic", paper.topic or "")
+    paper.gated = data.get("gated", paper.gated)
+    if data.get("slug"):
+        paper.slug = data["slug"]
+    paper.save()
+    return Response({"id": str(paper.id), "slug": paper.slug, "status": paper.status})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_whitepaper_publish(request, paper_id):
+    """Publish or unpublish a white paper."""
+    try:
+        paper = WhitePaper.objects.get(id=paper_id)
+    except WhitePaper.DoesNotExist:
+        return Response({"error": "not found"}, status=404)
+
+    action = request.data.get("action", "publish")
+    if action == "publish":
+        paper.status = WhitePaper.Status.PUBLISHED
+        paper.published_at = timezone.now()
+    else:
+        paper.status = WhitePaper.Status.DRAFT
+        paper.published_at = None
+    paper.save()
+    return Response({"status": paper.status})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsInternalUser])
+def api_whitepaper_delete(request, paper_id):
+    """Delete a white paper."""
+    try:
+        paper = WhitePaper.objects.get(id=paper_id)
+    except WhitePaper.DoesNotExist:
+        return Response({"error": "not found"}, status=404)
+    paper.delete()
+    return Response({"ok": True})
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_whitepaper_analytics(request):
+    """White paper performance metrics: downloads, referrers, top papers."""
+    days = _get_days(request)
+    since = timezone.now() - timedelta(days=days)
+    downloads = WhitePaperDownload.objects.filter(downloaded_at__gte=since, is_bot=False)
+
+    # Downloads over time (daily)
+    daily = list(
+        downloads.annotate(date=TruncDate("downloaded_at"))
+        .values("date")
+        .annotate(total=Count("id"), unique=Count("ip_hash", distinct=True))
+        .order_by("date")
+    )
+
+    # Top papers by downloads
+    top_papers = list(
+        downloads.values("paper__title", "paper__slug", "paper_id")
+        .annotate(total=Count("id"), unique=Count("ip_hash", distinct=True))
+        .order_by("-total")[:20]
+    )
+
+    # Referrer domains
+    referrers_raw = list(
+        downloads.exclude(referrer_domain="")
+        .values("referrer_domain")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:15]
+    )
+    direct = downloads.filter(referrer_domain="").count()
+    referrers = [{"domain": "Direct", "count": direct}] if direct else []
+    referrers += [{"domain": r["referrer_domain"], "count": r["count"]} for r in referrers_raw]
+
+    # Totals
+    total_downloads = downloads.count()
+    unique_downloaders = downloads.values("ip_hash").distinct().count()
+    emails_captured = downloads.exclude(email="").values("email").distinct().count()
+    bot_hits = WhitePaperDownload.objects.filter(downloaded_at__gte=since, is_bot=True).count()
+
+    return Response({
+        "daily_downloads": [
+            {"date": str(d["date"]), "total": d["total"], "unique": d["unique"]}
+            for d in daily
+        ],
+        "top_papers": [
+            {
+                "title": p["paper__title"],
+                "slug": p["paper__slug"],
+                "downloads": p["total"],
+                "unique": p["unique"],
+            }
+            for p in top_papers
+        ],
+        "referrers": referrers,
+        "totals": {
+            "downloads": total_downloads,
+            "unique_downloaders": unique_downloaders,
+            "emails_captured": emails_captured,
+            "bot_hits": bot_hits,
+        },
+    })
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -1321,6 +1753,7 @@ def _build_data_snapshot(days=30):
     usage = (
         UsageLog.objects.filter(date__gte=since_date)
         .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
         .aggregate(
             total_requests=Sum("request_count"),
             total_errors=Sum("error_count"),
@@ -1344,6 +1777,7 @@ def _build_data_snapshot(days=30):
     for log in (
         UsageLog.objects.filter(date__gte=since_date)
         .exclude(user__is_staff=True)
+        .exclude(user__username__in=INTERNAL_USERNAMES)
         .exclude(domain_counts__isnull=True)
     ):
         if log.domain_counts:
@@ -1365,7 +1799,7 @@ def _build_data_snapshot(days=30):
 
     churning = Subscription.objects.filter(
         cancel_at_period_end=True,
-    ).exclude(user__is_staff=True).count()
+    ).exclude(user__is_staff=True).exclude(user__username__in=INTERNAL_USERNAMES).count()
 
     signups = list(
         customers.filter(date_joined__gte=since)
@@ -1391,7 +1825,7 @@ def _build_data_snapshot(days=30):
             "mrr": mrr,
             "churning_subscriptions": churning,
             "founder_slots_used": tier_dist.get("founder", 0),
-            "founder_slots_total": 100,
+            "founder_slots_total": 50,
         },
         "usage": {k: v or 0 for k, v in usage.items()},
         "performance": {
@@ -1418,7 +1852,7 @@ def _build_data_snapshot(days=30):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_experiments(request):
     """List experiments or create a new one."""
     if request.method == "GET":
@@ -1478,7 +1912,7 @@ def api_experiments(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_experiment_evaluate(request, experiment_id):
     """Manually trigger experiment evaluation."""
     from api.experiments import evaluate_experiment
@@ -1497,7 +1931,7 @@ def api_experiment_evaluate(request, experiment_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_experiment_conclude(request, experiment_id):
     """Manually conclude an experiment with a chosen winner."""
     try:
@@ -1518,7 +1952,7 @@ def api_experiment_conclude(request, experiment_id):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_automation_rules(request):
     """List or create automation rules."""
     if request.method == "GET":
@@ -1531,6 +1965,9 @@ def api_automation_rules(request):
                 "description": rule.description,
                 "trigger": rule.trigger,
                 "trigger_config": rule.trigger_config,
+                "trigger_2": rule.trigger_2,
+                "trigger_2_config": rule.trigger_2_config,
+                "trigger_logic": rule.trigger_logic,
                 "action": rule.action,
                 "action_config": rule.action_config,
                 "is_active": rule.is_active,
@@ -1544,13 +1981,14 @@ def api_automation_rules(request):
     # POST — create or update
     d = request.data
     rule_id = d.get("id")
+    compound_fields = ["trigger_2", "trigger_2_config", "trigger_logic"]
     if rule_id:
         try:
             rule = AutomationRule.objects.get(id=rule_id)
         except AutomationRule.DoesNotExist:
             return Response({"error": "not_found"}, status=404)
         for field in ["name", "description", "trigger", "trigger_config",
-                       "action", "action_config", "is_active", "cooldown_hours"]:
+                       "action", "action_config", "is_active", "cooldown_hours"] + compound_fields:
             if field in d:
                 setattr(rule, field, d[field])
         rule.save()
@@ -1560,6 +1998,9 @@ def api_automation_rules(request):
             description=d.get("description", ""),
             trigger=d.get("trigger", "inactive_days"),
             trigger_config=d.get("trigger_config", {}),
+            trigger_2=d.get("trigger_2", ""),
+            trigger_2_config=d.get("trigger_2_config"),
+            trigger_logic=d.get("trigger_logic", "and"),
             action=d.get("action", "send_email"),
             action_config=d.get("action_config", {}),
             cooldown_hours=d.get("cooldown_hours", 72),
@@ -1568,7 +2009,7 @@ def api_automation_rules(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_automation_rule_toggle(request, rule_id):
     """Toggle an automation rule on/off."""
     try:
@@ -1586,7 +2027,7 @@ def api_automation_rule_toggle(request, rule_id):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_automation_log(request):
     """Recent automation log entries."""
     limit = int(request.GET.get("limit", 50))
@@ -1614,7 +2055,7 @@ def api_automation_log(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_autopilot(request):
     """Get autopilot reports."""
     reports = AutopilotReport.objects.all()[:10]
@@ -1632,7 +2073,7 @@ def api_autopilot(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_autopilot_approve(request, report_id):
     """Approve a recommendation from an autopilot report."""
     try:
@@ -1687,15 +2128,16 @@ def api_autopilot_approve(request, report_id):
         if rule_name:
             result = {"action": "rule_tweak_noted", "rule": rule_name, "change": config.get("change", "")}
 
-    # Mark recommendation as approved
+    # Mark recommendation as approved and store result for tracking
     report.recommendations[rec_index]["approved"] = True
+    report.recommendations[rec_index]["result"] = result
     report.save(update_fields=["recommendations"])
 
     return Response(result)
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_autopilot_run(request):
     """Manually trigger a Claude growth review."""
     from tempora.scheduler import schedule_task
@@ -1716,17 +2158,25 @@ def api_autopilot_run(request):
 # ---------------------------------------------------------------------------
 
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsInternalUser])
 def api_feedback(request):
     """List feedback or update status."""
     if request.method == "POST":
         feedback_id = request.data.get("id")
-        new_status = request.data.get("status", "reviewed")
+        new_status = request.data.get("status")
+        notes = request.data.get("notes")
         try:
             fb = Feedback.objects.get(id=feedback_id)
-            fb.status = new_status
-            fb.save(update_fields=["status"])
-            return Response({"status": fb.status})
+            update_fields = []
+            if new_status:
+                fb.status = new_status
+                update_fields.append("status")
+            if notes is not None:
+                fb.internal_notes = notes
+                update_fields.append("internal_notes")
+            if update_fields:
+                fb.save(update_fields=update_fields)
+            return Response({"status": fb.status, "notes": fb.internal_notes})
         except Feedback.DoesNotExist:
             return Response({"error": "not_found"}, status=404)
 
@@ -1746,6 +2196,985 @@ def api_feedback(request):
             "message": fb.message,
             "page": fb.page,
             "status": fb.status,
+            "internal_notes": fb.internal_notes,
             "created_at": fb.created_at,
         })
-    return Response({"feedback": entries})
+
+    # Summary counts (always unfiltered)
+    all_fb = Feedback.objects.all()
+    by_status = dict(all_fb.values_list("status").annotate(c=Count("id")).values_list("status", "c"))
+    by_category = dict(all_fb.values_list("category").annotate(c=Count("id")).values_list("category", "c"))
+    summary = {
+        "total": all_fb.count(),
+        "by_status": {
+            "new": by_status.get("new", 0),
+            "reviewed": by_status.get("reviewed", 0),
+            "resolved": by_status.get("resolved", 0),
+        },
+        "by_category": {
+            "bug": by_category.get("bug", 0),
+            "feature": by_category.get("feature", 0),
+            "question": by_category.get("question", 0),
+            "other": by_category.get("other", 0),
+        },
+    }
+    return Response({"feedback": entries, "summary": summary})
+
+# ---------------------------------------------------------------------------
+# CRM — Outbound Outreach Management
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsInternalUser])
+def api_crm_leads(request):
+    """List (filterable) or create/update a CRM lead."""
+    if request.method == "GET":
+        qs = CRMLead.objects.all()
+        stage = request.GET.get("stage")
+        source = request.GET.get("source")
+        search = request.GET.get("search", "").strip()
+        if stage:
+            qs = qs.filter(stage=stage)
+        if source:
+            qs = qs.filter(source=source)
+        if search:
+            qs = qs.filter(
+                Q(name__icontains=search)
+                | Q(email__icontains=search)
+                | Q(company__icontains=search)
+            )
+        leads = []
+        for lead in qs[:200]:
+            leads.append({
+                "id": str(lead.id),
+                "name": lead.name,
+                "email": lead.email,
+                "company": lead.company,
+                "role": lead.role,
+                "industry": lead.industry,
+                "source": lead.source,
+                "stage": lead.stage,
+                "notes": lead.notes,
+                "tags": lead.tags,
+                "email_opted_out": lead.email_opted_out,
+                "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
+                "next_followup_at": lead.next_followup_at.isoformat() if lead.next_followup_at else None,
+                "created_at": lead.created_at.isoformat(),
+                "enrollments": [
+                    {
+                        "id": str(e.id),
+                        "sequence": e.sequence.name,
+                        "status": e.status,
+                        "current_step": e.current_step,
+                    }
+                    for e in lead.enrollments.select_related("sequence").all()[:5]
+                ],
+            })
+        return Response({"leads": leads})
+
+    # POST — create or update
+    d = request.data
+    lead_id = d.get("id")
+    if lead_id:
+        try:
+            lead = CRMLead.objects.get(id=lead_id)
+        except CRMLead.DoesNotExist:
+            return Response({"error": "not_found"}, status=404)
+    else:
+        lead = CRMLead()
+
+    for field in ["name", "email", "company", "role", "industry", "source",
+                   "stage", "notes", "tags", "email_opted_out"]:
+        if field in d:
+            setattr(lead, field, d[field])
+
+    if d.get("next_followup_at"):
+        from django.utils.dateparse import parse_datetime
+        dt = parse_datetime(d["next_followup_at"])
+        if dt:
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt)
+            lead.next_followup_at = dt
+
+    lead.save()
+    return Response({"id": str(lead.id), "stage": lead.stage})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsInternalUser])
+def api_crm_lead_delete(request, lead_id):
+    """Delete a CRM lead."""
+    try:
+        lead = CRMLead.objects.get(id=lead_id)
+    except CRMLead.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+    lead.delete()
+    return Response({"deleted": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_lead_stage(request, lead_id):
+    """Update a lead's pipeline stage."""
+    try:
+        lead = CRMLead.objects.get(id=lead_id)
+    except CRMLead.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+    new_stage = request.data.get("stage")
+    if new_stage not in dict(CRMLead.Stage.choices):
+        return Response({"error": "invalid_stage"}, status=400)
+    lead.stage = new_stage
+    lead.save(update_fields=["stage", "updated_at"])
+    return Response({"id": str(lead.id), "stage": lead.stage})
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_crm_pipeline(request):
+    """Pipeline overview: stage counts, due follow-ups, active sequence count."""
+    now = timezone.now()
+    leads = CRMLead.objects.all()
+
+    stage_counts = dict(
+        leads.values_list("stage")
+        .annotate(c=Count("id"))
+        .values_list("stage", "c")
+    )
+
+    due_followups = leads.filter(
+        next_followup_at__lte=now,
+        stage__in=["prospect", "contacted", "engaged", "demo", "trial"],
+    ).count()
+
+    active_enrollments = OutreachEnrollment.objects.filter(status="active").count()
+
+    source_counts = dict(
+        leads.values_list("source")
+        .annotate(c=Count("id"))
+        .values_list("source", "c")
+    )
+
+    return Response({
+        "stages": stage_counts,
+        "due_followups": due_followups,
+        "active_enrollments": active_enrollments,
+        "sources": source_counts,
+        "total_leads": leads.count(),
+    })
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsInternalUser])
+def api_crm_sequences(request):
+    """List or create/update outreach sequences."""
+    if request.method == "GET":
+        seqs = OutreachSequence.objects.all()
+        data = []
+        for seq in seqs:
+            enrolled = OutreachEnrollment.objects.filter(sequence=seq).count()
+            active = OutreachEnrollment.objects.filter(sequence=seq, status="active").count()
+            data.append({
+                "id": str(seq.id),
+                "name": seq.name,
+                "description": seq.description,
+                "is_active": seq.is_active,
+                "steps": seq.steps,
+                "step_count": len(seq.steps),
+                "enrolled": enrolled,
+                "active": active,
+                "created_at": seq.created_at.isoformat(),
+            })
+        return Response({"sequences": data})
+
+    # POST — create or update
+    d = request.data
+    seq_id = d.get("id")
+    if seq_id:
+        try:
+            seq = OutreachSequence.objects.get(id=seq_id)
+        except OutreachSequence.DoesNotExist:
+            return Response({"error": "not_found"}, status=404)
+    else:
+        seq = OutreachSequence()
+
+    for field in ["name", "description", "is_active", "steps"]:
+        if field in d:
+            setattr(seq, field, d[field])
+    seq.save()
+    return Response({"id": str(seq.id), "name": seq.name})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsInternalUser])
+def api_crm_sequence_delete(request, sequence_id):
+    """Delete an outreach sequence."""
+    try:
+        seq = OutreachSequence.objects.get(id=sequence_id)
+    except OutreachSequence.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+    seq.delete()
+    return Response({"deleted": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_enroll(request, sequence_id):
+    """Enroll a lead in an outreach sequence. Assigns A/B variant via SHA256."""
+    import hashlib
+
+    try:
+        seq = OutreachSequence.objects.get(id=sequence_id)
+    except OutreachSequence.DoesNotExist:
+        return Response({"error": "sequence_not_found"}, status=404)
+
+    lead_id = request.data.get("lead_id")
+    if not lead_id:
+        return Response({"error": "lead_id required"}, status=400)
+
+    try:
+        lead = CRMLead.objects.get(id=lead_id)
+    except CRMLead.DoesNotExist:
+        return Response({"error": "lead_not_found"}, status=404)
+
+    if lead.email_opted_out:
+        return Response({"error": "lead_opted_out"}, status=400)
+
+    if OutreachEnrollment.objects.filter(lead=lead, sequence=seq).exists():
+        return Response({"error": "already_enrolled"}, status=400)
+
+    # Deterministic A/B assignment (same pattern as experiments.py)
+    hash_input = f"{lead.id}-{seq.id}"
+    hash_val = int(hashlib.sha256(hash_input.encode()).hexdigest(), 16) % 2
+    variant = "a" if hash_val == 0 else "b"
+
+    # Calculate first send time
+    now = timezone.now()
+    first_step = seq.steps[0] if seq.steps else None
+    delay_days = first_step.get("delay_days", 0) if first_step else 0
+    next_send = now + timedelta(days=delay_days)
+
+    enrollment = OutreachEnrollment.objects.create(
+        lead=lead,
+        sequence=seq,
+        variant=variant,
+        current_step=0,
+        next_send_at=next_send,
+    )
+
+    return Response({
+        "id": str(enrollment.id),
+        "variant": variant,
+        "next_send_at": next_send.isoformat(),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_generate_email(request):
+    """Use Claude to generate personalized A/B email variants for outreach."""
+    d = request.data
+    lead_name = d.get("name", "")
+    lead_company = d.get("company", "")
+    lead_role = d.get("role", "")
+    lead_industry = d.get("industry", "")
+    step_purpose = d.get("purpose", "Introduction")
+    step_number = d.get("step_number", 1)
+    total_steps = d.get("total_steps", 1)
+    custom_notes = d.get("notes", "")
+
+    prompt = (
+        f"Generate two A/B email variants for an outreach sequence.\n\n"
+        f"Lead context:\n"
+        f"- Name: {lead_name}\n"
+        f"- Company: {lead_company}\n"
+        f"- Role: {lead_role}\n"
+        f"- Industry: {lead_industry}\n\n"
+        f"Email context:\n"
+        f"- Step {step_number} of {total_steps}\n"
+        f"- Purpose: {step_purpose}\n"
+        f"{'- Notes: ' + custom_notes if custom_notes else ''}\n\n"
+        "Requirements:\n"
+        "- Variant A: More direct/professional tone\n"
+        "- Variant B: More conversational/value-led tone\n"
+        "- Keep subject lines under 60 characters\n"
+        "- Body should be 3-5 short paragraphs\n"
+        "- Use {{name}} placeholder for the recipient's name\n"
+        "- End with a clear, low-friction CTA\n"
+        "- Never mention competitors by name\n\n"
+        "Return ONLY valid JSON with this exact structure:\n"
+        '{"subject_a": "...", "body_a": "...", "subject_b": "...", "body_b": "..."}\n'
+        "Use \\n for newlines in the body text."
+    )
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1500,
+            system=(
+                "You are a sales copywriter for Svend, a decision science SaaS platform. "
+                "Svend provides statistical analysis (like Minitab at $2,594/yr but modern, "
+                "AI-powered, and starting at $49/mo), SPC, DOE, capability studies, forecasting, "
+                "quality tools (A3, FMEA, RCA, VSM), and a collaborative knowledge graph. "
+                "Target buyers: quality engineers, CI managers, analysts, and ops leaders in "
+                "manufacturing, healthcare, tech, and consulting. Svend's edge: AI-guided "
+                "analysis, real-time collaboration, integrated hypothesis tracking, and "
+                "10x lower cost than legacy tools. Write concise, credible outreach — "
+                "no hype, no buzzwords, no generic sales language. Show domain knowledge."
+            ),
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        text = response.content[0].text.strip()
+        # Extract JSON from response (handle markdown code blocks)
+        if "```" in text:
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        result = json.loads(text)
+        return Response(result)
+    except json.JSONDecodeError:
+        return Response({"error": "Failed to parse AI response as JSON", "raw": text}, status=500)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_crm_outreach_metrics(request):
+    """Per-sequence outreach performance metrics."""
+    from api.models import EmailRecipient
+
+    sequences = OutreachSequence.objects.all()
+    metrics = []
+    for seq in sequences:
+        enrollments = OutreachEnrollment.objects.filter(sequence=seq)
+        enrolled = enrollments.count()
+        active = enrollments.filter(status="active").count()
+        completed = enrollments.filter(status="completed").count()
+        replied = enrollments.filter(status="replied").count()
+
+        # Gather all recipient IDs from send logs
+        recipient_ids = []
+        for e in enrollments:
+            for entry in (e.send_log or []):
+                if entry.get("recipient_id"):
+                    recipient_ids.append(entry["recipient_id"])
+
+        total_sent = len(recipient_ids)
+        opens = 0
+        clicks = 0
+        if recipient_ids:
+            opens = EmailRecipient.objects.filter(
+                id__in=recipient_ids, opened_at__isnull=False
+            ).count()
+            clicks = EmailRecipient.objects.filter(
+                id__in=recipient_ids, clicked_at__isnull=False
+            ).count()
+
+        metrics.append({
+            "id": str(seq.id),
+            "name": seq.name,
+            "enrolled": enrolled,
+            "active": active,
+            "completed": completed,
+            "replied": replied,
+            "emails_sent": total_sent,
+            "opens": opens,
+            "clicks": clicks,
+            "open_rate": round(opens / total_sent * 100, 1) if total_sent else 0,
+            "click_rate": round(clicks / total_sent * 100, 1) if total_sent else 0,
+        })
+
+    return Response({"metrics": metrics})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_send_one(request):
+    """Send a single ad-hoc email to a CRM lead."""
+    import re
+    from django.core.mail import send_mail as django_send_mail
+    from api.models import EmailRecipient
+    from api.views import make_unsubscribe_url
+
+    lead_id = request.data.get("lead_id")
+    subject = request.data.get("subject", "").strip()
+    body_md = request.data.get("body", "").strip()
+
+    if not lead_id or not subject or not body_md:
+        return Response({"error": "lead_id, subject, and body are required."}, status=400)
+
+    try:
+        lead = CRMLead.objects.get(id=lead_id)
+    except CRMLead.DoesNotExist:
+        return Response({"error": "lead_not_found"}, status=404)
+
+    if lead.email_opted_out:
+        return Response({"error": "lead_opted_out"}, status=400)
+
+    # Personalize
+    body_md = body_md.replace("{{name}}", lead.name)
+    body_html = _markdown_to_html(body_md)
+
+    # Create campaign record
+    campaign = EmailCampaign.objects.create(
+        subject=subject,
+        body_md=body_md,
+        target=f"crm:lead:{lead.id}",
+        sent_by=request.user,
+        recipient_count=1,
+    )
+    rcpt = EmailRecipient.objects.create(
+        campaign=campaign,
+        email=lead.email,
+    )
+
+    # Rewrite links for click tracking
+    def _track_link(match):
+        url = match.group(1)
+        return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+    body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
+
+    # Add tracking pixel
+    pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
+    unsub_url = "https://svend.ai"
+    full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url=unsub_url)
+
+    try:
+        django_send_mail(
+            subject=subject.replace("{{name}}", lead.name),
+            message="",
+            from_email=None,
+            recipient_list=[lead.email],
+            html_message=full_html,
+        )
+        # Update lead tracking
+        lead.last_contacted_at = timezone.now()
+        if lead.stage == "prospect":
+            lead.stage = "contacted"
+        lead.save(update_fields=["last_contacted_at", "stage", "updated_at"])
+
+        return Response({
+            "sent": True,
+            "campaign_id": str(campaign.id),
+            "recipient_id": str(rcpt.id),
+        })
+    except Exception as e:
+        rcpt.failed = True
+        rcpt.save(update_fields=["failed"])
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_process_queue(request):
+    """Process all due outreach sends: advance enrollments, send emails."""
+    import re
+    from django.core.mail import send_mail as django_send_mail
+    from api.models import EmailRecipient
+
+    now = timezone.now()
+    due = OutreachEnrollment.objects.filter(
+        status="active",
+        next_send_at__lte=now,
+    ).select_related("lead", "sequence")
+
+    sent_count = 0
+    failed_count = 0
+    skipped_count = 0
+
+    for enrollment in due:
+        lead = enrollment.lead
+        seq = enrollment.sequence
+
+        if lead.email_opted_out:
+            enrollment.status = "opted_out"
+            enrollment.save(update_fields=["status"])
+            skipped_count += 1
+            continue
+
+        if not seq.steps or enrollment.current_step >= len(seq.steps):
+            enrollment.status = "completed"
+            enrollment.save(update_fields=["status"])
+            continue
+
+        step = seq.steps[enrollment.current_step]
+        variant = enrollment.variant
+
+        # Pick subject/body based on variant
+        subject = step.get(f"subject_{variant}", step.get("subject_a", ""))
+        body_md = step.get(f"body_{variant}", step.get("body_a", ""))
+
+        # Personalize
+        subject = subject.replace("{{name}}", lead.name)
+        body_md = body_md.replace("{{name}}", lead.name)
+        body_html = _markdown_to_html(body_md)
+
+        # Create email records
+        campaign = EmailCampaign.objects.create(
+            subject=subject,
+            body_md=body_md,
+            target=f"crm:lead:{lead.id}",
+            sent_by=request.user,
+            recipient_count=1,
+        )
+        rcpt = EmailRecipient.objects.create(
+            campaign=campaign,
+            email=lead.email,
+        )
+
+        # Rewrite links for click tracking
+        def _track_link(match):
+            url = match.group(1)
+            return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+        body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
+
+        # Add tracking pixel
+        pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
+        unsub_url = "https://svend.ai"
+        full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url=unsub_url)
+
+        try:
+            django_send_mail(
+                subject=subject,
+                message="",
+                from_email=None,
+                recipient_list=[lead.email],
+                html_message=full_html,
+            )
+            sent_count += 1
+
+            # Update lead
+            lead.last_contacted_at = now
+            if lead.stage == "prospect":
+                lead.stage = "contacted"
+            lead.save(update_fields=["last_contacted_at", "stage", "updated_at"])
+
+            # Log the send
+            enrollment.send_log.append({
+                "step": enrollment.current_step,
+                "sent_at": now.isoformat(),
+                "recipient_id": str(rcpt.id),
+                "variant": variant,
+            })
+            enrollment.last_sent_at = now
+
+            # Advance to next step
+            next_step = enrollment.current_step + 1
+            if next_step >= len(seq.steps):
+                enrollment.status = "completed"
+                enrollment.next_send_at = None
+            else:
+                enrollment.current_step = next_step
+                delay_days = seq.steps[next_step].get("delay_days", 1)
+                enrollment.next_send_at = now + timedelta(days=delay_days)
+
+            enrollment.save()
+
+        except Exception:
+            rcpt.failed = True
+            rcpt.save(update_fields=["failed"])
+            failed_count += 1
+
+    return Response({
+        "processed": sent_count + failed_count + skipped_count,
+        "sent": sent_count,
+        "failed": failed_count,
+        "skipped": skipped_count,
+    })
+
+# ---------------------------------------------------------------------------
+# API: Site Analytics (SiteVisit)
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_site_analytics(request):
+    """Site-wide visitor analytics: page views, unique visitors, referrers, top pages,
+    country distribution, user flow, and recent hits."""
+    days = _get_days(request)
+    now = timezone.now()
+    since = now - timedelta(days=days)
+    visits = SiteVisit.objects.filter(viewed_at__gte=since, is_bot=False)
+
+    # Daily visitors
+    daily = list(
+        visits.annotate(date=TruncDate("viewed_at"))
+        .values("date")
+        .annotate(total=Count("id"), unique=Count("ip_hash", distinct=True))
+        .order_by("date")
+    )
+
+    # Top pages
+    top_pages = list(
+        visits.values("path")
+        .annotate(total=Count("id"), unique=Count("ip_hash", distinct=True))
+        .order_by("-total")[:20]
+    )
+
+    # Referrer domains
+    referrers_raw = list(
+        visits.exclude(referrer_domain="")
+        .values("referrer_domain")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:15]
+    )
+    direct = visits.filter(referrer_domain="").count()
+    referrers = [{"domain": "Direct", "count": direct}] if direct else []
+    referrers += [{"domain": r["referrer_domain"], "count": r["count"]} for r in referrers_raw]
+
+    # Totals
+    total_hits = visits.count()
+    unique_visitors = visits.values("ip_hash").distinct().count()
+    bot_hits = SiteVisit.objects.filter(viewed_at__gte=since, is_bot=True).count()
+
+    # Country distribution (for world map)
+    countries = list(
+        visits.exclude(country="")
+        .values("country")
+        .annotate(views=Count("id"), unique=Count("ip_hash", distinct=True))
+        .order_by("-views")
+    )
+
+    # User flow: page transitions (from → to)
+    # Group visits by ip_hash, order by time, pair consecutive pages
+    flow_counts = Counter()
+    session_gap = timedelta(minutes=30)
+    visitor_stream = (
+        visits.values("ip_hash", "path", "viewed_at")
+        .order_by("ip_hash", "viewed_at")
+    )
+    current_ip = None
+    prev_path = None
+    prev_time = None
+    for v in visitor_stream.iterator():
+        if v["ip_hash"] != current_ip:
+            current_ip = v["ip_hash"]
+            prev_path = v["path"]
+            prev_time = v["viewed_at"]
+            continue
+        if v["viewed_at"] - prev_time <= session_gap:
+            if prev_path != v["path"]:
+                flow_counts[(prev_path, v["path"])] += 1
+        prev_path = v["path"]
+        prev_time = v["viewed_at"]
+
+    flows = [
+        {"from": k[0], "to": k[1], "count": c}
+        for k, c in flow_counts.most_common(30)
+    ]
+
+    # Recent hits (live feed) — last 50, regardless of date range
+    recent_raw = list(
+        SiteVisit.objects.filter(is_bot=False)
+        .order_by("-viewed_at")
+        .values("path", "country", "referrer_domain", "viewed_at")[:50]
+    )
+    recent = []
+    for r in recent_raw:
+        delta = now - r["viewed_at"]
+        secs = int(delta.total_seconds())
+        if secs < 60:
+            ago = f"{secs}s ago"
+        elif secs < 3600:
+            ago = f"{secs // 60}m ago"
+        elif secs < 86400:
+            ago = f"{secs // 3600}h ago"
+        else:
+            ago = f"{secs // 86400}d ago"
+        recent.append({
+            "path": r["path"],
+            "country": r["country"] or "",
+            "referrer": r["referrer_domain"] or "direct",
+            "ago": ago,
+        })
+
+    # Duration stats — combine beacon data with server-side session estimation.
+    # For multi-page sessions, time on page = (next pageview time - this pageview time).
+    # This works for all visitors regardless of beacon reliability.
+    from collections import defaultdict
+
+    session_durations = defaultdict(list)  # path → [duration_ms, ...]
+    session_gap = timedelta(minutes=30)
+    visitor_pages = (
+        visits.values("ip_hash", "path", "viewed_at", "duration_ms")
+        .order_by("ip_hash", "viewed_at")
+    )
+    prev_ip = None
+    prev_path = None
+    prev_time = None
+    prev_dur = None
+    for v in visitor_pages.iterator():
+        if v["ip_hash"] == prev_ip and prev_time:
+            delta = v["viewed_at"] - prev_time
+            if delta < session_gap and delta.total_seconds() > 0:
+                est_ms = int(delta.total_seconds() * 1000)
+                # Use beacon duration if available, otherwise use session estimate
+                dur = prev_dur if prev_dur else est_ms
+                # Clamp: skip if > 30min (session gap edge)
+                if dur <= 1_800_000:
+                    session_durations[prev_path].append(dur)
+        # For the last page in a session, use beacon duration if available
+        elif prev_ip is not None and prev_ip != v["ip_hash"] and prev_dur:
+            if prev_dur <= 1_800_000:
+                session_durations[prev_path].append(prev_dur)
+        prev_ip = v["ip_hash"]
+        prev_path = v["path"]
+        prev_time = v["viewed_at"]
+        prev_dur = v["duration_ms"]
+    # Handle the very last visitor's last page
+    if prev_dur and prev_dur <= 1_800_000:
+        session_durations[prev_path].append(prev_dur)
+
+    # Build page_durations from combined data
+    page_durations = []
+    for path, durations in sorted(session_durations.items(), key=lambda x: -len(x[1])):
+        if durations:
+            page_durations.append({
+                "path": path,
+                "avg_duration": sum(durations) / len(durations),
+                "measured": len(durations),
+            })
+    page_durations = page_durations[:20]
+
+    # Overall average from all measured durations
+    all_durations = [d for durs in session_durations.values() for d in durs]
+    overall_avg_ms = round(sum(all_durations) / len(all_durations)) if all_durations else None
+    has_duration = len(all_durations)
+    no_duration = total_hits - has_duration
+
+    return Response({
+        "daily": [
+            {"date": str(d["date"]), "total": d["total"], "unique": d["unique"]}
+            for d in daily
+        ],
+        "top_pages": [
+            {"path": p["path"], "views": p["total"], "unique": p["unique"]}
+            for p in top_pages
+        ],
+        "referrers": referrers,
+        "totals": {
+            "hits": total_hits,
+            "unique_visitors": unique_visitors,
+            "bot_hits": bot_hits,
+            "avg_duration_ms": overall_avg_ms,
+            "measured_visits": has_duration,
+            "bounce_visits": no_duration,
+        },
+        "countries": [
+            {"country": c["country"], "views": c["views"], "unique": c["unique"]}
+            for c in countries
+        ],
+        "flows": flows,
+        "recent": recent,
+        "page_durations": [
+            {
+                "path": d["path"],
+                "avg_ms": round(d["avg_duration"]),
+                "measured": d["measured"],
+            }
+            for d in page_durations
+        ],
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_site_live(request):
+    """Lightweight live poll endpoint — returns recent hits + quick totals only.
+
+    Skips expensive flow/duration aggregation for fast 15s polling.
+    """
+    now = timezone.now()
+    limit = min(int(request.query_params.get("limit", 100)), 500)
+
+    recent_raw = list(
+        SiteVisit.objects.filter(is_bot=False)
+        .order_by("-viewed_at")
+        .values("path", "country", "referrer_domain", "viewed_at", "duration_ms", "ip_hash")[:limit]
+    )
+
+    recent = []
+    for r in recent_raw:
+        delta = now - r["viewed_at"]
+        secs = int(delta.total_seconds())
+        if secs < 60:
+            ago = f"{secs}s ago"
+        elif secs < 3600:
+            ago = f"{secs // 60}m ago"
+        elif secs < 86400:
+            ago = f"{secs // 3600}h ago"
+        else:
+            ago = f"{secs // 86400}d ago"
+        recent.append({
+            "path": r["path"],
+            "country": r["country"] or "",
+            "referrer": r["referrer_domain"] or "direct",
+            "ago": ago,
+            "duration_ms": r["duration_ms"],
+            "ts": r["viewed_at"].isoformat(),
+            "visitor": r["ip_hash"][:8],
+        })
+
+    # Quick totals (cheap queries)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    hour_ago = now - timedelta(hours=1)
+
+    hits_today = SiteVisit.objects.filter(viewed_at__gte=today, is_bot=False).count()
+    hits_hour = SiteVisit.objects.filter(viewed_at__gte=hour_ago, is_bot=False).count()
+    unique_today = SiteVisit.objects.filter(
+        viewed_at__gte=today, is_bot=False
+    ).values("ip_hash").distinct().count()
+
+    return Response({
+        "recent": recent,
+        "totals": {
+            "hits_today": hits_today,
+            "hits_hour": hits_hour,
+            "unique_today": unique_today,
+        },
+    })
+
+
+# ---------------------------------------------------------------------------
+# Whitepapers
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_bulk_send(request):
+    """Schedule personalized A/B outreach emails to multiple leads via tempora.
+
+    Expects: lead_ids, subject_a, body_a, subject_b, body_b.
+    Pass preview: true to return per-lead assignments without sending.
+    A/B variant assigned per lead via SHA256 hash (deterministic).
+    Sends are staggered 5 seconds apart to avoid rate-limit spikes.
+    """
+    import hashlib
+
+    d = request.data
+    lead_ids = d.get("lead_ids", [])
+    subject_a = d.get("subject_a", "").strip()
+    body_a = d.get("body_a", "").strip()
+    subject_b = d.get("subject_b", "").strip()
+    body_b = d.get("body_b", "").strip()
+    preview = d.get("preview", False)
+
+    if not lead_ids:
+        return Response({"error": "No leads selected."}, status=400)
+    if not subject_a or not body_a:
+        return Response({"error": "At least variant A subject and body are required."}, status=400)
+
+    # Fall back to variant A if B is empty
+    if not subject_b:
+        subject_b = subject_a
+    if not body_b:
+        body_b = body_a
+
+    leads = CRMLead.objects.filter(id__in=lead_ids, email_opted_out=False)
+    if not leads.exists():
+        return Response({"error": "No eligible leads found."}, status=400)
+
+    # Build per-lead assignments
+    assignments = []
+    for lead in leads:
+        hash_val = int(hashlib.sha256(f"{lead.id}-bulk".encode()).hexdigest(), 16) % 2
+        variant = "a" if hash_val == 0 else "b"
+        subj = subject_a if variant == "a" else subject_b
+        body = body_a if variant == "a" else body_b
+
+        # Personalize for preview
+        p_subj = (
+            subj
+            .replace("{{name}}", lead.name)
+            .replace("{{company}}", lead.company or "")
+            .replace("{{role}}", lead.role or "")
+            .replace("{{industry}}", lead.industry or "")
+        )
+        p_body = (
+            body
+            .replace("{{name}}", lead.name)
+            .replace("{{company}}", lead.company or "")
+            .replace("{{role}}", lead.role or "")
+            .replace("{{industry}}", lead.industry or "")
+        )
+
+        assignments.append({
+            "lead_id": str(lead.id),
+            "name": lead.name,
+            "email": lead.email,
+            "company": lead.company,
+            "variant": variant.upper(),
+            "subject": p_subj,
+            "body_preview": p_body[:200] + ("..." if len(p_body) > 200 else ""),
+        })
+
+    count_a = sum(1 for a in assignments if a["variant"] == "A")
+    count_b = len(assignments) - count_a
+
+    if preview:
+        return Response({
+            "assignments": assignments,
+            "count_a": count_a,
+            "count_b": count_b,
+            "total": len(assignments),
+        })
+
+    # --- Actual send ---
+    from tempora.scheduler import schedule_task
+
+    campaign = EmailCampaign.objects.create(
+        subject=f"[CRM Bulk] {subject_a[:80]}",
+        body_md=body_a,
+        target=f"crm:bulk:{len(assignments)}",
+        sent_by=request.user,
+        recipient_count=len(assignments),
+    )
+
+    scheduled = 0
+    skipped = 0
+    for i, lead in enumerate(leads):
+        hash_val = int(hashlib.sha256(f"{lead.id}-bulk".encode()).hexdigest(), 16) % 2
+        variant = "a" if hash_val == 0 else "b"
+        subj = subject_a if variant == "a" else subject_b
+        body = body_a if variant == "a" else body_b
+
+        try:
+            schedule_task(
+                name=f"crm_bulk_{campaign.id}_{lead.id}",
+                func="api.crm_send_one_email",
+                args={
+                    "lead_id": str(lead.id),
+                    "subject": subj,
+                    "body": body,
+                    "campaign_id": str(campaign.id),
+                    "variant": variant,
+                },
+                delay_seconds=i * 5,
+                priority=2,
+                queue="core",
+            )
+            scheduled += 1
+        except Exception as e:
+            logger.error("Failed to schedule CRM email for %s: %s", lead.email, e)
+            skipped += 1
+
+    return Response({
+        "campaign_id": str(campaign.id),
+        "scheduled": scheduled,
+        "skipped": skipped,
+        "count_a": count_a,
+        "count_b": count_b,
+        "stagger_seconds": 5,
+        "total_time_estimate": f"{scheduled * 5}s",
+    })

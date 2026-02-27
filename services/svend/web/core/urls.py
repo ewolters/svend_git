@@ -9,6 +9,7 @@ urlpatterns = [
     path("projects/<uuid:project_id>/", views.project_detail, name="project_detail"),
     path("projects/<uuid:project_id>/hub/", views.project_hub, name="project_hub"),
     path("projects/<uuid:project_id>/advance-phase/", views.project_advance_phase, name="project_advance_phase"),
+    path("projects/<uuid:project_id>/comment/", views.project_comment, name="project_comment"),
     path("projects/<uuid:project_id>/recalculate/", views.project_recalculate, name="project_recalculate"),
 
     # Hypotheses
@@ -18,6 +19,7 @@ urlpatterns = [
 
     # Evidence
     path("projects/<uuid:project_id>/evidence/", views.evidence_list, name="evidence_list"),
+    path("projects/<uuid:project_id>/evidence/<uuid:evidence_id>/", views.evidence_detail, name="evidence_detail"),
     path("projects/<uuid:project_id>/hypotheses/<uuid:hypothesis_id>/link-evidence/", views.link_evidence, name="link_evidence"),
     path("projects/<uuid:project_id>/suggest-lr/", views.suggest_likelihood_ratio, name="suggest_lr"),
 
@@ -44,6 +46,7 @@ urlpatterns = [
 
     # Organization management
     path("org/", views.org_info, name="org_info"),
+    path("org/create/", views.org_create, name="org_create"),
     path("org/members/", views.org_members, name="org_members"),
     path("org/members/<uuid:membership_id>/role/", views.org_change_role, name="org_change_role"),
     path("org/members/<uuid:membership_id>/remove/", views.org_remove_member, name="org_remove_member"),

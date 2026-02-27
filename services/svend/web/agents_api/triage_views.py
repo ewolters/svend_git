@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime
 
 from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
@@ -34,7 +33,6 @@ def log_agent_action(user, agent, action, latency_ms=None, success=True, error_m
         logger.warning(f"Failed to log agent action: {e}")
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def triage_clean(request):
@@ -134,14 +132,16 @@ def triage_clean(request):
             },
             "outliers_flagged": result.outliers.count if result.outliers else 0,
             "missing_filled": result.missing.total_filled if result.missing else 0,
+            "columns_dropped": result.missing.columns_dropped if result.missing else [],
+            "rows_dropped": result.missing.rows_dropped if result.missing else 0,
             "warnings": result.warnings,
         })
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.exception(f"Triage error: {e}")
+        return JsonResponse({"error": "Data cleaning failed. Please check your inputs and try again."}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def triage_download(request, job_id):
@@ -160,7 +160,6 @@ def triage_download(request, job_id):
     return response
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def triage_report(request, job_id):
@@ -177,7 +176,6 @@ def triage_report(request, job_id):
     return JsonResponse({"report": result.report_markdown})
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def triage_preview(request):
@@ -259,7 +257,8 @@ def triage_preview(request):
         })
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.exception(f"Triage validation error: {e}")
+        return JsonResponse({"error": "Data validation failed. Please try again."}, status=500)
 
 
 def _detect_data_biases(df) -> list:
@@ -335,7 +334,6 @@ def _detect_data_biases(df) -> list:
     return warnings
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def list_datasets(request):
@@ -359,7 +357,6 @@ def list_datasets(request):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def load_dataset(request, job_id):
@@ -414,7 +411,8 @@ def load_dataset(request, job_id):
         })
 
     except Exception as e:
-        return JsonResponse({"error": f"Failed to load dataset: {str(e)}"}, status=500)
+        logger.exception(f"Dataset load error: {e}")
+        return JsonResponse({"error": "Dataset load failed. Please verify the file is valid and try again."}, status=500)
 
 
 def _preload_llm_background():

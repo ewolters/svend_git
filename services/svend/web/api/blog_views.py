@@ -19,7 +19,7 @@ def _record_view(request, post):
     """Record a blog view asynchronously-safe (fire and forget)."""
     ua = request.META.get("HTTP_USER_AGENT", "")
     referrer = request.META.get("HTTP_REFERER", "")
-    ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "")
+    ip = request.META.get("HTTP_CF_CONNECTING_IP", "") or request.META.get("REMOTE_ADDR", "")
 
     # Hash IP for privacy
     ip_hash = hashlib.sha256(ip.encode()).hexdigest() if ip else ""

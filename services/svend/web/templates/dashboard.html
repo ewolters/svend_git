@@ -486,7 +486,7 @@ async function loadRecent(user) {
 
     if (hasPaid) {
         try {
-            const a3Response = await fetch('/api/a3/reports/');
+            const a3Response = await fetch('/api/a3/');
             if (a3Response.ok) {
                 const a3Data = await a3Response.json();
                 (a3Data.reports || []).slice(0, 3).forEach(r => {
@@ -502,7 +502,7 @@ async function loadRecent(user) {
         } catch (e) {}
 
         try {
-            const vsmResponse = await fetch('/api/vsm/maps/');
+            const vsmResponse = await fetch('/api/vsm/');
             if (vsmResponse.ok) {
                 const vsmData = await vsmResponse.json();
                 (vsmData.maps || []).slice(0, 3).forEach(m => {

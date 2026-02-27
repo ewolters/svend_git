@@ -15,6 +15,12 @@ if [ -f .env ]; then
     set +a
 fi
 
+# Load field-level encryption key
+KEYFILE="/home/eric/.svend_encryption_key"
+if [ -f "$KEYFILE" ]; then
+    export SVEND_FIELD_ENCRYPTION_KEY=$(cat "$KEYFILE")
+fi
+
 # Start gunicorn (bound to localhost - Cloudflare Tunnel handles external)
 echo "Starting gunicorn on 127.0.0.1:8000..."
 exec /home/eric/.local/bin/gunicorn svend.wsgi:application \

@@ -127,6 +127,7 @@
             </div>
             <div class="subscription-actions">
                 <a href="/billing/portal/" class="btn btn-secondary" id="manage-billing" style="display:none;">Manage Billing</a>
+                <a href="/billing/checkout/?plan=founder" class="btn btn-primary" id="upgrade-founder-btn" style="display:none;">Upgrade — $19/mo (Founder)</a>
                 <a href="/billing/checkout/" class="btn btn-primary" id="upgrade-btn" style="display:none;">Upgrade to Pro</a>
             </div>
         </section>
@@ -146,16 +147,16 @@
                         <option value="contrast">High Contrast</option>
                     </select>
                 </div>
-                <div class="form-group checkbox-group">
-                    <label>
+                <div class="form-group">
+                    <label class="svend-toggle">
                         <input type="checkbox" id="pref-show-reasoning" name="show_reasoning">
-                        Show reasoning traces by default
+                        <span>Show reasoning traces by default</span>
                     </label>
                 </div>
-                <div class="form-group checkbox-group">
-                    <label>
+                <div class="form-group">
+                    <label class="svend-toggle">
                         <input type="checkbox" id="pref-auto-scroll" name="auto_scroll" checked>
-                        Auto-scroll to new messages
+                        <span>Auto-scroll to new messages</span>
                     </label>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Preferences</button>
@@ -185,6 +186,25 @@
                 <div id="org-info-content">
                     <p class="text-dim">Loading...</p>
                 </div>
+            </section>
+
+            <!-- Create Organization (shown when user can create but has no org) -->
+            <section class="card settings-section" id="org-create-section" style="display:none;">
+                <h2>Create Organization</h2>
+                <p class="help-text" style="margin-bottom:1rem;">Set up your team workspace to invite members and share projects.</p>
+                <form id="org-create-form">
+                    <div class="form-group">
+                        <label for="org-name">Organization Name</label>
+                        <input type="text" id="org-name" placeholder="Acme Manufacturing" required maxlength="255">
+                    </div>
+                    <div class="form-group">
+                        <label for="org-slug">URL Slug</label>
+                        <input type="text" id="org-slug" placeholder="acme-manufacturing" required maxlength="100"
+                               pattern="[a-z0-9][a-z0-9-]*[a-z0-9]" style="font-family:monospace;">
+                        <p class="help-text">Lowercase letters, numbers, and hyphens only.</p>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Organization</button>
+                </form>
             </section>
 
             <!-- Seat Usage -->
@@ -238,7 +258,7 @@
                         <button type="submit" class="btn btn-primary" style="align-self:flex-end;">Send Invite</button>
                     </div>
                 </form>
-                <p class="help-text">Sending an invite adds a seat ($129/month, prorated). The link is valid for 7 days.</p>
+                <p class="help-text">Sending an invite adds a seat (prorated to your billing cycle). The link is valid for 7 days.</p>
             </section>
 
             <!-- Pending Invitations -->
@@ -291,20 +311,7 @@
         margin-bottom: 1.25rem;
     }
 
-    .checkbox-group label {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        cursor: pointer;
-        text-transform: none;
-        font-weight: 400;
-        color: var(--text-secondary);
-    }
-
-    .checkbox-group input[type="checkbox"] {
-        width: auto;
-        accent-color: var(--accent-primary);
-    }
+    /* checkbox-group styles now handled by global .svend-toggle */
 
     .subscription-info {
         margin-bottom: 1.5rem;
@@ -597,7 +604,15 @@
             // Show appropriate subscription buttons
             if (currentUser.subscription_active) {
                 document.getElementById('manage-billing').style.display = 'inline-flex';
-            } else if (currentUser.tier !== 'pro') {
+            } else if (!['founder', 'pro', 'team', 'enterprise'].includes(currentUser.tier)) {
+                // Check founder availability for free users
+                try {
+                    const founderRes = await fetch('/billing/founder-availability/');
+                    const founderData = await founderRes.json();
+                    if (founderData.available) {
+                        document.getElementById('upgrade-founder-btn').style.display = 'inline-flex';
+                    }
+                } catch (e) {}
                 document.getElementById('upgrade-btn').style.display = 'inline-flex';
             }
 
@@ -786,8 +801,14 @@
             orgData = await res.json();
 
             if (!orgData.has_org) {
-                document.getElementById('org-info-content').innerHTML =
-                    '<p class="text-dim">You are not a member of any organization.</p>';
+                if (orgData.can_create_org) {
+                    document.getElementById('org-info-content').innerHTML =
+                        '<p class="text-dim">You don\'t have an organization yet. Create one below to start inviting team members.</p>';
+                    document.getElementById('org-create-section').style.display = '';
+                } else {
+                    document.getElementById('org-info-content').innerHTML =
+                        '<p class="text-dim">Organization features require a Team or Enterprise plan.</p>';
+                }
                 orgLoaded = true;
                 return;
             }
@@ -934,7 +955,7 @@
             }
 
             const msg = data.seat_added
-                ? `Invitation sent to ${email} — seat added ($129/mo prorated)`
+                ? `Invitation sent to ${email} — seat added (prorated to billing cycle)`
                 : `Invitation sent to ${email}`;
             showToast(msg);
             document.getElementById('invite-email').value = '';
@@ -1001,6 +1022,48 @@
         }
     }
 
+    // Auto-generate slug from org name
+    const orgNameInput = document.getElementById('org-name');
+    const orgSlugInput = document.getElementById('org-slug');
+    let slugManuallyEdited = false;
+
+    orgSlugInput.addEventListener('input', () => { slugManuallyEdited = true; });
+    orgNameInput.addEventListener('input', () => {
+        if (!slugManuallyEdited) {
+            orgSlugInput.value = orgNameInput.value
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '');
+        }
+    });
+
+    // Create org form handler
+    document.getElementById('org-create-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = orgNameInput.value.trim();
+        const slug = orgSlugInput.value.trim().toLowerCase();
+
+        if (!name || !slug) return;
+
+        try {
+            const res = await fetch('/api/core/org/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+                body: JSON.stringify({ name, slug }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to create organization');
+
+            showToast('Organization created');
+            document.getElementById('org-create-section').style.display = 'none';
+            orgLoaded = false;
+            loadOrgData();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
     // Load data on page load
     loadUserData();
 
@@ -1009,7 +1072,7 @@
         try {
             const res = await fetch('/api/core/org/', { credentials: 'include' });
             const data = await res.json();
-            if (data.has_org) {
+            if (data.has_org || data.can_create_org) {
                 document.getElementById('org-tab-btn').style.display = '';
             }
         } catch (err) {

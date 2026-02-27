@@ -1,0 +1,58 @@
+    <div id="chat-modal" class="chat-modal" style="display: none;">
+        <div class="chat-modal-content">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chat-icon-svg">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>DOE Assistant</span>
+                </div>
+                <div class="chat-controls">
+                    <select id="llm-model-selector" class="model-select" onchange="onModelChange(this.value)">
+                        <option value="claude">Claude</option>
+                        <option value="fallback">Built-in Expert</option>
+                    </select>
+                    <button class="btn-close" onclick="toggleChatModal()">&times;</button>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-welcome">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="welcome-icon-svg">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    <h4>DOE Guidance Assistant</h4>
+                    <p>I can help you with:</p>
+                    <ul>
+                        <li>Choosing the right experimental design</li>
+                        <li>Defining factors and levels</li>
+                        <li>Interpreting ANOVA and effects</li>
+                        <li>Optimizing your response</li>
+                    </ul>
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="askQuickQuestion('What design should I use?')">Design selection</button>
+                        <button class="quick-btn" onclick="askQuickQuestion('How do I interpret my ANOVA results?')">ANOVA help</button>
+                        <button class="quick-btn" onclick="askQuickQuestion('What are the best practices for DOE?')">Best practices</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="context-indicator" id="context-indicator">
+                    <span class="context-badge" id="context-badge">No design</span>
+                </div>
+                <div class="input-row">
+                    <textarea id="chat-input" placeholder="Ask about DOE..." rows="1"
+                              onkeydown="handleChatKeydown(event)" oninput="autoResizeInput(this)"></textarea>
+                    <button class="send-btn" onclick="sendChatMessage()" id="send-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>

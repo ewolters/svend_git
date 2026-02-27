@@ -1,0 +1,534 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Sample Size Calculator — Free Statistical Power Calculator{% endblock %}
+{% block meta_description %}Free sample size calculator for t-tests, proportions, and ANOVA. Calculate required sample size given effect size, significance level, and desired power. No signup required.{% endblock %}
+{% block meta_keywords %}sample size calculator, power analysis, t-test sample size, statistical power, effect size, alpha, beta, sample size determination{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/sample-size-calculator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/sample-size-calculator/">
+<meta property="og:title" content="Free Sample Size Calculator — Statistical Power Analysis">
+<meta property="og:description" content="Calculate the sample size you need for t-tests, proportions, and ANOVA. Set effect size, alpha, and power.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Sample Size Calculator",
+    "url": "https://svend.ai/tools/sample-size-calculator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free sample size calculator for hypothesis testing. Supports one-sample t-test, two-sample t-test, proportion tests, and ANOVA.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "How do I determine the right sample size for my experiment?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You need four inputs: (1) the minimum effect size you want to detect, (2) the expected variability (standard deviation), (3) your significance level (alpha, typically 0.05), and (4) your desired statistical power (typically 0.80 or 0.90). This calculator combines these to give you the required sample size."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is statistical power?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Statistical power is the probability of detecting an effect when one truly exists (1 - beta). Power of 0.80 means an 80% chance of detecting the effect. Higher power requires larger sample sizes but reduces the risk of missing real effects."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is Cohen's d?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Cohen's d is a standardized measure of effect size for t-tests: d = (mean difference) / (standard deviation). Cohen's conventions: d = 0.2 is small, d = 0.5 is medium, d = 0.8 is large. It lets you specify effect size without knowing the exact scale of your measurements."
+            }
+        }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.mode-help { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem; font-style: italic; }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1>Sample Size <strong>Calculator</strong></h1>
+    <p>Determine the sample size you need for your experiment. Supports t-tests, proportions, and ANOVA.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Test Type</h2>
+    <div class="tabs" id="test-tabs">
+        <button class="tab-btn active" onclick="switchTab('onesample')">1-Sample t</button>
+        <button class="tab-btn" onclick="switchTab('twosample')">2-Sample t</button>
+        <button class="tab-btn" onclick="switchTab('proportion')">Proportion</button>
+        <button class="tab-btn" onclick="switchTab('anova')">ANOVA</button>
+    </div>
+
+    <!-- 1-Sample t -->
+    <div class="tab-panel active" id="panel-onesample">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Effect Size (Cohen's d)</label>
+                <input type="number" id="os-effect" step="0.01" value="0.5" min="0.01">
+                <div class="mode-help">0.2 = small, 0.5 = medium, 0.8 = large</div>
+            </div>
+            <div class="form-group">
+                <label>OR: Mean Difference</label>
+                <input type="number" id="os-diff" step="any" placeholder="e.g. 2.5">
+            </div>
+            <div class="form-group">
+                <label>Standard Deviation (if using mean diff)</label>
+                <input type="number" id="os-std" step="any" placeholder="e.g. 5.0">
+            </div>
+            <div class="form-group">
+                <label>Significance Level (&alpha;)</label>
+                <select id="os-alpha">
+                    <option value="0.01">0.01</option>
+                    <option value="0.05" selected>0.05</option>
+                    <option value="0.10">0.10</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Power (1 &minus; &beta;)</label>
+                <select id="os-power">
+                    <option value="0.70">0.70</option>
+                    <option value="0.80" selected>0.80</option>
+                    <option value="0.90">0.90</option>
+                    <option value="0.95">0.95</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Sided</label>
+                <select id="os-sided">
+                    <option value="2" selected>Two-sided</option>
+                    <option value="1">One-sided</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2-Sample t -->
+    <div class="tab-panel" id="panel-twosample">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Effect Size (Cohen's d)</label>
+                <input type="number" id="ts-effect" step="0.01" value="0.5" min="0.01">
+                <div class="mode-help">0.2 = small, 0.5 = medium, 0.8 = large</div>
+            </div>
+            <div class="form-group">
+                <label>OR: Mean Difference</label>
+                <input type="number" id="ts-diff" step="any" placeholder="e.g. 3.0">
+            </div>
+            <div class="form-group">
+                <label>Pooled Std Dev (if using mean diff)</label>
+                <input type="number" id="ts-std" step="any" placeholder="e.g. 5.0">
+            </div>
+            <div class="form-group">
+                <label>Allocation Ratio (n2/n1)</label>
+                <input type="number" id="ts-ratio" step="0.1" value="1" min="0.1">
+            </div>
+            <div class="form-group">
+                <label>Significance Level (&alpha;)</label>
+                <select id="ts-alpha">
+                    <option value="0.01">0.01</option>
+                    <option value="0.05" selected>0.05</option>
+                    <option value="0.10">0.10</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Power (1 &minus; &beta;)</label>
+                <select id="ts-power">
+                    <option value="0.70">0.70</option>
+                    <option value="0.80" selected>0.80</option>
+                    <option value="0.90">0.90</option>
+                    <option value="0.95">0.95</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proportion -->
+    <div class="tab-panel" id="panel-proportion">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Baseline Proportion (p1)</label>
+                <input type="number" id="pr-p1" step="0.01" value="0.50" min="0.01" max="0.99">
+            </div>
+            <div class="form-group">
+                <label>Expected Proportion (p2)</label>
+                <input type="number" id="pr-p2" step="0.01" value="0.65" min="0.01" max="0.99">
+            </div>
+            <div class="form-group">
+                <label>Significance Level (&alpha;)</label>
+                <select id="pr-alpha">
+                    <option value="0.01">0.01</option>
+                    <option value="0.05" selected>0.05</option>
+                    <option value="0.10">0.10</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Power (1 &minus; &beta;)</label>
+                <select id="pr-power">
+                    <option value="0.70">0.70</option>
+                    <option value="0.80" selected>0.80</option>
+                    <option value="0.90">0.90</option>
+                    <option value="0.95">0.95</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANOVA -->
+    <div class="tab-panel" id="panel-anova">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Effect Size (Cohen's f)</label>
+                <input type="number" id="an-effect" step="0.01" value="0.25" min="0.01">
+                <div class="mode-help">0.10 = small, 0.25 = medium, 0.40 = large</div>
+            </div>
+            <div class="form-group">
+                <label>Number of Groups</label>
+                <input type="number" id="an-groups" step="1" value="3" min="2" max="20">
+            </div>
+            <div class="form-group">
+                <label>Significance Level (&alpha;)</label>
+                <select id="an-alpha">
+                    <option value="0.01">0.01</option>
+                    <option value="0.05" selected>0.05</option>
+                    <option value="0.10">0.10</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Power (1 &minus; &beta;)</label>
+                <select id="an-power">
+                    <option value="0.70">0.70</option>
+                    <option value="0.80" selected>0.80</option>
+                    <option value="0.90">0.90</option>
+                    <option value="0.95">0.95</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-calculate" onclick="calculate()" style="margin-top:1rem;">Calculate Sample Size</button>
+</div>
+
+<div id="results" style="display:none;">
+    <div class="tool-card">
+        <h2>Required Sample Size</h2>
+        <div class="results-grid" id="results-grid"></div>
+        <div id="interpretation" class="interpretation" style="display:none;"></div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Power Curve</h2>
+        <div class="chart-container">
+            <canvas id="power-canvas" width="880" height="320"></canvas>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem;">Shows how power changes with sample size for your specified effect size and alpha.</div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Sample Size Table</h2>
+        <table class="ref-table" id="size-table"></table>
+    </div>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">How do I determine the right sample size?</div>
+        <div class="faq-a">You need four inputs: the minimum effect size you want to detect, the expected variability, your significance level (alpha, typically 0.05), and your desired statistical power (typically 0.80). This calculator combines these to compute the sample size needed.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is statistical power?</div>
+        <div class="faq-a">Power is the probability of detecting a real effect (1 - beta). Power of 0.80 means an 80% chance of detecting the effect if it exists. Higher power requires more samples but reduces the chance of a false negative (Type II error).</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is Cohen's d?</div>
+        <div class="faq-a">Cohen's d is a standardized effect size for t-tests: d = (mean difference) / (standard deviation). Convention: 0.2 = small, 0.5 = medium, 0.8 = large. Use it when you don't know the exact scale of your measurements but can estimate relative magnitude.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What alpha level should I use?</div>
+        <div class="faq-a">Alpha = 0.05 is the most common choice (5% chance of false positive). Use 0.01 for stricter tests (medical, safety-critical). Use 0.10 for exploratory analysis or screening experiments where false negatives are costlier.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentTab = 'onesample';
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+    const labels = {onesample:'1-Sample t', twosample:'2-Sample t', proportion:'Proportion', anova:'ANOVA'};
+    document.querySelectorAll('.tab-btn').forEach(b => { if (b.textContent === labels[tab]) b.classList.add('active'); });
+    document.getElementById('results').style.display = 'none';
+}
+
+// Normal quantile (Abramowitz & Stegun + rational approx)
+function normalCDF(x) {
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.SQRT2;
+    const t = 1.0 / (1.0 + 0.3275911 * x);
+    const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1) * t * Math.exp(-x*x);
+    return 0.5 * (1 + sign * y);
+}
+
+function normalPPF(p) {
+    // Peter Acklam rational approximation
+    const a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
+               1.383577518672690e2, -3.066479806614716e1, 2.506628277459239e0];
+    const b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
+               6.680131188771972e1, -1.328068155288572e1];
+    const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838e0,
+               -2.549732539343734e0, 4.374664141464968e0, 2.938163982698783e0];
+    const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996e0, 3.754408661907416e0];
+    const pLow = 0.02425, pHigh = 1 - pLow;
+    let q, r;
+    if (p < pLow) {
+        q = Math.sqrt(-2 * Math.log(p));
+        return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    } else if (p <= pHigh) {
+        q = p - 0.5; r = q * q;
+        return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+    } else {
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    }
+}
+
+// Power computation for given n
+function powerOneSample(n, d, alpha, sided) {
+    const za = sided === 1 ? normalPPF(1 - alpha) : normalPPF(1 - alpha/2);
+    const ncp = d * Math.sqrt(n);
+    return 1 - normalCDF(za - ncp);
+}
+
+function powerTwoSample(n1, d, alpha, ratio) {
+    const za = normalPPF(1 - alpha/2);
+    const n2 = Math.ceil(n1 * ratio);
+    const ncp = d * Math.sqrt(n1 * n2 / (n1 + n2));
+    return 1 - normalCDF(za - ncp);
+}
+
+function powerProportion(n, p1, p2, alpha) {
+    const za = normalPPF(1 - alpha/2);
+    const diff = Math.abs(p2 - p1);
+    const pbar = (p1 + p2) / 2;
+    const se0 = Math.sqrt(2 * pbar * (1 - pbar) / n);
+    const se1 = Math.sqrt((p1*(1-p1) + p2*(1-p2)) / n);
+    const z = (diff - za * se0) / se1;
+    return normalCDF(z);
+}
+
+function powerAnova(nPerGroup, f, k, alpha) {
+    const za = normalPPF(1 - alpha);
+    const N = nPerGroup * k;
+    const lambda = N * f * f;
+    // Approximate: use non-central chi-square approximation
+    const df1 = k - 1;
+    const ncp = lambda;
+    // Simplified: z-approximation for F-test power
+    const z = Math.sqrt(2 * ncp / df1) - Math.sqrt(2 * df1 - 1);
+    return normalCDF(z - za);
+}
+
+// Find n by iterating
+function findN(powerFn, targetPower, maxN) {
+    maxN = maxN || 10000;
+    for (let n = 2; n <= maxN; n++) {
+        if (powerFn(n) >= targetPower) return n;
+    }
+    return maxN;
+}
+
+function calculate() {
+    let n, effectLabel, effectVal, alpha, power, powerFn, extraInfo = '';
+    const results = document.getElementById('results');
+    const grid = document.getElementById('results-grid');
+    const interp = document.getElementById('interpretation');
+
+    if (currentTab === 'onesample') {
+        let d = parseFloat(document.getElementById('os-effect').value);
+        const diff = parseFloat(document.getElementById('os-diff').value);
+        const std = parseFloat(document.getElementById('os-std').value);
+        if (!isNaN(diff) && !isNaN(std) && std > 0) d = Math.abs(diff) / std;
+        if (isNaN(d) || d <= 0) { alert('Enter a valid effect size.'); return; }
+        alpha = parseFloat(document.getElementById('os-alpha').value);
+        power = parseFloat(document.getElementById('os-power').value);
+        const sided = parseInt(document.getElementById('os-sided').value);
+        powerFn = (nn) => powerOneSample(nn, d, alpha, sided);
+        n = findN(powerFn, power);
+        effectLabel = "Cohen's d";
+        effectVal = d.toFixed(3);
+        extraInfo = `One-sample t-test, ${sided === 1 ? 'one' : 'two'}-sided`;
+    } else if (currentTab === 'twosample') {
+        let d = parseFloat(document.getElementById('ts-effect').value);
+        const diff = parseFloat(document.getElementById('ts-diff').value);
+        const std = parseFloat(document.getElementById('ts-std').value);
+        if (!isNaN(diff) && !isNaN(std) && std > 0) d = Math.abs(diff) / std;
+        if (isNaN(d) || d <= 0) { alert('Enter a valid effect size.'); return; }
+        alpha = parseFloat(document.getElementById('ts-alpha').value);
+        power = parseFloat(document.getElementById('ts-power').value);
+        const ratio = parseFloat(document.getElementById('ts-ratio').value) || 1;
+        powerFn = (nn) => powerTwoSample(nn, d, alpha, ratio);
+        n = findN(powerFn, power);
+        const n2 = Math.ceil(n * ratio);
+        effectLabel = "Cohen's d";
+        effectVal = d.toFixed(3);
+        extraInfo = `Two-sample t-test. Group 1: n=${n}, Group 2: n=${n2}. Total: ${n + n2}`;
+    } else if (currentTab === 'proportion') {
+        const p1 = parseFloat(document.getElementById('pr-p1').value);
+        const p2 = parseFloat(document.getElementById('pr-p2').value);
+        if (isNaN(p1) || isNaN(p2) || p1 === p2) { alert('Enter two different proportions.'); return; }
+        alpha = parseFloat(document.getElementById('pr-alpha').value);
+        power = parseFloat(document.getElementById('pr-power').value);
+        powerFn = (nn) => powerProportion(nn, p1, p2, alpha);
+        n = findN(powerFn, power);
+        effectLabel = "Difference";
+        effectVal = Math.abs(p2 - p1).toFixed(3);
+        extraInfo = `Two-proportion test. n per group = ${n}. Total: ${2*n}`;
+    } else { // anova
+        const f = parseFloat(document.getElementById('an-effect').value);
+        if (isNaN(f) || f <= 0) { alert('Enter a valid effect size (Cohen\'s f).'); return; }
+        const k = parseInt(document.getElementById('an-groups').value) || 3;
+        alpha = parseFloat(document.getElementById('an-alpha').value);
+        power = parseFloat(document.getElementById('an-power').value);
+        powerFn = (nn) => powerAnova(nn, f, k, alpha);
+        n = findN(powerFn, power);
+        effectLabel = "Cohen's f";
+        effectVal = f.toFixed(3);
+        extraInfo = `One-way ANOVA with ${k} groups. n per group = ${n}. Total: ${n * k}`;
+    }
+
+    results.style.display = '';
+
+    grid.innerHTML = `
+        <div class="result-item result-good"><div class="label">Required n</div><div class="value">${n}</div><div class="sub">per group</div></div>
+        <div class="result-item result-neutral"><div class="label">${effectLabel}</div><div class="value">${effectVal}</div></div>
+        <div class="result-item result-neutral"><div class="label">Alpha</div><div class="value">${alpha}</div></div>
+        <div class="result-item result-neutral"><div class="label">Power</div><div class="value">${(power * 100).toFixed(0)}%</div></div>
+        <div class="result-item result-neutral"><div class="label">Achieved Power</div><div class="value">${(powerFn(n) * 100).toFixed(1)}%</div></div>
+    `;
+
+    interp.style.display = '';
+    interp.innerHTML = `<strong>${extraInfo}.</strong> You need <strong>${n} observations per group</strong> to detect an effect size of ${effectVal} with ${(power*100).toFixed(0)}% power at &alpha; = ${alpha}. Achieved power at n = ${n}: <strong>${(powerFn(n)*100).toFixed(1)}%</strong>.`;
+
+    drawPowerCurve(powerFn, n, power);
+    buildSizeTable(powerFn, n);
+}
+
+function drawPowerCurve(powerFn, nOpt, targetPower) {
+    const canvas = document.getElementById('power-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pad = { top: 20, right: 30, bottom: 40, left: 55 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, W, H);
+
+    const maxN = Math.max(nOpt * 3, 20);
+    const nSteps = Math.min(maxN, 200);
+
+    function xPos(n) { return pad.left + (n / maxN) * plotW; }
+    function yPos(p) { return pad.top + plotH - p * plotH; }
+
+    // Grid
+    ctx.strokeStyle = 'rgba(26, 42, 26, 0.5)';
+    ctx.lineWidth = 1;
+    for (let p = 0.2; p <= 1; p += 0.2) {
+        ctx.beginPath(); ctx.moveTo(pad.left, yPos(p)); ctx.lineTo(pad.left + plotW, yPos(p)); ctx.stroke();
+    }
+
+    // Target power line
+    ctx.strokeStyle = 'rgba(232, 197, 71, 0.4)';
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(pad.left, yPos(targetPower)); ctx.lineTo(pad.left + plotW, yPos(targetPower)); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Power curve
+    ctx.strokeStyle = '#4a9f6e';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i <= nSteps; i++) {
+        const nn = Math.max(2, Math.round(i * maxN / nSteps));
+        const p = Math.min(powerFn(nn), 1);
+        const x = xPos(nn), y = yPos(p);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Optimal n marker
+    const optX = xPos(nOpt), optY = yPos(powerFn(nOpt));
+    ctx.fillStyle = '#e8c547';
+    ctx.beginPath(); ctx.arc(optX, optY, 5, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = '#e8c547';
+    ctx.font = '11px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(`n = ${nOpt}`, optX, optY - 12);
+
+    // Axis labels
+    ctx.fillStyle = '#7a8f7a';
+    ctx.font = '10px JetBrains Mono';
+    ctx.textAlign = 'right';
+    for (let p = 0; p <= 1; p += 0.2) {
+        ctx.fillText((p * 100).toFixed(0) + '%', pad.left - 8, yPos(p) + 4);
+    }
+    ctx.textAlign = 'center';
+    const nTicks = 6;
+    for (let i = 0; i <= nTicks; i++) {
+        const nn = Math.round(i * maxN / nTicks);
+        ctx.fillText(nn.toString(), xPos(nn), pad.top + plotH + 20);
+    }
+
+    ctx.fillStyle = '#9aaa9a';
+    ctx.font = '11px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sample Size (n)', pad.left + plotW / 2, H - 5);
+    ctx.save();
+    ctx.translate(12, pad.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Power', 0, 0);
+    ctx.restore();
+}
+
+function buildSizeTable(powerFn, nOpt) {
+    const powers = [0.70, 0.80, 0.85, 0.90, 0.95, 0.99];
+    let html = '<thead><tr><th>Target Power</th><th>Required n (per group)</th><th>Achieved Power</th></tr></thead><tbody>';
+    powers.forEach(p => {
+        const nn = findN(powerFn, p);
+        const achieved = powerFn(nn);
+        const cls = Math.abs(p - 0.80) < 0.001 ? ' class="highlight"' : '';
+        html += `<tr${cls}><td>${(p*100).toFixed(0)}%</td><td>${nn}</td><td>${(achieved*100).toFixed(1)}%</td></tr>`;
+    });
+    html += '</tbody>';
+    document.getElementById('size-table').innerHTML = html;
+}
+</script>
+{% endblock %}

@@ -8,7 +8,6 @@ import json
 import logging
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
@@ -23,7 +22,6 @@ logger = logging.getLogger(__name__)
 # FMEA CRUD
 # =============================================================================
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def list_fmeas(request):
@@ -69,7 +67,6 @@ def list_fmeas(request):
     return JsonResponse({"fmeas": results})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_fmea(request):
@@ -118,7 +115,6 @@ def create_fmea(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def get_fmea(request, fmea_id):
@@ -156,7 +152,6 @@ def get_fmea(request, fmea_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_fmea(request, fmea_id):
@@ -193,7 +188,6 @@ def update_fmea(request, fmea_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_fmea(request, fmea_id):
@@ -207,7 +201,6 @@ def delete_fmea(request, fmea_id):
 # FMEA Row CRUD
 # =============================================================================
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def add_row(request, fmea_id):
@@ -279,7 +272,6 @@ def add_row(request, fmea_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_row(request, fmea_id, row_id):
@@ -325,7 +317,6 @@ def update_row(request, fmea_id, row_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_row(request, fmea_id, row_id):
@@ -336,7 +327,6 @@ def delete_row(request, fmea_id, row_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def reorder_rows(request, fmea_id):
@@ -371,7 +361,6 @@ def reorder_rows(request, fmea_id):
 # Hypothesis Linking & Evidence Generation
 # =============================================================================
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def link_to_hypothesis(request, fmea_id, row_id):
@@ -464,7 +453,6 @@ def link_to_hypothesis(request, fmea_id, row_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def record_revision(request, fmea_id, row_id):
@@ -554,7 +542,6 @@ def record_revision(request, fmea_id, row_id):
 # RPN Summary / Pareto
 # =============================================================================
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def rpn_summary(request, fmea_id):
@@ -673,23 +660,21 @@ def _compute_likelihood_ratio(severity, occurrence):
 
 # ── Action Items ──────────────────────────────────────────────────────
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def list_fmea_actions(request, fmea_id):
     """List all action items linked to any row in this FMEA."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, user=request.user)
+    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
     row_ids = list(fmea.rows.values_list("id", flat=True))
     items = ActionItem.objects.filter(source_type="fmea", source_id__in=row_ids)
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def promote_fmea_action(request, fmea_id, row_id):
     """Promote an FMEA row's recommended action to a tracked ActionItem."""
-    fmea = get_object_or_404(FMEA, id=fmea_id, user=request.user)
+    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
     row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
 
     if not fmea.project:

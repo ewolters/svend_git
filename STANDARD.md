@@ -64,7 +64,7 @@ The Kjerne lab follows 5S principles adapted for software development.
 │   │   │   └── views.py            # me(), login(), register(), update_profile()
 │   │   │
 │   │   ├── agents_api/             # Analysis & tool endpoints (15 modules)
-│   │   │   ├── dsw_views.py        # Statistical engine (64+ analyses)
+│   │   │   ├── dsw_views.py        # Statistical engine (200+ analyses)
 │   │   │   ├── spc_views.py        # SPC / control charts
 │   │   │   ├── experimenter_views.py  # DOE
 │   │   │   ├── synara_views.py     # Bayesian belief engine
@@ -182,15 +182,16 @@ def endpoint(request):
 
 ## Subscription Tiers
 
-Five-tier pricing model. Single source of truth: `accounts/constants.py`.
+Four-tier pricing model. Single source of truth: `accounts/constants.py`.
 
 | Tier | Price | Queries/Day | Key Features |
 |------|-------|-------------|--------------|
 | **FREE** | $0 | 5 | Basic DSW only |
-| **FOUNDER** | $19/mo | 50 | All PRO features + priority support (100 slots, locked rate) |
-| **PRO** | $29/mo | 50 | Full tools, basic ML, Forge API |
-| **TEAM** | $79/mo | 200 | + Collaboration |
-| **ENTERPRISE** | $199/mo | 1000 | + Anthropic AI, + Hoshin Kanri CI |
+| **PROFESSIONAL** | $49/mo | 50 | Full tools, ML, DOE, SPC, Reliability, Forge API |
+| **TEAM** | $99/mo | 200 | + Collaboration, shared projects, FMEA/A3/VSM |
+| **ENTERPRISE** | $299/mo | 1000 | + AI assistant, SSO, Hoshin Kanri CI, SLA |
+
+*Legacy: FOUNDER ($19/mo) still exists for early adopters — no longer sold.*
 
 **Feature flags** (8 total in `TIER_FEATURES`):
 `basic_dsw`, `basic_ml`, `full_tools`, `ai_assistant`, `collaboration`, `forge_api`, `hoshin_kanri`, `priority_support`
@@ -298,7 +299,7 @@ All app pages extend `base_app.html`:
 | Route | Module | Purpose | Gate |
 |-------|--------|---------|------|
 | `/api/` | api/views.py | Chat, auth, user management | Mixed |
-| `/api/dsw/` | dsw_views.py | Statistical analysis (64+ analyses) | @rate_limited |
+| `/api/dsw/` | dsw_views.py | Statistical analysis (200+ analyses) | @rate_limited |
 | `/api/spc/` | spc_views.py | SPC / control charts | @rate_limited |
 | `/api/experimenter/` | experimenter_views.py | DOE | @gated_paid |
 | `/api/synara/` | synara_views.py | Bayesian belief engine | @gated_paid |

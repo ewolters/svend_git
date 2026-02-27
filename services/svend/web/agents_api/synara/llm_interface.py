@@ -88,9 +88,10 @@ class SynaraLLMInterface:
 
         return f"""An evidence observation does not fit any existing hypothesis well.
 
-EVIDENCE:
-- Event: {expansion_signal.event}
-- Context: {expansion_signal.context}
+<evidence>
+Event: {expansion_signal.event}
+Context: {expansion_signal.context}
+</evidence>
 
 EXISTING HYPOTHESES (all have low likelihood for this evidence):
 {existing_hypotheses}

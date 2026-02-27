@@ -1215,8 +1215,8 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                 </select>
             </div>
             <div class="rca-field" style="margin-top: 16px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="populate-root-cause" checked style="width: 18px; height: 18px;">
+                <label class="svend-toggle">
+                    <input type="checkbox" id="populate-root-cause" checked>
                     <span>Populate A3 root cause section with RCA findings</span>
                 </label>
             </div>
@@ -1699,6 +1699,10 @@ async function saveSession() {
             alert('Error saving: ' + data.error);
         } else {
             currentSessionId = data.session.id;
+            // Keep URL in sync so reload preserves the session
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('session', currentSessionId);
+            window.history.replaceState({}, '', newUrl);
             document.getElementById('link-a3-btn').style.display = 'flex';
             document.getElementById('action-items-section').style.display = 'block';
             saveBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Saved!';
@@ -1766,6 +1770,11 @@ async function loadSession(sessionId) {
         const session = data.session;
         currentSessionId = session.id;
 
+        // Keep URL in sync so reload preserves the session
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('session', currentSessionId);
+        window.history.replaceState({}, '', newUrl);
+
         // Populate fields
         document.getElementById('event-input').value = session.event;
         chain = session.chain || [];
@@ -1812,7 +1821,7 @@ async function showLinkA3Modal() {
     select.innerHTML = '<option value="">Loading...</option>';
 
     try {
-        const response = await fetch('/api/a3/reports/');
+        const response = await fetch('/api/a3/');
         const data = await response.json();
 
         if (!data.reports || data.reports.length === 0) {
@@ -2135,6 +2144,15 @@ document.getElementById('why-input').addEventListener('keydown', (e) => {
     }
 });
 renderChain();
+
+// Auto-load session from URL param (e.g., /app/rca/?session=<uuid>)
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session');
+    if (sessionId) {
+        loadSession(sessionId);
+    }
+})();
 </script>
 <script>
 window.addEventListener('svendUserReady', function(e) {

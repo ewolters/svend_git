@@ -1,6 +1,7 @@
 """API views for Workbench."""
 
 import json
+import re
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
@@ -112,6 +113,10 @@ def update_workbench(request, workbench_id):
         workbench.conclusion_confidence = data["conclusion_confidence"]
     if "layout" in data:
         workbench.layout = data["layout"]
+    if "datasets" in data:
+        workbench.datasets = data["datasets"]
+    if "guide_observations" in data:
+        workbench.guide_observations = data["guide_observations"]
 
     workbench.save()
 
@@ -143,7 +148,8 @@ def export_workbench(request, workbench_id):
     workbench = get_object_or_404(Workbench, id=workbench_id, user=request.user)
 
     response = JsonResponse(workbench.to_json())
-    response["Content-Disposition"] = f'attachment; filename="{workbench.title}.json"'
+    safe_title = re.sub(r'[\x00-\x1f\x7f"\\/:*?<>|]', '_', workbench.title) or 'workbench'
+    response["Content-Disposition"] = f'attachment; filename="{safe_title}.json"'
     return response
 
 

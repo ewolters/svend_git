@@ -1,0 +1,56 @@
+        <div id="step-analyze-anova" class="sub-content active">
+            <div class="panel">
+                <div id="no-analysis-message" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="empty-icon">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    <p>Enter and analyze results first.</p>
+                    <button class="btn btn-primary" onclick="goToStep('results')">Enter Results</button>
+                </div>
+                <div id="anova-content" style="display: none;">
+                    <h3>Analysis of Variance</h3>
+
+                    <!-- Model Summary -->
+                    <div class="model-summary">
+                        <div class="stat-card">
+                            <div class="stat-value" id="r-squared">--</div>
+                            <div class="stat-label">R-squared</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="r-squared-adj">--</div>
+                            <div class="stat-label">R-squared (adj)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="model-s">--</div>
+                            <div class="stat-label">S</div>
+                        </div>
+                    </div>
+
+                    <!-- ANOVA Table -->
+                    <div class="section-title">ANOVA Table</div>
+                    <div id="anova-table-container" class="table-container"></div>
+
+                    <!-- Alpha Slider -->
+                    <div style="display:flex; align-items:center; gap:1rem; margin:1rem 0 0.5rem;">
+                        <label style="font-weight:600; white-space:nowrap;">Significance Level (alpha)</label>
+                        <input type="range" id="alpha-effects-slider" min="0.01" max="0.20" step="0.01" value="0.05"
+                               oninput="onAlphaSliderChange()" style="flex:1; max-width:200px;">
+                        <span id="alpha-effects-value" style="min-width:40px; font-variant-numeric:tabular-nums; font-weight:600;">0.05</span>
+                    </div>
+
+                    <!-- Coefficients Table -->
+                    <div class="section-title">Coded Coefficients</div>
+                    <div id="coefficients-table-container" class="table-container"></div>
+
+                    <!-- Model Equation -->
+                    <div class="section-title">Model Equation</div>
+                    <div id="model-equation" class="equation-box"></div>
+
+                    <!-- Interpretation -->
+                    <div class="section-title">Interpretation</div>
+                    <div id="interpretation-box" class="interpretation-box"></div>
+                </div>
+            </div>
+        </div>

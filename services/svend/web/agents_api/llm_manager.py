@@ -17,8 +17,8 @@ Usage:
     response = client.messages.create(model="claude-3-5-haiku-20241022", ...)
 
 Model Selection by Tier:
-    - Free/Founder: claude-3-5-haiku-20241022
-    - Pro/Team: claude-sonnet-4-20250514
+    - Free/Founder (legacy): claude-3-5-haiku-20241022
+    - Professional/Team: claude-sonnet-4-20250514
     - Enterprise: claude-opus-4-20250514
 
 Note: Custom Qwen/DeepSeek models temporarily disabled while testing Synara.
@@ -160,7 +160,7 @@ class LLMManager:
                     }
             except Exception as e:
                 logger.error(f"Rate limit check failed: {e}")
-                # Continue anyway if rate limit check fails
+                return {"error": "Service temporarily unavailable. Please try again.", "rate_limited": True}
 
         client = cls.get_anthropic()
         if not client:
@@ -179,7 +179,7 @@ class LLMManager:
             if system:
                 create_kwargs["system"] = system
 
-            response = client.messages.create(**create_kwargs)
+            response = client.messages.create(**create_kwargs, timeout=120.0)
 
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
@@ -224,6 +224,21 @@ class LLMManager:
         with cls._lock:
             cls._anthropic_client = None
             cls._anthropic_loaded = False
+
+    @classmethod
+    def unload(cls):
+        """Release LLM resources and free memory.
+
+        Call during graceful shutdown or when LLM features are no longer needed.
+        """
+        with cls._lock:
+            if cls._anthropic_client is not None:
+                # Anthropic client has no explicit close, but clearing references
+                # allows GC to reclaim memory
+                cls._anthropic_client = None
+                cls._anthropic_loaded = False
+                logger.info("LLM resources released")
+            cls._instance = None
 
     @classmethod
     def status(cls) -> dict:

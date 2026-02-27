@@ -123,8 +123,13 @@
     }
 
     .palette-icon {
-        font-size: 1.5rem;
-        margin-bottom: 0.25rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        margin: 0 auto 0.25rem;
+    }
+    .palette-icon svg {
+        width: 100%;
+        height: 100%;
     }
 
     .palette-label {
@@ -489,6 +494,62 @@
         display: block;
     }
 
+    /* Step metrics overlay */
+    .step-metrics-panel {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 300px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1rem;
+        z-index: 10;
+        display: none;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    .step-metrics-panel.visible { display: block; }
+    .step-metrics-panel .smp-header {
+        display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;
+    }
+    .step-metrics-panel .smp-header h4 { font-size: 0.85rem; color: var(--text-primary); margin: 0; }
+    .step-metrics-panel .smp-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.1rem; padding: 0 4px; }
+    .step-metrics-panel .smp-banner {
+        padding: 6px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.75rem;
+    }
+    .step-metrics-panel .smp-banner.red { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+    .step-metrics-panel .smp-banner.yellow { background: rgba(241,196,15,0.15); color: #f1c40f; border: 1px solid rgba(241,196,15,0.3); }
+    .step-metrics-panel .smp-banner.green { background: rgba(74,159,110,0.15); color: #4a9f6e; border: 1px solid rgba(74,159,110,0.3); }
+    .smp-kpi-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 0.75rem;
+    }
+    .smp-kpi { background: var(--bg-tertiary); border-radius: 4px; padding: 8px; text-align: center; }
+    .smp-kpi-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; }
+    .smp-kpi-value { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin-top: 2px; }
+    .smp-section-title { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; margin: 0.75rem 0 0.4rem; }
+    .smp-annotation-card {
+        background: var(--bg-tertiary); border-radius: 4px; padding: 8px 10px; margin-bottom: 6px;
+        border-left: 3px solid #666; position: relative;
+    }
+    .smp-annotation-card.green { border-left-color: #4a9f6e; }
+    .smp-annotation-card.yellow { border-left-color: #f1c40f; }
+    .smp-annotation-card.red { border-left-color: #e74c3c; }
+    .smp-annotation-card .smp-ann-source { font-size: 0.7rem; color: var(--accent); font-weight: 600; text-transform: uppercase; }
+    .smp-annotation-card .smp-ann-body { font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px; }
+    .smp-annotation-card .smp-ann-time { font-size: 0.65rem; color: var(--text-dim); margin-top: 3px; }
+    .smp-annotation-card .smp-ann-remove {
+        position: absolute; top: 4px; right: 6px; background: none; border: none;
+        color: var(--text-dim); cursor: pointer; font-size: 0.75rem; padding: 0 2px;
+    }
+    .smp-annotation-card .smp-ann-remove:hover { color: #e74c3c; }
+    .smp-open-calcs {
+        display: block; width: 100%; margin-top: 0.75rem; padding: 6px; font-size: 0.75rem;
+        background: var(--surface-alt); border: 1px solid var(--border); border-radius: 4px;
+        color: var(--text-secondary); cursor: pointer; text-align: center;
+    }
+    .smp-open-calcs:hover { border-color: var(--accent); color: var(--accent); }
+
     .properties-panel h4 {
         font-size: 0.85rem;
         margin-bottom: 1rem;
@@ -615,28 +676,45 @@
         </div>
 
         <div class="sidebar-content">
+            <!-- Quick Guide -->
+            <details class="sidebar-section" style="cursor:pointer;">
+                <summary style="font-size:0.75rem; font-weight:600; color:var(--accent-primary); list-style:none; display:flex; align-items:center; gap:0.35rem;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    How to build a VSM
+                </summary>
+                <div style="font-size:0.72rem; color:var(--text-secondary); line-height:1.5; padding-top:0.5rem;">
+                    <p style="margin:0 0 0.4rem;"><strong>1.</strong> Drag <strong>Process</strong> boxes onto the canvas for each step in your value stream.</p>
+                    <p style="margin:0 0 0.4rem;"><strong>2.</strong> Double-click any process to enter metrics: <strong>C/T</strong> (cycle time in seconds), <strong>C/O</strong> (changeover time), <strong>Uptime %</strong>, operators, and batch size.</p>
+                    <p style="margin:0 0 0.4rem;"><strong>3.</strong> Add <strong>Inventory</strong> triangles between steps to represent wait time (enter days of supply).</p>
+                    <p style="margin:0 0 0.4rem;"><strong>4.</strong> Connect steps with <strong>Push</strong> or <strong>Pull</strong> flow arrows.</p>
+                    <p style="margin:0 0 0.4rem;"><strong>5.</strong> Set your <strong>Takt Time</strong> below (available time / demand) to see where bottlenecks are.</p>
+                    <p style="margin:0 0 0.4rem;"><strong>6.</strong> Add <strong>Kaizen</strong> bursts to mark improvement opportunities.</p>
+                    <p style="margin:0;"><strong>Metrics update live</strong> as you build. Lead Time = total wait + process time. PCE = process time / lead time.</p>
+                </div>
+            </details>
+
             <!-- Element Palette -->
             <div class="sidebar-section">
                 <h3>Process & Entities</h3>
                 <div class="element-palette">
                     <div class="palette-item" draggable="true" data-type="process">
-                        <div class="palette-icon">&#9633;</div>
+                        <div class="palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></div>
                         <div class="palette-label">Process</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="customer">
-                        <div class="palette-icon">&#128101;</div>
+                        <div class="palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
                         <div class="palette-label">Customer</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="supplier">
-                        <div class="palette-icon">&#127981;</div>
+                        <div class="palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V11l5 3v-3l5 3V6h6v15"/><line x1="2" y1="21" x2="22" y2="21"/></svg></div>
                         <div class="palette-label">Supplier</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="kaizen">
-                        <div class="palette-icon">&#9733;</div>
+                        <div class="palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg></div>
                         <div class="palette-label">Kaizen</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="workcenter">
-                        <div class="palette-icon" style="color: var(--accent-primary);">&#9645;</div>
+                        <div class="palette-icon" style="color: var(--accent-primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" stroke-dasharray="4 2"/></svg></div>
                         <div class="palette-label">Work Center</div>
                     </div>
                 </div>
@@ -647,27 +725,27 @@
                 <h3>Delays & Buffers</h3>
                 <div class="element-palette">
                     <div class="palette-item" draggable="true" data-type="inventory" data-delay="inventory">
-                        <div class="palette-icon" style="color: var(--warning);">&#9651;</div>
+                        <div class="palette-icon" style="color: var(--warning);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L22 21H2z"/></svg></div>
                         <div class="palette-label">Inventory</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="inventory" data-delay="queue">
-                        <div class="palette-icon" style="color: #f59e0b;">&#8987;</div>
+                        <div class="palette-icon" style="color: #f59e0b;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                         <div class="palette-label">Queue</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="inventory" data-delay="transport">
-                        <div class="palette-icon" style="color: #8b5cf6;">&#128666;</div>
+                        <div class="palette-icon" style="color: #8b5cf6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
                         <div class="palette-label">Transport</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="inventory" data-delay="batch">
-                        <div class="palette-icon" style="color: #ec4899;">&#128230;</div>
+                        <div class="palette-icon" style="color: #ec4899;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                         <div class="palette-label">Batch Wait</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="supermarket">
-                        <div class="palette-icon" style="color: #06b6d4;">&#9782;</div>
+                        <div class="palette-icon" style="color: #06b6d4;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg></div>
                         <div class="palette-label">Supermarket</div>
                     </div>
                     <div class="palette-item" draggable="true" data-type="fifo">
-                        <div class="palette-icon" style="color: #10b981;">&#8594;</div>
+                        <div class="palette-icon" style="color: #10b981;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14M5 16h14"/><polyline points="15 4 21 12 15 20"/></svg></div>
                         <div class="palette-label">FIFO Lane</div>
                     </div>
                 </div>
@@ -678,11 +756,11 @@
                 <h3>Material Flow</h3>
                 <div class="element-palette flow-palette">
                     <div class="palette-item flow-item" data-flow="push" onclick="setFlowTool('push')" title="Push flow (striped arrow)">
-                        <div class="palette-icon">&#10140;</div>
+                        <div class="palette-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></svg></div>
                         <div class="palette-label">Push</div>
                     </div>
                     <div class="palette-item flow-item" data-flow="pull" onclick="setFlowTool('pull')" title="Pull flow (with kanban signal)">
-                        <div class="palette-icon" style="color: var(--success);">&#10551;</div>
+                        <div class="palette-icon" style="color: var(--success);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><polyline points="12 5 5 12 12 19"/><line x1="19" y1="6" x2="19" y2="18"/></svg></div>
                         <div class="palette-label">Pull</div>
                     </div>
                 </div>
@@ -694,21 +772,41 @@
                 <h3>Metrics</h3>
                 <div class="metrics-panel">
                     <div class="metric-row">
-                        <span class="metric-label">Lead Time</span>
+                        <span class="metric-label" title="Total time from raw material to customer delivery (wait time + process time)">Lead Time</span>
                         <span class="metric-value" id="metric-lead-time">-</span>
                     </div>
                     <div class="metric-row">
-                        <span class="metric-label">Process Time</span>
+                        <span class="metric-label" title="Sum of all cycle times — the actual value-adding time">Process Time</span>
                         <span class="metric-value" id="metric-process-time">-</span>
                     </div>
                     <div class="metric-row">
-                        <span class="metric-label">PCE</span>
+                        <span class="metric-label" title="Process Cycle Efficiency = Process Time / Lead Time. Higher is better — most processes are under 5%">PCE</span>
                         <span class="metric-value" id="metric-pce">-</span>
                     </div>
                     <div class="metric-row">
-                        <span class="metric-label">Takt Time</span>
+                        <span class="metric-label" title="Available production time / customer demand. Any step with cycle time above takt is a bottleneck">Takt Time</span>
                         <span class="metric-value" id="metric-takt">-</span>
                     </div>
+                    <div class="metric-row" style="border-top:1px solid var(--border); padding-top:0.4rem; margin-top:0.4rem;">
+                        <span class="metric-label" title="Step with highest effective cycle time — constrains system throughput">Bottleneck</span>
+                        <span class="metric-value" id="metric-bottleneck" style="font-size:0.7rem;">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label" title="Max theoretical output based on bottleneck cycle time">Throughput</span>
+                        <span class="metric-value" id="metric-throughput">-</span>
+                    </div>
+                </div>
+                <!-- Suggested Calculators -->
+                <div id="suggested-calcs" style="display:none; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
+                    <span style="font-size:0.7rem; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px;">Suggested</span>
+                    <div id="suggested-calcs-list" style="margin-top:0.4rem;"></div>
+                </div>
+                <!-- Metric Timeline -->
+                <div style="margin-top:0.5rem;">
+                    <button onclick="showTimeline()" style="width:100%; background:var(--bg-tertiary); border:1px solid var(--border); color:var(--text-secondary); padding:0.35rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.7rem; display:flex; align-items:center; gap:6px; justify-content:center;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        Metric Timeline
+                    </button>
                 </div>
                 <div class="takt-input-section" style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
                     <div style="display:flex; align-items:center; gap:0.25rem; margin-bottom:0.5rem;">
@@ -717,7 +815,7 @@
                     <div style="display:flex; gap:0.35rem; margin-bottom:0.4rem;">
                         <input type="number" id="takt-direct" placeholder="sec" step="0.1"
                                style="flex:1; background:var(--bg-tertiary); border:1px solid var(--border); padding:0.3rem 0.4rem; font-size:0.8rem; color:var(--text-primary); border-radius:4px; width:60px;">
-                        <button class="btn btn-sm" style="font-size:0.7rem; padding:0.3rem 0.5rem;" onclick="setTaktDirect()">Set</button>
+                        <button class="btn btn-sm btn-secondary" style="font-size:0.7rem; padding:0.3rem 0.5rem;" onclick="setTaktDirect()">Set</button>
                     </div>
                     <p style="font-size:0.65rem; color:var(--text-dim); margin-bottom:0.4rem;">— or calculate —</p>
                     <div style="display:flex; gap:0.35rem; margin-bottom:0.3rem; align-items:end;">
@@ -732,7 +830,7 @@
                                    style="width:100%; background:var(--bg-tertiary); border:1px solid var(--border); padding:0.25rem 0.35rem; font-size:0.75rem; color:var(--text-primary); border-radius:4px;">
                         </div>
                     </div>
-                    <button class="btn btn-sm" style="font-size:0.7rem; padding:0.3rem 0.5rem; width:100%;" onclick="calculateTakt()">Calculate Takt</button>
+                    <button class="btn btn-sm btn-primary" style="font-size:0.7rem; padding:0.3rem 0.5rem; width:100%;" onclick="calculateTakt()">Calculate Takt</button>
                 </div>
             </div>
 
@@ -864,31 +962,31 @@
             </div>
             <div class="prop-row">
                 <div class="property-group">
-                    <label>C/T (sec)</label>
+                    <label title="Cycle Time — seconds to complete one unit at this step">C/T (sec)</label>
                     <input type="number" id="prop-cycle-time" placeholder="45">
                 </div>
                 <div class="property-group">
-                    <label>C/O (sec)</label>
+                    <label title="Changeover Time — seconds to switch between product types">C/O (sec)</label>
                     <input type="number" id="prop-changeover" placeholder="600">
                 </div>
             </div>
             <div class="prop-row">
                 <div class="property-group">
-                    <label>Uptime (%)</label>
+                    <label title="Percentage of time this machine/station is actually running (not in maintenance or breakdown)">Uptime (%)</label>
                     <input type="number" id="prop-uptime" placeholder="95">
                 </div>
                 <div class="property-group">
-                    <label>Operators</label>
+                    <label title="Number of people required to run this step">Operators</label>
                     <input type="number" id="prop-operators" placeholder="2">
                 </div>
             </div>
             <div class="prop-row">
                 <div class="property-group">
-                    <label>Batch Size</label>
+                    <label title="Number of units processed before a changeover is needed">Batch Size</label>
                     <input type="number" id="prop-batch" placeholder="100">
                 </div>
                 <div class="property-group">
-                    <label>Scrap (%)</label>
+                    <label title="Percentage of units scrapped at this step (yield loss)">Scrap (%)</label>
                     <input type="number" id="prop-scrap" placeholder="2" step="0.1">
                 </div>
             </div>
@@ -914,6 +1012,14 @@
                     <option value="medium">Medium (orange)</option>
                 </select>
             </div>
+            <div class="property-group" id="prop-kaizen-hypothesis-group" style="display:none;">
+                <label>Linked Hypothesis</label>
+                <select id="prop-kaizen-hypothesis" style="margin-bottom:6px;">
+                    <option value="">— None —</option>
+                </select>
+                <div id="prop-kaizen-prob" style="font-size:0.7rem; color:var(--accent); margin-bottom:6px; display:none;"></div>
+                <button onclick="createHypothesisFromKaizen()" style="width:100%; padding:4px 8px; font-size:0.7rem; background:rgba(74,159,110,0.1); border:1px solid rgba(74,159,110,0.3); border-radius:4px; color:var(--accent); cursor:pointer;">Create Hypothesis from Kaizen</button>
+            </div>
             <!-- Customer/Supplier properties -->
             <div class="property-group" id="prop-entity-detail-group" style="display:none;">
                 <label id="prop-entity-detail-label">Demand</label>
@@ -937,6 +1043,18 @@
             <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="saveProperties()">
                 Save
             </button>
+        </div>
+
+        <!-- Step Metrics Overlay -->
+        <div class="step-metrics-panel" id="step-metrics-panel">
+            <div class="smp-header">
+                <h4 id="smp-title">Step Metrics</h4>
+                <button class="smp-close" onclick="closeStepMetrics()">&times;</button>
+            </div>
+            <div id="smp-banner"></div>
+            <div class="smp-kpi-grid" id="smp-kpis"></div>
+            <div id="smp-annotations"></div>
+            <button class="smp-open-calcs" onclick="window.open('/app/calculators/','_blank')">Open in Calculators</button>
         </div>
     </div>
 </div>
@@ -987,6 +1105,20 @@
     </div>
 </div>
 
+<!-- Metric Timeline Modal -->
+<div id="timeline-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#121a12; padding:2rem; border-radius:8px; width:720px; max-height:80vh; overflow-y:auto; border:1px solid rgba(74,159,110,0.3); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="color:var(--accent);">Metric Timeline</h3>
+            <button onclick="document.getElementById('timeline-modal').style.display='none'" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:1.2rem;">&times;</button>
+        </div>
+        <div id="timeline-chart" style="height:350px;"></div>
+        <div id="timeline-empty" style="display:none; text-align:center; padding:2rem; color:var(--text-dim); font-size:0.85rem;">
+            No metric history yet. Metrics are recorded each time you save the VSM with changed values.
+        </div>
+    </div>
+</div>
+
 <!-- New VSM Dialog -->
 <div id="new-vsm-dialog" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#121a12; padding:2rem; border-radius:8px; width:400px; border:1px solid rgba(74,159,110,0.3); box-shadow:0 10px 40px rgba(0,0,0,0.5);">
@@ -1018,6 +1150,34 @@ window.addEventListener('svendUserReady', function(e) {
 });
 </script>
 <script>
+// =============================================================================
+// SVG Icon Paths (Svend style: stroke-based, 24x24 viewBox)
+// =============================================================================
+const VSM_ICONS = {
+    customer: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>',
+    supplier: '<path d="M4 21V11l5 3v-3l5 3V6h6v15"/><line x1="2" y1="21" x2="22" y2="21"/>',
+    queue: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    transport: '<rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+    batch: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'
+};
+
+function createSvgIcon(x, y, size, pathData, color) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('x', x - size / 2);
+    svg.setAttribute('y', y - size / 2);
+    svg.setAttribute('width', size);
+    svg.setAttribute('height', size);
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', color || 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.innerHTML = pathData;
+    return svg;
+}
+
 // =============================================================================
 // VSM State
 // =============================================================================
@@ -1105,7 +1265,7 @@ async function setupProjectSelector() {
 function updateProjectLink(projectId) {
     const link = document.getElementById('project-link');
     if (projectId) {
-        link.href = '/app/projects/';
+        link.href = `/app/projects/#${projectId}`;
         link.style.display = 'flex';
     } else {
         link.style.display = 'none';
@@ -1155,6 +1315,8 @@ async function loadVSM(id) {
         vsmHistory = [];
         vsmHistoryIndex = -1;
         saveVSMState();
+        // Load hypothesis probabilities for kaizen bursts
+        loadHypothesisProbabilities().then(() => renderVSM());
     } catch (err) {
         console.error('Load VSM error:', err);
     }
@@ -1388,9 +1550,59 @@ function renderProcessBox(step, layer) {
         g.appendChild(wcDot);
     }
 
-    // Make draggable and handle flow clicks
+    // --- Bottleneck & takt flags ---
+    const flags = step.flags || {};
+    if (flags.is_bottleneck) {
+        // Red stroke on box
+        rect.setAttribute('stroke', '#e74c3c');
+        rect.setAttribute('stroke-width', '2.5');
+        // Red "B" badge top-right
+        const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        badge.setAttribute('cx', '125'); badge.setAttribute('cy', '5');
+        badge.setAttribute('r', '7'); badge.setAttribute('fill', '#e74c3c');
+        badge.setAttribute('stroke', 'var(--bg-primary)'); badge.setAttribute('stroke-width', '1.5');
+        g.appendChild(badge);
+        const bText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        bText.setAttribute('x', '125'); bText.setAttribute('y', '8.5');
+        bText.setAttribute('text-anchor', 'middle'); bText.setAttribute('fill', 'white');
+        bText.setAttribute('font-size', '8'); bText.setAttribute('font-weight', '700');
+        bText.textContent = 'B';
+        g.appendChild(bText);
+    } else if (flags.exceeds_takt) {
+        // Orange stroke for exceeds-takt (not bottleneck)
+        rect.setAttribute('stroke', '#f39c12');
+        rect.setAttribute('stroke-width', '2.5');
+    }
+
+    // --- Annotation badges (colored dots at bottom) ---
+    const annotations = step.annotations || [];
+    if (annotations.length > 0) {
+        const statusColors = { green: '#4a9f6e', yellow: '#f1c40f', red: '#e74c3c' };
+        annotations.forEach((a, i) => {
+            if (i >= 8) return; // max 8 dots
+            const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            dot.setAttribute('cx', String(8 + i * 12));
+            dot.setAttribute('cy', '136');
+            dot.setAttribute('r', '3.5');
+            dot.setAttribute('fill', statusColors[a.status] || '#666');
+            dot.setAttribute('stroke', 'var(--bg-secondary)'); dot.setAttribute('stroke-width', '1');
+            g.appendChild(dot);
+        });
+    }
+
+    // Make draggable; single click = metrics, double click = properties
     g.addEventListener('mousedown', (e) => startDragElement(e, step, 'process'));
-    g.addEventListener('dblclick', () => showProperties(step));
+    g.addEventListener('click', (e) => {
+        if (e.detail === 1 && !wasDragged) {
+            clearTimeout(stepMetricsClickTimer);
+            stepMetricsClickTimer = setTimeout(() => showStepMetrics(step), 200);
+        }
+    });
+    g.addEventListener('dblclick', () => {
+        clearTimeout(stepMetricsClickTimer);
+        closeStepMetrics();
+        showProperties(step);
+    });
 
     layer.appendChild(g);
 }
@@ -1561,6 +1773,7 @@ function showWorkCenterProperties(wc) {
     document.getElementById('prop-dos-group').style.display = 'none';
     document.getElementById('prop-kaizen-text-group').style.display = 'none';
     document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'none';
     document.getElementById('prop-entity-detail-group').style.display = 'none';
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
     // Show WC fields
@@ -1614,19 +1827,15 @@ function renderInventory(inv, layer) {
 
     // Icon overlay for special delay types
     if (inv.delay_type && inv.delay_type !== 'inventory') {
-        const iconText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        iconText.setAttribute('x', '30');
-        iconText.setAttribute('y', '28');
-        iconText.setAttribute('text-anchor', 'middle');
-        iconText.setAttribute('fill', 'white');
-        iconText.setAttribute('font-size', '14');
-        const icons = {
-            'queue': '\u23F1',      // Stopwatch
-            'transport': '\uD83D\uDE9A', // Truck
-            'batch': '\uD83D\uDCE6'      // Package
+        const delayIcons = {
+            'queue': VSM_ICONS.queue,
+            'transport': VSM_ICONS.transport,
+            'batch': VSM_ICONS.batch
         };
-        iconText.textContent = icons[inv.delay_type] || '';
-        g.appendChild(iconText);
+        const pathData = delayIcons[inv.delay_type];
+        if (pathData) {
+            g.appendChild(createSvgIcon(30, 22, 18, pathData, 'white'));
+        }
     }
 
     // Days of supply text
@@ -1809,6 +2018,34 @@ function renderKaizenBurst(burst, layer) {
     g.appendChild(star);
     g.appendChild(text);
 
+    // Probability badge if linked to hypothesis
+    if (burst.hypothesis_id && burst._hypothesis_prob != null) {
+        const prob = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        prob.setAttribute('x', '40');
+        prob.setAttribute('y', '70');
+        prob.setAttribute('text-anchor', 'middle');
+        prob.setAttribute('fill', 'var(--accent)');
+        prob.setAttribute('font-size', '9');
+        prob.setAttribute('font-weight', '600');
+        prob.textContent = `P=${Math.round(burst._hypothesis_prob * 100)}%`;
+        g.appendChild(prob);
+    }
+
+    // Realized savings badge (written back from Hoshin)
+    if (burst.realized_savings) {
+        const yPos = (burst.hypothesis_id && burst._hypothesis_prob != null) ? 82 : 70;
+        const savBadge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        savBadge.setAttribute('x', '40');
+        savBadge.setAttribute('y', String(yPos));
+        savBadge.setAttribute('text-anchor', 'middle');
+        savBadge.setAttribute('fill', '#6fcf97');
+        savBadge.setAttribute('font-size', '8');
+        savBadge.setAttribute('font-weight', '600');
+        const amt = Math.abs(burst.realized_savings);
+        savBadge.textContent = amt >= 1000 ? `$${(amt/1000).toFixed(1)}K` : `$${amt.toFixed(0)}`;
+        g.appendChild(savBadge);
+    }
+
     g.addEventListener('mousedown', (e) => startDragElement(e, burst, 'kaizen'));
     g.addEventListener('dblclick', () => showKaizenProperties(burst));
 
@@ -1838,12 +2075,12 @@ function renderCustomerSupplier(layer) {
 
     // Render all customers
     (currentVSM.customers || []).forEach(ent => {
-        renderEntityBox(layer, ent, 'customer', '\uD83D\uDC65');
+        renderEntityBox(layer, ent, 'customer', VSM_ICONS.customer);
     });
 
     // Render all suppliers
     (currentVSM.suppliers || []).forEach(ent => {
-        renderEntityBox(layer, ent, 'supplier', '\uD83C\uDFED');
+        renderEntityBox(layer, ent, 'supplier', VSM_ICONS.supplier);
     });
 }
 
@@ -1862,12 +2099,7 @@ function renderEntityBox(layer, ent, entityType, icon) {
     rect.setAttribute('rx', '4');
     rect.style.cursor = 'move';
 
-    const iconEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    iconEl.setAttribute('x', '50');
-    iconEl.setAttribute('y', '30');
-    iconEl.setAttribute('text-anchor', 'middle');
-    iconEl.setAttribute('font-size', '20');
-    iconEl.textContent = icon;
+    const iconEl = createSvgIcon(50, 20, 24, icon, 'var(--accent-blue)');
 
     const nameEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     nameEl.setAttribute('x', '50');
@@ -2480,8 +2712,11 @@ let dragElement = null;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
+let wasDragged = false;
+
 function startDragElement(e, element, elementType = 'process') {
     e.stopPropagation();
+    wasDragged = false;
 
     // Handle flow tool clicks
     if (currentTool === 'flow' && elementType === 'process') {
@@ -2504,6 +2739,7 @@ function startDragElement(e, element, elementType = 'process') {
 
 function dragElementMove(e) {
     if (!dragElement) return;
+    wasDragged = true;
 
     const canvasRect = document.getElementById('canvas-container').getBoundingClientRect();
     const x = (e.clientX - canvasRect.left - dragOffsetX - panX) / zoom;
@@ -2536,6 +2772,7 @@ function showProperties(element) {
     document.getElementById('prop-dos-group').style.display = 'none';
     document.getElementById('prop-kaizen-text-group').style.display = 'none';
     document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'none';
     document.getElementById('prop-entity-detail-group').style.display = 'none';
     document.getElementById('prop-wc-group').style.display = 'none';
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'flex');
@@ -2564,6 +2801,7 @@ function showInventoryProperties(inv) {
     document.getElementById('prop-dos-group').style.display = 'block';
     document.getElementById('prop-kaizen-text-group').style.display = 'none';
     document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'none';
     document.getElementById('prop-entity-detail-group').style.display = 'none';
     document.getElementById('prop-wc-group').style.display = 'none';
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
@@ -2595,6 +2833,10 @@ function showKaizenProperties(burst) {
     document.getElementById('prop-kaizen-text').value = burst.text || '';
     document.getElementById('prop-kaizen-priority').value = burst.priority || 'medium';
 
+    // Hypothesis linking
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'block';
+    loadKaizenHypotheses(burst);
+
     selectedElement = burst;
 }
 
@@ -2610,6 +2852,7 @@ function showEntityProperties(entity, entityType) {
     document.getElementById('prop-dos-group').style.display = 'none';
     document.getElementById('prop-kaizen-text-group').style.display = 'none';
     document.getElementById('prop-kaizen-priority-group').style.display = 'none';
+    document.getElementById('prop-kaizen-hypothesis-group').style.display = 'none';
     document.getElementById('prop-wc-group').style.display = 'none';
     document.querySelectorAll('.prop-row').forEach(r => r.style.display = 'none');
     // Show entity detail field
@@ -2633,6 +2876,8 @@ function saveProperties() {
     } else if (selectedElementType === 'kaizen') {
         selectedElement.text = document.getElementById('prop-kaizen-text').value;
         selectedElement.priority = document.getElementById('prop-kaizen-priority').value;
+        const hId = document.getElementById('prop-kaizen-hypothesis').value;
+        selectedElement.hypothesis_id = hId || null;
     } else if (selectedElementType === 'customer' || selectedElementType === 'supplier') {
         selectedElement.name = document.getElementById('prop-name').value;
         selectedElement.detail = document.getElementById('prop-entity-detail').value;
@@ -2729,6 +2974,317 @@ function updateMetrics() {
     if (currentVSM.takt_time) {
         document.getElementById('takt-direct').value = currentVSM.takt_time;
     }
+
+    // Client-side bottleneck detection
+    const bn = detectBottleneckClient(currentVSM);
+    const bnEl = document.getElementById('metric-bottleneck');
+    const tpEl = document.getElementById('metric-throughput');
+    if (bn) {
+        bnEl.textContent = bn.name + ' (' + formatTime(bn.ct) + ')';
+        bnEl.style.color = (currentVSM.takt_time && bn.ct > currentVSM.takt_time) ? '#e74c3c' : '';
+        tpEl.textContent = bn.throughput.toFixed(1) + ' u/hr';
+    } else {
+        bnEl.textContent = '-';
+        bnEl.style.color = '';
+        tpEl.textContent = '-';
+    }
+
+    // Suggested calculators
+    renderSuggestedCalcs(bn);
+}
+
+function detectBottleneckClient(vsm) {
+    // Client-side bottleneck detection — mirrors server logic
+    const steps = vsm.process_steps || [];
+    const wcs = vsm.work_centers || [];
+    if (steps.length === 0) return null;
+
+    const wcMap = {};
+    wcs.forEach(wc => { wcMap[wc.id] = { ...wc, members: [] }; });
+    const standalone = [];
+    steps.forEach(s => {
+        if (s.work_center_id && wcMap[s.work_center_id]) {
+            wcMap[s.work_center_id].members.push(s);
+        } else {
+            standalone.push(s);
+        }
+    });
+
+    const effective = [];
+    standalone.forEach(s => {
+        const ct = s.cycle_time || 0;
+        if (ct > 0) effective.push({ name: s.name || 'Process', ct, id: s.id });
+    });
+    Object.values(wcMap).forEach(wc => {
+        if (wc.members.length === 0) return;
+        const rateSum = wc.members.reduce((sum, m) => {
+            const ct = m.cycle_time || 0;
+            return ct > 0 ? sum + 1.0 / ct : sum;
+        }, 0);
+        if (rateSum > 0) {
+            effective.push({ name: wc.name || wc.members[0].name, ct: 1.0 / rateSum, id: wc.members[0].id });
+        }
+    });
+
+    if (effective.length === 0) return null;
+    const maxCT = Math.max(...effective.map(e => e.ct));
+    const bn = effective.find(e => e.ct === maxCT);
+    return { name: bn.name, ct: maxCT, throughput: 3600.0 / maxCT, id: bn.id };
+}
+
+function renderSuggestedCalcs(bottleneck) {
+    const container = document.getElementById('suggested-calcs');
+    const list = document.getElementById('suggested-calcs-list');
+    const suggestions = [];
+
+    if (!currentVSM || (currentVSM.process_steps || []).length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    if (!currentVSM.takt_time) {
+        suggestions.push({ name: 'Takt Time', id: 'takt', reason: 'Set takt to flag overloaded steps' });
+    }
+    if (bottleneck) {
+        if (currentVSM.takt_time && bottleneck.ct > currentVSM.takt_time) {
+            suggestions.push({ name: 'SMED', id: 'smed', reason: 'Reduce changeover at bottleneck' });
+            suggestions.push({ name: 'Line Simulator', id: 'line-sim', reason: 'Model flow impact' });
+        } else {
+            suggestions.push({ name: 'Bottleneck Analysis', id: 'bottleneck', reason: 'Detailed constraint analysis' });
+        }
+    }
+    if ((currentVSM.process_steps || []).some(s => !s.uptime || s.uptime < 100)) {
+        suggestions.push({ name: 'OEE', id: 'oee', reason: 'Measure equipment effectiveness' });
+    }
+
+    if (suggestions.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    list.innerHTML = suggestions.slice(0, 3).map(s =>
+        `<a href="/app/calculators/" target="_blank" style="display:block; padding:0.3rem 0.4rem; margin-bottom:0.25rem; background:var(--bg-tertiary); border-radius:4px; text-decoration:none; font-size:0.75rem; color:var(--accent-primary);" title="${s.reason}">
+            ${s.name} <span style="color:var(--text-dim); font-size:0.65rem;">— ${s.reason}</span>
+        </a>`
+    ).join('');
+}
+
+// --- Step Metrics Overlay ---
+let stepMetricsClickTimer = null;
+
+function showStepMetrics(step) {
+    const panel = document.getElementById('step-metrics-panel');
+    document.getElementById('smp-title').textContent = step.name || 'Unnamed Step';
+
+    // Banner: bottleneck / exceeds takt / normal
+    const flags = step.flags || {};
+    const bannerEl = document.getElementById('smp-banner');
+    if (flags.is_bottleneck) {
+        bannerEl.innerHTML = '<div class="smp-banner red">System Constraint (Bottleneck)</div>';
+    } else if (flags.exceeds_takt) {
+        bannerEl.innerHTML = '<div class="smp-banner yellow">Exceeds Takt — ratio ' + (flags.takt_ratio || '?') + '</div>';
+    } else if (flags.takt_ratio) {
+        bannerEl.innerHTML = '<div class="smp-banner green">Within Takt — ratio ' + flags.takt_ratio + '</div>';
+    } else {
+        bannerEl.innerHTML = '';
+    }
+
+    // KPI grid
+    const ct = step.cycle_time || '-';
+    const co = step.changeover_time || '-';
+    const uptime = step.uptime ? step.uptime + '%' : '-';
+    const ops = step.operators || '-';
+    const taktRatio = flags.takt_ratio || '-';
+    const scrap = step.scrap_rate ? step.scrap_rate + '%' : '-';
+    document.getElementById('smp-kpis').innerHTML =
+        `<div class="smp-kpi"><div class="smp-kpi-label">C/T (sec)</div><div class="smp-kpi-value">${ct}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">C/O (sec)</div><div class="smp-kpi-value">${co}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">Uptime</div><div class="smp-kpi-value">${uptime}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">Operators</div><div class="smp-kpi-value">${ops}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">vs Takt</div><div class="smp-kpi-value">${taktRatio}</div></div>` +
+        `<div class="smp-kpi"><div class="smp-kpi-label">Scrap</div><div class="smp-kpi-value">${scrap}</div></div>`;
+
+    // Annotations
+    const annotations = step.annotations || [];
+    const annEl = document.getElementById('smp-annotations');
+    if (annotations.length > 0) {
+        annEl.innerHTML = '<div class="smp-section-title">Linked Results</div>' +
+            annotations.map((a, i) => renderAnnotationCard(a, step, i)).join('');
+    } else {
+        annEl.innerHTML = '<div class="smp-section-title">No linked results</div>' +
+            '<div style="font-size:0.75rem; color:var(--text-dim); padding:4px 0;">Run a calculator and export to VSM to see results here.</div>';
+    }
+
+    panel.classList.add('visible');
+}
+
+function renderAnnotationCard(a, step, idx) {
+    const statusClass = a.status || '';
+    const source = (a.source || 'unknown').replace(/_/g, ' ');
+    const ts = a.timestamp ? new Date(a.timestamp).toLocaleDateString() : '';
+    let body = '';
+    if (a.value && typeof a.value === 'object') {
+        body = Object.entries(a.value).map(([k, v]) =>
+            `<span style="margin-right:8px;">${k.replace(/_/g, ' ')}: <strong>${v}</strong></span>`
+        ).join('');
+    } else if (a.value) {
+        body = String(a.value);
+    }
+    const stepId = step.id || '';
+    return `<div class="smp-annotation-card ${statusClass}">
+        <button class="smp-ann-remove" onclick="removeAnnotation('${stepId}', ${idx})" title="Remove">&times;</button>
+        <div class="smp-ann-source">${source}</div>
+        <div class="smp-ann-body">${body}</div>
+        ${ts ? '<div class="smp-ann-time">' + ts + '</div>' : ''}
+    </div>`;
+}
+
+function removeAnnotation(stepId, idx) {
+    if (!currentVSM) return;
+    const step = (currentVSM.process_steps || []).find(s => s.id === stepId);
+    if (!step || !step.annotations) return;
+    saveVSMState();
+    step.annotations.splice(idx, 1);
+    showStepMetrics(step);
+    renderVSM();
+    saveVSM();
+}
+
+function closeStepMetrics() {
+    document.getElementById('step-metrics-panel').classList.remove('visible');
+}
+
+// --- Hypothesis-driven kaizen tracking (Phase 5) ---
+
+async function loadKaizenHypotheses(burst) {
+    const select = document.getElementById('prop-kaizen-hypothesis');
+    const probEl = document.getElementById('prop-kaizen-prob');
+    select.innerHTML = '<option value="">— None —</option>';
+    probEl.style.display = 'none';
+
+    if (!currentVSM || !currentVSM.project_id) {
+        select.innerHTML = '<option value="">— Link VSM to project first —</option>';
+        return;
+    }
+    try {
+        const resp = await fetch(`/api/synara/${currentVSM.project_id}/hypotheses/`, { credentials: 'same-origin' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const hypotheses = data.hypotheses || [];
+        for (const h of hypotheses) {
+            const opt = document.createElement('option');
+            opt.value = h.id;
+            opt.textContent = `${h.description.slice(0, 40)}${h.description.length > 40 ? '...' : ''} (P=${Math.round((h.posterior || h.prior || 0.5) * 100)}%)`;
+            if (burst.hypothesis_id === h.id) opt.selected = true;
+            select.appendChild(opt);
+        }
+        if (burst.hypothesis_id) {
+            const linked = hypotheses.find(h => h.id === burst.hypothesis_id);
+            if (linked) {
+                const prob = linked.posterior || linked.prior || 0.5;
+                probEl.textContent = `Current P(H) = ${Math.round(prob * 100)}%`;
+                probEl.style.display = 'block';
+            }
+        }
+    } catch (e) {
+        // Silently fail — hypothesis linking is optional
+    }
+}
+
+async function createHypothesisFromKaizen() {
+    if (!currentVSM || !currentVSM.project_id) {
+        alert('Link this VSM to a project first (in VSM properties).');
+        return;
+    }
+    if (!selectedElement || selectedElementType !== 'kaizen') return;
+
+    const burstText = selectedElement.text || 'improvement';
+    // Find nearest process step
+    let nearestStep = 'the process';
+    let minDist = Infinity;
+    for (const step of (currentVSM.process_steps || [])) {
+        const dx = (step.x || 0) - (selectedElement.x || 0);
+        const dy = (step.y || 0) - (selectedElement.y || 0);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDist) { minDist = dist; nearestStep = step.name || 'this step'; }
+    }
+
+    const description = `If we ${burstText.toLowerCase()} at ${nearestStep}, then lead time decreases and throughput improves`;
+    try {
+        const resp = await fetch(`/api/synara/${currentVSM.project_id}/hypotheses/add/`, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                description: description,
+                behavior_class: 'improvement',
+                prior: 0.5
+            })
+        });
+        if (!resp.ok) throw new Error('Failed to create hypothesis');
+        const data = await resp.json();
+        const h = data.hypothesis;
+        selectedElement.hypothesis_id = h.id;
+        await loadKaizenHypotheses(selectedElement);
+        document.getElementById('prop-kaizen-hypothesis').value = h.id;
+        renderVSM();
+        saveVSM();
+    } catch (e) {
+        alert('Failed to create hypothesis: ' + e.message);
+    }
+}
+
+async function loadHypothesisProbabilities() {
+    // Called after loading a VSM — enrich kaizen bursts with hypothesis probabilities
+    if (!currentVSM || !currentVSM.project_id) return;
+    const bursts = currentVSM.kaizen_bursts || [];
+    const linked = bursts.filter(b => b.hypothesis_id);
+    if (linked.length === 0) return;
+    try {
+        const resp = await fetch(`/api/synara/${currentVSM.project_id}/hypotheses/`, { credentials: 'same-origin' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const hMap = {};
+        for (const h of (data.hypotheses || [])) { hMap[h.id] = h.posterior || h.prior || 0.5; }
+        for (const b of linked) {
+            b._hypothesis_prob = hMap[b.hypothesis_id] || null;
+        }
+    } catch (e) { /* optional enrichment */ }
+}
+
+function showTimeline() {
+    if (!currentVSM) return;
+    const snaps = currentVSM.metric_snapshots || [];
+    const modal = document.getElementById('timeline-modal');
+    modal.style.display = 'flex';
+
+    if (snaps.length < 2) {
+        document.getElementById('timeline-chart').style.display = 'none';
+        document.getElementById('timeline-empty').style.display = 'block';
+        return;
+    }
+    document.getElementById('timeline-chart').style.display = 'block';
+    document.getElementById('timeline-empty').style.display = 'none';
+
+    const timestamps = snaps.map(s => s.timestamp ? new Date(s.timestamp).toLocaleString() : '');
+    const leadTimes = snaps.map(s => s.lead_time || 0);
+    const pces = snaps.map(s => s.pce || 0);
+
+    const traces = [
+        { x: timestamps, y: leadTimes, name: 'Lead Time (days)', type: 'scatter', mode: 'lines+markers', line: { color: '#e74c3c' } },
+        { x: timestamps, y: pces, name: 'PCE (%)', type: 'scatter', mode: 'lines+markers', yaxis: 'y2', line: { color: '#4a9f6e' } }
+    ];
+    const layout = {
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+        font: { color: '#999', size: 11 },
+        margin: { t: 30, b: 60, l: 60, r: 60 },
+        xaxis: { showgrid: false },
+        yaxis: { title: 'Lead Time (days)', gridcolor: 'rgba(255,255,255,0.05)' },
+        yaxis2: { title: 'PCE (%)', overlaying: 'y', side: 'right', gridcolor: 'rgba(255,255,255,0.05)' },
+        legend: { orientation: 'h', y: -0.2 },
+        showlegend: true
+    };
+    Plotly.newPlot('timeline-chart', traces, layout, { responsive: true, displayModeBar: false });
 }
 
 function setTaktDirect() {
@@ -2876,7 +3432,7 @@ function renderProposalCards(proposals) {
     container.innerHTML = proposals.map((p, i) => `
         <div style="background:var(--bg-tertiary); border:1px solid var(--border); border-radius:4px; padding:1rem; margin-bottom:0.75rem;">
             <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                <input type="checkbox" id="proposal-${i}" checked style="accent-color:#7c3aed;">
+                <input type="checkbox" id="proposal-${i}" checked>
                 <label for="proposal-${i}" style="font-weight:500; flex:1; cursor:pointer;">${p.suggested_title}</label>
                 <span style="font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:2px; background:${priorityColors[p.priority] || '#6b7280'}22; color:${priorityColors[p.priority] || '#6b7280'}; text-transform:uppercase;">${p.priority}</span>
             </div>
@@ -2890,8 +3446,9 @@ function renderProposalCards(proposals) {
                 ${p.metric_deltas.uptime ? `<span>Uptime: ${p.metric_deltas.uptime > 0 ? '+' : ''}${p.metric_deltas.uptime}%</span>` : ''}
             </div>
             <div style="margin-top:0.5rem; font-size:0.85rem;">
-                Est. savings: <strong style="color:var(--success);">$${(p.estimated_annual_savings || 0).toLocaleString()}</strong>/yr
-                <span style="font-size:0.7rem; color:var(--text-dim); margin-left:0.5rem;">(${p.suggested_method}${p.improvement_pct ? ', ' + p.improvement_pct.toFixed(1) + '%' : ''})</span>
+                Est. savings: <strong style="color:var(--success);">$${Math.round(p.lower_5 || 0).toLocaleString()} &mdash; $${Math.round(p.upper_95 || 0).toLocaleString()}</strong>/yr
+                <span style="font-size:0.7rem; color:var(--text-dim); margin-left:0.25rem;">(90% CI, median $${Math.round(p.median_savings || p.estimated_annual_savings || 0).toLocaleString()})</span>
+                ${p.p_positive > 0 ? `<span style="font-size:0.7rem; color:var(--success); margin-left:0.5rem;">${Math.round(p.p_positive * 100)}% chance of positive ROI</span>` : ''}
             </div>
         </div>
     `).join('');
@@ -3043,20 +3600,70 @@ function showVSMList(maps) {
     const container = document.getElementById('canvas-container');
     const emptyState = document.getElementById('empty-state');
 
-    let html = '<div class="vsm-list"><h3 style="margin-bottom:1rem;">Your Value Stream Maps</h3>';
+    // Group by fiscal year
+    const groups = {};
     maps.forEach(m => {
-        html += `
-            <div class="vsm-item" onclick="window.location.href='/app/vsm/${m.id}/'">
-                <div class="vsm-title">${m.name}
-                    <span class="vsm-status ${m.status}">${m.status}</span>
+        const fy = m.fiscal_year || 'Unscoped';
+        if (!groups[fy]) groups[fy] = [];
+        groups[fy].push(m);
+    });
+
+    // Sort FY keys: numbered years descending, then "Unscoped" last
+    const fyKeys = Object.keys(groups).sort((a, b) => {
+        if (a === 'Unscoped') return 1;
+        if (b === 'Unscoped') return -1;
+        return parseInt(b) - parseInt(a);
+    });
+
+    let html = '<div class="vsm-list"><h3 style="margin-bottom:1rem;">Your Value Stream Maps</h3>';
+
+    fyKeys.forEach(fy => {
+        const fyLabel = fy === 'Unscoped' ? 'Unscoped' : `FY ${fy}`;
+        html += `<div style="margin-bottom:1.5rem;">
+            <h4 style="font-size:13px;color:var(--text-secondary);margin:0 0 8px;text-transform:uppercase;letter-spacing:0.5px;">${fyLabel}</h4>`;
+
+        groups[fy].forEach(m => {
+            const promoteBtn = m.status === 'future' && m.paired_with_id
+                ? `<button class="btn btn-outline" style="font-size:10px;padding:2px 8px;margin-left:8px;" onclick="event.stopPropagation();promoteVSM('${m.id}')">Promote to Current</button>`
+                : '';
+            const pairedLabel = m.paired_with_id
+                ? '<span style="font-size:10px;color:var(--text-dim);margin-left:6px;">paired</span>'
+                : '';
+
+            html += `
+                <div class="vsm-item" onclick="window.location.href='/app/vsm/${m.id}/'">
+                    <div class="vsm-title">${m.name}
+                        <span class="vsm-status ${m.status}">${m.status}</span>${pairedLabel}${promoteBtn}
+                    </div>
+                    <div class="vsm-meta">${m.product_family || 'No product family'} &middot; Updated ${new Date(m.updated_at).toLocaleDateString()}</div>
                 </div>
-                <div class="vsm-meta">${m.product_family || 'No product family'} &middot; Updated ${new Date(m.updated_at).toLocaleDateString()}</div>
-            </div>
-        `;
+            `;
+        });
+        html += '</div>';
     });
     html += '</div>';
 
     emptyState.innerHTML = html + '<button class="btn btn-primary" style="margin:1rem;" onclick="showNewVSMDialog()">+ New VSM</button>';
+}
+
+async function promoteVSM(vsmId) {
+    if (!confirm('Promote this future-state VSM to current? The old current state will be archived.')) return;
+    try {
+        const resp = await fetch(`/api/hoshin/vsm/${vsmId}/promote/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ action: 'promote' }),
+        });
+        if (!resp.ok) {
+            const err = await resp.json();
+            alert(err.error || 'Promotion failed');
+            return;
+        }
+        alert('VSM promoted to current state. Old current archived.');
+        location.reload();
+    } catch (e) {
+        console.error('Promote VSM error:', e);
+    }
 }
 </script>
 {% endblock %}

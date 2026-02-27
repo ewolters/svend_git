@@ -420,7 +420,7 @@ class CognitiveScheduler:
         self._check_tenant_quota(tenant_id, "queue_depth")
 
         # Create the task
-        task = CognitiveTask.create_task(
+        task, _ = CognitiveTask.create_task(
             tenant_id=tenant_id,
             task_name=task_name,
             payload=payload,

@@ -1,0 +1,583 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Svend vs Minitab — Modern Statistical Analysis Alternative{% endblock %}
+{% block meta_description %}Compare Svend and Minitab side-by-side. 200+ analyses at {{ price_pro }}/mo vs $2,594/yr. Web-native, AI-assisted, with Bayesian methods and ML included. No desktop install required.{% endblock %}
+{% block meta_keywords %}minitab alternative, svend vs minitab, minitab competitor, statistical analysis software, minitab replacement, quality engineering software, minitab free alternative, minitab pricing, six sigma software comparison{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/svend-vs-minitab/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/svend-vs-minitab/">
+<meta property="og:title" content="Svend vs Minitab — Modern Statistical Analysis Alternative">
+<meta property="og:description" content="200+ analyses at 77% less than Minitab. Web-native, AI-assisted, with Bayesian methods and ML included.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Svend vs Minitab — Modern Statistical Analysis Alternative",
+    "url": "https://svend.ai/svend-vs-minitab/",
+    "description": "Side-by-side comparison of Svend and Minitab statistical analysis software. Feature parity, pricing, platform capabilities.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "Is Svend as capable as Minitab for statistical analysis?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend offers 200+ statistical analyses with approximately 99% feature parity with Minitab. This includes ANOVA, regression (linear, logistic, ordinal, nominal, Poisson, Deming, nonlinear), DOE, SPC control charts, capability analysis, Gage R&R, reliability, and multivariate methods. Svend also includes Bayesian methods, 21 ML models, and AI-assisted analysis that Minitab does not offer."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How much does Svend cost compared to Minitab?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend Professional starts at $49/month (USD) with purchasing power pricing available for emerging markets. Minitab Statistical Software costs $2,594/year and does not include ML (that requires a separate Predictive Analytics license)."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Can I import my Minitab data into Svend?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend accepts CSV and Excel files directly. Export your data from Minitab as CSV or XLSX and upload it to Svend's Decision Science Workbench. Column types, headers, and data structures are automatically detected."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Does Svend work on Mac and Linux?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Svend is web-native and runs in any modern browser on Windows, Mac, Linux, Chromebook, and tablets. There is nothing to install — just log in and start analyzing. Minitab is Windows-only (with a limited web companion app)."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does Svend have that Minitab doesn't?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend includes 35+ Bayesian capabilities (Minitab has zero), 21 ML models at no extra cost, AI-assisted analysis selection, real-time collaboration, integrated quality tools (FMEA, A3, VSM, Hoshin Kanri), hypothesis tracking with Bayesian probability updates, and a collaborative knowledge graph whiteboard."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What Bayesian SPC capabilities does Svend have?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend includes a complete Bayesian Process Belief System: Bayesian Cpk with P(Cpk > 1.33) and credible intervals, adaptive control limits that shrink as data accumulates, online Bayesian changepoint detection (BOCPD), anytime-valid sequential testing using e-values, Bayesian DOE with P(practical significance), Bayesian Gage R&R via Gibbs sampling, and decision-theoretic alarm thresholds."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Svend vs Minitab", "item": "https://svend.ai/svend-vs-minitab/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.compare-hero {
+    text-align: center;
+    padding-bottom: 2rem;
+}
+.compare-hero h1 {
+    font-size: 2rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+.compare-hero h1 strong { color: var(--accent-primary); }
+.compare-hero p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    max-width: 650px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* Price highlight */
+.price-highlight {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+}
+.price-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    min-width: 200px;
+}
+.price-box.svend { border-color: var(--accent-primary-border); }
+.price-box .price-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+.price-box .price-amount {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.price-box.svend .price-amount { color: var(--accent-primary); }
+.price-box .price-period {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+.price-savings {
+    text-align: center;
+    margin: 1rem 0 2rem;
+    font-size: 1.1rem;
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+/* Comparison table */
+.compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0 2.5rem;
+    font-size: 0.9rem;
+}
+.compare-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border);
+}
+.compare-table th:nth-child(2),
+.compare-table th:nth-child(3) { text-align: center; }
+.compare-table td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+.compare-table td:nth-child(2),
+.compare-table td:nth-child(3) { text-align: center; }
+.compare-table .section-row td {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--accent-primary);
+    font-size: 0.85rem;
+    padding-top: 1rem;
+}
+.compare-table td.check { color: #4a9f6e; font-weight: 700; }
+.compare-table td.cross { color: #c0392b; }
+.compare-table td.extra { color: var(--accent-gold); font-size: 0.8rem; }
+
+/* Advantages section */
+.advantages {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin: 1.5rem 0 2.5rem;
+}
+.advantage-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+}
+.advantage-card h4 {
+    color: var(--accent-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.advantage-card p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+/* Who should switch */
+.switch-section h3 {
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+.switch-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem;
+}
+.switch-list li {
+    padding: 0.5rem 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    padding-left: 1.5rem;
+    position: relative;
+}
+.switch-list li::before {
+    content: "\2713";
+    position: absolute;
+    left: 0;
+    color: var(--accent-primary);
+    font-weight: 700;
+}
+
+/* CTA override */
+.compare-cta {
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid var(--accent-primary-border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    margin: 2rem 0;
+}
+.compare-cta h3 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+.compare-cta p {
+    color: var(--text-secondary);
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+}
+.compare-cta .cta-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.compare-cta .cta-primary {
+    display: inline-block;
+    padding: 0.75rem 2rem;
+    background: var(--accent-primary);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.compare-cta .cta-secondary {
+    display: inline-block;
+    padding: 0.75rem 2rem;
+    background: transparent;
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary-border);
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* Guide section */
+.tool-guide { margin-top: 2.5rem; }
+.tool-guide h2 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+.tool-guide h3 {
+    font-size: 1rem;
+    color: var(--accent-primary);
+    margin: 1.5rem 0 0.5rem;
+    font-weight: 600;
+}
+.tool-guide p, .tool-guide li {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+.tool-guide ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+
+/* FAQ */
+.faq-section { margin-top: 2.5rem; }
+.faq-section h2 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+.faq-item {
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 0;
+}
+.faq-q {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.faq-q::after {
+    content: "+";
+    font-size: 1.2rem;
+    color: var(--accent-primary);
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+.faq-item.open .faq-q::after { content: "\2212"; }
+.faq-a {
+    display: none;
+    padding-top: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+.faq-item.open .faq-a { display: block; }
+
+@media (max-width: 768px) {
+    .compare-hero h1 { font-size: 1.5rem; }
+    .price-highlight { gap: 1rem; }
+    .price-box { min-width: 140px; padding: 1rem 1.25rem; }
+    .compare-table { font-size: 0.8rem; }
+    .compare-table td, .compare-table th { padding: 0.5rem 0.5rem; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="compare-hero">
+    <h1>Svend vs Minitab — A <strong>Modern Alternative</strong></h1>
+    <p>200+ statistical analyses, AI-assisted insights, Bayesian methods, and ML models — all in your browser at a fraction of the cost.</p>
+</div>
+
+<!-- Pricing comparison -->
+<div class="price-highlight">
+    <div class="price-box svend">
+        <div class="price-label">Svend Professional</div>
+        <div class="price-amount">{{ price_pro_annual }}</div>
+        <div class="price-period">/year ({{ price_pro }}/mo)</div>
+    </div>
+    <div class="price-box">
+        <div class="price-label">Minitab Statistical</div>
+        <div class="price-amount">$2,594</div>
+        <div class="price-period">/year per seat</div>
+    </div>
+</div>
+<div class="price-savings">Purchasing power pricing available — <a href="/register/?plan=pro&region={{ region }}" style="color:var(--accent-primary);text-decoration:underline;">see your price</a></div>
+
+<!-- Feature comparison table -->
+<h2 style="font-size: 1.2rem; color: var(--text-primary); font-weight: 600; margin-bottom: 0.5rem;">Feature Comparison</h2>
+
+<table class="compare-table">
+    <thead>
+        <tr>
+            <th>Capability</th>
+            <th>Svend</th>
+            <th>Minitab</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="section-row"><td colspan="3">Statistical Analysis</td></tr>
+        <tr><td>ANOVA (one-way, two-way, GLM, nested)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Regression (linear, multiple, stepwise)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Logistic regression (binary, ordinal, nominal)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Nonlinear & Poisson regression</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Nonparametric tests</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Time series & forecasting</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Multivariate (PCA, factor, SEM, correspondence)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Equivalence testing (TOST)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Quality & SPC</td></tr>
+        <tr><td>Control charts (I-MR, X-bar R/S, P, NP, C, U)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Laney P'/U' charts</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>CUSUM, EWMA, MEWMA</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Capability analysis (Cp, Cpk, Pp, Ppk)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Gage R&R (crossed, nested, linearity, attribute)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Acceptance sampling</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+        <tr class="section-row"><td colspan="3">DOE</td></tr>
+        <tr><td>Full & fractional factorial</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Response surface (CCD, Box-Behnken)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Plackett-Burman screening</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Optimal designs (D-optimal, I-optimal)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Mixture designs</td><td class="cross">Planned</td><td class="check">&#10003;</td></tr>
+        <tr><td>Split-plot designs</td><td class="cross">Planned</td><td class="check">&#10003;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Reliability</td></tr>
+        <tr><td>Distribution ID & Weibull analysis</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Accelerated Life Testing</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Warranty prediction & probit</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Bayesian SPC & Process Intelligence</td></tr>
+        <tr><td>Bayesian Cpk — P(Cpk &gt; 1.33) with credible intervals</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Adaptive control limits (posterior-driven, no 3&sigma; rule)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Online changepoint detection (BOCPD)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Anytime-valid sequential testing (e-values)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Bayesian DOE effect screening — P(practical significance)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Bayesian Gage R&amp;R (Gibbs sampler posteriors)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Decision-theoretic alarm thresholds (cost-based)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Sequential DOE with information gain</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Additional Svend Advantages</td></tr>
+        <tr><td>Bayesian hypothesis testing (7 analyses, Bayes Factors)</td><td class="check">&#10003; 7 methods</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Machine learning (21 models included)</td><td class="check">&#10003; Included</td><td class="extra">$ Extra license</td></tr>
+        <tr><td>AI-assisted analysis selection</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Hypothesis tracking (Bayesian updates)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Real-time collaboration</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>FMEA, A3, RCA, VSM, Hoshin Kanri</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Knowledge graph whiteboard</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Penalized regression (Ridge, LASSO, Elastic Net)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Granger causality & changepoint detection</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Platform</td></tr>
+        <tr><td>Web-native (any browser, any OS)</td><td class="check">&#10003;</td><td class="cross">Windows only*</td></tr>
+        <tr><td>Zero installation</td><td class="check">&#10003;</td><td class="cross">Desktop install</td></tr>
+        <tr><td>Free tier available</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+    </tbody>
+</table>
+<p style="font-size: 0.75rem; color: var(--text-dim);">*Minitab offers a limited web companion app separate from the desktop product.</p>
+
+<!-- Why switch -->
+<h2 style="font-size: 1.2rem; color: var(--text-primary); font-weight: 600; margin: 2rem 0 1rem;">Why Teams Switch to Svend</h2>
+
+<div class="advantages">
+    <div class="advantage-card">
+        <h4>77% Cost Savings</h4>
+        <p>{{ price_pro_annual }}/year vs $2,594/year per seat. Purchasing power pricing available for emerging markets. ML and all analyses included — no upsell.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>AI-Assisted Analysis</h4>
+        <p>Describe what you want to analyze in plain language. Svend's AI selects the right test, configures parameters, and interprets results — no memorizing menu paths.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>Bayesian Process Intelligence</h4>
+        <p>35+ Bayesian capabilities Minitab cannot match. Bayesian Cpk gives P(Cpk &gt; 1.33) instead of a point estimate. Adaptive control limits shrink with data. Online changepoint detection, anytime-valid sequential testing, and Bayesian DOE with P(practical significance) instead of p &lt; 0.05.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>One Unified Platform</h4>
+        <p>Statistical analysis, SPC, DOE, FMEA, A3 reports, VSM, RCA, and Hoshin Kanri in one place. Replace 3-5 separate tools with one subscription.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>Works Everywhere</h4>
+        <p>Browser-based on any OS. No IT tickets, no desktop installs, no Windows-only restrictions. Works on Mac, Linux, Chromebook, and tablets.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>Real-Time Collaboration</h4>
+        <p>Collaborative whiteboards, shared projects, and team-wide knowledge graphs. Minitab is single-user desktop — Svend is built for teams.</p>
+    </div>
+</div>
+
+<!-- Who should switch -->
+<div class="switch-section">
+    <h3>Svend is a good fit if you...</h3>
+    <ul class="switch-list">
+        <li>Spend over $2,000/year per seat on Minitab licenses</li>
+        <li>Need to run analyses on Mac, Linux, or Chromebook</li>
+        <li>Want Bayesian methods or ML models without buying extra licenses</li>
+        <li>Need collaboration features (shared projects, team dashboards)</li>
+        <li>Want integrated quality tools (FMEA, A3, VSM) alongside your stats</li>
+        <li>Are tired of managing desktop software installs and updates</li>
+        <li>Want AI to help select and interpret statistical tests</li>
+    </ul>
+</div>
+
+<!-- CTA -->
+<div class="compare-cta">
+    <h3>Ready to try a modern alternative?</h3>
+    <p>Start with a free account — no credit card required. Run up to 5 analyses per day with the free tier.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=pro&region={{ region }}" class="cta-primary">Start Free</a>
+        <a href="/tools/" class="cta-secondary">Try Free Tools</a>
+    </div>
+</div>
+
+<!-- Guide content for SEO -->
+<div class="tool-guide">
+    <h2>Switching from Minitab to Svend</h2>
+    <p>Quality engineers and Six Sigma practitioners have relied on Minitab for decades. But with Minitab's pricing reaching $2,594/year per seat (up from $1,851 in recent years) and the product fragmenting into separate applications (Statistical Software, Workspace, Connect, Engage, Model Ops), many teams are looking for alternatives.</p>
+
+    <h3>What You Keep</h3>
+    <p>Svend maintains approximately 99% feature parity with Minitab Statistical Software. Every major analysis category is covered — from basic descriptive statistics through advanced multivariate methods, DOE, SPC, reliability analysis, and measurement system analysis. The only gaps are 4 specialized DOE design types (split-plot, mixture, general full factorial, augment designs) which are on the roadmap.</p>
+
+    <h3>What You Gain</h3>
+    <ul>
+        <li><strong>35+ Bayesian capabilities</strong> — Bayesian SPC, Bayesian Cpk, Bayesian DOE, Bayesian Gage R&R, and 7 Bayesian hypothesis tests. Minitab offers none of these at any price.</li>
+        <li><strong>Machine learning</strong> — 21 models (Random Forest, Gradient Boosting, SVM, Neural Net, GAM, and more) included at no extra cost. Minitab charges for a separate Predictive Analytics license.</li>
+        <li><strong>AI-assisted workflows</strong> — Natural language analysis selection, automated diagnostics, and code generation</li>
+        <li><strong>Quality management tools</strong> — FMEA, A3 reports, root cause analysis, value stream mapping, and Hoshin Kanri built into the same platform</li>
+        <li><strong>Hypothesis tracking</strong> — Link evidence from analyses to hypotheses with Bayesian probability updates via the Synara belief engine</li>
+    </ul>
+
+    <h3>Bayesian SPC — Beyond the 3-Sigma Rule</h3>
+    <p>Traditional SPC uses fixed 3-sigma control limits based on assumptions that often don't hold. Svend's Bayesian Process Belief System replaces these with posterior-driven monitoring that adapts to your data:</p>
+    <ul>
+        <li><strong>Bayesian Cpk</strong> — Instead of a single number, get a full posterior distribution. Ask "What is the probability that Cpk exceeds 1.33?" and get a direct answer. No 1.5&sigma; shift assumption needed. <a href="/tools/bayesian-cpk-calculator/" style="color: var(--accent-primary);">Try the free calculator</a>.</li>
+        <li><strong>Adaptive control limits</strong> — Limits that shrink as data accumulates and your estimate of the process improves. More data means tighter bounds — not the same fixed lines forever.</li>
+        <li><strong>Online changepoint detection</strong> — Bayesian Online Changepoint Detection (BOCPD, Adams & MacKay 2007) identifies process shifts as they happen, observation by observation, without batch recomputation.</li>
+        <li><strong>Anytime-valid sequential testing</strong> — E-values (Gr&uuml;nwald et al. 2024) let you continuously monitor a test and stop whenever the evidence is strong enough. No penalty for "peeking" at the data.</li>
+        <li><strong>Bayesian DOE</strong> — Screen effects by P(practical significance) rather than p &lt; 0.05. Compare models via exact marginal likelihood instead of AIC/BIC approximations. Run sequential experiments guided by information gain.</li>
+        <li><strong>Bayesian Gage R&amp;R</strong> — Gibbs sampler produces posterior distributions for every variance component. Get P(%GRR &lt; 10%) and credible intervals on NDC, not just point estimates. Sequential updating lets each new study inherit the prior from the last one.</li>
+        <li><strong>Decision-theoretic alarms</strong> — Set alarm thresholds based on the actual cost of missed shifts vs false alarms, not arbitrary significance levels.</li>
+    </ul>
+    <p>This is the direction quality engineering is heading. Svend is the only platform implementing it today.</p>
+
+    <h3>Data Migration</h3>
+    <p>Svend accepts CSV and Excel files. Export your Minitab worksheets as CSV or XLSX and upload directly to the <a href="/app/dsw/" style="color: var(--accent-primary);">Decision Science Workbench</a>. Column types and headers are detected automatically. There is no proprietary file format lock-in.</p>
+
+    <p>For teams evaluating alternatives, we also offer <a href="/tools/" style="color: var(--accent-primary);">10 free online tools</a> — including a <a href="/tools/cpk-calculator/" style="color: var(--accent-primary);">Cpk calculator</a>, <a href="/tools/bayesian-cpk-calculator/" style="color: var(--accent-primary);">Bayesian Cpk calculator</a>, <a href="/tools/control-chart-generator/" style="color: var(--accent-primary);">control chart generator</a>, and <a href="/tools/gage-rr-calculator/" style="color: var(--accent-primary);">Gage R&R calculator</a> — that you can try without creating an account.</p>
+</div>
+
+<!-- FAQ -->
+<div class="faq-section">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">Is Svend as capable as Minitab for statistical analysis?</div>
+        <div class="faq-a">Svend offers 200+ statistical analyses with approximately 99% feature parity with Minitab. This includes ANOVA, regression (linear, logistic, ordinal, nominal, Poisson, Deming, nonlinear), DOE, SPC control charts, capability analysis, Gage R&R, reliability, and multivariate methods. Svend also includes Bayesian methods, 21 ML models, and AI-assisted analysis that Minitab does not offer.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How much does Svend cost compared to Minitab?</div>
+        <div class="faq-a">Svend Professional costs {{ price_pro }}/month ({{ price_pro_annual }}/year) and includes all analyses, SPC, DOE, ML, and reliability. Purchasing power pricing is available for emerging markets. Minitab Statistical Software costs $2,594/year and does not include ML (that requires a separate Predictive Analytics license).</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Can I import my Minitab data into Svend?</div>
+        <div class="faq-a">Svend accepts CSV and Excel files directly. Export your data from Minitab as CSV or XLSX and upload it to Svend's Decision Science Workbench. Column types, headers, and data structures are automatically detected.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Does Svend work on Mac and Linux?</div>
+        <div class="faq-a">Yes. Svend is web-native and runs in any modern browser on Windows, Mac, Linux, Chromebook, and tablets. There is nothing to install — just log in and start analyzing. Minitab is Windows-only (with a limited web companion app).</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What does Svend have that Minitab doesn't?</div>
+        <div class="faq-a">Svend includes 35+ Bayesian capabilities (Minitab has zero), 21 ML models at no extra cost, AI-assisted analysis selection, real-time collaboration, integrated quality tools (FMEA, A3, VSM, Hoshin Kanri), hypothesis tracking with Bayesian probability updates, and a collaborative knowledge graph whiteboard.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What Bayesian SPC capabilities does Svend have?</div>
+        <div class="faq-a">Svend includes a complete Bayesian Process Belief System: Bayesian Cpk with P(Cpk &gt; 1.33) and credible intervals, adaptive control limits that shrink as data accumulates (no arbitrary 3&sigma; rule), online Bayesian changepoint detection (BOCPD), anytime-valid sequential testing using e-values (no peeking penalty), Bayesian DOE with P(practical significance) instead of p-values, Bayesian Gage R&amp;R via Gibbs sampling with posterior variance components, and decision-theoretic alarm thresholds based on cost trade-offs. Try the free <a href="/tools/bayesian-cpk-calculator/" style="color: var(--accent-primary);">Bayesian Cpk calculator</a> to see the approach in action.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ paper.title }} — Svend</title>
+<style>
+    @page {
+        size: A4;
+        margin: 2.5cm 2cm 2.5cm 2cm;
+        @bottom-center {
+            content: counter(page) " / " counter(pages);
+            font-family: 'Inter', Helvetica, Arial, sans-serif;
+            font-size: 9pt;
+            color: #7a8f7a;
+        }
+        @bottom-right {
+            content: "svend.ai";
+            font-family: 'Inter', Helvetica, Arial, sans-serif;
+            font-size: 9pt;
+            color: #4a9f6e;
+            font-weight: 600;
+        }
+    }
+
+    @page :first {
+        @bottom-center { content: none; }
+        @bottom-right { content: none; }
+    }
+
+    /* CSS variable mapping: dark-theme vars → print-friendly light values */
+    :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8faf8;
+        --bg-tertiary: #f0f4f0;
+        --bg-hover: #e8ece8;
+        --accent-primary: #2a7a4e;
+        --accent-primary-dim: rgba(42, 122, 78, 0.1);
+        --accent-primary-border: rgba(42, 122, 78, 0.25);
+        --accent-blue: #2a6070;
+        --accent-purple: #4a3f6f;
+        --accent-gold: #b89a20;
+        --accent-orange: #c07530;
+        --text-primary: #1a1a1a;
+        --text-secondary: #444;
+        --text-dim: #777;
+        --error: #9f4a4a;
+        --border: #ddd;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Inter', Helvetica, Arial, sans-serif;
+        font-size: 10.5pt;
+        line-height: 1.7;
+        color: #1a1a1a;
+    }
+
+    /* --- Cover / Title Block --- */
+    .cover {
+        text-align: center;
+        padding: 3cm 1cm 2cm;
+        page-break-after: always;
+    }
+    .cover .logo {
+        font-size: 14pt;
+        font-weight: 300;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: #4a9f6e;
+        margin-bottom: 2cm;
+    }
+    .cover h1 {
+        font-size: 22pt;
+        font-weight: 600;
+        line-height: 1.3;
+        color: #0a0f0a;
+        margin-bottom: 0.5cm;
+    }
+    .cover .subtitle {
+        font-size: 12pt;
+        color: #5a6a5a;
+        line-height: 1.6;
+        max-width: 14cm;
+        margin: 0 auto 1cm;
+    }
+    .cover .meta {
+        font-size: 9pt;
+        color: #7a8f7a;
+        margin-top: 1cm;
+    }
+    .cover .topic-tag {
+        display: inline-block;
+        font-size: 8pt;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #4a9f6e;
+        border: 1pt solid #4a9f6e;
+        border-radius: 3pt;
+        padding: 2pt 8pt;
+        margin-bottom: 0.5cm;
+    }
+    .cover .footer-line {
+        margin-top: 2cm;
+        font-size: 9pt;
+        color: #9aaa9a;
+    }
+    .cover .footer-line a { color: #4a9f6e; text-decoration: none; }
+
+    /* --- Body Content --- */
+    .content h2 {
+        font-size: 14pt;
+        font-weight: 600;
+        color: #0a0f0a;
+        margin: 1.5cm 0 0.4cm;
+        padding-bottom: 0.15cm;
+        border-bottom: 0.5pt solid #ddd;
+    }
+    .content h3 {
+        font-size: 12pt;
+        font-weight: 600;
+        color: #1a261a;
+        margin: 1cm 0 0.3cm;
+    }
+    .content h4 {
+        font-size: 10.5pt;
+        font-weight: 600;
+        color: #1a261a;
+        margin: 0.8cm 0 0.2cm;
+    }
+    .content p {
+        margin-bottom: 0.4cm;
+        text-align: justify;
+        orphans: 3;
+        widows: 3;
+    }
+    .content ul, .content ol {
+        margin: 0.3cm 0 0.5cm 1cm;
+    }
+    .content li {
+        margin-bottom: 0.15cm;
+    }
+    .content a {
+        color: #4a9f6e;
+        text-decoration: none;
+    }
+    .content blockquote {
+        border-left: 3pt solid #4a9f6e;
+        padding: 0.2cm 0.5cm;
+        margin: 0.5cm 0;
+        color: #5a6a5a;
+        font-style: italic;
+        background: #f8faf8;
+    }
+    .content code {
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 9pt;
+        background: #f0f4f0;
+        padding: 1pt 3pt;
+        border-radius: 2pt;
+    }
+    .content pre {
+        background: #f0f4f0;
+        border: 0.5pt solid #ddd;
+        border-radius: 4pt;
+        padding: 0.4cm;
+        overflow-x: hidden;
+        margin: 0.5cm 0;
+        font-size: 9pt;
+        line-height: 1.5;
+        page-break-inside: avoid;
+    }
+    .content pre code {
+        background: none;
+        padding: 0;
+    }
+    .content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.5cm 0;
+        font-size: 9.5pt;
+        page-break-inside: avoid;
+    }
+    .content th, .content td {
+        padding: 0.2cm 0.35cm;
+        border: 0.5pt solid #ccc;
+        text-align: left;
+    }
+    .content th {
+        background: #f0f4f0;
+        font-weight: 600;
+        color: #0a0f0a;
+    }
+    .content img {
+        max-width: 100%;
+        page-break-inside: avoid;
+    }
+
+    /* Keep headings with their content */
+    h2, h3, h4 {
+        page-break-after: avoid;
+    }
+
+    /* --- Back Cover / CTA --- */
+    .back-cover {
+        page-break-before: always;
+        text-align: center;
+        padding: 4cm 2cm 0;
+    }
+    .back-cover .logo {
+        font-size: 14pt;
+        font-weight: 300;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: #4a9f6e;
+        margin-bottom: 1cm;
+    }
+    .back-cover p {
+        font-size: 11pt;
+        color: #5a6a5a;
+        line-height: 1.7;
+        max-width: 12cm;
+        margin: 0 auto 0.5cm;
+    }
+    .back-cover .url {
+        font-size: 13pt;
+        font-weight: 600;
+        color: #4a9f6e;
+        margin-top: 1cm;
+    }
+</style>
+</head>
+<body>
+
+<!-- Cover Page -->
+<div class="cover">
+    <div class="logo">SVEND</div>
+    {% if paper.topic %}<div class="topic-tag">{{ paper.topic }}</div>{% endif %}
+    <h1>{{ paper.title }}</h1>
+    {% if paper.description %}<div class="subtitle">{{ paper.description }}</div>{% endif %}
+    <div class="meta">{{ paper.published_at|date:"F Y" }}</div>
+    <div class="footer-line">
+        <a href="https://svend.ai">svend.ai</a> — Statistical Analysis &amp; Decision Science
+    </div>
+</div>
+
+<!-- Body -->
+<div class="content">
+    {{ paper.body|safe }}
+</div>
+
+<!-- Back Cover -->
+<div class="back-cover">
+    <div class="logo">SVEND</div>
+    <p>Professional statistical analysis, SPC, DOE, and decision science tools for quality engineers.</p>
+    <p>Try free at:</p>
+    <div class="url">svend.ai</div>
+</div>
+
+</body>
+</html>

@@ -8,18 +8,17 @@ import json
 import logging
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
 from accounts.permissions import gated_paid
+from .evidence_bridge import create_tool_evidence
 from .models import A3Report, ActionItem, Board, DSWResult
 from core.models import Project, Hypothesis
 
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def list_a3_reports(request):
@@ -44,7 +43,6 @@ def list_a3_reports(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_a3_report(request):
@@ -78,13 +76,13 @@ def create_a3_report(request):
         follow_up=data.get("follow_up", ""),
     )
 
+    project.log_event("a3_created", f"A3 report: {title}", user=request.user)
     return JsonResponse({
         "id": str(report.id),
         "report": report.to_dict(),
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def get_a3_report(request, report_id):
@@ -114,7 +112,7 @@ def get_a3_report(request, report_id):
         "project": {
             "id": str(project.id),
             "title": project.title,
-            "description": project.description,
+            "description": getattr(project, 'problem_statement', '') or '',
         },
         "available_imports": {
             "hypotheses": [
@@ -135,7 +133,6 @@ def get_a3_report(request, report_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["PUT", "PATCH"])
 def update_a3_report(request, report_id):
@@ -158,13 +155,36 @@ def update_a3_report(request, report_id):
 
     report.save()
 
+    # Evidence hooks — root_cause and follow_up
+    if 'root_cause' in data and data['root_cause']:
+        create_tool_evidence(
+            project=report.project,
+            user=request.user,
+            summary=f"A3 root cause: {data['root_cause'][:200]}",
+            source_tool="a3",
+            source_id=str(report.id),
+            source_field="root_cause",
+            details=data['root_cause'],
+            source_type="analysis",
+        )
+    if 'follow_up' in data and data['follow_up']:
+        create_tool_evidence(
+            project=report.project,
+            user=request.user,
+            summary=f"A3 follow-up: {data['follow_up'][:200]}",
+            source_tool="a3",
+            source_id=str(report.id),
+            source_field="follow_up",
+            details=data['follow_up'],
+            source_type="experiment",
+        )
+
     return JsonResponse({
         "success": True,
         "report": report.to_dict(),
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_a3_report(request, report_id):
@@ -175,7 +195,6 @@ def delete_a3_report(request, report_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def import_to_a3(request, report_id):
@@ -253,7 +272,7 @@ def import_to_a3(request, report_id):
 
     elif source_type == "project":
         # Import project description
-        content = f"**Study:** {report.project.title}\n\n{report.project.description or ''}"
+        content = f"**Study:** {report.project.title}\n\n{getattr(report.project, 'problem_statement', '') or ''}"
         import_ref["summary"] = report.project.title
 
     elif source_type == "dsw":
@@ -315,7 +334,6 @@ def import_to_a3(request, report_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def auto_populate_a3(request, report_id):
@@ -341,8 +359,8 @@ def auto_populate_a3(request, report_id):
     boards = list(Board.objects.filter(project=project)[:5])
 
     context_parts = [f"Project: {project.title}"]
-    if project.description:
-        context_parts.append(f"Description: {project.description}")
+    if getattr(project, 'problem_statement', ''):
+        context_parts.append(f"Description: {project.problem_statement}")
 
     if hypotheses:
         context_parts.append("\nHypotheses:")
@@ -414,7 +432,6 @@ Write a concise response (2-4 sentences) suitable for an A3 report section."""
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def embed_diagram(request, report_id):
@@ -516,7 +533,6 @@ def embed_diagram(request, report_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def remove_diagram(request, report_id, diagram_id):
@@ -542,7 +558,6 @@ def remove_diagram(request, report_id, diagram_id):
 
 # ── Action Items ──────────────────────────────────────────────────────
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def list_a3_actions(request, report_id):
@@ -552,7 +567,6 @@ def list_a3_actions(request, report_id):
     return JsonResponse({"action_items": [i.to_dict() for i in items]})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_a3_action(request, report_id):

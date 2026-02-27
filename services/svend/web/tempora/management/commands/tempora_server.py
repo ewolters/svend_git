@@ -179,47 +179,61 @@ class Command(BaseCommand):
         single_node: bool,
     ) -> None:
         """Run the Tempora server."""
-        from tempora.coordination import CoordinationServer
-        from tempora.distributed import DistributedCoordinator, DistributedConfig
+        from asgiref.sync import sync_to_async
         from tempora.models import ClusterMember, ClusterMemberRole, ClusterMemberStatus
 
-        # Get cluster secret from settings
-        cluster_secret = getattr(
-            settings,
-            "TEMPORA_CLUSTER_SECRET",
-            os.environ.get("TEMPORA_CLUSTER_SECRET", settings.SECRET_KEY)
-        )
+        # Register this node (ORM must be wrapped for async context)
+        @sync_to_async
+        def register_node():
+            return ClusterMember.objects.update_or_create(
+                instance_id=node_id,
+                defaults={
+                    "host": host if host != "0.0.0.0" else "127.0.0.1",
+                    "port": port,
+                    "role": ClusterMemberRole.FOLLOWER,
+                    "status": ClusterMemberStatus.ACTIVE,
+                    "last_heartbeat": timezone.now(),
+                },
+            )
 
-        # Register this node
-        member, created = ClusterMember.objects.update_or_create(
-            instance_id=node_id,
-            defaults={
-                "host": host if host != "0.0.0.0" else "127.0.0.1",
-                "port": port,
-                "role": ClusterMemberRole.FOLLOWER,
-                "status": ClusterMemberStatus.ACTIVE,
-                "last_heartbeat": timezone.now(),
-            },
-        )
+        @sync_to_async
+        def promote_to_leader(member):
+            member.role = ClusterMemberRole.LEADER
+            member.save()
+
+        @sync_to_async
+        def update_heartbeat(member):
+            member.last_heartbeat = timezone.now()
+            member.save(update_fields=["last_heartbeat"])
+
+        member, created = await register_node()
 
         if created:
             self.stdout.write(f"Registered new cluster member: {node_id}")
         else:
             self.stdout.write(f"Updated cluster member: {node_id}")
 
-        # Start coordination server
-        self.stdout.write("Starting coordination server...")
-        self._server = CoordinationServer(
-            instance_id=node_id,
-            bind_host=host,
-            bind_port=port,
-            cluster_secret=cluster_secret,
-        )
-        await self._server.start()
-        self.stdout.write(self.style.SUCCESS(f"Coordination server listening on {host}:{port}"))
+        # In multi-node mode, start coordination server and peers
+        if not single_node and peers:
+            cluster_secret = getattr(
+                settings,
+                "TEMPORA_CLUSTER_SECRET",
+                os.environ.get("TEMPORA_CLUSTER_SECRET", settings.SECRET_KEY)
+            )
 
-        # Connect to peers
-        if peers and not single_node:
+            from tempora.coordination import CoordinationServer
+            from tempora.distributed import DistributedCoordinator, DistributedConfig
+
+            self.stdout.write("Starting coordination server...")
+            self._server = CoordinationServer(
+                instance_id=node_id,
+                bind_host=host,
+                bind_port=port,
+                cluster_secret=cluster_secret,
+            )
+            await self._server.start()
+            self.stdout.write(self.style.SUCCESS(f"Coordination server listening on {host}:{port}"))
+
             self.stdout.write("Connecting to peers...")
             for peer_id, peer_host, peer_port in peers:
                 try:
@@ -230,8 +244,6 @@ class Command(BaseCommand):
                         f"  Failed to connect to {peer_id}: {e}"
                     ))
 
-        # Start distributed coordinator
-        if not single_node and peers:
             self.stdout.write("Starting distributed coordinator...")
             config = DistributedConfig(
                 node_id=node_id,
@@ -246,10 +258,9 @@ class Command(BaseCommand):
             )
             await coordinator.start()
             self.stdout.write(self.style.SUCCESS("Distributed coordinator started"))
-        elif single_node:
-            # In single-node mode, this node is always the leader
-            member.role = ClusterMemberRole.LEADER
-            member.save()
+        else:
+            # Single-node mode: this node is always the leader
+            await promote_to_leader(member)
             self.stdout.write(self.style.SUCCESS("Running in single-node mode (this node is leader)"))
 
         # Start task scheduler
@@ -265,11 +276,11 @@ class Command(BaseCommand):
 
         # Main loop - wait for shutdown
         while not self._shutdown_requested:
-            await asyncio.sleep(1)
-
-            # Update heartbeat
-            member.last_heartbeat = timezone.now()
-            member.save(update_fields=["last_heartbeat"])
+            await asyncio.sleep(5)
+            try:
+                await update_heartbeat(member)
+            except Exception:
+                pass  # Don't crash on heartbeat failure
 
         # Shutdown
         self.stdout.write("Shutting down...")

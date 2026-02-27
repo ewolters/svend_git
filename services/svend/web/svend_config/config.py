@@ -23,12 +23,12 @@ class Settings(BaseSettings):
 
     # Environment
     env: Literal["dev", "staging", "prod"] = "dev"
-    debug: bool = True
-    secret_key: str = "change-me-in-production"
+    debug: bool = False
+    secret_key: str = ""
 
     # Database — PostgreSQL
     database_url: str = Field(
-        default="postgresql://svend:svend_db_2026@127.0.0.1/svend",
+        default="",
         description="PostgreSQL connection string",
     )
 
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     )
     stripe_price_id_pro: str = Field(
         default="",
-        description="Stripe Price ID for Pro tier ($29/month)",
+        description="Stripe Price ID for Professional tier ($49/month)",
     )
 
     # Kjerne pipeline
@@ -60,8 +60,6 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_per_minute: int = 20
 
-    # Alpha access control (set to false for open registration)
-    require_invite: bool = True
 
     # Pipeline selection (Synara = alpha-ready with 93% accuracy, MoE = requires training)
     use_synara: bool = Field(
@@ -101,6 +99,12 @@ class Settings(BaseSettings):
     flywheel_auto_escalate_threshold: float = Field(
         default=0.4,
         description="Below this confidence, auto-escalate to Opus",
+    )
+
+    # Field-level encryption
+    field_encryption_key: str = Field(
+        default="",
+        description="Fernet key for field-level encryption at rest",
     )
 
     # Email settings (SMTP)

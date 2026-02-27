@@ -15,7 +15,6 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
@@ -120,7 +119,6 @@ def _is_site_admin(user, site, tenant):
 # Site CRUD
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def list_sites(request):
@@ -141,7 +139,6 @@ def list_sites(request):
     })
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
 def create_site(request):
@@ -169,7 +166,6 @@ def create_site(request):
     return JsonResponse({"success": True, "site": site.to_dict()}, status=201)
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def get_site(request, site_id):
@@ -193,7 +189,6 @@ def get_site(request, site_id):
     return JsonResponse({"site": data})
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["PUT", "PATCH"])
 def update_site(request, site_id):
@@ -203,6 +198,10 @@ def update_site(request, site_id):
         return err
 
     site = get_object_or_404(Site, id=site_id, tenant=tenant)
+
+    if not _check_site_write(request.user, site, tenant):
+        return JsonResponse({"error": "Write permission required"}, status=403)
+
     data = json.loads(request.body)
 
     for field in ["name", "code", "business_unit", "plant_manager", "ci_leader", "controller", "address"]:
@@ -215,7 +214,6 @@ def update_site(request, site_id):
     return JsonResponse({"success": True, "site": site.to_dict()})
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["DELETE"])
 def delete_site(request, site_id):
@@ -225,6 +223,10 @@ def delete_site(request, site_id):
         return err
 
     site = get_object_or_404(Site, id=site_id, tenant=tenant)
+
+    if not _is_site_admin(request.user, site, tenant):
+        return JsonResponse({"error": "Site admin permission required to delete"}, status=403)
+
     project_count = site.hoshin_projects.count()
     site.delete()
 
@@ -235,7 +237,6 @@ def delete_site(request, site_id):
 # HoshinProject CRUD
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def list_hoshin_projects(request):
@@ -272,7 +273,6 @@ def list_hoshin_projects(request):
     })
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
 def create_hoshin_project(request):
@@ -338,7 +338,6 @@ def create_hoshin_project(request):
     return JsonResponse({"success": True, "project": hoshin.to_dict()}, status=201)
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def get_hoshin_project(request, hoshin_id):
@@ -364,7 +363,6 @@ def get_hoshin_project(request, hoshin_id):
     return JsonResponse({"project": data})
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["PUT", "PATCH"])
 def update_hoshin_project(request, hoshin_id):
@@ -417,7 +415,6 @@ def update_hoshin_project(request, hoshin_id):
     return JsonResponse({"success": True, "project": hoshin.to_dict()})
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["DELETE"])
 def delete_hoshin_project(request, hoshin_id):
@@ -443,7 +440,6 @@ def delete_hoshin_project(request, hoshin_id):
 # Monthly savings tracking
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["PUT"])
 def update_monthly_actual(request, hoshin_id, month):
@@ -528,7 +524,6 @@ def update_monthly_actual(request, hoshin_id, month):
 # Batch create from VSM proposals
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
 def create_from_proposals(request):
@@ -630,7 +625,6 @@ def create_from_proposals(request):
 # Action Items
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def list_action_items(request, hoshin_id):
@@ -653,7 +647,6 @@ def list_action_items(request, hoshin_id):
     })
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
 def create_action_item(request, hoshin_id):
@@ -700,7 +693,6 @@ def create_action_item(request, hoshin_id):
     return JsonResponse({"success": True, "action_item": item.to_dict()}, status=201)
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["PUT", "PATCH"])
 def update_action_item(request, action_id):
@@ -740,7 +732,6 @@ def update_action_item(request, action_id):
     return JsonResponse({"success": True, "action_item": item.to_dict()})
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["DELETE"])
 def delete_action_item(request, action_id):
@@ -766,7 +757,6 @@ def delete_action_item(request, action_id):
 # Dashboard
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def hoshin_dashboard(request):
@@ -850,6 +840,15 @@ def hoshin_dashboard(request):
         s = p.hoshin_status
         status_counts[s] = status_counts.get(s, 0) + 1
 
+    # Alignment metrics (X-matrix integration)
+    from .models import AnnualObjective, XMatrixCorrelation
+    annual_objs = AnnualObjective.objects.filter(tenant=tenant, fiscal_year=fiscal_year)
+    linked_project_ids = set(str(uid) for uid in XMatrixCorrelation.objects.filter(
+        tenant=tenant, fiscal_year=fiscal_year, pair_type="annual_project",
+    ).values_list("col_id", flat=True).distinct())
+    projects_linked = sum(1 for p in projects if str(p.id) in linked_project_ids)
+    projects_unlinked = projects.count() - projects_linked
+
     return JsonResponse({
         "fiscal_year": fiscal_year,
         "total_target": round(total_target, 2),
@@ -861,6 +860,13 @@ def hoshin_dashboard(request):
         "by_type": list(type_data.values()),
         "monthly_trend": monthly_trend,
         "status_counts": status_counts,
+        "alignment": {
+            "projects_linked": projects_linked,
+            "projects_unlinked": projects_unlinked,
+            "annual_objectives_count": annual_objs.count(),
+            "objectives_on_track": annual_objs.filter(status="on_track").count(),
+            "objectives_at_risk": annual_objs.filter(status__in=["at_risk", "behind"]).count(),
+        },
     })
 
 
@@ -868,7 +874,6 @@ def hoshin_dashboard(request):
 # Site member management
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def list_site_members(request, site_id):
@@ -891,7 +896,6 @@ def list_site_members(request, site_id):
     })
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
 def grant_site_access(request, site_id):
@@ -934,7 +938,6 @@ def grant_site_access(request, site_id):
     }, status=201 if created else 200)
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["DELETE"])
 def revoke_site_access(request, site_id, access_id):
@@ -957,7 +960,6 @@ def revoke_site_access(request, site_id, access_id):
 # Calendar view
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def hoshin_calendar_view(request):
@@ -1052,7 +1054,6 @@ def hoshin_calendar_view(request):
 # Calculation methods reference
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["GET"])
 def list_calculation_methods(request):
@@ -1070,7 +1071,6 @@ def list_calculation_methods(request):
     return JsonResponse({"methods": methods})
 
 
-@csrf_exempt
 @require_feature("hoshin_kanri")
 @require_http_methods(["POST"])
 def test_formula(request):

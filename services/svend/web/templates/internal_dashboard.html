@@ -1,6 +1,10 @@
 {% extends "base_app.html" %}
 {% block title %}Internal Dashboard — SVEND{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <style>
     .dash-header {
@@ -78,6 +82,14 @@
         letter-spacing: 0.5px;
         margin-top: 4px;
     }
+    .kpi-change {
+        font-size: 0.7rem;
+        margin-top: 2px;
+        font-weight: 500;
+    }
+    .kpi-change.up { color: #4a9f6e; }
+    .kpi-change.down { color: #ef4444; }
+    .kpi-change.neutral { color: var(--text-dim); }
 
     /* Tabs */
     .tab-bar {
@@ -273,7 +285,48 @@
         color: var(--text-dim);
         font-size: 0.9rem;
     }
+
+    /* Theme-aware form controls */
+    select, option {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+    }
+
+    /* Toast notifications */
+    .toast-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .toast {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        animation: toast-in 0.2s ease-out;
+        max-width: 360px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toast.success { background: #065f46; color: #d1fae5; border: 1px solid #10b981; }
+    .toast.error { background: #7f1d1d; color: #fecaca; border: 1px solid #ef4444; }
+    .toast.info { background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border); }
+    .toast button {
+        background: none; border: none; color: inherit; cursor: pointer; opacity: 0.7; font-size: 1rem; padding: 0;
+    }
+    .toast button:hover { opacity: 1; }
+    @keyframes toast-in {
+        from { opacity: 0; transform: translateX(20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
 </style>
+
+<div class="toast-container" id="toast-container"></div>
 
 <!-- Header -->
 <div class="dash-header">
@@ -287,10 +340,10 @@
 
 <!-- KPI Cards -->
 <div class="kpi-row" id="kpi-row">
-    <div class="kpi-card"><div class="kpi-value" id="kpi-users">—</div><div class="kpi-label">Total Users</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpi-active">—</div><div class="kpi-label">Active Today</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpi-requests">—</div><div class="kpi-label">Requests Today</div></div>
-    <div class="kpi-card"><div class="kpi-value" id="kpi-errors">—</div><div class="kpi-label">Errors Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-users">—</div><div class="kpi-change" id="kpi-users-change"></div><div class="kpi-label">Total Users</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-active">—</div><div class="kpi-change" id="kpi-active-change"></div><div class="kpi-label">Active Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-requests">—</div><div class="kpi-change" id="kpi-requests-change"></div><div class="kpi-label">Requests Today</div></div>
+    <div class="kpi-card"><div class="kpi-value" id="kpi-errors">—</div><div class="kpi-change" id="kpi-errors-change"></div><div class="kpi-label">Errors Today</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpi-latency">—</div><div class="kpi-label">Avg Latency</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpi-mrr">—</div><div class="kpi-label">Est. MRR</div></div>
     <div class="kpi-card"><div class="kpi-value" id="kpi-conversion">—</div><div class="kpi-label">Conversion</div></div>
@@ -308,6 +361,8 @@
     <button onclick="switchTab('content')">Content</button>
     <button onclick="switchTab('onboarding')">Onboarding</button>
     <button onclick="switchTab('automation')">Automation</button>
+    <button onclick="switchTab('crm')">CRM</button>
+    <button onclick="switchTab('site')">Site</button>
 </div>
 
 <!-- Tab: Users -->
@@ -328,6 +383,12 @@
             </div>
         </div>
         <div class="chart-card"><h3>Experience Level</h3><canvas id="chart-experience"></canvas></div>
+        <div class="chart-card full-width">
+            <h3>Churn Risk (Paid Users)</h3>
+            <div id="churn-risk-table" style="overflow-x:auto;font-size:0.8rem;margin-top:0.5rem;">
+                <div style="color:var(--text-dim);text-align:center;padding:1rem;">Loading...</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -369,6 +430,12 @@
             </div>
         </div>
         <div class="chart-card"><h3>Feature Adoption (Paid Users)</h3><canvas id="chart-features"></canvas></div>
+        <div class="chart-card full-width">
+            <h3>Cohort Retention</h3>
+            <div id="retention-heatmap" style="overflow-x:auto;font-size:0.75rem;margin-top:0.5rem;">
+                <div style="color:var(--text-dim);text-align:center;padding:1rem;">Loading retention data...</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -425,27 +492,48 @@
             <div style="display:flex;gap:12px;margin-bottom:12px;">
                 <div style="flex:1;">
                     <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">To</label>
-                    <select id="email-to" style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
-                        <option value="all" style="color:#e8efe8;background:#121a12;">All customers</option>
-                        <option value="tier:free" style="color:#e8efe8;background:#121a12;">Free tier</option>
-                        <option value="tier:founder" style="color:#e8efe8;background:#121a12;">Founders</option>
-                        <option value="tier:pro" style="color:#e8efe8;background:#121a12;">Pro</option>
-                        <option value="tier:team" style="color:#e8efe8;background:#121a12;">Team</option>
-                        <option value="tier:enterprise" style="color:#e8efe8;background:#121a12;">Enterprise</option>
+                    <select id="email-to" onchange="previewEmailCount()" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+                        <optgroup label="Broadcast">
+                            <option value="all">All customers</option>
+                        </optgroup>
+                        <optgroup label="By Tier">
+                            <option value="tier:free">Free tier</option>
+                            <option value="tier:founder">Founders</option>
+                            <option value="tier:pro">Pro</option>
+                            <option value="tier:team">Team</option>
+                            <option value="tier:enterprise">Enterprise</option>
+                        </optgroup>
+                        <optgroup label="Activity">
+                            <option value="active:7d">Active last 7 days</option>
+                            <option value="active:30d">Active last 30 days</option>
+                            <option value="inactive:14d">Inactive 14+ days</option>
+                            <option value="inactive:30d">Inactive 30+ days</option>
+                        </optgroup>
+                        <optgroup label="Engagement">
+                            <option value="has_queries">Has used queries</option>
+                            <option value="no_queries">Never queried</option>
+                            <option value="new:7d">Signed up last 7 days</option>
+                        </optgroup>
+                        <optgroup label="Feature Usage (90d)">
+                            <option value="domain:dsw">Used DSW</option>
+                            <option value="domain:spc">Used SPC</option>
+                            <option value="domain:doe">Used DOE</option>
+                        </optgroup>
                     </select>
+                    <span id="email-match-count" style="font-size:0.75rem;color:var(--text-secondary);margin-top:2px;display:block;"></span>
                 </div>
                 <div style="flex:1;">
                     <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Or custom address</label>
-                    <input id="email-custom-to" type="email" placeholder="someone@example.com" style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+                    <input id="email-custom-to" type="email" placeholder="someone@example.com" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
                 </div>
             </div>
             <div style="margin-bottom:12px;">
                 <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Subject</label>
-                <input id="email-subject" type="text" placeholder="Email subject..." style="width:100%;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
+                <input id="email-subject" type="text" placeholder="Email subject..." style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;">
             </div>
             <div style="margin-bottom:12px;">
                 <label style="font-size:0.8rem;color:var(--text-dim);display:block;margin-bottom:4px;">Body (Markdown — supports &#123;&#123;firstname&#125;&#125;, &#123;&#123;name&#125;&#125;, &#123;&#123;email&#125;&#125;, &#123;&#123;tier&#125;&#125;)</label>
-                <textarea id="email-body" rows="14" placeholder="Write your email in markdown..." oninput="updateEmailPreview()" style="width:100%;padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
+                <textarea id="email-body" rows="14" placeholder="Write your email in markdown..." oninput="updateEmailPreview()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9rem;resize:vertical;"></textarea>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <button onclick="confirmSendEmail(false)" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Send</button>
@@ -490,10 +578,11 @@
                         <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Opened</th>
                         <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Clicked</th>
                         <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Open Rate</th>
+                        <th style="padding:8px;color:var(--text-dim);font-weight:500;text-align:center;">Conversions</th>
                     </tr>
                 </thead>
                 <tbody id="campaigns-tbody">
-                    <tr><td colspan="7" style="padding:16px;color:var(--text-dim);text-align:center;">Loading...</td></tr>
+                    <tr><td colspan="8" style="padding:16px;color:var(--text-dim);text-align:center;">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -502,54 +591,114 @@
 
 <!-- Tab: Content -->
 <div class="tab-content" id="tab-content">
-    <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;min-height:500px;">
-        <!-- Left: Post list + AI generator -->
-        <div>
-            <button onclick="newPost()" style="width:100%;padding:8px;margin-bottom:12px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">+ New Post</button>
-            <div style="margin-bottom:16px;">
-                <input id="gen-topic" placeholder="Topic for AI draft..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
-                <input id="gen-keywords" placeholder="SEO keywords..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
-                <button onclick="generateDraft()" id="gen-btn" style="width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.85rem;">Generate Draft</button>
-            </div>
-            <div id="post-list" style="max-height:400px;overflow-y:auto;"></div>
-        </div>
-        <!-- Right: Editor -->
-        <div id="editor-panel" style="display:none;">
-            <input id="ed-title" placeholder="Post title" style="width:100%;padding:10px;margin-bottom:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:1.1rem;font-weight:500;">
-            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                <input id="ed-slug" placeholder="slug" style="flex:1;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
-                <input id="ed-meta" placeholder="Meta description (160 chars)" maxlength="160" style="flex:2;padding:6px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
-                <textarea id="ed-body" rows="20" placeholder="Markdown body..." style="width:100%;padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;" oninput="updatePreview()"></textarea>
-                <div id="ed-preview" style="padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;overflow-y:auto;max-height:500px;font-size:0.85rem;color:var(--text-secondary);"></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <button onclick="savePost()" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Save</button>
-                <button onclick="publishPost()" id="pub-btn" style="padding:8px 20px;background:transparent;border:1px solid var(--accent-primary);border-radius:6px;color:var(--accent-primary);cursor:pointer;">Publish</button>
-                <div style="display:flex;gap:6px;align-items:center;">
-                    <input id="ed-schedule" type="datetime-local" style="padding:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.8rem;">
-                    <button onclick="schedulePost()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">Schedule</button>
+    <!-- Content sub-tabs: Blog / Whitepapers -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);">
+        <button onclick="switchContentSub('blog')" id="content-sub-blog" style="padding:10px 24px;background:transparent;border:none;border-bottom:2px solid var(--accent-primary);margin-bottom:-2px;color:var(--accent-primary);font-weight:600;cursor:pointer;font-size:0.9rem;">Blog Posts</button>
+        <button onclick="switchContentSub('whitepapers')" id="content-sub-wp" style="padding:10px 24px;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);font-weight:500;cursor:pointer;font-size:0.9rem;">Whitepapers</button>
+    </div>
+
+    <!-- Sub: Blog -->
+    <div id="content-blog-section">
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;min-height:500px;">
+            <!-- Left: Post list + AI generator -->
+            <div>
+                <button onclick="newPost()" style="width:100%;padding:8px;margin-bottom:12px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">+ New Post</button>
+                <!-- Content Calendar -->
+                <div id="content-calendar" style="margin-bottom:12px;font-size:0.7rem;"></div>
+                <div style="margin-bottom:16px;">
+                    <input id="gen-topic" placeholder="Topic for AI draft..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
+                    <input id="gen-keywords" placeholder="SEO keywords..." style="width:100%;padding:8px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;">
+                    <button onclick="generateDraft()" id="gen-btn" style="width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.85rem;">Generate Draft</button>
                 </div>
-                <button onclick="insertChart()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">+ Chart</button>
-                <span style="flex:1;"></span>
-                <button onclick="deletePost()" style="padding:6px 12px;background:transparent;border:1px solid rgba(232,90,90,0.3);border-radius:6px;color:#e85a5a;cursor:pointer;font-size:0.8rem;">Delete</button>
-                <span id="ed-status" style="font-size:0.8rem;color:var(--text-dim);"></span>
+                <div id="post-list" style="max-height:400px;overflow-y:auto;"></div>
             </div>
+            <!-- Right: Editor -->
+            <div id="editor-panel" style="display:none;">
+                <input id="ed-title" placeholder="Post title" style="width:100%;padding:10px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:1.1rem;font-weight:500;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <input id="ed-slug" placeholder="slug" style="flex:1;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                    <input id="ed-meta" placeholder="Meta description (160 chars)" maxlength="160" style="flex:2;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+                    <textarea id="ed-body" rows="20" placeholder="Markdown body..." style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;" oninput="updatePreview()"></textarea>
+                    <div id="ed-preview" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;overflow-y:auto;max-height:500px;font-size:0.85rem;color:var(--text-secondary);"></div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button onclick="savePost()" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Save</button>
+                    <button onclick="publishPost()" id="pub-btn" style="padding:8px 20px;background:transparent;border:1px solid var(--accent-primary);border-radius:6px;color:var(--accent-primary);cursor:pointer;">Publish</button>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input id="ed-schedule" type="datetime-local" style="padding:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.8rem;">
+                        <button onclick="schedulePost()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">Schedule</button>
+                    </div>
+                    <button onclick="insertChart()" style="padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-size:0.8rem;">+ Chart</button>
+                    <span style="flex:1;"></span>
+                    <button onclick="deletePost()" style="padding:6px 12px;background:transparent;border:1px solid rgba(232,90,90,0.3);border-radius:6px;color:#e85a5a;cursor:pointer;font-size:0.8rem;">Delete</button>
+                    <span id="ed-status" style="font-size:0.8rem;color:var(--text-dim);"></span>
+                </div>
+            </div>
+        </div>
+        <!-- Blog Analytics -->
+        <div class="chart-grid" style="margin-top:24px;">
+            <div class="chart-card full-width" style="padding-bottom:0;">
+                <div class="stat-row" style="border-top:none;padding-top:0;justify-content:center;">
+                    <div class="stat-item"><div class="stat-val" id="stat-blog-views">—</div><div class="stat-lbl">Views</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-blog-unique">—</div><div class="stat-lbl">Unique Visitors</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-blog-bots">—</div><div class="stat-lbl">Bot Hits</div></div>
+                </div>
+            </div>
+            <div class="chart-card full-width"><h3>Views Over Time</h3><canvas id="chart-blog-views"></canvas></div>
+            <div class="chart-card"><h3>Top Posts</h3><canvas id="chart-blog-top"></canvas></div>
+            <div class="chart-card"><h3>Traffic Sources</h3><canvas id="chart-blog-referrers"></canvas></div>
         </div>
     </div>
-    <!-- Blog Analytics -->
-    <div class="chart-grid" style="margin-top:24px;">
-        <div class="chart-card full-width" style="padding-bottom:0;">
-            <div class="stat-row" style="border-top:none;padding-top:0;justify-content:center;">
-                <div class="stat-item"><div class="stat-val" id="stat-blog-views">—</div><div class="stat-lbl">Views</div></div>
-                <div class="stat-item"><div class="stat-val" id="stat-blog-unique">—</div><div class="stat-lbl">Unique Visitors</div></div>
-                <div class="stat-item"><div class="stat-val" id="stat-blog-bots">—</div><div class="stat-lbl">Bot Hits</div></div>
+
+    <!-- Sub: Whitepapers -->
+    <div id="content-wp-section" style="display:none;">
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;min-height:400px;">
+            <!-- Left: Paper list -->
+            <div>
+                <button onclick="newWhitepaper()" style="width:100%;padding:8px;margin-bottom:12px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">+ New Whitepaper</button>
+                <div id="wp-list" style="max-height:500px;overflow-y:auto;"></div>
+            </div>
+            <!-- Right: Editor -->
+            <div id="wp-editor-panel" style="display:none;">
+                <input id="wp-title" placeholder="Whitepaper title" style="width:100%;padding:10px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:1.1rem;font-weight:500;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <input id="wp-slug" placeholder="slug" style="flex:1;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                    <input id="wp-topic" placeholder="Topic (e.g. SPC, DOE, Lean)" style="flex:1;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                    <input id="wp-meta" placeholder="Meta description (160 chars)" maxlength="160" style="flex:2;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:0.8rem;">
+                </div>
+                <textarea id="wp-desc" rows="3" placeholder="Short description / abstract..." style="width:100%;padding:10px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;"></textarea>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;">
+                    <textarea id="wp-body" rows="18" placeholder="Full markdown content..." style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:vertical;" oninput="updateWPPreview()"></textarea>
+                    <div id="wp-preview" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;overflow-y:auto;max-height:450px;font-size:0.85rem;color:var(--text-secondary);"></div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button onclick="saveWhitepaper()" style="padding:8px 20px;background:var(--accent-primary);border:none;border-radius:6px;color:var(--bg-primary);font-weight:500;cursor:pointer;">Save</button>
+                    <button onclick="publishWhitepaper()" id="wp-pub-btn" style="padding:8px 20px;background:transparent;border:1px solid var(--accent-primary);border-radius:6px;color:var(--accent-primary);cursor:pointer;">Publish</button>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text-secondary);cursor:pointer;">
+                        <input type="checkbox" id="wp-gated" checked> Gated (email required)
+                    </label>
+                    <span style="flex:1;"></span>
+                    <button onclick="deleteWhitepaper()" style="padding:6px 12px;background:transparent;border:1px solid rgba(232,90,90,0.3);border-radius:6px;color:#e85a5a;cursor:pointer;font-size:0.8rem;">Delete</button>
+                    <span id="wp-status" style="font-size:0.8rem;color:var(--text-dim);"></span>
+                </div>
             </div>
         </div>
-        <div class="chart-card full-width"><h3>Views Over Time</h3><canvas id="chart-blog-views"></canvas></div>
-        <div class="chart-card"><h3>Top Posts</h3><canvas id="chart-blog-top"></canvas></div>
-        <div class="chart-card"><h3>Traffic Sources</h3><canvas id="chart-blog-referrers"></canvas></div>
+        <!-- Whitepaper Analytics -->
+        <div class="chart-grid" style="margin-top:24px;">
+            <div class="chart-card full-width" style="padding-bottom:0;">
+                <div class="stat-row" style="border-top:none;padding-top:0;justify-content:center;">
+                    <div class="stat-item"><div class="stat-val" id="stat-wp-downloads">—</div><div class="stat-lbl">Downloads</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-wp-unique">—</div><div class="stat-lbl">Unique Downloaders</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-wp-emails">—</div><div class="stat-lbl">Emails Captured</div></div>
+                    <div class="stat-item"><div class="stat-val" id="stat-wp-bots">—</div><div class="stat-lbl">Bot Hits</div></div>
+                </div>
+            </div>
+            <div class="chart-card full-width"><h3>Downloads Over Time</h3><canvas id="chart-wp-downloads"></canvas></div>
+            <div class="chart-card"><h3>Top Papers</h3><canvas id="chart-wp-top"></canvas></div>
+            <div class="chart-card"><h3>Traffic Sources</h3><canvas id="chart-wp-referrers"></canvas></div>
+        </div>
     </div>
 </div>
 
@@ -605,35 +754,35 @@
             </div>
             <div id="experiment-form" style="display:none;margin:1rem 0;padding:1rem;border:1px solid var(--border);border-radius:8px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-                    <input id="exp-name" placeholder="Experiment name" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
-                    <select id="exp-type" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    <input id="exp-name" placeholder="Experiment name" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
+                    <select id="exp-type" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                         <option value="email_subject">Email Subject</option>
                         <option value="email_body">Email Body</option>
                         <option value="onboarding_flow">Onboarding Flow</option>
                         <option value="feature_flag">Feature Flag</option>
                     </select>
                 </div>
-                <textarea id="exp-hypothesis" placeholder="Hypothesis" rows="2" style="width:100%;margin:0.5rem 0;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);resize:vertical;"></textarea>
+                <textarea id="exp-hypothesis" placeholder="Hypothesis" rows="2" style="width:100%;margin:0.5rem 0;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);resize:vertical;"></textarea>
                 <div id="exp-variants" style="margin:0.5rem 0;">
                     <div style="display:flex;gap:0.5rem;margin-bottom:0.3rem;">
-                        <input class="exp-variant-name" placeholder="Variant A name" value="Control" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
-                        <input class="exp-variant-config" placeholder='Config JSON (optional)' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                        <input class="exp-variant-name" placeholder="Variant A name" value="Control" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
+                        <input class="exp-variant-config" placeholder='Config JSON (optional)' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                     </div>
                     <div style="display:flex;gap:0.5rem;">
-                        <input class="exp-variant-name" placeholder="Variant B name" value="Treatment" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
-                        <input class="exp-variant-config" placeholder='Config JSON, e.g. {"subject":"New subject"}' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                        <input class="exp-variant-name" placeholder="Variant B name" value="Treatment" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
+                        <input class="exp-variant-config" placeholder='Config JSON, e.g. {"subject":"New subject"}' style="flex:2;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                     </div>
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <select id="exp-status" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    <select id="exp-status" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                         <option value="draft">Draft</option>
                         <option value="running">Running</option>
                     </select>
-                    <input id="exp-min-sample" type="number" value="100" placeholder="Min sample" style="width:100px;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);">
+                    <input id="exp-min-sample" type="number" value="100" placeholder="Min sample" style="width:100px;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);">
                     <span style="color:var(--text-secondary);font-size:0.75rem;">min sample/variant</span>
                     <div style="flex:1;"></div>
                     <button onclick="saveExperiment()" style="background:var(--accent);color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;">Save</button>
-                    <button onclick="document.getElementById('experiment-form').style.display='none'" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">Cancel</button>
+                    <button onclick="document.getElementById('experiment-form').style.display='none'" style="background:var(--bg-tertiary);color:var(--text);border:1px solid var(--border);padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">Cancel</button>
                 </div>
             </div>
             <table id="experiments-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
@@ -657,6 +806,51 @@
         <div class="chart-card full-width">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <h3>Automation Rules</h3>
+                <button onclick="showRuleForm()" style="background:var(--accent);color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-size:0.8rem;">+ New Rule</button>
+            </div>
+            <div id="rule-form" style="display:none;margin:1rem 0;padding:1rem;border:1px solid var(--border);border-radius:8px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                    <input id="rule-name" placeholder="Rule name" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                    <select id="rule-trigger" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                        <option value="inactive_days">Inactive days</option>
+                        <option value="signup_no_query">Signup, no queries</option>
+                        <option value="query_limit_near">Near query limit</option>
+                        <option value="churn_signal">Churn signal</option>
+                        <option value="milestone">Milestone reached</option>
+                        <option value="feature_unused">Feature unused</option>
+                    </select>
+                </div>
+                <input id="rule-trigger-config" placeholder='Trigger config JSON, e.g. {"days": 14}' style="width:100%;margin:0.5rem 0;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                <!-- Optional compound trigger -->
+                <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                    <select id="rule-trigger-logic" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);font-size:0.8rem;">
+                        <option value="">No second trigger</option>
+                        <option value="and">AND</option>
+                        <option value="or">OR</option>
+                    </select>
+                    <select id="rule-trigger-2" style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);" disabled>
+                        <option value="">Select 2nd trigger...</option>
+                        <option value="inactive_days">Inactive days</option>
+                        <option value="signup_no_query">Signup, no queries</option>
+                        <option value="query_limit_near">Near query limit</option>
+                        <option value="churn_signal">Churn signal</option>
+                        <option value="milestone">Milestone reached</option>
+                        <option value="feature_unused">Feature unused</option>
+                    </select>
+                    <input id="rule-trigger-2-config" placeholder='2nd trigger config JSON' style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);" disabled>
+                </div>
+                <textarea id="rule-description" placeholder="Description (optional)" rows="2" style="width:100%;margin-bottom:0.5rem;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);resize:vertical;"></textarea>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <select id="rule-action" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                        <option value="send_email">Send email</option>
+                        <option value="internal_alert">Internal alert</option>
+                    </select>
+                    <input id="rule-action-config" placeholder='Action config JSON, e.g. {"template": "inactive_nudge"}' style="flex:1;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                    <input id="rule-cooldown" type="number" value="72" placeholder="Cooldown (hrs)" style="width:100px;padding:0.4rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text-primary);">
+                    <div style="flex:1;"></div>
+                    <button onclick="saveRule()" class="btn btn-primary" style="font-size:0.8rem;padding:0.4rem 1rem;">Save</button>
+                    <button onclick="document.getElementById('rule-form').style.display='none'" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 0.8rem;">Cancel</button>
+                </div>
             </div>
             <table id="rules-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
                 <thead>
@@ -689,12 +883,41 @@
         <div class="chart-card full-width">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <h3>User Feedback</h3>
-                <select id="feedback-filter" onchange="loadFeedback()" style="padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:0.75rem;">
+                <select id="feedback-filter" onchange="loadFeedback()" style="padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);font-size:0.75rem;">
                     <option value="">All</option>
                     <option value="new">New</option>
                     <option value="reviewed">Reviewed</option>
                     <option value="resolved">Resolved</option>
                 </select>
+            </div>
+            <!-- Feedback Summary -->
+            <div id="feedback-summary" style="display:none;margin-top:0.5rem;padding:0.75rem;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border);">
+                <div style="display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;">
+                    <div style="display:flex;gap:1rem;align-items:center;flex:1;min-width:200px;">
+                        <div style="text-align:center;">
+                            <div id="fb-total" style="font-size:1.5rem;font-weight:600;color:var(--text-primary);">0</div>
+                            <div style="font-size:0.7rem;color:var(--text-secondary);">Total</div>
+                        </div>
+                        <div style="width:1px;height:2rem;background:var(--border);"></div>
+                        <div style="display:flex;gap:0.75rem;">
+                            <div style="text-align:center;">
+                                <div id="fb-new" style="font-size:1.1rem;font-weight:600;color:#f59e0b;">0</div>
+                                <div style="font-size:0.65rem;color:var(--text-secondary);">New</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div id="fb-reviewed" style="font-size:1.1rem;font-weight:600;color:#3b82f6;">0</div>
+                                <div style="font-size:0.65rem;color:var(--text-secondary);">Reviewed</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div id="fb-resolved" style="font-size:1.1rem;font-weight:600;color:#4a9f6e;">0</div>
+                                <div style="font-size:0.65rem;color:var(--text-secondary);">Resolved</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="width:120px;height:120px;">
+                        <canvas id="fb-category-chart"></canvas>
+                    </div>
+                </div>
             </div>
             <table id="feedback-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.5rem;">
                 <thead>
@@ -705,6 +928,7 @@
                         <th style="text-align:left;">Message</th>
                         <th>Page</th>
                         <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -726,6 +950,399 @@
                 </thead>
                 <tbody></tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Site Analytics -->
+<div class="tab-content" id="tab-site">
+    <!-- Live indicator -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span id="site-live-dot" style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;animation:livePulse 2s infinite;"></span>
+            <span style="font-size:0.75rem;color:var(--text-dim);" id="site-live-status">Live — polling every 15s</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:0.8rem;color:var(--text-secondary);" id="site-kpi-hour">—</span>
+            <span style="font-size:0.65rem;color:var(--text-dim);">hits/hr</span>
+            <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:8px;" id="site-kpi-today-hits">—</span>
+            <span style="font-size:0.65rem;color:var(--text-dim);">today</span>
+            <span style="font-size:0.8rem;color:var(--text-secondary);margin-left:8px;" id="site-kpi-today-unique">—</span>
+            <span style="font-size:0.65rem;color:var(--text-dim);">unique today</span>
+        </div>
+    </div>
+    <style>@keyframes livePulse{0%,100%{opacity:1}50%{opacity:0.3}}</style>
+
+    <!-- KPI Cards -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="site-kpi-hits">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Total Page Views</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="site-kpi-unique">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Unique Visitors</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="site-kpi-duration">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Avg Time on Page</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="site-kpi-bots">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Bot Hits (filtered)</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="site-kpi-top">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Top Page</div>
+        </div>
+    </div>
+    <!-- Charts -->
+    <div class="chart-grid">
+        <div class="chart-card full-width"><h3>Daily Visitors</h3><canvas id="chart-site-daily"></canvas></div>
+        <div class="chart-card"><h3>Top Pages</h3><canvas id="chart-site-pages"></canvas></div>
+        <div class="chart-card"><h3>Traffic Sources</h3><canvas id="chart-site-referrers"></canvas></div>
+    </div>
+
+    <!-- World Map -->
+    <div class="chart-card full-width" style="margin-top:16px;">
+        <h3>Visitor Geography</h3>
+        <div id="site-world-map" style="width:100%;height:420px;"></div>
+        <div id="site-map-empty" style="display:none;text-align:center;padding:3rem;color:var(--text-dim);">
+            Country data will populate as new visits arrive (via Cloudflare).
+        </div>
+    </div>
+
+    <!-- User Flow & Live Feed side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+        <!-- User Flow -->
+        <div class="chart-card">
+            <h3>Page Flow <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;">(where visitors go next)</span></h3>
+            <table style="width:100%;font-size:0.78rem;border-collapse:collapse;" id="site-flow-table">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <th style="text-align:left;padding:0.4rem 0.3rem;">From</th>
+                        <th style="text-align:center;padding:0.4rem 0;">→</th>
+                        <th style="text-align:left;padding:0.4rem 0.3rem;">To</th>
+                        <th style="text-align:right;padding:0.4rem 0.3rem;">Count</th>
+                    </tr>
+                </thead>
+                <tbody id="site-flow-tbody"></tbody>
+            </table>
+        </div>
+        <!-- Live Feed -->
+        <div class="chart-card">
+            <h3>Live Feed <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;">(auto-refreshes every 15s)</span></h3>
+            <div id="site-live-feed" style="max-height:400px;overflow-y:auto;font-size:0.78rem;"></div>
+        </div>
+    </div>
+
+    <!-- Top Pages Table -->
+    <div class="chart-card" style="margin-top:16px;">
+        <h3>Page Breakdown</h3>
+        <table style="width:100%;font-size:0.8rem;border-collapse:collapse;" id="site-pages-table">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <th style="text-align:left;padding:0.5rem 0.3rem;">Path</th>
+                    <th style="text-align:right;padding:0.5rem 0.3rem;">Views</th>
+                    <th style="text-align:right;padding:0.5rem 0.3rem;">Unique</th>
+                    <th style="text-align:right;padding:0.5rem 0.3rem;">Avg Time</th>
+                </tr>
+            </thead>
+            <tbody id="site-pages-tbody"></tbody>
+        </table>
+    </div>
+
+    <!-- Visit Log -->
+    <div class="chart-card" style="margin-top:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h3>Visit Log <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;">(last 100 visits — live)</span></h3>
+            <button onclick="downloadVisitLog()" style="background:var(--accent-primary-dim);border:1px solid var(--accent-primary-border);color:var(--accent-primary);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.7rem;">Export CSV</button>
+        </div>
+        <div style="max-height:500px;overflow-y:auto;margin-top:8px;">
+            <table style="width:100%;font-size:0.72rem;border-collapse:collapse;" id="site-log-table">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-card);">
+                        <th style="text-align:left;padding:5px 4px;">Time</th>
+                        <th style="text-align:left;padding:5px 4px;">Visitor</th>
+                        <th style="text-align:center;padding:5px 4px;">Country</th>
+                        <th style="text-align:left;padding:5px 4px;">Path</th>
+                        <th style="text-align:left;padding:5px 4px;">Referrer</th>
+                        <th style="text-align:right;padding:5px 4px;">Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="site-log-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: CRM -->
+<div class="tab-content" id="tab-crm">
+    <!-- CRM Sub-tabs -->
+    <div style="display:flex;gap:4px;margin-bottom:1rem;">
+        <button class="time-selector-btn active" onclick="switchCRMSub('leads')" id="crm-sub-leads"
+                style="padding:6px 14px;border:1px solid var(--border);background:var(--accent-primary);color:var(--bg-primary);border-radius:4px;cursor:pointer;font-size:0.8rem;font-family:'Inter',sans-serif;font-weight:600;">Leads</button>
+        <button class="time-selector-btn" onclick="switchCRMSub('sequences')" id="crm-sub-sequences"
+                style="padding:6px 14px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-dim);border-radius:4px;cursor:pointer;font-size:0.8rem;font-family:'Inter',sans-serif;">Sequences</button>
+        <button class="time-selector-btn" onclick="switchCRMSub('metrics')" id="crm-sub-metrics"
+                style="padding:6px 14px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-dim);border-radius:4px;cursor:pointer;font-size:0.8rem;font-family:'Inter',sans-serif;">Outreach Metrics</button>
+    </div>
+
+    <!-- Sub: Leads -->
+    <div id="crm-leads-section">
+        <!-- Pipeline KPIs -->
+        <div class="kpi-row" id="crm-kpi-row">
+            <div class="kpi-card"><div class="kpi-value" id="crm-kpi-total">—</div><div class="kpi-label">Total Leads</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="crm-kpi-prospect">—</div><div class="kpi-label">Prospect</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="crm-kpi-contacted">—</div><div class="kpi-label">Contacted</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="crm-kpi-engaged">—</div><div class="kpi-label">Engaged</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="crm-kpi-demo">—</div><div class="kpi-label">Demo</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="crm-kpi-trial">—</div><div class="kpi-label">Trial</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="crm-kpi-customer">—</div><div class="kpi-label">Customer</div></div>
+            <div class="kpi-card"><div class="kpi-value" id="crm-kpi-followups">—</div><div class="kpi-label">Due Follow-ups</div></div>
+        </div>
+
+        <!-- Filters + Actions -->
+        <div style="display:flex;gap:8px;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
+            <select id="crm-filter-stage" onchange="loadCRMLeads()" style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;font-family:'Inter',sans-serif;">
+                <option value="">All Stages</option>
+                <option value="prospect">Prospect</option>
+                <option value="contacted">Contacted</option>
+                <option value="engaged">Engaged</option>
+                <option value="demo">Demo</option>
+                <option value="trial">Trial</option>
+                <option value="customer">Customer</option>
+                <option value="churned">Churned</option>
+                <option value="lost">Lost</option>
+                <option value="bounced">Bounced</option>
+                <option value="invalid">Invalid</option>
+            </select>
+            <select id="crm-filter-source" onchange="loadCRMLeads()" style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;font-family:'Inter',sans-serif;">
+                <option value="">All Sources</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="referral">Referral</option>
+                <option value="inbound">Inbound</option>
+                <option value="conference">Conference</option>
+                <option value="cold">Cold</option>
+                <option value="whitepaper">Whitepaper</option>
+                <option value="other">Other</option>
+            </select>
+            <input id="crm-search" type="text" placeholder="Search name/email/company..."
+                   onkeyup="if(event.key==='Enter')loadCRMLeads()"
+                   style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;font-family:'Inter',sans-serif;min-width:200px;">
+            <button onclick="loadCRMLeads()" style="padding:6px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-dim);font-size:0.8rem;">Search</button>
+            <div style="flex:1;"></div>
+            <button onclick="processOutreachQueue()" style="padding:6px 14px;background:#065f46;color:#d1fae5;border:1px solid #10b981;border-radius:4px;cursor:pointer;font-size:0.8rem;font-family:'Inter',sans-serif;font-weight:500;">Process Queue</button>
+            <button onclick="showLeadForm()" style="padding:6px 14px;background:var(--accent-primary);color:var(--bg-primary);border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;font-family:'Inter',sans-serif;font-weight:600;">+ Add Lead</button>
+        </div>
+
+        <!-- Lead Form (hidden) -->
+        <div id="crm-lead-form" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:1rem;">
+            <h3 style="margin:0 0 12px;font-size:0.9rem;color:var(--text-primary);">Lead Details</h3>
+            <input type="hidden" id="crm-lead-id">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+                <input id="crm-lead-name" placeholder="Name *" style="padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);">
+                <input id="crm-lead-email" placeholder="Email *" style="padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);">
+                <input id="crm-lead-company" placeholder="Company" style="padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);">
+                <input id="crm-lead-role" placeholder="Role" style="padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);">
+                <input id="crm-lead-industry" placeholder="Industry" style="padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);">
+                <select id="crm-lead-source" style="padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;">
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="referral">Referral</option>
+                    <option value="inbound">Inbound</option>
+                    <option value="conference">Conference</option>
+                    <option value="cold">Cold</option>
+                    <option value="whitepaper">Whitepaper</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <textarea id="crm-lead-notes" placeholder="Notes..." rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;resize:vertical;margin-bottom:8px;"></textarea>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div>
+                    <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:2px;">Last Contacted</label>
+                    <input id="crm-lead-last-contacted" type="datetime-local" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:2px;">Next Follow-up</label>
+                    <input id="crm-lead-next-followup" type="datetime-local" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);box-sizing:border-box;">
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="saveLead()" style="padding:6px 16px;background:var(--accent-primary);color:var(--bg-primary);border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;font-weight:600;">Save</button>
+                <button onclick="document.getElementById('crm-lead-form').style.display='none'" style="padding:6px 16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-dim);font-size:0.8rem;">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Bulk Action Bar (hidden until selection) -->
+        <div id="crm-bulk-bar" style="display:none;background:#065f46;border:1px solid #10b981;border-radius:6px;padding:10px 16px;margin-bottom:1rem;display:none;align-items:center;gap:12px;">
+            <span style="color:#d1fae5;font-size:0.8rem;font-weight:500;" id="crm-bulk-count">0 selected</span>
+            <button onclick="showBulkCampaignModal()" style="padding:5px 14px;background:#d1fae5;color:#065f46;border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;font-weight:600;">Generate & Send Campaign</button>
+            <button onclick="clearLeadSelection()" style="padding:5px 14px;background:transparent;border:1px solid #d1fae5;border-radius:4px;cursor:pointer;color:#d1fae5;font-size:0.8rem;">Clear</button>
+        </div>
+
+        <!-- Bulk Campaign Modal (hidden) -->
+        <div id="crm-campaign-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9998;align-items:center;justify-content:center;">
+            <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:24px;max-width:800px;width:95%;max-height:90vh;overflow-y:auto;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3 style="margin:0;font-size:1rem;color:var(--text-primary);">Bulk Outreach Campaign</h3>
+                    <button onclick="document.getElementById('crm-campaign-modal').style.display='none'" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.2rem;">x</button>
+                </div>
+                <p style="font-size:0.8rem;color:var(--text-dim);margin:0 0 12px;" id="crm-campaign-lead-count"></p>
+
+                <!-- Generation inputs -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                    <input id="crm-campaign-purpose" placeholder="Purpose (e.g. Introduction, Follow-up, Demo invite)" style="padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);">
+                    <input id="crm-campaign-notes" placeholder="Custom notes for Claude (optional)" style="padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);">
+                </div>
+                <button onclick="generateBulkCampaign()" id="crm-campaign-gen-btn" style="padding:8px 20px;background:var(--accent-primary);color:var(--bg-primary);border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;font-weight:600;margin-bottom:16px;">Generate A/B Variants with Claude</button>
+
+                <!-- Preview (populated after generation) -->
+                <div id="crm-campaign-preview" style="display:none;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div style="border:1px solid var(--border);border-radius:6px;padding:12px;">
+                            <div style="font-size:0.75rem;color:var(--text-dim);font-weight:500;margin-bottom:6px;">Variant A (direct)</div>
+                            <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:2px;">Subject:</div>
+                            <input id="crm-campaign-subject-a" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.8rem;margin-bottom:6px;box-sizing:border-box;background:var(--bg-secondary);color:var(--text-primary);">
+                            <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:2px;">Body:</div>
+                            <textarea id="crm-campaign-body-a" rows="8" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.8rem;box-sizing:border-box;resize:vertical;background:var(--bg-secondary);color:var(--text-primary);"></textarea>
+                        </div>
+                        <div style="border:1px solid var(--border);border-radius:6px;padding:12px;">
+                            <div style="font-size:0.75rem;color:var(--text-dim);font-weight:500;margin-bottom:6px;">Variant B (conversational)</div>
+                            <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:2px;">Subject:</div>
+                            <input id="crm-campaign-subject-b" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.8rem;margin-bottom:6px;box-sizing:border-box;background:var(--bg-secondary);color:var(--text-primary);">
+                            <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:2px;">Body:</div>
+                            <textarea id="crm-campaign-body-b" rows="8" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.8rem;box-sizing:border-box;resize:vertical;background:var(--bg-secondary);color:var(--text-primary);"></textarea>
+                        </div>
+                    </div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;">Placeholders: <code>{{name}}</code> <code>{{company}}</code> <code>{{role}}</code> <code>{{industry}}</code> — personalized per lead. A/B assigned via SHA256. From: hello@svend.ai</div>
+                    <button onclick="previewBulkCampaign()" id="crm-campaign-preview-btn" style="padding:8px 24px;background:var(--accent-primary);color:var(--bg-primary);border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;font-weight:600;">Preview Per-Lead Assignments</button>
+                </div>
+
+                <!-- Per-lead preview (populated after preview call) -->
+                <div id="crm-campaign-review" style="display:none;margin-top:16px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:0.85rem;font-weight:500;color:var(--text-primary);">Per-Lead Preview</span>
+                        <span style="font-size:0.75rem;color:var(--text-dim);" id="crm-campaign-ab-split"></span>
+                    </div>
+                    <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;">
+                        <table style="width:100%;font-size:0.75rem;border-collapse:collapse;">
+                            <thead>
+                                <tr style="border-bottom:1px solid var(--border);background:var(--bg-secondary);position:sticky;top:0;">
+                                    <th style="padding:6px 8px;text-align:left;color:var(--text-dim);font-weight:500;">Name</th>
+                                    <th style="padding:6px 8px;text-align:left;color:var(--text-dim);font-weight:500;">Email</th>
+                                    <th style="padding:6px 8px;text-align:left;color:var(--text-dim);font-weight:500;">Company</th>
+                                    <th style="padding:6px 8px;text-align:center;color:var(--text-dim);font-weight:500;">Variant</th>
+                                    <th style="padding:6px 8px;text-align:left;color:var(--text-dim);font-weight:500;">Subject (personalized)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crm-campaign-review-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+                        <button onclick="sendBulkCampaign()" id="crm-campaign-send-btn" style="padding:8px 24px;background:#065f46;color:#d1fae5;border:1px solid #10b981;border-radius:4px;cursor:pointer;font-size:0.85rem;font-weight:600;">Confirm & Send to <span id="crm-campaign-send-count">0</span> leads</button>
+                        <span style="font-size:0.7rem;color:var(--text-dim);">Sends staggered 5s apart via tempora</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leads Table -->
+        <div style="overflow-x:auto;">
+            <table style="width:100%;font-size:0.8rem;border-collapse:collapse;" id="crm-leads-table">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);text-align:left;">
+                        <th style="padding:8px 6px;width:30px;"><input type="checkbox" id="crm-select-all" onchange="toggleAllLeads(this.checked)" style="cursor:pointer;"></th>
+                        <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Name</th>
+                        <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Email</th>
+                        <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Company</th>
+                        <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Stage</th>
+                        <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Source</th>
+                        <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Last Contact</th>
+                        <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Follow-up</th>
+                        <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="crm-leads-tbody"></tbody>
+            </table>
+        </div>
+
+        <!-- Enroll Modal (hidden) -->
+        <div id="crm-enroll-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9998;align-items:center;justify-content:center;">
+            <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:24px;max-width:400px;width:90%;">
+                <h3 style="margin:0 0 12px;font-size:0.95rem;color:var(--text-primary);">Enroll in Sequence</h3>
+                <input type="hidden" id="crm-enroll-lead-id">
+                <p style="font-size:0.8rem;color:var(--text-dim);margin:0 0 12px;" id="crm-enroll-lead-name"></p>
+                <select id="crm-enroll-seq" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;margin-bottom:12px;"></select>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="enrollLead()" style="padding:6px 16px;background:var(--accent-primary);color:var(--bg-primary);border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;font-weight:600;">Enroll</button>
+                    <button onclick="document.getElementById('crm-enroll-modal').style.display='none'" style="padding:6px 16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--text-dim);font-size:0.8rem;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sub: Sequences -->
+    <div id="crm-sequences-section" style="display:none;">
+        <div style="display:flex;gap:16px;height:calc(100vh - 300px);min-height:400px;">
+            <!-- Left: List -->
+            <div style="width:260px;border:1px solid var(--border);border-radius:6px;overflow-y:auto;background:var(--card-bg);">
+                <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:0.85rem;font-weight:500;color:var(--text-primary);">Sequences</span>
+                    <button onclick="newSequence()" style="padding:4px 10px;background:var(--accent-primary);color:var(--bg-primary);border:none;border-radius:4px;cursor:pointer;font-size:0.75rem;font-weight:600;">+ New</button>
+                </div>
+                <div id="crm-seq-list"></div>
+            </div>
+            <!-- Right: Editor -->
+            <div style="flex:1;border:1px solid var(--border);border-radius:6px;overflow-y:auto;background:var(--card-bg);padding:16px;" id="crm-seq-editor">
+                <div class="empty-state">Select or create a sequence</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sub: Outreach Metrics -->
+    <div id="crm-metrics-section" style="display:none;">
+        <div class="chart-grid">
+            <div class="chart-card"><h3>Pipeline Distribution</h3><canvas id="crm-chart-pipeline"></canvas></div>
+            <div class="chart-card"><h3>Lead Sources</h3><canvas id="crm-chart-sources"></canvas></div>
+        </div>
+        <div class="chart-card" style="margin-top:16px;">
+            <h3>Sequence Performance</h3>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;font-size:0.8rem;border-collapse:collapse;" id="crm-metrics-table">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border);text-align:left;">
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Sequence</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Enrolled</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Active</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Emails Sent</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Open Rate</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Click Rate</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Replied</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crm-metrics-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="chart-card" style="margin-top:16px;">
+            <h3>Bulk Campaign A/B Results</h3>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;font-size:0.8rem;border-collapse:collapse;" id="crm-ab-table">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border);text-align:left;">
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Campaign</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;">Date</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;text-align:center;">Sent</th>
+                            <th style="padding:8px 6px;color:#3b82f6;font-weight:500;text-align:center;">A Opens</th>
+                            <th style="padding:8px 6px;color:#3b82f6;font-weight:500;text-align:center;">A Clicks</th>
+                            <th style="padding:8px 6px;color:#8b5cf6;font-weight:500;text-align:center;">B Opens</th>
+                            <th style="padding:8px 6px;color:#8b5cf6;font-weight:500;text-align:center;">B Clicks</th>
+                            <th style="padding:8px 6px;color:var(--text-dim);font-weight:500;text-align:center;">Winner</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crm-ab-tbody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -765,6 +1382,18 @@ function makeChart(id, config) {
 }
 
 // =========================================================================
+// Toast notifications
+// =========================================================================
+function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">&times;</button>`;
+    container.appendChild(toast);
+    if (duration > 0) setTimeout(() => toast.remove(), duration);
+}
+
+// =========================================================================
 // Data fetching
 // =========================================================================
 async function apiFetch(endpoint) {
@@ -776,6 +1405,18 @@ async function apiFetch(endpoint) {
 // =========================================================================
 // KPI Cards
 // =========================================================================
+function renderChange(elId, pct, invertColor) {
+    const el = document.getElementById(elId);
+    if (!el || pct == null) return;
+    const arrow = pct > 0 ? '\u2191' : pct < 0 ? '\u2193' : '\u2192';
+    const isUp = pct > 0;
+    // For errors, up is bad (invert colors)
+    const cls = pct === 0 ? 'neutral' : (invertColor ? (isUp ? 'down' : 'up') : (isUp ? 'up' : 'down'));
+    el.className = `kpi-change ${Math.abs(pct) > 10 ? cls : 'neutral'}`;
+    el.textContent = `${arrow} ${Math.abs(pct)}% WoW`;
+    el.title = 'Week-over-week change';
+}
+
 async function loadKPIs() {
     try {
         const d = await apiFetch('overview');
@@ -786,8 +1427,15 @@ async function loadKPIs() {
         document.getElementById('kpi-latency').textContent = d.avg_latency_ms ? d.avg_latency_ms + 'ms' : '—';
         document.getElementById('kpi-mrr').textContent = '$' + d.mrr.toLocaleString();
         document.getElementById('kpi-conversion').textContent = d.conversion_rate + '%';
+
+        if (d.changes) {
+            renderChange('kpi-users-change', d.changes.users, false);
+            renderChange('kpi-active-change', d.changes.active, false);
+            renderChange('kpi-requests-change', d.changes.requests, false);
+            renderChange('kpi-errors-change', d.changes.errors, true);
+        }
     } catch (e) {
-        console.error('KPI load failed:', e);
+        showToast('Failed to load KPIs', 'error');
     }
 }
 
@@ -905,6 +1553,31 @@ async function loadUsers() {
     document.getElementById('stat-verified').textContent = d.verified_count;
     document.getElementById('stat-unverified').textContent = d.total_count - d.verified_count;
     document.getElementById('stat-vrate').textContent = d.verification_rate + '%';
+
+    // Churn risk table
+    const riskEl = document.getElementById('churn-risk-table');
+    if (d.churn_risk && d.churn_risk.length > 0) {
+        let html = '<table style="width:100%;border-collapse:collapse;">';
+        html += '<thead><tr style="border-bottom:1px solid var(--border);">';
+        html += '<th style="text-align:left;padding:6px;color:var(--text-dim);font-weight:500;">User</th>';
+        html += '<th style="padding:6px;color:var(--text-dim);font-weight:500;">Tier</th>';
+        html += '<th style="padding:6px;color:var(--text-dim);font-weight:500;">Days Inactive</th>';
+        html += '<th style="padding:6px;color:var(--text-dim);font-weight:500;">Queries</th>';
+        html += '</tr></thead><tbody>';
+        d.churn_risk.forEach(u => {
+            const severity = u.days_inactive > 30 ? 'color:#ef4444;font-weight:600;' : u.days_inactive > 21 ? 'color:#f59e0b;' : 'color:var(--text-secondary);';
+            html += `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:6px;color:var(--text-primary);">${u.username}</td>
+                <td style="padding:6px;text-align:center;"><span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:var(--accent-primary)22;color:var(--accent-primary);">${u.tier}</span></td>
+                <td style="padding:6px;text-align:center;${severity}">${u.days_inactive}d</td>
+                <td style="padding:6px;text-align:center;color:var(--text-secondary);">${u.total_queries}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        riskEl.innerHTML = html;
+    } else {
+        riskEl.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:1rem;">No at-risk paid users detected.</div>';
+    }
 }
 
 // =========================================================================
@@ -1116,6 +1789,54 @@ async function loadBusiness() {
             options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
         });
     }
+
+    // Cohort retention heatmap
+    loadRetention();
+}
+
+async function loadRetention() {
+    try {
+        const r = await fetch('/api/internal/cohort-retention/?months=6', { credentials: 'include' });
+        const data = await r.json();
+        const el = document.getElementById('retention-heatmap');
+        if (!data.cohorts || data.cohorts.length === 0) {
+            el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:1rem;">Not enough data for retention analysis.</div>';
+            return;
+        }
+
+        const maxMonths = Math.max(...data.cohorts.map(c => c.retention.length));
+        let html = '<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">';
+        html += '<thead><tr style="border-bottom:1px solid var(--border);">';
+        html += '<th style="padding:4px 8px;text-align:left;color:var(--text-dim);">Cohort</th>';
+        html += '<th style="padding:4px 8px;text-align:center;color:var(--text-dim);">Users</th>';
+        for (let i = 0; i < maxMonths; i++) {
+            html += `<th style="padding:4px 8px;text-align:center;color:var(--text-dim);">M${i}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        data.cohorts.forEach(cohort => {
+            html += '<tr style="border-bottom:1px solid var(--border);">';
+            html += `<td style="padding:4px 8px;color:var(--text-primary);font-weight:500;">${cohort.label}</td>`;
+            html += `<td style="padding:4px 8px;text-align:center;color:var(--text-secondary);">${cohort.size}</td>`;
+            for (let i = 0; i < maxMonths; i++) {
+                const r = cohort.retention.find(x => x.month === i);
+                if (r) {
+                    const pct = r.retained;
+                    const intensity = pct / 100;
+                    const bg = `rgba(74, 159, 110, ${intensity * 0.6})`;
+                    html += `<td style="padding:4px 8px;text-align:center;background:${bg};color:var(--text-primary);font-weight:${pct > 50 ? '500' : 'normal'};">${pct}%</td>`;
+                } else {
+                    html += '<td style="padding:4px 8px;text-align:center;color:var(--text-dim);">—</td>';
+                }
+            }
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        el.innerHTML = html;
+    } catch (e) {
+        document.getElementById('retention-heatmap').innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:1rem;">Failed to load retention data.</div>';
+    }
 }
 
 // =========================================================================
@@ -1191,6 +1912,8 @@ const loaders = {
     content: loadContent,
     onboarding: loadOnboarding,
     automation: loadAutomation,
+    crm: loadCRM,
+    site: loadSite,
 };
 
 function switchTab(tab) {
@@ -1203,6 +1926,9 @@ function switchTab(tab) {
     document.getElementById('tab-' + tab).classList.add('active');
 
     activeTab = tab;
+
+    // Start/stop live polling for Site tab
+    if (tab === 'site') { startSiteLive(); } else { stopSiteLive(); }
 
     // Lazy load
     if (!tabLoaded[tab] || tabLoaded[tab].stale) {
@@ -1289,7 +2015,7 @@ async function loadActivity() {
     if (data.journeys.length) {
         jDiv.innerHTML = data.journeys.map(j => {
             const evts = j.events.map(e =>
-                `<span style="display:inline-block;padding:2px 6px;margin:2px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;font-size:0.75rem;">${e.category || e.type}${e.action ? ':' + e.action : ''}</span>`
+                `<span style="display:inline-block;padding:2px 6px;margin:2px;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;font-size:0.75rem;">${e.category || e.type}${e.action ? ':' + e.action : ''}</span>`
             ).join('');
             return `<div style="margin-bottom:12px;"><strong>${j.username}</strong><br>${evts}</div>`;
         }).join('');
@@ -1333,14 +2059,33 @@ function updateEmailPreview() {
     previewBody.innerHTML = html;
 }
 
+let _previewTimer = null;
+async function previewEmailCount() {
+    const target = document.getElementById('email-to').value;
+    const el = document.getElementById('email-match-count');
+    if (!target || target.includes('@')) { el.textContent = ''; return; }
+    el.textContent = 'counting...';
+    clearTimeout(_previewTimer);
+    _previewTimer = setTimeout(async () => {
+        try {
+            const r = await fetch(`/api/internal/email-preview/?target=${encodeURIComponent(target)}`, { credentials: 'include' });
+            const d = await r.json();
+            el.textContent = d.count != null ? `${d.count} users match` : '';
+        } catch { el.textContent = ''; }
+    }, 200);
+}
+
 function confirmSendEmail(testMode) {
     if (testMode) {
         sendEmail(true);
         return;
     }
     const to = document.getElementById('email-custom-to').value.trim() || document.getElementById('email-to').value;
-    const label = to.includes('@') ? to : to === 'all' ? 'ALL customers' : to.replace('tier:', '') + ' tier users';
-    if (!confirm(`Send this email to ${label}?`)) return;
+    const sel = document.getElementById('email-to');
+    const label = to.includes('@') ? to : to === 'all' ? 'ALL customers' : sel.options[sel.selectedIndex]?.text || to;
+    const countEl = document.getElementById('email-match-count').textContent;
+    const extra = countEl ? ` (${countEl})` : '';
+    if (!confirm(`Send this email to ${label}${extra}?`)) return;
     sendEmail(false);
 }
 
@@ -1473,7 +2218,7 @@ async function loadEmailDrafts() {
             </div>`;
         }).join('');
     } catch (e) {
-        console.error('Drafts load failed:', e);
+        showToast('Failed to load email drafts', 'error');
     }
 }
 
@@ -1497,27 +2242,106 @@ async function loadEmailCampaigns() {
                 <td style="padding:8px;text-align:center;color:var(--accent-primary);">${c.opened}</td>
                 <td style="padding:8px;text-align:center;color:${cc(2)};">${c.clicked}</td>
                 <td style="padding:8px;text-align:center;">${c.open_rate}%</td>
+                <td style="padding:8px;text-align:center;${c.conversions ? 'color:#4a9f6e;font-weight:500;' : 'color:var(--text-dim);'}">${c.conversions || '—'}</td>
             </tr>`;
         }).join('');
     } catch (e) {
-        console.error('Campaigns load failed:', e);
+        showToast('Failed to load campaigns', 'error');
     }
 }
 
 async function loadEmail() {
     await Promise.all([loadEmailDrafts(), loadEmailCampaigns()]);
+    previewEmailCount();
 }
 
 // =========================================================================
-// Tab: Content (Blog Management)
+// Tab: Content (Blog + Whitepapers)
 // =========================================================================
 let currentPostId = null;
+let currentWPId = null;
+
+function switchContentSub(sub) {
+    const blogBtn = document.getElementById('content-sub-blog');
+    const wpBtn = document.getElementById('content-sub-wp');
+    const blogSec = document.getElementById('content-blog-section');
+    const wpSec = document.getElementById('content-wp-section');
+    if (sub === 'whitepapers') {
+        blogSec.style.display = 'none';
+        wpSec.style.display = 'block';
+        blogBtn.style.borderBottomColor = 'transparent';
+        blogBtn.style.color = 'var(--text-dim)';
+        blogBtn.style.fontWeight = '500';
+        wpBtn.style.borderBottomColor = 'var(--accent-primary)';
+        wpBtn.style.color = 'var(--accent-primary)';
+        wpBtn.style.fontWeight = '600';
+        loadWhitepapers();
+    } else {
+        blogSec.style.display = 'block';
+        wpSec.style.display = 'none';
+        blogBtn.style.borderBottomColor = 'var(--accent-primary)';
+        blogBtn.style.color = 'var(--accent-primary)';
+        blogBtn.style.fontWeight = '600';
+        wpBtn.style.borderBottomColor = 'transparent';
+        wpBtn.style.color = 'var(--text-dim)';
+        wpBtn.style.fontWeight = '500';
+    }
+}
 
 async function loadContent() {
     const resp = await fetch('/api/internal/blog/', { credentials: 'include' });
     const data = await resp.json();
     renderPostList(data.posts);
+    renderContentCalendar(data.posts);
     loadBlogAnalytics();
+    loadWhitepapers();
+}
+
+function renderContentCalendar(posts) {
+    const el = document.getElementById('content-calendar');
+    if (!el) return;
+    const now = new Date();
+    const year = now.getFullYear(), month = now.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    // Map posts to calendar days
+    const dayMap = {};  // day -> [{status, title}]
+    posts.forEach(p => {
+        let date = null;
+        if (p.status === 'published' && p.published_at) date = new Date(p.published_at);
+        else if (p.status === 'scheduled' && p.scheduled_at) date = new Date(p.scheduled_at);
+        else if (p.status === 'draft' && p.created_at) date = new Date(p.created_at);
+        if (!date || date.getFullYear() !== year || date.getMonth() !== month) return;
+        const day = date.getDate();
+        if (!dayMap[day]) dayMap[day] = [];
+        dayMap[day].push({ status: p.status, title: p.title || 'Untitled' });
+    });
+
+    const dotColor = { published: '#4a9f6e', scheduled: '#e8a94a', draft: '#6b7280' };
+
+    let html = `<div style="text-align:center;font-weight:500;margin-bottom:4px;color:var(--text-primary);font-size:0.75rem;">${monthName}</div>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;text-align:center;">';
+    ['S','M','T','W','T','F','S'].forEach(d => {
+        html += `<div style="color:var(--text-dim);font-size:0.6rem;padding:2px;">${d}</div>`;
+    });
+    for (let i = 0; i < firstDay; i++) html += '<div></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = d === now.getDate();
+        const entries = dayMap[d];
+        const dots = entries ? entries.map(e => `<span style="display:inline-block;width:4px;height:4px;border-radius:50%;background:${dotColor[e.status] || '#6b7280'};" title="${e.title} (${e.status})"></span>`).join(' ') : '';
+        html += `<div style="padding:2px;${isToday ? 'font-weight:700;color:var(--accent-primary);' : 'color:var(--text-secondary);'}">
+            <div>${d}</div>${dots ? `<div style="line-height:1;margin-top:1px;">${dots}</div>` : ''}
+        </div>`;
+    }
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px;justify-content:center;margin-top:4px;">';
+    html += '<span style="font-size:0.6rem;color:var(--text-dim);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#4a9f6e;vertical-align:middle;"></span> published</span>';
+    html += '<span style="font-size:0.6rem;color:var(--text-dim);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#e8a94a;vertical-align:middle;"></span> scheduled</span>';
+    html += '<span style="font-size:0.6rem;color:var(--text-dim);"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#6b7280;vertical-align:middle;"></span> draft</span>';
+    html += '</div>';
+    el.innerHTML = html;
 }
 
 async function loadBlogAnalytics() {
@@ -1718,6 +2542,170 @@ function updatePreview() {
     }
 }
 
+// ---- Whitepapers ----
+
+async function loadWhitepapers() {
+    const resp = await fetch('/api/internal/whitepapers/', { credentials: 'include' });
+    const data = await resp.json();
+    renderWPList(data.papers);
+    loadWhitepaperAnalytics();
+}
+
+function renderWPList(papers) {
+    const el = document.getElementById('wp-list');
+    if (!el) return;
+    el.innerHTML = papers.map(p =>
+        `<div onclick="loadWhitepaper('${p.id}')" style="padding:8px;margin-bottom:4px;border:1px solid var(--border);border-radius:6px;cursor:pointer;${currentWPId === p.id ? 'border-color:var(--accent-primary);' : ''}">
+            <div style="font-size:0.85rem;font-weight:500;margin-bottom:2px;">${p.title || 'Untitled'}</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+                ${statusBadge(p.status)}
+                ${p.gated ? '<span style="font-size:0.65rem;padding:1px 5px;border-radius:3px;background:rgba(232,169,74,0.15);color:#e8a94a;">gated</span>' : ''}
+                ${p.download_count ? `<span style="font-size:0.65rem;color:var(--text-dim);">${p.download_count} downloads</span>` : ''}
+            </div>
+        </div>`
+    ).join('');
+}
+
+async function loadWhitepaper(id) {
+    currentWPId = id;
+    const resp = await fetch(`/api/internal/whitepapers/${id}/`, { credentials: 'include' });
+    const wp = await resp.json();
+    document.getElementById('wp-title').value = wp.title || '';
+    document.getElementById('wp-slug').value = wp.slug || '';
+    document.getElementById('wp-topic').value = wp.topic || '';
+    document.getElementById('wp-meta').value = wp.meta_description || '';
+    document.getElementById('wp-desc').value = wp.description || '';
+    document.getElementById('wp-body').value = wp.body || '';
+    document.getElementById('wp-gated').checked = wp.gated !== false;
+    document.getElementById('wp-status').textContent = wp.status;
+    document.getElementById('wp-editor-panel').style.display = 'block';
+    updateWPPreview();
+    loadWhitepapers();
+}
+
+function newWhitepaper() {
+    currentWPId = null;
+    document.getElementById('wp-title').value = '';
+    document.getElementById('wp-slug').value = '';
+    document.getElementById('wp-topic').value = '';
+    document.getElementById('wp-meta').value = '';
+    document.getElementById('wp-desc').value = '';
+    document.getElementById('wp-body').value = '';
+    document.getElementById('wp-gated').checked = true;
+    document.getElementById('wp-status').textContent = 'new';
+    document.getElementById('wp-editor-panel').style.display = 'block';
+    updateWPPreview();
+}
+
+async function saveWhitepaper() {
+    const payload = {
+        id: currentWPId,
+        title: document.getElementById('wp-title').value,
+        slug: document.getElementById('wp-slug').value,
+        topic: document.getElementById('wp-topic').value,
+        meta_description: document.getElementById('wp-meta').value,
+        description: document.getElementById('wp-desc').value,
+        body: document.getElementById('wp-body').value,
+        gated: document.getElementById('wp-gated').checked,
+    };
+    const resp = await fetch('/api/internal/whitepapers/save/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+        currentWPId = data.id;
+        document.getElementById('wp-slug').value = data.slug;
+        document.getElementById('wp-status').textContent = 'saved';
+        loadWhitepapers();
+    }
+}
+
+async function publishWhitepaper() {
+    if (!currentWPId) return;
+    const resp = await fetch(`/api/internal/whitepapers/${currentWPId}/publish/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify({ action: 'publish' }),
+        credentials: 'include',
+    });
+    if (resp.ok) { document.getElementById('wp-status').textContent = 'published'; loadWhitepapers(); }
+}
+
+async function deleteWhitepaper() {
+    if (!currentWPId || !confirm('Delete this whitepaper?')) return;
+    await fetch(`/api/internal/whitepapers/${currentWPId}/delete/`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCSRF() },
+        credentials: 'include',
+    });
+    currentWPId = null;
+    document.getElementById('wp-editor-panel').style.display = 'none';
+    loadWhitepapers();
+}
+
+function updateWPPreview() {
+    const body = document.getElementById('wp-body').value;
+    const preview = document.getElementById('wp-preview');
+    if (typeof marked !== 'undefined') {
+        preview.innerHTML = marked.parse(body || '');
+    } else {
+        preview.textContent = body;
+    }
+}
+
+async function loadWhitepaperAnalytics() {
+    const resp = await fetch(`/api/internal/whitepapers/analytics/?days=${selectedDays}`, { credentials: 'include' });
+    const data = await resp.json();
+
+    // Totals
+    document.getElementById('stat-wp-downloads').textContent = (data.totals.downloads || 0).toLocaleString();
+    document.getElementById('stat-wp-unique').textContent = (data.totals.unique_downloaders || 0).toLocaleString();
+    document.getElementById('stat-wp-emails').textContent = (data.totals.emails_captured || 0).toLocaleString();
+    document.getElementById('stat-wp-bots').textContent = (data.totals.bot_hits || 0).toLocaleString();
+
+    // Downloads over time
+    if (data.daily_downloads && data.daily_downloads.length) {
+        makeChart('chart-wp-downloads', {
+            type: 'line',
+            data: {
+                labels: data.daily_downloads.map(d => d.date),
+                datasets: [
+                    { label: 'Downloads', data: data.daily_downloads.map(d => d.total), borderColor: cc(2), backgroundColor: cca(2, 0.15), fill: true, tension: 0.3 },
+                ]
+            }
+        });
+    }
+
+    // Top papers (horizontal bar)
+    if (data.top_papers && data.top_papers.length) {
+        makeChart('chart-wp-top', {
+            type: 'bar',
+            data: {
+                labels: data.top_papers.map(p => p.title.length > 30 ? p.title.slice(0, 30) + '…' : p.title),
+                datasets: [
+                    { label: 'Downloads', data: data.top_papers.map(p => p.downloads), backgroundColor: cc(2) },
+                ]
+            },
+            options: { indexAxis: 'y' }
+        });
+    }
+
+    // Traffic sources
+    if (data.referrers && data.referrers.length) {
+        makeChart('chart-wp-referrers', {
+            type: 'bar',
+            data: {
+                labels: data.referrers.map(r => r.domain),
+                datasets: [{ data: data.referrers.map(r => r.count), backgroundColor: data.referrers.map((_, i) => cc(i)) }]
+            },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+        });
+    }
+}
+
 // =========================================================================
 // Tab: Onboarding
 // =========================================================================
@@ -1894,8 +2882,8 @@ async function loadExperiments() {
             : '—';
         const statusColor = e.status === 'running' ? '#4a9f6e' : e.status === 'concluded' ? '#6b7280' : '#f59e0b';
         const actions = e.status === 'running'
-            ? `<button onclick="evaluateExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">Evaluate</button>
-               <button onclick="concludeExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;">Conclude</button>`
+            ? `<button onclick="evaluateExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);cursor:pointer;">Evaluate</button>
+               <button onclick="concludeExperiment('${e.id}')" style="font-size:0.7rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-tertiary);color:var(--text);cursor:pointer;">Conclude</button>`
             : '—';
         return `<tr style="border-bottom:1px solid var(--border);">
             <td style="padding:0.4rem 0.3rem;font-weight:500;">${e.name}</td>
@@ -1972,8 +2960,13 @@ async function loadRules() {
         return;
     }
     tbody.innerHTML = data.rules.map(rule => {
-        const triggerDesc = rule.trigger.replace(/_/g, ' ');
+        let triggerDesc = rule.trigger.replace(/_/g, ' ');
         const configStr = Object.entries(rule.trigger_config || {}).map(([k,v]) => `${k}=${v}`).join(', ');
+        if (rule.trigger_2) {
+            const t2 = rule.trigger_2.replace(/_/g, ' ');
+            const c2 = Object.entries(rule.trigger_2_config || {}).map(([k,v]) => `${k}=${v}`).join(', ');
+            triggerDesc += ` <span style="color:var(--accent-primary);font-weight:600;">${(rule.trigger_logic || 'and').toUpperCase()}</span> ${t2}${c2 ? ' ('+c2+')' : ''}`;
+        }
         const lastFired = rule.last_fired_at ? new Date(rule.last_fired_at).toLocaleDateString() : 'Never';
         const cooldown = rule.cooldown_hours > 0 ? `${rule.cooldown_hours}h` : 'Once';
         return `<tr style="border-bottom:1px solid var(--border);">
@@ -1984,10 +2977,69 @@ async function loadRules() {
             <td style="text-align:center;">${rule.times_fired}</td>
             <td style="text-align:center;font-size:0.75rem;">${lastFired}</td>
             <td style="text-align:center;">
-                <button onclick="toggleRule('${rule.id}')" style="font-size:0.7rem;padding:0.2rem 0.6rem;border:none;border-radius:4px;cursor:pointer;${rule.is_active ? 'background:#4a9f6e;color:#fff;' : 'background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);'}">${rule.is_active ? 'ON' : 'OFF'}</button>
+                <button onclick="toggleRule('${rule.id}')" style="font-size:0.7rem;padding:0.2rem 0.6rem;border:none;border-radius:4px;cursor:pointer;${rule.is_active ? 'background:#4a9f6e;color:#fff;' : 'background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border);'}">${rule.is_active ? 'ON' : 'OFF'}</button>
             </td>
         </tr>`;
     }).join('');
+}
+
+function showRuleForm() {
+    document.getElementById('rule-form').style.display = 'block';
+    document.getElementById('rule-name').value = '';
+    document.getElementById('rule-description').value = '';
+    document.getElementById('rule-trigger-config').value = '';
+    document.getElementById('rule-action-config').value = '';
+    document.getElementById('rule-cooldown').value = '72';
+    document.getElementById('rule-trigger-logic').value = '';
+    document.getElementById('rule-trigger-2').value = '';
+    document.getElementById('rule-trigger-2-config').value = '';
+    toggleCompoundTrigger();
+}
+
+function toggleCompoundTrigger() {
+    const logic = document.getElementById('rule-trigger-logic').value;
+    const enabled = logic !== '';
+    document.getElementById('rule-trigger-2').disabled = !enabled;
+    document.getElementById('rule-trigger-2-config').disabled = !enabled;
+}
+// Wire up the toggle
+document.getElementById('rule-trigger-logic')?.addEventListener('change', toggleCompoundTrigger);
+
+async function saveRule() {
+    let triggerConfig = {}, actionConfig = {}, trigger2Config = null;
+    try { triggerConfig = JSON.parse(document.getElementById('rule-trigger-config').value || '{}'); } catch(e) { showToast('Invalid trigger config JSON', 'error'); return; }
+    try { actionConfig = JSON.parse(document.getElementById('rule-action-config').value || '{}'); } catch(e) { showToast('Invalid action config JSON', 'error'); return; }
+    const logic = document.getElementById('rule-trigger-logic').value;
+    const trigger2 = document.getElementById('rule-trigger-2').value;
+    if (logic && trigger2) {
+        try { trigger2Config = JSON.parse(document.getElementById('rule-trigger-2-config').value || '{}'); } catch(e) { showToast('Invalid 2nd trigger config JSON', 'error'); return; }
+    }
+    const payload = {
+        name: document.getElementById('rule-name').value,
+        description: document.getElementById('rule-description').value,
+        trigger: document.getElementById('rule-trigger').value,
+        trigger_config: triggerConfig,
+        action: document.getElementById('rule-action').value,
+        action_config: actionConfig,
+        cooldown_hours: parseInt(document.getElementById('rule-cooldown').value) || 72,
+    };
+    if (logic && trigger2) {
+        payload.trigger_2 = trigger2;
+        payload.trigger_2_config = trigger2Config;
+        payload.trigger_logic = logic;
+    }
+    const r = await fetch('/api/internal/automation/rules/', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(payload),
+    });
+    if (r.ok) {
+        document.getElementById('rule-form').style.display = 'none';
+        showToast('Rule created', 'success');
+        loadRules();
+    } else {
+        showToast('Failed to create rule', 'error');
+    }
 }
 
 async function toggleRule(id) {
@@ -2035,11 +3087,21 @@ async function loadAutopilot() {
             html += `<div style="border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.8rem;margin:0.4rem 0;display:flex;justify-content:space-between;align-items:center;">
                 <div>
                     <span style="font-size:0.7rem;background:${priorityColor}22;color:${priorityColor};padding:0.1rem 0.4rem;border-radius:3px;margin-right:0.4rem;">${rec.priority}</span>
-                    <span style="font-size:0.7rem;background:var(--surface);padding:0.1rem 0.4rem;border-radius:3px;margin-right:0.4rem;">${rec.type}</span>
+                    <span style="font-size:0.7rem;background:var(--bg-tertiary);padding:0.1rem 0.4rem;border-radius:3px;margin-right:0.4rem;">${rec.type}</span>
                     <strong style="font-size:0.8rem;">${rec.title || ''}${approved}</strong>
                     <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.2rem;">${rec.reason || ''}</div>
                 </div>
-                ${!rec.approved ? `<button onclick="approveRecommendation('${report.id}', ${idx})" style="background:var(--accent);color:#fff;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer;font-size:0.7rem;white-space:nowrap;">Approve</button>` : '<span style="color:#4a9f6e;font-size:0.75rem;">✓</span>'}
+                ${!rec.approved
+                    ? `<button onclick="approveRecommendation('${report.id}', ${idx})" style="background:var(--accent);color:#fff;border:none;padding:0.3rem 0.8rem;border-radius:4px;cursor:pointer;font-size:0.7rem;white-space:nowrap;">Approve</button>`
+                    : (() => {
+                        const res = rec.result || {};
+                        if (res.action === 'experiment_created') return `<span style="color:#4a9f6e;font-size:0.7rem;">Experiment created</span>`;
+                        if (res.action === 'blog_draft_created') return `<span style="color:#4a9f6e;font-size:0.7rem;">Blog draft created</span>`;
+                        if (res.action === 'email_queued') return `<span style="color:#4a9f6e;font-size:0.7rem;">Email queued → ${res.target || ''}</span>`;
+                        if (res.action === 'rule_tweak_noted') return `<span style="color:#4a9f6e;font-size:0.7rem;">Noted: ${res.rule || ''}</span>`;
+                        return '<span style="color:#4a9f6e;font-size:0.75rem;">Approved</span>';
+                    })()
+                }
             </div>`;
         });
         html += '</div>';
@@ -2055,7 +3117,7 @@ async function approveRecommendation(reportId, index) {
         body: JSON.stringify({ index }),
     });
     const data = await r.json();
-    alert(`Action: ${data.action || data.status || 'done'}`);
+    showToast(`${data.action || 'Approved'}`, 'success');
     loadAutopilot();
 }
 
@@ -2067,35 +3129,105 @@ async function runAutopilot() {
     alert('Growth review scheduled. Check back in a few minutes.');
 }
 
+let fbCategoryChart = null;
+
 async function loadFeedback() {
     const filter = document.getElementById('feedback-filter')?.value || '';
     const url = '/api/internal/feedback/' + (filter ? `?status=${filter}` : '');
-    const r = await fetch(url, { credentials: 'include' });
-    const data = await r.json();
-    const tbody = document.querySelector('#feedback-table tbody');
-    if (!data.feedback || data.feedback.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:1rem;color:var(--text-secondary);text-align:center;">No feedback yet.</td></tr>';
-        return;
+    try {
+        const r = await fetch(url, { credentials: 'include' });
+        const data = await r.json();
+        const tbody = document.querySelector('#feedback-table tbody');
+
+        // Render summary
+        const summary = data.summary;
+        const summaryEl = document.getElementById('feedback-summary');
+        if (summary && summary.total > 0) {
+            summaryEl.style.display = 'block';
+            document.getElementById('fb-total').textContent = summary.total;
+            document.getElementById('fb-new').textContent = summary.by_status.new;
+            document.getElementById('fb-reviewed').textContent = summary.by_status.reviewed;
+            document.getElementById('fb-resolved').textContent = summary.by_status.resolved;
+
+            // Category doughnut
+            const ctx = document.getElementById('fb-category-chart');
+            if (ctx) {
+                if (fbCategoryChart) fbCategoryChart.destroy();
+                fbCategoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Bug', 'Feature', 'Question', 'Other'],
+                        datasets: [{
+                            data: [
+                                summary.by_category.bug,
+                                summary.by_category.feature,
+                                summary.by_category.question,
+                                summary.by_category.other
+                            ],
+                            backgroundColor: ['#ef4444', '#4a9f6e', '#4a9faf', '#6b7280'],
+                            borderWidth: 0,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#999',
+                                    font: { size: 10 },
+                                    boxWidth: 10,
+                                    padding: 6,
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } else {
+            summaryEl.style.display = 'none';
+        }
+
+        // Render table
+        if (!data.feedback || data.feedback.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding:1rem;color:var(--text-secondary);text-align:center;">No feedback yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.feedback.map(fb => {
+            const time = new Date(fb.created_at).toLocaleString();
+            const catColor = fb.category === 'bug' ? '#ef4444' : fb.category === 'feature' ? '#4a9f6e' : fb.category === 'question' ? '#4a9faf' : '#6b7280';
+            const statusOpts = ['new', 'reviewed', 'resolved'].map(s =>
+                `<option value="${s}" ${fb.status === s ? 'selected' : ''}>${s}</option>`
+            ).join('');
+            const notesHtml = fb.internal_notes
+                ? `<div style="margin-top:4px;font-size:0.7rem;color:var(--text-dim);font-style:italic;border-left:2px solid var(--border);padding-left:6px;">${fb.internal_notes}</div>`
+                : '';
+            const replyBtn = fb.user_email
+                ? `<button onclick="replyToFeedback('${fb.user_email}','${fb.category}')" style="font-size:0.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:3px;background:var(--bg-tertiary);color:var(--text-secondary);cursor:pointer;" title="Reply via email">Reply</button>`
+                : '';
+            return `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:0.4rem 0.3rem;font-size:0.75rem;">${time}</td>
+                <td style="font-size:0.8rem;">${fb.user}<br><span style="color:var(--text-secondary);font-size:0.7rem;">${fb.user_tier}</span></td>
+                <td style="text-align:center;"><span style="color:${catColor};font-size:0.75rem;font-weight:500;">${fb.category}</span></td>
+                <td style="font-size:0.8rem;max-width:300px;word-break:break-word;">${fb.message}${notesHtml}</td>
+                <td style="font-size:0.7rem;color:var(--text-secondary);">${fb.page}</td>
+                <td style="text-align:center;">
+                    <select onchange="updateFeedbackStatus('${fb.id}', this.value)" style="font-size:0.7rem;padding:0.15rem 0.3rem;border:1px solid var(--border);border-radius:3px;background:var(--bg-tertiary);color:var(--text);">
+                        ${statusOpts}
+                    </select>
+                </td>
+                <td style="text-align:center;white-space:nowrap;">
+                    ${replyBtn}
+                    <button onclick="addFeedbackNote('${fb.id}')" style="font-size:0.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:3px;background:var(--bg-tertiary);color:var(--text-secondary);cursor:pointer;" title="Add internal note">Note</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load feedback:', e);
+        showToast('Failed to load feedback', 'error');
     }
-    tbody.innerHTML = data.feedback.map(fb => {
-        const time = new Date(fb.created_at).toLocaleString();
-        const catColor = fb.category === 'bug' ? '#ef4444' : fb.category === 'feature' ? '#4a9f6e' : fb.category === 'question' ? '#4a9faf' : '#6b7280';
-        const statusOpts = ['new', 'reviewed', 'resolved'].map(s =>
-            `<option value="${s}" ${fb.status === s ? 'selected' : ''}>${s}</option>`
-        ).join('');
-        return `<tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.4rem 0.3rem;font-size:0.75rem;">${time}</td>
-            <td style="font-size:0.8rem;">${fb.user}<br><span style="color:var(--text-secondary);font-size:0.7rem;">${fb.user_tier}</span></td>
-            <td style="text-align:center;"><span style="color:${catColor};font-size:0.75rem;font-weight:500;">${fb.category}</span></td>
-            <td style="font-size:0.8rem;max-width:300px;word-break:break-word;">${fb.message}</td>
-            <td style="font-size:0.7rem;color:var(--text-secondary);">${fb.page}</td>
-            <td style="text-align:center;">
-                <select onchange="updateFeedbackStatus('${fb.id}', this.value)" style="font-size:0.7rem;padding:0.15rem 0.3rem;border:1px solid var(--border);border-radius:3px;background:var(--surface);color:var(--text);">
-                    ${statusOpts}
-                </select>
-            </td>
-        </tr>`;
-    }).join('');
 }
 
 async function updateFeedbackStatus(id, status) {
@@ -2104,6 +3236,30 @@ async function updateFeedbackStatus(id, status) {
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
         body: JSON.stringify({ id, status }),
     });
+}
+
+function replyToFeedback(email, category) {
+    // Switch to the email tab with the user's email pre-filled
+    switchTab('email');
+    document.getElementById('email-custom-to').value = email;
+    document.getElementById('email-subject').value = `Re: Your ${category} feedback on Svend`;
+    document.getElementById('email-body').focus();
+}
+
+async function addFeedbackNote(id) {
+    const note = prompt('Add internal note:');
+    if (note === null) return;
+    try {
+        await fetch('/api/internal/feedback/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ id, notes: note }),
+        });
+        showToast('Note saved', 'success');
+        loadFeedback();
+    } catch (e) {
+        showToast('Failed to save note', 'error');
+    }
 }
 
 async function loadAutomationLog() {
@@ -2126,6 +3282,1142 @@ async function loadAutomationLog() {
         </tr>`;
     }).join('');
 }
+
+// =========================================================================
+// CRM
+// =========================================================================
+let crmSequencesCache = [];
+let crmActiveSeqId = null;
+
+async function loadCRM() {
+    await Promise.all([loadCRMPipeline(), loadCRMLeads()]);
+}
+
+async function loadCRMPipeline() {
+    try {
+        const r = await fetch('/api/internal/crm/pipeline/', { credentials: 'include' });
+        const data = await r.json();
+        const s = data.stages || {};
+        document.getElementById('crm-kpi-total').textContent = data.total_leads || 0;
+        document.getElementById('crm-kpi-prospect').textContent = s.prospect || 0;
+        document.getElementById('crm-kpi-contacted').textContent = s.contacted || 0;
+        document.getElementById('crm-kpi-engaged').textContent = s.engaged || 0;
+        document.getElementById('crm-kpi-demo').textContent = s.demo || 0;
+        document.getElementById('crm-kpi-trial').textContent = s.trial || 0;
+        document.getElementById('crm-kpi-customer').textContent = s.customer || 0;
+        document.getElementById('crm-kpi-followups').textContent = data.due_followups || 0;
+    } catch (e) {
+        console.error('Failed to load CRM pipeline:', e);
+    }
+}
+
+async function loadCRMLeads() {
+    const stage = document.getElementById('crm-filter-stage').value;
+    const source = document.getElementById('crm-filter-source').value;
+    const search = document.getElementById('crm-search').value;
+    const params = new URLSearchParams();
+    if (stage) params.set('stage', stage);
+    if (source) params.set('source', source);
+    if (search) params.set('search', search);
+
+    try {
+        const r = await fetch('/api/internal/crm/leads/?' + params.toString(), { credentials: 'include' });
+        const data = await r.json();
+        const tbody = document.getElementById('crm-leads-tbody');
+        if (!data.leads || data.leads.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="padding:2rem;color:var(--text-dim);text-align:center;">No leads found. Click "+ Add Lead" to get started.</td></tr>';
+            return;
+        }
+        const stageColors = {
+            prospect: '#6b7280', contacted: '#3b82f6', engaged: '#8b5cf6',
+            demo: '#f59e0b', trial: '#10b981', customer: '#059669',
+            churned: '#ef4444', lost: '#9ca3af',
+            bounced: '#dc2626', invalid: '#78716c'
+        };
+        tbody.innerHTML = data.leads.map(lead => {
+            const lastContact = lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleDateString() : '—';
+            const followup = lead.next_followup_at ? new Date(lead.next_followup_at) : null;
+            const followupStr = followup ? followup.toLocaleDateString() : '—';
+            const isOverdue = followup && followup < new Date();
+            const stageColor = stageColors[lead.stage] || '#6b7280';
+            const enrollInfo = lead.enrollments.length > 0
+                ? `<span style="font-size:0.65rem;color:var(--text-dim);" title="${lead.enrollments.map(e => e.sequence + ' (' + e.status + ')').join(', ')}">seq:${lead.enrollments.length}</span>`
+                : '';
+            return `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:8px 6px;"><input type="checkbox" class="crm-lead-check" data-id="${lead.id}" onchange="updateBulkBar()" style="cursor:pointer;"></td>
+                <td style="padding:8px 6px;font-weight:500;color:var(--text-primary);">${lead.name} ${enrollInfo}</td>
+                <td style="padding:8px 6px;color:var(--text-dim);font-size:0.75rem;">${lead.email}</td>
+                <td style="padding:8px 6px;">${lead.company || '—'}</td>
+                <td style="padding:8px 6px;">
+                    <select onchange="updateLeadStage('${lead.id}', this.value)" style="font-size:0.7rem;padding:2px 4px;border:1px solid ${stageColor};border-radius:3px;background:transparent;color:${stageColor};font-weight:500;">
+                        ${['prospect','contacted','engaged','demo','trial','customer','churned','lost','bounced','invalid'].map(s =>
+                            `<option value="${s}" ${s === lead.stage ? 'selected' : ''}>${s}</option>`
+                        ).join('')}
+                    </select>
+                </td>
+                <td style="padding:8px 6px;font-size:0.75rem;color:var(--text-dim);">${lead.source}</td>
+                <td style="padding:8px 6px;font-size:0.75rem;color:var(--text-dim);">${lastContact}</td>
+                <td style="padding:8px 6px;font-size:0.75rem;${isOverdue ? 'color:#ef4444;font-weight:500;' : 'color:var(--text-dim);'}">${followupStr}${isOverdue ? ' (overdue)' : ''}</td>
+                <td style="padding:8px 6px;white-space:nowrap;">
+                    <button onclick='editLead(${JSON.stringify(lead)})' style="font-size:0.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:3px;background:var(--bg-tertiary);color:var(--text-dim);cursor:pointer;">Edit</button>
+                    <button onclick="showEnrollModal('${lead.id}','${lead.name}')" style="font-size:0.65rem;padding:2px 6px;border:1px solid var(--border);border-radius:3px;background:var(--bg-tertiary);color:var(--text-dim);cursor:pointer;">Enroll</button>
+                    <button onclick="deleteLead('${lead.id}')" style="font-size:0.65rem;padding:2px 6px;border:1px solid #ef4444;border-radius:3px;background:transparent;color:#ef4444;cursor:pointer;">Del</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load CRM leads:', e);
+    }
+}
+
+function switchCRMSub(sub) {
+    ['leads', 'sequences', 'metrics'].forEach(s => {
+        document.getElementById('crm-' + s + '-section').style.display = s === sub ? 'block' : 'none';
+        const btn = document.getElementById('crm-sub-' + s);
+        if (s === sub) {
+            btn.style.background = 'var(--accent-primary)';
+            btn.style.color = 'var(--bg-primary)';
+            btn.style.fontWeight = '600';
+        } else {
+            btn.style.background = 'var(--bg-secondary)';
+            btn.style.color = 'var(--text-dim)';
+            btn.style.fontWeight = 'normal';
+        }
+    });
+    if (sub === 'sequences') loadCRMSequences();
+    if (sub === 'metrics') loadCRMMetrics();
+}
+
+function showLeadForm(lead) {
+    document.getElementById('crm-lead-form').style.display = 'block';
+    document.getElementById('crm-lead-id').value = lead ? lead.id : '';
+    document.getElementById('crm-lead-name').value = lead ? lead.name : '';
+    document.getElementById('crm-lead-email').value = lead ? lead.email : '';
+    document.getElementById('crm-lead-company').value = lead ? lead.company : '';
+    document.getElementById('crm-lead-role').value = lead ? lead.role : '';
+    document.getElementById('crm-lead-industry').value = lead ? lead.industry : '';
+    document.getElementById('crm-lead-source').value = lead ? lead.source : 'linkedin';
+    document.getElementById('crm-lead-notes').value = lead ? lead.notes : '';
+    // datetime-local expects "YYYY-MM-DDTHH:MM" format
+    document.getElementById('crm-lead-last-contacted').value = lead && lead.last_contacted_at ? lead.last_contacted_at.slice(0, 16) : '';
+    document.getElementById('crm-lead-next-followup').value = lead && lead.next_followup_at ? lead.next_followup_at.slice(0, 16) : '';
+}
+
+function editLead(lead) { showLeadForm(lead); }
+
+async function saveLead() {
+    const data = {
+        name: document.getElementById('crm-lead-name').value,
+        email: document.getElementById('crm-lead-email').value,
+        company: document.getElementById('crm-lead-company').value,
+        role: document.getElementById('crm-lead-role').value,
+        industry: document.getElementById('crm-lead-industry').value,
+        source: document.getElementById('crm-lead-source').value,
+        notes: document.getElementById('crm-lead-notes').value,
+    };
+    const lastContacted = document.getElementById('crm-lead-last-contacted').value;
+    const nextFollowup = document.getElementById('crm-lead-next-followup').value;
+    if (lastContacted) data.last_contacted_at = lastContacted;
+    if (nextFollowup) data.next_followup_at = nextFollowup;
+    const id = document.getElementById('crm-lead-id').value;
+    if (id) data.id = id;
+    if (!data.name || !data.email) { showToast('Name and email are required', 'error'); return; }
+
+    try {
+        const r = await fetch('/api/internal/crm/leads/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify(data),
+        });
+        const result = await r.json();
+        if (r.ok) {
+            showToast(id ? 'Lead updated' : 'Lead created', 'success');
+            document.getElementById('crm-lead-form').style.display = 'none';
+            loadCRMPipeline();
+            loadCRMLeads();
+        } else {
+            showToast(result.error || 'Failed to save lead', 'error');
+        }
+    } catch (e) {
+        showToast('Failed to save lead', 'error');
+    }
+}
+
+async function updateLeadStage(leadId, stage) {
+    try {
+        await fetch(`/api/internal/crm/leads/${leadId}/stage/`, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ stage }),
+        });
+        loadCRMPipeline();
+    } catch (e) {
+        showToast('Failed to update stage', 'error');
+    }
+}
+
+async function deleteLead(leadId) {
+    if (!confirm('Delete this lead?')) return;
+    try {
+        await fetch(`/api/internal/crm/leads/${leadId}/`, {
+            method: 'DELETE', credentials: 'include',
+            headers: { 'X-CSRFToken': getCSRF() },
+        });
+        showToast('Lead deleted', 'success');
+        loadCRMPipeline();
+        loadCRMLeads();
+    } catch (e) {
+        showToast('Failed to delete lead', 'error');
+    }
+}
+
+async function showEnrollModal(leadId, leadName) {
+    document.getElementById('crm-enroll-lead-id').value = leadId;
+    document.getElementById('crm-enroll-lead-name').textContent = `Enrolling: ${leadName}`;
+
+    // Load sequences
+    try {
+        const r = await fetch('/api/internal/crm/sequences/', { credentials: 'include' });
+        const data = await r.json();
+        const sel = document.getElementById('crm-enroll-seq');
+        sel.innerHTML = (data.sequences || [])
+            .filter(s => s.is_active)
+            .map(s => `<option value="${s.id}">${s.name} (${s.step_count} steps)</option>`)
+            .join('');
+        if (!sel.innerHTML) sel.innerHTML = '<option>No active sequences</option>';
+    } catch (e) { /* ignore */ }
+
+    document.getElementById('crm-enroll-modal').style.display = 'flex';
+}
+
+async function enrollLead() {
+    const leadId = document.getElementById('crm-enroll-lead-id').value;
+    const seqId = document.getElementById('crm-enroll-seq').value;
+    if (!seqId) return;
+
+    try {
+        const r = await fetch(`/api/internal/crm/sequences/${seqId}/enroll/`, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ lead_id: leadId }),
+        });
+        const data = await r.json();
+        if (r.ok) {
+            showToast(`Enrolled (variant ${data.variant.toUpperCase()})`, 'success');
+            document.getElementById('crm-enroll-modal').style.display = 'none';
+            loadCRMLeads();
+        } else {
+            showToast(data.error || 'Enrollment failed', 'error');
+        }
+    } catch (e) {
+        showToast('Enrollment failed', 'error');
+    }
+}
+
+async function processOutreachQueue() {
+    // Step 1: Preview — show what will be sent and ask for confirmation
+    try {
+        const preview = await fetch('/api/internal/crm/process-queue/?preview=1', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: '{}',
+        });
+        const pdata = await preview.json();
+        if (!preview.ok) {
+            showToast(pdata.error || 'Failed to preview queue', 'error');
+            return;
+        }
+        if (pdata.due_count === 0) {
+            showToast('No emails due to send right now.', 'info');
+            return;
+        }
+        const names = pdata.leads.map(l => `  ${l.name} (${l.email}) — step ${l.step}`).join('\n');
+        if (!confirm(`Send ${pdata.due_count} email(s) from hello@svend.ai?\n\n${names}\n\nThis cannot be undone.`)) {
+            return;
+        }
+    } catch (e) {
+        showToast('Failed to preview queue: ' + e.message, 'error');
+        return;
+    }
+
+    // Step 2: Actually send
+    try {
+        const r = await fetch('/api/internal/crm/process-queue/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: '{}',
+        });
+        const data = await r.json();
+        if (r.ok) {
+            if (data.failed > 0 && data.errors) {
+                showToast(`${data.sent} sent, ${data.failed} FAILED:\n${data.errors[0]}`, 'error', 8000);
+            } else if (data.sent > 0) {
+                showToast(`${data.sent} email(s) sent successfully.`, 'success');
+            } else {
+                showToast(`Queue processed: ${data.skipped} skipped, 0 sent.`, 'info');
+            }
+            loadCRMPipeline();
+            loadCRMLeads();
+        } else {
+            showToast(data.error || 'Queue processing failed', 'error');
+        }
+    } catch (e) {
+        showToast('Queue processing failed: ' + e.message, 'error');
+    }
+}
+
+// --- Bulk Campaign ---
+function getSelectedLeadIds() {
+    return Array.from(document.querySelectorAll('.crm-lead-check:checked')).map(cb => cb.dataset.id);
+}
+
+function updateBulkBar() {
+    const ids = getSelectedLeadIds();
+    const bar = document.getElementById('crm-bulk-bar');
+    if (ids.length > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('crm-bulk-count').textContent = `${ids.length} selected`;
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+function toggleAllLeads(checked) {
+    document.querySelectorAll('.crm-lead-check').forEach(cb => { cb.checked = checked; });
+    updateBulkBar();
+}
+
+function clearLeadSelection() {
+    document.querySelectorAll('.crm-lead-check').forEach(cb => { cb.checked = false; });
+    document.getElementById('crm-select-all').checked = false;
+    updateBulkBar();
+}
+
+function showBulkCampaignModal() {
+    const ids = getSelectedLeadIds();
+    if (ids.length === 0) { showToast('Select leads first', 'error'); return; }
+    document.getElementById('crm-campaign-lead-count').textContent = `${ids.length} leads selected for outreach`;
+    document.getElementById('crm-campaign-send-count').textContent = ids.length;
+    document.getElementById('crm-campaign-preview').style.display = 'none';
+    document.getElementById('crm-campaign-purpose').value = '';
+    document.getElementById('crm-campaign-notes').value = '';
+    document.getElementById('crm-campaign-modal').style.display = 'flex';
+}
+
+async function generateBulkCampaign() {
+    const purpose = document.getElementById('crm-campaign-purpose').value || 'Introduction';
+    const notes = document.getElementById('crm-campaign-notes').value;
+    const btn = document.getElementById('crm-campaign-gen-btn');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    try {
+        const r = await fetch('/api/internal/crm/generate-email/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({
+                name: '{{name}}',
+                company: '{{company}}',
+                role: '{{role}}',
+                industry: '{{industry}}',
+                purpose: purpose,
+                step_number: 1,
+                total_steps: 1,
+                notes: notes,
+            }),
+        });
+        const data = await r.json();
+        if (r.ok) {
+            document.getElementById('crm-campaign-subject-a').value = data.subject_a || '';
+            document.getElementById('crm-campaign-body-a').value = data.body_a || '';
+            document.getElementById('crm-campaign-subject-b').value = data.subject_b || '';
+            document.getElementById('crm-campaign-body-b').value = data.body_b || '';
+            document.getElementById('crm-campaign-preview').style.display = 'block';
+            showToast('A/B variants generated — review and edit before sending', 'success');
+        } else {
+            showToast(data.error || 'Generation failed', 'error');
+        }
+    } catch (e) {
+        showToast('Generation failed', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate A/B Variants with Claude';
+    }
+}
+
+async function previewBulkCampaign() {
+    const ids = getSelectedLeadIds();
+    const subject_a = document.getElementById('crm-campaign-subject-a').value;
+    const body_a = document.getElementById('crm-campaign-body-a').value;
+    const subject_b = document.getElementById('crm-campaign-subject-b').value;
+    const body_b = document.getElementById('crm-campaign-body-b').value;
+
+    if (!subject_a || !body_a) { showToast('Generate or write variant A first', 'error'); return; }
+
+    const btn = document.getElementById('crm-campaign-preview-btn');
+    btn.disabled = true;
+    btn.textContent = 'Loading preview...';
+
+    try {
+        const r = await fetch('/api/internal/crm/bulk-send/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ lead_ids: ids, subject_a, body_a, subject_b, body_b, preview: true }),
+        });
+        const data = await r.json();
+        if (r.ok) {
+            const tbody = document.getElementById('crm-campaign-review-tbody');
+            tbody.innerHTML = data.assignments.map(a => {
+                const vColor = a.variant === 'A' ? '#3b82f6' : '#8b5cf6';
+                return `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:5px 8px;font-weight:500;color:var(--text-primary);">${a.name}</td>
+                    <td style="padding:5px 8px;color:var(--text-dim);">${a.email}</td>
+                    <td style="padding:5px 8px;">${a.company || '—'}</td>
+                    <td style="padding:5px 8px;text-align:center;"><span style="color:${vColor};font-weight:600;">${a.variant}</span></td>
+                    <td style="padding:5px 8px;color:var(--text-primary);">${a.subject}</td>
+                </tr>`;
+            }).join('');
+            document.getElementById('crm-campaign-ab-split').textContent = `${data.count_a} variant A · ${data.count_b} variant B`;
+            document.getElementById('crm-campaign-send-count').textContent = data.total;
+            document.getElementById('crm-campaign-review').style.display = 'block';
+        } else {
+            showToast(data.error || 'Preview failed', 'error');
+        }
+    } catch (e) {
+        showToast('Preview failed', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Preview Per-Lead Assignments';
+    }
+}
+
+async function sendBulkCampaign() {
+    const ids = getSelectedLeadIds();
+    if (ids.length === 0) { showToast('No leads selected', 'error'); return; }
+
+    const subject_a = document.getElementById('crm-campaign-subject-a').value;
+    const body_a = document.getElementById('crm-campaign-body-a').value;
+    const subject_b = document.getElementById('crm-campaign-subject-b').value;
+    const body_b = document.getElementById('crm-campaign-body-b').value;
+
+    if (!subject_a || !body_a) { showToast('Variant A subject and body required', 'error'); return; }
+
+    const btn = document.getElementById('crm-campaign-send-btn');
+    btn.disabled = true;
+    btn.textContent = 'Scheduling...';
+
+    try {
+        const r = await fetch('/api/internal/crm/bulk-send/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify({ lead_ids: ids, subject_a, body_a, subject_b, body_b }),
+        });
+        const data = await r.json();
+        if (r.ok) {
+            showToast(`Scheduled ${data.scheduled} emails (${data.count_a}A + ${data.count_b}B, staggered ~${data.total_time_estimate})`, 'success');
+            document.getElementById('crm-campaign-modal').style.display = 'none';
+            clearLeadSelection();
+            loadCRMPipeline();
+            loadCRMLeads();
+        } else {
+            showToast(data.error || 'Bulk send failed', 'error');
+        }
+    } catch (e) {
+        showToast('Bulk send failed', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = `Confirm & Send to ${ids.length} leads`;
+    }
+}
+
+// --- Sequences ---
+async function loadCRMSequences() {
+    try {
+        const r = await fetch('/api/internal/crm/sequences/', { credentials: 'include' });
+        const data = await r.json();
+        crmSequencesCache = data.sequences || [];
+        const list = document.getElementById('crm-seq-list');
+        if (crmSequencesCache.length === 0) {
+            list.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-dim);font-size:0.8rem;">No sequences yet</div>';
+            return;
+        }
+        list.innerHTML = crmSequencesCache.map(s => {
+            const active = s.id === crmActiveSeqId;
+            return `<div onclick="selectSequence('${s.id}')"
+                style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;
+                ${active ? 'background:var(--bg-secondary);border-left:3px solid var(--accent-primary);' : ''}">
+                <div style="font-size:0.8rem;font-weight:500;color:var(--text-primary);">${s.name}</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">${s.step_count} steps · ${s.enrolled} enrolled · ${s.active} active</div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load sequences:', e);
+    }
+}
+
+function newSequence() {
+    crmActiveSeqId = null;
+    renderSequenceEditor({ name: '', description: '', steps: [], is_active: true });
+}
+
+function selectSequence(id) {
+    crmActiveSeqId = id;
+    const seq = crmSequencesCache.find(s => s.id === id);
+    if (seq) renderSequenceEditor(seq);
+    loadCRMSequences();
+}
+
+function renderSequenceEditor(seq) {
+    const editor = document.getElementById('crm-seq-editor');
+    const steps = seq.steps || [];
+    const stepsHtml = steps.map((step, i) => `
+        <div style="border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:8px;background:var(--bg-secondary);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:0.8rem;font-weight:500;color:var(--text-primary);">Step ${i + 1}: ${step.purpose || ''}</span>
+                <div style="display:flex;gap:4px;">
+                    <button onclick="generateStepEmail(${i})" style="font-size:0.65rem;padding:2px 8px;border:1px solid var(--accent-primary);border-radius:3px;background:transparent;color:var(--accent-primary);cursor:pointer;">AI Generate</button>
+                    <button onclick="removeStep(${i})" style="font-size:0.65rem;padding:2px 8px;border:1px solid #ef4444;border-radius:3px;background:transparent;color:#ef4444;cursor:pointer;">Remove</button>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;font-size:0.75rem;margin-bottom:6px;">
+                <label style="color:var(--text-dim);padding-top:6px;">Purpose:</label>
+                <input value="${step.purpose || ''}" onchange="updateStepField(${i},'purpose',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem;background:var(--bg-tertiary);color:var(--text-primary);">
+                <label style="color:var(--text-dim);padding-top:6px;">Delay (days):</label>
+                <input type="number" value="${step.delay_days || 0}" onchange="updateStepField(${i},'delay_days',parseInt(this.value))" style="padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem;width:80px;background:var(--bg-tertiary);color:var(--text-primary);">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:4px;font-weight:500;">Variant A</div>
+                    <input value="${(step.subject_a || '').replace(/"/g, '&quot;')}" onchange="updateStepField(${i},'subject_a',this.value)" placeholder="Subject A" style="width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem;margin-bottom:4px;box-sizing:border-box;background:var(--bg-tertiary);color:var(--text-primary);">
+                    <textarea onchange="updateStepField(${i},'body_a',this.value)" placeholder="Body A" rows="3" style="width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem;box-sizing:border-box;resize:vertical;background:var(--bg-tertiary);color:var(--text-primary);">${step.body_a || ''}</textarea>
+                </div>
+                <div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:4px;font-weight:500;">Variant B</div>
+                    <input value="${(step.subject_b || '').replace(/"/g, '&quot;')}" onchange="updateStepField(${i},'subject_b',this.value)" placeholder="Subject B" style="width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem;margin-bottom:4px;box-sizing:border-box;background:var(--bg-tertiary);color:var(--text-primary);">
+                    <textarea onchange="updateStepField(${i},'body_b',this.value)" placeholder="Body B" rows="3" style="width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:3px;font-size:0.75rem;box-sizing:border-box;resize:vertical;background:var(--bg-tertiary);color:var(--text-primary);">${step.body_b || ''}</textarea>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    editor.innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input id="crm-seq-name" value="${(seq.name || '').replace(/"/g, '&quot;')}" placeholder="Sequence name" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.85rem;font-weight:500;background:var(--bg-secondary);color:var(--text-primary);">
+            <label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--text-dim);">
+                <input type="checkbox" id="crm-seq-active" ${seq.is_active ? 'checked' : ''}> Active
+            </label>
+        </div>
+        <textarea id="crm-seq-desc" placeholder="Description..." rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;margin-bottom:12px;box-sizing:border-box;resize:vertical;background:var(--bg-secondary);color:var(--text-primary);">${seq.description || ''}</textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:0.85rem;font-weight:500;color:var(--text-primary);">Steps</span>
+            <button onclick="addStep()" style="padding:4px 10px;background:var(--accent-primary);color:var(--bg-primary);border:none;border-radius:4px;cursor:pointer;font-size:0.75rem;">+ Add Step</button>
+        </div>
+        <div id="crm-seq-steps">${stepsHtml || '<div style="padding:1rem;text-align:center;color:var(--text-dim);font-size:0.8rem;">No steps yet. Click "+ Add Step" to begin.</div>'}</div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="saveSequence()" style="padding:8px 20px;background:var(--accent-primary);color:var(--bg-primary);border:none;border-radius:4px;cursor:pointer;font-size:0.8rem;font-weight:600;">Save Sequence</button>
+            ${seq.id ? `<button onclick="deleteSequence('${seq.id}')" style="padding:8px 20px;background:transparent;border:1px solid #ef4444;border-radius:4px;cursor:pointer;color:#ef4444;font-size:0.8rem;">Delete</button>` : ''}
+        </div>
+    `;
+}
+
+// In-memory step editing state
+let _seqSteps = [];
+
+function renderSequenceEditor_orig(seq) { renderSequenceEditor(seq); }
+
+function addStep() {
+    const steps = getCurrentSteps();
+    steps.push({ step: steps.length + 1, delay_days: steps.length === 0 ? 0 : 2, purpose: '', subject_a: '', body_a: '', subject_b: '', body_b: '' });
+    reRenderSteps(steps);
+}
+
+function removeStep(idx) {
+    const steps = getCurrentSteps();
+    steps.splice(idx, 1);
+    reRenderSteps(steps);
+}
+
+function updateStepField(idx, field, value) {
+    const steps = getCurrentSteps();
+    if (steps[idx]) steps[idx][field] = value;
+    _seqSteps = steps;
+}
+
+function getCurrentSteps() {
+    // Parse steps from the editor DOM
+    if (_seqSteps.length > 0) return _seqSteps;
+    const seq = crmSequencesCache.find(s => s.id === crmActiveSeqId);
+    _seqSteps = seq ? JSON.parse(JSON.stringify(seq.steps || [])) : [];
+    return _seqSteps;
+}
+
+function reRenderSteps(steps) {
+    _seqSteps = steps;
+    const seq = {
+        id: crmActiveSeqId,
+        name: document.getElementById('crm-seq-name')?.value || '',
+        description: document.getElementById('crm-seq-desc')?.value || '',
+        is_active: document.getElementById('crm-seq-active')?.checked ?? true,
+        steps: steps,
+    };
+    renderSequenceEditor(seq);
+}
+
+async function saveSequence() {
+    const data = {
+        name: document.getElementById('crm-seq-name').value,
+        description: document.getElementById('crm-seq-desc').value,
+        is_active: document.getElementById('crm-seq-active').checked,
+        steps: getCurrentSteps(),
+    };
+    if (crmActiveSeqId) data.id = crmActiveSeqId;
+    if (!data.name) { showToast('Sequence name is required', 'error'); return; }
+
+    try {
+        const r = await fetch('/api/internal/crm/sequences/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify(data),
+        });
+        const result = await r.json();
+        if (r.ok) {
+            showToast('Sequence saved', 'success');
+            crmActiveSeqId = result.id;
+            _seqSteps = [];
+            loadCRMSequences();
+        } else {
+            showToast(result.error || 'Failed to save sequence', 'error');
+        }
+    } catch (e) {
+        showToast('Failed to save sequence', 'error');
+    }
+}
+
+async function deleteSequence(id) {
+    if (!confirm('Delete this sequence?')) return;
+    try {
+        await fetch(`/api/internal/crm/sequences/${id}/`, {
+            method: 'DELETE', credentials: 'include',
+            headers: { 'X-CSRFToken': getCSRF() },
+        });
+        showToast('Sequence deleted', 'success');
+        crmActiveSeqId = null;
+        _seqSteps = [];
+        document.getElementById('crm-seq-editor').innerHTML = '<div class="empty-state">Select or create a sequence</div>';
+        loadCRMSequences();
+    } catch (e) {
+        showToast('Failed to delete sequence', 'error');
+    }
+}
+
+async function generateStepEmail(stepIdx) {
+    const steps = getCurrentSteps();
+    const step = steps[stepIdx];
+    // Try to get lead context from the first lead if any
+    const seqName = document.getElementById('crm-seq-name')?.value || '';
+
+    const payload = {
+        name: '{{name}}',
+        company: '',
+        role: '',
+        industry: '',
+        purpose: step.purpose || `Step ${stepIdx + 1}`,
+        step_number: stepIdx + 1,
+        total_steps: steps.length,
+        notes: seqName ? `Sequence: ${seqName}` : '',
+    };
+
+    showToast('Generating email copy...', 'info');
+    try {
+        const r = await fetch('/api/internal/crm/generate-email/', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (r.ok) {
+            steps[stepIdx].subject_a = data.subject_a || '';
+            steps[stepIdx].body_a = data.body_a || '';
+            steps[stepIdx].subject_b = data.subject_b || '';
+            steps[stepIdx].body_b = data.body_b || '';
+            reRenderSteps(steps);
+            showToast('Email copy generated', 'success');
+        } else {
+            showToast(data.error || 'Generation failed', 'error');
+        }
+    } catch (e) {
+        showToast('Generation failed', 'error');
+    }
+}
+
+async function generateEmailCopy(leadId) {
+    // Ad-hoc generation for a specific lead (placeholder for future use)
+    showToast('Use the sequence editor to generate email copy', 'info');
+}
+
+// --- Metrics ---
+async function loadCRMMetrics() {
+    try {
+        const [pipeR, metricsR] = await Promise.all([
+            fetch('/api/internal/crm/pipeline/', { credentials: 'include' }),
+            fetch('/api/internal/crm/outreach-metrics/', { credentials: 'include' }),
+        ]);
+        const pipeData = await pipeR.json();
+        const metricsData = await metricsR.json();
+
+        // Pipeline chart
+        const stages = pipeData.stages || {};
+        const stageLabels = ['prospect', 'contacted', 'engaged', 'demo', 'trial', 'customer', 'churned', 'lost', 'bounced', 'invalid'];
+        const stageValues = stageLabels.map(s => stages[s] || 0);
+        const stageColors = ['#6b7280', '#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#059669', '#ef4444', '#9ca3af'];
+
+        if (charts['crm-pipeline']) charts['crm-pipeline'].destroy();
+        charts['crm-pipeline'] = new Chart(document.getElementById('crm-chart-pipeline'), {
+            type: 'bar',
+            data: {
+                labels: stageLabels.map(s => s.charAt(0).toUpperCase() + s.slice(1)),
+                datasets: [{
+                    data: stageValues,
+                    backgroundColor: stageColors,
+                    borderRadius: 4,
+                }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+
+        // Sources chart
+        const sources = pipeData.sources || {};
+        const srcLabels = Object.keys(sources);
+        const srcValues = Object.values(sources);
+        if (charts['crm-sources']) charts['crm-sources'].destroy();
+        charts['crm-sources'] = new Chart(document.getElementById('crm-chart-sources'), {
+            type: 'doughnut',
+            data: {
+                labels: srcLabels.map(s => s.charAt(0).toUpperCase() + s.slice(1)),
+                datasets: [{
+                    data: srcValues,
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#6b7280', '#ec4899'],
+                }]
+            },
+            options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+        });
+
+        // Sequence metrics table
+        const tbody = document.getElementById('crm-metrics-tbody');
+        const metrics = metricsData.metrics || [];
+        if (metrics.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--text-dim);">No sequence data yet</td></tr>';
+        } else {
+            tbody.innerHTML = metrics.map(m => `
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:8px 6px;font-weight:500;color:var(--text-primary);">${m.name}</td>
+                    <td style="padding:8px 6px;">${m.enrolled}</td>
+                    <td style="padding:8px 6px;">${m.active}</td>
+                    <td style="padding:8px 6px;">${m.emails_sent}</td>
+                    <td style="padding:8px 6px;">${m.open_rate}%</td>
+                    <td style="padding:8px 6px;">${m.click_rate}%</td>
+                    <td style="padding:8px 6px;">${m.replied}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Campaign A/B results table
+        const abTbody = document.getElementById('crm-ab-tbody');
+        const campaigns = metricsData.campaigns || [];
+        if (campaigns.length === 0) {
+            abTbody.innerHTML = '<tr><td colspan="8" style="padding:2rem;text-align:center;color:var(--text-dim);">No bulk campaigns yet</td></tr>';
+        } else {
+            abTbody.innerHTML = campaigns.map(c => {
+                const a = c.variant_a, b = c.variant_b;
+                let winner = '—';
+                if (a.sent > 0 && b.sent > 0) {
+                    if (a.open_rate > b.open_rate + 5) winner = '<span style="color:#3b82f6;font-weight:600;">A</span>';
+                    else if (b.open_rate > a.open_rate + 5) winner = '<span style="color:#8b5cf6;font-weight:600;">B</span>';
+                    else winner = '<span style="color:var(--text-dim);">Tie</span>';
+                }
+                return `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:8px 6px;font-weight:500;color:var(--text-primary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.subject}</td>
+                    <td style="padding:8px 6px;font-size:0.75rem;color:var(--text-dim);">${new Date(c.created_at).toLocaleDateString()}</td>
+                    <td style="padding:8px 6px;text-align:center;">${c.total_sent}</td>
+                    <td style="padding:8px 6px;text-align:center;color:#3b82f6;">${a.open_rate}% <span style="font-size:0.65rem;color:var(--text-dim);">(${a.opened}/${a.sent})</span></td>
+                    <td style="padding:8px 6px;text-align:center;color:#3b82f6;">${a.click_rate}% <span style="font-size:0.65rem;color:var(--text-dim);">(${a.clicked}/${a.sent})</span></td>
+                    <td style="padding:8px 6px;text-align:center;color:#8b5cf6;">${b.open_rate}% <span style="font-size:0.65rem;color:var(--text-dim);">(${b.opened}/${b.sent})</span></td>
+                    <td style="padding:8px 6px;text-align:center;color:#8b5cf6;">${b.click_rate}% <span style="font-size:0.65rem;color:var(--text-dim);">(${b.clicked}/${b.sent})</span></td>
+                    <td style="padding:8px 6px;text-align:center;">${winner}</td>
+                </tr>`;
+            }).join('');
+        }
+    } catch (e) {
+        console.error('Failed to load CRM metrics:', e);
+    }
+}
+
+
+// =========================================================================
+// Site Analytics
+// =========================================================================
+function fmtDuration(ms) {
+    if (!ms || ms < 0) return '—';
+    const s = Math.round(ms / 1000);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return m + 'm ' + (rem < 10 ? '0' : '') + rem + 's';
+}
+
+async function loadSite() {
+    try {
+        const r = await fetch(`/api/internal/site-analytics/?days=${selectedDays}`, { credentials: 'include' });
+        const data = await r.json();
+
+        // KPI cards
+        const t = data.totals || {};
+        document.getElementById('site-kpi-hits').textContent = (t.hits || 0).toLocaleString();
+        document.getElementById('site-kpi-unique').textContent = (t.unique_visitors || 0).toLocaleString();
+        document.getElementById('site-kpi-bots').textContent = (t.bot_hits || 0).toLocaleString();
+        document.getElementById('site-kpi-duration').textContent = t.avg_duration_ms ? fmtDuration(t.avg_duration_ms) : '—';
+        document.getElementById('site-kpi-duration').style.fontSize = t.avg_duration_ms ? '1.6rem' : '2rem';
+        const topPage = (data.top_pages && data.top_pages.length) ? data.top_pages[0].path : '—';
+        document.getElementById('site-kpi-top').textContent = topPage;
+        document.getElementById('site-kpi-top').style.fontSize = '0.9rem';
+
+        // Daily visitors line chart
+        const daily = data.daily || [];
+        if (charts['site-daily']) charts['site-daily'].destroy();
+        charts['site-daily'] = new Chart(document.getElementById('chart-site-daily'), {
+            type: 'line',
+            data: {
+                labels: daily.map(d => d.date),
+                datasets: [
+                    {
+                        label: 'Total Views',
+                        data: daily.map(d => d.total),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                    },
+                    {
+                        label: 'Unique Visitors',
+                        data: daily.map(d => d.unique),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16,185,129,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                    },
+                ]
+            },
+            options: {
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // Top pages horizontal bar
+        const pages = (data.top_pages || []).slice(0, 10);
+        if (charts['site-pages']) charts['site-pages'].destroy();
+        charts['site-pages'] = new Chart(document.getElementById('chart-site-pages'), {
+            type: 'bar',
+            data: {
+                labels: pages.map(p => p.path.length > 30 ? p.path.slice(0, 30) + '…' : p.path),
+                datasets: [{
+                    label: 'Views',
+                    data: pages.map(p => p.views),
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // Referrers doughnut
+        const refs = (data.referrers || []).slice(0, 8);
+        if (charts['site-referrers']) charts['site-referrers'].destroy();
+        charts['site-referrers'] = new Chart(document.getElementById('chart-site-referrers'), {
+            type: 'doughnut',
+            data: {
+                labels: refs.map(r => r.domain),
+                datasets: [{
+                    data: refs.map(r => r.count),
+                    backgroundColor: ['#6b7280', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#06b6d4'],
+                }]
+            },
+            options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+        });
+
+        // Pages table (with duration from page_durations)
+        const durationMap = {};
+        (data.page_durations || []).forEach(d => { durationMap[d.path] = d; });
+        const tbody = document.getElementById('site-pages-tbody');
+        if (pages.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-dim);">No data yet</td></tr>';
+        } else {
+            tbody.innerHTML = pages.map(p => {
+                const dur = durationMap[p.path];
+                const durText = dur ? fmtDuration(dur.avg_ms) : '<span style="color:var(--text-dim);">—</span>';
+                return `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:6px 4px;font-family:monospace;font-size:0.75rem;">${p.path}</td>
+                    <td style="padding:6px 4px;text-align:right;">${p.views}</td>
+                    <td style="padding:6px 4px;text-align:right;">${p.unique}</td>
+                    <td style="padding:6px 4px;text-align:right;">${durText}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // World map (Plotly choropleth)
+        renderSiteWorldMap(data.countries || []);
+
+        // User flow table
+        renderSiteFlow(data.flows || []);
+
+        // Live feed
+        renderSiteLiveFeed(data.recent || []);
+
+    } catch (e) {
+        console.error('Failed to load site analytics:', e);
+    }
+}
+
+// Country code → flag emoji
+function countryFlag(cc) {
+    if (!cc || cc.length !== 2) return '';
+    const offset = 127397;
+    return String.fromCodePoint(cc.charCodeAt(0) + offset, cc.charCodeAt(1) + offset);
+}
+
+// ISO 3166-1 alpha-2 → alpha-3 mapping for Plotly choropleth
+const ISO2_TO_ISO3 = {
+    AF:'AFG',AL:'ALB',DZ:'DZA',AS:'ASM',AD:'AND',AO:'AGO',AG:'ATG',AR:'ARG',AM:'ARM',AU:'AUS',
+    AT:'AUT',AZ:'AZE',BS:'BHS',BH:'BHR',BD:'BGD',BB:'BRB',BY:'BLR',BE:'BEL',BZ:'BLZ',BJ:'BEN',
+    BT:'BTN',BO:'BOL',BA:'BIH',BW:'BWA',BR:'BRA',BN:'BRN',BG:'BGR',BF:'BFA',BI:'BDI',CV:'CPV',
+    KH:'KHM',CM:'CMR',CA:'CAN',CF:'CAF',TD:'TCD',CL:'CHL',CN:'CHN',CO:'COL',KM:'COM',CG:'COG',
+    CD:'COD',CR:'CRI',CI:'CIV',HR:'HRV',CU:'CUB',CY:'CYP',CZ:'CZE',DK:'DNK',DJ:'DJI',DM:'DMA',
+    DO:'DOM',EC:'ECU',EG:'EGY',SV:'SLV',GQ:'GNQ',ER:'ERI',EE:'EST',SZ:'SWZ',ET:'ETH',FJ:'FJI',
+    FI:'FIN',FR:'FRA',GA:'GAB',GM:'GMB',GE:'GEO',DE:'DEU',GH:'GHA',GR:'GRC',GD:'GRD',GT:'GTM',
+    GN:'GIN',GW:'GNB',GY:'GUY',HT:'HTI',HN:'HND',HU:'HUN',IS:'ISL',IN:'IND',ID:'IDN',IR:'IRN',
+    IQ:'IRQ',IE:'IRL',IL:'ISR',IT:'ITA',JM:'JAM',JP:'JPN',JO:'JOR',KZ:'KAZ',KE:'KEN',KI:'KIR',
+    KP:'PRK',KR:'KOR',KW:'KWT',KG:'KGZ',LA:'LAO',LV:'LVA',LB:'LBN',LS:'LSO',LR:'LBR',LY:'LBY',
+    LI:'LIE',LT:'LTU',LU:'LUX',MG:'MDG',MW:'MWI',MY:'MYS',MV:'MDV',ML:'MLI',MT:'MLT',MH:'MHL',
+    MR:'MRT',MU:'MUS',MX:'MEX',FM:'FSM',MD:'MDA',MC:'MCO',MN:'MNG',ME:'MNE',MA:'MAR',MZ:'MOZ',
+    MM:'MMR',NA:'NAM',NR:'NRU',NP:'NPL',NL:'NLD',NZ:'NZL',NI:'NIC',NE:'NER',NG:'NGA',MK:'MKD',
+    NO:'NOR',OM:'OMN',PK:'PAK',PW:'PLW',PA:'PAN',PG:'PNG',PY:'PRY',PE:'PER',PH:'PHL',PL:'POL',
+    PT:'PRT',QA:'QAT',RO:'ROU',RU:'RUS',RW:'RWA',KN:'KNA',LC:'LCA',VC:'VCT',WS:'WSM',SM:'SMR',
+    ST:'STP',SA:'SAU',SN:'SEN',RS:'SRB',SC:'SYC',SL:'SLE',SG:'SGP',SK:'SVK',SI:'SVN',SB:'SLB',
+    SO:'SOM',ZA:'ZAF',SS:'SSD',ES:'ESP',LK:'LKA',SD:'SDN',SR:'SUR',SE:'SWE',CH:'CHE',SY:'SYR',
+    TW:'TWN',TJ:'TJK',TZ:'TZA',TH:'THA',TL:'TLS',TG:'TGO',TO:'TON',TT:'TTO',TN:'TUN',TR:'TUR',
+    TM:'TKM',TV:'TUV',UG:'UGA',UA:'UKR',AE:'ARE',GB:'GBR',US:'USA',UY:'URY',UZ:'UZB',VU:'VUT',
+    VE:'VEN',VN:'VNM',YE:'YEM',ZM:'ZMB',ZW:'ZWE',PS:'PSE',XK:'XKX',HK:'HKG',MO:'MAC',PR:'PRI',
+};
+
+function renderSiteWorldMap(countries) {
+    const mapEl = document.getElementById('site-world-map');
+    const emptyEl = document.getElementById('site-map-empty');
+    if (!mapEl) return;
+
+    if (countries.length === 0) {
+        mapEl.style.display = 'none';
+        emptyEl.style.display = '';
+        return;
+    }
+    mapEl.style.display = '';
+    emptyEl.style.display = 'none';
+
+    const codes = countries.map(c => ISO2_TO_ISO3[c.country] || c.country);
+    const views = countries.map(c => c.views);
+    const uniques = countries.map(c => c.unique);
+    const hoverText = countries.map(c =>
+        `${countryFlag(c.country)} ${c.country}: ${c.views} views, ${c.unique} unique`
+    );
+
+    const trace = {
+        type: 'choropleth',
+        locationmode: 'ISO-3',
+        locations: codes,
+        z: views,
+        text: hoverText,
+        hoverinfo: 'text',
+        colorscale: [
+            [0, 'rgba(74,159,110,0.15)'],
+            [0.25, 'rgba(140,180,80,0.4)'],
+            [0.5, 'rgba(190,200,50,0.6)'],
+            [0.75, 'rgba(230,210,40,0.8)'],
+            [1, '#f0d020'],
+        ],
+        colorbar: {
+            title: { text: 'Views', font: { color: '#9aaa9a', size: 11 } },
+            tickfont: { color: '#9aaa9a', size: 10 },
+            len: 0.5,
+            thickness: 12,
+        },
+        marker: { line: { color: 'rgba(255,255,255,0.15)', width: 0.5 } },
+    };
+
+    const layout = {
+        geo: {
+            showframe: false,
+            showcoastlines: true,
+            coastlinecolor: 'rgba(255,255,255,0.15)',
+            showland: true,
+            landcolor: 'rgba(26,42,26,0.8)',
+            showocean: true,
+            oceancolor: 'rgba(10,15,10,0.9)',
+            showlakes: false,
+            showcountries: true,
+            countrycolor: 'rgba(255,255,255,0.08)',
+            projection: { type: 'natural earth' },
+            bgcolor: 'transparent',
+        },
+        margin: { t: 0, b: 0, l: 0, r: 0 },
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        font: { color: '#9aaa9a' },
+    };
+
+    Plotly.react(mapEl, [trace], layout, { responsive: true, displayModeBar: false });
+}
+
+function renderSiteFlow(flows) {
+    const tbody = document.getElementById('site-flow-tbody');
+    if (!tbody) return;
+
+    if (flows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-dim);">No flow data yet — need multiple page visits per session.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = flows.map(f => {
+        const isLanding = f.from === '/';
+        const highlight = isLanding ? 'background:rgba(74,159,110,0.06);' : '';
+        const fromLabel = f.from.length > 25 ? f.from.slice(0, 25) + '…' : f.from;
+        const toLabel = f.to.length > 25 ? f.to.slice(0, 25) + '…' : f.to;
+        return `<tr style="border-bottom:1px solid var(--border);${highlight}">
+            <td style="padding:5px 4px;font-family:monospace;font-size:0.72rem;" title="${f.from}">${fromLabel}</td>
+            <td style="padding:5px 0;text-align:center;color:var(--text-dim);">→</td>
+            <td style="padding:5px 4px;font-family:monospace;font-size:0.72rem;" title="${f.to}">${toLabel}</td>
+            <td style="padding:5px 4px;text-align:right;font-weight:600;">${f.count}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderSiteLiveFeed(recent) {
+    const container = document.getElementById('site-live-feed');
+    if (!container) return;
+
+    if (recent.length === 0) {
+        container.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim);">No recent hits.</div>';
+        return;
+    }
+
+    container.innerHTML = recent.map(r => {
+        const flag = r.country ? countryFlag(r.country) + ' ' : '';
+        const durText = r.duration_ms ? fmtDuration(r.duration_ms) : '';
+        const durBadge = durText ? `<span style="color:var(--accent-primary);font-size:0.6rem;min-width:36px;text-align:right;">${durText}</span>` : '';
+        const refBadge = r.referrer === 'direct'
+            ? '<span style="color:var(--text-dim);font-size:0.65rem;">direct</span>'
+            : `<span style="color:#3b82f6;font-size:0.65rem;">${r.referrer}</span>`;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 4px;border-bottom:1px solid var(--border);">
+            <span style="min-width:24px;">${flag}</span>
+            <span style="flex:1;font-family:monospace;font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.path}">${r.path}</span>
+            ${durBadge}
+            ${refBadge}
+            <span style="color:var(--text-dim);font-size:0.65rem;min-width:50px;text-align:right;">${r.ago}</span>
+        </div>`;
+    }).join('');
+}
+
+// Visit log rendering
+let _lastLiveData = null;
+
+function renderVisitLog(recent) {
+    const tbody = document.getElementById('site-log-tbody');
+    if (!tbody) return;
+    _lastLiveData = recent;
+
+    if (!recent || recent.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:2rem;text-align:center;color:var(--text-dim);">No visits logged yet.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = recent.map(r => {
+        const flag = r.country ? countryFlag(r.country) : '';
+        const dur = r.duration_ms ? fmtDuration(r.duration_ms) : '<span style="color:var(--text-dim);">—</span>';
+        const ts = r.ts ? new Date(r.ts).toLocaleTimeString() : r.ago;
+        const ref = r.referrer === 'direct'
+            ? '<span style="color:var(--text-dim);">direct</span>'
+            : `<span style="color:#3b82f6;">${r.referrer}</span>`;
+        return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px;white-space:nowrap;color:var(--text-dim);">${ts}</td>
+            <td style="padding:4px;font-family:monospace;font-size:0.65rem;color:var(--text-dim);">${r.visitor || ''}</td>
+            <td style="padding:4px;text-align:center;">${flag}</td>
+            <td style="padding:4px;font-family:monospace;" title="${r.path}">${r.path.length > 40 ? r.path.slice(0, 40) + '...' : r.path}</td>
+            <td style="padding:4px;">${ref}</td>
+            <td style="padding:4px;text-align:right;color:var(--accent-primary);">${dur}</td>
+        </tr>`;
+    }).join('');
+}
+
+function downloadVisitLog() {
+    if (!_lastLiveData || _lastLiveData.length === 0) return;
+    const header = 'Time,Visitor,Country,Path,Referrer,Duration_ms\n';
+    const rows = _lastLiveData.map(r =>
+        `${r.ts || ''},${r.visitor || ''},${r.country},${r.path},"${r.referrer}",${r.duration_ms || ''}`
+    ).join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'visit-log-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+}
+
+// Live polling — lightweight endpoint, 15s interval
+let siteLiveTimer = null;
+
+async function pollSiteLive() {
+    try {
+        const r = await fetch('/api/internal/site-live/?limit=100', { credentials: 'include' });
+        if (!r.ok) return;
+        const data = await r.json();
+
+        // Update live KPI counters
+        const t = data.totals || {};
+        const hourEl = document.getElementById('site-kpi-hour');
+        const todayEl = document.getElementById('site-kpi-today-hits');
+        const uniqueEl = document.getElementById('site-kpi-today-unique');
+        if (hourEl) hourEl.textContent = (t.hits_hour || 0).toLocaleString();
+        if (todayEl) todayEl.textContent = (t.hits_today || 0).toLocaleString();
+        if (uniqueEl) uniqueEl.textContent = (t.unique_today || 0).toLocaleString();
+
+        // Update live feed
+        renderSiteLiveFeed(data.recent || []);
+
+        // Update visit log
+        renderVisitLog(data.recent || []);
+
+        // Flash the dot
+        const dot = document.getElementById('site-live-dot');
+        if (dot) { dot.style.background = '#fff'; setTimeout(() => { dot.style.background = '#4ade80'; }, 200); }
+
+        const statusEl = document.getElementById('site-live-status');
+        if (statusEl) statusEl.textContent = 'Live — updated ' + new Date().toLocaleTimeString();
+    } catch (e) {
+        console.error('Live poll failed:', e);
+    }
+}
+
+function startSiteLive() {
+    if (siteLiveTimer) return;
+    pollSiteLive();  // immediate first poll
+    siteLiveTimer = setInterval(pollSiteLive, 15000);
+}
+
+function stopSiteLive() {
+    if (siteLiveTimer) { clearInterval(siteLiveTimer); siteLiveTimer = null; }
+}
+
 
 // =========================================================================
 // Init

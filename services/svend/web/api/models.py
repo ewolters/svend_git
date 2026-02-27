@@ -85,6 +85,110 @@ class BlogView(models.Model):
         return f"View: {self.post.title} @ {self.viewed_at}"
 
 
+class SiteVisit(models.Model):
+    """Tracks anonymous page visits across the entire site for marketing analytics."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    path = models.CharField(max_length=300, db_index=True)
+    viewed_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    referrer = models.URLField(max_length=500, blank=True)
+    referrer_domain = models.CharField(max_length=200, blank=True, db_index=True)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    country = models.CharField(max_length=2, blank=True)
+    is_bot = models.BooleanField(default=False)
+    method = models.CharField(max_length=10, blank=True)
+    duration_ms = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "site_visits"
+        ordering = ["-viewed_at"]
+        indexes = [
+            models.Index(fields=["path", "viewed_at"]),
+            models.Index(fields=["referrer_domain", "viewed_at"]),
+            models.Index(fields=["is_bot", "viewed_at"]),
+            models.Index(fields=["country", "viewed_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.path} @ {self.viewed_at}"
+
+
+class WhitePaper(models.Model):
+    """White paper / long-form gated content for SEO and lead generation."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PUBLISHED = "published", "Published"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
+    description = models.TextField(blank=True, help_text="Short marketing copy / abstract")
+    body = models.TextField(blank=True, help_text="Full markdown content")
+    meta_description = models.CharField(max_length=160, blank=True)
+    topic = models.CharField(max_length=100, blank=True, db_index=True)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
+    gated = models.BooleanField(default=True, help_text="Require email to download")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="white_papers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        db_table = "white_papers"
+        ordering = ["-published_at", "-created_at"]
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)[:200]
+            base_slug = self.slug
+            counter = 1
+            while WhitePaper.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base_slug[:190]}-{counter}"
+                counter += 1
+        super().save(*args, **kwargs)
+
+
+class WhitePaperDownload(models.Model):
+    """Tracks individual white paper downloads/views for analytics."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    paper = models.ForeignKey(
+        WhitePaper,
+        on_delete=models.CASCADE,
+        related_name="downloads",
+    )
+    downloaded_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    referrer_domain = models.CharField(max_length=200, blank=True, db_index=True)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    email = models.EmailField(blank=True)  # Captured if gated
+    is_bot = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "whitepaper_downloads"
+        ordering = ["-downloaded_at"]
+        indexes = [
+            models.Index(fields=["paper", "downloaded_at"]),
+            models.Index(fields=["referrer_domain", "downloaded_at"]),
+        ]
+
+    def __str__(self):
+        return f"Download: {self.paper.title} @ {self.downloaded_at}"
+
+
 class OnboardingSurvey(models.Model):
     """Stores onboarding survey responses per user."""
 
@@ -313,6 +417,9 @@ class AutomationRule(models.Model):
     description = models.TextField(blank=True)
     trigger = models.CharField(max_length=20, choices=Trigger.choices)
     trigger_config = models.JSONField(default=dict)  # {"days": 7}, {"threshold": 80}, etc.
+    trigger_2 = models.CharField(max_length=20, choices=Trigger.choices, blank=True, default="")
+    trigger_2_config = models.JSONField(null=True, blank=True)
+    trigger_logic = models.CharField(max_length=3, default="and", choices=[("and", "AND"), ("or", "OR")])
     action = models.CharField(max_length=20, choices=Action.choices)
     action_config = models.JSONField(default=dict)  # {"template": "inactive_nudge"}
     is_active = models.BooleanField(default=True)
@@ -390,6 +497,7 @@ class Feedback(models.Model):
     message = models.TextField()
     page = models.CharField(max_length=200, blank=True)  # URL path where feedback was submitted
     status = models.CharField(max_length=10, default="new")  # new / reviewed / resolved
+    internal_notes = models.TextField(blank=True, default="")  # Staff-only annotations
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -398,3 +506,112 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"{self.get_category_display()}: {self.message[:50]}"
+
+
+# ---------------------------------------------------------------------------
+# CRM — Outbound Outreach Management
+# ---------------------------------------------------------------------------
+
+
+class CRMLead(models.Model):
+    """External lead for outbound outreach."""
+
+    class Source(models.TextChoices):
+        LINKEDIN = "linkedin", "LinkedIn"
+        REFERRAL = "referral", "Referral"
+        INBOUND = "inbound", "Inbound"
+        CONFERENCE = "conference", "Conference"
+        COLD = "cold", "Cold"
+        WHITEPAPER = "whitepaper", "Whitepaper"
+        OTHER = "other", "Other"
+
+    class Stage(models.TextChoices):
+        PROSPECT = "prospect", "Prospect"
+        CONTACTED = "contacted", "Contacted"
+        ENGAGED = "engaged", "Engaged"
+        DEMO = "demo", "Demo"
+        TRIAL = "trial", "Trial"
+        CUSTOMER = "customer", "Customer"
+        CHURNED = "churned", "Churned"
+        LOST = "lost", "Lost"
+        BOUNCED = "bounced", "Bounced"
+        INVALID = "invalid", "Invalid"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    email = models.EmailField(unique=True)
+    company = models.CharField(max_length=200, blank=True)
+    role = models.CharField(max_length=100, blank=True)
+    industry = models.CharField(max_length=100, blank=True)
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.OTHER)
+    stage = models.CharField(max_length=20, choices=Stage.choices, default=Stage.PROSPECT, db_index=True)
+    notes = models.TextField(blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    email_opted_out = models.BooleanField(default=False)
+    last_contacted_at = models.DateTimeField(null=True, blank=True)
+    next_followup_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "crm_leads"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["stage", "next_followup_at"]),
+            models.Index(fields=["source", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.stage})"
+
+
+class OutreachSequence(models.Model):
+    """Multi-step outreach sequence with A/B variants per step."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    steps = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "outreach_sequences"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.name
+
+
+class OutreachEnrollment(models.Model):
+    """A lead enrolled in an outreach sequence."""
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        COMPLETED = "completed", "Completed"
+        PAUSED = "paused", "Paused"
+        REPLIED = "replied", "Replied"
+        OPTED_OUT = "opted_out", "Opted Out"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lead = models.ForeignKey(CRMLead, on_delete=models.CASCADE, related_name="enrollments")
+    sequence = models.ForeignKey(OutreachSequence, on_delete=models.CASCADE, related_name="enrollments")
+    current_step = models.IntegerField(default=0)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    variant = models.CharField(max_length=1)
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+    next_send_at = models.DateTimeField(null=True, blank=True)
+    send_log = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "outreach_enrollments"
+        ordering = ["-created_at"]
+        unique_together = [("lead", "sequence")]
+        indexes = [
+            models.Index(fields=["status", "next_send_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.lead.name} → {self.sequence.name} (step {self.current_step})"

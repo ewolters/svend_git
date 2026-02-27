@@ -11,7 +11,6 @@ from pathlib import Path
 
 from django.conf import settings
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
@@ -135,6 +134,8 @@ def read_context_file(problem_id: str, user_id: int) -> dict | None:
 # =============================================================================
 
 # In-memory interview sessions (could be moved to cache/Redis for scale)
+# Bounded to prevent unbounded memory growth
+_INTERVIEW_CACHE_MAX = 128
 _interview_sessions = {}
 
 
@@ -142,6 +143,10 @@ def get_interview_session(problem_id: str):
     """Get or create an interview session for a problem."""
     if problem_id not in _interview_sessions:
         from guide.decision import DecisionGuide
+
+        # Evict oldest if at capacity
+        if len(_interview_sessions) >= _INTERVIEW_CACHE_MAX:
+            _interview_sessions.pop(next(iter(_interview_sessions)), None)
 
         guide = DecisionGuide()
         guide.start()
@@ -217,8 +222,8 @@ def problem_to_dict(problem: Problem) -> dict:
     return result
 
 
-@csrf_exempt
 @require_http_methods(["GET", "POST"])
+@gated
 def problems_list(request):
     """List or create problems."""
 
@@ -313,8 +318,8 @@ def problems_list(request):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET", "PATCH", "DELETE"])
+@gated
 def problem_detail(request, problem_id):
     """Get, update, or delete a problem."""
 
@@ -353,7 +358,6 @@ def problem_detail(request, problem_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def add_hypothesis(request, problem_id):
@@ -392,7 +396,6 @@ def add_hypothesis(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def add_evidence(request, problem_id):
@@ -437,7 +440,6 @@ def add_evidence(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def reject_hypothesis(request, problem_id, hypothesis_id):
@@ -477,7 +479,6 @@ def reject_hypothesis(request, problem_id, hypothesis_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def resolve_problem(request, problem_id):
@@ -524,7 +525,6 @@ def resolve_problem(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def generate_hypotheses(request, problem_id):
@@ -535,14 +535,7 @@ def generate_hypotheses(request, problem_id):
     except Problem.DoesNotExist:
         return JsonResponse({"error": "Problem not found"}, status=404)
 
-    # Track query usage
-    if not request.user.can_query():
-        return JsonResponse({
-            "error": "Daily query limit reached",
-            "limit": request.user.daily_limit,
-        }, status=429)
-
-    request.user.increment_queries()
+    # Note: @gated already checks can_query() and increments — no manual check needed
 
     try:
         # Use shared LLM to generate hypotheses
@@ -618,7 +611,6 @@ Focus on testable, specific causes. Vary the probabilities based on how likely e
 # Interview Endpoints
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def start_interview(request, problem_id):
@@ -680,7 +672,6 @@ def start_interview(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def interview_answer(request, problem_id):
@@ -766,7 +757,6 @@ def interview_answer(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def interview_skip(request, problem_id):
@@ -806,7 +796,6 @@ def interview_skip(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def interview_save(request, problem_id):
@@ -841,7 +830,6 @@ def interview_save(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def interview_status(request, problem_id):
@@ -894,7 +882,6 @@ def interview_status(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def get_context_file(request, problem_id):
@@ -915,7 +902,6 @@ def get_context_file(request, problem_id):
     return JsonResponse({
         "success": True,
         "context": context,
-        "path": str(get_context_path(str(problem_id), request.user.id)),
     })
 
 
@@ -1008,7 +994,6 @@ def _apply_interview_to_problem(problem: Problem, guide, brief):
 # Methodology & Phase Management
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def set_methodology(request, problem_id):
@@ -1043,7 +1028,6 @@ def set_methodology(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def advance_phase(request, problem_id):
@@ -1088,7 +1072,6 @@ def advance_phase(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def get_phase_guidance(request, problem_id):

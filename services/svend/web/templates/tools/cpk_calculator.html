@@ -1,0 +1,434 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Cpk Calculator — Free Process Capability Calculator{% endblock %}
+{% block meta_description %}Free online Cpk and Ppk calculator. Enter your measurements and specification limits to calculate Cp, Cpk, Pp, Ppk, sigma level, and estimated PPM out of spec. No signup required.{% endblock %}
+{% block meta_keywords %}Cpk calculator, Ppk calculator, process capability, Cp Cpk, capability analysis, Six Sigma, process capability index, specification limits, SPC{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/cpk-calculator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/cpk-calculator/">
+<meta property="og:title" content="Free Cpk Calculator — Process Capability Analysis">
+<meta property="og:description" content="Calculate Cp, Cpk, Pp, Ppk from your measurements. Free, instant, no signup required.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Cpk Calculator",
+    "url": "https://svend.ai/tools/cpk-calculator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free online Cpk and Ppk calculator for process capability analysis. Enter measurements and specification limits to get Cp, Cpk, Pp, Ppk, sigma level, and PPM.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is Cpk?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Cpk (Process Capability Index) measures how well a process fits within its specification limits, accounting for centering. Cpk = min((USL - mean) / (3 * sigma_within), (mean - LSL) / (3 * sigma_within)). A Cpk of 1.33 or higher is generally considered capable."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between Cp and Cpk?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Cp measures potential capability — it only considers the spread of your data relative to the spec width (USL - LSL) / (6 * sigma). Cpk measures actual capability — it also accounts for how centered the process is between the spec limits. Cpk is always less than or equal to Cp."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between Cpk and Ppk?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Cpk uses within-subgroup standard deviation (sigma_within), representing short-term or potential capability. Ppk uses overall standard deviation (sigma_overall), representing long-term or actual performance. When the process is in statistical control, Cpk and Ppk will be similar."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What Cpk value is considered good?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Cpk >= 1.33 is the minimum for a capable process (4-sigma). Cpk >= 1.67 is preferred for critical characteristics. Cpk >= 2.0 represents Six Sigma performance. Cpk < 1.0 means the process is not capable and is producing defects outside specification."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How many data points do I need?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "At minimum 25-30 measurements for a reasonable estimate. For production capability studies, AIAG recommends at least 125 measurements (25 subgroups of 5). More data gives more confidence in the results."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Cpk Calculator", "item": "https://svend.ai/tools/cpk-calculator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.data-input-help {
+    font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem;
+}
+.hist-label {
+    position: absolute; top: 8px; font-size: 0.75rem; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+}
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>Cpk</strong> Calculator</h1>
+    <p>Calculate process capability indices (Cp, Cpk, Pp, Ppk) from your measurements. Paste your data, set specification limits, get instant results.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Input Data</h2>
+    <div class="form-grid">
+        <div class="form-group full">
+            <label>Measurements (paste comma, space, tab, or newline separated values)</label>
+            <textarea id="data-input" placeholder="25.01, 24.98, 25.03, 25.00, 24.97, 25.02, 24.99, 25.01, 24.98, 25.00&#10;25.02, 24.99, 25.01, 24.97, 25.03, 25.00, 24.98, 25.02, 25.01, 24.99">25.01, 24.98, 25.03, 25.00, 24.97, 25.02, 24.99, 25.01, 24.98, 25.00, 25.02, 24.99, 25.01, 24.97, 25.03, 25.00, 24.98, 25.02, 25.01, 24.99, 25.00, 25.01, 24.98, 25.02, 24.99, 25.01, 25.00, 24.97, 25.03, 25.00</textarea>
+            <div class="data-input-help">Accepts any delimiter. Paste directly from Excel, CSV, or a column of numbers.</div>
+        </div>
+        <div class="form-group">
+            <label>Lower Spec Limit (LSL)</label>
+            <input type="number" id="lsl" step="any" value="24.97" placeholder="e.g. 24.97">
+        </div>
+        <div class="form-group">
+            <label>Upper Spec Limit (USL)</label>
+            <input type="number" id="usl" step="any" value="25.03" placeholder="e.g. 25.03">
+        </div>
+        <div class="form-group">
+            <label>Target (optional)</label>
+            <input type="number" id="target" step="any" placeholder="e.g. 25.00">
+        </div>
+        <div class="form-group">
+            <label>Subgroup Size (for within-group sigma)</label>
+            <input type="number" id="subgroup-size" value="5" min="2" max="25" step="1">
+        </div>
+    </div>
+    <button class="btn-calculate" onclick="calculate()" style="margin-top:1rem;">Calculate Cpk</button>
+</div>
+
+<div id="results" style="display:none;">
+    <div class="tool-card">
+        <h2>Capability Indices</h2>
+        <div class="results-grid" id="results-grid"></div>
+        <div id="interpretation" class="interpretation" style="display:none;"></div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Process Distribution</h2>
+        <div class="chart-container">
+            <canvas id="hist-canvas" width="880" height="320"></canvas>
+        </div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Summary Statistics</h2>
+        <div class="results-grid" id="stats-grid"></div>
+    </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is Process Capability (Cpk)?</h2>
+    <p><strong>Process capability analysis</strong> answers a fundamental question in manufacturing: can my process consistently produce parts within specification? The <strong>Cpk index</strong> quantifies this by comparing the spread of your process to the width of the specification limits, while penalizing any shift away from center.</p>
+
+    <h3>Cp vs. Cpk — Potential vs. Actual Capability</h3>
+    <p><strong>Cp</strong> measures potential: it compares the spec width to the process spread (6&sigma;), ignoring centering. <strong>Cpk</strong> measures actual capability by also accounting for how far the process mean drifts from the spec midpoint. A high Cp with a low Cpk tells you the spread is fine but the process is off-center — often the cheapest problem to fix.</p>
+
+    <h3>Short-Term vs. Long-Term: Cpk vs. Ppk</h3>
+    <p><strong>Cpk</strong> uses the <em>within-subgroup</em> standard deviation (estimated from the average range or average standard deviation of rational subgroups), representing short-term or inherent process variation. <strong>Ppk</strong> uses the <em>overall</em> standard deviation of all data points, capturing both within-group and between-group variation. When Cpk and Ppk diverge significantly, the process is likely drifting or shifting over time — a signal to investigate with <a href="/app/spc/" style="color:var(--accent-primary);">control charts</a>.</p>
+
+    <h3>Industry Benchmarks</h3>
+    <p>Common Cpk requirements vary by industry and criticality:</p>
+    <ul style="color:var(--text-secondary); line-height:1.8; padding-left:1.5rem;">
+        <li><strong>Cpk &ge; 1.00</strong> (3&sigma;) — Minimum for a marginally capable process (~2,700 PPM defective)</li>
+        <li><strong>Cpk &ge; 1.33</strong> (4&sigma;) — Standard requirement for most manufacturing (~63 PPM)</li>
+        <li><strong>Cpk &ge; 1.67</strong> (5&sigma;) — Required for safety-critical and automotive (IATF 16949, PPAP)</li>
+        <li><strong>Cpk &ge; 2.00</strong> (6&sigma;) — World-class, required for aerospace and medical devices</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is Cpk?</div>
+        <div class="faq-a">Cpk (Process Capability Index) measures how well a process fits within its specification limits, accounting for how centered the process mean is. Cpk = min((USL - mean) / (3 * sigma_within), (mean - LSL) / (3 * sigma_within)). A higher Cpk means fewer defects. A Cpk of 1.33 or higher is generally considered "capable."</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between Cp and Cpk?</div>
+        <div class="faq-a">Cp measures <strong>potential</strong> capability — it only considers how much of the spec width your process spread uses: Cp = (USL - LSL) / (6 * sigma). Cpk measures <strong>actual</strong> capability — it also penalizes off-center processes. Cpk is always &le; Cp. If Cp is high but Cpk is low, your process spread is fine but it's not centered.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between Cpk and Ppk?</div>
+        <div class="faq-a">Cpk uses <strong>within-subgroup</strong> standard deviation (estimated from R-bar or S-bar), representing short-term capability. Ppk uses the <strong>overall</strong> standard deviation of all data, representing long-term performance. If your process is in statistical control, Cpk ≈ Ppk. A big gap between them suggests the process has shifted or drifted over time.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What Cpk value do I need?</div>
+        <div class="faq-a">Common benchmarks: Cpk &ge; 1.00 = minimum (3-sigma, ~2,700 PPM). Cpk &ge; 1.33 = capable (4-sigma, ~63 PPM). Cpk &ge; 1.67 = good (5-sigma). Cpk &ge; 2.00 = excellent (6-sigma, ~3.4 PPM). Many industries require 1.33 minimum; automotive and aerospace often require 1.67+.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How many data points do I need?</div>
+        <div class="faq-a">At minimum 25-30 measurements to get a reasonable estimate. For production capability studies, AIAG recommends at least 125 measurements (25 subgroups of 5). More data gives more confidence in the results.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function parseData(text) {
+    return text.split(/[\s,;\t\n]+/).map(s => s.trim()).filter(s => s !== '').map(Number).filter(v => !isNaN(v));
+}
+
+// d2 constants for estimating sigma_within from R-bar
+const D2 = {2:1.128,3:1.693,4:2.059,5:2.326,6:2.534,7:2.704,8:2.847,9:2.970,10:3.078,
+             11:3.173,12:3.258,13:3.336,14:3.407,15:3.472,16:3.532,17:3.588,18:3.640,
+             19:3.689,20:3.735,21:3.778,22:3.819,23:3.858,24:3.895,25:3.931};
+
+function normalCDF(x) {
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.SQRT2;
+    const t = 1.0 / (1.0 + 0.3275911 * x);
+    const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1) * t * Math.exp(-x*x);
+    return 0.5 * (1 + sign * y);
+}
+
+function calculate() {
+    const raw = document.getElementById('data-input').value;
+    const data = parseData(raw);
+    if (data.length < 5) { alert('Need at least 5 data points.'); return; }
+
+    const usl = parseFloat(document.getElementById('usl').value);
+    const lsl = parseFloat(document.getElementById('lsl').value);
+    if (isNaN(usl) || isNaN(lsl) || usl <= lsl) { alert('Check spec limits: USL must be greater than LSL.'); return; }
+
+    const n = data.length;
+    const mean = data.reduce((a,b) => a+b, 0) / n;
+    const sigmaOverall = Math.sqrt(data.reduce((s,v) => s + (v-mean)**2, 0) / (n-1));
+
+    // Within-group sigma from R-bar / d2
+    const sg = parseInt(document.getElementById('subgroup-size').value) || 5;
+    const d2 = D2[Math.min(Math.max(sg, 2), 25)];
+    let sigmaWithin = sigmaOverall; // fallback
+    if (n >= sg * 2) {
+        const nGroups = Math.floor(n / sg);
+        let rSum = 0;
+        for (let i = 0; i < nGroups; i++) {
+            const sub = data.slice(i * sg, (i + 1) * sg);
+            rSum += Math.max(...sub) - Math.min(...sub);
+        }
+        sigmaWithin = (rSum / nGroups) / d2;
+    }
+
+    const specWidth = usl - lsl;
+
+    // Capability (within-group)
+    const Cp = specWidth / (6 * sigmaWithin);
+    const Cpu = (usl - mean) / (3 * sigmaWithin);
+    const Cpl = (mean - lsl) / (3 * sigmaWithin);
+    const Cpk = Math.min(Cpu, Cpl);
+
+    // Performance (overall)
+    const Pp = specWidth / (6 * sigmaOverall);
+    const Ppu = (usl - mean) / (3 * sigmaOverall);
+    const Ppl = (mean - lsl) / (3 * sigmaOverall);
+    const Ppk = Math.min(Ppu, Ppl);
+
+    // Sigma level (short-term)
+    const sigmaLevel = 3 * Cpk;
+    const sigmaLevelLT = 3 * Ppk; // long-term
+
+    // Estimated PPM out of spec (using overall sigma)
+    const zUpper = (usl - mean) / sigmaOverall;
+    const zLower = (mean - lsl) / sigmaOverall;
+    const ppmAbove = (1 - normalCDF(zUpper)) * 1e6;
+    const ppmBelow = normalCDF(-zLower) * 1e6;
+    const ppmTotal = ppmAbove + ppmBelow;
+
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const sorted = [...data].sort((a,b) => a-b);
+    const median = n % 2 === 0 ? (sorted[n/2-1] + sorted[n/2]) / 2 : sorted[Math.floor(n/2)];
+
+    function ratingClass(cpk) {
+        if (cpk >= 1.67) return 'result-good';
+        if (cpk >= 1.33) return 'result-good';
+        if (cpk >= 1.0) return 'result-warn';
+        return 'result-bad';
+    }
+
+    // Render results
+    document.getElementById('results').style.display = '';
+    document.getElementById('results-grid').innerHTML = `
+        <div class="result-item ${ratingClass(Cp)}"><div class="label">Cp</div><div class="value">${Cp.toFixed(3)}</div><div class="sub">Potential</div></div>
+        <div class="result-item ${ratingClass(Cpk)}"><div class="label">Cpk</div><div class="value">${Cpk.toFixed(3)}</div><div class="sub">Within-group</div></div>
+        <div class="result-item ${ratingClass(Pp)}"><div class="label">Pp</div><div class="value">${Pp.toFixed(3)}</div><div class="sub">Potential (overall)</div></div>
+        <div class="result-item ${ratingClass(Ppk)}"><div class="label">Ppk</div><div class="value">${Ppk.toFixed(3)}</div><div class="sub">Overall</div></div>
+        <div class="result-item result-neutral"><div class="label">Sigma Level</div><div class="value">${sigmaLevel.toFixed(2)}&sigma;</div><div class="sub">Short-term</div></div>
+        <div class="result-item ${ppmTotal < 63 ? 'result-good' : ppmTotal < 6210 ? 'result-warn' : 'result-bad'}"><div class="label">Est. PPM</div><div class="value">${ppmTotal < 1 ? '<1' : Math.round(ppmTotal).toLocaleString()}</div><div class="sub">Out of spec</div></div>
+    `;
+
+    // Interpretation
+    const interp = document.getElementById('interpretation');
+    interp.style.display = '';
+    let msg = '';
+    if (Cpk >= 1.67) msg = `<strong>Excellent.</strong> Your process is very capable (Cpk = ${Cpk.toFixed(3)}). It fits well within spec limits with margin to spare.`;
+    else if (Cpk >= 1.33) msg = `<strong>Capable.</strong> Your process meets the common 4-sigma benchmark (Cpk = ${Cpk.toFixed(3)}). Estimated ${Math.round(ppmTotal)} PPM out of spec.`;
+    else if (Cpk >= 1.0) msg = `<strong>Marginal.</strong> Your process barely fits within spec (Cpk = ${Cpk.toFixed(3)}). Consider reducing variation or centering the process.`;
+    else msg = `<strong>Not capable.</strong> Your process exceeds spec limits (Cpk = ${Cpk.toFixed(3)}). Estimated ${Math.round(ppmTotal).toLocaleString()} PPM out of spec. Immediate action needed.`;
+    if (Cp - Cpk > 0.2) msg += ` The gap between Cp (${Cp.toFixed(3)}) and Cpk (${Cpk.toFixed(3)}) suggests your process is <strong>off-center</strong> — shifting the mean could improve capability significantly.`;
+    interp.innerHTML = msg;
+
+    // Summary stats
+    document.getElementById('stats-grid').innerHTML = `
+        <div class="result-item result-neutral"><div class="label">n</div><div class="value">${n}</div></div>
+        <div class="result-item result-neutral"><div class="label">Mean</div><div class="value">${mean.toFixed(4)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Median</div><div class="value">${median.toFixed(4)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Std Dev (overall)</div><div class="value">${sigmaOverall.toFixed(5)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Std Dev (within)</div><div class="value">${sigmaWithin.toFixed(5)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Min</div><div class="value">${min.toFixed(4)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Max</div><div class="value">${max.toFixed(4)}</div></div>
+        <div class="result-item result-neutral"><div class="label">Range</div><div class="value">${(max - min).toFixed(4)}</div></div>
+    `;
+
+    // Draw histogram
+    drawHistogram(data, mean, sigmaOverall, lsl, usl);
+}
+
+function drawHistogram(data, mean, sigma, lsl, usl) {
+    const canvas = document.getElementById('hist-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pad = { top: 30, right: 30, bottom: 40, left: 50 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, W, H);
+
+    const min = Math.min(...data, lsl, mean - 4*sigma);
+    const max = Math.max(...data, usl, mean + 4*sigma);
+    const range = max - min || 1;
+    const nBins = Math.min(Math.max(Math.ceil(Math.sqrt(data.length)), 8), 40);
+    const binW = range / nBins;
+
+    // Build bins
+    const bins = new Array(nBins).fill(0);
+    data.forEach(v => {
+        let b = Math.floor((v - min) / binW);
+        if (b >= nBins) b = nBins - 1;
+        if (b < 0) b = 0;
+        bins[b]++;
+    });
+    const maxCount = Math.max(...bins, 1);
+
+    function xPos(v) { return pad.left + ((v - min) / range) * plotW; }
+    function yPos(c) { return pad.top + plotH - (c / maxCount) * plotH; }
+
+    // Bars
+    const green = 'rgba(74, 159, 110, 0.6)';
+    const red = 'rgba(192, 57, 43, 0.6)';
+    for (let i = 0; i < nBins; i++) {
+        const x1 = min + i * binW;
+        const x2 = x1 + binW;
+        const midpoint = (x1 + x2) / 2;
+        const outOfSpec = midpoint < lsl || midpoint > usl;
+        ctx.fillStyle = outOfSpec ? red : green;
+        const bx = xPos(x1) + 1;
+        const bw = xPos(x2) - xPos(x1) - 2;
+        const bh = (bins[i] / maxCount) * plotH;
+        ctx.fillRect(bx, pad.top + plotH - bh, bw, bh);
+    }
+
+    // Normal curve overlay
+    ctx.strokeStyle = 'rgba(232, 239, 232, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const steps = 200;
+    const curveScale = data.length * binW; // scale to match histogram
+    for (let i = 0; i <= steps; i++) {
+        const x = min + (i / steps) * range;
+        const z = (x - mean) / sigma;
+        const pdf = Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI));
+        const y = pad.top + plotH - (pdf * curveScale / maxCount) * plotH;
+        if (i === 0) ctx.moveTo(xPos(x), y); else ctx.lineTo(xPos(x), y);
+    }
+    ctx.stroke();
+
+    // Spec lines
+    function drawSpecLine(val, label, color) {
+        const x = xPos(val);
+        if (x < pad.left || x > pad.left + plotW) return;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = '12px JetBrains Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x, pad.top - 8);
+        ctx.fillText(val.toFixed(3), x, pad.top + plotH + 16);
+    }
+    drawSpecLine(lsl, 'LSL', '#c0392b');
+    drawSpecLine(usl, 'USL', '#c0392b');
+
+    // Mean line
+    const mx = xPos(mean);
+    ctx.strokeStyle = '#e8c547';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(mx, pad.top); ctx.lineTo(mx, pad.top + plotH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#e8c547';
+    ctx.font = '11px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('Mean', mx, pad.top + plotH + 30);
+
+    // Y axis labels
+    ctx.fillStyle = '#7a8f7a';
+    ctx.font = '10px JetBrains Mono';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+        const c = Math.round(maxCount * i / 4);
+        const y = yPos(c);
+        ctx.fillText(c.toString(), pad.left - 8, y + 4);
+    }
+}
+
+// Auto-calculate on load with default data
+document.addEventListener('DOMContentLoaded', calculate);
+</script>
+{% endblock %}

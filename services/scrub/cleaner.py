@@ -103,6 +103,9 @@ class CleaningResult:
             "cleaned_shape": self.cleaned_shape,
             "outliers_count": self.outliers.count if self.outliers else 0,
             "missing_filled": self.missing.total_filled if self.missing else 0,
+            "columns_dropped": self.missing.columns_dropped if self.missing else [],
+            "rows_dropped": self.missing.rows_dropped if self.missing else 0,
+            "rows_dropped_indices": self.missing.rows_dropped_indices[:50] if self.missing else [],
             "normalizations": self.normalization.total_changes if self.normalization else 0,
             "warnings": self.warnings,
             "timestamp": self.timestamp,
@@ -276,14 +279,20 @@ class DataCleaner:
 
         # 2. Missing data handling
         if config.handle_missing:
+            self.missing_handler.drop_threshold = config.drop_threshold
             df, result.missing = self.missing_handler.handle(
                 df,
                 strategies=config.imputation_strategies,
             )
             if result.missing.rows_dropped > 0:
                 result.warnings.append(
-                    f"{result.missing.rows_dropped} rows dropped (>80% missing)"
+                    f"{result.missing.rows_dropped} rows dropped (>80% missing values)"
                 )
+            if result.missing.columns_dropped:
+                result.warnings.append(
+                    f"Columns removed: {', '.join(result.missing.columns_dropped)}"
+                )
+            result.warnings.extend(result.missing.high_missing_warnings)
 
         # 3. Factor normalization
         if config.normalize_factors:

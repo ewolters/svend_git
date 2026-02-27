@@ -143,11 +143,6 @@
             text-decoration: none;
         }
         .footer a:hover { text-decoration: underline; }
-        .invite-note {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            margin-top: 0.25rem;
-        }
     </style>
 </head>
 <body>
@@ -162,7 +157,7 @@
         </a>
         <div class="card">
             <h1>Create account</h1>
-            <p class="subtitle">Start with 5 free agent runs per day</p>
+            <p class="subtitle" id="regSubtitle">Track NCRs, run experiments, monitor processes — free, no credit card</p>
 
             <div id="error" class="error"></div>
 
@@ -178,11 +173,6 @@
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8">
-                </div>
-                <div class="form-group" id="invite-group">
-                    <label for="invite_code">Invite Code</label>
-                    <input type="text" id="invite_code" name="invite_code" placeholder="XXXX-XXXX">
-                    <p class="invite-note">Required during alpha. Ask for one or follow @svend_ai</p>
                 </div>
                 <button type="submit" class="btn" id="submitBtn">Create Account</button>
             </form>
@@ -203,6 +193,7 @@
 
         // Plan can come directly (?plan=founder) or from next URL
         let plan = urlParams.get('plan') || '';
+        let region = urlParams.get('region') || '';
         let nextUrl = urlParams.get('next') || '';
 
         // If no direct plan, try to extract from next URL (for @login_required redirect flow)
@@ -211,6 +202,7 @@
             if (decodedNextUrl.includes('/billing/checkout')) {
                 const nextParams = new URLSearchParams(decodedNextUrl.split('?')[1] || '');
                 plan = nextParams.get('plan') || '';
+                if (!region) region = nextParams.get('region') || '';
             }
         }
 
@@ -220,15 +212,20 @@
 
         // If paid plan signup, redirect to checkout after registration
         // Otherwise use nextUrl or default to /app/
+        const checkoutUrl = '/billing/checkout/?plan=' + plan + (region ? '&region=' + region : '');
         const redirectUrl = isPaidSignup
-            ? '/billing/checkout/?plan=' + plan
+            ? checkoutUrl
             : (nextUrl ? decodeURIComponent(nextUrl) : '/app/onboarding/');
 
-        // Hide invite code field for paid signups
+        // Update subtitle for paid plan signups
         if (isPaidSignup) {
-            const inviteGroup = document.getElementById('invite-group');
-            if (inviteGroup) {
-                inviteGroup.style.display = 'none';
+            var sub = document.getElementById('regSubtitle');
+            var planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+            var trialPlans = ['team', 'enterprise'];
+            if (trialPlans.includes(plan)) {
+                sub.textContent = 'Create your account to start your 14-day free ' + planName + ' trial';
+            } else {
+                sub.textContent = 'Create your account, then choose your ' + planName + ' billing';
             }
         }
 
@@ -248,8 +245,6 @@
                         email: document.getElementById('email').value,
                         username: document.getElementById('username').value,
                         password: document.getElementById('password').value,
-                        invite_code: document.getElementById('invite_code')?.value || '',
-                        plan: plan,
                     }),
                     credentials: 'include',
                 });

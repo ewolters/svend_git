@@ -30,6 +30,30 @@ class TaskState(str, Enum):
     DEAD_LETTERED = "dead_lettered"
     CANCELLED = "cancelled"
 
+    @property
+    def is_terminal(self) -> bool:
+        """Whether this state is a terminal (final) state."""
+        return self in (
+            TaskState.SUCCESS,
+            TaskState.FAILURE,
+            TaskState.DEAD_LETTERED,
+            TaskState.CANCELLED,
+        )
+
+    @classmethod
+    def valid_transitions(cls) -> Dict["TaskState", List["TaskState"]]:
+        """Return valid state transitions."""
+        return {
+            cls.PENDING: [cls.SCHEDULED, cls.RUNNING, cls.CANCELLED],
+            cls.SCHEDULED: [cls.RUNNING, cls.CANCELLED, cls.PENDING],
+            cls.RUNNING: [cls.SUCCESS, cls.FAILURE, cls.RETRYING, cls.DEAD_LETTERED],
+            cls.RETRYING: [cls.SCHEDULED, cls.RUNNING, cls.DEAD_LETTERED, cls.CANCELLED, cls.PENDING],
+            cls.FAILURE: [cls.RETRYING, cls.DEAD_LETTERED],
+            cls.SUCCESS: [],
+            cls.DEAD_LETTERED: [],
+            cls.CANCELLED: [],
+        }
+
 
 class TaskPriority(IntEnum):
     """Task priority levels (higher = more urgent)."""
@@ -107,6 +131,31 @@ class RetryConfig:
     base_delay_seconds: int = 1
     max_delay_seconds: int = 3600
     jitter: bool = True
+
+    def get_delay(self, attempt: int) -> timedelta:
+        """Calculate retry delay for a given attempt number."""
+        import random
+
+        if self.strategy == RetryStrategy.IMMEDIATE:
+            seconds = 0
+        elif self.strategy == RetryStrategy.LINEAR:
+            seconds = self.base_delay_seconds * attempt
+        elif self.strategy == RetryStrategy.EXPONENTIAL:
+            seconds = self.base_delay_seconds * (2 ** (attempt - 1))
+        elif self.strategy == RetryStrategy.FIBONACCI:
+            a, b = 1, 1
+            for _ in range(attempt - 1):
+                a, b = b, a + b
+            seconds = self.base_delay_seconds * a
+        else:
+            seconds = self.base_delay_seconds
+
+        seconds = min(seconds, self.max_delay_seconds)
+
+        if self.jitter and seconds > 0:
+            seconds = seconds * (0.5 + random.random())
+
+        return timedelta(seconds=seconds)
 
 
 @dataclass

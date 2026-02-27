@@ -9,6 +9,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
 
+from core.encrypted_storage import EncryptedFileSystemStorage
+
 
 def user_file_path(instance, filename):
     """Generate user-segregated file path.
@@ -49,8 +51,8 @@ class UserFile(models.Model):
         related_name="files",
     )
 
-    # File metadata
-    file = models.FileField(upload_to=user_file_path)
+    # File metadata (encrypted at rest via EncryptedFileSystemStorage)
+    file = models.FileField(upload_to=user_file_path, storage=EncryptedFileSystemStorage())
     original_name = models.CharField(max_length=255)
     file_type = models.CharField(
         max_length=20,

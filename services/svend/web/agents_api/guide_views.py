@@ -12,7 +12,6 @@ import json
 import logging
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_auth, require_enterprise
@@ -63,7 +62,6 @@ Be helpful, concise, and professional.""",
 }
 
 
-@csrf_exempt
 @require_enterprise
 @require_http_methods(["POST"])
 def guide_chat(request):
@@ -106,36 +104,36 @@ def guide_chat(request):
     # Build system prompt with context
     system = SYSTEM_PROMPTS.get(context_type, SYSTEM_PROMPTS["general"])
 
-    # Add context data to system prompt if provided
+    # Add context data to system prompt if provided (XML-delimited to prevent injection)
     if context_data:
         if context_type == "dsw":
             context_parts = []
             # Add project context if linked
             if "project" in context_data and context_data["project"]:
                 proj = context_data["project"]
-                context_parts.append(f"=== LINKED PROJECT ===")
-                context_parts.append(f"Project: {proj.get('title', 'Untitled')}")
+                context_parts.append(f"Project: {proj.get('title', 'Untitled')[:500]}")
                 if proj.get("problem_statement"):
-                    context_parts.append(f"Problem: {proj['problem_statement']}")
+                    context_parts.append(f"Problem: {proj['problem_statement'][:2000]}")
                 hypotheses = proj.get("hypotheses", [])
                 if hypotheses:
                     context_parts.append("\nHypotheses under investigation:")
                     for i, h in enumerate(hypotheses[:5], 1):
                         prob = int((h.get("probability") or 0.5) * 100)
-                        context_parts.append(f"  {i}. \"{h.get('statement', '')}\" - {prob}% probability ({h.get('status', 'investigating')})")
+                        context_parts.append(f"  {i}. \"{h.get('statement', '')[:500]}\" - {prob}% probability ({h.get('status', 'investigating')})")
                     context_parts.append("\nHelp the user evaluate evidence for/against these hypotheses.")
             # Add session context
             if "summary" in context_data:
-                context_parts.append(f"\n=== CURRENT SESSION ===\n{context_data['summary']}")
+                context_parts.append(f"\nCurrent session summary: {context_data['summary'][:2000]}")
             if context_parts:
-                system += "\n\n" + "\n".join(context_parts)
+                system += "\n\n<project_context>\n" + "\n".join(context_parts) + "\n</project_context>"
         elif context_type == "whiteboard" and "elements" in context_data:
             elements_summary = summarize_whiteboard_elements(context_data["elements"])
-            system += f"\n\nWhiteboard content:\n{elements_summary}"
+            system += f"\n\n<whiteboard_content>\n{elements_summary}\n</whiteboard_content>"
         elif context_type == "project" and "project" in context_data:
-            system += f"\n\nProject: {context_data['project'].get('title', 'Untitled')}"
+            system += f"\n\n<project_context>\nProject: {context_data['project'].get('title', 'Untitled')[:500]}"
             if context_data.get("template"):
-                system += f"\nTemplate: {context_data['template']}"
+                system += f"\nTemplate: {context_data['template'][:500]}"
+            system += "\n</project_context>"
 
     # Build messages list
     messages = []
@@ -172,7 +170,6 @@ def guide_chat(request):
     })
 
 
-@csrf_exempt
 @require_enterprise
 @require_http_methods(["POST"])
 def summarize_project(request):
@@ -214,8 +211,8 @@ def summarize_project(request):
 
     # Gather context
     context_parts = [f"Project: {project.title}"]
-    if project.description:
-        context_parts.append(f"Description: {project.description}")
+    if getattr(project, 'problem_statement', ''):
+        context_parts.append(f"Description: {project.problem_statement}")
 
     # Hypotheses
     if include.get("hypotheses", True):
@@ -267,15 +264,19 @@ D8: Team Recognition""",
 - Follow-up""",
     }
 
-    template_instruction = body.get("custom_template") or template_prompts.get(template, template_prompts["capa"])
+    custom_template = body.get("custom_template", "")[:2000]
+    template_instruction = custom_template or template_prompts.get(template, template_prompts["capa"])
 
     system = SYSTEM_PROMPTS["project"]
-    user_message = f"""Based on this project data, generate a report.
+    user_message = f"""Based on the project data below, generate a report.
 
+<project_data>
 {chr(10).join(context_parts)}
+</project_data>
 
----
+<report_template>
 {template_instruction}
+</report_template>
 
 Generate the report now, filling in based on available data. If data is missing for a section, note what's needed."""
 
@@ -307,7 +308,6 @@ Generate the report now, filling in based on available data. If data is missing 
     })
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def rate_limit_status(request):

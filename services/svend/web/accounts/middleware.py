@@ -1,12 +1,35 @@
 """Subscription and access control middleware."""
 
+import hashlib
+import re
 from datetime import timedelta
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.http import JsonResponse
 from django.utils import timezone
 
 from .constants import is_paid_tier
+
+BOT_PATTERN = re.compile(
+    r"bot|crawl|spider|slurp|bingpreview|facebookexternalhit|Googlebot|"
+    r"Baiduspider|YandexBot|DuckDuckBot|Twitterbot|LinkedInBot|"
+    r"HeadlessChrome|PhantomJS|Selenium|Puppeteer|"
+    r"Claude-User|pageburst|Google-|^Google$|"
+    r"Python/|aiohttp|httpx|Go-http-client|Java/|wget|curl/|"
+    r"axios/|Palo Alto|Cortex|Xpanse",
+    re.IGNORECASE,
+)
+
+# Spoofed mobile UAs with ancient OS versions — almost certainly headless crawlers.
+# Real users update; 24+ unique IPs claiming iOS 13 or Android 6 in 2026 = bots.
+_STALE_MOBILE_RE = re.compile(
+    r"(?:iPhone OS|CPU OS) (?:[5-9]|1[0-5])_"  # iOS/iPadOS < 16 (released Sep 2022)
+    r"|Android [1-9]\.| Android [1-9] ",  # Android < 10
+)
+
+SKIP_PREFIXES = ("/static/", "/media/", "/api/", "/admin/", "/billing/")
+SKIP_PATHS = {"/favicon.ico", "/robots.txt", "/sitemap.xml", "/health/"}
 
 
 class SubscriptionMiddleware:
@@ -94,77 +117,94 @@ class QueryLimitMiddleware:
         return self.get_response(request)
 
 
-class InviteRequiredMiddleware:
-    """Middleware to enforce invite-only registration.
+class NoCacheDynamicMiddleware:
+    """Prevent Cloudflare from caching dynamic responses.
 
-    Only active when REQUIRE_INVITE is True.
+    WhiteNoise handles static files before this middleware runs,
+    so this only affects Django-rendered pages and API responses.
     """
-
-    REGISTRATION_PATHS = [
-        "/accounts/signup/",
-        "/accounts/register/",
-        "/api/auth/register/",
-    ]
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        if not settings.REQUIRE_INVITE:
-            return self.get_response(request)
+        response = self.get_response(request)
+        if "Cache-Control" not in response:
+            response["Cache-Control"] = "no-cache, no-store, must-revalidate, private"
+        return response
 
-        # Only check registration endpoints
-        is_registration = any(
-            request.path.startswith(path) for path in self.REGISTRATION_PATHS
-        )
 
-        if not is_registration:
-            return self.get_response(request)
+class SiteVisitMiddleware:
+    """Track anonymous page visits for site-wide marketing analytics.
 
-        # Check for invite code and plan in request (normalize to uppercase)
-        invite_code = (request.POST.get("invite_code") or request.GET.get("invite") or "").strip().upper()
-        plan = (request.POST.get("plan") or request.GET.get("plan") or "").strip().lower()
+    Records GET requests to user-facing pages. Skips static files, API calls,
+    admin, and common non-page paths. Fire-and-forget: never breaks the request.
+    """
 
-        # Also check JSON body for API requests
-        import json
-        if request.content_type and request.content_type.startswith("application/json"):
-            try:
-                raw_body = request.body.decode('utf-8') if isinstance(request.body, bytes) else request.body
-                body = json.loads(raw_body)
-                if not invite_code and body.get("invite_code"):
-                    invite_code = body["invite_code"].strip().upper()
-                if not plan and body.get("plan"):
-                    plan = body["plan"].strip().lower()
-            except (json.JSONDecodeError, AttributeError, UnicodeDecodeError):
-                pass
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-        # Paid plans bypass invite requirement (they're paying customers)
-        paid_plans = ["founder", "pro", "team", "enterprise"]
-        if plan in paid_plans:
-            return self.get_response(request)
+    def __call__(self, request):
+        response = self.get_response(request)
 
-        if not invite_code:
-            return JsonResponse(
-                {"error": "Invite code required", "message": "Registration is invite-only during alpha."},
-                status=403,
-            )
+        # Only track GET requests that returned 200
+        if request.method != "GET" or response.status_code != 200:
+            return response
 
-        # Validate invite code
-        from .models import InviteCode
+        path = request.path
+
+        # Skip non-page paths
+        if path in SKIP_PATHS:
+            return response
+        if any(path.startswith(p) for p in SKIP_PREFIXES):
+            return response
+
+        # Skip staff users — don't pollute analytics with our own traffic
+        if hasattr(request, "user") and request.user.is_authenticated and request.user.is_staff:
+            return response
 
         try:
-            invite = InviteCode.objects.get(code=invite_code)
-            if not invite.is_valid:
-                return JsonResponse(
-                    {"error": "Invalid invite code", "message": "This invite code has expired or been used."},
-                    status=403,
-                )
-            # Store for use in registration view
-            request.invite_code = invite
-        except InviteCode.DoesNotExist:
-            return JsonResponse(
-                {"error": "Invalid invite code", "message": "This invite code does not exist."},
-                status=403,
+            from api.models import SiteVisit
+
+            ua = request.META.get("HTTP_USER_AGENT", "")
+            referrer = request.META.get("HTTP_REFERER", "")
+            ip = (
+                request.META.get("HTTP_CF_CONNECTING_IP", "")
+                or request.META.get("REMOTE_ADDR", "")
+            )
+            ip_hash = hashlib.sha256(ip.encode()).hexdigest() if ip else ""
+
+            ref_domain = ""
+            if referrer:
+                try:
+                    ref_domain = urlparse(referrer).netloc
+                except Exception:
+                    pass
+
+            is_bot = bool(
+                not ua.strip()
+                or BOT_PATTERN.search(ua)
+                or _STALE_MOBILE_RE.search(ua)
             )
 
-        return self.get_response(request)
+            # Cloudflare adds CF-IPCountry header (2-letter ISO code)
+            country = request.META.get("HTTP_CF_IPCOUNTRY", "")
+            if country in ("XX", "T1"):  # XX=unknown, T1=Tor
+                country = ""
+
+            SiteVisit.objects.create(
+                path=path[:300],
+                referrer=referrer[:500],
+                referrer_domain=ref_domain[:200],
+                ip_hash=ip_hash,
+                user_agent=ua[:500],
+                country=country[:2],
+                is_bot=is_bot,
+                method=request.method[:10],
+            )
+        except Exception:
+            pass  # Never let analytics break the request
+
+        return response
+
+

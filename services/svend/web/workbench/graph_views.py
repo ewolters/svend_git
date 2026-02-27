@@ -8,7 +8,6 @@ import json
 import logging
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
@@ -68,7 +67,6 @@ def get_or_create_project_graph(project_id: str, user) -> KnowledgeGraph:
 # Graph CRUD
 # =============================================================================
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_graph(request, workbench_id: str):
@@ -77,7 +75,6 @@ def get_graph(request, workbench_id: str):
     return JsonResponse(graph.to_dict())
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["DELETE"])
 def clear_graph(request, workbench_id: str):
@@ -95,7 +92,6 @@ def clear_graph(request, workbench_id: str):
 # Node operations
 # =============================================================================
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def add_node(request, workbench_id: str):
@@ -137,7 +133,6 @@ def add_node(request, workbench_id: str):
     return JsonResponse({"success": True, "node": node})
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["DELETE"])
 def remove_node(request, workbench_id: str, node_id: str):
@@ -153,7 +148,6 @@ def remove_node(request, workbench_id: str, node_id: str):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_nodes(request, workbench_id: str):
@@ -170,7 +164,6 @@ def get_nodes(request, workbench_id: str):
 # Edge operations (causal vectors)
 # =============================================================================
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def add_edge(request, workbench_id: str):
@@ -223,7 +216,6 @@ def add_edge(request, workbench_id: str):
     return JsonResponse({"success": True, "edge": edge})
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def update_edge_weight(request, workbench_id: str, edge_id: str):
@@ -274,7 +266,6 @@ def update_edge_weight(request, workbench_id: str, edge_id: str):
     })
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_edges(request, workbench_id: str):
@@ -291,7 +282,6 @@ def get_edges(request, workbench_id: str):
 # Evidence & Bayesian updates
 # =============================================================================
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def apply_evidence(request, workbench_id: str):
@@ -354,7 +344,6 @@ def apply_evidence(request, workbench_id: str):
     })
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def check_expansion(request, workbench_id: str):
@@ -403,7 +392,6 @@ def check_expansion(request, workbench_id: str):
 # Graph traversal
 # =============================================================================
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_causal_chain(request, workbench_id: str, from_node: str, to_node: str):
@@ -429,7 +417,6 @@ def get_causal_chain(request, workbench_id: str, from_node: str, to_node: str):
     })
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_upstream_causes(request, workbench_id: str, node_id: str):
@@ -451,7 +438,6 @@ def get_upstream_causes(request, workbench_id: str, node_id: str):
 # Expansion signals
 # =============================================================================
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_expansion_signals(request, workbench_id: str):
@@ -466,7 +452,6 @@ def get_expansion_signals(request, workbench_id: str):
     })
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def resolve_expansion(request, workbench_id: str, signal_id: str):
@@ -530,7 +515,6 @@ def resolve_expansion(request, workbench_id: str, signal_id: str):
 # Epistemic log
 # =============================================================================
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_epistemic_log(request, workbench_id: str):
@@ -564,7 +548,6 @@ def get_epistemic_log(request, workbench_id: str):
     })
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def mark_log_outcome(request, workbench_id: str, log_id: str):
@@ -601,7 +584,6 @@ def mark_log_outcome(request, workbench_id: str, log_id: str):
 # Project-level Knowledge Graph (for connecting hypotheses)
 # =============================================================================
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_project_graph(request, project_id: str):
@@ -610,7 +592,6 @@ def get_project_graph(request, project_id: str):
     return JsonResponse(graph.to_dict())
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def add_hypothesis_to_graph(request, project_id: str, hypothesis_id: str):
@@ -703,7 +684,6 @@ def add_hypothesis_to_graph(request, project_id: str, hypothesis_id: str):
     })
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["POST"])
 def connect_hypotheses(request, project_id: str):
@@ -799,7 +779,6 @@ def connect_hypotheses(request, project_id: str):
     })
 
 
-@csrf_exempt
 @require_auth
 @require_http_methods(["GET"])
 def get_hypothesis_connections(request, project_id: str, hypothesis_id: str):

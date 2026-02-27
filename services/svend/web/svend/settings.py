@@ -1,5 +1,6 @@
 """Django settings for Svend."""
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -43,17 +44,18 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "accounts.middleware.NoCacheDynamicMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.SiteVisitMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Svend custom middleware
     "accounts.middleware.SubscriptionMiddleware",
     "accounts.middleware.QueryLimitMiddleware",
-    "accounts.middleware.InviteRequiredMiddleware",
 ]
 
 ROOT_URLCONF = "svend.urls"
@@ -126,13 +128,24 @@ SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
+
+# HTTPS hardening (production only — Caddy handles TLS)
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 63072000  # 2 years
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Field-level encryption key (loaded from /home/eric/.svend_encryption_key)
+FIELD_ENCRYPTION_KEY = config.field_encryption_key
 
 # REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "api.auth.CsrfExemptSessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",  # For API testing
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -143,15 +156,85 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "user": f"{config.rate_limit_per_minute}/minute",
     },
+    # Cloudflare is the single proxy in front of Gunicorn. This tells DRF
+    # to use the *rightmost* entry in X-Forwarded-For (the one Cloudflare
+    # appended) instead of the leftmost (which the client controls).
+    # Without this, all anonymous rate limits are bypassable via a fake
+    # X-Forwarded-For header.
+    "NUM_PROXIES": 1,
 }
 
 # Tempora (distributed task scheduling)
-TEMPORA_CLUSTER_SECRET = config.secret_key
+TEMPORA_CLUSTER_SECRET = hashlib.sha256(
+    (config.secret_key + ":tempora-cluster").encode()
+).hexdigest()
 TEMPORA_NODE_ID = "svend-1"
 TEMPORA_SETTINGS = {
     "election_timeout_min": 150,
     "election_timeout_max": 300,
     "heartbeat_interval": 50,
+}
+
+# Logging
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "svend.log"),
+            "maxBytes": 10 * 1024 * 1024,  # 10 MB
+            "backupCount": 5,
+            "formatter": "verbose",
+        },
+        "security": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_DIR / "security.log"),
+            "maxBytes": 10 * 1024 * 1024,
+            "backupCount": 10,
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "WARNING",
+        },
+        "django.security": {
+            "handlers": ["console", "security"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "agents_api": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+        "api": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+        "forge": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "INFO",
+    },
 }
 
 # Kjerne pipeline path
@@ -170,8 +253,10 @@ STRIPE_SECRET_KEY = config.stripe_secret_key
 STRIPE_WEBHOOK_SECRET = config.stripe_webhook_secret
 STRIPE_PRICE_ID_PRO = config.stripe_price_id_pro
 
-# Alpha access control
-REQUIRE_INVITE = config.require_invite
+
+# Evidence integration — problem-solving tools → core.Evidence
+# Flip to False to disable all tool → evidence hooks (rollback switch).
+EVIDENCE_INTEGRATION_ENABLED = True
 
 # Pipeline selection
 SVEND_USE_SYNARA = config.use_synara  # True = Synara (alpha-ready), False = MoE

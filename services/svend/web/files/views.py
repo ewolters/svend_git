@@ -2,6 +2,7 @@
 
 import logging
 import mimetypes
+import re
 from pathlib import Path
 
 from django.http import FileResponse, Http404
@@ -15,6 +16,12 @@ from rest_framework.response import Response
 from .models import UserFile, UserQuota
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_cd_filename(name: str) -> str:
+    """Sanitize filename for Content-Disposition header (prevent header injection)."""
+    name = name.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    return re.sub(r'[\x00-\x1f\x7f"\\]', '_', name) or "download"
 
 
 @api_view(["GET"])
@@ -112,7 +119,12 @@ def upload_file(request):
         "application/x-msdos-program",
         "application/x-msdownload",
     ]
-    dangerous_extensions = [".exe", ".bat", ".cmd", ".sh", ".ps1", ".dll"]
+    dangerous_extensions = [
+        ".exe", ".bat", ".cmd", ".sh", ".ps1", ".dll",
+        ".html", ".htm", ".svg", ".py", ".php", ".jsp",
+        ".zip", ".jar", ".msi", ".vbs", ".scr", ".com",
+        ".cpl", ".hta", ".inf", ".reg", ".ws", ".wsf",
+    ]
 
     if mime_type in dangerous_types:
         return Response(
@@ -257,7 +269,7 @@ def download_file(request, file_id):
         user_file.file.open("rb"),
         content_type=user_file.mime_type or "application/octet-stream",
     )
-    response["Content-Disposition"] = f'attachment; filename="{user_file.original_name}"'
+    response["Content-Disposition"] = f'attachment; filename="{_safe_cd_filename(user_file.original_name)}"'
     return response
 
 
@@ -280,7 +292,7 @@ def shared_file(request, share_token):
             user_file.file.open("rb"),
             content_type=user_file.mime_type or "application/octet-stream",
         )
-        response["Content-Disposition"] = f'attachment; filename="{user_file.original_name}"'
+        response["Content-Disposition"] = f'attachment; filename="{_safe_cd_filename(user_file.original_name)}"'
         return response
 
     return Response({

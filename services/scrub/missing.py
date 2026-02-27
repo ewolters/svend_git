@@ -46,6 +46,9 @@ class MissingResult:
     total_missing: int = 0
     total_filled: int = 0
     rows_dropped: int = 0
+    columns_dropped: list[str] = field(default_factory=list)
+    rows_dropped_indices: list[int] = field(default_factory=list)
+    high_missing_warnings: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         lines = [
@@ -104,11 +107,8 @@ class MissingHandler:
                 # Determine column type
                 dtype = self._get_column_type(df[col])
 
-                # Suggest strategy
-                if missing_pct > self.drop_threshold * 100:
-                    strategy = ImputationStrategy.DROP
-                else:
-                    strategy = self.DEFAULT_STRATEGIES.get(dtype, ImputationStrategy.MODE)
+                # Always suggest imputation — never auto-drop
+                strategy = self.DEFAULT_STRATEGIES.get(dtype, ImputationStrategy.MODE)
 
                 analysis[col] = MissingInfo(
                     column=col,
@@ -144,21 +144,34 @@ class MissingHandler:
         constants = constants or {}
 
         result = MissingResult()
-        result.total_missing = df.isna().sum().sum()
+        result.total_missing = int(df.isna().sum().sum())
 
         # First, drop rows that are mostly empty
-        row_missing = df.isna().sum(axis=1) / len(df.columns)
-        rows_to_drop = row_missing[row_missing > self.row_drop_threshold].index
-        if len(rows_to_drop) > 0:
-            df = df.drop(rows_to_drop)
-            result.rows_dropped = len(rows_to_drop)
+        if len(df.columns) > 0:
+            row_missing = df.isna().sum(axis=1) / len(df.columns)
+            rows_to_drop = row_missing[row_missing > self.row_drop_threshold].index
+            if len(rows_to_drop) > 0:
+                result.rows_dropped_indices = rows_to_drop.tolist()
+                df = df.drop(rows_to_drop)
+                result.rows_dropped = len(rows_to_drop)
 
         # Analyze each column
         analysis = self.analyze(df)
 
         for col, info in analysis.items():
-            # Use override strategy if provided
+            # Use override strategy if provided, otherwise use analyzed suggestion
             strategy = strategies.get(col, info.strategy_used)
+
+            # Warn about high-missing columns that we're imputing instead of dropping
+            if info.missing_percent > self.drop_threshold * 100 and strategy != ImputationStrategy.DROP:
+                result.high_missing_warnings.append(
+                    f"'{col}' has {info.missing_percent:.0f}% missing data — "
+                    f"imputed with {strategy.value}. Consider whether this column is reliable."
+                )
+
+            # Track columns being dropped
+            if strategy == ImputationStrategy.DROP:
+                result.columns_dropped.append(col)
 
             # Apply strategy
             fill_value = self._apply_strategy(df, col, strategy, constants.get(col))
@@ -167,7 +180,7 @@ class MissingHandler:
             info.fill_value = fill_value
             result.columns.append(info)
 
-        result.total_filled = result.total_missing - df.isna().sum().sum() - result.rows_dropped
+        result.total_filled = result.total_missing - int(df.isna().sum().sum()) - result.rows_dropped
 
         return df, result
 
@@ -198,13 +211,21 @@ class MissingHandler:
 
         elif strategy == ImputationStrategy.MEAN:
             fill_value = df[column].mean()
-            df[column] = df[column].fillna(fill_value)
-            return float(fill_value) if pd.notna(fill_value) else None
+            if pd.notna(fill_value):
+                if pd.api.types.is_integer_dtype(df[column]):
+                    fill_value = round(fill_value)
+                df[column] = df[column].fillna(fill_value)
+                return float(fill_value)
+            return None
 
         elif strategy == ImputationStrategy.MEDIAN:
             fill_value = df[column].median()
-            df[column] = df[column].fillna(fill_value)
-            return float(fill_value) if pd.notna(fill_value) else None
+            if pd.notna(fill_value):
+                if pd.api.types.is_integer_dtype(df[column]):
+                    fill_value = round(fill_value)
+                df[column] = df[column].fillna(fill_value)
+                return float(fill_value)
+            return None
 
         elif strategy == ImputationStrategy.MODE:
             mode_values = df[column].mode()

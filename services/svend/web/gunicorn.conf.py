@@ -22,6 +22,10 @@ loglevel = "info"
 # Process naming
 proc_name = "svend"
 
+# Worker recycling — prevent unbounded memory growth
+max_requests = 1000
+max_requests_jitter = 50
+
 # Security
 limit_request_line = 4094
 limit_request_fields = 100

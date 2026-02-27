@@ -5,6 +5,7 @@ Enterprise-only — all views gated by @require_feature("hoshin_kanri").
 
 from django.urls import path
 from . import hoshin_views as views
+from . import xmatrix_views as views_xm
 
 urlpatterns = [
     # Sites
@@ -37,4 +38,24 @@ urlpatterns = [
     path("calendar/", views.hoshin_calendar_view, name="hoshin_calendar"),
     path("calculation-methods/", views.list_calculation_methods, name="hoshin_calc_methods"),
     path("test-formula/", views.test_formula, name="hoshin_test_formula"),
+
+    # X-Matrix
+    path("x-matrix/", views_xm.get_xmatrix_data, name="xmatrix_data"),
+    path("x-matrix/correlations/", views_xm.update_correlation, name="xmatrix_correlation"),
+    path("x-matrix/rollover/", views_xm.rollover_fiscal_year, name="xmatrix_rollover"),
+
+    # Strategic Objectives
+    path("strategic-objectives/", views_xm.list_create_strategic_objectives, name="xmatrix_strategic"),
+    path("strategic-objectives/<uuid:obj_id>/", views_xm.update_delete_strategic_objective, name="xmatrix_strategic_detail"),
+
+    # Annual Objectives
+    path("annual-objectives/", views_xm.list_create_annual_objectives, name="xmatrix_annual"),
+    path("annual-objectives/<uuid:obj_id>/", views_xm.update_delete_annual_objective, name="xmatrix_annual_detail"),
+
+    # KPIs
+    path("kpis/", views_xm.list_create_kpis, name="xmatrix_kpis"),
+    path("kpis/<uuid:kpi_id>/", views_xm.update_delete_kpi, name="xmatrix_kpi_detail"),
+
+    # VSM Lifecycle
+    path("vsm/<uuid:vsm_id>/promote/", views_xm.promote_vsm, name="xmatrix_vsm_promote"),
 ]

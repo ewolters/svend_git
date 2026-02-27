@@ -12,6 +12,23 @@
         <button class="btn btn-primary" onclick="showCreateModal()">+ New Hypothesis</button>
     </div>
 
+    <!-- How This Works -->
+    <details style="margin-bottom:1rem; padding:0.75rem 1rem; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; cursor:pointer;">
+        <summary style="font-size:0.85rem; font-weight:600; color:var(--accent-primary); list-style:none; display:flex; align-items:center; gap:0.4rem;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            How hypothesis tracking works
+        </summary>
+        <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.6; padding-top:0.6rem; max-width:700px;">
+            <p style="margin:0 0 0.5rem;">Svend uses <strong>Bayesian reasoning</strong> to track how confident you should be in each potential cause. Instead of gut feelings, you get a probability that updates as you gather evidence.</p>
+            <p style="margin:0 0 0.5rem;"><strong>1. Describe the effect</strong> — what are you observing? (e.g., "Defect rate spiked 40% in Q4")</p>
+            <p style="margin:0 0 0.5rem;"><strong>2. Add potential causes</strong> — each gets a prior probability (your initial belief, 5-95%). The AI can suggest causes too.</p>
+            <p style="margin:0 0 0.5rem;"><strong>3. Gather evidence</strong> — run analyses in the DSW, SPC, or DOE modules. When you add evidence, mark which causes it supports or weakens.</p>
+            <p style="margin:0 0 0.5rem;"><strong>4. Probabilities update automatically</strong> — Bayes' theorem redistributes probability across your causes based on the evidence. The most probable cause rises to the top.</p>
+            <p style="margin:0 0 0.5rem;"><strong>Expansion signals:</strong> If evidence contradicts <em>all</em> your causes, Svend flags that you may be missing something — a factor you haven't considered yet.</p>
+            <p style="margin:0;"><strong>Think of it as:</strong> "Given everything I've seen so far, how likely is each cause?" — updated every time you learn something new.</p>
+        </div>
+    </details>
+
     <!-- Session Type Toggle -->
     <div class="session-toggle">
         <button class="toggle-btn active" data-type="problem" onclick="setSessionType('problem')">
@@ -91,10 +108,10 @@
                     placeholder="e.g., CRM export, sales data, customer surveys, server logs..."></textarea>
             </div>
 
-            <div class="form-group checkbox-group">
-                <label>
+            <div class="form-group">
+                <label class="svend-toggle">
                     <input type="checkbox" id="can-experiment" checked>
-                    I can run controlled experiments (not just observe)
+                    <span>I can run controlled experiments (not just observe)</span>
                 </label>
             </div>
 
@@ -830,7 +847,7 @@
 
 .interview-answer .choice-option.selected {
     border-color: var(--accent-primary);
-    background: rgba(99, 102, 241, 0.1);
+    background: var(--accent-primary-dim);
 }
 
 .interview-answer .choice-option input {
@@ -868,8 +885,8 @@
 }
 
 .recommendation-panel {
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: var(--accent-primary-dim);
+    border: 1px solid var(--accent-primary-border);
     border-radius: 8px;
     padding: 1.25rem;
     margin-bottom: 1rem;
@@ -895,13 +912,13 @@
 }
 
 .btn-accent {
-    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    background: var(--accent-primary);
     color: white;
     border: none;
 }
 
 .btn-accent:hover {
-    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+    filter: brightness(0.85);
 }
 
 .detail-header {

@@ -4,123 +4,685 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terms of Service - SVEND</title>
+    <meta name="description" content="SVEND Terms of Service. You own your data. Full export anytime. ISO 9001:2015 aligned platform with encryption at rest, audit trails, and compliance-grade data governance.">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #0a0f0a;
             --bg-secondary: #0d120d;
+            --bg-tertiary: #121a12;
+            --bg-card: #0f150f;
             --accent-primary: #4a9f6e;
+            --accent-primary-dim: rgba(74, 159, 110, 0.15);
+            --accent-primary-border: rgba(74, 159, 110, 0.3);
+            --accent-blue: #4a9faf;
+            --accent-gold: #e8c547;
             --text-primary: #e8efe8;
             --text-secondary: #9aaa9a;
             --text-dim: #7a8f7a;
-            --border: rgba(74, 159, 110, 0.2);
+            --border: rgba(74, 159, 110, 0.15);
+            --border-strong: rgba(74, 159, 110, 0.3);
         }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             font-family: 'Inter', sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.7;
+            font-weight: 300;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 4rem 2rem;
+
+        /* ── Header ───────────────────────────────────── */
+        .header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
+
         .logo {
             color: var(--accent-primary);
             font-size: 1.5rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
+            font-weight: 300;
+            letter-spacing: 0.3em;
             text-decoration: none;
-            display: inline-block;
-            margin-bottom: 3rem;
         }
-        h1 {
-            font-size: 2rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
+
+        .header-links {
+            display: flex;
+            gap: 1.5rem;
         }
-        .updated {
+
+        .header-links a {
             color: var(--text-dim);
-            font-size: 0.9rem;
-            margin-bottom: 3rem;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 400;
+            letter-spacing: 0.04em;
+            transition: color 0.2s;
         }
-        h2 {
-            font-size: 1.25rem;
-            font-weight: 500;
-            margin: 2rem 0 1rem;
-            color: var(--accent-primary);
+
+        .header-links a:hover { color: var(--accent-primary); }
+
+        /* ── Hero ─────────────────────────────────────── */
+        .hero {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 5rem 2rem 3rem;
+            text-align: center;
         }
-        p, ul {
-            color: var(--text-secondary);
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: 0.02em;
             margin-bottom: 1rem;
         }
-        ul { padding-left: 1.5rem; }
+
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 1.5rem;
+            font-weight: 300;
+        }
+
+        .updated {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        /* ── Commitments banner ───────────────────────── */
+        .commitments {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 2rem 3rem;
+        }
+
+        .commitment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+        }
+
+        .commitment-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.75rem 1.5rem;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .commitment-card:hover {
+            border-color: var(--accent-primary-border);
+        }
+
+        .commitment-icon {
+            font-size: 1.75rem;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        .commitment-card h3 {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.02em;
+        }
+
+        .commitment-card p {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ── Content ──────────────────────────────────── */
+        .content {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 0 2rem 5rem;
+        }
+
+        /* ── Data Ownership callout ───────────────────── */
+        .callout {
+            background: var(--accent-primary-dim);
+            border: 1px solid var(--accent-primary-border);
+            border-radius: 6px;
+            padding: 2rem 2.25rem;
+            margin-bottom: 3rem;
+        }
+
+        .callout h2 {
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: var(--accent-primary);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .callout p {
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .callout p:last-child { margin-bottom: 0; }
+
+        .callout ul {
+            color: var(--text-secondary);
+            padding-left: 1.25rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .callout ul:last-child { margin-bottom: 0; }
+        .callout li { margin-bottom: 0.4rem; }
+
+        /* ── Compliance banner ────────────────────────── */
+        .compliance-banner {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 2rem 2.25rem;
+            margin-bottom: 3rem;
+        }
+
+        .compliance-banner h2 {
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: var(--accent-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .compliance-banner .lead {
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+            font-size: 0.95rem;
+        }
+
+        .clause-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .clause-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .clause-check {
+            color: var(--accent-primary);
+            font-size: 0.8rem;
+            margin-top: 0.2rem;
+            flex-shrink: 0;
+        }
+
+        .clause-label {
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+
+        /* ── Section styling ──────────────────────────── */
+        .section {
+            margin-bottom: 2.75rem;
+        }
+
+        .section-number {
+            font-size: 0.75rem;
+            color: var(--accent-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 500;
+            margin-bottom: 0.35rem;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        ul, ol {
+            color: var(--text-secondary);
+            padding-left: 1.25rem;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
         li { margin-bottom: 0.5rem; }
-        a { color: var(--accent-primary); }
-        .back {
+
+        li strong {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        a { color: var(--accent-primary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ── Export table ──────────────────────────────── */
+        .export-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .export-table th,
+        .export-table td {
+            text-align: left;
+            padding: 0.65rem 0.9rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .export-table th {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .export-table td {
+            color: var(--text-secondary);
+        }
+
+        .format-tag {
             display: inline-block;
-            margin-top: 3rem;
+            padding: 0.15rem 0.5rem;
+            background: var(--accent-primary-dim);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            font-size: 0.78rem;
+            color: var(--accent-primary);
+            font-weight: 400;
+        }
+
+        /* ── Divider ──────────────────────────────────── */
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 3rem 0;
+        }
+
+        /* ── Contact section ──────────────────────────── */
+        .contact-section {
+            text-align: center;
+            padding: 3rem 0 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .contact-section h2 {
+            font-size: 1.1rem;
+            font-weight: 400;
+            margin-bottom: 0.5rem;
+        }
+
+        .contact-section p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .contact-section a {
+            color: var(--accent-primary);
+        }
+
+        /* ── Footer nav ───────────────────────────────── */
+        .footer-nav {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 2.5rem;
+            padding-bottom: 3rem;
+        }
+
+        .footer-nav a {
             color: var(--text-dim);
             text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
         }
-        .back:hover { color: var(--accent-primary); }
+
+        .footer-nav a:hover { color: var(--accent-primary); }
+
+        /* ── Responsive ───────────────────────────────── */
+        @media (max-width: 700px) {
+            .commitment-grid { grid-template-columns: 1fr; }
+            .clause-grid { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 1.8rem; }
+            .hero { padding: 3rem 1.5rem 2rem; }
+            .content { padding: 0 1.5rem 3rem; }
+            .commitments { padding: 0 1.5rem 2rem; }
+            .header { padding: 1rem 1.5rem; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+
+    <!-- ── Header ──────────────────────────────────────── -->
+    <div class="header">
         <a href="/" class="logo">SVEND</a>
-        <h1>Terms of Service</h1>
-        <p class="updated">Last updated: January 2026</p>
-
-        <h2>1. Acceptance of Terms</h2>
-        <p>By using SVEND, you agree to these terms. If you don't agree, please don't use the service.</p>
-
-        <h2>2. Description of Service</h2>
-        <p>SVEND is a decision science workbench providing statistical analysis, hypothesis testing, and AI-assisted data analysis tools.</p>
-
-        <h2>3. Account Responsibilities</h2>
-        <ul>
-            <li>You must provide accurate account information</li>
-            <li>You're responsible for maintaining password security</li>
-            <li>You must be 18 or older to use the service</li>
-            <li>One person per account; no shared accounts</li>
-        </ul>
-
-        <h2>4. Acceptable Use</h2>
-        <p>You agree not to:</p>
-        <ul>
-            <li>Use the service for illegal purposes</li>
-            <li>Attempt to breach security or access other users' data</li>
-            <li>Overload or disrupt the service</li>
-            <li>Resell access without permission</li>
-        </ul>
-
-        <h2>5. Subscription & Billing</h2>
-        <ul>
-            <li>Subscriptions are billed monthly via Stripe</li>
-            <li>You can cancel anytime; access continues until period end</li>
-            <li>Refunds are handled case-by-case; contact us</li>
-            <li>We may change pricing with 30 days notice</li>
-        </ul>
-
-        <h2>6. Data & Privacy</h2>
-        <p>Your use of data is governed by our <a href="/privacy/">Privacy Policy</a>. You retain ownership of data you upload.</p>
-
-        <h2>7. Service Availability</h2>
-        <p>We aim for high availability but don't guarantee 100% uptime. We're not liable for downtime or data loss.</p>
-
-        <h2>8. Limitation of Liability</h2>
-        <p>SVEND is provided "as is." We're not liable for decisions made based on analyses performed with our tools. Always verify critical results independently.</p>
-
-        <h2>9. Changes to Terms</h2>
-        <p>We may update these terms. Continued use after changes means acceptance.</p>
-
-        <h2>10. Contact</h2>
-        <p>Questions? Email <a href="mailto:eric.wolters@svend.ai">eric.wolters@svend.ai</a></p>
-
-        <a href="/" class="back">&larr; Back to SVEND</a>
+        <div class="header-links">
+            <a href="/privacy/">Privacy</a>
+            <a href="/login/">Sign in</a>
+        </div>
     </div>
+
+    <!-- ── Hero ────────────────────────────────────────── -->
+    <div class="hero">
+        <h1>Terms of Service</h1>
+        <p class="subtitle">Clear terms, full data ownership, and compliance-grade governance. No surprises.</p>
+        <p class="updated">Last updated: February 2026</p>
+    </div>
+
+    <!-- ── Commitment cards ────────────────────────────── -->
+    <div class="commitments">
+        <div class="commitment-grid">
+            <div class="commitment-card">
+                <span class="commitment-icon" aria-hidden="true">&#9632;</span>
+                <h3>You Own Your Data</h3>
+                <p>Everything you create belongs to you. Export all of it, anytime, in open formats. No lock-in, no hostage data.</p>
+            </div>
+            <div class="commitment-card">
+                <span class="commitment-icon" aria-hidden="true">&#9670;</span>
+                <h3>ISO 9001 Aligned</h3>
+                <p>Full audit trails, document control, retention policies, and traceability designed for regulatory environments.</p>
+            </div>
+            <div class="commitment-card">
+                <span class="commitment-icon" aria-hidden="true">&#9673;</span>
+                <h3>Encrypted &amp; Private</h3>
+                <p>AES-128 encryption at rest. HTTPS in transit. Private infrastructure. Your data is never shared or sold.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- ── Data Ownership callout ──────────────────── -->
+        <div class="callout">
+            <h2>Your Data, Your Property</h2>
+            <p><strong style="color: var(--text-primary);">You retain full ownership of all data you upload, create, or generate on SVEND.</strong> We claim no intellectual property rights over your content. This includes:</p>
+            <ul>
+                <li>Datasets, files, and documents you upload</li>
+                <li>Analysis results, SPC charts, DOE designs, and statistical outputs</li>
+                <li>Projects, hypotheses, evidence records, and knowledge graphs</li>
+                <li>A3 reports, FMEA studies, RCA sessions, value stream maps</li>
+                <li>Hoshin Kanri plans, whiteboards, and all other artifacts</li>
+            </ul>
+            <p>You may <strong style="color: var(--text-primary);">download a complete copy of all your data at any time</strong> from your account settings. Exports are provided in standard, open formats (CSV, JSON) with no restrictions on use. If you delete your account, we will permanently erase all your data within 7 days.</p>
+        </div>
+
+        <!-- ── Full export table ───────────────────────── -->
+        <div class="section">
+            <div class="section-number">Data Portability</div>
+            <h2>What You Can Export</h2>
+            <p>Every category of your data is exportable. No exceptions, no paywalls on export.</p>
+            <table class="export-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Format</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Datasets &amp; uploaded files</td>
+                        <td><span class="format-tag">CSV</span> <span class="format-tag">Original</span></td>
+                    </tr>
+                    <tr>
+                        <td>Analysis results &amp; statistical outputs</td>
+                        <td><span class="format-tag">JSON</span> <span class="format-tag">CSV</span></td>
+                    </tr>
+                    <tr>
+                        <td>SPC charts &amp; control data</td>
+                        <td><span class="format-tag">JSON</span> <span class="format-tag">CSV</span></td>
+                    </tr>
+                    <tr>
+                        <td>DOE designs &amp; experiment results</td>
+                        <td><span class="format-tag">JSON</span> <span class="format-tag">CSV</span></td>
+                    </tr>
+                    <tr>
+                        <td>Projects, hypotheses &amp; evidence</td>
+                        <td><span class="format-tag">JSON</span></td>
+                    </tr>
+                    <tr>
+                        <td>A3 reports, RCA, FMEA studies</td>
+                        <td><span class="format-tag">JSON</span></td>
+                    </tr>
+                    <tr>
+                        <td>Value stream maps &amp; whiteboards</td>
+                        <td><span class="format-tag">JSON</span> <span class="format-tag">SVG</span></td>
+                    </tr>
+                    <tr>
+                        <td>Hoshin Kanri plans &amp; X-matrices</td>
+                        <td><span class="format-tag">JSON</span></td>
+                    </tr>
+                    <tr>
+                        <td>Conversations &amp; chat history</td>
+                        <td><span class="format-tag">JSON</span></td>
+                    </tr>
+                    <tr>
+                        <td>QMS records (NCRs, audits, training)</td>
+                        <td><span class="format-tag">JSON</span> <span class="format-tag">CSV</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── ISO 9001 Compliance ─────────────────────── -->
+        <div class="compliance-banner">
+            <h2>ISO 9001:2015 Compliance Alignment</h2>
+            <p class="lead">SVEND is built for regulated environments. The platform supports your QMS requirements with traceable records, controlled processes, and complete audit readiness.</p>
+            <div class="clause-grid">
+                <div class="clause-item">
+                    <span class="clause-check" aria-hidden="true">&#10003;</span>
+                    <span><span class="clause-label">Clause 7.5 &mdash; Document Control.</span> Version-tracked records with controlled access and retention policies.</span>
+                </div>
+                <div class="clause-item">
+                    <span class="clause-check" aria-hidden="true">&#10003;</span>
+                    <span><span class="clause-label">Clause 8.5.2 &mdash; Traceability.</span> Every analysis, change, and decision is timestamped and attributable.</span>
+                </div>
+                <div class="clause-item">
+                    <span class="clause-check" aria-hidden="true">&#10003;</span>
+                    <span><span class="clause-label">Clause 9.1 &mdash; Monitoring &amp; Measurement.</span> SPC, capability, and statistical analysis with immutable result records.</span>
+                </div>
+                <div class="clause-item">
+                    <span class="clause-check" aria-hidden="true">&#10003;</span>
+                    <span><span class="clause-label">Clause 9.2 &mdash; Internal Audit.</span> Audit scheduling, finding tracking, and corrective action linkage.</span>
+                </div>
+                <div class="clause-item">
+                    <span class="clause-check" aria-hidden="true">&#10003;</span>
+                    <span><span class="clause-label">Clause 9.3 &mdash; Management Review.</span> Automated QMS data snapshots for review meetings.</span>
+                </div>
+                <div class="clause-item">
+                    <span class="clause-check" aria-hidden="true">&#10003;</span>
+                    <span><span class="clause-label">Clause 10.2 &mdash; Nonconformity &amp; CAPA.</span> NCR tracker with root cause, corrective action, and effectiveness verification.</span>
+                </div>
+                <div class="clause-item">
+                    <span class="clause-check" aria-hidden="true">&#10003;</span>
+                    <span><span class="clause-label">Clause 7.2 &mdash; Competence.</span> Training matrix with records, expiry tracking, and competence assessments.</span>
+                </div>
+                <div class="clause-item">
+                    <span class="clause-check" aria-hidden="true">&#10003;</span>
+                    <span><span class="clause-label">Clause 8.4 &mdash; External Providers.</span> Supplier evaluation and performance tracking.</span>
+                </div>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- ── 1. Acceptance ───────────────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 1</div>
+            <h2>Acceptance of Terms</h2>
+            <p>By creating an account or using SVEND, you agree to these terms. If you do not agree, do not use the service. We will notify active users by email before any material changes take effect, and you may close your account and export your data if you disagree with changes.</p>
+        </div>
+
+        <!-- ── 2. Service Description ──────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 2</div>
+            <h2>Description of Service</h2>
+            <p>SVEND is a decision science workbench providing statistical analysis (200+ methods), design of experiments, statistical process control, Bayesian hypothesis tracking, root cause analysis, FMEA, value stream mapping, A3 reporting, Hoshin Kanri strategy deployment, and ISO 9001:2015 QMS tools.</p>
+            <p>The platform is designed for quality engineers, continuous improvement practitioners, and operations teams in regulated and non-regulated industries.</p>
+        </div>
+
+        <!-- ── 3. Account ──────────────────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 3</div>
+            <h2>Account Responsibilities</h2>
+            <ul>
+                <li><strong>Accurate information</strong> &mdash; you must provide truthful account details and keep them current</li>
+                <li><strong>Password security</strong> &mdash; you are responsible for maintaining the confidentiality of your credentials</li>
+                <li><strong>Age requirement</strong> &mdash; you must be 18 or older to use the service</li>
+                <li><strong>Individual accounts</strong> &mdash; one person per account; team access is managed through organization features</li>
+                <li><strong>Notification</strong> &mdash; you agree to notify us immediately if you suspect unauthorized access to your account</li>
+            </ul>
+        </div>
+
+        <!-- ── 4. Data Ownership ───────────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 4</div>
+            <h2>Data Ownership &amp; Rights</h2>
+            <p><strong style="color: var(--text-primary);">You own all data you create, upload, or generate using SVEND.</strong> We do not claim any intellectual property rights over your content. Specifically:</p>
+            <ul>
+                <li><strong>No license grant to us</strong> &mdash; we do not use your data for training models, marketing, or any purpose other than delivering the service to you</li>
+                <li><strong>Full export, anytime</strong> &mdash; you can download a complete copy of all your data at any time, at no additional cost, in standard open formats (CSV, JSON, SVG)</li>
+                <li><strong>Deletion on request</strong> &mdash; request account deletion and all your data, including backups, will be permanently erased within 7 days</li>
+                <li><strong>No lock-in</strong> &mdash; there are no restrictions on exporting your data, regardless of your subscription tier or account status</li>
+                <li><strong>Portability</strong> &mdash; exported data uses standard formats that can be imported into other tools without transformation</li>
+            </ul>
+            <p>For enterprise and team accounts, the organization administrator controls data access and export permissions for their members.</p>
+        </div>
+
+        <!-- ── 5. Data Security & Compliance ───────────── -->
+        <div class="section">
+            <div class="section-number">Section 5</div>
+            <h2>Data Security &amp; Compliance</h2>
+            <p>We take data security seriously. SVEND is built to meet the expectations of organizations operating under ISO 9001:2015 and similar quality management standards.</p>
+            <ul>
+                <li><strong>Encryption at rest</strong> &mdash; sensitive data fields are encrypted with AES-128 (Fernet) before database storage, including conversations, analyses, uploaded files, and billing identifiers</li>
+                <li><strong>Encryption in transit</strong> &mdash; all connections use HTTPS with HSTS (2-year max-age, preload)</li>
+                <li><strong>Private infrastructure</strong> &mdash; SVEND runs on dedicated, self-hosted servers, not shared cloud instances</li>
+                <li><strong>Database isolation</strong> &mdash; PostgreSQL on localhost with no external database access</li>
+                <li><strong>Audit trail</strong> &mdash; all analyses, edits, and decisions are timestamped and attributable for ISO 9001 traceability requirements</li>
+                <li><strong>Password hashing</strong> &mdash; PBKDF2-SHA256 with 720,000 iterations</li>
+                <li><strong>Daily encrypted backups</strong> &mdash; AES-256 encrypted backups retained for 30 days</li>
+                <li><strong>No third-party analytics or tracking</strong> &mdash; we do not use advertising networks, tracking pixels, or third-party analytics services</li>
+            </ul>
+            <p>For complete technical details, see our <a href="/privacy/">Privacy Policy</a>.</p>
+        </div>
+
+        <!-- ── 6. Data Retention ───────────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 6</div>
+            <h2>Data Retention</h2>
+            <p>Your data is retained while your account is active. Retention periods for operational data:</p>
+            <ul>
+                <li><strong>Your content</strong> (projects, analyses, reports, files) &mdash; retained while your account is active; deleted within 7 days of account deletion</li>
+                <li><strong>QMS records</strong> (NCRs, audits, training records, management reviews) &mdash; retained while your account is active, exportable at any time for regulatory compliance</li>
+                <li><strong>Diagnostic logs</strong> &mdash; 30 days</li>
+                <li><strong>Usage analytics</strong> &mdash; 90 days, aggregated and anonymized</li>
+                <li><strong>Backups</strong> &mdash; 30 days after creation, then permanently deleted</li>
+            </ul>
+            <p>You can request an immediate and complete data export at any point before or during account deletion to ensure you have a full record for compliance purposes.</p>
+        </div>
+
+        <!-- ── 7. Acceptable Use ───────────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 7</div>
+            <h2>Acceptable Use</h2>
+            <p>You agree not to:</p>
+            <ul>
+                <li>Use the service for illegal purposes</li>
+                <li>Attempt to access other users' data or breach platform security</li>
+                <li>Overload, disrupt, or interfere with the service</li>
+                <li>Resell or redistribute access without written permission</li>
+                <li>Use automated tools to scrape or extract data from other users' accounts</li>
+            </ul>
+            <p>Violation of these terms may result in account suspension. We will provide written notice and a reasonable opportunity to respond before permanent termination, except in cases of clear malicious activity.</p>
+        </div>
+
+        <!-- ── 8. Billing ──────────────────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 8</div>
+            <h2>Subscription &amp; Billing</h2>
+            <ul>
+                <li><strong>Payment processing</strong> &mdash; all payments are handled securely by Stripe. We never see or store your card details.</li>
+                <li><strong>Billing cycle</strong> &mdash; subscriptions are billed monthly. You can cancel at any time; access continues until the end of the current billing period.</li>
+                <li><strong>No contracts</strong> &mdash; all plans are month-to-month with no long-term commitment required.</li>
+                <li><strong>Pricing changes</strong> &mdash; we will provide at least 30 days written notice before any price changes take effect.</li>
+                <li><strong>Refunds</strong> &mdash; handled on a case-by-case basis. Contact us within 14 days of a charge for review.</li>
+                <li><strong>Data after cancellation</strong> &mdash; your data remains available for export for 30 days after your subscription ends. After that period, it is permanently deleted.</li>
+            </ul>
+        </div>
+
+        <!-- ── 9. Third-Party Services ─────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 9</div>
+            <h2>Third-Party Services</h2>
+            <p>SVEND uses a minimal set of external services:</p>
+            <ul>
+                <li><strong>Stripe</strong> &mdash; payment processing only. Subject to <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe's privacy policy</a>.</li>
+                <li><strong>Resend</strong> &mdash; transactional email delivery (account verification, service notices).</li>
+                <li><strong>Anthropic API</strong> &mdash; enterprise-tier AI features (opt-in only). Subject to <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener">Anthropic's privacy policy</a>.</li>
+            </ul>
+            <p>We do not use third-party analytics, advertising networks, or tracking services. Your data is never shared with or sold to third parties.</p>
+        </div>
+
+        <!-- ── 10. Service Availability ────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 10</div>
+            <h2>Service Availability</h2>
+            <p>We work to maintain high availability but do not guarantee 100% uptime. Planned maintenance will be communicated in advance. In the event of extended downtime or service discontinuation, we commit to providing at least 90 days notice and ensuring full data export is available throughout that period.</p>
+        </div>
+
+        <!-- ── 11. Limitation of Liability ─────────────── -->
+        <div class="section">
+            <div class="section-number">Section 11</div>
+            <h2>Limitation of Liability</h2>
+            <p>SVEND is provided &ldquo;as is.&rdquo; Statistical analyses, AI-generated insights, and other outputs are tools to support your decision-making &mdash; not replacements for professional judgment. Always verify critical results independently.</p>
+            <p>Our total liability for any claim is limited to the amount you paid for the service in the 12 months preceding the claim.</p>
+        </div>
+
+        <!-- ── 12. Changes ─────────────────────────────── -->
+        <div class="section">
+            <div class="section-number">Section 12</div>
+            <h2>Changes to These Terms</h2>
+            <p>We may update these terms as the platform evolves. For material changes, we will notify active users by email at least 14 days before the changes take effect. The &ldquo;last updated&rdquo; date at the top reflects the most recent revision. If you disagree with any changes, you may export your data and close your account before the changes take effect.</p>
+        </div>
+
+        <!-- ── Contact ─────────────────────────────────── -->
+        <div class="contact-section">
+            <h2>Questions?</h2>
+            <p>Email <a href="mailto:eric.wolters@svend.ai">eric.wolters@svend.ai</a> &mdash; we respond within one business day.</p>
+        </div>
+
+        <div class="footer-nav">
+            <a href="/">&larr; Back to SVEND</a>
+            <a href="/privacy/">Privacy Policy</a>
+        </div>
+    </div>
+
 </body>
 </html>

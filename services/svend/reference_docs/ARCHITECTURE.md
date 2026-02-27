@@ -9,9 +9,9 @@
 
 ## Executive Summary
 
-**SVEND** is a professional-grade decision science workbench. It competes with Minitab on statistical rigor while adding structured reasoning and AI assistance at 96% lower cost.
+**SVEND** is a professional-grade decision science workbench. It competes with Minitab on statistical rigor while adding structured reasoning and AI assistance at 77% lower cost.
 
-**One-liner:** Minitab + reasoning + AI from $19/month.
+**One-liner:** Minitab + reasoning + AI from $49/month.
 
 **Core insight:** Engineers don't just need statistics. They need to arrive at structured responses to inquiries - whether diagnosing a problem, planning an experiment, or validating a process.
 
@@ -510,24 +510,23 @@ Key properties:
 | Tier | Price | Features |
 |------|-------|----------|
 | **Free** | $0/month | 5 analyses/day, core tools |
-| **Founder** | $19/month | Unlimited analyses, all tools, priority support |
-| **Pro** | $29/month | Everything in Founder + API access, exports |
-| **Team** | $79/month | Shared workbenches, 5 seats, collaboration |
-| **Enterprise** | $199/month | SSO, audit trails, AI assistant, 5000 analyses/day |
+| **Professional** | $49/month | 200+ analyses, SPC, DOE, ML, Reliability |
+| **Team** | $99/month per seat | Shared projects, FMEA/A3/VSM collaboration |
+| **Enterprise** | $299/month per seat | SSO, audit trails, AI assistant, Hoshin Kanri |
 
 ### Market Position
 
 ```
-Minitab:  $1,500/year  →  Legacy UI, no AI, license hell
-JMP:      $1,800/year  →  Powerful but expensive
-SVEND:    $228/year    →  Modern UI, AI-assisted, runs anywhere
+Minitab:  $2,594/year  →  Legacy UI, no AI, license hell
+JMP:      $1,320/year  →  Powerful but expensive, extras cost more
+SVEND:    $588/year    →  Modern UI, AI-assisted, 200+ analyses, ML included
 
-"Everything you use Minitab for, at 96% less, with AI that helps you think."
+"Everything you use Minitab for, at 77% less, with hypothesis tracking and ML included."
 ```
 
 ### Target
 
-6,000 users × $19/month = **$114,000 MRR** = $1.37M/year
+6,000 users × $49/month = **$294,000 MRR** = $3.53M/year
 
 ### Growth Path
 
@@ -535,10 +534,10 @@ SVEND:    $228/year    →  Modern UI, AI-assisted, runs anywhere
 NOW                         +6 MONTHS                    +12 MONTHS
 ────────────────────────────────────────────────────────────────────
 Full statistical suite      Team collaboration           Enterprise
-Free + Founder + Pro tiers  Shared workbenches           SSO/SAML
+Free + Professional tiers   Shared workbenches           SSO/SAML
 AI-assisted analysis        Comments/mentions            Audit trails
 DMAIC/Kaizen templates      Dashboard sharing            On-prem option
-From $19/month              $79/month team               $199/month enterprise
+From $49/month              $99/month team               $299/month enterprise
 ```
 
 ### Channels

@@ -1,0 +1,19 @@
+                <div class="panel">
+                    <h3>Design Output</h3>
+                    <div id="design-output-empty" class="empty-text">
+                        <p>Configure factors and generate design to see the experiment matrix.</p>
+                    </div>
+                    <div id="design-output" style="display: none;">
+                        <div class="output-header">
+                            <h4 id="design-name">Design Matrix</h4>
+                            <div class="output-actions">
+                                <button class="btn btn-sm" onclick="downloadDesign('csv')">CSV</button>
+                                <button class="btn btn-sm" onclick="downloadDesign('xlsx')">Excel</button>
+                            </div>
+                        </div>
+                        <div id="design-summary" class="summary-box"></div>
+                        <div id="design-matrix-container" class="table-container"></div>
+                        <div id="alias-structure" class="alias-box" style="display: none;"></div>
+                        <button class="btn btn-primary btn-sm" style="margin-top: 1rem;" onclick="goToStep('results')">Enter Results</button>
+                    </div>
+                </div>

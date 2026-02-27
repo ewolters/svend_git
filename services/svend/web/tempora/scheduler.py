@@ -70,18 +70,46 @@ def schedule_task(
 
     # Handle recurring schedules
     if cron or interval_seconds:
+        # Parse cron expression into individual fields
+        cron_fields = {}
+        if cron:
+            parts = cron.strip().split()
+            if len(parts) == 5:
+                cron_fields = {
+                    "cron_minute": parts[0],
+                    "cron_hour": parts[1],
+                    "cron_day_of_month": parts[2],
+                    "cron_month": parts[3],
+                    "cron_day_of_week": parts[4],
+                }
+            else:
+                logger.warning(f"Invalid cron expression '{cron}', using defaults")
+
+        # Calculate initial next_run_at using croniter if available
+        next_run = timezone.now()
+        if cron:
+            try:
+                from croniter import croniter
+                next_run = croniter(cron, timezone.now()).get_next(datetime)
+                if timezone.is_naive(next_run):
+                    from django.utils.timezone import make_aware
+                    next_run = make_aware(next_run)
+            except ImportError:
+                pass  # Fall back to now
+
         schedule = Schedule.objects.create(
             schedule_id=name,
+            name=name,
             tenant_id=tenant_id,
             task_name=func,
             payload_template=args,
             schedule_type=ScheduleType.CRON.value if cron else ScheduleType.INTERVAL.value,
-            cron_expression=cron or "",
             interval_seconds=interval_seconds or 0,
             priority=priority,
             queue=queue,
             enabled=True,
-            next_run_at=timezone.now(),
+            next_run_at=next_run,
+            **cron_fields,
         )
         logger.info(f"Created schedule: {name} ({schedule.id})")
         return str(schedule.id)
