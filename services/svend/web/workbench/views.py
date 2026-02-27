@@ -3,7 +3,6 @@
 import json
 import re
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
@@ -11,7 +10,6 @@ from django.shortcuts import get_object_or_404
 from .models import Project, Workbench, Artifact, Hypothesis, Evidence, Conversation
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def list_workbenches(request):
@@ -44,7 +42,6 @@ def list_workbenches(request):
     })
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def create_workbench(request):
@@ -84,7 +81,6 @@ def create_workbench(request):
     }, status=201)
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def get_workbench(request, workbench_id):
@@ -93,7 +89,6 @@ def get_workbench(request, workbench_id):
     return JsonResponse(workbench.to_json())
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["PATCH"])
 def update_workbench(request, workbench_id):
@@ -128,7 +123,6 @@ def update_workbench(request, workbench_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["DELETE"])
 def delete_workbench(request, workbench_id):
@@ -147,7 +141,6 @@ def delete_workbench(request, workbench_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def export_workbench(request, workbench_id):
@@ -160,7 +153,6 @@ def export_workbench(request, workbench_id):
     return response
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def import_workbench(request):
@@ -183,7 +175,6 @@ def import_workbench(request):
 # =============================================================================
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def create_artifact(request, workbench_id):
@@ -219,7 +210,6 @@ def create_artifact(request, workbench_id):
     }, status=201)
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def get_artifact(request, workbench_id, artifact_id):
@@ -230,7 +220,6 @@ def get_artifact(request, workbench_id, artifact_id):
     return JsonResponse(artifact.to_json())
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["PATCH"])
 def update_artifact(request, workbench_id, artifact_id):
@@ -267,7 +256,6 @@ def update_artifact(request, workbench_id, artifact_id):
     return JsonResponse({"success": True, "artifact": artifact.to_json()})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["DELETE"])
 def delete_artifact(request, workbench_id, artifact_id):
@@ -297,7 +285,6 @@ def delete_artifact(request, workbench_id, artifact_id):
 # =============================================================================
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def connect_artifacts(request, workbench_id):
@@ -321,7 +308,6 @@ def connect_artifacts(request, workbench_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["DELETE"])
 def disconnect_artifacts(request, workbench_id):
@@ -350,7 +336,6 @@ def disconnect_artifacts(request, workbench_id):
 # =============================================================================
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def advance_phase(request, workbench_id):
@@ -379,7 +364,6 @@ def advance_phase(request, workbench_id):
 # =============================================================================
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def add_guide_observation(request, workbench_id):
@@ -402,7 +386,6 @@ def add_guide_observation(request, workbench_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def acknowledge_observation(request, workbench_id, observation_index):
@@ -425,7 +408,6 @@ def acknowledge_observation(request, workbench_id, observation_index):
 # Project CRUD
 # =============================================================================
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def list_projects(request):
@@ -442,7 +424,6 @@ def list_projects(request):
     })
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def create_project(request):
@@ -474,7 +455,6 @@ def create_project(request):
     }, status=201)
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def get_project(request, project_id):
@@ -501,7 +481,6 @@ def get_project(request, project_id):
     return JsonResponse(data)
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["PATCH"])
 def update_project(request, project_id):
@@ -534,7 +513,6 @@ def update_project(request, project_id):
     return JsonResponse({"success": True, "project": project.to_dict()})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["DELETE"])
 def delete_project(request, project_id):
@@ -552,7 +530,6 @@ def delete_project(request, project_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def add_workbench_to_project(request, project_id):
@@ -599,7 +576,6 @@ def add_workbench_to_project(request, project_id):
     })
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def remove_workbench_from_project(request, project_id, workbench_id):
@@ -617,7 +593,6 @@ def remove_workbench_from_project(request, project_id, workbench_id):
 # Hypothesis CRUD
 # =============================================================================
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def list_hypotheses(request, project_id):
@@ -635,7 +610,6 @@ def list_hypotheses(request, project_id):
     })
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def create_hypothesis(request, project_id):
@@ -665,7 +639,6 @@ def create_hypothesis(request, project_id):
     }, status=201)
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def get_hypothesis(request, project_id, hypothesis_id):
@@ -688,7 +661,6 @@ def get_hypothesis(request, project_id, hypothesis_id):
     return JsonResponse(data)
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["PATCH"])
 def update_hypothesis(request, project_id, hypothesis_id):
@@ -719,7 +691,6 @@ def update_hypothesis(request, project_id, hypothesis_id):
     return JsonResponse({"success": True, "hypothesis": hypothesis.to_dict()})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["DELETE"])
 def delete_hypothesis(request, project_id, hypothesis_id):
@@ -732,7 +703,6 @@ def delete_hypothesis(request, project_id, hypothesis_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def update_hypothesis_probability(request, project_id, hypothesis_id):
@@ -763,7 +733,6 @@ def update_hypothesis_probability(request, project_id, hypothesis_id):
 # Evidence CRUD
 # =============================================================================
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def list_evidence(request, project_id, hypothesis_id):
@@ -788,7 +757,6 @@ def list_evidence(request, project_id, hypothesis_id):
     })
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def create_evidence(request, project_id, hypothesis_id):
@@ -833,7 +801,6 @@ def create_evidence(request, project_id, hypothesis_id):
     }, status=201)
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def get_evidence(request, project_id, hypothesis_id, evidence_id):
@@ -845,7 +812,6 @@ def get_evidence(request, project_id, hypothesis_id, evidence_id):
     return JsonResponse(evidence.to_dict())
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["DELETE"])
 def delete_evidence(request, project_id, hypothesis_id, evidence_id):
@@ -863,7 +829,6 @@ def delete_evidence(request, project_id, hypothesis_id, evidence_id):
 # Conversation CRUD
 # =============================================================================
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def list_conversations(request, project_id, hypothesis_id):
@@ -887,7 +852,6 @@ def list_conversations(request, project_id, hypothesis_id):
     })
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def create_conversation(request, project_id, hypothesis_id):
@@ -917,7 +881,6 @@ def create_conversation(request, project_id, hypothesis_id):
     }, status=201)
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["GET"])
 def get_conversation(request, project_id, hypothesis_id, conversation_id):
@@ -929,7 +892,6 @@ def get_conversation(request, project_id, hypothesis_id, conversation_id):
     return JsonResponse(conversation.to_dict())
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["PATCH"])
 def update_conversation(request, project_id, hypothesis_id, conversation_id):
@@ -950,7 +912,6 @@ def update_conversation(request, project_id, hypothesis_id, conversation_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def add_message(request, project_id, hypothesis_id, conversation_id):
@@ -978,7 +939,6 @@ def add_message(request, project_id, hypothesis_id, conversation_id):
     })
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["DELETE"])
 def delete_conversation(request, project_id, hypothesis_id, conversation_id):
@@ -992,7 +952,6 @@ def delete_conversation(request, project_id, hypothesis_id, conversation_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def refresh_conversation_context(request, project_id, hypothesis_id, conversation_id):

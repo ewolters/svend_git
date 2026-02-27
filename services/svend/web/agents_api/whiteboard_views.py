@@ -5,7 +5,6 @@ from datetime import timedelta
 
 from django.http import JsonResponse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 
@@ -70,7 +69,6 @@ def _build_participants_list(board, cutoff):
     return participants
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_board(request):
@@ -113,7 +111,6 @@ def create_board(request):
     })
 
 
-@csrf_exempt
 @allow_guest
 @require_http_methods(["GET"])
 def get_board(request, room_code):
@@ -195,7 +192,6 @@ def get_board(request, room_code):
     })
 
 
-@csrf_exempt
 @allow_guest
 @require_http_methods(["PUT", "PATCH"])
 def update_board(request, room_code):
@@ -270,7 +266,6 @@ def update_board(request, room_code):
     })
 
 
-@csrf_exempt
 @allow_guest
 @require_http_methods(["POST"])
 def update_cursor(request, room_code):
@@ -301,7 +296,6 @@ def update_cursor(request, room_code):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def toggle_voting(request, room_code):
@@ -332,7 +326,6 @@ def toggle_voting(request, room_code):
     })
 
 
-@csrf_exempt
 @allow_guest
 @require_http_methods(["POST"])
 def add_vote(request, room_code):
@@ -384,7 +377,6 @@ def add_vote(request, room_code):
     })
 
 
-@csrf_exempt
 @allow_guest
 @require_http_methods(["DELETE"])
 def remove_vote(request, room_code, element_id):
@@ -418,7 +410,6 @@ def remove_vote(request, room_code, element_id):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def list_boards(request):
@@ -457,7 +448,6 @@ def list_boards(request):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def delete_board(request, room_code):
@@ -472,7 +462,6 @@ def delete_board(request, room_code):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def export_hypotheses(request, room_code):
@@ -691,7 +680,6 @@ def _render_connection_svg(conn, elements, offset_x=0, offset_y=0):
         return f'''<line x1="{from_x}" y1="{from_y}" x2="{to_x}" y2="{to_y}" stroke="#4a9f6e" stroke-width="1.5" marker-end="url(#arrowhead)"/>'''
 
 
-@csrf_exempt
 @allow_guest
 @require_http_methods(["GET"])
 def export_svg(request, room_code):
@@ -767,7 +755,6 @@ def export_svg(request, room_code):
 # Guest Invite Management
 # ============================================================================
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["POST"])
 def create_guest_invite(request, room_code):
@@ -838,7 +825,6 @@ def create_guest_invite(request, room_code):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["GET"])
 def list_guest_invites(request, room_code):
@@ -870,7 +856,6 @@ def list_guest_invites(request, room_code):
     })
 
 
-@csrf_exempt
 @gated_paid
 @require_http_methods(["DELETE"])
 def revoke_guest_invite(request, room_code, invite_id):
@@ -891,7 +876,6 @@ def revoke_guest_invite(request, room_code, invite_id):
     return JsonResponse({"success": True, "id": str(invite.id)})
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 def set_guest_name(request, room_code):
     """Set guest display name. Called by guest with X-Guest-Token header."""

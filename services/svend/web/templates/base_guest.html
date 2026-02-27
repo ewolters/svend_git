@@ -12,6 +12,37 @@
             var theme = localStorage.getItem('svend_theme') || '';
             if (theme) document.documentElement.setAttribute('data-theme', theme);
         })();
+
+        // CSRF token extraction
+        function getCSRFToken() {
+            const m = document.cookie.match(/csrftoken=([^;]+)/);
+            return m ? m[1] : '';
+        }
+
+        // Auto-inject CSRF token into same-origin non-GET fetch requests
+        (function() {
+            const _fetch = window.fetch;
+            window.fetch = function(url, options) {
+                options = options || {};
+                const method = (options.method || 'GET').toUpperCase();
+                if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+                    const token = getCSRFToken();
+                    if (token) {
+                        if (options.headers instanceof Headers) {
+                            if (!options.headers.has('X-CSRFToken')) {
+                                options.headers.set('X-CSRFToken', token);
+                            }
+                        } else {
+                            options.headers = options.headers || {};
+                            if (!options.headers['X-CSRFToken']) {
+                                options.headers['X-CSRFToken'] = token;
+                            }
+                        }
+                    }
+                }
+                return _fetch.call(this, url, options);
+            };
+        })();
     </script>
     <style>
         /* === SVEND Theme: Forest at Night (Default) === */
@@ -127,6 +158,7 @@
     </style>
 </head>
 <body>
+    {% csrf_token %}
     <div class="guest-header">
         <span class="guest-header-logo">SVEND</span>
         <span class="guest-badge">Guest</span>

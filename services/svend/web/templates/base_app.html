@@ -1842,6 +1842,49 @@
         </div>
     </div>
 
+    <!-- Svend Toast Notifications -->
+    <div id="sv-toast-container" style="position:fixed;top:1rem;right:1rem;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:420px;width:100%;"></div>
+    <style>
+    .sv-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;font-size:0.85rem;line-height:1.5;color:#e8efe8;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:svToastIn .3s ease;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;border:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+    .sv-toast.sv-out{animation:svToastOut .25s ease forwards}
+    .sv-toast-icon{flex-shrink:0;font-size:1rem;margin-top:1px}
+    .sv-toast-msg{flex:1;word-break:break-word}
+    .sv-toast-close{flex-shrink:0;background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:1.1rem;padding:0 0 0 6px;line-height:1}
+    .sv-toast-close:hover{opacity:1}
+    .sv-toast.sv-t-success{background:rgba(16,95,46,0.92);border-color:rgba(16,185,129,0.3)}
+    .sv-toast.sv-t-error{background:rgba(127,29,29,0.92);border-color:rgba(239,68,68,0.3)}
+    .sv-toast.sv-t-warning{background:rgba(120,90,10,0.92);border-color:rgba(232,197,71,0.3)}
+    .sv-toast.sv-t-info{background:rgba(18,26,18,0.95);border-color:rgba(74,159,110,0.2)}
+    @keyframes svToastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes svToastOut{to{opacity:0;transform:translateX(40px)}}
+    </style>
+    <script>
+    (function(){
+        var icons={success:'\u2713',error:'\u2716',warning:'\u26A0',info:'\u2139'};
+        function detect(msg){
+            var m=String(msg).toLowerCase();
+            if(/^(error|failed|cannot|could not|unable)/.test(m)||/error[:!]/.test(m))return'error';
+            if(/(saved|created|exported|success|updated|deleted|sent|copied|applied|imported|removed|completed)/.test(m))return'success';
+            if(/^please\b/.test(m)||/required|must |need to|invalid|missing/.test(m))return'warning';
+            return'info';
+        }
+        window.svToast=function(message,type,duration){
+            var t=type||detect(message);
+            var dur=duration||(t==='error'?6000:t==='success'?3000:4000);
+            var c=document.getElementById('sv-toast-container');
+            if(!c)return;
+            var el=document.createElement('div');
+            el.className='sv-toast sv-t-'+t;
+            el.innerHTML='<span class="sv-toast-icon">'+icons[t]+'</span><span class="sv-toast-msg"></span><button class="sv-toast-close" aria-label="Dismiss">\u00D7</button>';
+            el.querySelector('.sv-toast-msg').textContent=message;
+            el.querySelector('.sv-toast-close').onclick=function(){dismiss(el)};
+            c.appendChild(el);
+            var timer=setTimeout(function(){dismiss(el)},dur);
+            function dismiss(e){clearTimeout(timer);e.classList.add('sv-out');setTimeout(function(){e.remove()},250)}
+        };
+        window.alert=function(msg){window.svToast(String(msg))};
+    })();
+    </script>
     {% block scripts %}{% endblock %}
     <!-- Time-on-page tracking -->
     <script>

@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime
 
 from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
@@ -34,7 +33,6 @@ def log_agent_action(user, agent, action, latency_ms=None, success=True, error_m
         logger.warning(f"Failed to log agent action: {e}")
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def triage_clean(request):
@@ -144,7 +142,6 @@ def triage_clean(request):
         return JsonResponse({"error": "Data cleaning failed. Please check your inputs and try again."}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def triage_download(request, job_id):
@@ -163,7 +160,6 @@ def triage_download(request, job_id):
     return response
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def triage_report(request, job_id):
@@ -180,7 +176,6 @@ def triage_report(request, job_id):
     return JsonResponse({"report": result.report_markdown})
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def triage_preview(request):
@@ -339,7 +334,6 @@ def _detect_data_biases(df) -> list:
     return warnings
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def list_datasets(request):
@@ -363,7 +357,6 @@ def list_datasets(request):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def load_dataset(request, job_id):

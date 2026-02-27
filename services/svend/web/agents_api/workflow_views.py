@@ -5,14 +5,12 @@ import uuid
 from datetime import datetime
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
 from .models import Workflow
 
 
-@csrf_exempt
 @require_http_methods(["GET", "POST"])
 @require_auth
 def workflows_list(request):
@@ -53,7 +51,6 @@ def workflows_list(request):
     return JsonResponse({"id": str(workflow.id), "success": True})
 
 
-@csrf_exempt
 @require_http_methods(["GET", "PUT", "DELETE"])
 @require_auth
 def workflow_detail(request, workflow_id):
@@ -91,7 +88,6 @@ def workflow_detail(request, workflow_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def workflow_run(request, workflow_id):
