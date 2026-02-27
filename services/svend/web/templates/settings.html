@@ -188,6 +188,25 @@
                 </div>
             </section>
 
+            <!-- Create Organization (shown when user can create but has no org) -->
+            <section class="card settings-section" id="org-create-section" style="display:none;">
+                <h2>Create Organization</h2>
+                <p class="help-text" style="margin-bottom:1rem;">Set up your team workspace to invite members and share projects.</p>
+                <form id="org-create-form">
+                    <div class="form-group">
+                        <label for="org-name">Organization Name</label>
+                        <input type="text" id="org-name" placeholder="Acme Manufacturing" required maxlength="255">
+                    </div>
+                    <div class="form-group">
+                        <label for="org-slug">URL Slug</label>
+                        <input type="text" id="org-slug" placeholder="acme-manufacturing" required maxlength="100"
+                               pattern="[a-z0-9][a-z0-9-]*[a-z0-9]" style="font-family:monospace;">
+                        <p class="help-text">Lowercase letters, numbers, and hyphens only.</p>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Organization</button>
+                </form>
+            </section>
+
             <!-- Seat Usage -->
             <section class="card settings-section" id="org-seats-section" style="display:none;">
                 <h2>Seats</h2>
@@ -782,8 +801,14 @@
             orgData = await res.json();
 
             if (!orgData.has_org) {
-                document.getElementById('org-info-content').innerHTML =
-                    '<p class="text-dim">You are not a member of any organization.</p>';
+                if (orgData.can_create_org) {
+                    document.getElementById('org-info-content').innerHTML =
+                        '<p class="text-dim">You don\'t have an organization yet. Create one below to start inviting team members.</p>';
+                    document.getElementById('org-create-section').style.display = '';
+                } else {
+                    document.getElementById('org-info-content').innerHTML =
+                        '<p class="text-dim">Organization features require a Team or Enterprise plan.</p>';
+                }
                 orgLoaded = true;
                 return;
             }
@@ -997,6 +1022,48 @@
         }
     }
 
+    // Auto-generate slug from org name
+    const orgNameInput = document.getElementById('org-name');
+    const orgSlugInput = document.getElementById('org-slug');
+    let slugManuallyEdited = false;
+
+    orgSlugInput.addEventListener('input', () => { slugManuallyEdited = true; });
+    orgNameInput.addEventListener('input', () => {
+        if (!slugManuallyEdited) {
+            orgSlugInput.value = orgNameInput.value
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '');
+        }
+    });
+
+    // Create org form handler
+    document.getElementById('org-create-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = orgNameInput.value.trim();
+        const slug = orgSlugInput.value.trim().toLowerCase();
+
+        if (!name || !slug) return;
+
+        try {
+            const res = await fetch('/api/core/org/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                credentials: 'include',
+                body: JSON.stringify({ name, slug }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to create organization');
+
+            showToast('Organization created');
+            document.getElementById('org-create-section').style.display = 'none';
+            orgLoaded = false;
+            loadOrgData();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
     // Load data on page load
     loadUserData();
 
@@ -1005,7 +1072,7 @@
         try {
             const res = await fetch('/api/core/org/', { credentials: 'include' });
             const data = await res.json();
-            if (data.has_org) {
+            if (data.has_org || data.can_create_org) {
                 document.getElementById('org-tab-btn').style.display = '';
             }
         } catch (err) {

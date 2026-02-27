@@ -8,7 +8,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permissions import rate_limited, require_ml, require_org_admin
+from accounts.permissions import rate_limited, require_ml, require_org_admin, require_team
+from accounts.constants import has_feature
 from .models import (
     Tenant, Membership, OrgInvitation, KnowledgeGraph, Entity, Relationship,
     Project, Dataset, ExperimentDesign, Hypothesis, Evidence, EvidenceLink,
@@ -69,8 +70,10 @@ def get_user_projects(user):
 def project_list(request):
     """List user's projects or create a new one."""
     if request.method == "GET":
-        # Note: hypothesis_count and evidence_count are model properties
         projects = get_user_projects(request.user).order_by("-updated_at")
+        status_filter = request.query_params.get("status")
+        if status_filter and status_filter != "all":
+            projects = projects.filter(status=status_filter)
         serializer = ProjectListSerializer(projects, many=True)
         return Response(serializer.data)
 
@@ -1318,7 +1321,8 @@ def org_info(request):
     ).select_related("tenant").first()
 
     if not membership:
-        return Response({"has_org": False})
+        can_create = has_feature(request.user.tier, "collaboration")
+        return Response({"has_org": False, "can_create_org": can_create})
 
     tenant = membership.tenant
     return Response({
@@ -1339,6 +1343,78 @@ def org_info(request):
             "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
         },
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@require_team
+def org_create(request):
+    """Create a new organization. Requires Team or Enterprise tier.
+
+    The creating user becomes the owner. Only one org per user.
+    """
+    # Check user doesn't already belong to an org
+    if Membership.objects.filter(user=request.user, is_active=True).exists():
+        return Response({
+            "error": "You already belong to an organization",
+        }, status=400)
+
+    name = (request.data.get("name") or "").strip()
+    slug = (request.data.get("slug") or "").strip().lower()
+
+    if not name:
+        return Response({"error": "Organization name is required"}, status=400)
+    if len(name) > 255:
+        return Response({"error": "Name must be 255 characters or fewer"}, status=400)
+
+    if not slug:
+        return Response({"error": "Organization slug is required"}, status=400)
+
+    # Validate slug format: lowercase alphanumeric + hyphens
+    import re
+    if not re.match(r'^[a-z0-9][a-z0-9-]*[a-z0-9]$', slug) and len(slug) > 1:
+        return Response({
+            "error": "Slug must contain only lowercase letters, numbers, and hyphens",
+        }, status=400)
+    if len(slug) < 2 or len(slug) > 100:
+        return Response({
+            "error": "Slug must be between 2 and 100 characters",
+        }, status=400)
+
+    # Check slug uniqueness
+    if Tenant.objects.filter(slug=slug).exists():
+        return Response({"error": "This slug is already taken"}, status=400)
+
+    # Map user tier to tenant plan
+    from accounts.constants import Tier
+    plan = Tenant.Plan.ENTERPRISE if request.user.tier == Tier.ENTERPRISE else Tenant.Plan.TEAM
+
+    from django.utils import timezone as tz
+
+    with transaction.atomic():
+        tenant = Tenant.objects.create(
+            name=name,
+            slug=slug,
+            plan=plan,
+            max_members=10,
+        )
+        Membership.objects.create(
+            tenant=tenant,
+            user=request.user,
+            role=Membership.Role.OWNER,
+            joined_at=tz.now(),
+        )
+
+    return Response({
+        "success": True,
+        "org": {
+            "id": str(tenant.id),
+            "name": tenant.name,
+            "slug": tenant.slug,
+            "plan": tenant.plan,
+            "max_members": tenant.max_members,
+        },
+    }, status=201)
 
 
 @api_view(["GET"])

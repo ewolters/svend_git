@@ -46,6 +46,7 @@ urlpatterns = [
 
     # Organization management
     path("org/", views.org_info, name="org_info"),
+    path("org/create/", views.org_create, name="org_create"),
     path("org/members/", views.org_members, name="org_members"),
     path("org/members/<uuid:membership_id>/role/", views.org_change_role, name="org_change_role"),
     path("org/members/<uuid:membership_id>/remove/", views.org_remove_member, name="org_remove_member"),

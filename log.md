@@ -15,6 +15,17 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-27 — Organization creation for Team/Enterprise users + test suite
+**Files changed:**
+- `web/core/views.py` — Added `org_create` endpoint (POST, `@require_team` gated). Creates Tenant + owner Membership. Validates slug format/uniqueness, prevents duplicate orgs. Updated `org_info` to return `can_create_org` flag for users without an org.
+- `web/core/urls.py` — Added `org/create/` route.
+- `web/accounts/permissions.py` — `require_team` imported into core/views.py (was only used in iso_views).
+- `web/templates/settings.html` — Org tab now visible for Team/Enterprise users without an org. Shows "Create Organization" form (name + auto-slug). After creation, reloads to show full org management UI.
+- `web/core/tests.py` — 70-test comprehensive suite: org info (tier flags), creation (happy path, tier gating, validation), invitations (send/accept/cancel/expire), member management (list/role change/remove), role escalation protection, last-owner guard, full lifecycle integration, per-tier gating matrix.
+**Verification:** `python manage.py test core.tests --verbosity=2` — 70/70 pass.
+
+---
+
 ### 2026-02-27 — 14-day free trial for Team and Enterprise plans
 **Files changed:**
 - `web/accounts/billing.py` — Added `subscription_data={"trial_period_days": 14}` to Stripe checkout session for team/enterprise plans. Pro/founder unchanged (immediate billing).
