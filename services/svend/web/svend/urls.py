@@ -11,7 +11,7 @@ from django.views.generic import TemplateView
 
 from api.blog_views import blog_list, blog_detail
 from api.internal_views import dashboard_view
-from api.landing_views import landing_view, iso_qms_view, svend_vs_minitab_view
+from api.landing_views import landing_view, iso_qms_view, svend_vs_minitab_view, education_view
 from api.models import BlogPost, WhitePaper
 from api.whitepaper_views import whitepaper_list, whitepaper_detail, whitepaper_pdf
 from agents_api.whiteboard_views import guest_board_view
@@ -38,7 +38,8 @@ class StaticSitemap(Sitemap):
                 "/tools/bayesian-cpk-calculator/",
                 "/svend-vs-minitab/",
                 "/classical-vs-bayesian-spc/",
-                "/iso-9001-qms-software/"]
+                "/iso-9001-qms-software/",
+                "/for-education/"]
 
     def location(self, item):
         return item
@@ -145,6 +146,7 @@ urlpatterns = [
     path("svend-vs-minitab/", svend_vs_minitab_view, name="svend_vs_minitab"),
     path("classical-vs-bayesian-spc/", TemplateView.as_view(template_name="classical_vs_bayesian_spc.html"), name="classical_vs_bayesian_spc"),
     path("iso-9001-qms-software/", iso_qms_view, name="iso_9001_qms"),
+    path("for-education/", education_view, name="education_partnerships"),
 
     # Blog (public, no auth)
     path("blog/", blog_list, name="blog_list"),

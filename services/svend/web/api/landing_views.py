@@ -163,3 +163,31 @@ def svend_vs_minitab_view(request):
     """Render Svend vs Minitab comparison page with localized pricing."""
     ctx = get_pricing_context(request)
     return render(request, "svend_vs_minitab.html", ctx)
+
+
+def education_view(request):
+    """Render education partnerships page with localized alumni pricing."""
+    ctx = get_pricing_context(request)
+
+    # Compute 50% alumni discount from raw display amounts
+    sym = ctx["currency_symbol"]
+    pricing = REGION_PRICING.get(ctx["region"], REGION_PRICING[DEFAULT_REGION])
+    after = pricing.get("symbol_after", False)
+
+    def half(amount_str):
+        """Halve a formatted number string like '1,499' or '349,000'."""
+        import math
+        raw = float(amount_str.replace(",", ""))
+        halved = raw / 2
+        # USD keeps cents ($24.50); other currencies round up to whole numbers
+        if pricing["currency"] == "USD" and halved != int(halved):
+            formatted = f"{halved:,.2f}"
+        else:
+            formatted = f"{math.ceil(halved):,}"
+        if after:
+            return f"{formatted}{sym}"
+        return f"{sym}{formatted}"
+
+    ctx["alumni_pro"] = half(pricing["pro"])
+    ctx["alumni_team"] = half(pricing["team"])
+    return render(request, "education_partnerships.html", ctx)
