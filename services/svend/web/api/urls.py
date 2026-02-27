@@ -108,4 +108,25 @@ urlpatterns = [
 
     # Feedback (staff)
     path("internal/feedback/", internal_views.api_feedback, name="internal_feedback"),
+
+    # CRM — Outbound Outreach
+    path("internal/crm/leads/", internal_views.api_crm_leads, name="internal_crm_leads"),
+    path("internal/crm/leads/<uuid:lead_id>/", internal_views.api_crm_lead_delete, name="internal_crm_lead_delete"),
+    path("internal/crm/leads/<uuid:lead_id>/stage/", internal_views.api_crm_lead_stage, name="internal_crm_lead_stage"),
+    path("internal/crm/pipeline/", internal_views.api_crm_pipeline, name="internal_crm_pipeline"),
+    path("internal/crm/sequences/", internal_views.api_crm_sequences, name="internal_crm_sequences"),
+    path("internal/crm/sequences/<uuid:sequence_id>/", internal_views.api_crm_sequence_delete, name="internal_crm_sequence_delete"),
+    path("internal/crm/sequences/<uuid:sequence_id>/enroll/", internal_views.api_crm_enroll, name="internal_crm_enroll"),
+    path("internal/crm/generate-email/", internal_views.api_crm_generate_email, name="internal_crm_generate_email"),
+    path("internal/crm/outreach-metrics/", internal_views.api_crm_outreach_metrics, name="internal_crm_outreach_metrics"),
+    path("internal/crm/send-one/", internal_views.api_crm_send_one, name="internal_crm_send_one"),
+    path("internal/crm/process-queue/", internal_views.api_crm_process_queue, name="internal_crm_process_queue"),
+    path("internal/crm/bulk-send/", internal_views.api_crm_bulk_send, name="internal_crm_bulk_send"),
+
+    # Site analytics (staff-only)
+    path("internal/site-analytics/", internal_views.api_site_analytics, name="internal_site_analytics"),
+    path("internal/site-live/", internal_views.api_site_live, name="internal_site_live"),
+
+    # Site duration beacon (public — fired by sendBeacon, no auth)
+    path("site-duration/", views.site_duration, name="site_duration"),
 ]

@@ -282,7 +282,7 @@
     <div class="article-cta">
         <div class="cta-box">
             <h3>Try Svend Free</h3>
-            <p>Professional statistical analysis at 68% less than Minitab. SPC, DOE, capability studies, and more.</p>
+            <p>Professional statistical analysis at 77% less than Minitab. SPC, DOE, capability studies, and more.</p>
             <a href="/register/">Get Started</a>
         </div>
     </div>
@@ -358,6 +358,26 @@
 
             new Chart(el, cfg);
         });
+    })();
+    </script>
+    <script>
+    (function(){
+        var t0 = Date.now();
+        var sent = false;
+        function sendDuration() {
+            if (sent) return;
+            sent = true;
+            var ms = Date.now() - t0;
+            if (ms < 1000) return;
+            var d = JSON.stringify({path: location.pathname, duration_ms: ms});
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon('/api/site-duration/', new Blob([d], {type: 'application/json'}));
+            }
+        }
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') sendDuration();
+        });
+        window.addEventListener('pagehide', sendDuration);
     })();
     </script>
 </body>

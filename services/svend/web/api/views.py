@@ -3,9 +3,8 @@
 import logging
 import random
 import re
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, throttle_classes
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
@@ -686,6 +685,7 @@ class LoginRateThrottle(AnonRateThrottle):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 @throttle_classes([LoginRateThrottle])
 def login(request):
@@ -836,6 +836,7 @@ def update_profile(request):
 
 
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 @throttle_classes([RegistrationThrottle])
 def register(request):
@@ -903,6 +904,10 @@ def register(request):
             logger.error(f"Failed to send verification email: {e}")
 
     logger.info(f"New user registered: {username}")
+
+    # Auto-login so the user doesn't have to re-enter credentials
+    from django.contrib.auth import login as auth_login
+    auth_login(request, user)
 
     return Response({
         "status": "registered",
@@ -1376,6 +1381,66 @@ def submit_feedback(request):
         page=request.data.get("page", ""),
     )
     return Response({"status": "submitted"})
+
+
+# ---------------------------------------------------------------------------
+# Site duration beacon (public — no auth, fired by sendBeacon)
+# ---------------------------------------------------------------------------
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def site_duration(request):
+    """Record time-on-page for a SiteVisit.
+
+    Called via navigator.sendBeacon on page hide. Matches the most recent
+    SiteVisit by ip_hash + path within the last hour and sets duration_ms.
+    """
+    import hashlib
+    from datetime import timedelta
+    from django.utils import timezone
+    from api.models import SiteVisit
+
+    path = (request.data.get("path") or "")[:300]
+    duration = request.data.get("duration_ms")
+
+    if not path or not duration:
+        return Response(status=204)
+
+    try:
+        duration = int(duration)
+    except (TypeError, ValueError):
+        return Response(status=204)
+
+    # Clamp: ignore durations < 1s or > 30min (stale tabs)
+    if duration < 1000 or duration > 1_800_000:
+        return Response(status=204)
+
+    ip = (
+        request.META.get("HTTP_CF_CONNECTING_IP", "")
+        or request.META.get("REMOTE_ADDR", "")
+    )
+    if not ip:
+        return Response(status=204)
+
+    ip_hash = hashlib.sha256(ip.encode()).hexdigest()
+    cutoff = timezone.now() - timedelta(hours=1)
+
+    try:
+        visit = (
+            SiteVisit.objects
+            .filter(ip_hash=ip_hash, path=path, viewed_at__gte=cutoff, duration_ms__isnull=True)
+            .order_by("-viewed_at")
+            .first()
+        )
+        if visit:
+            visit.duration_ms = duration
+            visit.save(update_fields=["duration_ms"])
+    except Exception:
+        pass
+
+    return Response(status=204)
 
 
 # ---------------------------------------------------------------------------

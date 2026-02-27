@@ -1,6 +1,7 @@
 """Internal telemetry dashboard — staff and org-admin views."""
 
 import json
+import logging
 from collections import Counter
 from datetime import timedelta
 
@@ -22,7 +23,11 @@ from api.models import (
     AutopilotReport,
     BlogPost,
     BlogView,
+    CRMLead,
     EmailCampaign,
+    OutreachEnrollment,
+    OutreachSequence,
+    SiteVisit,
     WhitePaper,
     WhitePaperDownload,
     Experiment,
@@ -30,6 +35,8 @@ from api.models import (
     Feedback,
 )
 from chat.models import EventLog, TraceLog, UsageLog
+
+logger = logging.getLogger(__name__)
 
 TIER_PRICES = {"founder": 19, "pro": 29, "team": 79, "enterprise": 199}
 PAID_TIERS = list(TIER_PRICES.keys())
@@ -226,6 +233,13 @@ def _markdown_to_html(text):
     html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html)
     html = re.sub(r"\*(.+?)\*", r"<em>\1</em>", html)
     html = re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r'<a href="\2" style="color:#4a9f6e;">\1</a>', html)
+
+    # Auto-linkify bare URLs not already inside an <a> tag (safety net for click tracking)
+    html = re.sub(
+        r'(?<!href=")(?<!">)(https?://[^\s<"]+)',
+        r'<a href="\1" style="color:#4a9f6e;">\1</a>',
+        html,
+    )
 
     # Restore inline code
     for j, code in enumerate(inline_codes):
@@ -2205,3 +2219,962 @@ def api_feedback(request):
         },
     }
     return Response({"feedback": entries, "summary": summary})
+
+# ---------------------------------------------------------------------------
+# CRM — Outbound Outreach Management
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsInternalUser])
+def api_crm_leads(request):
+    """List (filterable) or create/update a CRM lead."""
+    if request.method == "GET":
+        qs = CRMLead.objects.all()
+        stage = request.GET.get("stage")
+        source = request.GET.get("source")
+        search = request.GET.get("search", "").strip()
+        if stage:
+            qs = qs.filter(stage=stage)
+        if source:
+            qs = qs.filter(source=source)
+        if search:
+            qs = qs.filter(
+                Q(name__icontains=search)
+                | Q(email__icontains=search)
+                | Q(company__icontains=search)
+            )
+        leads = []
+        for lead in qs[:200]:
+            leads.append({
+                "id": str(lead.id),
+                "name": lead.name,
+                "email": lead.email,
+                "company": lead.company,
+                "role": lead.role,
+                "industry": lead.industry,
+                "source": lead.source,
+                "stage": lead.stage,
+                "notes": lead.notes,
+                "tags": lead.tags,
+                "email_opted_out": lead.email_opted_out,
+                "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
+                "next_followup_at": lead.next_followup_at.isoformat() if lead.next_followup_at else None,
+                "created_at": lead.created_at.isoformat(),
+                "enrollments": [
+                    {
+                        "id": str(e.id),
+                        "sequence": e.sequence.name,
+                        "status": e.status,
+                        "current_step": e.current_step,
+                    }
+                    for e in lead.enrollments.select_related("sequence").all()[:5]
+                ],
+            })
+        return Response({"leads": leads})
+
+    # POST — create or update
+    d = request.data
+    lead_id = d.get("id")
+    if lead_id:
+        try:
+            lead = CRMLead.objects.get(id=lead_id)
+        except CRMLead.DoesNotExist:
+            return Response({"error": "not_found"}, status=404)
+    else:
+        lead = CRMLead()
+
+    for field in ["name", "email", "company", "role", "industry", "source",
+                   "stage", "notes", "tags", "email_opted_out"]:
+        if field in d:
+            setattr(lead, field, d[field])
+
+    if d.get("next_followup_at"):
+        from django.utils.dateparse import parse_datetime
+        dt = parse_datetime(d["next_followup_at"])
+        if dt:
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt)
+            lead.next_followup_at = dt
+
+    lead.save()
+    return Response({"id": str(lead.id), "stage": lead.stage})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsInternalUser])
+def api_crm_lead_delete(request, lead_id):
+    """Delete a CRM lead."""
+    try:
+        lead = CRMLead.objects.get(id=lead_id)
+    except CRMLead.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+    lead.delete()
+    return Response({"deleted": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_lead_stage(request, lead_id):
+    """Update a lead's pipeline stage."""
+    try:
+        lead = CRMLead.objects.get(id=lead_id)
+    except CRMLead.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+    new_stage = request.data.get("stage")
+    if new_stage not in dict(CRMLead.Stage.choices):
+        return Response({"error": "invalid_stage"}, status=400)
+    lead.stage = new_stage
+    lead.save(update_fields=["stage", "updated_at"])
+    return Response({"id": str(lead.id), "stage": lead.stage})
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_crm_pipeline(request):
+    """Pipeline overview: stage counts, due follow-ups, active sequence count."""
+    now = timezone.now()
+    leads = CRMLead.objects.all()
+
+    stage_counts = dict(
+        leads.values_list("stage")
+        .annotate(c=Count("id"))
+        .values_list("stage", "c")
+    )
+
+    due_followups = leads.filter(
+        next_followup_at__lte=now,
+        stage__in=["prospect", "contacted", "engaged", "demo", "trial"],
+    ).count()
+
+    active_enrollments = OutreachEnrollment.objects.filter(status="active").count()
+
+    source_counts = dict(
+        leads.values_list("source")
+        .annotate(c=Count("id"))
+        .values_list("source", "c")
+    )
+
+    return Response({
+        "stages": stage_counts,
+        "due_followups": due_followups,
+        "active_enrollments": active_enrollments,
+        "sources": source_counts,
+        "total_leads": leads.count(),
+    })
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsInternalUser])
+def api_crm_sequences(request):
+    """List or create/update outreach sequences."""
+    if request.method == "GET":
+        seqs = OutreachSequence.objects.all()
+        data = []
+        for seq in seqs:
+            enrolled = OutreachEnrollment.objects.filter(sequence=seq).count()
+            active = OutreachEnrollment.objects.filter(sequence=seq, status="active").count()
+            data.append({
+                "id": str(seq.id),
+                "name": seq.name,
+                "description": seq.description,
+                "is_active": seq.is_active,
+                "steps": seq.steps,
+                "step_count": len(seq.steps),
+                "enrolled": enrolled,
+                "active": active,
+                "created_at": seq.created_at.isoformat(),
+            })
+        return Response({"sequences": data})
+
+    # POST — create or update
+    d = request.data
+    seq_id = d.get("id")
+    if seq_id:
+        try:
+            seq = OutreachSequence.objects.get(id=seq_id)
+        except OutreachSequence.DoesNotExist:
+            return Response({"error": "not_found"}, status=404)
+    else:
+        seq = OutreachSequence()
+
+    for field in ["name", "description", "is_active", "steps"]:
+        if field in d:
+            setattr(seq, field, d[field])
+    seq.save()
+    return Response({"id": str(seq.id), "name": seq.name})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsInternalUser])
+def api_crm_sequence_delete(request, sequence_id):
+    """Delete an outreach sequence."""
+    try:
+        seq = OutreachSequence.objects.get(id=sequence_id)
+    except OutreachSequence.DoesNotExist:
+        return Response({"error": "not_found"}, status=404)
+    seq.delete()
+    return Response({"deleted": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_enroll(request, sequence_id):
+    """Enroll a lead in an outreach sequence. Assigns A/B variant via SHA256."""
+    import hashlib
+
+    try:
+        seq = OutreachSequence.objects.get(id=sequence_id)
+    except OutreachSequence.DoesNotExist:
+        return Response({"error": "sequence_not_found"}, status=404)
+
+    lead_id = request.data.get("lead_id")
+    if not lead_id:
+        return Response({"error": "lead_id required"}, status=400)
+
+    try:
+        lead = CRMLead.objects.get(id=lead_id)
+    except CRMLead.DoesNotExist:
+        return Response({"error": "lead_not_found"}, status=404)
+
+    if lead.email_opted_out:
+        return Response({"error": "lead_opted_out"}, status=400)
+
+    if OutreachEnrollment.objects.filter(lead=lead, sequence=seq).exists():
+        return Response({"error": "already_enrolled"}, status=400)
+
+    # Deterministic A/B assignment (same pattern as experiments.py)
+    hash_input = f"{lead.id}-{seq.id}"
+    hash_val = int(hashlib.sha256(hash_input.encode()).hexdigest(), 16) % 2
+    variant = "a" if hash_val == 0 else "b"
+
+    # Calculate first send time
+    now = timezone.now()
+    first_step = seq.steps[0] if seq.steps else None
+    delay_days = first_step.get("delay_days", 0) if first_step else 0
+    next_send = now + timedelta(days=delay_days)
+
+    enrollment = OutreachEnrollment.objects.create(
+        lead=lead,
+        sequence=seq,
+        variant=variant,
+        current_step=0,
+        next_send_at=next_send,
+    )
+
+    return Response({
+        "id": str(enrollment.id),
+        "variant": variant,
+        "next_send_at": next_send.isoformat(),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_generate_email(request):
+    """Use Claude to generate personalized A/B email variants for outreach."""
+    d = request.data
+    lead_name = d.get("name", "")
+    lead_company = d.get("company", "")
+    lead_role = d.get("role", "")
+    lead_industry = d.get("industry", "")
+    step_purpose = d.get("purpose", "Introduction")
+    step_number = d.get("step_number", 1)
+    total_steps = d.get("total_steps", 1)
+    custom_notes = d.get("notes", "")
+
+    prompt = (
+        f"Generate two A/B email variants for an outreach sequence.\n\n"
+        f"Lead context:\n"
+        f"- Name: {lead_name}\n"
+        f"- Company: {lead_company}\n"
+        f"- Role: {lead_role}\n"
+        f"- Industry: {lead_industry}\n\n"
+        f"Email context:\n"
+        f"- Step {step_number} of {total_steps}\n"
+        f"- Purpose: {step_purpose}\n"
+        f"{'- Notes: ' + custom_notes if custom_notes else ''}\n\n"
+        "Requirements:\n"
+        "- Variant A: More direct/professional tone\n"
+        "- Variant B: More conversational/value-led tone\n"
+        "- Keep subject lines under 60 characters\n"
+        "- Body should be 3-5 short paragraphs\n"
+        "- Use {{name}} placeholder for the recipient's name\n"
+        "- End with a clear, low-friction CTA\n"
+        "- Never mention competitors by name\n\n"
+        "Return ONLY valid JSON with this exact structure:\n"
+        '{"subject_a": "...", "body_a": "...", "subject_b": "...", "body_b": "..."}\n'
+        "Use \\n for newlines in the body text."
+    )
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1500,
+            system=(
+                "You are a sales copywriter for Svend, a decision science SaaS platform. "
+                "Svend provides statistical analysis (like Minitab at $2,594/yr but modern, "
+                "AI-powered, and starting at $49/mo), SPC, DOE, capability studies, forecasting, "
+                "quality tools (A3, FMEA, RCA, VSM), and a collaborative knowledge graph. "
+                "Target buyers: quality engineers, CI managers, analysts, and ops leaders in "
+                "manufacturing, healthcare, tech, and consulting. Svend's edge: AI-guided "
+                "analysis, real-time collaboration, integrated hypothesis tracking, and "
+                "10x lower cost than legacy tools. Write concise, credible outreach — "
+                "no hype, no buzzwords, no generic sales language. Show domain knowledge."
+            ),
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        text = response.content[0].text.strip()
+        # Extract JSON from response (handle markdown code blocks)
+        if "```" in text:
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        result = json.loads(text)
+        return Response(result)
+    except json.JSONDecodeError:
+        return Response({"error": "Failed to parse AI response as JSON", "raw": text}, status=500)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_crm_outreach_metrics(request):
+    """Per-sequence outreach performance metrics."""
+    from api.models import EmailRecipient
+
+    sequences = OutreachSequence.objects.all()
+    metrics = []
+    for seq in sequences:
+        enrollments = OutreachEnrollment.objects.filter(sequence=seq)
+        enrolled = enrollments.count()
+        active = enrollments.filter(status="active").count()
+        completed = enrollments.filter(status="completed").count()
+        replied = enrollments.filter(status="replied").count()
+
+        # Gather all recipient IDs from send logs
+        recipient_ids = []
+        for e in enrollments:
+            for entry in (e.send_log or []):
+                if entry.get("recipient_id"):
+                    recipient_ids.append(entry["recipient_id"])
+
+        total_sent = len(recipient_ids)
+        opens = 0
+        clicks = 0
+        if recipient_ids:
+            opens = EmailRecipient.objects.filter(
+                id__in=recipient_ids, opened_at__isnull=False
+            ).count()
+            clicks = EmailRecipient.objects.filter(
+                id__in=recipient_ids, clicked_at__isnull=False
+            ).count()
+
+        metrics.append({
+            "id": str(seq.id),
+            "name": seq.name,
+            "enrolled": enrolled,
+            "active": active,
+            "completed": completed,
+            "replied": replied,
+            "emails_sent": total_sent,
+            "opens": opens,
+            "clicks": clicks,
+            "open_rate": round(opens / total_sent * 100, 1) if total_sent else 0,
+            "click_rate": round(clicks / total_sent * 100, 1) if total_sent else 0,
+        })
+
+    return Response({"metrics": metrics})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_send_one(request):
+    """Send a single ad-hoc email to a CRM lead."""
+    import re
+    from django.core.mail import send_mail as django_send_mail
+    from api.models import EmailRecipient
+    from api.views import make_unsubscribe_url
+
+    lead_id = request.data.get("lead_id")
+    subject = request.data.get("subject", "").strip()
+    body_md = request.data.get("body", "").strip()
+
+    if not lead_id or not subject or not body_md:
+        return Response({"error": "lead_id, subject, and body are required."}, status=400)
+
+    try:
+        lead = CRMLead.objects.get(id=lead_id)
+    except CRMLead.DoesNotExist:
+        return Response({"error": "lead_not_found"}, status=404)
+
+    if lead.email_opted_out:
+        return Response({"error": "lead_opted_out"}, status=400)
+
+    # Personalize
+    body_md = body_md.replace("{{name}}", lead.name)
+    body_html = _markdown_to_html(body_md)
+
+    # Create campaign record
+    campaign = EmailCampaign.objects.create(
+        subject=subject,
+        body_md=body_md,
+        target=f"crm:lead:{lead.id}",
+        sent_by=request.user,
+        recipient_count=1,
+    )
+    rcpt = EmailRecipient.objects.create(
+        campaign=campaign,
+        email=lead.email,
+    )
+
+    # Rewrite links for click tracking
+    def _track_link(match):
+        url = match.group(1)
+        return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+    body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
+
+    # Add tracking pixel
+    pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
+    unsub_url = "https://svend.ai"
+    full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url=unsub_url)
+
+    try:
+        django_send_mail(
+            subject=subject.replace("{{name}}", lead.name),
+            message="",
+            from_email=None,
+            recipient_list=[lead.email],
+            html_message=full_html,
+        )
+        # Update lead tracking
+        lead.last_contacted_at = timezone.now()
+        if lead.stage == "prospect":
+            lead.stage = "contacted"
+        lead.save(update_fields=["last_contacted_at", "stage", "updated_at"])
+
+        return Response({
+            "sent": True,
+            "campaign_id": str(campaign.id),
+            "recipient_id": str(rcpt.id),
+        })
+    except Exception as e:
+        rcpt.failed = True
+        rcpt.save(update_fields=["failed"])
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_process_queue(request):
+    """Process all due outreach sends: advance enrollments, send emails."""
+    import re
+    from django.core.mail import send_mail as django_send_mail
+    from api.models import EmailRecipient
+
+    now = timezone.now()
+    due = OutreachEnrollment.objects.filter(
+        status="active",
+        next_send_at__lte=now,
+    ).select_related("lead", "sequence")
+
+    sent_count = 0
+    failed_count = 0
+    skipped_count = 0
+
+    for enrollment in due:
+        lead = enrollment.lead
+        seq = enrollment.sequence
+
+        if lead.email_opted_out:
+            enrollment.status = "opted_out"
+            enrollment.save(update_fields=["status"])
+            skipped_count += 1
+            continue
+
+        if not seq.steps or enrollment.current_step >= len(seq.steps):
+            enrollment.status = "completed"
+            enrollment.save(update_fields=["status"])
+            continue
+
+        step = seq.steps[enrollment.current_step]
+        variant = enrollment.variant
+
+        # Pick subject/body based on variant
+        subject = step.get(f"subject_{variant}", step.get("subject_a", ""))
+        body_md = step.get(f"body_{variant}", step.get("body_a", ""))
+
+        # Personalize
+        subject = subject.replace("{{name}}", lead.name)
+        body_md = body_md.replace("{{name}}", lead.name)
+        body_html = _markdown_to_html(body_md)
+
+        # Create email records
+        campaign = EmailCampaign.objects.create(
+            subject=subject,
+            body_md=body_md,
+            target=f"crm:lead:{lead.id}",
+            sent_by=request.user,
+            recipient_count=1,
+        )
+        rcpt = EmailRecipient.objects.create(
+            campaign=campaign,
+            email=lead.email,
+        )
+
+        # Rewrite links for click tracking
+        def _track_link(match):
+            url = match.group(1)
+            return f'href="https://svend.ai/api/email/click/{rcpt.id}/?url={url}"'
+        body_html = re.sub(r'href="(https?://[^"]+)"', _track_link, body_html)
+
+        # Add tracking pixel
+        pixel = f'<img src="https://svend.ai/api/email/open/{rcpt.id}/" width="1" height="1" style="display:none;" alt="">'
+        unsub_url = "https://svend.ai"
+        full_html = EMAIL_TEMPLATE.format(body=body_html + pixel, unsub_url=unsub_url)
+
+        try:
+            django_send_mail(
+                subject=subject,
+                message="",
+                from_email=None,
+                recipient_list=[lead.email],
+                html_message=full_html,
+            )
+            sent_count += 1
+
+            # Update lead
+            lead.last_contacted_at = now
+            if lead.stage == "prospect":
+                lead.stage = "contacted"
+            lead.save(update_fields=["last_contacted_at", "stage", "updated_at"])
+
+            # Log the send
+            enrollment.send_log.append({
+                "step": enrollment.current_step,
+                "sent_at": now.isoformat(),
+                "recipient_id": str(rcpt.id),
+                "variant": variant,
+            })
+            enrollment.last_sent_at = now
+
+            # Advance to next step
+            next_step = enrollment.current_step + 1
+            if next_step >= len(seq.steps):
+                enrollment.status = "completed"
+                enrollment.next_send_at = None
+            else:
+                enrollment.current_step = next_step
+                delay_days = seq.steps[next_step].get("delay_days", 1)
+                enrollment.next_send_at = now + timedelta(days=delay_days)
+
+            enrollment.save()
+
+        except Exception:
+            rcpt.failed = True
+            rcpt.save(update_fields=["failed"])
+            failed_count += 1
+
+    return Response({
+        "processed": sent_count + failed_count + skipped_count,
+        "sent": sent_count,
+        "failed": failed_count,
+        "skipped": skipped_count,
+    })
+
+# ---------------------------------------------------------------------------
+# API: Site Analytics (SiteVisit)
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_site_analytics(request):
+    """Site-wide visitor analytics: page views, unique visitors, referrers, top pages,
+    country distribution, user flow, and recent hits."""
+    days = _get_days(request)
+    now = timezone.now()
+    since = now - timedelta(days=days)
+    visits = SiteVisit.objects.filter(viewed_at__gte=since, is_bot=False)
+
+    # Daily visitors
+    daily = list(
+        visits.annotate(date=TruncDate("viewed_at"))
+        .values("date")
+        .annotate(total=Count("id"), unique=Count("ip_hash", distinct=True))
+        .order_by("date")
+    )
+
+    # Top pages
+    top_pages = list(
+        visits.values("path")
+        .annotate(total=Count("id"), unique=Count("ip_hash", distinct=True))
+        .order_by("-total")[:20]
+    )
+
+    # Referrer domains
+    referrers_raw = list(
+        visits.exclude(referrer_domain="")
+        .values("referrer_domain")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:15]
+    )
+    direct = visits.filter(referrer_domain="").count()
+    referrers = [{"domain": "Direct", "count": direct}] if direct else []
+    referrers += [{"domain": r["referrer_domain"], "count": r["count"]} for r in referrers_raw]
+
+    # Totals
+    total_hits = visits.count()
+    unique_visitors = visits.values("ip_hash").distinct().count()
+    bot_hits = SiteVisit.objects.filter(viewed_at__gte=since, is_bot=True).count()
+
+    # Country distribution (for world map)
+    countries = list(
+        visits.exclude(country="")
+        .values("country")
+        .annotate(views=Count("id"), unique=Count("ip_hash", distinct=True))
+        .order_by("-views")
+    )
+
+    # User flow: page transitions (from → to)
+    # Group visits by ip_hash, order by time, pair consecutive pages
+    flow_counts = Counter()
+    session_gap = timedelta(minutes=30)
+    visitor_stream = (
+        visits.values("ip_hash", "path", "viewed_at")
+        .order_by("ip_hash", "viewed_at")
+    )
+    current_ip = None
+    prev_path = None
+    prev_time = None
+    for v in visitor_stream.iterator():
+        if v["ip_hash"] != current_ip:
+            current_ip = v["ip_hash"]
+            prev_path = v["path"]
+            prev_time = v["viewed_at"]
+            continue
+        if v["viewed_at"] - prev_time <= session_gap:
+            if prev_path != v["path"]:
+                flow_counts[(prev_path, v["path"])] += 1
+        prev_path = v["path"]
+        prev_time = v["viewed_at"]
+
+    flows = [
+        {"from": k[0], "to": k[1], "count": c}
+        for k, c in flow_counts.most_common(30)
+    ]
+
+    # Recent hits (live feed) — last 50, regardless of date range
+    recent_raw = list(
+        SiteVisit.objects.filter(is_bot=False)
+        .order_by("-viewed_at")
+        .values("path", "country", "referrer_domain", "viewed_at")[:50]
+    )
+    recent = []
+    for r in recent_raw:
+        delta = now - r["viewed_at"]
+        secs = int(delta.total_seconds())
+        if secs < 60:
+            ago = f"{secs}s ago"
+        elif secs < 3600:
+            ago = f"{secs // 60}m ago"
+        elif secs < 86400:
+            ago = f"{secs // 3600}h ago"
+        else:
+            ago = f"{secs // 86400}d ago"
+        recent.append({
+            "path": r["path"],
+            "country": r["country"] or "",
+            "referrer": r["referrer_domain"] or "direct",
+            "ago": ago,
+        })
+
+    # Duration stats — combine beacon data with server-side session estimation.
+    # For multi-page sessions, time on page = (next pageview time - this pageview time).
+    # This works for all visitors regardless of beacon reliability.
+    from collections import defaultdict
+
+    session_durations = defaultdict(list)  # path → [duration_ms, ...]
+    session_gap = timedelta(minutes=30)
+    visitor_pages = (
+        visits.values("ip_hash", "path", "viewed_at", "duration_ms")
+        .order_by("ip_hash", "viewed_at")
+    )
+    prev_ip = None
+    prev_path = None
+    prev_time = None
+    prev_dur = None
+    for v in visitor_pages.iterator():
+        if v["ip_hash"] == prev_ip and prev_time:
+            delta = v["viewed_at"] - prev_time
+            if delta < session_gap and delta.total_seconds() > 0:
+                est_ms = int(delta.total_seconds() * 1000)
+                # Use beacon duration if available, otherwise use session estimate
+                dur = prev_dur if prev_dur else est_ms
+                # Clamp: skip if > 30min (session gap edge)
+                if dur <= 1_800_000:
+                    session_durations[prev_path].append(dur)
+        # For the last page in a session, use beacon duration if available
+        elif prev_ip is not None and prev_ip != v["ip_hash"] and prev_dur:
+            if prev_dur <= 1_800_000:
+                session_durations[prev_path].append(prev_dur)
+        prev_ip = v["ip_hash"]
+        prev_path = v["path"]
+        prev_time = v["viewed_at"]
+        prev_dur = v["duration_ms"]
+    # Handle the very last visitor's last page
+    if prev_dur and prev_dur <= 1_800_000:
+        session_durations[prev_path].append(prev_dur)
+
+    # Build page_durations from combined data
+    page_durations = []
+    for path, durations in sorted(session_durations.items(), key=lambda x: -len(x[1])):
+        if durations:
+            page_durations.append({
+                "path": path,
+                "avg_duration": sum(durations) / len(durations),
+                "measured": len(durations),
+            })
+    page_durations = page_durations[:20]
+
+    # Overall average from all measured durations
+    all_durations = [d for durs in session_durations.values() for d in durs]
+    overall_avg_ms = round(sum(all_durations) / len(all_durations)) if all_durations else None
+    has_duration = len(all_durations)
+    no_duration = total_hits - has_duration
+
+    return Response({
+        "daily": [
+            {"date": str(d["date"]), "total": d["total"], "unique": d["unique"]}
+            for d in daily
+        ],
+        "top_pages": [
+            {"path": p["path"], "views": p["total"], "unique": p["unique"]}
+            for p in top_pages
+        ],
+        "referrers": referrers,
+        "totals": {
+            "hits": total_hits,
+            "unique_visitors": unique_visitors,
+            "bot_hits": bot_hits,
+            "avg_duration_ms": overall_avg_ms,
+            "measured_visits": has_duration,
+            "bounce_visits": no_duration,
+        },
+        "countries": [
+            {"country": c["country"], "views": c["views"], "unique": c["unique"]}
+            for c in countries
+        ],
+        "flows": flows,
+        "recent": recent,
+        "page_durations": [
+            {
+                "path": d["path"],
+                "avg_ms": round(d["avg_duration"]),
+                "measured": d["measured"],
+            }
+            for d in page_durations
+        ],
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_site_live(request):
+    """Lightweight live poll endpoint — returns recent hits + quick totals only.
+
+    Skips expensive flow/duration aggregation for fast 15s polling.
+    """
+    now = timezone.now()
+    limit = min(int(request.query_params.get("limit", 100)), 500)
+
+    recent_raw = list(
+        SiteVisit.objects.filter(is_bot=False)
+        .order_by("-viewed_at")
+        .values("path", "country", "referrer_domain", "viewed_at", "duration_ms", "ip_hash")[:limit]
+    )
+
+    recent = []
+    for r in recent_raw:
+        delta = now - r["viewed_at"]
+        secs = int(delta.total_seconds())
+        if secs < 60:
+            ago = f"{secs}s ago"
+        elif secs < 3600:
+            ago = f"{secs // 60}m ago"
+        elif secs < 86400:
+            ago = f"{secs // 3600}h ago"
+        else:
+            ago = f"{secs // 86400}d ago"
+        recent.append({
+            "path": r["path"],
+            "country": r["country"] or "",
+            "referrer": r["referrer_domain"] or "direct",
+            "ago": ago,
+            "duration_ms": r["duration_ms"],
+            "ts": r["viewed_at"].isoformat(),
+            "visitor": r["ip_hash"][:8],
+        })
+
+    # Quick totals (cheap queries)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    hour_ago = now - timedelta(hours=1)
+
+    hits_today = SiteVisit.objects.filter(viewed_at__gte=today, is_bot=False).count()
+    hits_hour = SiteVisit.objects.filter(viewed_at__gte=hour_ago, is_bot=False).count()
+    unique_today = SiteVisit.objects.filter(
+        viewed_at__gte=today, is_bot=False
+    ).values("ip_hash").distinct().count()
+
+    return Response({
+        "recent": recent,
+        "totals": {
+            "hits_today": hits_today,
+            "hits_hour": hits_hour,
+            "unique_today": unique_today,
+        },
+    })
+
+
+# ---------------------------------------------------------------------------
+# Whitepapers
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_crm_bulk_send(request):
+    """Schedule personalized A/B outreach emails to multiple leads via tempora.
+
+    Expects: lead_ids, subject_a, body_a, subject_b, body_b.
+    Pass preview: true to return per-lead assignments without sending.
+    A/B variant assigned per lead via SHA256 hash (deterministic).
+    Sends are staggered 5 seconds apart to avoid rate-limit spikes.
+    """
+    import hashlib
+
+    d = request.data
+    lead_ids = d.get("lead_ids", [])
+    subject_a = d.get("subject_a", "").strip()
+    body_a = d.get("body_a", "").strip()
+    subject_b = d.get("subject_b", "").strip()
+    body_b = d.get("body_b", "").strip()
+    preview = d.get("preview", False)
+
+    if not lead_ids:
+        return Response({"error": "No leads selected."}, status=400)
+    if not subject_a or not body_a:
+        return Response({"error": "At least variant A subject and body are required."}, status=400)
+
+    # Fall back to variant A if B is empty
+    if not subject_b:
+        subject_b = subject_a
+    if not body_b:
+        body_b = body_a
+
+    leads = CRMLead.objects.filter(id__in=lead_ids, email_opted_out=False)
+    if not leads.exists():
+        return Response({"error": "No eligible leads found."}, status=400)
+
+    # Build per-lead assignments
+    assignments = []
+    for lead in leads:
+        hash_val = int(hashlib.sha256(f"{lead.id}-bulk".encode()).hexdigest(), 16) % 2
+        variant = "a" if hash_val == 0 else "b"
+        subj = subject_a if variant == "a" else subject_b
+        body = body_a if variant == "a" else body_b
+
+        # Personalize for preview
+        p_subj = (
+            subj
+            .replace("{{name}}", lead.name)
+            .replace("{{company}}", lead.company or "")
+            .replace("{{role}}", lead.role or "")
+            .replace("{{industry}}", lead.industry or "")
+        )
+        p_body = (
+            body
+            .replace("{{name}}", lead.name)
+            .replace("{{company}}", lead.company or "")
+            .replace("{{role}}", lead.role or "")
+            .replace("{{industry}}", lead.industry or "")
+        )
+
+        assignments.append({
+            "lead_id": str(lead.id),
+            "name": lead.name,
+            "email": lead.email,
+            "company": lead.company,
+            "variant": variant.upper(),
+            "subject": p_subj,
+            "body_preview": p_body[:200] + ("..." if len(p_body) > 200 else ""),
+        })
+
+    count_a = sum(1 for a in assignments if a["variant"] == "A")
+    count_b = len(assignments) - count_a
+
+    if preview:
+        return Response({
+            "assignments": assignments,
+            "count_a": count_a,
+            "count_b": count_b,
+            "total": len(assignments),
+        })
+
+    # --- Actual send ---
+    from tempora.scheduler import schedule_task
+
+    campaign = EmailCampaign.objects.create(
+        subject=f"[CRM Bulk] {subject_a[:80]}",
+        body_md=body_a,
+        target=f"crm:bulk:{len(assignments)}",
+        sent_by=request.user,
+        recipient_count=len(assignments),
+    )
+
+    scheduled = 0
+    skipped = 0
+    for i, lead in enumerate(leads):
+        hash_val = int(hashlib.sha256(f"{lead.id}-bulk".encode()).hexdigest(), 16) % 2
+        variant = "a" if hash_val == 0 else "b"
+        subj = subject_a if variant == "a" else subject_b
+        body = body_a if variant == "a" else body_b
+
+        try:
+            schedule_task(
+                name=f"crm_bulk_{campaign.id}_{lead.id}",
+                func="api.crm_send_one_email",
+                args={
+                    "lead_id": str(lead.id),
+                    "subject": subj,
+                    "body": body,
+                    "campaign_id": str(campaign.id),
+                    "variant": variant,
+                },
+                delay_seconds=i * 5,
+                priority=2,
+                queue="core",
+            )
+            scheduled += 1
+        except Exception as e:
+            logger.error("Failed to schedule CRM email for %s: %s", lead.email, e)
+            skipped += 1
+
+    return Response({
+        "campaign_id": str(campaign.id),
+        "scheduled": scheduled,
+        "skipped": skipped,
+        "count_a": count_a,
+        "count_b": count_b,
+        "stagger_seconds": 5,
+        "total_time_estimate": f"{scheduled * 5}s",
+    })
