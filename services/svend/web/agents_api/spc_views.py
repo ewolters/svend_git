@@ -16,12 +16,12 @@ import tempfile
 import os
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
 from . import spc
 from .models import Problem
+from .dsw.common import sanitize_for_json
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,6 @@ def _cache_put(key: str, value: spc.ParsedDataset) -> None:
 # Control Charts
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def control_chart(request):
@@ -131,10 +130,10 @@ def control_chart(request):
             except Problem.DoesNotExist:
                 pass  # Ignore if problem not found
 
-        return JsonResponse({
+        return JsonResponse(sanitize_for_json({
             "success": True,
             "chart": result.to_dict(),
-        })
+        }))
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
@@ -143,7 +142,6 @@ def control_chart(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def recommend_chart(request):
@@ -206,14 +204,13 @@ def recommend_chart(request):
         except Problem.DoesNotExist:
             pass
 
-    return JsonResponse(response_data)
+    return JsonResponse(sanitize_for_json(response_data))
 
 
 # =============================================================================
 # Process Capability
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def capability_study(request):
@@ -277,7 +274,7 @@ def capability_study(request):
 
         resp = _build_capability_response(data, result)
         resp["success"] = True
-        return JsonResponse(resp)
+        return JsonResponse(sanitize_for_json(resp))
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
@@ -542,7 +539,6 @@ def _build_capability_response(data, cap):
 # Statistical Summary
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def statistical_summary(request):
@@ -596,7 +592,7 @@ def statistical_summary(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse(response_data)
+        return JsonResponse(sanitize_for_json(response_data))
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
@@ -613,7 +609,6 @@ def statistical_summary(request):
 # File Upload and Field Mapping
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def upload_data(request):
@@ -673,7 +668,6 @@ def upload_data(request):
         return JsonResponse({"error": "File upload failed. Please check file size and format."}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def analyze_uploaded(request):
@@ -845,7 +839,7 @@ def analyze_uploaded(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse(response_data)
+        return JsonResponse(sanitize_for_json(response_data))
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
@@ -854,7 +848,6 @@ def analyze_uploaded(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def gage_rr(request):
@@ -953,10 +946,10 @@ def gage_rr(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse({
+        return JsonResponse(sanitize_for_json({
             "success": True,
             "gage_rr": result.to_dict(),
-        })
+        }))
 
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
@@ -965,7 +958,6 @@ def gage_rr(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def chart_types(request):

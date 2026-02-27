@@ -10,12 +10,14 @@ from pathlib import Path
 from collections import OrderedDict
 from threading import Lock
 
+import numpy as np
+
 from django.http import JsonResponse, FileResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from django.conf import settings
 from .models import DSWResult, AgentLog, SavedModel
+from .dsw.common import sanitize_for_json
 from accounts.permissions import gated, gated_paid, require_auth, require_enterprise
 
 logger = logging.getLogger(__name__)
@@ -1035,7 +1037,6 @@ Top features: {json.dumps(top_features)}"""
 
 # ─── From Intent / From Data Endpoints ─────────────────────────────────────────
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def dsw_from_intent(request):
@@ -1192,7 +1193,7 @@ def dsw_from_intent(request):
         if saved_model:
             response_data["model_id"] = str(saved_model.id)
 
-        return JsonResponse(response_data)
+        return JsonResponse(sanitize_for_json(response_data))
 
     except Exception as e:
         import traceback
@@ -1214,7 +1215,6 @@ def dsw_from_intent(request):
         }, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def dsw_from_data(request):
@@ -1385,7 +1385,7 @@ def dsw_from_data(request):
             except Exception as e_prob:
                 logger.warning(f"Could not link DSW from-data to problem {problem_id}: {e_prob}")
 
-        return JsonResponse(response_data)
+        return JsonResponse(sanitize_for_json(response_data))
 
     except Exception as e:
         import traceback
@@ -1544,7 +1544,6 @@ def list_models(request):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def save_model_from_cache(request):
@@ -1622,7 +1621,6 @@ def download_model(request, model_id):
         return JsonResponse({"error": "Model not found"}, status=404)
 
 
-@csrf_exempt
 @require_http_methods(["DELETE"])
 @require_auth
 def delete_model(request, model_id):
@@ -1644,7 +1642,6 @@ def delete_model(request, model_id):
         return JsonResponse({"error": "Model not found"}, status=404)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def run_model(request, model_id):
@@ -1777,7 +1774,6 @@ def run_model(request, model_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def optimize_model(request, model_id):
@@ -2189,7 +2185,6 @@ def _predict_numeric(model, numeric_vals, cat_vals, numeric_feats, cat_feats, fe
     return float(model.predict(X)[0])
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def models_summary(request):
@@ -2233,7 +2228,6 @@ def models_summary(request):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def model_versions(request, model_id):
@@ -2261,7 +2255,6 @@ def model_versions(request, model_id):
     return JsonResponse({"versions": versions})
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def model_report(request, model_id):
@@ -2347,7 +2340,6 @@ def model_report(request, model_id):
 # Scrub Endpoints - Standalone Data Cleaning
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def scrub_data(request):
@@ -2416,7 +2408,6 @@ def scrub_data(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def scrub_analyze(request):
@@ -2536,7 +2527,6 @@ def _detect_data_biases(df) -> list:
 # ANALYSIS WORKBENCH ENDPOINTS
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def run_analysis(request):
@@ -2853,8 +2843,10 @@ def run_simulation(df, analysis_id, config, user):
             return result
     else:
         # Validate formula AST for security
+        # Only bare function names allowed — no module attribute access (prevents np.__class__ etc.)
         allowed_names = set(var_names) | {"sqrt", "log", "exp", "abs", "sin", "cos", "tan",
-                                          "pi", "max", "min", "pow", "np", "e", "ceil", "floor"}
+                                          "pi", "max", "min", "pow", "e", "ceil", "floor",
+                                          "mean", "std", "sum"}
         try:
             tree = ast.parse(formula, mode="eval")
             for node in ast.walk(tree):
@@ -2864,22 +2856,22 @@ def run_simulation(df, analysis_id, config, user):
                 if isinstance(node, (ast.Import, ast.ImportFrom)):
                     result["summary"] = "Error: Import statements not allowed in formula."
                     return result
-                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                    if isinstance(node.func.value, ast.Name) and node.func.value.id not in ("np", "math"):
-                        result["summary"] = f"Error: Only np.* and math.* methods allowed."
-                        return result
+                if isinstance(node, ast.Attribute):
+                    result["summary"] = "Error: Attribute access not allowed. Use function names directly (e.g., sqrt(x) not np.sqrt(x))."
+                    return result
         except SyntaxError as e:
             result["summary"] = f"Error: Invalid formula syntax — {e}"
             return result
 
-        # Build safe namespace
+        # Build safe namespace — no raw module references
         safe_ns = {"__builtins__": {}}
         safe_ns.update({name: samples[name] for name in var_names})
         safe_ns.update({
             "sqrt": np.sqrt, "log": np.log, "exp": np.exp, "abs": np.abs,
             "sin": np.sin, "cos": np.cos, "tan": np.tan,
             "pi": np.pi, "e": np.e, "max": np.maximum, "min": np.minimum,
-            "pow": np.power, "np": np, "ceil": np.ceil, "floor": np.floor,
+            "pow": np.power, "ceil": np.ceil, "floor": np.floor,
+            "mean": np.mean, "std": np.std, "sum": np.sum,
         })
 
         try:
@@ -23181,7 +23173,6 @@ def run_visualization(df, analysis_id, config):
     return result
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def upload_data(request):
@@ -23192,7 +23183,6 @@ def upload_data(request):
 
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def execute_code(request):
@@ -23203,7 +23193,6 @@ def execute_code(request):
 
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def generate_code(request):
@@ -23214,7 +23203,6 @@ def generate_code(request):
 
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_enterprise
 def analyst_assistant(request):
@@ -23846,7 +23834,6 @@ Keep it concise but informative (under 500 words)."""
 # DATA TRANSFORMATION TOOLS
 # ============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def transform_data(request):
@@ -23857,7 +23844,6 @@ def transform_data(request):
 
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def download_data(request):
@@ -23866,9 +23852,15 @@ def download_data(request):
     return _ep_download_data(request)
 
 
+@require_http_methods(["POST"])
+@require_auth
+def retrieve_data(request):
+    """Route to dsw/endpoints_data — retrieve saved dataset by data_id."""
+    from .dsw.endpoints_data import retrieve_data as _ep_retrieve_data
+    return _ep_retrieve_data(request)
 
 
-@csrf_exempt
+
 @require_http_methods(["POST"])
 @gated
 def triage_data(request):
@@ -23879,7 +23871,6 @@ def triage_data(request):
 
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def triage_scan(request):

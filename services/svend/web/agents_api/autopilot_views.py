@@ -18,7 +18,6 @@ import uuid
 import numpy as np
 import pandas as pd
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_auth
@@ -54,7 +53,11 @@ class _NumpySafeEncoder(json.JSONEncoder):
             return bool(obj)
         if isinstance(obj, (pd.Timestamp,)):
             return obj.isoformat()
-        return super().default(obj)
+        # Catch-all: sklearn objects, scalers, etc.
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(type(obj).__name__)
 
     def encode(self, o):
         # Replace Python float NaN/Infinity with None before encoding
@@ -68,6 +71,22 @@ class _NumpySafeEncoder(json.JSONEncoder):
         if isinstance(obj, (list, tuple)):
             return [self._sanitize(v) for v in obj]
         return obj
+
+
+def _safe_params(model):
+    """Extract get_params() with non-serializable objects converted to strings."""
+    if not hasattr(model, "get_params"):
+        return {}
+    params = model.get_params()
+    clean = {}
+    for k, v in params.items():
+        if isinstance(v, (str, int, float, bool, type(None))):
+            clean[k] = v
+        elif isinstance(v, (list, tuple)):
+            clean[k] = v
+        else:
+            clean[k] = str(type(v).__name__)
+    return clean
 
 
 def _json_response(data, status=200):
@@ -373,7 +392,6 @@ def _compute_threshold_analysis(y_test, model, X_test, class_names=None):
     }
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def autopilot_clean_train(request):
@@ -575,7 +593,6 @@ def autopilot_clean_train(request):
         return _json_response({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def autopilot_full_pipeline(request):
@@ -597,8 +614,15 @@ def autopilot_full_pipeline(request):
         return JsonResponse({"error": "Target column is required"}, status=400)
 
     project_id = request.POST.get("project_id")
-    cv_folds = int(request.POST.get("cv_folds", "5"))
-    n_trials = min(int(request.POST.get("n_trials", "30")), 50)
+
+    try:
+        cv_folds = int(request.POST.get("cv_folds", "5"))
+    except (ValueError, TypeError):
+        cv_folds = 5
+    try:
+        n_trials = min(int(request.POST.get("n_trials", "30")), 50)
+    except (ValueError, TypeError):
+        n_trials = 30
 
     triage_config = {}
     try:
@@ -772,16 +796,33 @@ def autopilot_full_pipeline(request):
         shap_plots = []
         try:
             import shap
-            if hasattr(best_model_obj, "predict"):
-                try:
-                    explainer = shap.TreeExplainer(best_model_obj)
-                except Exception:
-                    X_bg = X_test[:100] if len(X_test) > 100 else X_test
-                    explainer = shap.KernelExplainer(best_model_obj.predict, X_bg)
+            from sklearn.pipeline import Pipeline as SkPipeline
 
-                shap_values = explainer.shap_values(X_test[:100])
+            # Unwrap Pipeline for SHAP — transform X through preprocessing steps
+            shap_model = best_model_obj
+            shap_X_test = X_test
+            if isinstance(best_model_obj, SkPipeline):
+                # Transform test data through all steps except the final estimator
+                shap_X_test = best_model_obj[:-1].transform(X_test)
+                if hasattr(shap_X_test, 'values'):
+                    shap_X_test = pd.DataFrame(shap_X_test, columns=feature_names[:shap_X_test.shape[1]])
+                shap_model = best_model_obj[-1]  # final estimator
+
+            if hasattr(shap_model, "predict"):
+                try:
+                    explainer = shap.TreeExplainer(shap_model)
+                except Exception:
+                    X_bg = shap_X_test[:100] if len(shap_X_test) > 100 else shap_X_test
+                    explainer = shap.KernelExplainer(shap_model.predict, X_bg)
+
+                shap_values = explainer.shap_values(shap_X_test[:100])
+
+                # Normalize shape: SHAP can return list, 3D array, or 2D array
                 if isinstance(shap_values, list):
                     shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+                elif hasattr(shap_values, 'ndim') and shap_values.ndim == 3:
+                    # (n_samples, n_features, n_classes) — take last class for binary
+                    shap_values = shap_values[:, :, -1]
 
                 # SHAP importance bar chart
                 mean_abs = np.abs(shap_values).mean(axis=0)
@@ -806,6 +847,7 @@ def autopilot_full_pipeline(request):
                     "plot_count": len(shap_plots),
                 })
         except Exception as e:
+            logger.warning(f"SHAP explain skipped: {e}")
             steps.append({
                 "name": "SHAP Explain",
                 "status": "skipped",
@@ -927,7 +969,7 @@ def autopilot_full_pipeline(request):
             "target": target,
             "task_type": task_type,
             "model_class": type(best_model_obj).__name__,
-            "hyperparams": best_model_obj.get_params() if hasattr(best_model_obj, "get_params") else {},
+            "hyperparams": _safe_params(best_model_obj),
             "cv_folds": cv_folds,
             "comparison_models": [r["model"] for r in comparison],
             "tuning_trials": n_trials,
@@ -1065,7 +1107,6 @@ def autopilot_full_pipeline(request):
         return _json_response({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def autopilot_augment_train(request):
@@ -1266,7 +1307,6 @@ def autopilot_augment_train(request):
         return _json_response({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def retrain_model(request, model_id):

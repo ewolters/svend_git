@@ -1031,41 +1031,299 @@ def run_spc_analysis(df, analysis_id, config):
 
             summary += f"\nWithin Capability:\n  Cp: {cp_within:.3f}\n  Cpk: {cpk_within:.3f}\n\nBetween/Within Capability:\n  Cp (B/W): {cp_bw:.3f}\n  Cpk (B/W): {cpk_bw:.3f}\n\nOverall Capability:\n  Pp: {pp:.3f}\n  Ppk: {ppk:.3f}"
 
-        # Variance components bar chart
+        from scipy import stats as sp_stats
+
+        # ---- Plot 1: Xbar Chart (subgroup means with control limits) ----
+        x_idx = list(range(1, k + 1))
+        x_labels = [str(i) for i in x_idx]
+        if subgroup_col:
+            sg_keys = list(df.groupby(subgroup_col).groups.keys())
+            x_labels = [str(s) for s in sg_keys[:k]]
+
+        # Control limits for Xbar using sigma_between + sigma_within
+        ucl_xbar = grand_mean + 3 * sigma_bw / np.sqrt(n_avg)
+        lcl_xbar = grand_mean - 3 * sigma_bw / np.sqrt(n_avg)
+
+        # Flag out-of-control points
+        ooc_xbar = [i for i, m in enumerate(group_means) if m > ucl_xbar or m < lcl_xbar]
+
+        xbar_traces = [
+            {"type": "scatter", "x": x_idx, "y": group_means.tolist(), "mode": "lines+markers",
+             "name": "Subgroup Mean", "marker": {"color": "#4a90d9", "size": 6},
+             "line": {"color": "#4a90d9", "width": 1.5}},
+            {"type": "scatter", "x": x_idx, "y": [grand_mean] * k, "mode": "lines",
+             "name": f"X̄ = {grand_mean:.4f}", "line": {"color": "#4a9f6e", "width": 1.5}},
+            {"type": "scatter", "x": x_idx, "y": [ucl_xbar] * k, "mode": "lines",
+             "name": f"UCL = {ucl_xbar:.4f}", "line": {"color": "#d94a4a", "dash": "dash", "width": 1.5}},
+            {"type": "scatter", "x": x_idx, "y": [lcl_xbar] * k, "mode": "lines",
+             "name": f"LCL = {lcl_xbar:.4f}", "line": {"color": "#d94a4a", "dash": "dash", "width": 1.5}},
+        ]
+        if ooc_xbar:
+            xbar_traces.append({
+                "type": "scatter", "x": [x_idx[i] for i in ooc_xbar],
+                "y": [group_means[i] for i in ooc_xbar], "mode": "markers",
+                "name": "Out of Control", "marker": {"color": "#e85747", "size": 10, "symbol": "diamond"},
+            })
+
         result["plots"].append({
-            "title": "Variance Components",
+            "title": "X̄ Chart — Subgroup Means",
+            "data": xbar_traces,
+            "layout": {"template": "plotly_dark", "height": 280,
+                        "xaxis": {"title": "Subgroup"}, "yaxis": {"title": measurement},
+                        "showlegend": True,
+                        "legend": {"orientation": "h", "y": 1.15, "x": 0.5, "xanchor": "center",
+                                   "font": {"size": 9, "color": "#b0b0b0"},
+                                   "bgcolor": "rgba(0,0,0,0)"}},
+            "group": "Control Charts",
+        })
+
+        # ---- Plot 2: R Chart (within-subgroup ranges) ----
+        group_ranges = np.array([np.max(g) - np.min(g) for g in groups])
+        r_bar = np.mean(group_ranges)
+        # d3/D3/D4 constants for subgroup size (approximation for variable n)
+        n_int = int(round(n_avg))
+        d2_table = {2: 1.128, 3: 1.693, 4: 2.059, 5: 2.326, 6: 2.534, 7: 2.704, 8: 2.847, 9: 2.970, 10: 3.078}
+        d3_table = {2: 0.853, 3: 0.888, 4: 0.880, 5: 0.864, 6: 0.848, 7: 0.833, 8: 0.820, 9: 0.808, 10: 0.797}
+        d2 = d2_table.get(n_int, 2.326)
+        d3 = d3_table.get(n_int, 0.864)
+        D3 = max(0, 1 - 3 * d3 / d2)
+        D4 = 1 + 3 * d3 / d2
+        ucl_r = D4 * r_bar
+        lcl_r = D3 * r_bar
+
+        ooc_r = [i for i, r in enumerate(group_ranges) if r > ucl_r or r < lcl_r]
+
+        r_traces = [
+            {"type": "scatter", "x": x_idx, "y": group_ranges.tolist(), "mode": "lines+markers",
+             "name": "Range", "marker": {"color": "#e89547", "size": 6},
+             "line": {"color": "#e89547", "width": 1.5}},
+            {"type": "scatter", "x": x_idx, "y": [r_bar] * k, "mode": "lines",
+             "name": f"R̄ = {r_bar:.4f}", "line": {"color": "#4a9f6e", "width": 1.5}},
+            {"type": "scatter", "x": x_idx, "y": [ucl_r] * k, "mode": "lines",
+             "name": f"UCL = {ucl_r:.4f}", "line": {"color": "#d94a4a", "dash": "dash", "width": 1.5}},
+            {"type": "scatter", "x": x_idx, "y": [lcl_r] * k, "mode": "lines",
+             "name": f"LCL = {lcl_r:.4f}", "line": {"color": "#d94a4a", "dash": "dash", "width": 1.5}},
+        ]
+        if ooc_r:
+            r_traces.append({
+                "type": "scatter", "x": [x_idx[i] for i in ooc_r],
+                "y": [group_ranges[i] for i in ooc_r], "mode": "markers",
+                "name": "Out of Control", "marker": {"color": "#e85747", "size": 10, "symbol": "diamond"},
+            })
+
+        result["plots"].append({
+            "title": "R Chart — Within-Subgroup Ranges",
+            "data": r_traces,
+            "layout": {"template": "plotly_dark", "height": 280,
+                        "xaxis": {"title": "Subgroup"}, "yaxis": {"title": "Range"},
+                        "showlegend": True,
+                        "legend": {"orientation": "h", "y": 1.15, "x": 0.5, "xanchor": "center",
+                                   "font": {"size": 9, "color": "#b0b0b0"},
+                                   "bgcolor": "rgba(0,0,0,0)"}},
+            "group": "Control Charts",
+        })
+
+        # ---- Plot 3: Individual Values by Subgroup (box + strip) ----
+        box_traces = []
+        for i, g in enumerate(groups):
+            label = x_labels[i] if i < len(x_labels) else str(i + 1)
+            box_traces.append({
+                "type": "box", "y": g.tolist(), "name": label,
+                "boxpoints": "all", "jitter": 0.4, "pointpos": 0,
+                "marker": {"color": "#4a90d9", "size": 3, "opacity": 0.6},
+                "line": {"color": "#4a90d9", "width": 1},
+                "fillcolor": "rgba(74, 144, 217, 0.15)",
+            })
+
+        box_layout = {"template": "plotly_dark", "height": 300,
+                      "xaxis": {"title": "Subgroup"}, "yaxis": {"title": measurement},
+                      "showlegend": False, "shapes": [], "annotations": []}
+        # Grand mean reference line
+        box_layout["shapes"].append({
+            "type": "line", "x0": -0.5, "x1": k - 0.5, "y0": grand_mean, "y1": grand_mean,
+            "line": {"color": "#4a9f6e", "width": 1.5, "dash": "dash"}
+        })
+        box_layout["annotations"].append({
+            "x": k - 0.5, "y": grand_mean, "text": f"X̄={grand_mean:.3f}",
+            "showarrow": False, "xanchor": "left", "font": {"color": "#4a9f6e", "size": 10}
+        })
+        if lsl is not None:
+            box_layout["shapes"].append({"type": "line", "x0": -0.5, "x1": k - 0.5, "y0": lsl, "y1": lsl,
+                                         "line": {"color": "#e85747", "dash": "dot", "width": 1.5}})
+            box_layout["annotations"].append({"x": k - 0.5, "y": lsl, "text": "LSL", "showarrow": False,
+                                              "xanchor": "left", "font": {"color": "#e85747", "size": 10}})
+        if usl is not None:
+            box_layout["shapes"].append({"type": "line", "x0": -0.5, "x1": k - 0.5, "y0": usl, "y1": usl,
+                                         "line": {"color": "#e85747", "dash": "dot", "width": 1.5}})
+            box_layout["annotations"].append({"x": k - 0.5, "y": usl, "text": "USL", "showarrow": False,
+                                              "xanchor": "left", "font": {"color": "#e85747", "size": 10}})
+
+        # Cap at 30 subgroups for readability; summarize if more
+        if k <= 30:
+            result["plots"].append({
+                "title": "Individual Values by Subgroup",
+                "data": box_traces,
+                "layout": box_layout,
+                "group": "Control Charts",
+            })
+        else:
+            # Show first 15 and last 15 for large datasets
+            subset = box_traces[:15] + box_traces[-15:]
+            box_layout["annotations"].insert(0, {
+                "x": 0.5, "y": 1.08, "xref": "paper", "yref": "paper",
+                "text": f"Showing 30 of {k} subgroups (first 15 + last 15)",
+                "showarrow": False, "font": {"color": "rgba(255,255,255,0.5)", "size": 10}
+            })
+            result["plots"].append({
+                "title": "Individual Values by Subgroup",
+                "data": subset,
+                "layout": box_layout,
+                "group": "Control Charts",
+            })
+
+        # ---- Plot 4: Variance Components bar chart ----
+        result["plots"].append({
+            "title": "Variance Components (σ)",
             "data": [{
                 "type": "bar",
                 "x": ["Within", "Between", "B/W Combined", "Overall"],
                 "y": [sigma_within, sigma_between, sigma_bw, sigma_total],
                 "marker": {"color": ["#4a9f6e", "#4a90d9", "#e89547", "#d94a4a"]},
                 "text": [f"{sigma_within:.4f}", f"{sigma_between:.4f}", f"{sigma_bw:.4f}", f"{sigma_total:.4f}"],
-                "textposition": "outside"
+                "textposition": "outside", "textfont": {"color": "#b0b0b0"},
             }],
-            "layout": {"template": "plotly_dark", "height": 280, "yaxis": {"title": "Std Dev (σ)"}}
+            "layout": {"template": "plotly_dark", "height": 280, "yaxis": {"title": "Std Dev (σ)"}},
+            "group": "Variance",
         })
 
-        # Histogram with within vs overall fits
-        from scipy import stats as sp_stats
-        x_range = np.linspace(min(data), max(data), 200)
-        hist_data = [
-            {"type": "histogram", "x": data.tolist(), "name": "Data", "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}}, "histnorm": "probability density"},
-            {"type": "scatter", "x": x_range.tolist(), "y": sp_stats.norm.pdf(x_range, grand_mean, sigma_within).tolist(), "mode": "lines", "name": f"Within (σ={sigma_within:.3f})", "line": {"color": "#4a90d9", "width": 2}},
-            {"type": "scatter", "x": x_range.tolist(), "y": sp_stats.norm.pdf(x_range, grand_mean, sigma_total).tolist(), "mode": "lines", "name": f"Overall (σ={sigma_total:.3f})", "line": {"color": "#d94a4a", "width": 2, "dash": "dash"}},
-        ]
+        # ---- Plot 5: % Variance Contribution (donut) ----
+        within_pct = sigma_within**2 / sigma_total**2 * 100 if sigma_total > 0 else 0
+        between_pct = sigma_between**2 / sigma_total**2 * 100 if sigma_total > 0 else 0
+        residual_pct = max(0, 100 - within_pct - between_pct)
 
-        layout = {"template": "plotly_dark", "height": 300, "showlegend": True, "shapes": [], "annotations": []}
-        if lsl is not None:
-            layout["shapes"].append({"type": "line", "x0": lsl, "x1": lsl, "y0": 0, "y1": 1, "yref": "paper", "line": {"color": "#e85747", "dash": "dash", "width": 2}})
-            layout["annotations"].append({"x": lsl, "y": 1.05, "yref": "paper", "text": "LSL", "showarrow": False, "font": {"color": "#e85747"}})
-        if usl is not None:
-            layout["shapes"].append({"type": "line", "x0": usl, "x1": usl, "y0": 0, "y1": 1, "yref": "paper", "line": {"color": "#e85747", "dash": "dash", "width": 2}})
-            layout["annotations"].append({"x": usl, "y": 1.05, "yref": "paper", "text": "USL", "showarrow": False, "font": {"color": "#e85747"}})
+        donut_labels = ["Within", "Between"]
+        donut_vals = [within_pct, between_pct]
+        donut_colors = ["#4a9f6e", "#4a90d9"]
+        if residual_pct > 0.5:
+            donut_labels.append("Residual")
+            donut_vals.append(residual_pct)
+            donut_colors.append("rgba(255,255,255,0.15)")
 
         result["plots"].append({
-            "title": "Within vs Overall Distribution",
+            "title": "% Contribution to Total Variance",
+            "data": [{
+                "type": "pie", "labels": donut_labels, "values": donut_vals,
+                "hole": 0.45, "marker": {"colors": donut_colors, "line": {"color": "rgba(0,0,0,0.3)", "width": 1}},
+                "textinfo": "label+percent", "textfont": {"size": 12, "color": "#e0e0e0"},
+                "hoverinfo": "label+percent+value",
+            }],
+            "layout": {"template": "plotly_dark", "height": 280, "showlegend": False,
+                        "annotations": [{"text": "Variance<br>Split", "x": 0.5, "y": 0.5,
+                                          "font": {"size": 13, "color": "rgba(255,255,255,0.6)"},
+                                          "showarrow": False}]},
+            "group": "Variance",
+        })
+
+        # ---- Plot 6: Within vs Overall Distribution (histogram + fits) ----
+        x_range = np.linspace(min(data), max(data), 200)
+        hist_data = [
+            {"type": "histogram", "x": data.tolist(), "name": "Data",
+             "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+             "histnorm": "probability density"},
+            {"type": "scatter", "x": x_range.tolist(),
+             "y": sp_stats.norm.pdf(x_range, grand_mean, sigma_within).tolist(),
+             "mode": "lines", "name": f"Within (σ={sigma_within:.3f})",
+             "line": {"color": "#4a90d9", "width": 2}},
+            {"type": "scatter", "x": x_range.tolist(),
+             "y": sp_stats.norm.pdf(x_range, grand_mean, sigma_bw).tolist(),
+             "mode": "lines", "name": f"B/W (σ={sigma_bw:.3f})",
+             "line": {"color": "#e89547", "width": 2, "dash": "dot"}},
+            {"type": "scatter", "x": x_range.tolist(),
+             "y": sp_stats.norm.pdf(x_range, grand_mean, sigma_total).tolist(),
+             "mode": "lines", "name": f"Overall (σ={sigma_total:.3f})",
+             "line": {"color": "#d94a4a", "width": 2, "dash": "dash"}},
+        ]
+
+        dist_layout = {"template": "plotly_dark", "height": 300, "showlegend": True,
+                       "shapes": [], "annotations": [],
+                       "legend": {"font": {"size": 9, "color": "#b0b0b0"}, "x": 0.98, "xanchor": "right", "y": 0.98,
+                                  "bgcolor": "rgba(20,20,30,0.7)", "bordercolor": "rgba(255,255,255,0.1)", "borderwidth": 1}}
+        if lsl is not None:
+            dist_layout["shapes"].append({"type": "line", "x0": lsl, "x1": lsl, "y0": 0, "y1": 1, "yref": "paper",
+                                          "line": {"color": "#e85747", "dash": "dash", "width": 2}})
+            dist_layout["annotations"].append({"x": lsl, "y": 1.05, "yref": "paper", "text": "LSL",
+                                               "showarrow": False, "font": {"color": "#e85747"}})
+        if usl is not None:
+            dist_layout["shapes"].append({"type": "line", "x0": usl, "x1": usl, "y0": 0, "y1": 1, "yref": "paper",
+                                          "line": {"color": "#e85747", "dash": "dash", "width": 2}})
+            dist_layout["annotations"].append({"x": usl, "y": 1.05, "yref": "paper", "text": "USL",
+                                               "showarrow": False, "font": {"color": "#e85747"}})
+
+        result["plots"].append({
+            "title": "Within vs B/W vs Overall Distribution",
             "data": hist_data,
-            "layout": layout
+            "layout": dist_layout,
+            "group": "Capability",
+        })
+
+        # ---- Plot 7: Capability Index Comparison (when specs provided) ----
+        if lsl is not None and usl is not None:
+            cap_categories = ["Cp / Pp", "Cpk / Ppk"]
+            result["plots"].append({
+                "title": "Capability Index Comparison",
+                "data": [
+                    {"type": "bar", "name": "Within", "x": cap_categories,
+                     "y": [cp_within, cpk_within],
+                     "marker": {"color": "#4a9f6e"}, "text": [f"{cp_within:.3f}", f"{cpk_within:.3f}"],
+                     "textposition": "outside", "textfont": {"color": "#b0b0b0"}},
+                    {"type": "bar", "name": "Between/Within", "x": cap_categories,
+                     "y": [cp_bw, cpk_bw],
+                     "marker": {"color": "#e89547"}, "text": [f"{cp_bw:.3f}", f"{cpk_bw:.3f}"],
+                     "textposition": "outside", "textfont": {"color": "#b0b0b0"}},
+                    {"type": "bar", "name": "Overall", "x": cap_categories,
+                     "y": [pp, ppk],
+                     "marker": {"color": "#d94a4a"}, "text": [f"{pp:.3f}", f"{ppk:.3f}"],
+                     "textposition": "outside", "textfont": {"color": "#b0b0b0"}},
+                ],
+                "layout": {"template": "plotly_dark", "height": 300, "barmode": "group",
+                            "yaxis": {"title": "Index Value"},
+                            "legend": {"orientation": "h", "y": 1.12, "x": 0.5, "xanchor": "center",
+                                       "font": {"size": 10, "color": "#b0b0b0"}, "bgcolor": "rgba(0,0,0,0)"},
+                            "shapes": [{"type": "line", "x0": -0.5, "x1": 1.5, "y0": 1.33, "y1": 1.33,
+                                         "line": {"color": "rgba(74,159,110,0.5)", "dash": "dash", "width": 1.5}},
+                                        {"type": "line", "x0": -0.5, "x1": 1.5, "y0": 1.0, "y1": 1.0,
+                                         "line": {"color": "rgba(232,87,71,0.5)", "dash": "dot", "width": 1.5}}],
+                            "annotations": [{"x": 1.5, "y": 1.33, "text": "Target (1.33)", "showarrow": False,
+                                              "xanchor": "left", "font": {"color": "rgba(74,159,110,0.7)", "size": 10}},
+                                             {"x": 1.5, "y": 1.0, "text": "Minimum (1.0)", "showarrow": False,
+                                              "xanchor": "left", "font": {"color": "rgba(232,87,71,0.7)", "size": 10}}]},
+                "group": "Capability",
+            })
+
+        # ---- Plot 8: Normal Probability Plot ----
+        sorted_data = np.sort(data)
+        n_pts = len(sorted_data)
+        theoretical_q = sp_stats.norm.ppf((np.arange(1, n_pts + 1) - 0.375) / (n_pts + 0.25))
+
+        result["plots"].append({
+            "title": "Normal Probability Plot",
+            "data": [
+                {"type": "scatter", "x": theoretical_q.tolist(), "y": sorted_data.tolist(),
+                 "mode": "markers", "name": "Data",
+                 "marker": {"color": "#4a90d9", "size": 3, "opacity": 0.7}},
+                {"type": "scatter",
+                 "x": [theoretical_q[0], theoretical_q[-1]],
+                 "y": [grand_mean + sigma_total * theoretical_q[0], grand_mean + sigma_total * theoretical_q[-1]],
+                 "mode": "lines", "name": "Normal Fit",
+                 "line": {"color": "#d94a4a", "width": 1.5}},
+            ],
+            "layout": {"template": "plotly_dark", "height": 280,
+                        "xaxis": {"title": "Theoretical Quantiles"},
+                        "yaxis": {"title": measurement},
+                        "showlegend": True,
+                        "legend": {"font": {"size": 9, "color": "#b0b0b0"}, "x": 0.02, "y": 0.98,
+                                   "bgcolor": "rgba(20,20,30,0.7)", "bordercolor": "rgba(255,255,255,0.1)", "borderwidth": 1}},
+            "group": "Capability",
         })
 
         result["summary"] = summary

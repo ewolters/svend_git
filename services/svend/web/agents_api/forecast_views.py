@@ -6,10 +6,10 @@ import numpy as np
 from datetime import datetime, timedelta
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid
+from .dsw.common import sanitize_for_json
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +168,6 @@ def exponential_smoothing_forecast(prices, days=30, alpha=0.3):
     return forecast
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def forecast(request):
@@ -287,7 +286,7 @@ def forecast(request):
     # Track usage
     request.user.increment_queries()
 
-    return JsonResponse({
+    return JsonResponse(sanitize_for_json({
         "disclaimer": DISCLAIMER,
         "symbol_info": symbol_info,
         "method": method,
@@ -305,7 +304,7 @@ def forecast(request):
             "high_52w": round(max(prices), 2),
             "low_52w": round(min(prices), 2),
         }
-    })
+    }))
 
 
 @require_http_methods(["GET"])
@@ -332,7 +331,7 @@ def quote(request):
         change = current - prev_close
         change_pct = (change / prev_close) * 100
 
-        return JsonResponse({
+        return JsonResponse(sanitize_for_json({
             "symbol": symbol,
             "name": info.get("shortName", info.get("longName", symbol)),
             "price": round(current, 2),
@@ -344,7 +343,7 @@ def quote(request):
             "high_52w": info.get("fiftyTwoWeekHigh"),
             "low_52w": info.get("fiftyTwoWeekLow"),
             "disclaimer": "Data provided for informational purposes only. Not financial advice.",
-        })
+        }))
 
     except ImportError:
         return JsonResponse({"error": "yfinance not available"}, status=500)

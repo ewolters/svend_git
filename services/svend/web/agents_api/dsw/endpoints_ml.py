@@ -7,7 +7,6 @@ import tempfile
 from pathlib import Path
 
 from django.http import JsonResponse, FileResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 
@@ -18,6 +17,7 @@ from .common import (
     cache_model,
     get_cached_model,
     save_model_to_disk,
+    sanitize_for_json,
     _create_ml_evidence,
     _claude_generate_schema,
     _generate_data_from_schema,
@@ -31,7 +31,6 @@ from .common import (
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def dsw_from_intent(request):
@@ -149,7 +148,7 @@ def dsw_from_intent(request):
         response_data = {"result_id": result_id, **result_data}
         if saved_model:
             response_data["model_id"] = str(saved_model.id)
-        return JsonResponse(response_data)
+        return JsonResponse(sanitize_for_json(response_data))
 
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -159,7 +158,6 @@ def dsw_from_intent(request):
         return JsonResponse({"error": f"Pipeline failed: {str(e)[:200]}", "suggestion": "Try rephrasing your intent or use a different domain."}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def dsw_from_data(request):
@@ -285,7 +283,7 @@ def dsw_from_data(request):
             except Exception as e_prob:
                 logger.warning(f"Could not link DSW from-data to problem {problem_id}: {e_prob}")
 
-        return JsonResponse(response_data)
+        return JsonResponse(sanitize_for_json(response_data))
 
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -389,7 +387,6 @@ def list_models(request):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def save_model_from_cache(request):
@@ -447,7 +444,6 @@ def download_model(request, model_id):
         return JsonResponse({"error": "Model not found"}, status=404)
 
 
-@csrf_exempt
 @require_http_methods(["DELETE"])
 @require_auth
 def delete_model(request, model_id):
@@ -463,7 +459,6 @@ def delete_model(request, model_id):
         return JsonResponse({"error": "Model not found"}, status=404)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def run_model(request, model_id):
@@ -579,7 +574,6 @@ def run_model(request, model_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def optimize_model(request, model_id):
@@ -853,7 +847,6 @@ def _predict_numeric(model, numeric_vals, cat_vals, numeric_feats, cat_feats, fe
     return float(model.predict(X)[0])
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def models_summary(request):
@@ -883,7 +876,6 @@ def models_summary(request):
                          "project_groups": list(projects.values()), "best_model": best_model})
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def model_versions(request, model_id):
@@ -904,7 +896,6 @@ def model_versions(request, model_id):
     return JsonResponse({"versions": versions})
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def model_report(request, model_id):
@@ -966,7 +957,6 @@ def model_report(request, model_id):
 # Scrub Endpoints - Standalone Data Cleaning
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def scrub_data(request):
@@ -1016,7 +1006,6 @@ def scrub_data(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def scrub_analyze(request):

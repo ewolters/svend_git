@@ -11,13 +11,12 @@ from pathlib import Path
 import numpy as np
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 
 from accounts.permissions import gated
 from ..models import DSWResult
-from .common import log_agent_action, get_cached_model
+from .common import log_agent_action, get_cached_model, safe_json_response
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +26,6 @@ logger = logging.getLogger(__name__)
 # ANALYSIS WORKBENCH ENDPOINTS
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def run_analysis(request):
@@ -240,7 +238,7 @@ def run_analysis(request):
             except Exception as e:
                 logger.warning(f"Could not save DSW result: {e}")
 
-        return JsonResponse(result)
+        return safe_json_response(result)
 
     except Exception as e:
         logger.exception(f"Analysis error: {e}")

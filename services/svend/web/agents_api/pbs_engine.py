@@ -2122,6 +2122,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
             "yaxis": {"title": "P(shifted)", "range": [0, 1.05]},
             "xaxis": {"title": "Observation"},
         }),
+        "group": "Belief",
     })
 
     # Plot 2: Evidence Accumulation (log scale)
@@ -2142,6 +2143,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
             "yaxis": {"title": "log(E-value)"},
             "xaxis": {"title": "Observation"},
         }),
+        "group": "Belief",
     })
 
     # Plot 2b: E-Detector (distribution-free changepoint)
@@ -2196,6 +2198,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
         "title": "E-Detector — Distribution-Free Changepoint",
         "data": ed_traces,
         "layout": ed_layout,
+        "group": "Belief",
     })
 
     # Plot 3: Adaptive Control Limits
@@ -2224,6 +2227,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
             "yaxis": {"title": config.get("column", "Value")},
             "xaxis": {"title": "Observation"},
         }),
+        "group": "Control",
     })
 
     # Plot 4: Predictive Fan (if available)
@@ -2280,6 +2284,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
                 "yaxis": {"title": config.get("column", "Value")},
                 "xaxis": {"title": "Observation"},
             },
+            "group": "Prediction",
         })
 
     # Plot 5: Bayesian Cpk posterior (if available)
@@ -2337,6 +2342,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
                 "xaxis": {"title": "Cpk"},
                 "yaxis": {"title": "Posterior density"},
             },
+            "group": "Capability",
         })
 
     # Plot 5b: Taguchi Loss per Regime (stacked bar — bias vs variance)
@@ -2375,6 +2381,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
                 "yaxis": {"autorange": "reversed"},
                 "legend": {"orientation": "h", "y": -0.25},
             },
+            "group": "Capability",
         })
 
     # Plot 6: Health gauge
@@ -2396,6 +2403,7 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
              }
         ],
         "layout": {"template": "plotly_dark", "height": 200},
+        "group": "Health",
     })
 
     # ── Summary ──

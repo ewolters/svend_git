@@ -67,9 +67,9 @@
                 <div id="opts-quick" class="config-field mode-opts">
                     <label>Cleaning Options</label>
                     <div class="checkbox-row">
-                        <label><input type="checkbox" id="opt-outliers" checked> Outliers</label>
-                        <label><input type="checkbox" id="opt-missing" checked> Missing</label>
-                        <label><input type="checkbox" id="opt-types" checked> Types</label>
+                        <label class="svend-toggle"><input type="checkbox" id="opt-outliers" checked> <span>Outliers</span></label>
+                        <label class="svend-toggle"><input type="checkbox" id="opt-missing" checked> <span>Missing</span></label>
+                        <label class="svend-toggle"><input type="checkbox" id="opt-types" checked> <span>Types</span></label>
                     </div>
                 </div>
                 <div id="opts-full" class="config-field mode-opts" style="display:none;">
@@ -212,15 +212,9 @@
 
                 <!-- Density penalty toggle -->
                 <div style="margin-bottom:0.6rem;">
-                    <label style="font-size:0.7rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;">
-                        <span style="position:relative;display:inline-block;width:32px;height:18px;flex-shrink:0;">
-                            <input type="checkbox" id="opt-density" checked
-                                onchange="this.nextElementSibling.style.background=this.checked?'var(--accent-primary)':'var(--border)';this.nextElementSibling.nextElementSibling.style.transform=this.checked?'translateX(14px)':'translateX(0)'"
-                                style="opacity:0;width:0;height:0;position:absolute;">
-                            <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:var(--accent-primary);border-radius:9px;transition:background 0.2s;"></span>
-                            <span style="position:absolute;top:2px;left:2px;width:14px;height:14px;background:white;border-radius:50%;transition:transform 0.2s;transform:translateX(14px);"></span>
-                        </span>
-                        Stay near observed data (joint density penalty)
+                    <label class="svend-toggle" style="font-size:0.7rem;">
+                        <input type="checkbox" id="opt-density" checked>
+                        <span>Stay near observed data (joint density penalty)</span>
                     </label>
                 </div>
 
@@ -781,8 +775,14 @@ async function runTraining() {
     try {
         const res = await fetch(endpoint, {
             method: 'POST', credentials: 'include', body: formData,
-            headers: { 'X-CSRFToken': getCookie('csrftoken') },
         });
+
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+            document.getElementById('result-metrics').innerHTML =
+                `<p style="color:var(--error,#e05252);">Server error (${res.status}). Try refreshing the page.</p>`;
+            return;
+        }
         const data = await res.json();
 
         if (!res.ok || data.error) {

@@ -15,17 +15,22 @@ Features:
 
 import json
 import logging
+import math
 import sys
 from datetime import datetime
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated_paid, require_auth
 from .models import Problem
 
 logger = logging.getLogger(__name__)
+
+# Server-side cache for power curve grids.
+# Key: (test_type, alpha, power, groups) → list of {effect_size, sample_size, per_group}
+# 50 students in the same ILSSI class hitting identical defaults won't recompute.
+_power_curve_cache = {}
 
 
 def _sanitize(obj):
@@ -55,7 +60,68 @@ from experimenter.doe import DOEGenerator, Factor
 from experimenter.stats import PowerAnalyzer, interpret_effect_size
 
 
-@csrf_exempt
+def _compute_power_curve(test_type, alpha, power, groups):
+    """Compute sample size for effect sizes 0.10→2.00 in 0.05 steps.
+
+    Returns list of dicts: [{d, n, n_per_group}, ...]
+    Cached by (test_type, alpha, power, groups) so identical requests are free.
+    """
+    cache_key = (test_type, float(alpha), float(power), int(groups))
+    if cache_key in _power_curve_cache:
+        return _power_curve_cache[cache_key]
+
+    from scipy import stats as sp_stats
+
+    curve = []
+    effect_sizes = [round(0.10 + i * 0.05, 2) for i in range(39)]  # 0.10 → 2.00
+
+    z_alpha_2 = sp_stats.norm.ppf(1 - alpha / 2)  # two-tailed
+    z_alpha_1 = sp_stats.norm.ppf(1 - alpha)       # one-tailed
+    z_beta = sp_stats.norm.ppf(power)
+
+    for d in effect_sizes:
+        if d <= 0:
+            continue
+        try:
+            if test_type == "ttest_ind":
+                n1 = math.ceil(2 * ((z_alpha_2 + z_beta) / d) ** 2)
+                curve.append({"d": d, "n": n1 * 2, "n_per_group": n1})
+            elif test_type == "ttest_paired":
+                n = math.ceil(((z_alpha_2 + z_beta) / d) ** 2)
+                curve.append({"d": d, "n": n, "n_per_group": None})
+            elif test_type == "anova":
+                # Iterative search for ANOVA
+                found = False
+                for n_pg in range(2, 5000):
+                    total_n = n_pg * groups
+                    df1 = groups - 1
+                    df2 = total_n - groups
+                    lam = (d ** 2) * total_n
+                    f_crit = sp_stats.f.ppf(1 - alpha, df1, df2)
+                    ach_power = 1 - sp_stats.ncf.cdf(f_crit, df1, df2, lam)
+                    if ach_power >= power:
+                        curve.append({"d": d, "n": total_n, "n_per_group": n_pg})
+                        found = True
+                        break
+                if not found:
+                    curve.append({"d": d, "n": 5000 * groups, "n_per_group": 5000})
+            elif test_type == "correlation":
+                z_r = 0.5 * math.log((1 + abs(d)) / (1 - min(abs(d), 0.999)))
+                n = math.ceil(((z_alpha_2 + z_beta) / z_r) ** 2 + 3)
+                curve.append({"d": d, "n": n, "n_per_group": None})
+            elif test_type == "chi_square":
+                n = math.ceil(((z_alpha_1 + z_beta) / d) ** 2)
+                curve.append({"d": d, "n": n, "n_per_group": None})
+            else:
+                n1 = math.ceil(2 * ((z_alpha_2 + z_beta) / d) ** 2)
+                curve.append({"d": d, "n": n1 * 2, "n_per_group": n1})
+        except Exception:
+            curve.append({"d": d, "n": None, "n_per_group": None})
+
+    _power_curve_cache[cache_key] = curve
+    return curve
+
+
 @require_http_methods(["POST"])
 @gated_paid
 def power_analysis(request):
@@ -71,7 +137,8 @@ def power_analysis(request):
         "test_type": "ttest_ind",  // ttest_ind, ttest_paired, anova, correlation, chi_square
         "alpha": 0.05,
         "power": 0.80,
-        "groups": 2  // for ANOVA
+        "groups": 2,  // for ANOVA
+        "include_curve": true  // optional — returns full power curve grid
     }
     """
     try:
@@ -84,6 +151,7 @@ def power_analysis(request):
     alpha = data.get("alpha", 0.05)
     power = data.get("power", 0.80)
     groups = data.get("groups", 2)
+    include_curve = data.get("include_curve", False)
 
     try:
         analyzer = PowerAnalyzer()
@@ -118,6 +186,12 @@ def power_analysis(request):
             },
         }
 
+        # Attach full power curve grid when requested
+        if include_curve:
+            response_data["power_curve"] = _compute_power_curve(
+                test_type, alpha, power, groups
+            )
+
         # Link to problem as evidence (if problem_id provided)
         problem_id = data.get("problem_id")
         if problem_id:
@@ -135,14 +209,13 @@ def power_analysis(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse(response_data)
+        return JsonResponse(_sanitize(response_data))
 
     except Exception as e:
         logger.exception("Power analysis failed")
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def design_experiment(request):
@@ -283,7 +356,7 @@ def design_experiment(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse(response)
+        return JsonResponse(_sanitize(response))
 
     except Exception as e:
         logger.exception("Design generation failed")
@@ -331,7 +404,6 @@ def _calculate_alias_structure(factors: list, resolution: int) -> dict:
     }
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def full_experiment(request):
@@ -410,14 +482,13 @@ def full_experiment(request):
             except Problem.DoesNotExist:
                 pass  # Problem linking is optional
 
-        return JsonResponse(response_data)
+        return JsonResponse(_sanitize(response_data))
 
     except Exception as e:
         logger.exception("Full experiment design failed")
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def analyze_results(request):
@@ -983,7 +1054,6 @@ def _generate_interpretation(coefficient_table, R_squared, lack_of_fit, response
     return interpretation
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def design_types(request):
@@ -1137,7 +1207,6 @@ def design_types(request):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def contour_plot(request):
@@ -1285,6 +1354,30 @@ def contour_plot(request):
         optimal_y = round(y_actual[max_idx[0]], 4)
         optimal_z = round(float(Z_mesh[max_idx]), 4)
 
+        # Build term names for client-side model evaluation
+        term_names = ["Constant"]
+        for f in factors:
+            term_names.append(f["name"])
+        for fi, fj in combinations(range(len(factors)), 2):
+            term_names.append(f"{factors[fi]['name']}*{factors[fj]['name']}")
+        if include_quadratic:
+            for f in factors:
+                term_names.append(f"{f['name']}^2")
+
+        # Factor metadata for client-side sliders
+        factor_meta = []
+        for f in factors:
+            try:
+                lo, hi = float(f["levels"][0]), float(f["levels"][1])
+            except (ValueError, TypeError, IndexError):
+                lo, hi = -1, 1
+            factor_meta.append({
+                "name": f["name"],
+                "low": lo,
+                "high": hi,
+                "levels": f["levels"],
+            })
+
         response_data = {
             "success": True,
             "contour": {
@@ -1300,6 +1393,12 @@ def contour_plot(request):
                 "x": optimal_x,
                 "y": optimal_y,
                 "z": optimal_z,
+            },
+            "model": {
+                "coefficients": [round(float(c), 6) for c in coefficients],
+                "terms": term_names,
+                "factors": factor_meta,
+                "include_quadratic": include_quadratic,
             },
         }
 
@@ -1320,14 +1419,13 @@ def contour_plot(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse(response_data)
+        return JsonResponse(_sanitize(response_data))
 
     except Exception as e:
         logger.exception("Contour plot generation failed")
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def optimize_response(request):
@@ -1536,7 +1634,7 @@ def optimize_response(request):
             except Problem.DoesNotExist:
                 pass
 
-        return JsonResponse(response_data)
+        return JsonResponse(_sanitize(response_data))
 
     except Exception as e:
         logger.exception("Multi-response optimization failed")
@@ -1592,7 +1690,6 @@ When the user shares their current session context (design, factors, analysis re
 Keep responses concise but informative. Use bullet points for clarity. When appropriate, suggest next steps they can take in the workbench."""
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated_paid
 def doe_guidance_chat(request):
@@ -1861,7 +1958,6 @@ What are you trying to achieve? How many factors do you have?"""
 What specific question do you have about your experiment?"""
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @gated_paid
 def available_models(request):
@@ -1872,27 +1968,11 @@ def available_models(request):
 
     models = []
 
-    if status["shared_llm"]["available"]:
-        models.append({
-            "id": "qwen",
-            "name": "Qwen",
-            "description": "General-purpose reasoning model",
-            "available": True,
-        })
-
-    if status["coder_llm"]["available"] and status["coder_llm"]["available"] != status["shared_llm"]["available"]:
-        models.append({
-            "id": "qwen-coder",
-            "name": "Qwen Coder",
-            "description": "Code-optimized model",
-            "available": True,
-        })
-
-    if status["anthropic"]["available"]:
+    if status.get("anthropic", {}).get("available"):
         models.append({
             "id": "claude",
             "name": "Claude",
-            "description": "Anthropic Claude (Enterprise)",
+            "description": "Anthropic Claude",
             "available": True,
         })
 
@@ -1906,5 +1986,5 @@ def available_models(request):
 
     return JsonResponse({
         "models": models,
-        "default": "qwen" if status["shared_llm"]["available"] else "fallback",
+        "default": "claude" if status.get("anthropic", {}).get("available") else "fallback",
     })

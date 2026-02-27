@@ -7,7 +7,6 @@ import tempfile
 from pathlib import Path
 
 from django.http import JsonResponse, FileResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 
@@ -28,7 +27,6 @@ from .common import log_agent_action, _preload_llm_background
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def upload_data(request):
@@ -164,19 +162,102 @@ def upload_data(request):
         return JsonResponse({"error": "Failed to parse uploaded file. Please check the file format and try again."}, status=400)
 
 
-@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
+def retrieve_data(request):
+    """
+    Retrieve a previously uploaded dataset by data_id.
+
+    Returns column info and preview in the same format as upload_data,
+    so the frontend can restore the data table when loading a saved session.
+    """
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    data_id = body.get("data_id")
+    if not data_id or not _validate_data_id(data_id):
+        return JsonResponse({"error": "Invalid or missing data_id"}, status=400)
+
+    try:
+        import pandas as pd
+        import numpy as np
+
+        df = None
+
+        # Try MEDIA_ROOT first
+        data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
+        data_path = data_dir / f"{data_id}.csv"
+        if data_path.exists():
+            df = pd.read_csv(data_path)
+
+        # Fallback to temp directory
+        if df is None:
+            data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
+            data_path = data_dir / f"{data_id}.csv"
+            if data_path.exists():
+                df = pd.read_csv(data_path)
+
+        # Fallback to TriageResult
+        if df is None:
+            try:
+                from io import StringIO
+                from ..models import TriageResult
+                triage_result = TriageResult.objects.get(id=data_id, user=request.user)
+                df = pd.read_csv(StringIO(triage_result.cleaned_csv))
+            except Exception:
+                pass
+
+        if df is None:
+            return JsonResponse({"error": "Dataset not found"}, status=404)
+
+        # Build column info
+        columns = []
+        for col in df.columns:
+            dtype = df[col].dtype
+            if np.issubdtype(dtype, np.number):
+                col_type = "numeric"
+            elif np.issubdtype(dtype, np.datetime64):
+                col_type = "datetime"
+            else:
+                col_type = "text"
+            columns.append({"name": col, "dtype": col_type})
+
+        # Preview as dict-of-arrays (matches SPC/displayDataTable format)
+        preview_df = df.head(100).replace({np.nan: None})
+        preview = {col: list(preview_df[col]) for col in preview_df.columns}
+
+        return JsonResponse({
+            "id": data_id,
+            "filename": body.get("filename", "dataset"),
+            "row_count": df.shape[0],
+            "columns": columns,
+            "preview": preview,
+        })
+
+    except Exception as e:
+        logger.exception(f"Data retrieve error: {e}")
+        return JsonResponse({"error": "Failed to retrieve dataset"}, status=500)
+
+
 @require_http_methods(["POST"])
 @gated
 def execute_code(request):
     """
     Execute Python code in a sandboxed environment.
 
-    Request body:
-    {
-        "code": "...",
-        "data_id": "..."
-    }
+    DISABLED: The exec()-based sandbox was bypassable via module attribute
+    chains (e.g. pd.__builtins__['__import__']('os').system(...)).
+    This endpoint is disabled until a proper container-based sandbox is
+    implemented. See DEBT.md.
     """
+    return JsonResponse(
+        {"error": "Code execution is temporarily disabled for security hardening. Use the built-in analysis tools instead."},
+        status=403,
+    )
+
+    # --- DEAD CODE BELOW — kept for reference during sandbox reimplementation ---
     try:
         body = json.loads(request.body)
     except json.JSONDecodeError:
@@ -287,7 +368,6 @@ def execute_code(request):
         return JsonResponse({"error": "Code execution failed. Please check your inputs."}, status=400)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def generate_code(request):
@@ -311,19 +391,20 @@ def generate_code(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    prompt = body.get("prompt", "").strip()
+    prompt = body.get("prompt", "").strip()[:2000]
     if not prompt:
         return JsonResponse({"error": "Prompt is required"}, status=400)
 
     model = body.get("model", "qwen")
     context = body.get("context", {})
 
-    # Build context prefix
+    # Build context prefix with XML delimiters
     context_prefix = ""
     if context.get("hypothesis"):
-        context_prefix = f"Context: Testing hypothesis '{context['hypothesis']}'\n"
+        context_prefix = f"<context>Testing hypothesis: {context['hypothesis'][:1000]}"
         if context.get("mechanism"):
-            context_prefix += f"Mechanism: {context['mechanism']}\n"
+            context_prefix += f"\nMechanism: {context['mechanism'][:1000]}"
+        context_prefix += "</context>\n"
 
     # Check if using Anthropic models (Enterprise only)
     if model in ("sonnet", "opus", "haiku"):
@@ -357,7 +438,7 @@ Available libraries: numpy (np), pandas (pd), scipy, matplotlib (plt), random, m
                 model=model_map.get(model, "claude-sonnet-4-20250514"),
                 max_tokens=2048,
                 system=system_prompt,
-                messages=[{"role": "user", "content": f"{context_prefix}Generate Python code for: {prompt}"}]
+                messages=[{"role": "user", "content": f"{context_prefix}<request>{prompt}</request>"}]
             )
 
             code = response.content[0].text
@@ -380,7 +461,9 @@ Available libraries: numpy (np), pandas (pd), scipy, matplotlib (plt), random, m
             return JsonResponse({"error": "Code generation failed. Please try again."}, status=500)
 
     # Default: Use Qwen Coder
-    code_prompt = f"""{context_prefix}Generate Python code for: {prompt}
+    code_prompt = f"""{context_prefix}<request>{prompt}</request>
+
+Generate Python code for the request above.
 
 Rules:
 - Only output Python code, no explanations
@@ -395,13 +478,10 @@ Rules:
 
         if llm is None:
             # Fallback: return a template
-            code = f'''import numpy as np
+            code = '''import numpy as np
 import pandas as pd
 
-# TODO: Implement - {prompt}
 # Qwen Coder is loading, please try again in a moment
-
-print("Code generation requires Qwen Coder - loading in background...")
 '''
             return JsonResponse({"code": code, "note": "Qwen Coder is loading, try again shortly"})
 
@@ -430,7 +510,6 @@ print("Code generation requires Qwen Coder - loading in background...")
         return JsonResponse({"error": "Code generation service unavailable. Please try again later."}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_enterprise
 def analyst_assistant(request):
@@ -1200,7 +1279,6 @@ Keep it concise but informative (under 500 words)."""
 # DATA TRANSFORMATION TOOLS
 # ============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def transform_data(request):
@@ -1459,7 +1537,6 @@ def transform_data(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @require_auth
 def download_data(request):
@@ -1523,7 +1600,6 @@ def download_data(request):
         return JsonResponse({"error": "Download failed. Please try again."}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def triage_data(request):
@@ -1776,7 +1852,6 @@ def triage_data(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def triage_scan(request):

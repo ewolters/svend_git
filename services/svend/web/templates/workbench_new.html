@@ -1472,6 +1472,12 @@
 }
 .stats-plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem; margin-top: 0.75rem; }
 .stats-plot { min-height: 300px; }
+.chart-group-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0.75rem; margin-top: 0.5rem; }
+.chart-group-tab { padding: 0.4rem 0.9rem; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-dim); font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+.chart-group-tab:hover { color: var(--text); background: var(--bg-hover); }
+.chart-group-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.chart-group-pane { display: none; }
+.chart-group-pane.active { display: block; }
 .color-accent { color: var(--accent); }
 .color-title { color: var(--text); font-weight: 600; }
 .color-highlight { color: #e8c547; }
@@ -5298,6 +5304,25 @@ async function runStatsAnalysis(analysisType, analysisId, config, outputTitle) {
     } catch (err) { showLoading(false); alert('Analysis failed: ' + err.message); }
 }
 
+function renderPlotlyChart(id, plot) {
+    try {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const layout = {
+            ...plot.layout,
+            template: 'plotly_dark',
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            margin: { t: 40, r: 20, b: 40, l: 60 },
+            title: { text: plot.title, font: { size: 14, color: '#b0b0b0' } },
+            hoverlabel: { bgcolor: '#1e1e2e', bordercolor: 'rgba(255,255,255,0.2)', font: { color: '#f0f0f0', size: 12 } },
+        };
+        Plotly.newPlot(el, plot.data, layout, { responsive: true, displayModeBar: false });
+    } catch (e) {
+        console.error(`Chart ${id} render failed:`, e);
+    }
+}
+
 function renderStatsOutput(result, title) {
     let html = '';
 
@@ -5318,31 +5343,92 @@ function renderStatsOutput(result, title) {
 
     let blockId;
     if (result.plots && result.plots.length > 0) {
+        const hasGroups = result.plots.some(p => p.group);
         const plotIds = [];
-        html += '<div class="stats-plots">';
-        result.plots.forEach((plot, i) => {
-            const plotId = `plot-${outputCounter}-${i}`;
-            plotIds.push({ id: plotId, plot });
-            html += `<div id="${plotId}" class="stats-plot"></div>`;
-        });
-        html += '</div>';
+        let groups = [];
+        // Capture counter before addOutput increments it
+        const oc = outputCounter;
+
+        if (hasGroups) {
+            // Collect groups in order of first appearance
+            const groupMap = {};
+            result.plots.forEach((plot, i) => {
+                const g = plot.group || 'Other';
+                if (!groupMap[g]) { groupMap[g] = []; groups.push(g); }
+                const plotId = `plot-${oc}-${i}`;
+                groupMap[g].push({ id: plotId, plot });
+                plotIds.push({ id: plotId, plot, group: g });
+            });
+
+            // Build sub-tab bar
+            const tabBarId = `chart-tabs-${oc}`;
+            html += `<div class="chart-group-tabs" id="${tabBarId}">`;
+            groups.forEach((g, idx) => {
+                html += `<button class="chart-group-tab${idx === 0 ? ' active' : ''}" data-group="${g}">${g}</button>`;
+            });
+            html += '</div>';
+
+            // Build panes — one grid per group
+            groups.forEach((g, idx) => {
+                html += `<div class="chart-group-pane${idx === 0 ? ' active' : ''}" data-group="${g}">`;
+                html += '<div class="stats-plots">';
+                groupMap[g].forEach(({ id }) => {
+                    html += `<div id="${id}" class="stats-plot"></div>`;
+                });
+                html += '</div></div>';
+            });
+        } else {
+            // Ungrouped — flat grid (existing behavior)
+            html += '<div class="stats-plots">';
+            result.plots.forEach((plot, i) => {
+                const plotId = `plot-${oc}-${i}`;
+                plotIds.push({ id: plotId, plot });
+                html += `<div id="${plotId}" class="stats-plot"></div>`;
+            });
+            html += '</div>';
+        }
 
         blockId = addOutput(title, html);
 
-        // Render Plotly charts after DOM update
-        setTimeout(() => {
-            plotIds.forEach(({ id, plot }) => {
-                const layout = {
-                    ...plot.layout,
-                    template: 'plotly_dark',
-                    paper_bgcolor: 'transparent',
-                    plot_bgcolor: 'transparent',
-                    margin: { t: 40, r: 20, b: 40, l: 60 },
-                    title: { text: plot.title, font: { size: 14, color: '#b0b0b0' } }
-                };
-                Plotly.newPlot(id, plot.data, layout, { responsive: true, displayModeBar: false });
+        // Wire sub-tab switching + lazy Plotly render
+        if (hasGroups) {
+            const tabBarEl = document.getElementById(`chart-tabs-${oc}`);
+            const rendered = new Set();
+            const container = tabBarEl.parentElement;
+
+            function renderGroup(groupName) {
+                if (rendered.has(groupName)) return;
+                rendered.add(groupName);
+                const groupPlots = plotIds.filter(p => p.group === groupName);
+                requestAnimationFrame(() => {
+                    groupPlots.forEach(({ id, plot }, idx) => {
+                        setTimeout(() => renderPlotlyChart(id, plot), idx * 30);
+                    });
+                });
+            }
+
+            tabBarEl.querySelectorAll('.chart-group-tab').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const g = btn.dataset.group;
+                    tabBarEl.querySelectorAll('.chart-group-tab').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    container.querySelectorAll('.chart-group-pane').forEach(p => {
+                        p.classList.toggle('active', p.dataset.group === g);
+                    });
+                    renderGroup(g);
+                });
             });
-        }, 50);
+
+            // Render first group
+            renderGroup(groups[0]);
+        } else {
+            // Flat render — stagger for grid layout
+            requestAnimationFrame(() => {
+                plotIds.forEach(({ id, plot }, idx) => {
+                    setTimeout(() => renderPlotlyChart(id, plot), idx * 30);
+                });
+            });
+        }
     } else {
         blockId = addOutput(title, html);
     }
@@ -7787,8 +7873,27 @@ async function loadWorkbench(id) {
             updateProjectLink(currentProjectId);
         }
 
-        // Restore dataset info in data panel
-        if (data.datasets && data.datasets.length > 0) {
+        // Restore dataset — re-fetch actual data from disk
+        if (dswDataId) {
+            try {
+                const { response: retResp, data: retData } = await apiPost('/api/dsw/retrieve-data/', { data_id: dswDataId, filename: dswDataFileName || 'dataset' });
+                if (retResp.ok && retData.columns) {
+                    uploadedData = retData;
+                    displayDataTable(retData);
+                } else if (data.datasets && data.datasets.length > 0) {
+                    // Data file gone — show metadata only
+                    const ds = data.datasets[0];
+                    document.getElementById('data-empty').style.display = 'none';
+                    const table = document.getElementById('data-table');
+                    table.style.display = 'table';
+                    document.getElementById('data-title').textContent = ds.name || 'Dataset';
+                    const infoText = [ds.rows && `${ds.rows} rows`, ds.cols && `${ds.cols} cols`].filter(Boolean).join(', ');
+                    document.getElementById('data-info').textContent = infoText || 'Saved dataset (re-upload to run analyses)';
+                }
+            } catch (e) {
+                console.warn('Could not restore dataset:', e);
+            }
+        } else if (data.datasets && data.datasets.length > 0) {
             const ds = data.datasets[0];
             document.getElementById('data-empty').style.display = 'none';
             const table = document.getElementById('data-table');

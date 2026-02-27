@@ -44,6 +44,7 @@ urlpatterns = [
     path("analyst/", views.analyst_assistant, name="analyst_assistant"),
     path("transform/", views.transform_data, name="transform_data"),
     path("download/", views.download_data, name="download_data"),
+    path("retrieve-data/", views.retrieve_data, name="retrieve_data"),
     path("triage/", views.triage_data, name="triage_data"),
     path("triage/scan/", views.triage_scan, name="triage_scan"),
 ]

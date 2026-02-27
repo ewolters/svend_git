@@ -14,6 +14,22 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
+def _safe_params(model):
+    """Extract get_params() with non-serializable objects converted to strings."""
+    if not hasattr(model, "get_params"):
+        return {}
+    params = model.get_params()
+    clean = {}
+    for k, v in params.items():
+        if isinstance(v, (str, int, float, bool, type(None))):
+            clean[k] = v
+        elif isinstance(v, (list, tuple)):
+            clean[k] = v
+        else:
+            clean[k] = str(type(v).__name__)
+    return clean
+
+
 def triage_clean_df(df, config=None):
     """Clean a DataFrame in memory using the scrub library.
 
@@ -196,7 +212,7 @@ def train_with_recipe(df, target, config=None):
         "target": target,
         "task_type": task,
         "model_class": type(model).__name__,
-        "hyperparams": model.get_params() if hasattr(model, "get_params") else {},
+        "hyperparams": _safe_params(model),
         "test_size": 0.2,
         "random_state": 42,
         "label_map": label_map,

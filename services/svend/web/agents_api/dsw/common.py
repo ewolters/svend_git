@@ -14,8 +14,9 @@ from pathlib import Path
 from collections import OrderedDict
 from threading import Lock
 
+import numpy as np
+
 from django.http import JsonResponse, FileResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from django.conf import settings
@@ -23,6 +24,56 @@ from ..models import DSWResult, AgentLog, SavedModel
 from accounts.permissions import gated, gated_paid, require_auth, require_enterprise
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# JSON-safe serialization (handles numpy NaN/Inf/types)
+# ---------------------------------------------------------------------------
+
+def sanitize_for_json(obj):
+    """Recursively replace NaN/Infinity/numpy types with JSON-safe values."""
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        v = float(obj)
+        return None if (math.isnan(v) or math.isinf(v)) else v
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, np.ndarray):
+        return sanitize_for_json(obj.tolist())
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [sanitize_for_json(v) for v in obj]
+    return obj
+
+
+def _strip_non_serializable(obj):
+    """Recursively convert non-JSON-serializable objects to strings."""
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    if isinstance(obj, dict):
+        return {k: _strip_non_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_strip_non_serializable(v) for v in obj]
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        v = float(obj)
+        return None if (math.isnan(v) or math.isinf(v)) else v
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    # Catch-all for sklearn objects, scalers, etc.
+    return str(type(obj).__name__)
+
+
+def safe_json_response(data, status=200):
+    """JsonResponse that safely handles numpy types and NaN/Infinity."""
+    return JsonResponse(sanitize_for_json(data), status=status)
 
 # Temporary cache for trained models (max 100 per user, expires after 1 hour)
 # Structure: {user_id: {model_key: {'model': model, 'metadata': {...}, 'timestamp': time}}}
@@ -154,6 +205,9 @@ def save_model_to_disk(user, model, model_type, dsw_result_id, name=None,
             except SavedModel.DoesNotExist:
                 pass
 
+        # Sanitize training_config — strip non-serializable objects (sklearn scalers, etc.)
+        safe_config = _strip_non_serializable(training_config or {})
+
         # Create database record
         saved_model = SavedModel.objects.create(
             id=model_id,
@@ -166,7 +220,7 @@ def save_model_to_disk(user, model, model_type, dsw_result_id, name=None,
             feature_names=json.dumps(features) if features else "",
             target_name=target or "",
             project=project,
-            training_config=training_config or {},
+            training_config=safe_config,
             data_lineage=data_lineage or {},
             version=version,
             parent_model=parent_model,
