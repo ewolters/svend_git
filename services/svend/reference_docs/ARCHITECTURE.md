@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-**SVEND** is a professional-grade decision science workbench. It competes with Minitab on statistical rigor while adding structured reasoning and AI assistance at 68% lower cost.
+**SVEND** is a professional-grade decision science workbench. It competes with Minitab on statistical rigor while adding structured reasoning and AI assistance at 77% lower cost.
 
 **One-liner:** Minitab + reasoning + AI from $49/month.
 
@@ -510,18 +510,18 @@ Key properties:
 | Tier | Price | Features |
 |------|-------|----------|
 | **Free** | $0/month | 5 analyses/day, core tools |
-| **Professional** | $49/month | 64+ analyses, SPC, DOE, ML, Reliability |
+| **Professional** | $49/month | 200+ analyses, SPC, DOE, ML, Reliability |
 | **Team** | $99/month per seat | Shared projects, FMEA/A3/VSM collaboration |
 | **Enterprise** | $299/month per seat | SSO, audit trails, AI assistant, Hoshin Kanri |
 
 ### Market Position
 
 ```
-Minitab:  $1,851/year  →  Legacy UI, no AI, license hell
+Minitab:  $2,594/year  →  Legacy UI, no AI, license hell
 JMP:      $1,320/year  →  Powerful but expensive, extras cost more
-SVEND:    $588/year    →  Modern UI, AI-assisted, 64+ analyses, ML included
+SVEND:    $588/year    →  Modern UI, AI-assisted, 200+ analyses, ML included
 
-"Everything you use Minitab for, at 68% less, with hypothesis tracking and ML included."
+"Everything you use Minitab for, at 77% less, with hypothesis tracking and ML included."
 ```
 
 ### Target

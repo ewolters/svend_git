@@ -15,6 +15,235 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-02-27 — 14-day free trial for Team and Enterprise plans
+**Files changed:**
+- `web/accounts/billing.py` — Added `subscription_data={"trial_period_days": 14}` to Stripe checkout session for team/enterprise plans. Pro/founder unchanged (immediate billing).
+- `web/templates/iso_9001_qms.html` — Hero pricing updated to "14-day free trial", main CTA → "Start 14-Day Free Trial", sticky CTA → "Try QMS Free for 14 Days", FAQ pricing answer updated with trial details, structured data FAQ updated.
+- `web/templates/landing.html` — Team pricing card button → "Try Free for 14 Days", pricing note → "Team and Enterprise include a 14-day free trial", ISO QMS section → "Start 14-day free trial", FAQ "Can I cancel?" updated with trial language (both structured data and visible FAQ).
+- `web/templates/register.html` — Registration subtitle for team/enterprise → "Create your account to start your 14-day free Team/Enterprise trial".
+- `web/templates/tool_base.html` — Generic CTA changed from "Start Free Trial" to "Start Free" (links to free tier, not a trial).
+**Verification:** Visit /iso-9001-qms-software/ — hero should say "14-day free trial", main CTA "Start 14-Day Free Trial". Click through to /register/?plan=team — subtitle should mention 14-day trial. Proceed to Stripe checkout — session should show trial period. Visit landing page /#pricing — Team card says "Try Free for 14 Days", note mentions trial.
+
+### 2026-02-27 — Fix SiteVisitMiddleware ordering (staff exclusion was a no-op)
+**Files changed:**
+- `web/svend/settings.py` — Moved `SiteVisitMiddleware` from before `SessionMiddleware`/`AuthenticationMiddleware` to after them. Previously `request.user` was always AnonymousUser when the staff check ran, so staff visits were never excluded.
+**Verification:** Staff user hits public pages (e.g. /terms/) while logged in — should NOT appear in SiteVisit. Non-staff users should still be tracked.
+
+### 2026-02-27 — Fix bot detection in SiteVisitMiddleware
+**Files changed:**
+- `web/accounts/middleware.py` — Expanded BOT_PATTERN to catch: `Claude-User` (Anthropic web crawler), `pageburst`, bare `Google`/`Google-*` (Ads crawlers), `Python/`/`aiohttp`/`httpx`/`Go-http-client`/`Java/`/`wget`/`curl/` (script UAs). Fixed _STALE_MOBILE_RE to match iPad `CPU OS` in addition to iPhone `iPhone OS` for ancient iOS versions.
+**Verification:** 61 misclassified records retroactively corrected (is_bot=True). Non-bot count dropped from 290 to 229. Check /api/internal/site-analytics/ — bot_hits should include Google Ads crawlers, pageburst, and Python scrapers.
+
+### 2026-02-27 — Terms of Service page overhaul
+**Files changed:**
+- `web/templates/terms.html` — Complete rewrite. Added data ownership callout with explicit "you own your data" language, full export table showing every data category and format, ISO 9001:2015 compliance alignment section mapping platform features to clauses 7.2/7.5/8.4/8.5.2/9.1/9.2/9.3/10.2, expanded security details, data retention clarity, post-cancellation data access policy, visual upgrade with commitment cards/clause grid/styled sections matching landing page design system.
+**Verification:** Visit /terms/ — should show hero, 3 commitment cards, green data-ownership callout, export table, ISO clause grid, 12 numbered sections, contact footer.
+
+### 2026-02-27 — Tabbed chart groups for DSW multi-plot analyses
+**Files changed:**
+- `web/templates/workbench_new.html` — Added `.chart-group-tabs/tab/pane` CSS, extracted `renderPlotlyChart()` helper, rewrote `renderStatsOutput()` plot block to detect `group` field on plots and render sub-tabs with lazy Plotly rendering per group
+- `web/agents_api/dsw/spc.py` — Added `"group"` key to all 8 between-within plots (Control Charts / Variance / Capability)
+- `web/agents_api/pbs_engine.py` — Added `"group"` key to all PBS full analysis plots (Belief / Control / Prediction / Capability / Health)
+- `web/agents_api/dsw/stats.py` — Added `"group"` key to all 6 capability_sixpack plots (Control Charts / Capability)
+**Verification:** Run between-within analysis → 3 sub-tabs appear. Run PBS full → grouped tabs. Run IMR (2 plots) → flat grid as before.
+
+---
+
+### 2026-02-27 — Add comprehensive visuals to Between/Within Capability analysis
+**Files changed:**
+- `web/agents_api/dsw/spc.py` — Expanded between_within analysis from 2 plots to 8:
+  1. **X̄ Chart** — Subgroup means with UCL/LCL and out-of-control flagging
+  2. **R Chart** — Within-subgroup ranges with D3/D4 control limits
+  3. **Individual Values by Subgroup** — Box + strip chart showing data spread per subgroup, with grand mean and spec limit lines (capped at 30 subgroups for readability)
+  4. **Variance Components (σ)** — Bar chart of sigma values (existing, kept)
+  5. **% Contribution donut** — Within vs Between variance split as donut chart
+  6. **Within vs B/W vs Overall Distribution** — Histogram with three normal PDF overlays (added B/W curve to existing within + overall)
+  7. **Capability Index Comparison** — Grouped bar chart of Cp/Cpk/Pp/Ppk with 1.0 and 1.33 reference lines (only when LSL+USL provided)
+  8. **Normal Probability Plot** — QQ plot with normal fit line for normality assessment
+**Verification:** Run Between/Within Capability on any dataset with subgroups and spec limits — should see all 8 charts.
+
+---
+
+### 2026-02-27 — Fix DSW session load not restoring dataset
+**Files changed:**
+- `web/agents_api/dsw/endpoints_data.py` — New `retrieve_data()` endpoint: loads a saved dataset by `data_id` from disk (MEDIA_ROOT → temp dir → TriageResult fallback), returns columns + preview in same format as `upload_data` so `displayDataTable()` works.
+- `web/agents_api/dsw_views.py` — Added `retrieve_data()` wrapper.
+- `web/agents_api/dsw_urls.py` — Added `retrieve-data/` route.
+- `web/templates/workbench_new.html` — Updated `loadWorkbench()` to call `/api/dsw/retrieve-data/` when a `data_id` is present in the saved layout. Sets `uploadedData` and calls `displayDataTable()` so the data table is fully populated (not just title/metadata). Falls back to metadata-only display if data file is gone.
+**Verification:** Load a saved DSW session that had a dataset — data table should show full column headers and row preview, not just the dataset name.
+
+---
+
+### 2026-02-27 — Add Study changelog + user comments
+**Files changed:**
+- `web/core/models/project.py` — Added `changelog` JSONField (append-only list) and `log_event()` method. Updated `advance_phase()` to accept `user` param and auto-log transitions.
+- `web/core/migrations/0010_project_changelog.py` — Migration for changelog field.
+- `web/core/views.py` — New `project_comment()` endpoint (POST, accepts `{text}`, returns `{changelog}`). Instrumented `project_advance_phase`, `hypothesis_list` (POST), `hypothesis_detail` (DELETE), `evidence_list` (POST) with `log_event()` calls. Added `changelog` to `project_hub` response.
+- `web/core/urls.py` — Added `projects/<uuid>/comment/` route.
+- `web/agents_api/iso_views.py` — Instrumented `_ensure_ncr_project`, NCR creation, `ncr_launch_rca`, `study_raise_capa`, `study_schedule_audit`, `study_request_doc_update`, `study_flag_training_gap`, `study_flag_fmea_update` with `log_event()` calls.
+- `web/agents_api/report_views.py` — Instrumented report creation with `log_event()`.
+- `web/agents_api/a3_views.py` — Instrumented A3 creation with `log_event()`.
+- `web/templates/projects.html` — Added Comments section (input + Post button), Activity Log section, CSS for changelog/comment entries, JS functions: `renderChangelog()`, `renderComments()`, `addComment()`, `ACTION_LABELS` mapping. Enter key handler for comment input.
+**Verification:** Gunicorn reloaded. Comment endpoint validates empty text (400), stores comments as changelog entries with action="comment". Hub API returns full changelog array. Frontend renders comments (with avatar initials) separately from activity log entries.
+
+---
+
+### 2026-02-27 — Fix Study-to-tool linking (whiteboard, DSW, A3, VSM)
+**Files changed:**
+- `web/templates/whiteboard.html` — Fixed `loadBoardFromServer()` to read project from `data.project.id` (nested object) instead of only `data.project_id` (which GET endpoint doesn't return). Fixed `setupProjectSelector()` to check `currentProjectId` (pre-loaded from board data) in addition to URL params, solving the race condition where board loads before dropdown populates. Updated `updateProjectLink()` to point to specific project via hash fragment.
+- `web/templates/vsm.html` — Updated `updateProjectLink()` to use hash fragment for direct project navigation.
+- `web/templates/projects.html` — Added `?project=` parameter to all existing tool links in Study hub: whiteboards (`/app/whiteboard/{room}/?project={id}`), DSW analyses (`/app/dsw/?result={id}&project={id}`), A3 reports (`/app/a3/{id}/?project={id}`), VSM maps (`/app/vsm/{id}/?project={id}`). Previously only "New" buttons passed the project param.
+- `web/agents_api/a3_views.py` — Fixed pre-existing bug: `project.description` → `getattr(project, 'problem_statement', '')` (Project model has no `description` field).
+**Verification:** 8/8 API tests pass. Whiteboard GET returns nested project object, new frontend code correctly extracts project ID. Hub links include ?project= param. A3 GET no longer crashes on missing description field. Gunicorn reloaded.
+
+---
+
+### 2026-02-27 — Complete Document Control & Supplier Management modules (ISO 7.5 + 8.4)
+**Files changed:**
+- `web/agents_api/models.py` — ControlledDocument: added retention_years, approved_by_user FK, files M2M, source_study FK, TRANSITIONS/TRANSITION_REQUIRES/can_transition(), expanded to_dict(). SupplierRecord: added suspended status, supplier_type, evaluation_scores JSONField, disqualification_reason, contact_phone, TRANSITIONS/TRANSITION_REQUIRES/can_transition(), expanded to_dict(). New models: DocumentRevision, DocumentStatusChange, SupplierStatusChange (all with _safe_changed_by for encryption resilience).
+- `web/agents_api/migrations/0041_doc_supplier_full.py` — Migration for all new fields + models.
+- `web/agents_api/iso_views.py` — Rewrote document_list_create/document_detail with filtering/sorting/transition validation/revision cycle. New document_files endpoint. Rewrote supplier_list_create/supplier_detail with filtering/sorting/transition validation/evaluation score writeback. Added doc/supplier KPIs to iso_dashboard. Updated study_request_doc_update to set source_study FK.
+- `web/agents_api/iso_urls.py` — Added documents/<uuid>/files/ route.
+- `web/templates/iso.html` — Replaced Document Control skeleton with full tab (toolbar, sortable table, detail view with status progression, revision cycle UI, version history, status timeline, edit form). Replaced Supplier Management skeleton with full tab (toolbar, sortable table, detail view with evaluation scoring, certifications management, status transitions, timeline). Added dashboard KPI cards for docs/suppliers. Added badge-suspended, badge-obsolete CSS. Auto-fit KPI grid.
+**Verification:** 17/17 model tests pass (revision cycle: create→approve→revise→approve→verify snapshots; supplier: eval scores→rating writeback→transitions→terminal state). Django check clean. Gunicorn restarted.
+
+---
+
+### 2026-02-26 — ISO 9001 landing page overhaul (conversion-focused)
+**Files changed:**
+- `web/templates/iso_9001_qms.html` — Full page rewrite:
+  - **Fixed duplicate FAQ bug** — `{% block faq %}` was nested inside `{% block content %}`, causing tool_base.html to render it twice. Moved to sibling block.
+  - **Rewrote hero** — replaced generic feature statement with conversion hook: "The only QMS with an AI that challenges your root cause analysis — so you never close an NCR with 'human error' again." Added PPP pricing callout badge.
+  - **Added 3-panel CSS mockup showcase** — NCR tracker table, RCA Synara challenge flow (with STOPPING TOO EARLY + BLAME FRAMING badges), training matrix grid. All using real design system colors (JetBrains Mono, #4ade80/#f87171/#facc15/#60a5fa on #0d120d).
+  - **Added founder section** — lineage (CCS 1948 → Protzman → Shingo/Ohno → Charlie Protzman → Eric → SVEND), Fort Dearborn world record context. Green left-border card between module cards and CTA.
+  - **Updated CTA** — PPP pricing mention for SEA/India/LatAm/Africa.
+  - **Updated FAQ** — pricing FAQ now mentions purchasing power pricing. Structured data JSON-LD synced with visible content.
+  - Doc Control and Supplier Management kept as "Framed" — waiting for deployment verification.
+**Verification:** load /iso-9001-qms-software/ — FAQ should appear once, mockups visible, founder section present
+**Commit:** pending
+
+### 2026-02-26 — Security hardening: 2 critical + 1 high (APT threat model)
+**Debt item:** security_debt.md (new file — full audit tracker)
+**Files changed:**
+- `web/agents_api/dsw/endpoints_data.py` — **C1: Disabled exec() endpoint.** The __builtins__ sandbox was bypassable via `pd.__builtins__['__import__']('os').system(...)`. Any authenticated user had full shell. Returns 403 until container sandbox is built.
+- `web/svend/settings.py` — **C2: Added `NUM_PROXIES: 1` to DRF config.** Without this, all anonymous rate limits (login, registration) were bypassable via fake X-Forwarded-For header.
+- `web/accounts/middleware.py` — **C2: Switched IP extraction from X-Forwarded-For to CF-Connecting-IP** (Cloudflare's trusted, unspoofable header).
+- `web/api/views.py` — **C2: Same XFF→CF-Connecting-IP fix** for site_duration endpoint.
+- `web/api/whitepaper_views.py` — **C2: Same XFF→CF-Connecting-IP fix** for whitepaper tracking.
+- `web/api/blog_views.py` — **C2: Same XFF→CF-Connecting-IP fix** for blog tracking.
+- `web/agents_api/dsw_views.py` — **H1: Fixed Monte Carlo eval escape.** Removed `np` from AST allowed_names, blocked ALL `ast.Attribute` nodes (was only blocking `ast.Call(ast.Attribute(...))`), added mean/std/sum as direct functions. Now matches the already-fixed pattern in `dsw/simulation.py`.
+- `security_debt.md` — **New file.** Full security audit findings with prioritized remediation plan. 27 findings total: 2 critical (fixed), 1 high (fixed), 7 high (open), 19 medium/low (open).
+**Verification:** `curl -X POST /api/dsw/data/execute-code/ → 403`; check DRF NUM_PROXIES in settings; grep for X_FORWARDED_FOR should return 0 hits in web/
+**Commit:** pending
+
+---
+
+### 2026-02-26 — Fix stale time-on-page metrics (3 issues)
+**Files changed:**
+- `web/accounts/middleware.py` — Tightened bot filter: added headless browser UAs (HeadlessChrome, Puppeteer, Selenium, PhantomJS) and stale mobile OS detection (iOS < 16, Android < 10). 25 crawler visits/day (15.5% of "non-bot" traffic) were getting through using spoofed `iPhone OS 13_2_3` UA strings across 24 unique IPs.
+- `web/api/internal_views.py` — Replaced beacon-only duration stats with session-based estimation. Calculates time-on-page from consecutive pageview timestamps within visitor sessions, supplemented by beacon data when available. Went from 15 to 50 measured durations (3.3x improvement).
+- `web/templates/blog_list.html` — Added sendBeacon time-on-page tracking (standalone template, was missing)
+- `web/templates/blog_detail.html` — Added sendBeacon time-on-page tracking (standalone template, was missing)
+**Root cause:** Beacon capture rate was 9.3% — most traffic is Google Ads mobile bounces (< 1s), ~15% was undetected crawlers inflating visit counts, and blog templates had no beacon at all. Server-side session estimation now supplements the unreliable client-side beacon.
+**Verification:** Open internal dashboard → Site tab → duration KPI and per-page durations should show data instead of "—".
+
+---
+
+### 2026-02-26 — Fix login 403 (CSRF enforcement on unauthenticated endpoints)
+**Files changed:**
+- `web/api/views.py` — Added `@authentication_classes([])` to `login` and `register` views
+**Root cause:** DRF's global SessionAuthentication enforces CSRF before view runs. Login template's fetch() never sends a CSRF token and the login page (bare TemplateView) never sets a CSRF cookie. Chrome 145's stricter cookie partitioning killed the stale-cookie workaround.
+**Verification:** Login at svend.ai — no longer returns 403.
+
+---
+
+### 2026-02-26 — Fix empty world map on internal dashboard (ISO-2 vs ISO-3 mismatch)
+**Files changed:**
+- `web/templates/internal_dashboard.html` — Added ISO 3166-1 alpha-2 → alpha-3 mapping, converted country codes before passing to Plotly choropleth
+**Root cause:** Cloudflare CF-IPCountry gives 2-letter codes (US, GB). Plotly's `locationmode: 'ISO-3'` expects 3-letter codes (USA, GBR). Silent mismatch = empty map.
+**Verification:** Open internal dashboard → Site tab → world map should render with country data.
+
+---
+
+### 2026-02-26 — Replace browser alert() with Svend toast notifications
+
+**Files changed:**
+- `web/templates/base_app.html` — Added toast container, CSS (4 types: success/error/warning/info), JS with auto-detection from message content, `window.alert` override
+- `web/templates/tool_base.html` — Same toast system for free tools
+- `web/templates/landing.html` — Same toast system for standalone landing page
+**Verification:** Open any app page, trigger an alert → appears as styled toast (top-right, slide-in) instead of browser dialog
+**Scope:** 434 alert() calls across 33 templates auto-converted. confirm()/prompt() left as-is.
+
+---
+
+### 2026-02-26 — ISO 9001 QMS Module Full Implementation (Branch: iso-9001-modules)
+
+**Files changed:**
+- `web/agents_api/models.py` — NCR: added raised_by/assigned_to/approved_by FKs, rca_session/capa_report links, files M2M, can_transition() workflow enforcement, TRANSITIONS/TRANSITION_REQUIRES config. New NCRStatusChange model for audit trail. AuditFinding: expanded to 4 types (nc_major/nc_minor/observation/opportunity), added evidence + status fields. InternalAudit: added report_issued status. ManagementReview: attendees changed from TextField to JSONField. New AuditChecklist model for reusable templates.
+- `web/agents_api/iso_views.py` — NCR: workflow-enforced status transitions, status history recording, raised_by auto-set, sort/filter params, launch-rca endpoint (creates linked RCASession), file attach/detach endpoint. Audits: finding creation with auto-NCR (nc_major→critical, nc_minor→major), audit status enforcement (complete requires findings, report_issued requires no open findings). Dashboard: rewritten with clause coverage map, NCR trend, severity breakdown, upcoming audits, training KPIs, last review, CAPA due soon. Management Review: rich auto-populated snapshot with prior_actions, ncr_summary, audit_summary, training_summary. Audit checklists: full CRUD.
+- `web/agents_api/iso_urls.py` — Added ncrs/<id>/launch-rca/, ncrs/<id>/files/, checklists/, checklists/<id>/ endpoints.
+- `web/templates/iso.html` — Full rewrite: 7-tab SPA with hash routing. Dashboard (clause coverage map, 5 KPI cards, severity bar chart, trend, upcoming audits, CAPA due soon). NCR Tracker (sortable/filterable table, overdue highlighting, detail view with status progression bar, workflow advance + note, status history timeline, edit form, launch 5-Why). Internal Audits (monthly calendar dots, findings table with auto-NCR badges, add finding form with 4 types + evidence). Training Matrix (grid view with color-coded cells, list view with per-requirement employee management). Management Reviews (auto-populated QMS snapshot, structured 9.3.2 inputs + 9.3.3 outputs form). Document Control + Suppliers ("Coming Soon" stubs with feature chips, Early Access CRUD behind expandable).
+- Migration `0039_auditfinding_evidence_auditfinding_status_and_more.py` applied.
+
+**Verification:**
+- Visit `/app/iso/` → Dashboard loads with clause map, KPI cards
+- Create NCR → advance through Open → Investigation (requires assigned_to) → CAPA → Verification → Closed (requires approved_by). Status history timeline appears.
+- Create Audit → add nc_major finding → NCR auto-created
+- Training grid: add requirement → add employees → grid cells color-coded
+- Create Management Review → snapshot auto-populates with NCR/audit/training data
+- Document Control + Suppliers tabs show "Coming Soon" with Early Access CRUD behind toggle.
+
+**Commits:** 11 commits on branch `iso-9001-modules` (2f8d740..50d225c)
+
+---
+
+### 2026-02-26 — ISO 9001 SEO Page + Landing Cleanup + Currency Localization
+
+**Files changed:**
+- `web/api/landing_views.py` — New: landing page view with localized pricing from CF-IPCountry. Pricing display data for all 15 Stripe regions (USD, INR, VND, UAH, PHP, MYR, IDR, MXN, AED, ZAR, KES, NGN, BRL, COP, THB). Shared `get_pricing_context()` used by landing and ISO page.
+- `web/templates/iso_9001_qms.html` — New: dedicated ISO 9001 QMS SEO page at `/iso-9001-qms-software/`. Extends tool_base.html. 6 module feature cards, full 32-row clause coverage table (moved from landing), ISO-specific FAQ (6 questions), structured data (WebPage + BreadcrumbList + FAQPage). Localized pricing in CTAs.
+- `web/templates/landing.html` — Replaced 32-row ISO clause table with 6 compact module cards + link to new page. Localized all pricing: Free/Founder/Pro/Team/Enterprise amounts use template variables. Founder card conditionally rendered (US/EU only via `{% if has_founder %}`). Updated nav/footer/FAQ links from `#iso` to `/iso-9001-qms-software/`. Structured data priceCurrency localized.
+- `web/svend/urls.py` — Landing page changed from TemplateView to `landing_view` (for pricing context). Added `/iso-9001-qms-software/` route. Sitemap: replaced `/app/iso/` with `/iso-9001-qms-software/` and added `/classical-vs-bayesian-spc/`.
+- `web/templates/tool_base.html` — Added ISO 9001 QMS link to shared footer cross-links.
+
+**Verification:**
+- Visit `/` — pricing should show local currency. Founder card visible for US/EU, hidden elsewhere.
+- Visit `/iso-9001-qms-software/` — full clause table, 6 module cards, FAQ, localized pricing in CTAs.
+- Visit `/sitemap.xml` — should include `/iso-9001-qms-software/`.
+- All tool/comparison page footers should show ISO 9001 QMS link.
+
+---
+
+### 2026-02-26 — Time-on-Page Duration Tracking for Site Analytics
+
+**Files changed:**
+- `web/api/views.py` — Added `site_duration` endpoint (POST, public, no auth/CSRF) to receive `sendBeacon` pings with `{path, duration_ms}`, matches SiteVisit by ip_hash + path within 1 hour
+- `web/api/urls.py` — Added route `api/site-duration/`
+- `web/api/internal_views.py` — Extended `api_site_analytics` response with `page_durations` (avg time per page) and `avg_duration_ms`/`measured_visits`/`bounce_visits` in totals
+- `web/templates/landing.html` — Added `sendBeacon` JS snippet for time-on-page tracking
+- `web/templates/tool_base.html` — Added same `sendBeacon` snippet for free tools
+- `web/templates/base_app.html` — Added same `sendBeacon` snippet for in-app pages
+- `web/templates/internal_dashboard.html` — Added "Avg Time on Page" KPI card, "Avg Time" column in Page Breakdown table, `fmtDuration()` helper
+**Verification:** Visit any page, navigate away, check Site tab in internal dashboard for duration data
+**Note:** `duration_ms` field and migration (0017) were created in the prior session
+
+---
+
+### 2026-02-26 — ISO 9001:2015 QMS Module (Customer-Facing, Team/Enterprise Tier)
+
+**Files changed:**
+- `services/svend/web/agents_api/models.py` — Added 8 ISO 9001 models: NonconformanceRecord, InternalAudit, AuditFinding, TrainingRequirement, TrainingRecord, ManagementReview, ControlledDocument, SupplierRecord. All use UUID PK, FK to User, to_dict() pattern.
+- `services/svend/web/agents_api/iso_views.py` — NEW: Full CRUD views for all 6 QMS modules. Dashboard overview endpoint. All gated with @require_team (Team $99/Enterprise $299).
+- `services/svend/web/agents_api/iso_urls.py` — NEW: 18 URL patterns covering dashboard, NCRs, audits, training, reviews, documents, suppliers.
+- `services/svend/web/svend/urls.py` — Added page route `/app/iso/` and API route `/api/iso/`. Added `/app/iso/` to sitemap.
+- `services/svend/web/templates/iso.html` — NEW: Full SPA template with hash routing, 7 tabs (dashboard, NCR tracker, audits, training matrix, management reviews, document control, suppliers).
+- `services/svend/web/templates/base_app.html` — Added ISO 9001 nav dropdown (hidden by default, shown for Team+ tiers via `data.features.collaboration`).
+- `services/svend/web/templates/landing.html` — Added comprehensive ISO 9001:2015 clause coverage table (32 clauses mapped), "ISO 9001 QMS suite" in Team pricing card, ISO FAQ in both HTML and structured data, nav link, footer link, schema.org featureList update.
+- `services/svend/web/agents_api/migrations/0038_*.py` — Migration for all 8 new models.
+**Verification:** Visit `/app/iso/` as Team tier user → dashboard loads with KPIs. Create NCR, audit, training requirement → CRUD works. Landing page `/#iso` → clause coverage table renders. API: `GET /api/iso/dashboard/` returns JSON.
+
+---
+
 ### 2026-02-26 — DOE Workbench: Phase 2 — Live preview & design space viz
 
 **Files changed:**

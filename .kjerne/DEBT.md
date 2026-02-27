@@ -29,7 +29,6 @@ Track technical debt here. Review weekly.
 ### Infrastructure
 
 [INFRA] Off-site backup sync — encrypted backups sit on same machine as data. Push AES-256 encrypted dumps to Backblaze B2 or similar for fire/theft/disk-failure resilience | Added: 2026-02-13 | Priority: P3
-[INFRA] RCA critique views (rca_views.py) use @gated_paid instead of @require_enterprise — Founder/Pro/Team users can hit Anthropic API through critique/evaluate_chain/critique_countermeasure | Added: 2026-02-13 | Priority: P2
 
 ### Security — Critical (Audit 2026-02-20)
 
@@ -37,8 +36,6 @@ Track technical debt here. Review weekly.
 
 ### Security — High (Audit 2026-02-20)
 
-[SEC] CSRF globally disabled — CsrfExemptSessionAuthentication on all REST Framework endpoints, mitigated only by SameSite=Lax | Added: 2026-02-20 | Priority: P2
-[SEC] LLM prompt injection — user input directly interpolated into Claude/Qwen prompts across multiple views | Added: 2026-02-20 | Priority: P2
 [SEC] Three parallel Hypothesis/Evidence systems (workbench, core, Problem) with no sync between them | Added: 2026-02-20 | Priority: P2
 [SEC] Pickle in CacheEntry.value BinaryField — RCE vector if DB compromised | Added: 2026-02-20 | Priority: P1 | *Mitigated: SessionCache now rejects pickle entries*
 
@@ -68,6 +65,9 @@ Track technical debt here. Review weekly.
 
 ## Resolved
 
+[INFRA] RCA critique views gated wrong — changed critique/evaluate_chain/critique_countermeasure from @gated_paid to @require_enterprise. Non-enterprise users can no longer hit Anthropic API through RCA. | Added: 2026-02-13 | Resolved: 2026-02-22 | Commit: pending
+[SEC] LLM prompt injection — XML-wrapped all user inputs in Claude/Qwen prompts (rca_views.py, endpoints_data.py, guide_views.py, llm_interface.py). Added boundary instruction to RCA system prompt. Added 2000-char length limits on all interpolated fields. | Added: 2026-02-20 | Resolved: 2026-02-22 | Commit: pending
+[SEC] CSRF globally disabled — removed @csrf_exempt from 278 views, deleted CsrfExemptSessionAuthentication, set CSRF_COOKIE_HTTPONLY=False, added auto-injecting fetch wrapper to base templates. Only Stripe webhook remains exempt. | Added: 2026-02-20 | Resolved: 2026-02-22 | Commit: pending
 [SEC] Zombie task reaper — reap_zombie_tasks management command for stale RUNNING tasks | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] HTML injection in PDF export — sanitize script/iframe/event handlers before wkhtmltopdf | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending
 [SEC] DB migrations applied — Evidence index, Message index, Hypothesis validators, FMEA validators | Added: 2026-02-20 | Resolved: 2026-02-20 | Commit: pending

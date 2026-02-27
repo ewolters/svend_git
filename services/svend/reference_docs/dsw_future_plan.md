@@ -29,7 +29,7 @@ Already extracted and verified working via `python -c "import"`:
 | `__init__.py` | 18 | OK | Docstring only |
 | `common.py` | 1,252 | OK | Shared helpers (cache, ML utilities, diagnostics) |
 | `dispatch.py` | 249 | OK | `run_analysis()` router → sub-modules |
-| `stats.py` | 11,495 | OK | `run_statistical_analysis()` — 64+ tests |
+| `stats.py` | 11,495 | OK | `run_statistical_analysis()` — 200+ tests |
 | `ml.py` | 3,298 | OK | `run_ml_analysis()` |
 | `bayesian.py` | 451 | OK | `run_bayesian_analysis()` |
 | `reliability.py` | 851 | OK | `run_reliability_analysis()` |
@@ -372,7 +372,7 @@ agents_api/
 │   ├── __init__.py        ← package marker
 │   ├── common.py          ← shared helpers (1,252 lines)
 │   ├── dispatch.py        ← run_analysis router (249 lines)
-│   ├── stats.py           ← 64+ statistical tests (11,495 lines)
+│   ├── stats.py           ← 200+ statistical tests (11,495 lines)
 │   ├── ml.py              ← ML training & comparison (3,298 lines)
 │   ├── bayesian.py        ← Bayesian inference (451 lines)
 │   ├── reliability.py     ← Weibull, KM, ALT (851 lines)
