@@ -6,7 +6,7 @@ dsw_views.py for maintainability. Each module handles one analysis category:
 
 - common: Shared utilities (model cache, logging, ML helpers)
 - dispatch: Main run_analysis() router
-- stats: Statistical analysis (64+ tests)
+- stats: Statistical analysis (200+ tests)
 - ml: Machine learning analysis
 - bayesian: Bayesian inference
 - reliability: Reliability & survival analysis

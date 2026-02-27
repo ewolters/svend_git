@@ -1,4 +1,4 @@
-"""DSW Statistical Analysis — 64+ statistical tests and methods."""
+"""DSW Statistical Analysis — 200+ statistical tests and methods."""
 
 import math
 
@@ -3078,7 +3078,8 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"type": "scatter", "y": [ucl_i] * n_cs, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"UCL={ucl_i:.2f}"},
                     {"type": "scatter", "y": [lcl_i] * n_cs, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"LCL={lcl_i:.2f}"},
                 ],
-                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False}
+                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False},
+                "group": "Control Charts",
             })
             mr_ucl = mr_bar * 3.267
             result["plots"].append({
@@ -3089,7 +3090,8 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"type": "scatter", "y": [mr_bar] * len(mr), "mode": "lines", "line": {"color": "#e8c547", "width": 1}},
                     {"type": "scatter", "y": [mr_ucl] * len(mr), "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                 ],
-                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False}
+                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False},
+                "group": "Control Charts",
             })
         else:
             n_sg = n_cs // subgroup_size
@@ -3112,7 +3114,8 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"type": "scatter", "y": [xbar_bar + a2 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                     {"type": "scatter", "y": [xbar_bar - a2 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                 ],
-                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False}
+                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False},
+                "group": "Control Charts",
             })
             result["plots"].append({
                 "title": "R Chart",
@@ -3122,7 +3125,8 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"type": "scatter", "y": [d4 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                     {"type": "scatter", "y": [d3 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                 ],
-                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False}
+                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False},
+                "group": "Control Charts",
             })
 
         # Panel 3: Last observations run chart with spec limits
@@ -3139,7 +3143,8 @@ def run_statistical_analysis(df, analysis_id, config):
             "data": [{"type": "scatter", "y": last_obs.tolist(), "mode": "lines+markers",
                       "marker": {"size": 3, "color": "#9aaa9a"}, "line": {"color": "#9aaa9a", "width": 1}}],
             "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
-                        "shapes": spec_shapes, "showlegend": False}
+                        "shapes": spec_shapes, "showlegend": False},
+            "group": "Control Charts",
         })
 
         # Panel 4: Capability histogram
@@ -3163,7 +3168,8 @@ def run_statistical_analysis(df, analysis_id, config):
             "data": [{"type": "histogram", "x": col_cs.tolist(), "marker": {"color": "#4a9f6e", "opacity": 0.7},
                       "nbinsx": min(30, n_cs // 3)}],
             "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
-                        "shapes": hist_shapes, "annotations": hist_annot, "showlegend": False}
+                        "shapes": hist_shapes, "annotations": hist_annot, "showlegend": False},
+            "group": "Capability",
         })
 
         # Panel 5: Normal probability plot
@@ -3175,7 +3181,8 @@ def run_statistical_analysis(df, analysis_id, config):
             "data": [{"type": "scatter", "x": theoretical_cs, "y": sorted_cs.tolist(), "mode": "markers",
                       "marker": {"color": "#4a9f6e", "size": 3}}],
             "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
-                        "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": var_cs}, "showlegend": False}
+                        "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": var_cs}, "showlegend": False},
+            "group": "Capability",
         })
 
         # Panel 6: Capability stats text
@@ -3195,7 +3202,8 @@ def run_statistical_analysis(df, analysis_id, config):
                       "text": [stats_text_cs], "textfont": {"size": 14, "color": "#4a9f6e"}}],
             "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
                         "xaxis": {"visible": False, "range": [0, 1]}, "yaxis": {"visible": False, "range": [0, 1]},
-                        "showlegend": False}
+                        "showlegend": False},
+            "group": "Capability",
         })
 
         result["guide_observation"] = f"Capability sixpack: Cpk={cpk_val:.3f}, PPM={ppm_total:.0f}."
