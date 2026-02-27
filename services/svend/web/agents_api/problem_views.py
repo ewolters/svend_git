@@ -11,7 +11,6 @@ from pathlib import Path
 
 from django.conf import settings
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from accounts.permissions import gated, require_auth
@@ -223,7 +222,6 @@ def problem_to_dict(problem: Problem) -> dict:
     return result
 
 
-@csrf_exempt
 @require_http_methods(["GET", "POST"])
 @gated
 def problems_list(request):
@@ -320,7 +318,6 @@ def problems_list(request):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET", "PATCH", "DELETE"])
 @gated
 def problem_detail(request, problem_id):
@@ -361,7 +358,6 @@ def problem_detail(request, problem_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def add_hypothesis(request, problem_id):
@@ -400,7 +396,6 @@ def add_hypothesis(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def add_evidence(request, problem_id):
@@ -445,7 +440,6 @@ def add_evidence(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def reject_hypothesis(request, problem_id, hypothesis_id):
@@ -485,7 +479,6 @@ def reject_hypothesis(request, problem_id, hypothesis_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def resolve_problem(request, problem_id):
@@ -532,7 +525,6 @@ def resolve_problem(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def generate_hypotheses(request, problem_id):
@@ -543,14 +535,7 @@ def generate_hypotheses(request, problem_id):
     except Problem.DoesNotExist:
         return JsonResponse({"error": "Problem not found"}, status=404)
 
-    # Track query usage
-    if not request.user.can_query():
-        return JsonResponse({
-            "error": "Daily query limit reached",
-            "limit": request.user.daily_limit,
-        }, status=429)
-
-    request.user.increment_queries()
+    # Note: @gated already checks can_query() and increments — no manual check needed
 
     try:
         # Use shared LLM to generate hypotheses
@@ -626,7 +611,6 @@ Focus on testable, specific causes. Vary the probabilities based on how likely e
 # Interview Endpoints
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def start_interview(request, problem_id):
@@ -688,7 +672,6 @@ def start_interview(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def interview_answer(request, problem_id):
@@ -774,7 +757,6 @@ def interview_answer(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def interview_skip(request, problem_id):
@@ -814,7 +796,6 @@ def interview_skip(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def interview_save(request, problem_id):
@@ -849,7 +830,6 @@ def interview_save(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def interview_status(request, problem_id):
@@ -902,7 +882,6 @@ def interview_status(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def get_context_file(request, problem_id):
@@ -1015,7 +994,6 @@ def _apply_interview_to_problem(problem: Problem, guide, brief):
 # Methodology & Phase Management
 # =============================================================================
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def set_methodology(request, problem_id):
@@ -1050,7 +1028,6 @@ def set_methodology(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["POST"])
 @gated
 def advance_phase(request, problem_id):
@@ -1095,7 +1072,6 @@ def advance_phase(request, problem_id):
     })
 
 
-@csrf_exempt
 @require_http_methods(["GET"])
 @require_auth
 def get_phase_guidance(request, problem_id):

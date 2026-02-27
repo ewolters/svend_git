@@ -151,10 +151,12 @@ class Hypothesis(models.Model):
     # Thresholds for auto-status changes
     confirmation_threshold = models.FloatField(
         default=0.9,
+        validators=[MinValueValidator(0.5), MaxValueValidator(1.0)],
         help_text="Probability above which hypothesis is confirmed",
     )
     rejection_threshold = models.FloatField(
         default=0.1,
+        validators=[MinValueValidator(0.0), MaxValueValidator(0.5)],
         help_text="Probability below which hypothesis is rejected",
     )
 
@@ -219,8 +221,12 @@ class Hypothesis(models.Model):
 
     def save(self, *args, **kwargs):
         """Clamp probability fields to [0.0, 1.0] before saving."""
-        self.prior_probability = max(0.0, min(1.0, self.prior_probability or 0.5))
-        self.current_probability = max(0.0, min(1.0, self.current_probability or 0.5))
+        if self.prior_probability is None:
+            self.prior_probability = 0.5
+        if self.current_probability is None:
+            self.current_probability = 0.5
+        self.prior_probability = max(0.0, min(1.0, self.prior_probability))
+        self.current_probability = max(0.0, min(1.0, self.current_probability))
         super().save(*args, **kwargs)
 
     def generate_statement(self) -> str:
@@ -286,6 +292,10 @@ class Hypothesis(models.Model):
         self._check_status_thresholds()
         self.save()
 
+        # Mark evidence link as applied
+        evidence_link.applied_at = timezone.now()
+        evidence_link.save(update_fields=["applied_at"])
+
         return result.posterior_probability
 
     def recalculate_probability(self):
@@ -324,10 +334,14 @@ class Hypothesis(models.Model):
             self.status = self.Status.CONFIRMED
         elif self.current_probability <= self.rejection_threshold:
             self.status = self.Status.REJECTED
-        elif 0.3 <= self.current_probability <= 0.7:
-            self.status = self.Status.UNCERTAIN
         else:
-            self.status = self.Status.ACTIVE
+            # Derive uncertain range from thresholds (midpoint between 0.5 and each threshold)
+            uncertain_low = (self.rejection_threshold + 0.5) / 2
+            uncertain_high = (self.confirmation_threshold + 0.5) / 2
+            if uncertain_low <= self.current_probability <= uncertain_high:
+                self.status = self.Status.UNCERTAIN
+            else:
+                self.status = self.Status.ACTIVE
 
 
 class Evidence(models.Model):
@@ -391,6 +405,7 @@ class Evidence(models.Model):
     # Confidence (0.0 to 1.0)
     confidence = models.FloatField(
         default=0.8,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="How reliable is this evidence? (0.0 to 1.0)",
     )
 
@@ -474,6 +489,7 @@ class EvidenceLink(models.Model):
     # The likelihood ratio
     likelihood_ratio = models.FloatField(
         default=1.0,
+        validators=[MinValueValidator(0.001)],
         help_text="P(evidence|H true) / P(evidence|H false). >1 supports, <1 opposes",
     )
 

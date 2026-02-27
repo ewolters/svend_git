@@ -14,6 +14,7 @@ Lists use JSONField for multiple entries (e.g., multiple "whats").
 
 import uuid
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 
@@ -295,6 +296,7 @@ class Project(models.Model):
     resolution_confidence = models.FloatField(
         null=True,
         blank=True,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Confidence in resolution (0.0 to 1.0)",
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
@@ -332,6 +334,9 @@ class Project(models.Model):
     # Interview/onboarding state
     interview_state = models.JSONField(null=True, blank=True)
     interview_completed = models.BooleanField(default=False)
+
+    # Append-only changelog — [{ts, action, detail, user}]
+    changelog = models.JSONField(default=list, blank=True)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -410,17 +415,41 @@ class Project(models.Model):
 
         return " ".join(parts)
 
-    def advance_phase(self, new_phase: str, notes: str = ""):
+    def log_event(self, action: str, detail: str = "", user=None):
+        """Append an entry to the changelog."""
+        from django.utils import timezone
+
+        entry = {
+            "ts": timezone.now().isoformat(),
+            "action": action,
+            "detail": detail,
+        }
+        if user:
+            try:
+                entry["user"] = user.display_name or user.email
+            except Exception:
+                entry["user"] = str(user.id) if hasattr(user, "id") else ""
+        self.changelog.append(entry)
+        self.save(update_fields=["changelog", "updated_at"])
+
+    def advance_phase(self, new_phase: str, notes: str = "", user=None):
         """Advance to a new phase, recording history."""
         from django.utils import timezone
 
+        old_phase = self.current_phase
         self.phase_history.append({
             "phase": new_phase,
             "entered_at": timezone.now().isoformat(),
             "notes": notes,
         })
         self.current_phase = new_phase
-        self.save(update_fields=["current_phase", "phase_history", "updated_at"])
+        self.changelog.append({
+            "ts": timezone.now().isoformat(),
+            "action": "phase_advanced",
+            "detail": f"{old_phase} → {new_phase}" + (f": {notes}" if notes else ""),
+            "user": (user.display_name or user.email) if user else "",
+        })
+        self.save(update_fields=["current_phase", "phase_history", "changelog", "updated_at"])
 
     def resolve(self, summary: str, confidence: float = None):
         """Mark project as resolved."""
@@ -560,3 +589,60 @@ class ExperimentDesign(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.design_type})"
+
+
+class StudyAction(models.Model):
+    """Tracks outputs from a Study to QMS systems.
+
+    When a user clicks "Raise CAPA", "Schedule Audit", etc. from a Study
+    detail page, a StudyAction is created to record the link between the
+    Study (core.Project) and the target record (audit, document, training,
+    FMEA, report). This provides full traceability from investigation to
+    corrective/preventive actions — the ISO loop closure.
+    """
+
+    class ActionType(models.TextChoices):
+        RAISE_CAPA = "raise_capa", "Raise CAPA"
+        SCHEDULE_AUDIT = "schedule_audit", "Schedule Verification Audit"
+        REQUEST_DOC_UPDATE = "request_doc_update", "Request Document Update"
+        FLAG_TRAINING_GAP = "flag_training_gap", "Flag Training Gap"
+        FLAG_FMEA_UPDATE = "flag_fmea_update", "Flag FMEA Update"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.CASCADE,
+        related_name="study_actions",
+    )
+    action_type = models.CharField(max_length=30, choices=ActionType.choices)
+    target_type = models.CharField(
+        max_length=30,
+        help_text="Model name of the target: report, audit, document, training, fmea",
+    )
+    target_id = models.UUIDField(help_text="PK of the target record")
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "core_study_action"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_action_type_display()} → {self.target_type}:{self.target_id}"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id),
+            "action_type": self.action_type,
+            "action_label": self.get_action_type_display(),
+            "target_type": self.target_type,
+            "target_id": str(self.target_id),
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

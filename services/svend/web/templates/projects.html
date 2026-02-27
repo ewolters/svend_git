@@ -12,6 +12,55 @@
         <button class="btn btn-primary" onclick="showCreateModal()">+ New Study</button>
     </div>
 
+    <!-- Getting Started Guide -->
+    <div id="studies-guide" class="studies-guide" style="display: none;">
+        <div class="guide-header" onclick="toggleGuide()">
+            <h3>How Studies Work</h3>
+            <span class="guide-toggle" id="guide-toggle-icon">&#x25BC;</span>
+        </div>
+        <div class="guide-body" id="guide-body">
+            <p class="guide-intro">A <strong>study</strong> tracks a question from hypothesis to conclusion using Bayesian reasoning. Here's how to get started:</p>
+            <div class="guide-steps">
+                <div class="guide-step">
+                    <div class="step-number">1</div>
+                    <div>
+                        <strong>Create a study</strong>
+                        <p>Click <em>+ New Study</em> and give it a title. Only the title is required &mdash; the other charter fields (problem definition, business impact, scope) are optional and can be filled in later.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">2</div>
+                    <div>
+                        <strong>Add hypotheses</strong>
+                        <p>State what you think might be true. Each hypothesis starts at 50% probability (no prior evidence) and gets a confirmation/rejection threshold you can adjust.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">3</div>
+                    <div>
+                        <strong>Gather evidence</strong>
+                        <p>Add evidence to each hypothesis &mdash; observations, data analysis results, experiments. Rate how strongly the evidence supports or opposes the hypothesis. Svend applies Bayes' theorem to update the probability automatically.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">4</div>
+                    <div>
+                        <strong>Connect tools</strong>
+                        <p>Link DSW analyses, whiteboards, experiment designs, and datasets to your study. Results from these tools can feed directly into your evidence.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">5</div>
+                    <div>
+                        <strong>Reach a conclusion</strong>
+                        <p>As evidence accumulates, hypotheses are automatically marked <em>Confirmed</em> or <em>Rejected</em> when they cross their thresholds. Resolve the study when you have your answer.</p>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-secondary guide-dismiss" onclick="dismissGuide()">Got it, don't show again</button>
+        </div>
+    </div>
+
     <!-- Status Filter -->
     <div class="status-filter">
         <button class="filter-btn active" data-status="all" onclick="filterByStatus('all')">All</button>
@@ -270,9 +319,9 @@
                         <input type="date" id="target-completion">
                     </div>
                     <div class="form-group">
-                        <label>
+                        <label class="svend-toggle">
                             <input type="checkbox" id="can-experiment" checked>
-                            Can run controlled experiments
+                            <span>Can run controlled experiments</span>
                         </label>
                     </div>
                 </div>
@@ -293,6 +342,16 @@
         <div class="detail-actions">
             <button class="btn btn-secondary btn-sm" onclick="editProject()">Edit</button>
             <button class="btn btn-secondary btn-sm" onclick="archiveProject()">Archive</button>
+            <div class="dropdown" id="actions-dropdown" style="display:none;">
+                <button class="btn btn-primary btn-sm" onclick="toggleActionsDropdown(event)">Actions &#x25BE;</button>
+                <div class="dropdown-menu" id="actions-menu" style="display:none;">
+                    <button onclick="studyAction('raise_capa')">Raise CAPA</button>
+                    <button onclick="studyAction('schedule_audit')">Schedule Verification Audit</button>
+                    <button onclick="studyAction('request_doc_update')">Request Document Update</button>
+                    <button onclick="studyAction('flag_training_gap')">Flag Training Gap</button>
+                    <button onclick="studyAction('flag_fmea_update')">Flag FMEA Update</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -307,6 +366,7 @@
                 <p id="detail-hypothesis"></p>
             </div>
             <p class="project-description" id="detail-description"></p>
+            <div id="lens-badges" class="lens-badges" style="display:none;"></div>
         </div>
 
         <!-- Hypotheses Section -->
@@ -320,14 +380,12 @@
             </div>
         </div>
 
-        <!-- Workbenches Section -->
+        <!-- Methodology & Phase Section -->
         <div class="section">
             <div class="section-header">
-                <h2>Workbenches</h2>
-                <button class="btn btn-primary btn-sm" onclick="showAddWorkbenchModal()">+ Add Workbench</button>
+                <h2>Methodology & Phase</h2>
             </div>
             <div id="workbenches-list" class="workbenches-list">
-                <p class="empty-text">No workbenches yet. Add one to start gathering evidence.</p>
             </div>
         </div>
 
@@ -399,6 +457,56 @@
             </div>
         </div>
 
+        <!-- NCRs Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>NCRs</h2>
+            </div>
+            <div id="ncr-list" class="tool-list">
+                <p class="empty-text">No nonconformance records linked to this study.</p>
+            </div>
+        </div>
+
+        <!-- RCA Sessions Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>RCA Sessions</h2>
+            </div>
+            <div id="rca-list" class="tool-list">
+                <p class="empty-text">No root cause analyses linked to this study.</p>
+            </div>
+        </div>
+
+        <!-- Reports (CAPA/8D) Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Reports</h2>
+            </div>
+            <div id="reports-list" class="tool-list">
+                <p class="empty-text">No CAPA or 8D reports linked to this study.</p>
+            </div>
+        </div>
+
+        <!-- Evidence Summary Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Evidence</h2>
+            </div>
+            <div id="evidence-summary" class="tool-list">
+                <p class="empty-text">No evidence recorded yet.</p>
+            </div>
+        </div>
+
+        <!-- Study Actions Trail Section -->
+        <div class="section" id="study-actions-section" style="display:none;">
+            <div class="section-header">
+                <h2>Actions Taken</h2>
+            </div>
+            <div id="study-actions-list" class="tool-list">
+                <p class="empty-text">No actions taken yet.</p>
+            </div>
+        </div>
+
         <!-- Knowledge Graph Section -->
         <div class="section">
             <div class="section-header">
@@ -407,6 +515,30 @@
             </div>
             <div id="graph-summary" class="graph-summary">
                 <p class="empty-text">No knowledge graph yet. Connect hypotheses to build causal relationships.</p>
+            </div>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="section" id="comments-section">
+            <div class="section-header">
+                <h2>Comments</h2>
+            </div>
+            <div id="comments-list" class="tool-list">
+                <p class="empty-text">No comments yet.</p>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <input type="text" id="comment-input" placeholder="Add a comment..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">
+                <button class="btn btn-primary btn-sm" onclick="addComment()">Post</button>
+            </div>
+        </div>
+
+        <!-- Changelog Section -->
+        <div class="section" id="changelog-section">
+            <div class="section-header">
+                <h2>Activity Log</h2>
+            </div>
+            <div id="changelog-list" class="tool-list">
+                <p class="empty-text">No activity recorded yet.</p>
             </div>
         </div>
 
@@ -655,8 +787,8 @@
                         <span class="radio-badge supports">Supports</span>
                     </label>
                     <label class="radio-label">
-                        <input type="radio" name="ev-direction" value="weakens">
-                        <span class="radio-badge weakens">Opposes</span>
+                        <input type="radio" name="ev-direction" value="opposes">
+                        <span class="radio-badge opposes">Opposes</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="ev-direction" value="neutral">
@@ -666,21 +798,21 @@
             </div>
 
             <div class="form-group">
-                <label for="ev-strength">Evidence Strength (Likelihood Ratio)</label>
+                <label for="ev-strength">Evidence Strength</label>
                 <div class="slider-row">
                     <input type="range" id="ev-strength" min="0" max="1" step="0.1" value="0.5">
-                    <span id="ev-strength-value">LR: 5.5</span>
+                    <span id="ev-strength-value">Moderate</span>
                 </div>
                 <small class="form-hint">
-                    How much more likely is this evidence if the hypothesis is true vs. false?
-                    <br>LR=1: No effect | LR=3: Weak | LR=10: Strong | LR=30: Very Strong
+                    How strongly does this evidence affect the hypothesis?
+                    <br>Negligible → Weak → Moderate → Strong → Very Strong
                 </small>
             </div>
 
             <div class="form-group">
-                <label>
+                <label class="svend-toggle">
                     <input type="checkbox" id="ev-auto-update" checked>
-                    Automatically update hypothesis probability (Bayesian update)
+                    <span>Automatically update hypothesis probability (Bayesian update)</span>
                 </label>
             </div>
 
@@ -770,6 +902,92 @@
     margin: 0.25rem 0 0 0;
 }
 
+/* Getting Started Guide */
+.studies-guide {
+    background: var(--bg-card);
+    border: 1px solid var(--accent-primary);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+.guide-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.guide-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--accent-primary);
+}
+
+.guide-toggle {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    transition: transform 0.2s;
+}
+
+.guide-toggle.collapsed {
+    transform: rotate(-90deg);
+}
+
+.guide-body {
+    padding: 0 1.25rem 1.25rem 1.25rem;
+}
+
+.guide-intro {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0 0 1rem 0;
+}
+
+.guide-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.guide-step {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 0.1rem;
+}
+
+.guide-step p {
+    margin: 0.2rem 0 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.guide-step strong {
+    font-size: 0.9rem;
+}
+
+.guide-dismiss {
+    margin-top: 1rem;
+}
+
 .status-filter {
     display: flex;
     gap: 0.5rem;
@@ -838,7 +1056,7 @@
 }
 
 .status-badge.active { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
-.status-badge.completed { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.status-badge.completed { background: var(--accent-primary-dim); color: var(--accent-primary); }
 .status-badge.archived { background: rgba(100, 100, 100, 0.2); color: #888; }
 
 /* Detail View */
@@ -857,6 +1075,97 @@
 .detail-actions {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+}
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 100;
+    min-width: 220px;
+    padding: 4px 0;
+}
+
+.dropdown-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 16px;
+    text-align: left;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.dropdown-menu button:hover {
+    background: var(--bg-tertiary);
+}
+
+.lens-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+}
+
+.lens-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    transition: background 0.15s;
+}
+
+.lens-badge:hover {
+    background: var(--bg-tertiary);
+}
+
+.lens-badge .lens-count {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 1px 6px;
+    font-size: 0.75rem;
+    min-width: 18px;
+    text-align: center;
+}
+
+.action-trail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.action-trail-item .action-label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.action-trail-item .action-meta {
+    font-size: 0.85rem;
+    color: var(--text-dim);
 }
 
 .project-info {
@@ -1002,7 +1311,7 @@
 .conclusion-status.supported { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
 .conclusion-status.refuted { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 .conclusion-status.inconclusive { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.conclusion-status.modified { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.conclusion-status.modified { background: var(--accent-primary-dim); color: var(--accent-primary); }
 
 /* Modals */
 .modal {
@@ -1154,10 +1463,11 @@
 .prob-badge.med { background: #f59e0b; }
 .prob-badge.high { background: #4a9f6e; }
 
-.status-badge.investigating { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.status-badge.supported { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
-.status-badge.refuted { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-.status-badge.inconclusive { background: rgba(100, 100, 100, 0.2); color: #888; }
+.status-badge.active { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.status-badge.confirmed { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
+.status-badge.rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.status-badge.uncertain { background: rgba(100, 100, 100, 0.2); color: #888; }
+.status-badge.merged { background: var(--accent-primary-dim); color: var(--accent-primary); }
 
 /* Hypothesis Detail */
 .hypothesis-info {
@@ -1228,7 +1538,7 @@
 }
 
 .evidence-item .direction-icon.supports { color: #4a9f6e; }
-.evidence-item .direction-icon.weakens { color: #ef4444; }
+.evidence-item .direction-icon.opposes { color: #ef4444; }
 .evidence-item .direction-icon.neutral { color: #888; }
 
 .evidence-item .content {
@@ -1319,12 +1629,10 @@
 }
 
 .radio-badge.supports { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
-.radio-badge.weakens { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.radio-badge.opposes { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 .radio-badge.neutral { background: rgba(100, 100, 100, 0.2); color: #888; }
 
-.form-group input[type="checkbox"] {
-    margin-right: 0.5rem;
-}
+/* checkbox margin now handled by .svend-toggle gap */
 
 /* Datasets & Experiment Designs */
 .datasets-list, .designs-list {
@@ -1384,7 +1692,7 @@
 }
 
 .type-badge.csv { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
-.type-badge.excel { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.type-badge.excel { background: var(--accent-primary-dim); color: var(--accent-primary); }
 .type-badge.json { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
 .type-badge.experiment { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
 
@@ -1398,7 +1706,7 @@
 .design-status.planned { background: rgba(100, 100, 100, 0.2); color: #888; }
 .design-status.in_progress { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
 .design-status.completed { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
-.design-status.reviewed { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.design-status.reviewed { background: var(--accent-primary-dim); color: var(--accent-primary); }
 
 .execution-score {
     font-size: 0.8rem;
@@ -1454,6 +1762,38 @@
     gap: 0.5rem;
 }
 
+/* Changelog timeline */
+.changelog-entry {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+.changelog-entry:last-child { border-bottom: none; }
+.changelog-ts { color: var(--text-dim); font-size: 11px; min-width: 130px; font-family: 'JetBrains Mono', monospace; }
+.changelog-action { font-weight: 500; color: var(--accent-primary); min-width: 140px; }
+.changelog-detail { color: var(--text-primary); flex: 1; }
+.changelog-user { color: var(--text-dim); font-size: 11px; }
+
+/* Comments */
+.comment-entry {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.comment-entry:last-child { border-bottom: none; }
+.comment-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent-primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; flex-shrink: 0;
+}
+.comment-body { flex: 1; }
+.comment-meta { font-size: 11px; color: var(--text-dim); margin-bottom: 2px; }
+.comment-text { font-size: 13px; color: var(--text-primary); }
+
 .tool-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -1492,12 +1832,12 @@
     font-size: 1.25rem;
 }
 
-.type-badge.current { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.type-badge.current { background: var(--accent-primary-dim); color: var(--accent-primary); }
 .type-badge.future { background: rgba(74, 159, 110, 0.2); color: #4a9f6e; }
 
 .status-badge.draft { background: rgba(100, 100, 100, 0.2); color: #888; }
 .status-badge.in_progress { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.status-badge.review { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.status-badge.review { background: var(--accent-primary-dim); color: var(--accent-primary); }
 
 /* Charter Form Styles */
 .charter-section {
@@ -1775,6 +2115,11 @@ let currentHypothesis = null;
 let currentFilter = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Show getting-started guide unless dismissed
+    if (!localStorage.getItem('studies-guide-dismissed')) {
+        document.getElementById('studies-guide').style.display = 'block';
+    }
+
     loadProjects().then(() => {
         // Check for hash-based deep link (e.g., /app/projects/#<uuid>)
         const hash = window.location.hash.slice(1);
@@ -1788,10 +2133,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('hyp-prior-value').textContent = Math.round(e.target.value * 100) + '%';
     });
     document.getElementById('ev-strength').addEventListener('input', (e) => {
-        // Map 0-1 slider to likelihood ratio display
         const strength = parseFloat(e.target.value);
-        const lr = 1 + strength * 9; // Maps 0→1, 1→10
-        document.getElementById('ev-strength-value').textContent = `LR: ${lr.toFixed(1)}`;
+        const labels = ['Negligible', 'Negligible', 'Weak', 'Weak', 'Moderate', 'Moderate', 'Strong', 'Strong', 'Very Strong', 'Very Strong', 'Very Strong'];
+        const idx = Math.round(strength * 10);
+        document.getElementById('ev-strength-value').textContent = labels[idx] || 'Moderate';
     });
 
     // Hypothesis statement preview
@@ -1800,6 +2145,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.addEventListener('input', updateHypothesisPreview);
     });
 });
+
+// =============================================================================
+// Getting Started Guide
+// =============================================================================
+
+function toggleGuide() {
+    const body = document.getElementById('guide-body');
+    const icon = document.getElementById('guide-toggle-icon');
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        icon.classList.remove('collapsed');
+    } else {
+        body.style.display = 'none';
+        icon.classList.add('collapsed');
+    }
+}
+
+function dismissGuide() {
+    localStorage.setItem('studies-guide-dismissed', '1');
+    document.getElementById('studies-guide').style.display = 'none';
+}
 
 // =============================================================================
 // Charter Form Helpers
@@ -2000,7 +2366,8 @@ function showCreateModal() {
 }
 
 function closeModal() {
-    document.getElementById('create-modal').style.display = 'none';
+    const modal = document.getElementById('create-modal');
+    modal.style.display = 'none';
     document.getElementById('project-form').reset();
     // Clear multi-input lists
     ['problem-whats', 'problem-wheres', 'problem-whens', 'scope-in', 'scope-out', 'constraints', 'assumptions', 'team-members'].forEach(id => {
@@ -2014,6 +2381,10 @@ function closeModal() {
     document.querySelectorAll('#create-modal .toggle-icon').forEach((el, i) => {
         el.textContent = i === 0 ? '▼' : '▶';
     });
+    // Reset edit mode
+    delete modal.dataset.editId;
+    modal.querySelector('.modal-header h2').textContent = 'New Study Charter';
+    modal.querySelector('button[type="submit"]').textContent = 'Create Study';
 }
 
 async function createProject(e) {
@@ -2068,9 +2439,15 @@ async function createProject(e) {
         can_experiment: document.getElementById('can-experiment')?.checked ?? true,
     };
 
+    const modal = document.getElementById('create-modal');
+    const editId = modal.dataset.editId;
+
     try {
-        const response = await fetch('/api/core/projects/', {
-            method: 'POST',
+        const url = editId ? `/api/core/projects/${editId}/` : '/api/core/projects/';
+        const method = editId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method,
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify(data),
@@ -2079,9 +2456,9 @@ async function createProject(e) {
         const result = await response.json();
         if (response.ok) {
             closeModal();
-            viewProject(result.id);
+            viewProject(result.id || editId);
         } else {
-            alert(result.error || 'Failed to create study');
+            alert(result.error || (editId ? 'Failed to update study' : 'Failed to create study'));
         }
     } catch (err) {
         alert('Error: ' + err.message);
@@ -2096,6 +2473,9 @@ async function viewProject(id) {
         currentProject = hubData.project;
         currentProject._tools = hubData.tools;
         currentProject._counts = hubData.counts;
+        currentProject._evidence_summary = hubData.evidence_summary;
+        currentProject._study_actions = hubData.study_actions;
+        currentProject._changelog = hubData.changelog || [];
         renderProjectDetail();
     } catch (err) {
         alert('Failed to load study: ' + err.message);
@@ -2245,13 +2625,26 @@ function renderHypothesesFromProject() {
 }
 
 async function advancePhase() {
-    if (!confirm('Advance to the next phase? This will update the study status.')) return;
+    const phaseOrder = ['define', 'measure', 'analyze', 'improve', 'control'];
+    const currentPhase = currentProject.current_phase || 'define';
+    const currentIdx = phaseOrder.indexOf(currentPhase);
+    const nextPhase = currentIdx >= 0 && currentIdx < phaseOrder.length - 1
+        ? phaseOrder[currentIdx + 1]
+        : null;
+
+    if (!nextPhase) {
+        alert('Already at the final phase (Control).');
+        return;
+    }
+
+    if (!confirm(`Advance from "${currentPhase}" to "${nextPhase}"?`)) return;
 
     try {
         const response = await fetch(`/api/core/projects/${currentProject.id}/advance-phase/`, {
             method: 'POST',
             credentials: 'include',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phase: nextPhase }),
         });
 
         if (response.ok) {
@@ -2721,7 +3114,7 @@ function renderHypothesisDetail() {
 
             return `
                 <div class="evidence-item">
-                    <span class="direction-icon ${direction === 'supports' ? 'supports' : direction === 'opposes' ? 'weakens' : 'neutral'}">${icon}</span>
+                    <span class="direction-icon ${direction}">${icon}</span>
                     <div class="content">
                         <div class="summary">${link.evidence_summary}</div>
                         <div class="meta">
@@ -2875,7 +3268,7 @@ function showAddEvidenceModal() {
 function closeEvidenceModal() {
     document.getElementById('evidence-modal').style.display = 'none';
     document.getElementById('evidence-form').reset();
-    document.getElementById('ev-strength-value').textContent = '0.5';
+    document.getElementById('ev-strength-value').textContent = 'Moderate';
 }
 
 async function addEvidence(e) {
@@ -2887,7 +3280,7 @@ async function addEvidence(e) {
     // Convert strength + direction to likelihood ratio
     // strength 0.5 = mild (LR ~2), strength 1.0 = strong (LR ~10)
     const baseLR = 1 + strength * 9; // Maps 0→1, 1→10
-    const lr = direction === 'supports' ? baseLR : direction === 'weakens' ? 1/baseLR : 1.0;
+    const lr = direction === 'supports' ? baseLR : direction === 'opposes' ? 1/baseLR : 1.0;
 
     // Map old evidence types to new source_type
     const typeMapping = {
@@ -2979,17 +3372,120 @@ function openKnowledgeGraph() {
 }
 
 function editProject() {
-    // TODO: implement edit modal
-    alert('Edit functionality coming soon');
+    if (!currentProject) return;
+    const p = currentProject;
+
+    // Pre-fill basic fields
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    setVal('project-title', p.title);
+    setVal('project-domain', p.domain);
+
+    // Problem Definition
+    setVal('problem-magnitude', p.problem_magnitude);
+    setVal('problem-trend', p.problem_trend || 'unknown');
+    setVal('problem-since', p.problem_since);
+    setVal('problem-statement', p.problem_statement);
+
+    // Populate multi-input lists
+    const populateList = (listId, values) => {
+        const list = document.getElementById(listId + '-list');
+        if (!list || !values) return;
+        list.innerHTML = '';
+        values.forEach(val => {
+            const item = document.createElement('div');
+            item.className = 'multi-input-item';
+            item.innerHTML = `<input type="text" value="${val.replace(/"/g, '&quot;')}"><button type="button" class="remove-btn" onclick="this.parentElement.remove()">&times;</button>`;
+            list.appendChild(item);
+        });
+    };
+    populateList('problem-whats', p.problem_whats);
+    populateList('problem-wheres', p.problem_wheres);
+    populateList('problem-whens', p.problem_whens);
+    populateList('scope-in', p.scope_in);
+    populateList('scope-out', p.scope_out);
+    populateList('constraints', p.constraints);
+    populateList('assumptions', p.assumptions);
+
+    // Business Impact
+    setVal('impact-financial', p.impact_financial);
+    setVal('impact-customer', p.impact_customer);
+    setVal('impact-quality', p.impact_quality);
+    setVal('impact-delivery', p.impact_delivery);
+    setVal('impact-safety', p.impact_safety);
+    setVal('impact-regulatory', p.impact_regulatory);
+
+    // Goal Statement
+    setVal('goal-metric', p.goal_metric);
+    setVal('goal-unit', p.goal_unit);
+    setVal('goal-baseline', p.goal_baseline);
+    setVal('goal-target', p.goal_target);
+    setVal('goal-deadline', p.goal_deadline);
+    setVal('goal-statement', p.goal_statement);
+
+    // Team
+    setVal('champion-name', p.champion_name);
+    setVal('champion-title', p.champion_title);
+    setVal('leader-name', p.leader_name);
+    setVal('leader-title', p.leader_title);
+
+    // Team members
+    const tmList = document.getElementById('team-members-list');
+    if (tmList && p.team_members) {
+        tmList.innerHTML = '';
+        p.team_members.forEach(m => {
+            const item = document.createElement('div');
+            item.className = 'team-member-item';
+            item.innerHTML = `
+                <input type="text" value="${(m.name || '').replace(/"/g, '&quot;')}" placeholder="Name">
+                <select>
+                    <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
+                    <option value="sme" ${m.role === 'sme' ? 'selected' : ''}>SME</option>
+                    <option value="facilitator" ${m.role === 'facilitator' ? 'selected' : ''}>Facilitator</option>
+                    <option value="stakeholder" ${m.role === 'stakeholder' ? 'selected' : ''}>Stakeholder</option>
+                </select>
+                <input type="text" value="${(m.department || '').replace(/"/g, '&quot;')}" placeholder="Department" style="width: 120px;">
+                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            tmList.appendChild(item);
+        });
+    }
+
+    // Timeline
+    setVal('target-completion', p.target_completion);
+    const canExp = document.getElementById('can-experiment');
+    if (canExp) canExp.checked = p.can_experiment !== false;
+
+    // Expand sections that have data
+    document.querySelectorAll('#create-modal .charter-section.collapsible').forEach(section => {
+        const content = section.querySelector('.section-content');
+        const icon = section.querySelector('.toggle-icon');
+        const hasData = Array.from(content.querySelectorAll('input, textarea, select')).some(el => el.value && el.value !== 'unknown');
+        const hasListItems = content.querySelectorAll('.multi-input-item, .team-member-item').length > 0;
+        if (hasData || hasListItems) {
+            content.style.display = 'block';
+            if (icon) icon.textContent = '▼';
+        }
+    });
+
+    // Switch modal to edit mode
+    const modal = document.getElementById('create-modal');
+    modal.querySelector('.modal-header h2').textContent = 'Edit Study Charter';
+    const submitBtn = modal.querySelector('button[type="submit"]');
+    submitBtn.textContent = 'Save Changes';
+    modal.dataset.editId = p.id;
+
+    modal.style.display = 'flex';
 }
 
 async function archiveProject() {
-    if (!confirm('Archive this study? You can restore it later.')) return;
+    if (!confirm('Archive this study? It will be hidden from the active list.')) return;
 
     try {
         const response = await fetch(`/api/core/projects/${currentProject.id}/`, {
-            method: 'DELETE',
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
+            body: JSON.stringify({ status: 'abandoned' }),
         });
 
         if (response.ok) {
@@ -3369,6 +3865,18 @@ function renderLinkedTools() {
     renderWhiteboards(tools.whiteboards || []);
     renderA3Reports(tools.a3_reports || []);
     renderVSMMaps(tools.vsm_maps || []);
+    renderNCRs(tools.ncrs || []);
+    renderRCASessions(tools.rca_sessions || []);
+    renderReports(tools.reports || []);
+    renderEvidenceSummary(currentProject._evidence_summary || {});
+    renderLensBadges(tools);
+    renderStudyActions(currentProject._study_actions || []);
+    renderChangelog(currentProject._changelog || []);
+    renderComments(currentProject._changelog || []);
+
+    // Show Actions dropdown on the detail header
+    const actionsDropdown = document.getElementById('actions-dropdown');
+    if (actionsDropdown) actionsDropdown.style.display = '';
 }
 
 function renderDSWAnalyses(analyses) {
@@ -3380,7 +3888,7 @@ function renderDSWAnalyses(analyses) {
     }
 
     list.innerHTML = analyses.map(a => `
-        <div class="tool-card" onclick="window.location.href='/app/dsw/?result=${a.id}'">
+        <div class="tool-card" onclick="window.location.href='/app/dsw/?result=${a.id}&project=${currentProject.id}'">
             <div class="tool-info">
                 <h4>${a.title || a.type || 'Analysis'}</h4>
                 <div class="meta">
@@ -3403,7 +3911,7 @@ function renderWhiteboards(boards) {
     }
 
     list.innerHTML = boards.map(b => `
-        <div class="tool-card" onclick="window.location.href='/app/whiteboard/${b.room_code}/'">
+        <div class="tool-card" onclick="window.location.href='/app/whiteboard/${b.room_code}/?project=${currentProject.id}'">
             <div class="tool-info">
                 <h4>${b.name || 'Untitled Whiteboard'}</h4>
                 <div class="meta">
@@ -3425,7 +3933,7 @@ function renderA3Reports(reports) {
     }
 
     list.innerHTML = reports.map(r => `
-        <div class="tool-card" onclick="window.location.href='/app/a3/${r.id}/'">
+        <div class="tool-card" onclick="window.location.href='/app/a3/${r.id}/?project=${currentProject.id}'">
             <div class="tool-info">
                 <h4>${r.title || 'Untitled A3'}</h4>
                 <div class="meta">
@@ -3447,7 +3955,7 @@ function renderVSMMaps(maps) {
     }
 
     list.innerHTML = maps.map(m => `
-        <div class="tool-card" onclick="window.location.href='/app/vsm/${m.id}/'">
+        <div class="tool-card" onclick="window.location.href='/app/vsm/${m.id}/?project=${currentProject.id}'">
             <div class="tool-info">
                 <h4>${m.name || 'Untitled VSM'}</h4>
                 <div class="meta">
@@ -3477,5 +3985,483 @@ function formatDuration(seconds) {
     if (seconds < 86400) return `${(seconds/3600).toFixed(1)}h`;
     return `${(seconds/86400).toFixed(1)}d`;
 }
+
+function renderNCRs(ncrs) {
+    const list = document.getElementById('ncr-list');
+    if (!list) return;
+
+    if (ncrs.length === 0) {
+        list.innerHTML = '<p class="empty-text">No nonconformance records linked to this study.</p>';
+        return;
+    }
+
+    list.innerHTML = ncrs.map(n => `
+        <div class="tool-card" onclick="window.location.href='/app/iso/?ncr=${n.id}'">
+            <div class="tool-info">
+                <h4>${n.title || 'Untitled NCR'}</h4>
+                <div class="meta">
+                    <span class="status-badge ${n.status || 'open'}">${n.status || 'open'}</span>
+                    ${n.severity ? `<span class="type-badge">${n.severity}</span>` : ''}
+                    <span>${formatDate(n.created_at)}</span>
+                </div>
+            </div>
+            <span class="tool-arrow">&rarr;</span>
+        </div>
+    `).join('');
+}
+
+function renderRCASessions(sessions) {
+    const list = document.getElementById('rca-list');
+    if (!list) return;
+
+    if (sessions.length === 0) {
+        list.innerHTML = '<p class="empty-text">No root cause analyses linked to this study.</p>';
+        return;
+    }
+
+    list.innerHTML = sessions.map(s => `
+        <div class="tool-card" onclick="window.location.href='/app/rca/?session=${s.id}'">
+            <div class="tool-info">
+                <h4>${s.title || 'Untitled RCA'}</h4>
+                <div class="meta">
+                    ${s.root_cause ? '<span class="status-badge completed">Root cause found</span>' : '<span class="status-badge active">In progress</span>'}
+                    <span>${s.chain_length || 0} why steps</span>
+                    <span>${formatDate(s.updated_at)}</span>
+                </div>
+            </div>
+            <span class="tool-arrow">&rarr;</span>
+        </div>
+    `).join('');
+}
+
+function renderReports(reports) {
+    const list = document.getElementById('reports-list');
+    if (!list) return;
+
+    if (reports.length === 0) {
+        list.innerHTML = '<p class="empty-text">No CAPA or 8D reports linked to this study.</p>';
+        return;
+    }
+
+    list.innerHTML = reports.map(r => `
+        <div class="tool-card" onclick="window.location.href='/app/report/${r.id}/'">
+            <div class="tool-info">
+                <h4>${r.title || 'Untitled Report'}</h4>
+                <div class="meta">
+                    <span class="type-badge">${(r.report_type || 'report').toUpperCase()}</span>
+                    <span class="status-badge ${r.status || 'draft'}">${r.status || 'draft'}</span>
+                    <span>${formatDate(r.updated_at)}</span>
+                </div>
+            </div>
+            <span class="tool-arrow">&rarr;</span>
+        </div>
+    `).join('');
+}
+
+function renderEvidenceSummary(summary) {
+    const container = document.getElementById('evidence-summary');
+    if (!container) return;
+
+    const total = summary.total || 0;
+    if (total === 0) {
+        container.innerHTML = '<p class="empty-text">No evidence recorded yet.</p>';
+        return;
+    }
+
+    const bySource = summary.by_source || {};
+    const sourceLabels = {
+        ncr: 'NCR', rca: 'RCA', a3: 'A3', report: 'Report',
+        fmea: 'FMEA', dsw: 'DSW', manual: 'Manual'
+    };
+
+    container.innerHTML = `
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+            <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary);">${total}</div>
+            <span style="color: var(--text-dim);">evidence records</span>
+            ${Object.entries(bySource).map(([src, count]) => `
+                <span class="type-badge" style="font-size: 0.8rem;">${sourceLabels[src] || src}: ${count}</span>
+            `).join('')}
+        </div>
+    `;
+}
+
+// =============================================================================
+// Lens Badges (Phase 5b)
+// =============================================================================
+
+function renderLensBadges(tools) {
+    const container = document.getElementById('lens-badges');
+    if (!container) return;
+
+    const lenses = [];
+    const ncrs = tools.ncrs || [];
+    const rcas = tools.rca_sessions || [];
+    const reports = tools.reports || [];
+    const a3s = tools.a3_reports || [];
+    const fmeas = tools.fmeas || [];
+
+    if (ncrs.length > 0) lenses.push({ label: 'NCR', count: ncrs.length, section: 'ncr-list' });
+    if (rcas.length > 0) lenses.push({ label: 'RCA', count: rcas.length, section: 'rca-list' });
+    if (a3s.length > 0) lenses.push({ label: 'A3', count: a3s.length, section: 'a3-list' });
+
+    // Group reports by type
+    const capaCount = reports.filter(r => r.report_type === 'capa').length;
+    const d8Count = reports.filter(r => r.report_type === '8d').length;
+    if (capaCount > 0) lenses.push({ label: 'CAPA', count: capaCount, section: 'reports-list' });
+    if (d8Count > 0) lenses.push({ label: '8D', count: d8Count, section: 'reports-list' });
+
+    if (fmeas.length > 0) lenses.push({ label: 'FMEA', count: fmeas.length });
+
+    if (lenses.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = '';
+    container.innerHTML = lenses.map(l => `
+        <span class="lens-badge" ${l.section ? `onclick="document.getElementById('${l.section}').scrollIntoView({behavior:'smooth'})"` : ''}>
+            ${l.label} <span class="lens-count">${l.count}</span>
+        </span>
+    `).join('');
+}
+
+// =============================================================================
+// Study Actions (Phase 7)
+// =============================================================================
+
+function toggleActionsDropdown(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('actions-menu');
+    const isVisible = menu.style.display !== 'none';
+    menu.style.display = isVisible ? 'none' : 'block';
+
+    // Close on click outside
+    if (!isVisible) {
+        const close = (ev) => {
+            if (!menu.contains(ev.target)) {
+                menu.style.display = 'none';
+                document.removeEventListener('click', close);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', close), 0);
+    }
+}
+
+async function studyAction(actionType) {
+    document.getElementById('actions-menu').style.display = 'none';
+
+    if (actionType === 'flag_training_gap') {
+        showTrainingGapModal();
+        return;
+    }
+    if (actionType === 'flag_fmea_update') {
+        showFMEAFlagModal();
+        return;
+    }
+
+    const urlMap = {
+        raise_capa: '/api/iso/study-actions/raise-capa/',
+        schedule_audit: '/api/iso/study-actions/schedule-audit/',
+        request_doc_update: '/api/iso/study-actions/request-doc-update/',
+    };
+
+    const url = urlMap[actionType];
+    if (!url) return;
+
+    const body = { project_id: currentProject.id };
+
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+        const result = await resp.json();
+        if (resp.ok && result.ok) {
+            // Reload hub to show updated actions trail
+            await loadProject(currentProject.id);
+        } else {
+            alert(result.error || 'Action failed');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function showTrainingGapModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Flag Training Gap</h2>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding: 1.25rem;">
+                <div class="form-group">
+                    <label>Training Requirement Name *</label>
+                    <input type="text" id="training-gap-name" class="form-input" placeholder="e.g., SPC Chart Interpretation">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="training-gap-desc" class="form-input" rows="3" placeholder="What competency gap was identified?"></textarea>
+                </div>
+                <div style="text-align: right; margin-top: 1rem;">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button class="btn btn-primary" onclick="submitTrainingGap(this.closest('.modal'))">Create</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function submitTrainingGap(modal) {
+    const name = document.getElementById('training-gap-name').value.trim();
+    if (!name) { alert('Name is required'); return; }
+
+    try {
+        const resp = await fetch('/api/iso/study-actions/flag-training-gap/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                project_id: currentProject.id,
+                name: name,
+                description: document.getElementById('training-gap-desc').value.trim(),
+            }),
+        });
+        const result = await resp.json();
+        if (resp.ok && result.ok) {
+            modal.remove();
+            await loadProject(currentProject.id);
+        } else {
+            alert(result.error || 'Failed to create training requirement');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function showFMEAFlagModal() {
+    const fmeas = (currentProject._tools || {}).fmeas || [];
+    if (fmeas.length === 0) {
+        alert('No FMEAs linked to this study. Create an FMEA first.');
+        return;
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Flag FMEA for Review</h2>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding: 1.25rem;">
+                <div class="form-group">
+                    <label>Select FMEA</label>
+                    <select id="fmea-flag-select" class="form-input">
+                        ${fmeas.map(f => `<option value="${f.id}">${f.title}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="fmea-flag-notes" class="form-input" rows="3" placeholder="What needs updating?"></textarea>
+                </div>
+                <div style="text-align: right; margin-top: 1rem;">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button class="btn btn-primary" onclick="submitFMEAFlag(this.closest('.modal'))">Flag for Review</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function submitFMEAFlag(modal) {
+    const fmeaId = document.getElementById('fmea-flag-select').value;
+    try {
+        const resp = await fetch('/api/iso/study-actions/flag-fmea-update/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                project_id: currentProject.id,
+                fmea_id: fmeaId,
+                notes: document.getElementById('fmea-flag-notes').value.trim(),
+            }),
+        });
+        const result = await resp.json();
+        if (resp.ok && result.ok) {
+            modal.remove();
+            await loadProject(currentProject.id);
+        } else {
+            alert(result.error || 'Failed to flag FMEA');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function renderStudyActions(actions) {
+    const section = document.getElementById('study-actions-section');
+    const list = document.getElementById('study-actions-list');
+    if (!section || !list) return;
+
+    if (!actions || actions.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = '';
+    const targetUrls = {
+        report: (id) => `/app/report/${id}/`,
+        audit: (id) => `/app/iso/?tab=audits&audit=${id}`,
+        document: (id) => `/app/iso/?tab=documents&doc=${id}`,
+        training: (id) => `/app/iso/?tab=training&req=${id}`,
+        fmea: (id) => `/app/fmea/${id}/`,
+    };
+
+    list.innerHTML = actions.map(a => {
+        const urlFn = targetUrls[a.target_type];
+        const href = urlFn ? urlFn(a.target_id) : '#';
+        return `
+            <div class="action-trail-item" onclick="window.location.href='${href}'" style="cursor:pointer;">
+                <div>
+                    <span class="action-label">${a.action_label}</span>
+                    ${a.notes ? `<span class="action-meta" style="margin-left: 0.5rem;">${truncate(a.notes, 60)}</span>` : ''}
+                </div>
+                <span class="action-meta">${formatDate(a.created_at)}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// =============================================================================
+// Changelog
+// =============================================================================
+
+const ACTION_LABELS = {
+    study_created: 'Study Created',
+    phase_advanced: 'Phase Advanced',
+    hypothesis_added: 'Hypothesis Added',
+    hypothesis_removed: 'Hypothesis Removed',
+    evidence_added: 'Evidence Added',
+    ncr_created: 'NCR Raised',
+    rca_launched: 'RCA Launched',
+    capa_raised: 'CAPA Raised',
+    audit_scheduled: 'Audit Scheduled',
+    doc_update_requested: 'Doc Update Requested',
+    training_gap_flagged: 'Training Gap',
+    fmea_review_flagged: 'FMEA Review',
+    a3_created: 'A3 Created',
+    report_created: 'Report Created',
+    comment: 'Comment',
+};
+
+function renderChangelog(entries) {
+    const list = document.getElementById('changelog-list');
+    if (!list) return;
+
+    // Filter out comments — those render in the comments section
+    const log = entries.filter(e => e.action !== 'comment');
+
+    if (log.length === 0) {
+        list.innerHTML = '<p class="empty-text">No activity recorded yet.</p>';
+        return;
+    }
+
+    // Reverse chronological
+    const sorted = [...log].reverse();
+    list.innerHTML = sorted.map(e => {
+        const ts = e.ts ? new Date(e.ts).toLocaleString() : '';
+        const label = ACTION_LABELS[e.action] || e.action;
+        return `<div class="changelog-entry">
+            <span class="changelog-ts">${ts}</span>
+            <span class="changelog-action">${label}</span>
+            <span class="changelog-detail">${e.detail || ''}</span>
+            ${e.user ? `<span class="changelog-user">${e.user}</span>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// =============================================================================
+// Comments
+// =============================================================================
+
+function renderComments(entries) {
+    const list = document.getElementById('comments-list');
+    if (!list) return;
+
+    const comments = entries.filter(e => e.action === 'comment');
+
+    if (comments.length === 0) {
+        list.innerHTML = '<p class="empty-text">No comments yet.</p>';
+        return;
+    }
+
+    list.innerHTML = comments.map(c => {
+        const ts = c.ts ? new Date(c.ts).toLocaleString() : '';
+        const initials = (c.user || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        return `<div class="comment-entry">
+            <div class="comment-avatar">${initials}</div>
+            <div class="comment-body">
+                <div class="comment-meta">${c.user || 'Unknown'} &middot; ${ts}</div>
+                <div class="comment-text">${c.detail || ''}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function addComment() {
+    const input = document.getElementById('comment-input');
+    const text = input.value.trim();
+    if (!text || !currentProject) return;
+
+    try {
+        const resp = await fetch(`/api/core/projects/${currentProject.id}/comment/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ text }),
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            currentProject._changelog = data.changelog || currentProject._changelog;
+            renderComments(currentProject._changelog);
+            renderChangelog(currentProject._changelog);
+            input.value = '';
+        }
+    } catch (e) {
+        console.error('Failed to post comment:', e);
+    }
+}
+
+// Allow Enter to post comment
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('comment-input');
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addComment(); }
+        });
+    }
+});
 </script>
 {% endblock %}
