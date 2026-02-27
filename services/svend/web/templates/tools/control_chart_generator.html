@@ -1,0 +1,812 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Control Chart Generator — Free Shewhart I-MR & X-bar R Charts{% endblock %}
+{% block meta_description %}Free control chart generator. Upload CSV/XLSX or paste data to create Shewhart I-MR and X-bar R charts with Nelson rules, Cp/Cpk capability, and PNG export. No signup required.{% endblock %}
+{% block meta_keywords %}control chart, Shewhart chart, I-MR chart, X-bar R chart, SPC, statistical process control, Nelson rules, control limits, UCL, LCL, process capability, Cpk{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/control-chart-generator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/control-chart-generator/">
+<meta property="og:title" content="Free Control Chart Generator — Shewhart I-MR & X-bar R">
+<meta property="og:description" content="Create Shewhart control charts from CSV/XLSX data. I-MR and X-bar R with Nelson rules, capability indices, PNG export. Free, no signup.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Control Chart Generator",
+    "url": "https://svend.ai/tools/control-chart-generator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free Shewhart control chart generator. Upload CSV/XLSX or paste data to create I-MR and X-bar R charts with Nelson rules and process capability analysis.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is a control chart?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A control chart (Shewhart chart) is a time-series plot with statistically derived upper and lower control limits (UCL/LCL). It distinguishes common-cause variation (inherent to the process) from special-cause variation (assignable to a specific factor). Points within the limits and showing no patterns indicate a stable, in-control process."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "When should I use I-MR vs X-bar R?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Use I-MR (Individuals and Moving Range) when each observation is a single measurement — batch processes, destructive testing, or slow production rates. Use X-bar R when you can collect rational subgroups of 2-10 measurements taken close together in time, such as consecutive parts off a machine."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What are Nelson rules?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nelson rules are a set of 8 decision rules for detecting non-random patterns in control chart data. Beyond simple limit violations (Rule 1), they detect runs, trends, oscillation, stratification, and mixture patterns. These rules increase the sensitivity of the control chart to special causes."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between control limits and specification limits?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Control limits (UCL/LCL) are calculated from the process data and represent the voice of the process — what the process is actually doing. Specification limits (USL/LSL) are set by engineering requirements and represent the voice of the customer — what the process should be doing. A process can be in statistical control but not meet specifications, or vice versa."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How many data points do I need for a control chart?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A minimum of 20-25 data points (or subgroups for X-bar R) is recommended to establish reliable control limits. Fewer than 20 points may produce unstable limits. For Nelson rules, some patterns require at least 15 consecutive points to detect."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Control Chart Generator", "item": "https://svend.ai/tools/control-chart-generator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.cc-tabs { display: flex; gap: 0; margin-bottom: 0; }
+.cc-tab {
+    padding: 0.65rem 1.5rem; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-bottom: none; cursor: pointer; font-size: 0.9rem; font-weight: 500;
+    border-radius: 8px 8px 0 0; color: var(--text-secondary); transition: background 0.15s, color 0.15s; font-family: inherit;
+}
+.cc-tab.active { background: var(--bg-card); color: var(--accent-primary); border-color: var(--border); }
+.cc-tab:hover:not(.active) { background: var(--bg-tertiary); color: var(--text-primary); }
+.cc-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 1.5rem; }
+.cc-panel.hidden { display: none; }
+
+.file-drop {
+    border: 2px dashed var(--border); border-radius: 8px; padding: 2rem; text-align: center;
+    color: var(--text-secondary); cursor: pointer; transition: border-color 0.2s;
+}
+.file-drop:hover, .file-drop.dragover { border-color: var(--accent-primary); }
+.file-drop input[type="file"] { display: none; }
+.file-info { margin-top: 0.75rem; font-size: 0.85rem; color: var(--accent-primary); font-weight: 500; }
+.col-selector { margin-top: 1rem; display: none; }
+.col-selector select {
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.5rem 0.75rem; color: var(--text-primary); font-family: inherit; font-size: 0.9rem;
+    width: 100%; max-width: 300px;
+}
+
+.violations-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 0.75rem; }
+.violations-table th {
+    background: var(--bg-secondary); padding: 0.4rem 0.6rem; text-align: left; font-weight: 600;
+    font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 2px solid var(--border);
+}
+.violations-table td { padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--border); }
+.violations-table .rule-badge {
+    display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600;
+    background: rgba(192, 57, 43, 0.15); color: var(--danger); font-family: 'JetBrains Mono', monospace;
+}
+
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>Control Chart</strong> Generator</h1>
+    <p>Generate Shewhart I-MR or X-bar R control charts from your data. Upload CSV/XLSX or paste values. Detects Nelson rule violations and calculates process capability.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Chart Settings</h2>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Chart Type</label>
+            <select id="chart-type" onchange="toggleSubgroupSize()" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text-primary);font-family:inherit;font-size:0.9rem;">
+                <option value="imr">I-MR (Individual &amp; Moving Range)</option>
+                <option value="xbar-r">X-bar R (Subgroup Mean &amp; Range)</option>
+            </select>
+        </div>
+        <div class="form-group" id="subgroup-wrap" style="display:none;">
+            <label>Subgroup Size</label>
+            <input type="number" id="subgroup-size" value="5" min="2" max="10">
+        </div>
+        <div class="form-group">
+            <label>USL <span style="color:var(--text-dim)">(optional)</span></label>
+            <input type="number" id="usl" step="any" placeholder="Upper Spec Limit">
+        </div>
+        <div class="form-group">
+            <label>LSL <span style="color:var(--text-dim)">(optional)</span></label>
+            <input type="number" id="lsl" step="any" placeholder="Lower Spec Limit">
+        </div>
+        <div class="form-group">
+            <label>Target <span style="color:var(--text-dim)">(optional)</span></label>
+            <input type="number" id="target" step="any" placeholder="Target Value">
+        </div>
+    </div>
+</div>
+
+<div class="tool-card">
+    <h2>Data</h2>
+    <div class="cc-tabs">
+        <button class="cc-tab active" onclick="ccSwitchTab('paste')">Paste</button>
+        <button class="cc-tab" onclick="ccSwitchTab('upload')">Upload CSV/XLSX</button>
+    </div>
+    <div class="cc-panel" id="cc-panel-paste">
+        <div class="form-group">
+            <label>One value per line, or comma / tab / space separated</label>
+            <textarea id="paste-data" rows="10">25.02
+24.98
+25.01
+24.99
+25.03
+25.00
+24.97
+25.02
+25.01
+24.99
+25.00
+25.04
+24.98
+25.02
+25.01
+24.96
+25.03
+25.00
+25.12
+25.01
+25.02
+24.97
+25.00
+25.05
+24.98
+25.01
+25.00
+24.99
+25.03
+25.02</textarea>
+        </div>
+    </div>
+    <div class="cc-panel hidden" id="cc-panel-upload">
+        <div class="file-drop" id="file-drop" onclick="document.getElementById('file-input').click()">
+            <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.txt" onchange="handleFileUpload(event)">
+            <p>Click to select or drag &amp; drop a CSV / XLSX file</p>
+            <div class="file-info" id="file-info" style="display:none;"></div>
+        </div>
+        <div class="col-selector" id="col-selector">
+            <label>Select measurement column</label>
+            <select id="col-select" onchange="previewColumn()"></select>
+            <div id="col-preview" style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem;"></div>
+        </div>
+    </div>
+    <button class="btn-calculate" onclick="generateChart()" style="margin-top:1rem;">Generate Control Chart</button>
+</div>
+
+<div id="results" style="display:none;">
+    <div class="tool-card">
+        <h2>Control Charts</h2>
+        <div class="chart-container" style="overflow-x:auto;">
+            <canvas id="cc-canvas" width="880" height="520"></canvas>
+        </div>
+        <div style="margin-top:0.75rem;">
+            <button class="btn-calculate" onclick="downloadPNG()" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);">Download PNG</button>
+        </div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Summary</h2>
+        <div class="results-grid" id="cc-summary"></div>
+        <div id="cc-interpretation" class="interpretation" style="display:none;"></div>
+    </div>
+
+    <div id="cap-section" style="display:none;">
+        <div class="tool-card">
+            <h2>Process Capability</h2>
+            <div class="results-grid" id="cap-results"></div>
+        </div>
+    </div>
+
+    <div id="violations-section" style="display:none;">
+        <div class="tool-card">
+            <h2>Nelson Rule Violations</h2>
+            <table class="violations-table" id="violations-table"></table>
+        </div>
+    </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is a Control Chart?</h2>
+    <p>A <strong>control chart</strong> (Shewhart chart) is a time-series plot of process data with statistically calculated <strong>upper and lower control limits</strong> (UCL/LCL) set at &pm;3&sigma; from the center line. Invented by Walter Shewhart at Bell Labs in the 1920s, it remains the foundational tool of <strong>Statistical Process Control (SPC)</strong> &mdash; distinguishing common-cause variation (inherent to the process) from special-cause variation (assignable to a specific factor).</p>
+
+    <h3>I-MR vs. X-bar R</h3>
+    <p>The <strong>I-MR chart</strong> (Individuals and Moving Range) is used when each observation is a single measurement &mdash; batch processes, destructive testing, or slow production. The <strong>X-bar R chart</strong> plots subgroup means and ranges, providing greater sensitivity to process shifts when rational subgroups of 2&ndash;10 consecutive measurements are available.</p>
+
+    <h3>Nelson Rules</h3>
+    <p>Beyond simple limit violations, <strong>Nelson rules</strong> (originally Western Electric rules) detect non-random patterns: runs of 9 on one side, trends of 6, oscillations of 14, zone violations, stratification, and mixture. This calculator checks all 8 rules to help identify special causes before they lead to defects.</p>
+
+    <h3>Control Limits vs. Specification Limits</h3>
+    <p><strong>Control limits</strong> represent the voice of the process &mdash; what it actually does. <strong>Specification limits</strong> represent the voice of the customer &mdash; what it should do. A process can be in control but not capable (producing defects), or capable but out of control (drifting). Both dimensions matter: use control charts for stability, and <a href="/tools/cpk-calculator/" style="color:var(--accent-primary);">capability indices</a> like Cpk to measure how well the stable process meets specs.</p>
+</div>
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Need ongoing SPC monitoring?</h3>
+    <p>Svend's SPC module tracks control charts over time with automatic Nelson rule detection, Gage R&amp;R, and capability trending &mdash; all connected to your quality workflow.</p>
+    <a href="/register/" class="nav-btn">Try Svend Free</a>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is a control chart?</div>
+        <div class="faq-a">A control chart (Shewhart chart) is a time-series plot with statistically derived <strong>upper and lower control limits</strong> (UCL/LCL). It distinguishes common-cause variation (inherent to the process) from special-cause variation (assignable to a specific factor). Points within the limits and showing no patterns indicate a stable, in-control process.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">When should I use I-MR vs X-bar R?</div>
+        <div class="faq-a">Use <strong>I-MR</strong> when each observation is a single measurement — batch processes, destructive testing, or slow production. Use <strong>X-bar R</strong> when you can collect rational subgroups of 2&ndash;10 measurements taken close together in time, such as consecutive parts from a machine.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What are Nelson rules?</div>
+        <div class="faq-a">Nelson rules are a set of <strong>8 decision rules</strong> for detecting non-random patterns in control chart data. Beyond limit violations (Rule 1), they detect runs, trends, oscillation, stratification, and mixture patterns, increasing the sensitivity of the chart to special causes.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between control limits and specification limits?</div>
+        <div class="faq-a"><strong>Control limits</strong> (UCL/LCL) are calculated from the data and represent what the process is actually doing. <strong>Specification limits</strong> (USL/LSL) are set by engineering requirements and represent what the process should do. A process can be in control but not capable, or capable but out of control.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How many data points do I need for a control chart?</div>
+        <div class="faq-a">A minimum of <strong>20&ndash;25 data points</strong> (or subgroups for X-bar R) is recommended to establish reliable control limits. Fewer than 20 points may produce unstable limits. Some Nelson rules require at least 15 consecutive points to detect.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script>
+// ===================================================================
+// Control chart constants (from spc.py)
+// ===================================================================
+const CC = {
+    2:  {A2:1.880, D3:0.000, D4:3.267, d2:1.128},
+    3:  {A2:1.023, D3:0.000, D4:2.574, d2:1.693},
+    4:  {A2:0.729, D3:0.000, D4:2.282, d2:2.059},
+    5:  {A2:0.577, D3:0.000, D4:2.114, d2:2.326},
+    6:  {A2:0.483, D3:0.000, D4:2.004, d2:2.534},
+    7:  {A2:0.419, D3:0.076, D4:1.924, d2:2.704},
+    8:  {A2:0.373, D3:0.136, D4:1.864, d2:2.847},
+    9:  {A2:0.337, D3:0.184, D4:1.816, d2:2.970},
+    10: {A2:0.308, D3:0.223, D4:1.777, d2:3.078},
+};
+const IMR = { E2: 2.660, D3: 0.000, D4: 3.267, d2: 1.128 };
+
+// ===================================================================
+// Tab switching
+// ===================================================================
+function ccSwitchTab(tab) {
+    document.querySelectorAll('.cc-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.cc-panel').forEach(p => p.classList.add('hidden'));
+    const idx = { paste: 0, upload: 1 };
+    document.querySelectorAll('.cc-tab')[idx[tab]].classList.add('active');
+    document.getElementById('cc-panel-' + tab).classList.remove('hidden');
+}
+
+function toggleSubgroupSize() {
+    document.getElementById('subgroup-wrap').style.display =
+        document.getElementById('chart-type').value === 'xbar-r' ? '' : 'none';
+}
+
+// ===================================================================
+// File upload handling
+// ===================================================================
+let uploadedRows = null;
+
+const fileDrop = document.getElementById('file-drop');
+fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.classList.add('dragover'); });
+fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('dragover'));
+fileDrop.addEventListener('drop', e => {
+    e.preventDefault(); fileDrop.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+        document.getElementById('file-input').files = e.dataTransfer.files;
+        handleFileUpload({ target: { files: e.dataTransfer.files } });
+    }
+});
+
+function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('file-info').style.display = '';
+    document.getElementById('file-info').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv' || ext === 'txt') {
+        const reader = new FileReader();
+        reader.onload = ev => parseFileRows(ev.target.result.trim().split('\n').map(l => {
+            const delim = l.includes('\t') ? '\t' : l.includes(';') ? ';' : ',';
+            return l.split(delim).map(s => s.trim());
+        }));
+        reader.readAsText(file);
+    } else if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            if (typeof XLSX === 'undefined') { alert('XLSX library still loading. Please try again.'); return; }
+            const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            parseFileRows(XLSX.utils.sheet_to_json(ws, { header: 1 }));
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        alert('Unsupported file type. Use CSV, XLSX, or XLS.');
+    }
+}
+
+function parseFileRows(rows) {
+    uploadedRows = rows;
+    const headers = rows[0] || [];
+    const sel = document.getElementById('col-select');
+    sel.innerHTML = '<option value="">-- Select column --</option>';
+    headers.forEach((h, i) => { sel.innerHTML += '<option value="' + i + '">' + (h || 'Column ' + (i + 1)) + '</option>'; });
+    document.getElementById('col-selector').style.display = '';
+
+    // Auto-select first numeric column
+    for (let i = 0; i < headers.length; i++) {
+        if (rows.length > 1 && !isNaN(parseFloat(rows[1][i]))) { sel.value = i; previewColumn(); break; }
+    }
+}
+
+function previewColumn() {
+    const idx = parseInt(document.getElementById('col-select').value);
+    if (isNaN(idx) || !uploadedRows) { document.getElementById('col-preview').textContent = ''; return; }
+    const vals = uploadedRows.slice(1, 6).map(r => r[idx]).filter(v => v !== undefined);
+    document.getElementById('col-preview').textContent = 'Preview: ' + vals.join(', ') + (uploadedRows.length > 6 ? ', ...' : '');
+}
+
+function getUploadData() {
+    const idx = parseInt(document.getElementById('col-select').value);
+    if (isNaN(idx) || !uploadedRows) return [];
+    return uploadedRows.slice(1).map(r => parseFloat(r[idx])).filter(v => !isNaN(v));
+}
+
+// ===================================================================
+// Parse pasted data
+// ===================================================================
+function parsePasteData() {
+    const raw = (document.getElementById('paste-data').value || '').trim();
+    if (!raw) return [];
+    return raw.split(/[\s,;\t\n]+/).map(s => parseFloat(s.trim())).filter(v => !isNaN(v));
+}
+
+// ===================================================================
+// Normal CDF (for capability PPM)
+// ===================================================================
+function normalCDF(x) {
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.SQRT2;
+    const t = 1.0 / (1.0 + 0.3275911 * x);
+    const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1) * t * Math.exp(-x*x);
+    return 0.5 * (1 + sign * y);
+}
+
+// ===================================================================
+// Nelson rules (rules 2-8, rule 1 = OOC beyond limits)
+// ===================================================================
+function checkNelsonRules(data, center, sigma) {
+    const violations = [];
+    const n = data.length;
+    if (n < 2 || sigma <= 0) return violations;
+    const z = data.map(x => (x - center) / sigma);
+
+    // Rule 2: 9 in a row same side
+    if (n >= 9) for (let i = 8; i < n; i++) {
+        const w = z.slice(i - 8, i + 1);
+        if (w.every(v => v > 0)) violations.push({ rule: 2, idx: range(i - 8, i + 1), desc: '9 points above center' });
+        else if (w.every(v => v < 0)) violations.push({ rule: 2, idx: range(i - 8, i + 1), desc: '9 points below center' });
+    }
+    // Rule 3: 6 in a row increasing or decreasing
+    if (n >= 6) for (let i = 5; i < n; i++) {
+        const w = data.slice(i - 5, i + 1);
+        if (w.every((v, j) => j === 0 || v > w[j - 1])) violations.push({ rule: 3, idx: range(i - 5, i + 1), desc: '6 points increasing' });
+        else if (w.every((v, j) => j === 0 || v < w[j - 1])) violations.push({ rule: 3, idx: range(i - 5, i + 1), desc: '6 points decreasing' });
+    }
+    // Rule 4: 14 alternating up and down
+    if (n >= 14) for (let i = 13; i < n; i++) {
+        const w = data.slice(i - 13, i + 1);
+        let alt = true;
+        for (let j = 0; j < 13; j++) { if (j % 2 === 0 ? w[j] >= w[j + 1] : w[j] <= w[j + 1]) { alt = false; break; } }
+        if (!alt) { alt = true; for (let j = 0; j < 13; j++) { if (j % 2 === 0 ? w[j] <= w[j + 1] : w[j] >= w[j + 1]) { alt = false; break; } } }
+        if (alt) violations.push({ rule: 4, idx: range(i - 13, i + 1), desc: '14 points alternating' });
+    }
+    // Rule 5: 2 of 3 beyond 2 sigma same side
+    if (n >= 3) for (let i = 2; i < n; i++) {
+        const w = z.slice(i - 2, i + 1);
+        if (w.filter(v => v > 2).length >= 2) violations.push({ rule: 5, idx: range(i - 2, i + 1), desc: '2 of 3 beyond +2\u03c3' });
+        if (w.filter(v => v < -2).length >= 2) violations.push({ rule: 5, idx: range(i - 2, i + 1), desc: '2 of 3 beyond -2\u03c3' });
+    }
+    // Rule 6: 4 of 5 beyond 1 sigma same side
+    if (n >= 5) for (let i = 4; i < n; i++) {
+        const w = z.slice(i - 4, i + 1);
+        if (w.filter(v => v > 1).length >= 4) violations.push({ rule: 6, idx: range(i - 4, i + 1), desc: '4 of 5 beyond +1\u03c3' });
+        if (w.filter(v => v < -1).length >= 4) violations.push({ rule: 6, idx: range(i - 4, i + 1), desc: '4 of 5 beyond -1\u03c3' });
+    }
+    // Rule 7: 15 within 1 sigma (stratification)
+    if (n >= 15) for (let i = 14; i < n; i++) {
+        const w = z.slice(i - 14, i + 1);
+        if (w.every(v => Math.abs(v) < 1)) violations.push({ rule: 7, idx: range(i - 14, i + 1), desc: '15 points within \u00b11\u03c3' });
+    }
+    // Rule 8: 8 beyond 1 sigma both sides (mixture)
+    if (n >= 8) for (let i = 7; i < n; i++) {
+        const w = z.slice(i - 7, i + 1);
+        if (w.every(v => Math.abs(v) > 1) && w.some(v => v > 1) && w.some(v => v < -1))
+            violations.push({ rule: 8, idx: range(i - 7, i + 1), desc: '8 points beyond \u00b11\u03c3 (mixture)' });
+    }
+
+    // Deduplicate
+    const seen = new Set();
+    return violations.filter(v => { const k = v.rule + ':' + v.idx.join(','); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
+function range(a, b) { const r = []; for (let i = a; i < b; i++) r.push(i); return r; }
+
+// ===================================================================
+// Main chart generation
+// ===================================================================
+function generateChart() {
+    // Get data from active tab
+    const uploadPanel = document.getElementById('cc-panel-upload');
+    let data;
+    if (!uploadPanel.classList.contains('hidden')) {
+        data = getUploadData();
+        if (!data.length) { alert('Upload a file and select a measurement column.'); return; }
+    } else {
+        data = parsePasteData();
+        if (data.length < 2) { alert('Need at least 2 data points.'); return; }
+    }
+
+    const chartType = document.getElementById('chart-type').value;
+    const uslVal = parseFloat(document.getElementById('usl').value);
+    const lslVal = parseFloat(document.getElementById('lsl').value);
+    const targetVal = parseFloat(document.getElementById('target').value);
+    const hasUSL = !isNaN(uslVal), hasLSL = !isNaN(lslVal), hasTarget = !isNaN(targetVal);
+    const hasBothSpecs = hasUSL && hasLSL;
+
+    let primary, secondary, oocPrimary, oocSecondary, nelsonV, sigma, nUsed;
+
+    if (chartType === 'imr') {
+        // I-MR Chart
+        const n = data.length;
+        const mr = []; for (let i = 1; i < n; i++) mr.push(Math.abs(data[i] - data[i - 1]));
+        const xBar = data.reduce((s, v) => s + v, 0) / n;
+        const mrBar = mr.reduce((s, v) => s + v, 0) / mr.length;
+        sigma = mrBar / IMR.d2;
+
+        const iUCL = xBar + 3 * sigma, iLCL = xBar - 3 * sigma;
+        const mrUCL = IMR.D4 * mrBar, mrLCL = IMR.D3 * mrBar;
+
+        primary = { data: data, cl: xBar, ucl: iUCL, lcl: iLCL, title: 'I Chart (Individuals)', yLabel: 'Value' };
+        secondary = { data: mr, cl: mrBar, ucl: mrUCL, lcl: mrLCL, title: 'MR Chart (Moving Range)', yLabel: 'Moving Range', offset: 1 };
+
+        oocPrimary = new Set();
+        data.forEach((v, i) => { if (v > iUCL || v < iLCL) oocPrimary.add(i); });
+        oocSecondary = new Set();
+        mr.forEach((v, i) => { if (v > mrUCL) oocSecondary.add(i); });
+
+        nelsonV = checkNelsonRules(data, xBar, sigma);
+        nUsed = n;
+    } else {
+        // X-bar R Chart
+        const sgSize = Math.max(2, Math.min(10, parseInt(document.getElementById('subgroup-size').value) || 5));
+        const nSG = Math.floor(data.length / sgSize);
+        if (nSG < 2) { alert('Need at least 2 complete subgroups. You have ' + data.length + ' points with subgroup size ' + sgSize + '.'); return; }
+        nUsed = nSG * sgSize;
+
+        const subgroups = [];
+        for (let i = 0; i < nSG; i++) subgroups.push(data.slice(i * sgSize, (i + 1) * sgSize));
+        const sgMeans = subgroups.map(sg => sg.reduce((s, v) => s + v, 0) / sg.length);
+        const sgRanges = subgroups.map(sg => Math.max(...sg) - Math.min(...sg));
+
+        const xBarBar = sgMeans.reduce((s, v) => s + v, 0) / nSG;
+        const rBar = sgRanges.reduce((s, v) => s + v, 0) / nSG;
+        const c = CC[sgSize];
+        sigma = rBar / c.d2;
+
+        const xUCL = xBarBar + c.A2 * rBar, xLCL = xBarBar - c.A2 * rBar;
+        const rUCL = c.D4 * rBar, rLCL = c.D3 * rBar;
+
+        primary = { data: sgMeans, cl: xBarBar, ucl: xUCL, lcl: xLCL, title: 'X-bar Chart (Subgroup Means, n=' + sgSize + ')', yLabel: 'Mean' };
+        secondary = { data: sgRanges, cl: rBar, ucl: rUCL, lcl: rLCL, title: 'R Chart (Subgroup Range)', yLabel: 'Range', offset: 0 };
+
+        oocPrimary = new Set();
+        sgMeans.forEach((v, i) => { if (v > xUCL || v < xLCL) oocPrimary.add(i); });
+        oocSecondary = new Set();
+        sgRanges.forEach((v, i) => { if (v > rUCL || v < rLCL) oocSecondary.add(i); });
+
+        const sigmaXbar = sigma / Math.sqrt(sgSize);
+        nelsonV = checkNelsonRules(sgMeans, xBarBar, sigmaXbar);
+        nUsed = nSG;
+    }
+
+    // Nelson rule violation indices (for chart marking)
+    const nelsonIdx = new Set();
+    nelsonV.forEach(v => v.idx.forEach(i => nelsonIdx.add(i)));
+
+    document.getElementById('results').style.display = '';
+
+    // Draw charts
+    drawDualChart(primary, secondary, oocPrimary, oocSecondary, nelsonIdx,
+        hasUSL ? uslVal : null, hasLSL ? lslVal : null, hasTarget ? targetVal : null);
+
+    // Summary
+    const totalOOC = oocPrimary.size + oocSecondary.size;
+    const inControl = totalOOC === 0 && nelsonV.length === 0;
+    const statusClass = inControl ? 'result-good' : 'result-bad';
+    const statusText = inControl ? 'In Control' : 'Out of Control';
+
+    document.getElementById('cc-summary').innerHTML =
+        '<div class="result-item ' + statusClass + '"><div class="label">Status</div><div class="value">' + statusText + '</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Data Points</div><div class="value">' + (chartType === 'imr' ? data.length : nUsed + ' subgroups') + '</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Center Line</div><div class="value">' + primary.cl.toFixed(4) + '</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">UCL / LCL</div><div class="value">' + primary.ucl.toFixed(4) + ' / ' + primary.lcl.toFixed(4) + '</div></div>' +
+        '<div class="result-item ' + (totalOOC > 0 ? 'result-bad' : 'result-good') + '"><div class="label">OOC Points</div><div class="value">' + totalOOC + '</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">\u03c3 (est.)</div><div class="value">' + sigma.toFixed(4) + '</div></div>';
+
+    const interp = document.getElementById('cc-interpretation');
+    interp.style.display = '';
+    let msg = '<strong>' + statusText + '.</strong> ';
+    if (inControl) msg += 'No points beyond control limits and no Nelson rule violations detected. The process appears stable.';
+    else {
+        if (totalOOC > 0) msg += totalOOC + ' point(s) beyond control limits. ';
+        if (nelsonV.length > 0) msg += nelsonV.length + ' Nelson rule violation(s) detected. ';
+        msg += 'Investigate special causes before using this data for capability analysis.';
+    }
+    interp.innerHTML = msg;
+
+    // Capability (if both specs provided)
+    const capSection = document.getElementById('cap-section');
+    if (hasBothSpecs && sigma > 0) {
+        capSection.style.display = '';
+        const flatData = chartType === 'imr' ? data : data.slice(0, nUsed * (parseInt(document.getElementById('subgroup-size').value) || 5));
+        const mean = flatData.reduce((s, v) => s + v, 0) / flatData.length;
+        const sigmaOverall = Math.sqrt(flatData.reduce((s, v) => s + (v - mean) ** 2, 0) / (flatData.length - 1));
+        const specW = uslVal - lslVal;
+
+        const cp = specW / (6 * sigma);
+        const cpu = (uslVal - mean) / (3 * sigma);
+        const cpl = (mean - lslVal) / (3 * sigma);
+        const cpk = Math.min(cpu, cpl);
+        const pp = specW / (6 * sigmaOverall);
+        const ppu = (uslVal - mean) / (3 * sigmaOverall);
+        const ppl = (mean - lslVal) / (3 * sigmaOverall);
+        const ppk = Math.min(ppu, ppl);
+        const sigmaLevel = 3 * cpk;
+        const zU = (uslVal - mean) / sigmaOverall;
+        const zL = (mean - lslVal) / sigmaOverall;
+        const ppm = ((1 - normalCDF(zU)) + normalCDF(-zL)) * 1e6;
+
+        const cpkClass = cpk >= 1.33 ? 'result-good' : cpk >= 1.0 ? 'result-warn' : 'result-bad';
+        document.getElementById('cap-results').innerHTML =
+            '<div class="result-item result-neutral"><div class="label">Cp</div><div class="value">' + cp.toFixed(3) + '</div><div class="sub">Potential</div></div>' +
+            '<div class="result-item ' + cpkClass + '"><div class="label">Cpk</div><div class="value">' + cpk.toFixed(3) + '</div><div class="sub">Short-term</div></div>' +
+            '<div class="result-item result-neutral"><div class="label">Pp</div><div class="value">' + pp.toFixed(3) + '</div><div class="sub">Overall</div></div>' +
+            '<div class="result-item result-neutral"><div class="label">Ppk</div><div class="value">' + ppk.toFixed(3) + '</div><div class="sub">Long-term</div></div>' +
+            '<div class="result-item result-neutral"><div class="label">Sigma Level</div><div class="value">' + sigmaLevel.toFixed(2) + '</div></div>' +
+            '<div class="result-item result-neutral"><div class="label">PPM (est.)</div><div class="value">' + ppm.toFixed(0) + '</div></div>';
+    } else {
+        capSection.style.display = 'none';
+    }
+
+    // Nelson violations table
+    const vSection = document.getElementById('violations-section');
+    if (nelsonV.length > 0) {
+        vSection.style.display = '';
+        let vt = '<thead><tr><th>Rule</th><th>Description</th><th>Points</th></tr></thead><tbody>';
+        nelsonV.forEach(v => {
+            const pts = v.idx.map(i => i + 1).join(', ');
+            vt += '<tr><td><span class="rule-badge">' + v.rule + '</span></td><td>' + v.desc + '</td><td style="font-family:JetBrains Mono,monospace;font-size:0.8rem;">' + pts + '</td></tr>';
+        });
+        vt += '</tbody>';
+        document.getElementById('violations-table').innerHTML = vt;
+    } else {
+        vSection.style.display = 'none';
+    }
+}
+
+// ===================================================================
+// Canvas: draw dual stacked control chart
+// ===================================================================
+function drawDualChart(primary, secondary, oocP, oocS, nelsonIdx, usl, lsl, target) {
+    const canvas = document.getElementById('cc-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const pad = { left: 65, right: 20, top: 10 };
+    const chartH = 210, gap = 30;
+    const plotW = W - pad.left - pad.right;
+
+    // Draw primary chart (top)
+    drawSingleChart(ctx, pad.left, pad.top, plotW, chartH, primary, oocP, nelsonIdx, usl, lsl, target);
+    // Draw secondary chart (bottom)
+    drawSingleChart(ctx, pad.left, pad.top + chartH + gap, plotW, chartH, secondary, oocS, new Set(), null, null, null);
+}
+
+function drawSingleChart(ctx, x0, y0, plotW, plotH, chart, oocSet, nelsonSet, usl, lsl, target) {
+    const data = chart.data;
+    const n = data.length;
+    if (n < 1) return;
+    const offset = chart.offset || 0; // MR chart starts at index 1
+
+    // Title
+    ctx.fillStyle = '#e8efe8';
+    ctx.font = '12px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(chart.title, x0, y0 + 14);
+
+    const chartTop = y0 + 24, chartBot = y0 + plotH - 10;
+    const chartH = chartBot - chartTop;
+
+    // Y range: include CL, UCL, LCL, data min/max, and optional USL/LSL
+    let yMin = Math.min(chart.lcl, ...data);
+    let yMax = Math.max(chart.ucl, ...data);
+    if (usl !== null) yMax = Math.max(yMax, usl);
+    if (lsl !== null) yMin = Math.min(yMin, lsl);
+    if (target !== null) { yMax = Math.max(yMax, target); yMin = Math.min(yMin, target); }
+    const yPad = (yMax - yMin) * 0.12 || 0.1;
+    yMin -= yPad; yMax += yPad;
+
+    function yVal(v) { return chartTop + chartH - ((v - yMin) / (yMax - yMin)) * chartH; }
+    function xVal(i) { return x0 + (i / Math.max(n - 1, 1)) * plotW; }
+
+    // Grid lines (4 horizontal)
+    ctx.strokeStyle = 'rgba(26, 42, 26, 0.25)';
+    ctx.lineWidth = 1;
+    const ySteps = 4;
+    for (let i = 1; i < ySteps; i++) {
+        const v = yMin + (yMax - yMin) * i / ySteps;
+        const y = yVal(v);
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + plotW, y); ctx.stroke();
+    }
+
+    // USL / LSL (dotted red, distinct from UCL/LCL)
+    if (usl !== null) {
+        ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+        const y = yVal(usl);
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + plotW, y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#c0392b'; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'right';
+        ctx.fillText('USL', x0 - 6, y + 4);
+    }
+    if (lsl !== null) {
+        ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+        const y = yVal(lsl);
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + plotW, y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#c0392b'; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'right';
+        ctx.fillText('LSL', x0 - 6, y + 4);
+    }
+
+    // Target (yellow dashed)
+    if (target !== null) {
+        ctx.strokeStyle = '#e8c547'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+        const y = yVal(target);
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + plotW, y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#e8c547'; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'right';
+        ctx.fillText('TGT', x0 - 6, y + 4);
+    }
+
+    // UCL / LCL (red dashed)
+    ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2; ctx.setLineDash([8, 4]);
+    let yUCL = yVal(chart.ucl);
+    ctx.beginPath(); ctx.moveTo(x0, yUCL); ctx.lineTo(x0 + plotW, yUCL); ctx.stroke();
+    let yLCL = yVal(chart.lcl);
+    ctx.beginPath(); ctx.moveTo(x0, yLCL); ctx.lineTo(x0 + plotW, yLCL); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#c0392b'; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'right';
+    ctx.fillText('UCL ' + chart.ucl.toFixed(3), x0 - 6, yUCL + 4);
+    ctx.fillText('LCL ' + chart.lcl.toFixed(3), x0 - 6, yLCL + 4);
+
+    // Center line (green solid)
+    ctx.strokeStyle = '#4a9f6e'; ctx.lineWidth = 2;
+    const yCL = yVal(chart.cl);
+    ctx.beginPath(); ctx.moveTo(x0, yCL); ctx.lineTo(x0 + plotW, yCL); ctx.stroke();
+    ctx.fillStyle = '#4a9f6e'; ctx.textAlign = 'right';
+    ctx.fillText('CL ' + chart.cl.toFixed(3), x0 - 6, yCL + 4);
+
+    // Data line
+    ctx.strokeStyle = '#e8efe8'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+        const px = xVal(i), py = yVal(data[i]);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Data dots
+    for (let i = 0; i < n; i++) {
+        const px = xVal(i), py = yVal(data[i]);
+        const isOOC = oocSet.has(i + offset);
+        const isNelson = nelsonSet.has(i + offset);
+        ctx.beginPath(); ctx.arc(px, py, isOOC ? 5 : 3, 0, 2 * Math.PI);
+        if (isOOC) { ctx.fillStyle = '#c0392b'; ctx.fill(); ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2; ctx.stroke(); }
+        else if (isNelson) { ctx.fillStyle = '#e8c547'; ctx.fill(); }
+        else { ctx.fillStyle = '#e8efe8'; ctx.fill(); }
+    }
+
+    // X-axis labels (every ~5th point)
+    ctx.fillStyle = '#7a8f7a'; ctx.font = '9px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+    const labelStep = Math.max(1, Math.ceil(n / 20));
+    for (let i = 0; i < n; i += labelStep) {
+        ctx.fillText(String(i + 1 + offset), xVal(i), chartBot + 12);
+    }
+
+    // Y-axis labels
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= ySteps; i++) {
+        const v = yMin + (yMax - yMin) * i / ySteps;
+        ctx.fillText(v.toFixed(2), x0 - 6, yVal(v) + 4);
+    }
+}
+
+// ===================================================================
+// Download PNG
+// ===================================================================
+function downloadPNG() {
+    const canvas = document.getElementById('cc-canvas');
+    const link = document.createElement('a');
+    link.download = 'control_chart.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+// ===================================================================
+// Init
+// ===================================================================
+window.addEventListener('DOMContentLoaded', () => { generateChart(); });
+</script>
+{% endblock %}

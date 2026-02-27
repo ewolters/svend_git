@@ -1,7 +1,7 @@
 {% extends "tool_base.html" %}
 
 {% block title %}Takt Time Calculator — Free Lean Manufacturing Calculator{% endblock %}
-{% block meta_description %}Free takt time calculator. Enter available production time and customer demand to calculate takt time, required operators, and line balance efficiency. Includes cycle time comparison.{% endblock %}
+{% block meta_description %}Free takt time calculator. Enter available time and customer demand to calculate takt time, line balance efficiency, and identify bottlenecks. No signup required.{% endblock %}
 {% block meta_keywords %}takt time calculator, takt time, lean manufacturing, cycle time, line balance, operator balance, production planning, demand rate{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://svend.ai/tools/takt-time-calculator/">{% endblock %}
 
@@ -49,7 +49,34 @@
                 "@type": "Answer",
                 "text": "Takt time is demand-driven — it's the pace you need to produce at. Cycle time is supply-driven — it's how long your process actually takes. If cycle time > takt time, you can't meet demand. If cycle time < takt time, you have capacity to spare."
             }
+        },
+        {
+            "@type": "Question",
+            "name": "What is line balance efficiency?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Line balance efficiency = (sum of all cycle times) / (number of stations x bottleneck cycle time) x 100%. It measures how evenly work is distributed. 100% means perfect balance; lower values mean some operators are idle while others are overloaded."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I reduce takt time?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Takt time is driven by demand and available time. To reduce it: increase available production time (more shifts, less downtime, shorter breaks) or reduce demand (batch orders, level scheduling). If you can't change takt time, you must reduce cycle times to match."
+            }
         }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Takt Time Calculator", "item": "https://svend.ai/tools/takt-time-calculator/" }
     ]
 }
 </script>
@@ -78,6 +105,11 @@
     font-size: 1.1rem; padding: 0.25rem;
 }
 .btn-remove:hover { color: var(--danger); }
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
 .bar-chart { margin-top: 1rem; }
 .bar-row {
     display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;
@@ -173,6 +205,25 @@
         <h2>Common Conversions</h2>
         <table class="ref-table" id="conversions-table"></table>
     </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is Takt Time?</h2>
+    <p><strong>Takt time</strong> is the heartbeat of lean manufacturing. Derived from the German word <em>Taktzeit</em> (clock cycle), it represents the maximum time you can spend producing one unit and still meet customer demand. The formula is simple: <strong>Takt Time = Available Production Time &divide; Customer Demand</strong>.</p>
+
+    <h3>Takt Time vs. Cycle Time vs. Lead Time</h3>
+    <p>These three timing metrics are often confused. <strong>Takt time</strong> is demand-driven — it's the pace you <em>need</em> to produce at. <strong>Cycle time</strong> is supply-driven — it's how long a station <em>actually takes</em> to complete one unit. <strong>Lead time</strong> is the total elapsed time from order to delivery, including queue time, processing, and transport. When cycle time exceeds takt time at any station, you have a bottleneck.</p>
+
+    <h3>Line Balancing</h3>
+    <p>The goal of <strong>line balancing</strong> is to distribute work across stations so that each station's cycle time is as close to takt time as possible without exceeding it. Perfect balance (100% efficiency) means every operator is fully utilized. In practice, 85-95% efficiency is excellent. Imbalance shows up as idle time at faster stations and overtime or backlog at slower ones.</p>
+
+    <h3>Using Takt Time in Practice</h3>
+    <ul style="color:var(--text-secondary); line-height:1.8; padding-left:1.5rem;">
+        <li><strong>Production boards</strong> — display takt time prominently so operators know the target pace</li>
+        <li><strong>Staffing decisions</strong> — minimum operators = total cycle time &divide; takt time (round up)</li>
+        <li><strong>Capacity planning</strong> — if demand grows, takt time shrinks; know your breakpoints</li>
+        <li><strong>Continuous improvement</strong> — use <a href="/tools/oee-calculator/" style="color:var(--accent-primary);">OEE tracking</a> alongside takt to identify where time is lost</li>
+    </ul>
 </div>
 {% endblock %}
 

@@ -65,7 +65,26 @@
                 "@type": "Answer",
                 "text": "Cpk >= 1.33 is the minimum for a capable process (4-sigma). Cpk >= 1.67 is preferred for critical characteristics. Cpk >= 2.0 represents Six Sigma performance. Cpk < 1.0 means the process is not capable and is producing defects outside specification."
             }
+        },
+        {
+            "@type": "Question",
+            "name": "How many data points do I need?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "At minimum 25-30 measurements for a reasonable estimate. For production capability studies, AIAG recommends at least 125 measurements (25 subgroups of 5). More data gives more confidence in the results."
+            }
         }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Cpk Calculator", "item": "https://svend.ai/tools/cpk-calculator/" }
     ]
 }
 </script>
@@ -79,6 +98,11 @@
     position: absolute; top: 8px; font-size: 0.75rem; color: var(--text-dim);
     font-family: 'JetBrains Mono', monospace;
 }
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
 {% endblock %}
 
 {% block content %}
@@ -133,6 +157,26 @@
         <h2>Summary Statistics</h2>
         <div class="results-grid" id="stats-grid"></div>
     </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is Process Capability (Cpk)?</h2>
+    <p><strong>Process capability analysis</strong> answers a fundamental question in manufacturing: can my process consistently produce parts within specification? The <strong>Cpk index</strong> quantifies this by comparing the spread of your process to the width of the specification limits, while penalizing any shift away from center.</p>
+
+    <h3>Cp vs. Cpk — Potential vs. Actual Capability</h3>
+    <p><strong>Cp</strong> measures potential: it compares the spec width to the process spread (6&sigma;), ignoring centering. <strong>Cpk</strong> measures actual capability by also accounting for how far the process mean drifts from the spec midpoint. A high Cp with a low Cpk tells you the spread is fine but the process is off-center — often the cheapest problem to fix.</p>
+
+    <h3>Short-Term vs. Long-Term: Cpk vs. Ppk</h3>
+    <p><strong>Cpk</strong> uses the <em>within-subgroup</em> standard deviation (estimated from the average range or average standard deviation of rational subgroups), representing short-term or inherent process variation. <strong>Ppk</strong> uses the <em>overall</em> standard deviation of all data points, capturing both within-group and between-group variation. When Cpk and Ppk diverge significantly, the process is likely drifting or shifting over time — a signal to investigate with <a href="/app/spc/" style="color:var(--accent-primary);">control charts</a>.</p>
+
+    <h3>Industry Benchmarks</h3>
+    <p>Common Cpk requirements vary by industry and criticality:</p>
+    <ul style="color:var(--text-secondary); line-height:1.8; padding-left:1.5rem;">
+        <li><strong>Cpk &ge; 1.00</strong> (3&sigma;) — Minimum for a marginally capable process (~2,700 PPM defective)</li>
+        <li><strong>Cpk &ge; 1.33</strong> (4&sigma;) — Standard requirement for most manufacturing (~63 PPM)</li>
+        <li><strong>Cpk &ge; 1.67</strong> (5&sigma;) — Required for safety-critical and automotive (IATF 16949, PPAP)</li>
+        <li><strong>Cpk &ge; 2.00</strong> (6&sigma;) — World-class, required for aerospace and medical devices</li>
+    </ul>
 </div>
 {% endblock %}
 

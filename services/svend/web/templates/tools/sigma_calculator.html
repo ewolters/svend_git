@@ -49,7 +49,34 @@
                 "@type": "Answer",
                 "text": "The 1.5 sigma shift is a convention in Six Sigma that accounts for long-term process drift. It assumes that over time, a process mean will shift by 1.5 standard deviations from its short-term center. So a '6 sigma' process with 1.5 shift actually performs at 4.5 sigma long-term, yielding 3.4 DPMO."
             }
+        },
+        {
+            "@type": "Question",
+            "name": "How is sigma level related to Cpk?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sigma level = 3 x Cpk (approximately). So Cpk = 1.0 is about 3 sigma, Cpk = 1.33 is about 4 sigma, Cpk = 1.67 is about 5 sigma, and Cpk = 2.0 is about 6 sigma. This assumes a normal distribution and that the process is centered between spec limits."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What sigma level should I target?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "It depends on your industry. 3 sigma (66,807 DPMO) is a common starting point. 4 sigma (6,210 DPMO) is considered good. 5 sigma (233 DPMO) is very good. 6 sigma (3.4 DPMO) is the gold standard, but may not be cost-effective for all processes."
+            }
         }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Sigma Level Calculator", "item": "https://svend.ai/tools/sigma-calculator/" }
     ]
 }
 </script>
@@ -76,6 +103,11 @@
     .converter-modes { grid-template-columns: 1fr; }
     .arrow-divider { transform: rotate(90deg); padding: 0.5rem 0; }
 }
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
 {% endblock %}
 
 {% block content %}
@@ -125,6 +157,20 @@
         <table class="ref-table" id="ref-table"></table>
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem;">* With 1.5&sigma; long-term shift applied (industry standard).</div>
     </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is Sigma Level?</h2>
+    <p>In Six Sigma methodology, <strong>sigma level</strong> (or process sigma) quantifies how many standard deviations fit between the process mean and the nearest specification limit. A higher sigma level means fewer defects. The name "Six Sigma" comes from the goal of fitting six standard deviations within the spec window.</p>
+
+    <h3>DPMO, Yield, and the Sigma Scale</h3>
+    <p><strong>DPMO</strong> (Defects Per Million Opportunities) is the universal currency for comparing process performance. A 3-sigma process produces about 66,807 DPMO (93.3% yield). A 6-sigma process produces just 3.4 DPMO (99.99966% yield). The relationship between sigma and DPMO comes from the area under the normal distribution curve beyond the specification limit.</p>
+
+    <h3>The 1.5 Sigma Shift</h3>
+    <p>The <strong>1.5&sigma; shift</strong> is a practical adjustment built into Six Sigma methodology. Short-term studies often show better performance than long-term reality because processes drift over time due to tool wear, material batch variation, operator changes, and environmental factors. The convention assumes the process mean shifts by 1.5 standard deviations from its short-term center, so a "6 sigma" process actually performs at 4.5 sigma long-term — yielding the famous 3.4 DPMO figure.</p>
+
+    <h3>Sigma Level and Cpk</h3>
+    <p>Sigma level relates directly to the <a href="/tools/cpk-calculator/" style="color:var(--accent-primary);">process capability index (Cpk)</a>: <strong>Sigma &asymp; 3 &times; Cpk</strong>. This means Cpk = 1.33 corresponds to about 4 sigma, Cpk = 1.67 to 5 sigma, and Cpk = 2.0 to 6 sigma. Both metrics assume a normally distributed process, which is why capability studies should always check normality before drawing conclusions.</p>
 </div>
 {% endblock %}
 

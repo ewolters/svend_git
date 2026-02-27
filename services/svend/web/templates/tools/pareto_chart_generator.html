@@ -1,0 +1,525 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Pareto Chart Generator — Free 80/20 Analysis Tool{% endblock %}
+{% block meta_description %}Free Pareto chart generator. Enter categories and counts to create a sorted bar chart with cumulative percentage line and 80/20 analysis. Download as PNG. No signup required.{% endblock %}
+{% block meta_keywords %}Pareto chart, Pareto analysis, 80/20 rule, Pareto diagram, quality tools, root cause analysis, vital few, defect analysis, continuous improvement{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/pareto-chart-generator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/pareto-chart-generator/">
+<meta property="og:title" content="Free Pareto Chart Generator — 80/20 Analysis">
+<meta property="og:description" content="Create Pareto charts with cumulative percentage line and 80/20 analysis. Free, instant, no signup.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Pareto Chart Generator",
+    "url": "https://svend.ai/tools/pareto-chart-generator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free Pareto chart generator with 80/20 analysis. Enter categories and counts, get a sorted bar chart with cumulative percentage line. Download as PNG.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is a Pareto chart?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A Pareto chart is a bar chart where categories are sorted by frequency in descending order, with a cumulative percentage line overlaid. It visualizes the 80/20 rule — typically 80% of problems come from 20% of causes — helping teams focus on the vital few issues that drive the most impact."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the 80/20 rule?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The 80/20 rule (Pareto principle) states that roughly 80% of effects come from 20% of causes. In quality engineering, this means a small number of defect types typically account for the majority of total defects. Focusing improvement efforts on these 'vital few' categories yields the greatest return."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "When should I use a Pareto chart?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Use a Pareto chart whenever you need to prioritize problems or causes. Common applications include defect analysis, customer complaint categorization, downtime cause analysis, cost of quality breakdown, and root cause prioritization. It is one of the Seven Basic Quality Tools."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What are the vital few and trivial many?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The 'vital few' are the small number of categories that account for the majority (typically 80%) of the total count. The 'trivial many' are the remaining categories that together account for only 20%. Joseph Juran coined these terms when applying Pareto's principle to quality management."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I read a Pareto chart?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Bars show individual category counts (left Y-axis), sorted from highest to lowest. The line shows cumulative percentage (right Y-axis, 0-100%). Where the cumulative line crosses the 80% mark identifies the vital few categories. Focus improvement efforts on everything to the left of that crossing point."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Pareto Chart Generator", "item": "https://svend.ai/tools/pareto-chart-generator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.pareto-tabs { display: flex; gap: 0; margin-bottom: 0; }
+.pareto-tab {
+    padding: 0.65rem 1.5rem; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-bottom: none; cursor: pointer; font-size: 0.9rem; font-weight: 500;
+    border-radius: 8px 8px 0 0; color: var(--text-secondary); transition: background 0.15s, color 0.15s; font-family: inherit;
+}
+.pareto-tab.active { background: var(--bg-card); color: var(--accent-primary); border-color: var(--border); }
+.pareto-tab:hover:not(.active) { background: var(--bg-tertiary); color: var(--text-primary); }
+.pareto-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 1.5rem; }
+.pareto-panel.hidden { display: none; }
+
+.pt { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.75rem; }
+.pt th {
+    background: var(--bg-secondary); padding: 0.5rem; text-align: left; font-weight: 600;
+    font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 2px solid var(--border);
+}
+.pt td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); }
+.pt input {
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.35rem 0.5rem; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem; width: 100%; outline: none;
+}
+.pt input:focus { border-color: var(--accent-primary); }
+.pt input[type="number"] { width: 90px; }
+.pt .row-num { color: var(--text-dim); width: 28px; text-align: center; }
+
+.pareto-actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+.pb { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1.2rem; border: none; border-radius: 6px; font-size: 0.88rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+.pb-primary { background: var(--accent-primary); color: #fff; }
+.pb-primary:hover { background: #3a8a5a; }
+.pb-secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); }
+.pb-secondary:hover { background: var(--bg-tertiary); }
+.pb-danger { background: var(--danger); color: #fff; }
+.pb-sm { padding: 0.25rem 0.6rem; font-size: 0.78rem; border-radius: 4px; }
+
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>Pareto</strong> Chart Generator</h1>
+    <p>Enter categories and counts to create a Pareto chart with cumulative percentage line and 80/20 analysis. Download as PNG.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Data</h2>
+    <div class="pareto-tabs">
+        <button class="pareto-tab active" onclick="ptSwitchTab('table')">Table</button>
+        <button class="pareto-tab" onclick="ptSwitchTab('paste')">Paste CSV</button>
+    </div>
+
+    <div class="pareto-panel" id="pt-panel-table">
+        <table class="pt" id="pareto-table">
+            <thead><tr><th>#</th><th>Category</th><th>Count</th><th></th></tr></thead>
+            <tbody id="pareto-body"></tbody>
+        </table>
+        <div class="pareto-actions">
+            <button class="pb pb-primary pb-sm" onclick="ptAddRow()">+ Add Row</button>
+        </div>
+    </div>
+
+    <div class="pareto-panel hidden" id="pt-panel-paste">
+        <div class="form-group">
+            <label>Paste CSV (Category, Count — one per line)</label>
+            <textarea id="paste-text" rows="8" placeholder="Machine Failure, 42&#10;Setup Error, 28&#10;Material Defect, 15&#10;Operator Error, 10&#10;Other, 5"></textarea>
+        </div>
+    </div>
+
+    <button class="btn-calculate" onclick="generatePareto()" style="margin-top:1rem;">Generate Chart</button>
+</div>
+
+<div id="results" style="display:none;">
+    <div class="tool-card">
+        <h2>Pareto Chart</h2>
+        <div class="chart-container" style="overflow-x:auto;">
+            <canvas id="pareto-canvas" width="880" height="420"></canvas>
+        </div>
+        <div class="pareto-actions" style="margin-top:0.75rem;">
+            <button class="pb pb-secondary" onclick="downloadPNG()">Download PNG</button>
+        </div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Analysis</h2>
+        <div class="results-grid" id="pareto-results"></div>
+        <div id="pareto-interpretation" class="interpretation" style="display:none;"></div>
+    </div>
+
+    <div class="tool-card">
+        <h2>Sorted Data</h2>
+        <table class="ref-table" id="sorted-table"></table>
+    </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is a Pareto Chart?</h2>
+    <p>A <strong>Pareto chart</strong> combines a bar chart sorted by frequency with a cumulative percentage line. Named after Italian economist Vilfredo Pareto, it was popularized in quality engineering by <strong>Joseph Juran</strong>, who observed that a small number of causes typically account for the majority of defects — the principle he called the <strong>"vital few and trivial many."</strong></p>
+
+    <h3>The 80/20 Rule in Quality Engineering</h3>
+    <p>The <strong>Pareto principle</strong> (80/20 rule) states that roughly 80% of effects come from 20% of causes. In practice, this means a handful of defect categories drive most of your scrap, a few machines cause most of your downtime, and a small number of failure modes account for most warranty claims. The Pareto chart makes this pattern visible so teams can direct improvement efforts where they'll have the greatest impact.</p>
+
+    <h3>How to Read the Chart</h3>
+    <p>Bars represent individual category counts (left Y-axis), sorted from highest to lowest. The cumulative percentage line (right Y-axis) shows how the categories accumulate toward 100%. Where the line crosses <strong>80%</strong> identifies the boundary between the vital few and the trivial many. Categories to the left of that crossing point are your priority targets for <a href="/app/rca/" style="color:var(--accent-primary);">root cause analysis</a> and corrective action.</p>
+
+    <h3>Pareto as Part of the Seven Basic Quality Tools</h3>
+    <p>The Pareto chart is one of the <strong>Seven Basic Quality Tools</strong> defined by Kaoru Ishikawa, alongside histograms, control charts, scatter plots, check sheets, cause-and-effect diagrams, and stratification. It pairs naturally with a <a href="/app/a3/" style="color:var(--accent-primary);">problem-solving methodology like A3</a> — use the Pareto to identify what to fix, then use structured problem-solving to determine how.</p>
+</div>
+
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Tracking defects across production lines?</h3>
+    <p>Svend's root cause analysis, FMEA, and SPC tools help you go from Pareto chart to corrective action with AI-assisted problem solving.</p>
+    <a href="/register/" class="nav-btn">Try Svend Free</a>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is a Pareto chart?</div>
+        <div class="faq-a">A Pareto chart is a bar chart where categories are sorted by frequency in descending order, with a cumulative percentage line overlaid. It visualizes the 80/20 rule — typically 80% of problems come from 20% of causes — helping teams focus on the <strong>vital few</strong> issues that drive the most impact.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the 80/20 rule?</div>
+        <div class="faq-a">The 80/20 rule (Pareto principle) states that roughly 80% of effects come from 20% of causes. In quality, a small number of defect types typically account for the majority of total defects. Focusing improvement efforts on these vital few categories yields the greatest return.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">When should I use a Pareto chart?</div>
+        <div class="faq-a">Use a Pareto chart to prioritize problems or causes. Common applications: defect analysis, customer complaint categorization, downtime cause analysis, cost of quality breakdown, and root cause prioritization. It's one of the <strong>Seven Basic Quality Tools</strong>.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What are the vital few and trivial many?</div>
+        <div class="faq-a">The <strong>vital few</strong> are the small number of categories accounting for ~80% of the total count. The <strong>trivial many</strong> are the remaining categories that together account for only ~20%. Joseph Juran coined these terms when applying Pareto's principle to quality management.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do I read a Pareto chart?</div>
+        <div class="faq-a">Bars show individual counts (left Y-axis), sorted highest to lowest. The line shows cumulative percentage (right Y-axis, 0-100%). Where the line crosses the 80% mark identifies the vital few categories. Focus your improvement efforts on everything to the left of that crossing point.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ===================================================================
+// Tab switching
+// ===================================================================
+function ptSwitchTab(tab) {
+    document.querySelectorAll('.pareto-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.pareto-panel').forEach(p => p.classList.add('hidden'));
+    const tabs = { table: 0, paste: 1 };
+    document.querySelectorAll('.pareto-tab')[tabs[tab]].classList.add('active');
+    document.getElementById('pt-panel-' + tab).classList.remove('hidden');
+}
+
+// ===================================================================
+// Table data
+// ===================================================================
+let rows = [
+    { category: 'Machine Failure', count: 42 },
+    { category: 'Setup Error', count: 28 },
+    { category: 'Material Defect', count: 15 },
+    { category: 'Operator Error', count: 10 },
+    { category: 'Tooling Wear', count: 8 },
+    { category: 'Other', count: 5 },
+];
+
+function esc(s) { return (s || '').replace(/"/g, '&quot;'); }
+
+function renderTable() {
+    const body = document.getElementById('pareto-body');
+    body.innerHTML = '';
+    rows.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td class="row-num">' + (i + 1) + '</td>' +
+            '<td><input value="' + esc(r.category) + '" onchange="rows[' + i + '].category=this.value"></td>' +
+            '<td><input type="number" value="' + r.count + '" min="0" onchange="rows[' + i + '].count=+this.value"></td>' +
+            '<td><button class="pb pb-danger pb-sm" onclick="ptRemoveRow(' + i + ')">X</button></td>';
+        body.appendChild(tr);
+    });
+}
+
+function ptAddRow() {
+    rows.push({ category: '', count: 0 });
+    renderTable();
+}
+
+function ptRemoveRow(i) {
+    if (rows.length > 1) { rows.splice(i, 1); renderTable(); }
+}
+
+// ===================================================================
+// Parse pasted CSV
+// ===================================================================
+function parsePaste() {
+    const text = document.getElementById('paste-text').value.trim();
+    if (!text) return [];
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const result = [];
+    for (const line of lines) {
+        const parts = line.split(',');
+        if (parts.length >= 2) {
+            const cat = parts.slice(0, -1).join(',').trim();
+            const cnt = parseInt(parts[parts.length - 1].trim());
+            if (cat && !isNaN(cnt)) result.push({ category: cat, count: cnt });
+        }
+    }
+    return result;
+}
+
+// ===================================================================
+// Generate Pareto
+// ===================================================================
+function generatePareto() {
+    // Get data from active tab
+    const pastePanel = document.getElementById('pt-panel-paste');
+    let data;
+    if (!pastePanel.classList.contains('hidden')) {
+        data = parsePaste();
+        if (!data.length) { alert('No valid data found. Use format: Category, Count'); return; }
+    } else {
+        data = rows.filter(r => r.category && r.count > 0);
+        if (!data.length) { alert('Enter at least one category with a count > 0.'); return; }
+    }
+
+    // Sort descending
+    const sorted = [...data].sort((a, b) => b.count - a.count);
+    const total = sorted.reduce((s, r) => s + r.count, 0);
+
+    // Calculate cumulative
+    let cum = 0;
+    const cumPcts = sorted.map(r => { cum += r.count; return (cum / total) * 100; });
+    const pcts = sorted.map(r => (r.count / total) * 100);
+
+    // Find 80% threshold
+    let vitalFew = sorted.length;
+    for (let i = 0; i < cumPcts.length; i++) {
+        if (cumPcts[i] >= 80) { vitalFew = i + 1; break; }
+    }
+
+    // Show results
+    document.getElementById('results').style.display = '';
+
+    // Draw chart
+    drawPareto(sorted, pcts, cumPcts, total, vitalFew);
+
+    // Results grid
+    document.getElementById('pareto-results').innerHTML =
+        '<div class="result-item result-neutral"><div class="label">Total Count</div><div class="value">' + total.toLocaleString() + '</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Categories</div><div class="value">' + sorted.length + '</div></div>' +
+        '<div class="result-item result-good"><div class="label">Vital Few</div><div class="value">' + vitalFew + '</div><div class="sub">above 80%</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Trivial Many</div><div class="value">' + (sorted.length - vitalFew) + '</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Top Category</div><div class="value">' + pcts[0].toFixed(1) + '%</div><div class="sub">' + sorted[0].category + '</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Top ' + vitalFew + ' Account For</div><div class="value">' + cumPcts[vitalFew - 1].toFixed(1) + '%</div></div>';
+
+    // Interpretation
+    const interp = document.getElementById('pareto-interpretation');
+    interp.style.display = '';
+    interp.innerHTML = '<strong>' + vitalFew + ' of ' + sorted.length + ' categories (' + ((vitalFew / sorted.length) * 100).toFixed(0) + '%) account for ' + cumPcts[vitalFew - 1].toFixed(1) + '% of the total.</strong> Focus improvement efforts on: <strong>' + sorted.slice(0, vitalFew).map(r => r.category).join(', ') + '</strong>.';
+
+    // Sorted table
+    let thtml = '<thead><tr><th>Rank</th><th>Category</th><th>Count</th><th>%</th><th>Cumulative %</th></tr></thead><tbody>';
+    sorted.forEach((r, i) => {
+        const isVital = i < vitalFew;
+        thtml += '<tr' + (isVital ? ' class="highlight"' : '') + '><td>' + (i + 1) + '</td><td>' + r.category + '</td><td>' + r.count.toLocaleString() + '</td><td>' + pcts[i].toFixed(1) + '%</td><td>' + cumPcts[i].toFixed(1) + '%</td></tr>';
+    });
+    thtml += '</tbody>';
+    document.getElementById('sorted-table').innerHTML = thtml;
+}
+
+// ===================================================================
+// Canvas Pareto chart
+// ===================================================================
+function drawPareto(sorted, pcts, cumPcts, total, vitalFew) {
+    const canvas = document.getElementById('pareto-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pad = { top: 30, right: 60, bottom: 80, left: 60 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+    const n = sorted.length;
+
+    ctx.clearRect(0, 0, W, H);
+
+    const maxCount = sorted[0].count;
+    const barW = Math.min(plotW / n - 4, 80);
+    const gap = (plotW - barW * n) / (n + 1);
+
+    function xBar(i) { return pad.left + gap + i * (barW + gap); }
+    function yCount(c) { return pad.top + plotH - (c / maxCount) * plotH; }
+    function yPct(p) { return pad.top + plotH - (p / 100) * plotH; }
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(26, 42, 26, 0.3)';
+    ctx.lineWidth = 1;
+    for (let p = 20; p <= 100; p += 20) {
+        const y = yPct(p);
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
+    }
+
+    // 80% reference line
+    ctx.strokeStyle = 'rgba(192, 57, 43, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    const y80 = yPct(80);
+    ctx.beginPath(); ctx.moveTo(pad.left, y80); ctx.lineTo(pad.left + plotW, y80); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#c0392b';
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('80%', pad.left - 8, y80 + 4);
+
+    // Bars
+    for (let i = 0; i < n; i++) {
+        const x = xBar(i);
+        const bh = (sorted[i].count / maxCount) * plotH;
+        const y = pad.top + plotH - bh;
+        const isVital = i < vitalFew;
+        ctx.fillStyle = isVital ? 'rgba(74, 159, 110, 0.7)' : 'rgba(74, 159, 110, 0.3)';
+        ctx.fillRect(x, y, barW, bh);
+        ctx.strokeStyle = isVital ? '#4a9f6e' : 'rgba(74, 159, 110, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, barW, bh);
+
+        // Count label on bar
+        ctx.fillStyle = '#e8efe8';
+        ctx.font = '11px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(sorted[i].count.toString(), x + barW / 2, y - 6);
+    }
+
+    // Cumulative line
+    ctx.strokeStyle = '#e8c547';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+        const x = xBar(i) + barW / 2;
+        const y = yPct(cumPcts[i]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Cumulative dots
+    ctx.fillStyle = '#e8c547';
+    for (let i = 0; i < n; i++) {
+        const x = xBar(i) + barW / 2;
+        const y = yPct(cumPcts[i]);
+        ctx.beginPath(); ctx.arc(x, y, 4, 0, 2 * Math.PI); ctx.fill();
+    }
+
+    // Cumulative % labels
+    ctx.fillStyle = '#e8c547';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < n; i++) {
+        const x = xBar(i) + barW / 2;
+        const y = yPct(cumPcts[i]);
+        ctx.fillText(cumPcts[i].toFixed(0) + '%', x, y - 10);
+    }
+
+    // X-axis category labels (rotated)
+    ctx.fillStyle = '#9aaa9a';
+    ctx.font = '11px Inter, sans-serif';
+    for (let i = 0; i < n; i++) {
+        const x = xBar(i) + barW / 2;
+        ctx.save();
+        ctx.translate(x, pad.top + plotH + 12);
+        ctx.rotate(-Math.PI / 4);
+        ctx.textAlign = 'right';
+        const label = sorted[i].category.length > 20 ? sorted[i].category.slice(0, 20) + '...' : sorted[i].category;
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+    }
+
+    // Left Y-axis (Count)
+    ctx.fillStyle = '#7a8f7a';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+        const c = Math.round(maxCount * i / 4);
+        ctx.fillText(c.toString(), pad.left - 8, yCount(c) + 4);
+    }
+
+    // Right Y-axis (Cumulative %)
+    ctx.textAlign = 'left';
+    for (let p = 0; p <= 100; p += 20) {
+        ctx.fillText(p + '%', pad.left + plotW + 8, yPct(p) + 4);
+    }
+
+    // Axis labels
+    ctx.fillStyle = '#9aaa9a';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.translate(14, pad.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Count', 0, 0);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(W - 10, pad.top + plotH / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText('Cumulative %', 0, 0);
+    ctx.restore();
+}
+
+// ===================================================================
+// Download PNG
+// ===================================================================
+function downloadPNG() {
+    const canvas = document.getElementById('pareto-canvas');
+    const link = document.createElement('a');
+    link.download = 'pareto_chart.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+// ===================================================================
+// Init
+// ===================================================================
+window.addEventListener('DOMContentLoaded', () => {
+    renderTable();
+    generatePareto();
+});
+</script>
+{% endblock %}

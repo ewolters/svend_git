@@ -1,7 +1,7 @@
 {% extends "tool_base.html" %}
 
 {% block title %}OEE Calculator — Free Overall Equipment Effectiveness Calculator{% endblock %}
-{% block meta_description %}Free OEE calculator. Enter planned time, downtime, cycle time, total count, and good count to calculate Availability, Performance, Quality, and OEE%. Compare to world-class benchmarks.{% endblock %}
+{% block meta_description %}Free OEE calculator. Enter production data to calculate Availability, Performance, Quality, and OEE%. Compare to world-class benchmarks. No signup required.{% endblock %}
 {% block meta_keywords %}OEE calculator, overall equipment effectiveness, availability, performance, quality, manufacturing efficiency, TPM, Six Sigma, lean manufacturing{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://svend.ai/tools/oee-calculator/">{% endblock %}
 
@@ -49,7 +49,34 @@
                 "@type": "Answer",
                 "text": "World-class OEE is 85% (90% Availability x 95% Performance x 99.9% Quality). Average manufacturing OEE is around 60%. An OEE below 40% is considered poor and indicates significant improvement opportunities."
             }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I improve OEE?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Focus on the lowest of the three factors first. Low Availability: reduce changeovers, breakdowns, setup time. Low Performance: address speed losses, minor stops, idling. Low Quality: reduce scrap, rework, startup rejects. Track the Six Big Losses to find root causes."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What are the Six Big Losses?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The Six Big Losses in TPM are: (1) Equipment failure/breakdowns, (2) Setup/changeover, (3) Idling/minor stops, (4) Reduced speed, (5) Process defects, (6) Startup/yield losses. OEE measures the net effect of all six."
+            }
         }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "OEE Calculator", "item": "https://svend.ai/tools/oee-calculator/" }
     ]
 }
 </script>
@@ -93,6 +120,11 @@
 @media (max-width: 768px) {
     .oee-gauges { grid-template-columns: 1fr 1fr; }
 }
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
 {% endblock %}
 
 {% block content %}
@@ -148,6 +180,21 @@
         <h2>World-Class Benchmark</h2>
         <table class="ref-table" id="benchmark-table"></table>
     </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is OEE (Overall Equipment Effectiveness)?</h2>
+    <p><strong>OEE</strong> is the gold-standard metric for measuring manufacturing productivity. Developed as part of <strong>Total Productive Maintenance (TPM)</strong>, it combines three independent factors — Availability, Performance, and Quality — into a single percentage that reveals how much of your planned production time is truly productive.</p>
+
+    <h3>The Three OEE Factors</h3>
+    <p><strong>Availability</strong> measures uptime: what fraction of planned time the equipment was actually running, excluding unplanned stops like breakdowns and changeovers. <strong>Performance</strong> measures speed: whether the equipment ran at its ideal cycle time or experienced slow cycles and minor stops. <strong>Quality</strong> measures yield: the proportion of parts that were good on first pass, excluding scrap and rework.</p>
+    <p>OEE = Availability &times; Performance &times; Quality. Each factor is a percentage, so even small losses in each compound into a large overall loss. For example, 90% &times; 90% &times; 90% = 72.9% OEE.</p>
+
+    <h3>World-Class Benchmarks</h3>
+    <p>The widely cited world-class benchmark is <strong>85% OEE</strong> (90% Availability &times; 95% Performance &times; 99.9% Quality). Most discrete manufacturers operate between 55-65%. An OEE below 40% indicates major losses that represent immediate improvement opportunities — often achievable through basic TPM practices like autonomous maintenance and focused improvement (kobetsu kaizen).</p>
+
+    <h3>The Six Big Losses</h3>
+    <p>OEE losses map directly to the <strong>Six Big Losses</strong> framework in TPM: equipment failure and breakdowns (Availability), setup and adjustment (Availability), idling and minor stops (Performance), reduced speed (Performance), process defects (Quality), and reduced yield at startup (Quality). Categorizing losses this way helps teams prioritize which problems to tackle first using tools like <a href="/app/rca/" style="color:var(--accent-primary);">root cause analysis</a> and <a href="/app/a3/" style="color:var(--accent-primary);">A3 problem-solving</a>.</p>
 </div>
 {% endblock %}
 

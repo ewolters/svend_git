@@ -1,0 +1,741 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Gage R&R Calculator — Free Crossed Gage R&R with ANOVA{% endblock %}
+{% block meta_description %}Free Gage R&R calculator. Perform crossed Gage R&R studies with ANOVA variance decomposition. Get %GRR, NDC, ANOVA table, and variance components instantly. No signup required.{% endblock %}
+{% block meta_keywords %}gage R&R, gauge R&R, measurement system analysis, MSA, ANOVA, repeatability, reproducibility, GRR, NDC, number of distinct categories, process variation{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/gage-rr-calculator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/gage-rr-calculator/">
+<meta property="og:title" content="Free Gage R&R Calculator — MSA with ANOVA">
+<meta property="og:description" content="Perform crossed Gage R&R studies with ANOVA. Get %GRR, NDC, variance components, and assessment. Free, no signup.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Gage R&R Calculator",
+    "url": "https://svend.ai/tools/gage-rr-calculator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free Gage R&R calculator using the ANOVA method. Perform crossed Gage R&R studies to evaluate measurement system repeatability and reproducibility.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is Gage R&R?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Gage R&R (Gage Repeatability and Reproducibility) is a statistical method that quantifies how much of observed process variation is due to the measurement system. Repeatability measures variation when the same operator measures the same part multiple times. Reproducibility measures variation between different operators measuring the same part."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is an acceptable %GRR?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Per the AIAG MSA Manual: below 10% is acceptable, 10-30% is marginal (may be acceptable depending on the application, cost of the measurement device, and cost of rework), and above 30% is unacceptable and the measurement system needs improvement."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is NDC (Number of Distinct Categories)?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "NDC represents the number of non-overlapping confidence intervals that span the range of product variation. It indicates how many distinct categories of parts the measurement system can reliably distinguish. NDC of 5 or greater is the AIAG guideline for an adequate measurement system."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between the ANOVA and X-bar R methods?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The ANOVA method decomposes total variation into part, operator, operator-by-part interaction, and repeatability components using analysis of variance. The X-bar R method uses control chart constants and cannot detect the operator-by-part interaction. ANOVA is more accurate and is the recommended method."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How many parts, operators, and trials do I need?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The AIAG MSA Manual recommends at least 10 parts, 3 operators, and 2-3 trials (replicates) for a valid Gage R&R study. This gives 60-90 total measurements. Fewer parts may not adequately represent the process variation range."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Gage R&R Calculator", "item": "https://svend.ai/tools/gage-rr-calculator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.grr-gauge-wrap { text-align: center; margin: 1rem auto; }
+.grr-gauge { display: inline-block; text-align: center; }
+.grr-gauge .ring-wrap { position: relative; width: 160px; height: 160px; margin: 0 auto 0.75rem; }
+.grr-gauge svg { width: 160px; height: 160px; transform: rotate(-90deg); }
+.grr-gauge .ring-bg { fill: none; stroke: var(--border); stroke-width: 10; }
+.grr-gauge .ring-fg { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+.grr-gauge .ring-label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+}
+.grr-gauge .gauge-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+.grr-gauge .gauge-sub { font-size: 0.85rem; font-weight: 600; }
+
+.grr-tabs { display: flex; gap: 0; margin-bottom: 0; }
+.grr-tab {
+    padding: 0.65rem 1.5rem; background: var(--bg-secondary); border: 1px solid var(--border);
+    border-bottom: none; cursor: pointer; font-size: 0.9rem; font-weight: 500;
+    border-radius: 8px 8px 0 0; color: var(--text-secondary); transition: background 0.15s, color 0.15s; font-family: inherit;
+}
+.grr-tab.active { background: var(--bg-card); color: var(--accent-primary); border-color: var(--border); }
+.grr-tab:hover:not(.active) { background: var(--bg-tertiary); color: var(--text-primary); }
+.grr-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 1.5rem; }
+.grr-panel.hidden { display: none; }
+
+.gt { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.gt th {
+    background: var(--bg-secondary); padding: 0.5rem; text-align: center; font-weight: 600;
+    font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 2px solid var(--border);
+}
+.gt td { padding: 0.25rem 0.35rem; border-bottom: 1px solid var(--border); text-align: center; }
+.gt .row-num { color: var(--text-dim); width: 40px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+.gt input {
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.35rem 0.5rem; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem; width: 80px; text-align: center; outline: none;
+}
+.gt input:focus { border-color: var(--accent-primary); }
+.grr-table-wrap { overflow-x: auto; }
+
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>Gage R&R</strong> Calculator</h1>
+    <p>Perform a crossed Gage R&R study using the ANOVA method. Enter measurement data to get %GRR, NDC, variance components, and ANOVA table.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Study Setup</h2>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Number of Parts</label>
+            <input type="number" id="n-parts" value="5" min="2" max="50" onchange="buildTable()">
+        </div>
+        <div class="form-group">
+            <label>Number of Operators</label>
+            <input type="number" id="n-operators" value="3" min="2" max="10" onchange="buildTable()">
+        </div>
+        <div class="form-group">
+            <label>Number of Trials (replicates)</label>
+            <input type="number" id="n-trials" value="2" min="2" max="10" onchange="buildTable()">
+        </div>
+        <div class="form-group">
+            <label>Tolerance (USL &minus; LSL) <span style="color:var(--text-dim)">(optional)</span></label>
+            <input type="number" id="tolerance" step="any" placeholder="e.g. 0.5">
+        </div>
+    </div>
+</div>
+
+<div class="tool-card">
+    <h2>Measurement Data</h2>
+    <div class="grr-tabs">
+        <button class="grr-tab active" onclick="grrSwitchTab('table')">Spreadsheet</button>
+        <button class="grr-tab" onclick="grrSwitchTab('paste')">Paste CSV</button>
+    </div>
+    <div class="grr-panel" id="grr-panel-table">
+        <div class="grr-table-wrap">
+            <table class="gt" id="grr-table">
+                <thead></thead>
+                <tbody id="grr-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="grr-panel hidden" id="grr-panel-paste">
+        <div class="form-group">
+            <label>Paste CSV (Part, Operator, Measurement &mdash; one per line)</label>
+            <textarea id="paste-text" rows="10" placeholder="1, A, 2.35&#10;1, A, 2.38&#10;1, B, 2.36&#10;1, B, 2.40&#10;2, A, 3.12&#10;..."></textarea>
+        </div>
+    </div>
+    <button class="btn-calculate" onclick="calculateGRR()" style="margin-top:1rem;">Analyze Measurement System</button>
+</div>
+
+<div id="results" style="display:none;">
+    <div class="tool-card">
+        <h2>Measurement System Assessment</h2>
+        <div class="grr-gauge-wrap" id="grr-gauge"></div>
+        <div class="results-grid" id="grr-summary"></div>
+        <div id="grr-interpretation" class="interpretation" style="display:none;"></div>
+    </div>
+    <div class="tool-card">
+        <h2>ANOVA Table</h2>
+        <div style="overflow-x:auto;">
+            <table class="ref-table" id="anova-table"></table>
+        </div>
+        <div id="anova-note" style="font-size:0.8rem;color:var(--text-dim);margin-top:0.5rem;"></div>
+    </div>
+    <div class="tool-card">
+        <h2>Variance Components</h2>
+        <div style="overflow-x:auto;">
+            <table class="ref-table" id="var-table"></table>
+        </div>
+    </div>
+    <div class="tool-card">
+        <h2>% Study Variation Breakdown</h2>
+        <div class="chart-container" style="overflow-x:auto;">
+            <canvas id="grr-canvas" width="600" height="300"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is Gage R&R?</h2>
+    <p><strong>Gage R&R</strong> (Gage Repeatability and Reproducibility) is a <strong>Measurement System Analysis (MSA)</strong> technique that quantifies how much of observed variation comes from the measurement system itself versus true part-to-part differences. It is a prerequisite for any meaningful SPC or capability study &mdash; if your measurement system consumes too much of the tolerance, your data cannot reliably distinguish good parts from bad.</p>
+
+    <h3>Repeatability vs. Reproducibility</h3>
+    <p><strong>Repeatability</strong> (equipment variation, EV) is the variation when the same operator measures the same part repeatedly with the same gage. <strong>Reproducibility</strong> (appraiser variation, AV) is the variation introduced when different operators measure the same part. Together they form the <strong>Total Gage R&R</strong> &mdash; the measurement system's contribution to observed variation.</p>
+
+    <h3>The ANOVA Method</h3>
+    <p>This calculator uses the <strong>ANOVA method</strong> recommended by the AIAG MSA Manual. Unlike the older X-bar R method, ANOVA can detect <strong>operator-by-part interaction</strong> &mdash; cases where certain operators measure certain parts differently. When the interaction is not statistically significant (p &gt; 0.25), it is pooled into repeatability for a cleaner estimate.</p>
+
+    <h3>Key Metrics: %GRR and NDC</h3>
+    <p><strong>%GRR</strong> (%Study Variation) compares the measurement system standard deviation to total variation. Below 10% is acceptable, 10&ndash;30% is marginal, above 30% is unacceptable. <strong>NDC</strong> (Number of Distinct Categories) indicates how many groups of parts the gage can reliably distinguish &mdash; the AIAG guideline is NDC &ge; 5. Both metrics help determine whether a measurement system is adequate for its intended use, whether for <a href="/tools/cpk-calculator/" style="color:var(--accent-primary);">capability studies</a> or <a href="/tools/control-chart-generator/" style="color:var(--accent-primary);">control charting</a>.</p>
+</div>
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Running MSA studies across your organization?</h3>
+    <p>Svend's SPC module includes full Gage R&R with ANOVA, variance components, and measurement-by-operator interaction plots &mdash; integrated with control charts and capability analysis.</p>
+    <a href="/register/" class="nav-btn">Try Svend Free</a>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is Gage R&R?</div>
+        <div class="faq-a">Gage R&R (Gage Repeatability and Reproducibility) is a statistical method that quantifies how much of observed process variation is due to the measurement system. <strong>Repeatability</strong> measures variation when the same operator measures the same part multiple times. <strong>Reproducibility</strong> measures variation between different operators measuring the same part.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is an acceptable %GRR?</div>
+        <div class="faq-a">Per the AIAG MSA Manual: below <strong>10%</strong> is acceptable, <strong>10&ndash;30%</strong> is marginal (may be acceptable depending on the application and cost of the measurement device), and above <strong>30%</strong> is unacceptable &mdash; the measurement system needs improvement before it can be used for process control.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is NDC (Number of Distinct Categories)?</div>
+        <div class="faq-a">NDC represents how many distinct groups of parts the measurement system can reliably distinguish. It equals 1.41 &times; &sigma;<sub>Part</sub> / &sigma;<sub>GRR</sub>, truncated to an integer. An NDC of <strong>5 or greater</strong> is the AIAG guideline for an adequate measurement system.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between the ANOVA and X-bar R methods?</div>
+        <div class="faq-a">The <strong>ANOVA method</strong> decomposes total variation into part, operator, operator&times;part interaction, and repeatability components using analysis of variance. The X-bar R method uses control chart constants and cannot detect operator&times;part interaction. ANOVA is more accurate and is the recommended method in the AIAG MSA Manual.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How many parts, operators, and trials do I need?</div>
+        <div class="faq-a">The AIAG MSA Manual recommends at least <strong>10 parts</strong>, <strong>3 operators</strong>, and <strong>2&ndash;3 trials</strong> for a valid study (60&ndash;90 measurements). Parts should be selected to represent the full range of process variation. This calculator supports any balanced design with &ge; 2 parts, &ge; 2 operators, and &ge; 2 trials.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ===================================================================
+// Example data: 5 parts, 3 operators (A, B, C), 2 trials
+// data[part][trial][operator]
+// ===================================================================
+const exampleData = [
+    [[2.35, 2.36, 2.34], [2.38, 2.40, 2.37]],
+    [[3.12, 3.10, 3.13], [3.15, 3.14, 3.16]],
+    [[1.88, 1.90, 1.89], [1.91, 1.87, 1.92]],
+    [[2.75, 2.73, 2.77], [2.78, 2.76, 2.74]],
+    [[4.02, 4.00, 4.04], [4.05, 4.03, 4.01]],
+];
+
+// ===================================================================
+// Tab switching
+// ===================================================================
+function grrSwitchTab(tab) {
+    document.querySelectorAll('.grr-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.grr-panel').forEach(p => p.classList.add('hidden'));
+    const idx = { table: 0, paste: 1 };
+    document.querySelectorAll('.grr-tab')[idx[tab]].classList.add('active');
+    document.getElementById('grr-panel-' + tab).classList.remove('hidden');
+}
+
+// ===================================================================
+// Build spreadsheet table from study params
+// ===================================================================
+function buildTable() {
+    const nP = Math.max(2, parseInt(document.getElementById('n-parts').value) || 5);
+    const nO = Math.max(2, parseInt(document.getElementById('n-operators').value) || 3);
+    const nT = Math.max(2, parseInt(document.getElementById('n-trials').value) || 2);
+    const useEx = (nP === 5 && nO === 3 && nT === 2);
+
+    let thead = '<tr><th>Part</th><th>Trial</th>';
+    for (let o = 0; o < nO; o++) thead += '<th>Op ' + String.fromCharCode(65 + o) + '</th>';
+    thead += '</tr>';
+
+    let tbody = '';
+    for (let p = 0; p < nP; p++) {
+        for (let t = 0; t < nT; t++) {
+            tbody += '<tr><td class="row-num">' + (p + 1) + '</td><td class="row-num">' + (t + 1) + '</td>';
+            for (let o = 0; o < nO; o++) {
+                const val = (useEx && exampleData[p] && exampleData[p][t]) ? exampleData[p][t][o] : '';
+                tbody += '<td><input type="number" step="any" class="grr-cell" data-part="' + (p + 1) +
+                    '" data-op="' + String.fromCharCode(65 + o) + '" value="' + val + '"></td>';
+            }
+            tbody += '</tr>';
+        }
+    }
+    document.querySelector('#grr-table thead').innerHTML = thead;
+    document.getElementById('grr-body').innerHTML = tbody;
+}
+
+// ===================================================================
+// Collect data from table or paste
+// ===================================================================
+function getTableData() {
+    const cells = document.querySelectorAll('.grr-cell');
+    const parts = [], ops = [], meas = [];
+    cells.forEach(c => {
+        const v = parseFloat(c.value);
+        if (!isNaN(v)) { parts.push(c.dataset.part); ops.push(c.dataset.op); meas.push(v); }
+    });
+    return { parts, ops, meas };
+}
+
+function parsePaste() {
+    const text = (document.getElementById('paste-text').value || '').trim();
+    if (!text) return { parts: [], ops: [], meas: [] };
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const parts = [], ops = [], meas = [];
+    for (const line of lines) {
+        const cols = line.split(/[,\t]+/).map(s => s.trim());
+        if (cols.length >= 3) {
+            const v = parseFloat(cols[2]);
+            if (!isNaN(v) && cols[0] && cols[1]) {
+                // Skip header row
+                if (cols[0].toLowerCase() === 'part' || cols[2].toLowerCase() === 'measurement') continue;
+                parts.push(cols[0]); ops.push(cols[1]); meas.push(v);
+            }
+        }
+    }
+    return { parts, ops, meas };
+}
+
+// ===================================================================
+// Statistical math: lnGamma, regularized beta, F-CDF
+// ===================================================================
+function lnGamma(x) {
+    const c = [76.18009172947146, -86.50532032941677, 24.01409824083091,
+               -1.231739572450155, 0.001208650973866179, -0.000005395239384953];
+    let y = x, tmp = x + 5.5;
+    tmp -= (x + 0.5) * Math.log(tmp);
+    let s = 1.000000000190015;
+    for (let j = 0; j < 6; j++) s += c[j] / ++y;
+    return -tmp + Math.log(2.5066282746310005 * s / x);
+}
+
+function regBeta(x, a, b) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    if (x > (a + 1) / (a + b + 2)) return 1 - regBeta(1 - x, b, a);
+    const lnB = lnGamma(a) + lnGamma(b) - lnGamma(a + b);
+    const front = Math.exp(a * Math.log(x) + b * Math.log(1 - x) - lnB) / a;
+    let f = 1, c2 = 1, d = 1 - (a + b) * x / (a + 1);
+    if (Math.abs(d) < 1e-30) d = 1e-30;
+    d = 1 / d; f = d;
+    for (let m = 1; m <= 200; m++) {
+        let num = m * (b - m) * x / ((a + 2*m - 1) * (a + 2*m));
+        d = 1 + num * d; if (Math.abs(d) < 1e-30) d = 1e-30;
+        c2 = 1 + num / c2; if (Math.abs(c2) < 1e-30) c2 = 1e-30;
+        d = 1 / d; f *= c2 * d;
+        num = -(a + m) * (a + b + m) * x / ((a + 2*m) * (a + 2*m + 1));
+        d = 1 + num * d; if (Math.abs(d) < 1e-30) d = 1e-30;
+        c2 = 1 + num / c2; if (Math.abs(c2) < 1e-30) c2 = 1e-30;
+        d = 1 / d;
+        const delta = c2 * d; f *= delta;
+        if (Math.abs(delta - 1) < 1e-10) break;
+    }
+    return front * f;
+}
+
+function fCDF(x, d1, d2) {
+    if (x <= 0) return 0;
+    return regBeta(d1 * x / (d1 * x + d2), d1 / 2, d2 / 2);
+}
+
+// ===================================================================
+// Main ANOVA-based Gage R&R calculation
+// ===================================================================
+function calculateGRR() {
+    // Collect data from active tab
+    const pastePanel = document.getElementById('grr-panel-paste');
+    const data = pastePanel.classList.contains('hidden') ? getTableData() : parsePaste();
+    const { parts, ops, meas } = data;
+    const n = meas.length;
+
+    if (n < 4) { alert('Need at least 4 measurements. Fill in the spreadsheet or paste data.'); return; }
+
+    // Identify unique parts and operators
+    const uParts = [...new Set(parts)].sort((a, b) => ('' + a).localeCompare('' + b, undefined, { numeric: true }));
+    const uOps = [...new Set(ops)].sort();
+    const pC = uParts.length, oC = uOps.length;
+
+    if (pC < 2) { alert('Need at least 2 distinct parts.'); return; }
+    if (oC < 2) { alert('Need at least 2 distinct operators.'); return; }
+
+    // Build cell structure: cells[partIdx][opIdx] = [values]
+    const pIdx = {}; uParts.forEach((v, i) => pIdx[v] = i);
+    const oIdx = {}; uOps.forEach((v, i) => oIdx[v] = i);
+    const cells = Array.from({ length: pC }, () => Array.from({ length: oC }, () => []));
+
+    for (let i = 0; i < n; i++) {
+        const pi = pIdx[parts[i]], oi = oIdx[ops[i]];
+        if (pi === undefined || oi === undefined) continue;
+        cells[pi][oi].push(meas[i]);
+    }
+
+    // Check balanced design
+    const reps = new Set();
+    for (let p = 0; p < pC; p++) {
+        for (let o = 0; o < oC; o++) {
+            if (cells[p][o].length === 0) { alert('Unbalanced design: Part ' + uParts[p] + ' / Op ' + uOps[o] + ' has no measurements.'); return; }
+            reps.add(cells[p][o].length);
+        }
+    }
+    if (reps.size > 1) { alert('Unbalanced design: replicate counts vary (' + [...reps].join(', ') + '). Gage R&R requires a balanced design.'); return; }
+    const rC = [...reps][0];
+    if (rC < 2) { alert('Need at least 2 replicates per part-operator combination.'); return; }
+
+    // Grand mean
+    const grandMean = meas.reduce((s, v) => s + v, 0) / n;
+
+    // Marginal means
+    const partMeans = uParts.map((_, p) => {
+        let s = 0, c = 0;
+        for (let o = 0; o < oC; o++) for (const v of cells[p][o]) { s += v; c++; }
+        return s / c;
+    });
+    const opMeans = uOps.map((_, o) => {
+        let s = 0, c = 0;
+        for (let p = 0; p < pC; p++) for (const v of cells[p][o]) { s += v; c++; }
+        return s / c;
+    });
+    const cellMeans = cells.map(row => row.map(cell => cell.reduce((s, v) => s + v, 0) / cell.length));
+
+    // Sum of Squares
+    let ssTotal = 0;
+    for (let i = 0; i < n; i++) ssTotal += (meas[i] - grandMean) ** 2;
+    let ssPart = 0;
+    for (let p = 0; p < pC; p++) ssPart += oC * rC * (partMeans[p] - grandMean) ** 2;
+    let ssOp = 0;
+    for (let o = 0; o < oC; o++) ssOp += pC * rC * (opMeans[o] - grandMean) ** 2;
+    let ssInteraction = 0;
+    for (let p = 0; p < pC; p++)
+        for (let o = 0; o < oC; o++)
+            ssInteraction += rC * (cellMeans[p][o] - partMeans[p] - opMeans[o] + grandMean) ** 2;
+    let ssError = ssTotal - ssPart - ssOp - ssInteraction;
+
+    // Degrees of freedom
+    const dfPart = pC - 1;
+    const dfOp = oC - 1;
+    const dfInt = dfPart * dfOp;
+    const dfError = pC * oC * (rC - 1);
+    const dfTotal = n - 1;
+
+    // Mean Squares
+    const msPart = dfPart > 0 ? ssPart / dfPart : 0;
+    const msOp = dfOp > 0 ? ssOp / dfOp : 0;
+    const msInt = dfInt > 0 ? ssInteraction / dfInt : 0;
+    const msError = dfError > 0 ? ssError / dfError : 0;
+
+    // F-test for interaction
+    const fInt = (dfInt > 0 && msError > 0) ? msInt / msError : 0;
+    const pInt = (dfInt > 0 && msError > 0) ? 1 - fCDF(fInt, dfInt, dfError) : 1;
+    const pooled = pInt > 0.25;
+
+    let fPart, pPart, fOp, pOp;
+    let varRepeat, varInt, varOp, varPart;
+
+    if (pooled) {
+        const ssErrPooled = ssInteraction + ssError;
+        const dfErrPooled = dfInt + dfError;
+        const msErrPooled = dfErrPooled > 0 ? ssErrPooled / dfErrPooled : 0;
+        fPart = msErrPooled > 0 ? msPart / msErrPooled : 0;
+        pPart = msErrPooled > 0 ? 1 - fCDF(fPart, dfPart, dfErrPooled) : 1;
+        fOp = msErrPooled > 0 ? msOp / msErrPooled : 0;
+        pOp = msErrPooled > 0 ? 1 - fCDF(fOp, dfOp, dfErrPooled) : 1;
+        varRepeat = msErrPooled;
+        varInt = 0;
+        varOp = Math.max(0, (msOp - msErrPooled) / (pC * rC));
+        varPart = Math.max(0, (msPart - msErrPooled) / (oC * rC));
+    } else {
+        fPart = msInt > 0 ? msPart / msInt : 0;
+        pPart = msInt > 0 ? 1 - fCDF(fPart, dfPart, dfInt) : 1;
+        fOp = msInt > 0 ? msOp / msInt : 0;
+        pOp = msInt > 0 ? 1 - fCDF(fOp, dfOp, dfInt) : 1;
+        varRepeat = msError;
+        varInt = Math.max(0, (msInt - msError) / rC);
+        varOp = Math.max(0, (msOp - msInt) / (pC * rC));
+        varPart = Math.max(0, (msPart - msInt) / (oC * rC));
+    }
+
+    const varReprod = varOp + varInt;
+    const varGRR = varRepeat + varReprod;
+    const varTotal = varGRR + varPart || 1e-10;
+
+    // % Contribution (variance-based)
+    const pctContrib = {
+        GRR: varGRR / varTotal * 100,
+        Repeat: varRepeat / varTotal * 100,
+        Reprod: varReprod / varTotal * 100,
+        Operator: varOp / varTotal * 100,
+        OpxPart: varInt / varTotal * 100,
+        Part: varPart / varTotal * 100,
+    };
+
+    // % Study Variation (std dev-based)
+    const sigTotal = Math.sqrt(varTotal);
+    const pctStudy = {};
+    const srcVar = { GRR: varGRR, Repeat: varRepeat, Reprod: varReprod, Operator: varOp, OpxPart: varInt, Part: varPart };
+    for (const [k, v] of Object.entries(srcVar)) pctStudy[k] = sigTotal > 0 ? Math.sqrt(v) / sigTotal * 100 : 0;
+
+    // % Tolerance
+    const tol = parseFloat(document.getElementById('tolerance').value);
+    const hasTol = tol > 0;
+    const pctTol = {};
+    if (hasTol) {
+        for (const [k, v] of Object.entries(srcVar)) pctTol[k] = (6 * Math.sqrt(v)) / tol * 100;
+    }
+
+    // NDC
+    const sigGRR = Math.sqrt(varGRR) || 1e-10;
+    const sigPart = Math.sqrt(varPart);
+    const ndc = Math.max(1, Math.floor(1.41 * sigPart / sigGRR));
+
+    // Assessment
+    const grrPct = pctStudy.GRR;
+    const assessment = grrPct < 10 ? 'Acceptable' : grrPct <= 30 ? 'Marginal' : 'Unacceptable';
+    const assessColor = grrPct < 10 ? 'var(--success)' : grrPct <= 30 ? 'var(--warning)' : 'var(--danger)';
+
+    // ============ Render results ============
+    document.getElementById('results').style.display = '';
+
+    // Gauge
+    const r = 66, circ = 2 * Math.PI * r;
+    const gaugePct = Math.min(grrPct, 100);
+    const offset = circ * (1 - gaugePct / 100);
+    document.getElementById('grr-gauge').innerHTML =
+        '<div class="grr-gauge"><div class="ring-wrap"><svg viewBox="0 0 160 160">' +
+        '<circle class="ring-bg" cx="80" cy="80" r="' + r + '"/>' +
+        '<circle class="ring-fg" cx="80" cy="80" r="' + r + '" stroke="' + assessColor +
+        '" stroke-dasharray="' + circ.toFixed(2) + '" stroke-dashoffset="' + offset.toFixed(2) + '"/>' +
+        '</svg><div class="ring-label" style="color:' + assessColor + '">' + grrPct.toFixed(1) + '%</div></div>' +
+        '<div class="gauge-title">% Study Var (GRR)</div>' +
+        '<div class="gauge-sub" style="color:' + assessColor + '">' + assessment + '</div></div>';
+
+    // Summary grid
+    const ndcColor = ndc >= 5 ? 'result-good' : ndc >= 3 ? 'result-warn' : 'result-bad';
+    const grrClass = grrPct < 10 ? 'result-good' : grrPct <= 30 ? 'result-warn' : 'result-bad';
+    document.getElementById('grr-summary').innerHTML =
+        '<div class="result-item ' + grrClass + '"><div class="label">%GRR (Study Var)</div><div class="value">' + grrPct.toFixed(1) + '%</div><div class="sub">' + assessment + '</div></div>' +
+        '<div class="result-item ' + ndcColor + '"><div class="label">NDC</div><div class="value">' + ndc + '</div><div class="sub">' + (ndc >= 5 ? 'Adequate (&ge; 5)' : 'Inadequate (&lt; 5)') + '</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Repeatability</div><div class="value">' + pctStudy.Repeat.toFixed(1) + '%</div><div class="sub">Equipment Var</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Reproducibility</div><div class="value">' + pctStudy.Reprod.toFixed(1) + '%</div><div class="sub">Appraiser Var</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Part-to-Part</div><div class="value">' + pctStudy.Part.toFixed(1) + '%</div></div>' +
+        '<div class="result-item result-neutral"><div class="label">Total Measurements</div><div class="value">' + n + '</div><div class="sub">' + pC + 'P &times; ' + oC + 'O &times; ' + rC + 'T</div></div>';
+
+    // Interpretation
+    const interp = document.getElementById('grr-interpretation');
+    interp.style.display = '';
+    let msg = '<strong>' + assessment + ':</strong> ';
+    if (grrPct < 10) msg += 'The measurement system is adequate. Only ' + grrPct.toFixed(1) + '% of total variation comes from the gage.';
+    else if (grrPct <= 30) msg += grrPct.toFixed(1) + '% of total variation comes from the measurement system. May be acceptable depending on application importance and cost.';
+    else msg += grrPct.toFixed(1) + '% of total variation is due to the measurement system. Improvement is needed before this gage can be used for process control.';
+    if (pctStudy.Repeat > pctStudy.Reprod) msg += ' <strong>Repeatability</strong> is the dominant source &mdash; consider gage maintenance, fixture improvement, or a higher-resolution instrument.';
+    else if (pctStudy.Reprod > pctStudy.Repeat && pctStudy.Reprod > 5) msg += ' <strong>Reproducibility</strong> is the dominant source &mdash; consider operator training or standardizing the measurement procedure.';
+    interp.innerHTML = msg;
+
+    // ANOVA table
+    let anova = '<thead><tr><th>Source</th><th>DF</th><th>SS</th><th>MS</th><th>F</th><th>P-value</th></tr></thead><tbody>';
+    anova += '<tr><td>Part</td><td>' + dfPart + '</td><td>' + ssPart.toFixed(6) + '</td><td>' + msPart.toFixed(6) + '</td><td>' + fPart.toFixed(4) + '</td><td>' + pPart.toFixed(4) + '</td></tr>';
+    anova += '<tr><td>Operator</td><td>' + dfOp + '</td><td>' + ssOp.toFixed(6) + '</td><td>' + msOp.toFixed(6) + '</td><td>' + fOp.toFixed(4) + '</td><td>' + pOp.toFixed(4) + '</td></tr>';
+    anova += '<tr><td>Part &times; Operator</td><td>' + dfInt + '</td><td>' + ssInteraction.toFixed(6) + '</td><td>' + msInt.toFixed(6) + '</td><td>' + fInt.toFixed(4) + '</td><td>' + pInt.toFixed(4) + '</td></tr>';
+    if (pooled) {
+        const dfP = dfInt + dfError, ssP = ssInteraction + ssError, msP = ssP / dfP;
+        anova += '<tr><td>Repeatability <em>(pooled)</em></td><td>' + dfP + '</td><td>' + ssP.toFixed(6) + '</td><td>' + msP.toFixed(6) + '</td><td>&mdash;</td><td>&mdash;</td></tr>';
+    } else {
+        anova += '<tr><td>Repeatability</td><td>' + dfError + '</td><td>' + ssError.toFixed(6) + '</td><td>' + msError.toFixed(6) + '</td><td>&mdash;</td><td>&mdash;</td></tr>';
+    }
+    anova += '<tr style="font-weight:700"><td>Total</td><td>' + dfTotal + '</td><td>' + ssTotal.toFixed(6) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+    anova += '</tbody>';
+    document.getElementById('anova-table').innerHTML = anova;
+    document.getElementById('anova-note').textContent = pooled
+        ? 'Part \u00d7 Operator interaction not significant (p = ' + pInt.toFixed(3) + ' > 0.25). Interaction SS pooled into Repeatability.'
+        : 'Part \u00d7 Operator interaction is significant (p = ' + pInt.toFixed(3) + ' \u2264 0.25). Interaction term retained.';
+
+    // Variance Components table
+    const sources = [
+        { name: 'Total Gage R&R', v: varGRR, pc: pctContrib.GRR, ps: pctStudy.GRR, pt: hasTol ? pctTol.GRR : null, bold: true },
+        { name: '\u00a0\u00a0Repeatability', v: varRepeat, pc: pctContrib.Repeat, ps: pctStudy.Repeat, pt: hasTol ? pctTol.Repeat : null },
+        { name: '\u00a0\u00a0Reproducibility', v: varReprod, pc: pctContrib.Reprod, ps: pctStudy.Reprod, pt: hasTol ? pctTol.Reprod : null },
+        { name: '\u00a0\u00a0\u00a0\u00a0Operator', v: varOp, pc: pctContrib.Operator, ps: pctStudy.Operator, pt: hasTol ? pctTol.Operator : null },
+        { name: '\u00a0\u00a0\u00a0\u00a0Op \u00d7 Part', v: varInt, pc: pctContrib.OpxPart, ps: pctStudy.OpxPart, pt: hasTol ? pctTol.OpxPart : null },
+        { name: 'Part-to-Part', v: varPart, pc: pctContrib.Part, ps: pctStudy.Part, pt: hasTol ? pctTol.Part : null },
+        { name: 'Total Variation', v: varTotal, pc: 100, ps: 100, pt: hasTol ? (6 * sigTotal) / tol * 100 : null, bold: true },
+    ];
+
+    let vtHead = '<thead><tr><th>Source</th><th>VarComp</th><th>%Contribution</th><th>%Study Var</th>';
+    if (hasTol) vtHead += '<th>%Tolerance</th>';
+    vtHead += '</tr></thead>';
+    let vtBody = '<tbody>';
+    for (const s of sources) {
+        const style = s.bold ? ' style="font-weight:700"' : '';
+        vtBody += '<tr' + style + '><td>' + s.name + '</td>';
+        vtBody += '<td>' + s.v.toFixed(6) + '</td>';
+        vtBody += '<td>' + s.pc.toFixed(2) + '%</td>';
+        vtBody += '<td>' + s.ps.toFixed(2) + '%</td>';
+        if (hasTol) vtBody += '<td>' + (s.pt !== null ? s.pt.toFixed(2) + '%' : '&mdash;') + '</td>';
+        vtBody += '</tr>';
+    }
+    vtBody += '</tbody>';
+    document.getElementById('var-table').innerHTML = vtHead + vtBody;
+
+    // Bar chart
+    drawBarChart(pctStudy);
+}
+
+// ===================================================================
+// Canvas bar chart: % Study Variation by source
+// ===================================================================
+function drawBarChart(pctStudy) {
+    const canvas = document.getElementById('grr-canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pad = { top: 30, right: 20, bottom: 55, left: 55 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+
+    ctx.clearRect(0, 0, W, H);
+
+    const bars = [
+        { label: 'Total GRR', val: pctStudy.GRR, color: '#c0392b' },
+        { label: 'Repeatability', val: pctStudy.Repeat, color: '#e07040' },
+        { label: 'Reproducibility', val: pctStudy.Reprod, color: '#e8c547' },
+        { label: 'Part-to-Part', val: pctStudy.Part, color: '#4a9f6e' },
+    ];
+
+    const maxVal = Math.max(100, ...bars.map(b => b.val)) * 1.1;
+    const n = bars.length;
+    const barW = Math.min(plotW / n - 20, 80);
+    const gap = (plotW - barW * n) / (n + 1);
+
+    function xBar(i) { return pad.left + gap + i * (barW + gap); }
+    function yVal(v) { return pad.top + plotH - (v / maxVal) * plotH; }
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(26, 42, 26, 0.3)';
+    ctx.lineWidth = 1;
+    const step = maxVal <= 50 ? 10 : 20;
+    for (let v = step; v <= maxVal; v += step) {
+        const y = yVal(v);
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
+    }
+
+    // Threshold lines
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    // 10% line (green)
+    ctx.strokeStyle = 'rgba(39, 174, 96, 0.6)';
+    let y10 = yVal(10);
+    ctx.beginPath(); ctx.moveTo(pad.left, y10); ctx.lineTo(pad.left + plotW, y10); ctx.stroke();
+    ctx.fillStyle = '#27ae60'; ctx.font = '10px JetBrains Mono, monospace'; ctx.textAlign = 'right';
+    ctx.fillText('10%', pad.left - 6, y10 + 4);
+    // 30% line (red)
+    ctx.strokeStyle = 'rgba(192, 57, 43, 0.6)';
+    let y30 = yVal(30);
+    ctx.beginPath(); ctx.moveTo(pad.left, y30); ctx.lineTo(pad.left + plotW, y30); ctx.stroke();
+    ctx.fillStyle = '#c0392b';
+    ctx.fillText('30%', pad.left - 6, y30 + 4);
+    ctx.setLineDash([]);
+
+    // Bars
+    for (let i = 0; i < n; i++) {
+        const x = xBar(i);
+        const bh = (bars[i].val / maxVal) * plotH;
+        const y = pad.top + plotH - bh;
+        ctx.fillStyle = bars[i].color + 'cc';
+        ctx.fillRect(x, y, barW, bh);
+        ctx.strokeStyle = bars[i].color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, barW, bh);
+
+        // Value label
+        ctx.fillStyle = '#e8efe8';
+        ctx.font = '12px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(bars[i].val.toFixed(1) + '%', x + barW / 2, y - 8);
+
+        // X-axis label
+        ctx.fillStyle = '#9aaa9a';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillText(bars[i].label, x + barW / 2, pad.top + plotH + 20);
+    }
+
+    // Y-axis label
+    ctx.fillStyle = '#9aaa9a';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.translate(14, pad.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('% Study Variation', 0, 0);
+    ctx.restore();
+
+    // Y-axis values
+    ctx.fillStyle = '#7a8f7a';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    for (let v = 0; v <= maxVal; v += step) {
+        ctx.fillText(v.toFixed(0) + '%', pad.left - 6, yVal(v) + 4);
+    }
+}
+
+// ===================================================================
+// Init
+// ===================================================================
+window.addEventListener('DOMContentLoaded', () => {
+    buildTable();
+    calculateGRR();
+});
+</script>
+{% endblock %}

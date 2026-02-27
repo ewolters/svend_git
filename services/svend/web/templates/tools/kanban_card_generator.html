@@ -1,0 +1,1106 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Kanban Card Generator — Free Printable Reorder Cards with Barcodes{% endblock %}
+{% block meta_description %}Free kanban card generator for warehouse, shop floor, and inventory management. Create print-ready reorder cards with barcodes, QR codes, and color-coded headers in CR80, half-letter, or 4x6 index sizes. Download PNG or tiled PDF.{% endblock %}
+{% block meta_keywords %}kanban card generator, reorder card, kanban cards, inventory management, barcode card, QR code card, warehouse kanban, print kanban cards, lean manufacturing, kanban system, reorder point cards{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/kanban-card-generator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/kanban-card-generator/">
+<meta property="og:title" content="Free Kanban Card Generator — Print-Ready Reorder Cards">
+<meta property="og:description" content="Generate kanban reorder cards with barcodes, QR codes, and color-coded headers. Download as PNG or tiled PDF. No signup required.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Kanban Card Generator",
+    "url": "https://svend.ai/tools/kanban-card-generator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Generate print-ready kanban reorder cards with barcodes, QR codes, and color-coded headers. Supports CR80, half-letter, and 4x6 index card sizes. Download as PNG or tiled PDF with die lines.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "featureList": "Code128 barcodes, QR codes, color-coded headers, CR80/half-letter/4x6 sizes, PNG export, tiled PDF with die lines, batch entry, CSV/JSON import"
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is a kanban reorder card?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A kanban reorder card is a visual signal used in lean manufacturing and inventory management. When stock drops to the reorder point, the card is pulled from the bin and sent to purchasing or the supplier to trigger a replenishment order. Each card contains the part number, supplier, reorder quantity, and often a barcode for scanning."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What card sizes are supported?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Three standard sizes: CR80 (3.375 x 2.125 inches, badge-size for card sleeves), Half-Letter (3.5 x 5.5 inches, standard kanban card), and Index 4x6 (4 x 6 inches, large format for wall displays). All render at 300 DPI for sharp printing."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Can I generate multiple cards at once?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Use the Batch Entry tab to fill in a spreadsheet-style table, or use the Import tab to paste JSON or CSV data. Cards are tiled onto US Letter pages in the PDF output with die lines for cutting."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What barcode format is used?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Code128, the most widely supported alphanumeric barcode format. It encodes the supplier SKU (if provided) or the internal part number, and is readable by virtually every handheld scanner and phone camera."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does the QR code encode?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Two options: the URL/Phone QR encodes a reorder URL or phone number for quick scan-to-order, and the Data QR encodes the full card data as JSON (part number, location, supplier, quantities) for integration with inventory systems."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do the PDF die lines work?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "PDF output tiles multiple cards per US Letter page (8 CR80 cards, 2 half-letter, or 1 index per page) with cut marks drawn from the page edges to the card boundaries. Use a paper slicer or guillotine cutter aligned to these marks."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Kanban Card Generator", "item": "https://svend.ai/tools/kanban-card-generator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+/* Kanban card generator specific styles */
+.kanban-tabs {
+    display: flex; gap: 0; margin-bottom: 0;
+}
+.kanban-tab {
+    padding: 0.65rem 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 8px 8px 0 0;
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+}
+.kanban-tab.active {
+    background: var(--bg-card);
+    color: var(--accent-primary);
+    border-color: var(--border);
+}
+.kanban-tab:hover:not(.active) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+.kanban-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 0 8px 8px 8px;
+    padding: 1.5rem;
+}
+.kanban-panel.hidden { display: none; }
+
+.kanban-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.kanban-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+
+.kanban-actions {
+    display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;
+}
+
+.kb { /* kanban button */
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1.2rem; border: none; border-radius: 6px;
+    font-size: 0.88rem; font-weight: 500; cursor: pointer;
+    transition: background 0.15s; font-family: inherit;
+}
+.kb-primary { background: var(--accent-primary); color: #fff; }
+.kb-primary:hover { background: #3a8a5a; }
+.kb-secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); }
+.kb-secondary:hover { background: var(--bg-tertiary); }
+.kb-danger { background: var(--danger); color: #fff; }
+.kb-danger:hover { background: #a93226; }
+.kb-sm { padding: 0.25rem 0.6rem; font-size: 0.78rem; border-radius: 4px; }
+
+.kanban-preview {
+    margin-top: 1.5rem; text-align: center; overflow-x: auto;
+}
+.kanban-preview-label {
+    font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 0.75rem;
+}
+.kanban-preview canvas {
+    max-width: 100%; border: 1px solid var(--border); border-radius: 4px;
+}
+.kanban-card-scroll {
+    display: flex; gap: 1rem; overflow-x: auto; padding: 1rem 0;
+}
+.kanban-card-scroll canvas {
+    flex-shrink: 0; border: 1px solid var(--border); border-radius: 4px;
+}
+
+/* Color picker row */
+.color-pick {
+    display: flex; gap: 0.5rem; align-items: center;
+}
+.color-pick input[type="color"] {
+    width: 44px; height: 34px; padding: 2px; cursor: pointer;
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px;
+}
+
+/* Batch table */
+.kb-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 1rem; }
+.kb-table th {
+    background: var(--bg-secondary); padding: 0.5rem;
+    text-align: left; font-weight: 600; font-size: 0.72rem;
+    text-transform: uppercase; color: var(--text-secondary);
+    border-bottom: 2px solid var(--border);
+}
+.kb-table td {
+    padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--border);
+}
+.kb-table input {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: 4px; padding: 0.3rem 0.5rem; color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+    width: 100%; outline: none;
+}
+.kb-table input:focus { border-color: var(--accent-primary); }
+.kb-table input[type="number"] { width: 60px; }
+.kb-table .row-num { color: var(--text-dim); width: 28px; text-align: center; }
+
+.kb-msg-error { color: var(--danger); font-size: 0.85rem; margin-top: 0.5rem; }
+.kb-msg-success { color: var(--success); font-size: 0.85rem; margin-top: 0.5rem; }
+
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
+
+@media (max-width: 768px) {
+    .kanban-row, .kanban-row-3 { grid-template-columns: 1fr; }
+    .kanban-tab { padding: 0.5rem 1rem; font-size: 0.82rem; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>Kanban Card</strong> Generator</h1>
+    <p>Generate print-ready kanban reorder cards with barcodes, QR codes, and color-coded headers. Download as PNG or tiled PDF with die lines for cutting.</p>
+</div>
+
+<div class="kanban-tabs">
+    <button class="kanban-tab active" onclick="kbSwitchTab('single')">Single Card</button>
+    <button class="kanban-tab" onclick="kbSwitchTab('batch')">Batch Entry</button>
+    <button class="kanban-tab" onclick="kbSwitchTab('import')">Import</button>
+</div>
+
+<!-- ============ SINGLE CARD TAB ============ -->
+<div class="kanban-panel" id="kb-panel-single">
+    <div class="kanban-row-3">
+        <div class="form-group">
+            <label>Item Number</label>
+            <input type="text" id="s-pn" value="WDG-1234">
+        </div>
+        <div class="form-group">
+            <label>Supplier Part # / SKU</label>
+            <input type="text" id="s-spn" placeholder="Optional — used for barcode">
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="s-desc" value="Widget Assembly A - Blue">
+        </div>
+    </div>
+    <div class="kanban-row-3">
+        <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="s-loc" value="A-01-03">
+        </div>
+        <div class="form-group">
+            <label>Supplier</label>
+            <input type="text" id="s-supplier" value="Acme Industrial">
+        </div>
+        <div class="form-group">
+            <label>Unit</label>
+            <input type="text" id="s-unit" value="EA">
+        </div>
+    </div>
+    <div class="kanban-row-3">
+        <div class="form-group">
+            <label>Reorder Point</label>
+            <input type="number" id="s-rop" value="10" min="0">
+        </div>
+        <div class="form-group">
+            <label>Order Quantity</label>
+            <input type="number" id="s-qty" value="50" min="1">
+        </div>
+        <div class="form-group">
+            <label>Card Size</label>
+            <select id="s-size">
+                <option value="index-4x6" selected>Index 4x6</option>
+                <option value="half-letter">Half Letter (3.5x5.5)</option>
+                <option value="cr80">CR80 Badge</option>
+            </select>
+        </div>
+    </div>
+    <div class="kanban-row">
+        <div class="form-group">
+            <label>Reorder URL or Phone (optional)</label>
+            <input type="text" id="s-url" placeholder="https://supplier.com/reorder?sku=...">
+        </div>
+        <div class="form-group">
+            <label>Data QR Code</label>
+            <select id="s-data-qr">
+                <option value="false" selected>Off (default)</option>
+                <option value="true">On &mdash; include JSON data QR</option>
+            </select>
+        </div>
+    </div>
+    <div class="kanban-row">
+        <div class="form-group">
+            <label>Header Color</label>
+            <div class="color-pick">
+                <input type="color" id="s-color" value="#1a1a2e">
+                <select id="s-color-preset" onchange="kbApplyColor(this.value)" style="flex:1;">
+                    <option value="#1a1a2e">Default (dark)</option>
+                    <option value="#e74c3c">Red &mdash; Critical / Safety</option>
+                    <option value="#e67e22">Orange &mdash; Consumables</option>
+                    <option value="#f1c40f">Yellow &mdash; Caution</option>
+                    <option value="#27ae60">Green &mdash; Stocked</option>
+                    <option value="#2980b9">Blue &mdash; Electrical</option>
+                    <option value="#8e44ad">Purple &mdash; Chemical</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Notes (optional)</label>
+            <textarea id="s-notes" rows="2" placeholder="Lead time, storage conditions, etc.">Lead time 2 weeks. Order in multiples of 10.</textarea>
+        </div>
+    </div>
+    <div class="kanban-actions">
+        <button class="kb kb-primary" onclick="kbPreviewSingle()">Preview</button>
+        <button class="kb kb-secondary" onclick="kbDownloadSingle('png')">Download PNG</button>
+        <button class="kb kb-secondary" onclick="kbDownloadSingle('pdf')">Download PDF</button>
+    </div>
+    <div class="kanban-preview" id="single-preview">
+        <div class="kanban-preview-label">Card Preview</div>
+        <canvas id="single-canvas"></canvas>
+    </div>
+</div>
+
+<!-- ============ BATCH ENTRY TAB ============ -->
+<div class="kanban-panel hidden" id="kb-panel-batch">
+    <div class="kanban-row">
+        <div class="form-group">
+            <label>Card Size</label>
+            <select id="b-size">
+                <option value="index-4x6" selected>Index 4x6</option>
+                <option value="half-letter">Half Letter (3.5x5.5)</option>
+                <option value="cr80">CR80 Badge</option>
+            </select>
+        </div>
+        <div class="kanban-actions" style="align-items:flex-end;">
+            <button class="kb kb-primary kb-sm" onclick="kbAddRow()">+ Add Row</button>
+            <button class="kb kb-secondary kb-sm" onclick="kbPreviewBatch()">Preview All</button>
+            <button class="kb kb-secondary kb-sm" onclick="kbDownloadBatchPDF()">Download PDF</button>
+        </div>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="kb-table" id="batch-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Item #</th>
+                    <th>SKU</th>
+                    <th>Description</th>
+                    <th>Location</th>
+                    <th>Supplier</th>
+                    <th>ROP</th>
+                    <th>Qty</th>
+                    <th>Unit</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="batch-body"></tbody>
+        </table>
+    </div>
+    <div class="kanban-preview" id="batch-preview">
+        <div class="kanban-preview-label">Preview</div>
+        <div class="kanban-card-scroll" id="batch-cards"></div>
+    </div>
+</div>
+
+<!-- ============ IMPORT TAB ============ -->
+<div class="kanban-panel hidden" id="kb-panel-import">
+    <div class="form-group">
+        <label>Paste JSON or CSV</label>
+        <textarea id="import-text" rows="10" placeholder='[{"part_number":"WDG-1234","description":"Widget","location":"A-01","supplier":"Acme","reorder_point":10,"order_qty":50}]'></textarea>
+    </div>
+    <div class="kanban-row">
+        <div class="form-group">
+            <label>Card Size</label>
+            <select id="i-size">
+                <option value="index-4x6" selected>Index 4x6</option>
+                <option value="half-letter">Half Letter (3.5x5.5)</option>
+                <option value="cr80">CR80 Badge</option>
+            </select>
+        </div>
+        <div class="kanban-actions" style="align-items:flex-end;">
+            <button class="kb kb-primary" onclick="kbImportPreview()">Import &amp; Preview</button>
+            <button class="kb kb-secondary" onclick="kbImportPDF()">Import &amp; PDF</button>
+        </div>
+    </div>
+    <div id="import-msg"></div>
+    <div class="kanban-preview" id="import-preview">
+        <div class="kanban-preview-label">Preview</div>
+        <div class="kanban-card-scroll" id="import-cards"></div>
+    </div>
+</div>
+
+
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is a Kanban Card?</h2>
+    <p>A <strong>kanban card</strong> is a visual signal used in lean manufacturing and inventory management to trigger replenishment. The word <em>kanban</em> (看板) is Japanese for "signboard." In a pull-based system, material is only ordered when downstream consumption creates demand &mdash; and the kanban card is the physical mechanism that carries that signal from the point of use back to the supplier or stockroom.</p>
+
+    <h3>How a Two-Bin Kanban System Works</h3>
+    <p>The simplest kanban implementation is the <strong>two-bin system</strong>. Each part has two bins at the point of use: an active bin and a reserve. When the active bin empties, the operator pulls the kanban card from the bin and sends it to purchasing (or directly to the supplier). The reserve bin keeps production running while the order is fulfilled. Once the replenishment arrives, the reserve becomes active and the cycle repeats.</p>
+    <p>The card itself encodes everything needed to reorder: <strong>part number</strong>, <strong>supplier</strong>, <strong>order quantity</strong>, <strong>bin location</strong>, and often a <strong>barcode</strong> or <strong>QR code</strong> for scanning into an ERP or inventory system.</p>
+
+    <h3>Setting Reorder Points and Quantities</h3>
+    <p>The <strong>reorder point</strong> (ROP) is the inventory level that triggers a new order. It accounts for lead time demand plus safety stock: <em>ROP = (daily usage &times; lead time) + safety stock</em>. The <strong>order quantity</strong> is typically the economic order quantity (EOQ) or a supplier-required minimum. Getting these numbers right is the difference between stockouts and excess inventory &mdash; and the reason many teams pair kanban cards with <a href="/app/spc/" style="color:var(--accent-primary);">statistical process control</a> to track consumption variability.</p>
+
+    <h3>Physical Card Sizes</h3>
+    <p>This generator supports three standard sizes used in industry:</p>
+    <ul style="color:var(--text-secondary); line-height:1.8; padding-left:1.5rem;">
+        <li><strong>CR80</strong> (3.375 &times; 2.125 in) &mdash; credit-card size, fits badge holders and card racks. Ideal for small parts bins.</li>
+        <li><strong>Half-Letter</strong> (3.5 &times; 5.5 in) &mdash; the classic kanban card size. Large enough for all fields plus barcodes and QR codes.</li>
+        <li><strong>Index 4&times;6</strong> (4 &times; 6 in) &mdash; large-format cards for wall-mounted kanban boards or visual management displays.</li>
+    </ul>
+
+    <h3>Barcodes and QR Codes on Kanban Cards</h3>
+    <p>Modern kanban cards carry <strong>Code128 barcodes</strong> for rapid scanning at receiving and cycle-count stations, plus optional <strong>QR codes</strong> that encode either a reorder URL (scan-to-order) or the full card data as JSON for integration with WMS, ERP, or spreadsheet-based inventory systems. This generator produces both at 300&nbsp;DPI, ensuring crisp output whether printed on card stock, adhesive labels, or laminated for reuse.</p>
+</div>
+
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Managing reorder points across hundreds of SKUs?</h3>
+    <p>Svend's SPC, control charts, and operational analytics help you set data-driven reorder points and track inventory performance at scale.</p>
+    <a href="/register/" class="nav-btn">Try Svend Free</a>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is a kanban reorder card?</div>
+        <div class="faq-a">A kanban reorder card is a visual signal used in lean manufacturing and inventory management. When stock in a bin drops to the reorder point, the card is pulled and sent to purchasing or the supplier to trigger a replenishment order. Each card typically shows the part number, supplier, reorder quantity, and a barcode for scanning.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What card sizes are supported?</div>
+        <div class="faq-a">Three standard sizes: <strong>CR80</strong> (3.375 x 2.125 in) for badge-size cards and card sleeves, <strong>Half-Letter</strong> (3.5 x 5.5 in) for standard kanban cards and bin labels, and <strong>Index 4x6</strong> (4 x 6 in) for large kanban cards and wall displays. All render at 300 DPI for sharp print quality.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">Can I generate multiple cards at once?</div>
+        <div class="faq-a">Yes. Use the <strong>Batch Entry</strong> tab to fill in a spreadsheet-style table, or the <strong>Import</strong> tab to paste JSON or CSV data from a spreadsheet export. Cards are tiled onto US Letter pages in the PDF output with die lines for cutting.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What barcode format is used?</div>
+        <div class="faq-a"><strong>Code128</strong> &mdash; the most common alphanumeric barcode format in inventory systems. It encodes the supplier SKU (if provided) or the internal part number. Supported by virtually every handheld scanner and phone camera.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What does the QR code encode?</div>
+        <div class="faq-a">Two options: the <strong>URL/Phone QR</strong> encodes a reorder URL or phone number for quick scan-to-order, and the <strong>Data QR</strong> encodes the full card data as JSON (part number, location, supplier, quantities) for integration with inventory systems.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do the PDF die lines work?</div>
+        <div class="faq-a">PDF output tiles multiple cards per US Letter page (8 CR80 cards, 2 half-letter, or 1 index per page) with cut marks drawn from the page edges to the card boundaries. Use a paper slicer or guillotine cutter aligned to these marks.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+// ===================================================================
+// Tab switching
+// ===================================================================
+function kbSwitchTab(tab) {
+    document.querySelectorAll('.kanban-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.kanban-panel').forEach(p => p.classList.add('hidden'));
+    const tabs = { single: 0, batch: 1, import: 2 };
+    document.querySelectorAll('.kanban-tab')[tabs[tab]].classList.add('active');
+    document.getElementById('kb-panel-' + tab).classList.remove('hidden');
+}
+
+// ===================================================================
+// Card sizes (px at 300 DPI)
+// ===================================================================
+const SIZES = {
+    'cr80':        { w: 1012, h: 638 },
+    'half-letter': { w: 1050, h: 1650 },
+    'index-4x6':   { w: 1200, h: 1800 }
+};
+
+// ===================================================================
+// Canvas card renderer
+// ===================================================================
+async function renderCard(canvas, card, sizeKey) {
+    const sz = SIZES[sizeKey];
+    canvas.width = sz.w;
+    canvas.height = sz.h;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, sz.w, sz.h);
+
+    const isCR80 = sizeKey === 'cr80';
+    const isLarge = sizeKey === 'index-4x6';
+    const pad = isCR80 ? 24 : (isLarge ? 50 : 40);
+
+    const hasUrlQR = !!(card.reorder_url);
+    const hasDataQR = !!(card.data_qr);
+
+    const qrSize = isCR80 ? 175 : (isLarge ? 280 : 230);
+    const qrSizeSmall = isLarge ? 220 : 180;
+
+    let urlQrImg = null, dataQrImg = null;
+    if (hasUrlQR) {
+        const url = await QRCode.toDataURL(card.reorder_url, {
+            width: qrSize, margin: 1, errorCorrectionLevel: 'M'
+        });
+        urlQrImg = await loadImage(url);
+    }
+    if (hasDataQR) {
+        const qrPayload = {
+            pn: card.part_number, desc: card.description,
+            loc: card.location, supplier: card.supplier,
+            rop: card.reorder_point, qty: card.order_qty, unit: card.unit
+        };
+        if (card.supplier_part_number) qrPayload.spn = card.supplier_part_number;
+        const url = await QRCode.toDataURL(JSON.stringify(qrPayload), {
+            width: qrSize, margin: 1, errorCorrectionLevel: 'M'
+        });
+        dataQrImg = await loadImage(url);
+    }
+
+    const barcodeValue = card.supplier_part_number || card.part_number;
+    const bcW = isCR80 ? 280 : (isLarge ? 480 : 380);
+    const bcH = isCR80 ? 75 : (isLarge ? 130 : 110);
+    let bcImg = null;
+    try {
+        const bcCanvas = document.createElement('canvas');
+        JsBarcode(bcCanvas, barcodeValue, {
+            format: 'CODE128', width: 2, height: bcH * 0.6,
+            displayValue: true, margin: 5, fontSize: 14,
+            background: '#FFFFFF', lineColor: '#000000'
+        });
+        bcImg = bcCanvas;
+    } catch(e) { bcImg = null; }
+
+    if (isCR80) {
+        drawCR80(ctx, card, sz, pad, urlQrImg, dataQrImg, qrSize, bcImg, bcW, bcH);
+    } else {
+        drawPortrait(ctx, card, sz, pad, urlQrImg, dataQrImg, qrSize, qrSizeSmall, bcImg, bcW, bcH, isLarge);
+    }
+}
+
+function drawCR80(ctx, card, sz, pad, urlQrImg, dataQrImg, qrSize, bcImg, bcW, bcH) {
+    const w = sz.w, h = sz.h;
+    ctx.fillStyle = card.header_color || '#4a6cf7';
+    ctx.fillRect(0, 0, w, 6);
+
+    const qrImg = urlQrImg || dataQrImg;
+    let textRight = w - pad;
+    if (qrImg) {
+        ctx.drawImage(qrImg, w - pad - qrSize, pad, qrSize, qrSize);
+        textRight = w - pad - qrSize - pad;
+        const lbl = urlQrImg ? 'URL / PHONE' : 'CARD DATA';
+        ctx.font = 'bold 11px Arial, sans-serif';
+        ctx.fillStyle = '#4a6cf7';
+        const lblW = ctx.measureText(lbl).width;
+        ctx.fillText(lbl, w - pad - qrSize + (qrSize - lblW) / 2, pad + qrSize + 14);
+    }
+
+    let y = pad + 4;
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 38px Arial, sans-serif';
+    ctx.fillText(card.part_number, pad, y + 32);
+    y += 46;
+
+    if (card.supplier_part_number) {
+        ctx.fillStyle = '#4a6cf7';
+        ctx.font = '14px Arial, sans-serif';
+        ctx.fillText('SKU: ' + card.supplier_part_number, pad, y + 12);
+        y += 20;
+    }
+
+    ctx.fillStyle = '#555';
+    ctx.font = '22px Arial, sans-serif';
+    const desc = card.description.length > 35 ? card.description.slice(0, 35) + '...' : card.description;
+    ctx.fillText(desc, pad, y + 18);
+    y += 32;
+
+    ctx.strokeStyle = '#CCC'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(textRight, y); ctx.stroke();
+    y += 12;
+
+    const mid = Math.floor(textRight / 2) + pad / 2;
+    ctx.font = 'bold 18px Arial, sans-serif'; ctx.fillStyle = '#666';
+    ctx.fillText('LOC:', pad, y + 16);
+    ctx.font = '20px Arial, sans-serif'; ctx.fillStyle = '#000';
+    ctx.fillText(card.location, pad + 80, y + 16);
+    ctx.font = 'bold 18px Arial, sans-serif'; ctx.fillStyle = '#666';
+    ctx.fillText('SUPPLIER:', mid, y + 16);
+    ctx.font = '20px Arial, sans-serif'; ctx.fillStyle = '#000';
+    ctx.fillText(card.supplier.slice(0, 14), mid + 110, y + 16);
+    y += 32;
+
+    ctx.font = 'bold 18px Arial, sans-serif'; ctx.fillStyle = '#666';
+    ctx.fillText('ROP:', pad, y + 16);
+    ctx.font = '20px Arial, sans-serif'; ctx.fillStyle = '#000';
+    ctx.fillText(card.reorder_point + ' ' + card.unit, pad + 80, y + 16);
+    ctx.font = 'bold 18px Arial, sans-serif'; ctx.fillStyle = '#666';
+    ctx.fillText('ORDER:', mid, y + 16);
+    ctx.font = '20px Arial, sans-serif'; ctx.fillStyle = '#000';
+    ctx.fillText(card.order_qty + ' ' + card.unit, mid + 90, y + 16);
+
+    if (bcImg) {
+        const ratio = bcW / bcImg.width;
+        const drawH = Math.min(bcImg.height * ratio, bcH);
+        ctx.drawImage(bcImg, pad, h - pad - drawH, bcW, drawH);
+    }
+    try {
+        const qtyBcCanvas = document.createElement('canvas');
+        JsBarcode(qtyBcCanvas, String(card.order_qty), {
+            format: 'CODE128', width: 1.5, height: 35,
+            displayValue: true, margin: 3, fontSize: 10,
+            background: '#FFFFFF', lineColor: '#000000'
+        });
+        const qtyW = 200, qtyRatio = qtyW / qtyBcCanvas.width, qtyH = qtyBcCanvas.height * qtyRatio;
+        const lblText = 'ORDER QTY: ' + card.order_qty + ' ' + card.unit;
+        ctx.font = 'bold 14px Arial, sans-serif'; ctx.fillStyle = '#666';
+        const lblW2 = ctx.measureText(lblText).width;
+        const qtyX = w - pad - qtyW, qtyY = h - pad - qtyH - 18;
+        ctx.fillText(lblText, qtyX + (qtyW - lblW2) / 2, qtyY);
+        ctx.drawImage(qtyBcCanvas, qtyX, qtyY + 18, qtyW, qtyH);
+    } catch(e) {}
+}
+
+function drawPortrait(ctx, card, sz, pad, urlQrImg, dataQrImg, qrSize, qrSizeSmall, bcImg, bcW, bcH, isLarge) {
+    const w = sz.w, h = sz.h;
+    const headerH = isLarge ? 90 : 76;
+    const hasBothQR = urlQrImg && dataQrImg;
+    const hasAnyQR = urlQrImg || dataQrImg;
+    const labelSize = isLarge ? 24 : 20;
+    const qrLblSize = isLarge ? 16 : 13;
+
+    ctx.fillStyle = card.header_color || '#1a1a2e';
+    ctx.fillRect(0, 0, w, headerH);
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold ' + (isLarge ? 28 : 24) + 'px Arial, sans-serif';
+    ctx.fillText('REORDER CARD', pad, headerH / 2 + 8);
+
+    let y = headerH + pad / 2;
+    const titleSize = isLarge ? 50 : 42;
+    ctx.fillStyle = '#000'; ctx.font = 'bold ' + titleSize + 'px Arial, sans-serif';
+    const pnW = ctx.measureText(card.part_number).width;
+    ctx.fillText(card.part_number, (w - pnW) / 2, y + titleSize * 0.8);
+    y += titleSize + 8;
+
+    if (card.supplier_part_number) {
+        const skuSize = isLarge ? 22 : 18;
+        ctx.font = skuSize + 'px Arial, sans-serif'; ctx.fillStyle = '#4a6cf7';
+        const skuText = 'SKU: ' + card.supplier_part_number;
+        const skuW = ctx.measureText(skuText).width;
+        ctx.fillText(skuText, (w - skuW) / 2, y + skuSize * 0.8);
+        y += skuSize + 8;
+    } else { y += 4; }
+
+    const descSize = isLarge ? 28 : 24;
+    ctx.font = descSize + 'px Arial, sans-serif'; ctx.fillStyle = '#555';
+    const descTxt = card.description.length > 55 ? card.description.slice(0, 55) + '...' : card.description;
+    const descW = ctx.measureText(descTxt).width;
+    ctx.fillText(descTxt, (w - descW) / 2, y + descSize * 0.8);
+    y += descSize + pad / 2;
+
+    y = drawSep(ctx, y, pad, w);
+
+    const valueSize = isLarge ? 26 : 22;
+    const valueX = pad + (isLarge ? 240 : 200);
+    const fields = [
+        ['Location', card.location], ['Supplier', card.supplier],
+        ['Reorder At', card.reorder_point + ' ' + card.unit],
+        ['Order Qty', card.order_qty + ' ' + card.unit],
+    ];
+    for (const [label, value] of fields) {
+        ctx.font = 'bold ' + labelSize + 'px Arial, sans-serif'; ctx.fillStyle = '#666';
+        ctx.fillText(label + ':', pad, y + labelSize);
+        ctx.font = valueSize + 'px Arial, sans-serif'; ctx.fillStyle = '#000';
+        ctx.fillText(value, valueX, y + valueSize);
+        y += valueSize + 16;
+    }
+
+    y += pad / 4;
+    y = drawSep(ctx, y, pad, w);
+
+    const codesY = y + 8;
+    if (hasBothQR) {
+        const qUsed = qrSizeSmall;
+        ctx.drawImage(urlQrImg, pad, codesY, qUsed, qUsed);
+        ctx.font = 'bold ' + qrLblSize + 'px Arial, sans-serif'; ctx.fillStyle = '#4a6cf7';
+        const lbl1 = 'URL / PHONE', lbl1W = ctx.measureText(lbl1).width;
+        ctx.fillText(lbl1, pad + (qUsed - lbl1W) / 2, codesY + qUsed + 14);
+        ctx.drawImage(dataQrImg, w - pad - qUsed, codesY, qUsed, qUsed);
+        ctx.fillStyle = '#666';
+        const lbl2 = 'CARD DATA', lbl2W = ctx.measureText(lbl2).width;
+        ctx.fillText(lbl2, w - pad - qUsed + (qUsed - lbl2W) / 2, codesY + qUsed + 14);
+        y = codesY + qUsed + 26;
+        if (bcImg) {
+            const ratio = bcW / bcImg.width;
+            const drawH = Math.min(bcImg.height * ratio, bcH);
+            ctx.drawImage(bcImg, (w - bcW) / 2, y, bcW, drawH);
+            y += drawH + 8;
+        }
+    } else if (hasAnyQR) {
+        const qImg = urlQrImg || dataQrImg;
+        const lbl = urlQrImg ? 'URL / PHONE' : 'CARD DATA';
+        ctx.drawImage(qImg, pad, codesY, qrSize, qrSize);
+        ctx.font = 'bold ' + qrLblSize + 'px Arial, sans-serif';
+        ctx.fillStyle = urlQrImg ? '#4a6cf7' : '#666';
+        const lblW = ctx.measureText(lbl).width;
+        ctx.fillText(lbl, pad + (qrSize - lblW) / 2, codesY + qrSize + 14);
+        if (bcImg) {
+            const ratio = bcW / bcImg.width;
+            const drawH = Math.min(bcImg.height * ratio, bcH);
+            ctx.drawImage(bcImg, w - pad - bcW, codesY + (qrSize - drawH) / 2, bcW, drawH);
+        }
+        y = codesY + qrSize + 26;
+    } else {
+        if (bcImg) {
+            const ratio = bcW / bcImg.width;
+            const drawH = Math.min(bcImg.height * ratio, bcH);
+            ctx.drawImage(bcImg, (w - bcW) / 2, codesY, bcW, drawH);
+            y = codesY + drawH + 14;
+        } else { y = codesY; }
+    }
+
+    if (card.notes && y < h - pad - 20) {
+        y = drawSep(ctx, y, pad, w);
+        const noteSize = isLarge ? 18 : 16;
+        ctx.font = 'bold ' + labelSize + 'px Arial, sans-serif'; ctx.fillStyle = '#666';
+        ctx.fillText('Notes:', pad, y + labelSize);
+        y += labelSize + 6;
+        ctx.font = noteSize + 'px Arial, sans-serif'; ctx.fillStyle = '#333';
+        const maxW = w - 2 * pad;
+        const words = card.notes.split(' ');
+        let line = '';
+        for (const word of words) {
+            const test = line ? line + ' ' + word : word;
+            if (ctx.measureText(test).width > maxW && line) {
+                ctx.fillText(line, pad, y + noteSize); y += noteSize + 4; line = word;
+            } else { line = test; }
+        }
+        if (line) ctx.fillText(line, pad, y + noteSize);
+    }
+
+    try {
+        const qtyBcW = isLarge ? 350 : 280;
+        const qtyBcCanvas = document.createElement('canvas');
+        JsBarcode(qtyBcCanvas, String(card.order_qty), {
+            format: 'CODE128', width: 1.8, height: isLarge ? 45 : 38,
+            displayValue: true, margin: 4, fontSize: 12,
+            background: '#FFFFFF', lineColor: '#000000'
+        });
+        const qRatio = qtyBcW / qtyBcCanvas.width, qtyBcH = qtyBcCanvas.height * qRatio;
+        const lblText = 'ORDER QTY: ' + card.order_qty + ' ' + card.unit;
+        ctx.font = 'bold ' + (isLarge ? 16 : 14) + 'px Arial, sans-serif'; ctx.fillStyle = '#666';
+        const lblW3 = ctx.measureText(lblText).width;
+        const qtyBcX = (w - qtyBcW) / 2, qtyBcY = h - pad - qtyBcH - 22;
+        ctx.fillText(lblText, qtyBcX + (qtyBcW - lblW3) / 2, qtyBcY);
+        ctx.drawImage(qtyBcCanvas, qtyBcX, qtyBcY + 22, qtyBcW, qtyBcH);
+    } catch(e) {}
+}
+
+function drawSep(ctx, y, pad, w) {
+    ctx.strokeStyle = '#CCC'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
+    return y + 10;
+}
+
+function loadImage(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+    });
+}
+
+// ===================================================================
+// Single card
+// ===================================================================
+function getSingleCard() {
+    return {
+        part_number: document.getElementById('s-pn').value.trim(),
+        supplier_part_number: document.getElementById('s-spn').value.trim() || null,
+        description: document.getElementById('s-desc').value.trim(),
+        location: document.getElementById('s-loc').value.trim(),
+        supplier: document.getElementById('s-supplier').value.trim(),
+        reorder_point: parseInt(document.getElementById('s-rop').value) || 0,
+        order_qty: parseInt(document.getElementById('s-qty').value) || 1,
+        unit: document.getElementById('s-unit').value.trim() || 'EA',
+        reorder_url: document.getElementById('s-url').value.trim() || null,
+        data_qr: document.getElementById('s-data-qr').value === 'true',
+        notes: document.getElementById('s-notes').value.trim() || null,
+        header_color: document.getElementById('s-color').value || null,
+    };
+}
+
+function kbApplyColor(val) { document.getElementById('s-color').value = val; }
+
+async function kbPreviewSingle() {
+    const card = getSingleCard();
+    const size = document.getElementById('s-size').value;
+    await renderCard(document.getElementById('single-canvas'), card, size);
+}
+
+async function kbDownloadSingle(fmt) {
+    await kbPreviewSingle();
+    const canvas = document.getElementById('single-canvas');
+    const pn = getSingleCard().part_number;
+    if (fmt === 'png') downloadCanvasPNG(canvas, 'card_' + pn + '.png');
+    else downloadMultiCardPDF([canvas], 'card_' + pn + '.pdf', null);
+}
+
+// ===================================================================
+// Batch entry
+// ===================================================================
+let batchRows = [
+    { part_number: 'WDG-1234', supplier_part_number: 'AC-WDG-1234A', description: 'Widget Assembly A', location: 'A-01-03', supplier: 'Acme', reorder_point: 10, order_qty: 50, unit: 'EA' },
+    { part_number: 'BLT-5678', supplier_part_number: 'FP-M8X25-G8', description: 'M8x25 Hex Bolt', location: 'B-12-01', supplier: 'FastenerPro', reorder_point: 200, order_qty: 1000, unit: 'EA' },
+];
+
+function renderBatchTable() {
+    const body = document.getElementById('batch-body');
+    body.innerHTML = '';
+    batchRows.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td class="row-num">' + (i + 1) + '</td>' +
+            '<td><input value="' + esc(row.part_number) + '" onchange="batchRows[' + i + '].part_number=this.value"></td>' +
+            '<td><input value="' + esc(row.supplier_part_number || '') + '" onchange="batchRows[' + i + '].supplier_part_number=this.value||null" placeholder="opt" style="width:90px"></td>' +
+            '<td><input value="' + esc(row.description) + '" onchange="batchRows[' + i + '].description=this.value"></td>' +
+            '<td><input value="' + esc(row.location) + '" onchange="batchRows[' + i + '].location=this.value" style="width:75px"></td>' +
+            '<td><input value="' + esc(row.supplier) + '" onchange="batchRows[' + i + '].supplier=this.value"></td>' +
+            '<td><input type="number" value="' + row.reorder_point + '" onchange="batchRows[' + i + '].reorder_point=+this.value"></td>' +
+            '<td><input type="number" value="' + row.order_qty + '" onchange="batchRows[' + i + '].order_qty=+this.value"></td>' +
+            '<td><input value="' + esc(row.unit) + '" onchange="batchRows[' + i + '].unit=this.value" style="width:45px"></td>' +
+            '<td><button class="kb kb-danger kb-sm" onclick="kbRemoveRow(' + i + ')">X</button></td>';
+        body.appendChild(tr);
+    });
+}
+
+function esc(s) { return (s||'').replace(/"/g, '&quot;'); }
+
+function kbAddRow() {
+    batchRows.push({ part_number: '', supplier_part_number: null, description: '', location: '', supplier: '', reorder_point: 0, order_qty: 1, unit: 'EA' });
+    renderBatchTable();
+}
+
+function kbRemoveRow(i) { batchRows.splice(i, 1); renderBatchTable(); }
+
+async function kbPreviewBatch() {
+    const container = document.getElementById('batch-cards');
+    container.innerHTML = '';
+    const size = document.getElementById('b-size').value;
+    for (const card of batchRows) {
+        if (!card.part_number) continue;
+        const c = document.createElement('canvas');
+        await renderCard(c, card, size);
+        const scale = 0.3;
+        const preview = document.createElement('canvas');
+        preview.width = c.width * scale; preview.height = c.height * scale;
+        preview.getContext('2d').drawImage(c, 0, 0, preview.width, preview.height);
+        container.appendChild(preview);
+    }
+}
+
+async function kbDownloadBatchPDF() {
+    const size = document.getElementById('b-size').value;
+    const canvases = [];
+    for (const card of batchRows) {
+        if (!card.part_number) continue;
+        const c = document.createElement('canvas');
+        await renderCard(c, card, size);
+        canvases.push(c);
+    }
+    if (canvases.length) downloadMultiCardPDF(canvases, 'cards.pdf', size);
+}
+
+// ===================================================================
+// Import
+// ===================================================================
+function parseImportText(text) {
+    text = text.trim();
+    if (!text) return [];
+    if (text.startsWith('[') || text.startsWith('{')) {
+        try {
+            let data = JSON.parse(text);
+            if (data.cards) data = data.cards;
+            return Array.isArray(data) ? data : [data];
+        } catch(e) {}
+    }
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim());
+    const cards = [];
+    for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(',');
+        const obj = {};
+        headers.forEach((h, j) => {
+            let v = (vals[j] || '').trim();
+            if (h === 'reorder_point' || h === 'order_qty') v = parseInt(v) || 0;
+            obj[h] = v;
+        });
+        cards.push(obj);
+    }
+    return cards;
+}
+
+async function kbImportPreview() {
+    const text = document.getElementById('import-text').value;
+    const cards = parseImportText(text);
+    const msgEl = document.getElementById('import-msg');
+    if (!cards.length) { msgEl.innerHTML = '<span class="kb-msg-error">No valid cards found.</span>'; return; }
+    msgEl.innerHTML = '<span class="kb-msg-success">Loaded ' + cards.length + ' cards.</span>';
+    const container = document.getElementById('import-cards');
+    container.innerHTML = '';
+    const size = document.getElementById('i-size').value;
+    for (const card of cards) {
+        const c = document.createElement('canvas');
+        card.reorder_point = parseInt(card.reorder_point) || 0;
+        card.order_qty = parseInt(card.order_qty) || 1;
+        card.unit = card.unit || 'EA';
+        await renderCard(c, card, size);
+        const scale = 0.3;
+        const preview = document.createElement('canvas');
+        preview.width = c.width * scale; preview.height = c.height * scale;
+        preview.getContext('2d').drawImage(c, 0, 0, preview.width, preview.height);
+        container.appendChild(preview);
+    }
+}
+
+async function kbImportPDF() {
+    const text = document.getElementById('import-text').value;
+    const cards = parseImportText(text);
+    if (!cards.length) return;
+    const size = document.getElementById('i-size').value;
+    const canvases = [];
+    for (const card of cards) {
+        const c = document.createElement('canvas');
+        card.reorder_point = parseInt(card.reorder_point) || 0;
+        card.order_qty = parseInt(card.order_qty) || 1;
+        card.unit = card.unit || 'EA';
+        await renderCard(c, card, size);
+        canvases.push(c);
+    }
+    downloadMultiCardPDF(canvases, 'cards.pdf', size);
+}
+
+// ===================================================================
+// Download helpers
+// ===================================================================
+function downloadCanvasPNG(canvas, filename) {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+function downloadMultiCardPDF(canvases, filename, sizeKey) {
+    const pageW = 612, pageH = 792, margin = 18, gap = 8;
+    let cardW, cardH;
+    if (sizeKey && SIZES[sizeKey]) {
+        cardW = SIZES[sizeKey].w * 72 / 300;
+        cardH = SIZES[sizeKey].h * 72 / 300;
+    } else {
+        cardW = canvases[0].width * 72 / 300;
+        cardH = canvases[0].height * 72 / 300;
+    }
+
+    const cols = Math.max(1, Math.floor((pageW - 2 * margin + gap) / (cardW + gap)));
+    const rows = Math.max(1, Math.floor((pageH - 2 * margin + gap) / (cardH + gap)));
+    const perPage = cols * rows;
+    const gridW = cols * cardW + (cols - 1) * gap;
+    const gridH = rows * cardH + (rows - 1) * gap;
+    const offX = (pageW - gridW) / 2;
+    const offY = (pageH - gridH) / 2;
+
+    const pages = [];
+    for (let s = 0; s < canvases.length; s += perPage) {
+        const chunk = canvases.slice(s, s + perPage);
+        const items = chunk.map((c, i) => {
+            const col = i % cols, row = Math.floor(i / cols);
+            return {
+                bytes: atob(c.toDataURL('image/jpeg', 0.95).split(',')[1]),
+                w: c.width, h: c.height,
+                pdfX: offX + col * (cardW + gap),
+                pdfY: pageH - offY - (row + 1) * cardH - row * gap,
+                pdfW: cardW, pdfH: cardH
+            };
+        });
+        items._dieLines = generateDieLines(pageW, pageH, cols, rows, chunk.length, cardW, cardH, offX, offY, gap);
+        pages.push(items);
+    }
+
+    const pdf = buildMultiPagePDF(pages, pageW, pageH);
+    const blob = new Blob([pdf], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function generateDieLines(pageW, pageH, cols, rows, cardCount, cardW, cardH, offX, offY, gap) {
+    let cmds = '0 0 0 RG\n1 w\n';
+    const xCuts = new Set(), yCuts = new Set();
+    for (let col = 0; col < cols; col++) {
+        const x = offX + col * (cardW + gap);
+        xCuts.add(x); xCuts.add(x + cardW);
+    }
+    for (let row = 0; row < rows; row++) {
+        const cardTop = pageH - offY - row * (cardH + gap);
+        yCuts.add(cardTop); yCuts.add(cardTop - cardH);
+    }
+    const cardsLeft = offX, cardsRight = offX + cols * cardW + (cols - 1) * gap;
+    const cardsTop = pageH - offY;
+    const cardsBot = pageH - offY - rows * cardH - (rows - 1) * gap;
+    const mk = 2;
+    for (const yc of yCuts) {
+        cmds += '0 ' + yc.toFixed(2) + ' m ' + (cardsLeft - mk).toFixed(2) + ' ' + yc.toFixed(2) + ' l S\n';
+        cmds += (cardsRight + mk).toFixed(2) + ' ' + yc.toFixed(2) + ' m ' + pageW.toFixed(2) + ' ' + yc.toFixed(2) + ' l S\n';
+    }
+    for (const xc of xCuts) {
+        cmds += xc.toFixed(2) + ' ' + pageH.toFixed(2) + ' m ' + xc.toFixed(2) + ' ' + (cardsTop + mk).toFixed(2) + ' l S\n';
+        cmds += xc.toFixed(2) + ' ' + (cardsBot - mk).toFixed(2) + ' m ' + xc.toFixed(2) + ' 0 l S\n';
+    }
+    return cmds;
+}
+
+function buildMultiPagePDF(pages, pageW, pageH) {
+    const encoder = new TextEncoder();
+    const parts = [];
+    let objCount = 0;
+    const offsets = [];
+
+    function addBytes(bytes) { parts.push(bytes); }
+    function addStr(s) { addBytes(encoder.encode(s)); }
+    function currentSize() { return parts.reduce((a, b) => a + b.length, 0); }
+
+    addStr('%PDF-1.4\n%\xFF\xFF\xFF\xFF\n');
+
+    const catalog = ++objCount;
+    const pagesObj = ++objCount;
+    const pageData = pages.map(pageImages => {
+        const pageNum = ++objCount;
+        const contentNum = ++objCount;
+        const imgs = pageImages.map(() => ++objCount);
+        return { pageNum, contentNum, imgs };
+    });
+
+    offsets[catalog] = currentSize();
+    addStr(catalog + ' 0 obj\n<< /Type /Catalog /Pages ' + pagesObj + ' 0 R >>\nendobj\n');
+
+    offsets[pagesObj] = currentSize();
+    const kids = pageData.map(p => p.pageNum + ' 0 R').join(' ');
+    addStr(pagesObj + ' 0 obj\n<< /Type /Pages /Kids [' + kids + '] /Count ' + pages.length + ' >>\nendobj\n');
+
+    pages.forEach((pageImages, pi) => {
+        const pd = pageData[pi];
+        const xobjects = pageImages.map((img, ii) => '/Img' + ii + ' ' + pd.imgs[ii] + ' 0 R').join(' ');
+        let content = '';
+        pageImages.forEach((img, ii) => {
+            content += 'q ' + img.pdfW.toFixed(2) + ' 0 0 ' + img.pdfH.toFixed(2) + ' ' + img.pdfX.toFixed(2) + ' ' + img.pdfY.toFixed(2) + ' cm /Img' + ii + ' Do Q\n';
+        });
+        if (pageImages._dieLines) content += pageImages._dieLines;
+
+        offsets[pd.pageNum] = currentSize();
+        addStr(pd.pageNum + ' 0 obj\n<< /Type /Page /Parent ' + pagesObj + ' 0 R /MediaBox [0 0 ' + pageW + ' ' + pageH + '] /Contents ' + pd.contentNum + ' 0 R /Resources << /XObject << ' + xobjects + ' >> >> >>\nendobj\n');
+
+        offsets[pd.contentNum] = currentSize();
+        addStr(pd.contentNum + ' 0 obj\n<< /Length ' + content.length + ' >>\nstream\n' + content + 'endstream\nendobj\n');
+
+        pageImages.forEach((img, ii) => {
+            offsets[pd.imgs[ii]] = currentSize();
+            const header = pd.imgs[ii] + ' 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + img.w + ' /Height ' + img.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + img.bytes.length + ' >>\nstream\n';
+            addStr(header);
+            const binArr = new Uint8Array(img.bytes.length);
+            for (let j = 0; j < img.bytes.length; j++) binArr[j] = img.bytes.charCodeAt(j);
+            addBytes(binArr);
+            addStr('\nendstream\nendobj\n');
+        });
+    });
+
+    const xrefPos = currentSize();
+    addStr('xref\n0 ' + (objCount + 1) + '\n0000000000 65535 f \n');
+    for (let i = 1; i <= objCount; i++) {
+        addStr((offsets[i] || 0).toString().padStart(10, '0') + ' 00000 n \n');
+    }
+    addStr('trailer\n<< /Size ' + (objCount + 1) + ' /Root ' + catalog + ' 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF');
+
+    const totalLen = parts.reduce((a, b) => a + b.length, 0);
+    const result = new Uint8Array(totalLen);
+    let off = 0;
+    for (const p of parts) { result.set(p, off); off += p.length; }
+    return result;
+}
+
+// ===================================================================
+// Init
+// ===================================================================
+window.addEventListener('DOMContentLoaded', () => {
+    renderBatchTable();
+    kbPreviewSingle();
+});
+</script>
+{% endblock %}

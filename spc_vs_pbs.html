@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPC vs PBS: Same Data, Opposite Conclusions | Svend</title>
+<meta name="description" content="See how classical SPC says 'capable, ship it' while Bayesian Process Belief finds hidden regime shifts, per-lot failures, and $0.18/unit loss — on the exact same data.">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0d;
+    --surface: #111a16;
+    --surface2: #162019;
+    --border: #1e2e26;
+    --text: #e0e8e4;
+    --text-dim: #8a9e93;
+    --green: #2ecc71;
+    --green-dark: #1a7a42;
+    --green-glow: rgba(46,204,113,0.15);
+    --red: #e74c3c;
+    --red-dark: #8b2e25;
+    --red-glow: rgba(231,76,60,0.15);
+    --amber: #f39c12;
+    --amber-glow: rgba(243,156,18,0.12);
+    --gold: #c9a227;
+    --cyan: #4ecdc4;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    text-align: center;
+    padding: 80px 24px 40px;
+    position: relative;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(46,204,113,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    border: 1px solid rgba(201,162,39,0.3);
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+  .hero h1 .highlight-green { color: var(--green); }
+  .hero h1 .highlight-red { color: var(--red); }
+  .hero p.subtitle {
+    font-size: 1.15rem;
+    color: var(--text-dim);
+    max-width: 640px;
+    margin: 0 auto 40px;
+  }
+
+  /* ── SHARED DATA BANNER ── */
+  .data-banner {
+    max-width: 800px;
+    margin: 0 auto 48px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .data-banner .label { color: var(--text-dim); }
+  .data-banner .value { color: var(--text); font-weight: 600; margin-left: 6px; }
+  .data-banner .divider { width: 1px; height: 24px; background: var(--border); }
+
+  /* ── COMPARISON GRID ── */
+  .comparison {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 800px) {
+    .comparison { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    position: relative;
+  }
+  .panel-spc { border-top: 3px solid var(--green); }
+  .panel-pbs { border-top: 3px solid var(--red); }
+
+  .panel-header {
+    padding: 24px 28px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .panel-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .panel-spc .panel-icon { background: var(--green-glow); color: var(--green); }
+  .panel-pbs .panel-icon { background: var(--red-glow); color: var(--red); }
+  .panel-header h2 { font-size: 1.15rem; font-weight: 700; }
+  .panel-header .method { font-size: 12px; color: var(--text-dim); font-family: var(--mono); }
+
+  .panel-body { padding: 0 28px 28px; }
+
+  /* ── VERDICT BOX ── */
+  .verdict {
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .verdict-pass {
+    background: linear-gradient(135deg, rgba(46,204,113,0.08), rgba(46,204,113,0.03));
+    border: 1px solid rgba(46,204,113,0.2);
+  }
+  .verdict-fail {
+    background: linear-gradient(135deg, rgba(231,76,60,0.08), rgba(231,76,60,0.03));
+    border: 1px solid rgba(231,76,60,0.2);
+  }
+  .verdict-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .verdict-pass .verdict-label { color: var(--green); }
+  .verdict-fail .verdict-label { color: var(--red); }
+  .verdict-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .verdict-pass .verdict-value { color: var(--green); }
+  .verdict-fail .verdict-value { color: var(--red); }
+  .verdict-detail {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  /* ── STAT ROWS ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-box {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+  }
+  .stat-box .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .stat-box .stat-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-family: var(--mono);
+  }
+  .stat-box .stat-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* ── CHART PLACEHOLDER ── */
+  .chart-area {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  .chart-svg { width: 100%; height: auto; display: block; }
+
+  /* ── FINDINGS LIST ── */
+  .findings { list-style: none; }
+  .findings li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .findings li:last-child { border-bottom: none; }
+  .finding-icon {
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    margin-top: 1px;
+  }
+  .finding-pass .finding-icon { background: var(--green-glow); color: var(--green); }
+  .finding-warn .finding-icon { background: var(--amber-glow); color: var(--amber); }
+  .finding-fail .finding-icon { background: var(--red-glow); color: var(--red); }
+
+  /* ── REGIME TABLE ── */
+  .regime-table {
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 12px;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  .regime-table th {
+    text-align: left;
+    padding: 8px 10px;
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .regime-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(30,46,38,0.5);
+  }
+  .regime-table .lot-fail { color: var(--red); font-weight: 600; }
+  .regime-table .lot-pass { color: var(--green); font-weight: 600; }
+  .regime-table .lot-warn { color: var(--amber); font-weight: 600; }
+
+  /* ── TAGUCHI BARS ── */
+  .loss-bar-container { margin-bottom: 8px; }
+  .loss-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  .loss-bar-track {
+    height: 20px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    position: relative;
+  }
+  .loss-bar-bias {
+    background: linear-gradient(90deg, #c0392b, #e74c3c);
+    height: 100%;
+  }
+  .loss-bar-var {
+    background: linear-gradient(90deg, #2980b9, #3498db);
+    height: 100%;
+  }
+  .loss-legend {
+    display: flex; gap: 16px;
+    font-size: 11px; color: var(--text-dim);
+    margin-top: 6px;
+    font-family: var(--mono);
+  }
+  .loss-legend span::before {
+    content: '';
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .loss-legend .leg-bias::before { background: #e74c3c; }
+  .loss-legend .leg-var::before { background: #3498db; }
+
+  /* ── BOTTOM SECTION ── */
+  .explanation {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  .explanation h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .exp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  @media (max-width: 700px) { .exp-grid { grid-template-columns: 1fr; } }
+  .exp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .exp-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .exp-card p {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .exp-num {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--green-glow);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ── CTA ── */
+  .cta-section {
+    text-align: center;
+    padding: 60px 24px 100px;
+    position: relative;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 800px; height: 400px;
+    background: radial-gradient(circle, rgba(46,204,113,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cta-section h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .cta-section p {
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    max-width: 500px;
+    margin: 0 auto 28px;
+  }
+  .cta-btn {
+    display: inline-block;
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 14px 36px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all 0.2s;
+    margin: 0 8px;
+  }
+  .cta-primary {
+    background: var(--green);
+    color: var(--bg);
+  }
+  .cta-primary:hover { background: #27ae60; transform: translateY(-1px); }
+  .cta-secondary {
+    background: transparent;
+    color: var(--green);
+    border: 1px solid var(--green-dark);
+  }
+  .cta-secondary:hover { background: var(--green-glow); }
+
+  /* ── ANIMATION ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .panel { animation: fadeUp 0.6s ease both; }
+  .panel-pbs { animation-delay: 0.15s; }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-badge">⟡ Process Belief System</div>
+  <h1>Same data.<br><span class="highlight-green">Classical SPC says ship it.</span><br><span class="highlight-red">PBS says investigate.</span></h1>
+  <p class="subtitle">180 observations of bore diameter from a real manufacturing process. Two analysis methods. Opposite conclusions. Here's what PBS sees that classical SPC cannot.</p>
+</section>
+
+<div class="data-banner">
+  <div><span class="label">Dataset:</span><span class="value">Bore Diameter</span></div>
+  <div class="divider"></div>
+  <div><span class="label">n =</span><span class="value">180 obs</span></div>
+  <div class="divider"></div>
+  <div><span class="label">Target:</span><span class="value">25.000 mm</span></div>
+  <div class="divider"></div>
+  <div><span class="label">Spec:</span><span class="value">24.95 – 25.05</span></div>
+  <div class="divider"></div>
+  <div><span class="label">Lots:</span><span class="value">4</span></div>
+  <div class="divider"></div>
+  <div><span class="label">Operators:</span><span class="value">2</span></div>
+</div>
+
+<div class="comparison">
+
+  <!-- ═══ SPC PANEL ═══ -->
+  <div class="panel panel-spc">
+    <div class="panel-header">
+      <div class="panel-icon">✓</div>
+      <div>
+        <h2>Classical SPC</h2>
+        <div class="method">Shewhart charts + point-estimate capability</div>
+      </div>
+    </div>
+    <div class="panel-body">
+
+      <div class="verdict verdict-pass">
+        <div class="verdict-label">Verdict</div>
+        <div class="verdict-value">CAPABLE — Ship it.</div>
+        <div class="verdict-detail">Cpk = 1.65 ≥ 1.33 threshold</div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-label">Cpk</div>
+          <div class="stat-value" style="color:var(--green)">1.65</div>
+          <div class="stat-note">Point estimate</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Cp</div>
+          <div class="stat-value" style="color:var(--green)">1.72</div>
+          <div class="stat-note">Point estimate</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">X̄</div>
+          <div class="stat-value">25.003</div>
+          <div class="stat-note">Grand mean</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">σ</div>
+          <div class="stat-value">0.0097</div>
+          <div class="stat-note">Pooled std dev</div>
+        </div>
+      </div>
+
+      <!-- SPC Chart -->
+      <div class="chart-area">
+        <div class="chart-title">X̄ Control Chart — all 180 observations pooled</div>
+        <svg class="chart-svg" viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg">
+          <!-- Grid -->
+          <line x1="40" y1="20" x2="470" y2="20" stroke="#1e2e26" stroke-width="0.5" stroke-dasharray="4"/>
+          <line x1="40" y1="55" x2="470" y2="55" stroke="#1e2e26" stroke-width="0.5" stroke-dasharray="4"/>
+          <line x1="40" y1="80" x2="470" y2="80" stroke="#2ecc71" stroke-width="0.5" stroke-opacity="0.4"/>
+          <line x1="40" y1="105" x2="470" y2="105" stroke="#1e2e26" stroke-width="0.5" stroke-dasharray="4"/>
+          <line x1="40" y1="140" x2="470" y2="140" stroke="#1e2e26" stroke-width="0.5" stroke-dasharray="4"/>
+          <!-- Labels -->
+          <text x="4" y="24" fill="#8a9e93" font-family="JetBrains Mono" font-size="8">UCL</text>
+          <text x="4" y="84" fill="#2ecc71" font-family="JetBrains Mono" font-size="8">X̄</text>
+          <text x="4" y="144" fill="#8a9e93" font-family="JetBrains Mono" font-size="8">LCL</text>
+          <!-- Data - simulated stable-looking process -->
+          <polyline points="45,75 52,82 59,78 66,85 73,70 80,88 87,76 94,72 101,90 108,68 115,82 122,78 129,65 136,85 143,74 150,92 157,70 164,78 171,60 178,84 185,75 192,95 199,68 206,82 213,74 220,88 227,70 234,78 241,92 248,65 255,84 262,74 269,80 276,72 283,88 290,64 297,82 304,74 311,90 318,70 325,82 332,68 339,86 346,74 353,92 360,66 367,78 374,84 381,72 388,90 395,68 402,80 409,74 416,86 423,72 430,78 437,66 444,84 451,74 458,80 465,72" fill="none" stroke="#2ecc71" stroke-width="1.5" stroke-opacity="0.8"/>
+          <!-- No points outside limits -->
+          <text x="255" y="155" fill="#2ecc71" font-family="JetBrains Mono" font-size="9" text-anchor="middle" opacity="0.6">All points within control limits ✓</text>
+        </svg>
+      </div>
+
+      <ul class="findings">
+        <li class="finding-pass">
+          <div class="finding-icon">✓</div>
+          <span>All observations within 3σ control limits. No Nelson rule violations detected.</span>
+        </li>
+        <li class="finding-pass">
+          <div class="finding-icon">✓</div>
+          <span>Cpk = 1.65 exceeds 1.33 threshold. Process declared capable.</span>
+        </li>
+        <li class="finding-pass">
+          <div class="finding-icon">✓</div>
+          <span>Normality test passes (Anderson-Darling p = 0.12). Distribution assumptions met.</span>
+        </li>
+        <li class="finding-pass">
+          <div class="finding-icon">✓</div>
+          <span><strong>Recommendation: Continue production. No action required.</strong></span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ PBS PANEL ═══ -->
+  <div class="panel panel-pbs">
+    <div class="panel-header">
+      <div class="panel-icon">⚠</div>
+      <div>
+        <h2>Process Belief System</h2>
+        <div class="method">Bayesian SPC + BOCPD + metadata segmentation + Taguchi loss</div>
+      </div>
+    </div>
+    <div class="panel-body">
+
+      <div class="verdict verdict-fail">
+        <div class="verdict-label">Health Score</div>
+        <div class="verdict-value">5.9% — INVESTIGATE</div>
+        <div class="verdict-detail">2 of 4 lots failed Cpk &gt; 1.33 threshold</div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-label">P(Cpk &gt; 1.33)</div>
+          <div class="stat-value" style="color:var(--red)">4%</div>
+          <div class="stat-note">LOT-001, posterior</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">P(Cpk &gt; 1.33)</div>
+          <div class="stat-value" style="color:var(--red)">2%</div>
+          <div class="stat-note">LOT-002, posterior</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Shift detected</div>
+          <div class="stat-value" style="color:var(--amber)">Obs 54</div>
+          <div class="stat-note">Unknown cause</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">P(escape)</div>
+          <div class="stat-value" style="color:var(--red)">96%</div>
+          <div class="stat-note">within 10 obs</div>
+        </div>
+      </div>
+
+      <!-- PBS Chart -->
+      <div class="chart-area">
+        <div class="chart-title">BOCPD Shift Probability + Regime Segmentation</div>
+        <svg class="chart-svg" viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg">
+          <!-- Regime backgrounds -->
+          <rect x="40" y="10" width="115" height="140" fill="rgba(46,204,113,0.04)" rx="2"/>
+          <rect x="155" y="10" width="60" height="140" fill="rgba(231,76,60,0.06)" rx="2"/>
+          <rect x="215" y="10" width="175" height="140" fill="rgba(243,156,18,0.04)" rx="2"/>
+          <rect x="390" y="10" width="75" height="140" fill="rgba(78,205,196,0.04)" rx="2"/>
+          <!-- Regime labels -->
+          <text x="97" y="155" fill="#2ecc71" font-family="JetBrains Mono" font-size="7" text-anchor="middle" opacity="0.7">LOT-001</text>
+          <text x="185" y="155" fill="#e74c3c" font-family="JetBrains Mono" font-size="7" text-anchor="middle" opacity="0.7">LOT-001→</text>
+          <text x="302" y="155" fill="#f39c12" font-family="JetBrains Mono" font-size="7" text-anchor="middle" opacity="0.7">LOT-002</text>
+          <text x="427" y="155" fill="#4ecdc4" font-family="JetBrains Mono" font-size="7" text-anchor="middle" opacity="0.7">LOT-003/4</text>
+          <!-- Changepoint lines -->
+          <line x1="155" y1="10" x2="155" y2="150" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/>
+          <line x1="215" y1="10" x2="215" y2="150" stroke="#c9a227" stroke-width="1" stroke-dasharray="3,3" opacity="0.7"/>
+          <line x1="390" y1="10" x2="390" y2="150" stroke="#c9a227" stroke-width="1" stroke-dasharray="3,3" opacity="0.7"/>
+          <!-- Shift probability curve -->
+          <polyline points="45,120 55,120 65,118 75,118 85,120 95,118 105,115 115,108 125,95 135,75 145,55 155,30 165,65 175,90 185,105 195,115 205,118 215,120 225,118 235,120 245,118 255,120 265,118 275,120 285,118 295,120 305,118 315,120 325,118 335,120 345,118 355,120 365,118 375,120 385,118 395,120 405,118 415,120 425,118 435,120 445,118 455,120 465,118" fill="none" stroke="#e74c3c" stroke-width="2" stroke-opacity="0.9"/>
+          <!-- Threshold -->
+          <line x1="40" y1="70" x2="470" y2="70" stroke="#e74c3c" stroke-width="0.5" stroke-dasharray="2,4" opacity="0.5"/>
+          <text x="4" y="74" fill="#e74c3c" font-family="JetBrains Mono" font-size="7" opacity="0.7">50%</text>
+          <!-- Annotation -->
+          <text x="155" y="22" fill="#e74c3c" font-family="JetBrains Mono" font-size="8" text-anchor="middle" font-weight="bold">⚠ SHIFT</text>
+        </svg>
+      </div>
+
+      <!-- Per-Lot Capability Table -->
+      <div class="chart-area" style="padding:12px 16px">
+        <div class="chart-title">Per-Lot Bayesian Capability</div>
+        <table class="regime-table">
+          <tr><th>Lot</th><th>Obs</th><th>Cpk</th><th>P(&gt;1.33)</th><th>Status</th></tr>
+          <tr><td>LOT-001</td><td>1–80</td><td>1.16</td><td class="lot-fail">4%</td><td class="lot-fail">⚠ Within-lot shift at 54</td></tr>
+          <tr><td>LOT-002</td><td>81–140</td><td>1.11</td><td class="lot-fail">2%</td><td class="lot-fail">✗ Failed</td></tr>
+          <tr><td>LOT-003</td><td>141–160</td><td>2.35</td><td class="lot-pass">100%</td><td class="lot-warn">Wide CI (n=20)</td></tr>
+          <tr><td>LOT-004</td><td>161–180</td><td>1.73</td><td class="lot-pass">94%</td><td class="lot-warn">Wide CI (n=20)</td></tr>
+        </table>
+      </div>
+
+      <!-- Taguchi Loss -->
+      <div class="chart-area" style="padding:12px 16px">
+        <div class="chart-title">Taguchi Loss Decomposition per Regime</div>
+        <div class="loss-bar-container">
+          <div class="loss-bar-label"><span>Regime 1 (obs 1–54)</span><span style="color:var(--cyan)">$0.028/unit</span></div>
+          <div class="loss-bar-track">
+            <div class="loss-bar-bias" style="width:3%"></div>
+            <div class="loss-bar-var" style="width:17%"></div>
+          </div>
+        </div>
+        <div class="loss-bar-container">
+          <div class="loss-bar-label"><span>Regime 2 (obs 55–80) <span style="color:var(--red)">← post-shift</span></span><span style="color:var(--red)">$0.184/unit</span></div>
+          <div class="loss-bar-track">
+            <div class="loss-bar-bias" style="width:62%"></div>
+            <div class="loss-bar-var" style="width:28%"></div>
+          </div>
+        </div>
+        <div class="loss-bar-container">
+          <div class="loss-bar-label"><span>Regime 3 (obs 81–162)</span><span style="color:var(--amber)">$0.075/unit</span></div>
+          <div class="loss-bar-track">
+            <div class="loss-bar-bias" style="width:10%"></div>
+            <div class="loss-bar-var" style="width:30%"></div>
+          </div>
+        </div>
+        <div class="loss-bar-container">
+          <div class="loss-bar-label"><span>Regime 4 (obs 163–180)</span><span style="color:var(--amber)">$0.066/unit</span></div>
+          <div class="loss-bar-track">
+            <div class="loss-bar-bias" style="width:22%"></div>
+            <div class="loss-bar-var" style="width:14%"></div>
+          </div>
+        </div>
+        <div class="loss-legend">
+          <span class="leg-bias">Bias (off-target)</span>
+          <span class="leg-var">Variance (spread)</span>
+        </div>
+      </div>
+
+      <ul class="findings">
+        <li class="finding-fail">
+          <div class="finding-icon">✗</div>
+          <span>LOT-001 and LOT-002 each have &lt;5% probability of meeting Cpk &gt; 1.33. Classical pooling masked this.</span>
+        </li>
+        <li class="finding-warn">
+          <div class="finding-icon">⚠</div>
+          <span>Unexplained process shift at obs 54 (within LOT-001). Root cause unknown — investigate.</span>
+        </li>
+        <li class="finding-fail">
+          <div class="finding-icon">✗</div>
+          <span>Post-shift regime: $0.184/unit Taguchi loss, 68% from bias. 6.5× worse than pre-shift.</span>
+        </li>
+        <li class="finding-warn">
+          <div class="finding-icon">⚠</div>
+          <span>LOT-003/004 look capable but posteriors are wide (n=20 each). 30 more obs would narrow CI by ~36%.</span>
+        </li>
+        <li class="finding-fail">
+          <div class="finding-icon">✗</div>
+          <span><strong>Recommendation: STOP. Investigate shift at obs 54. Do not ship LOT-001/002 material.</strong></span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ EXPLANATION ═══ -->
+<section class="explanation">
+  <h2>What PBS sees that classical SPC cannot</h2>
+  <div class="exp-grid">
+    <div class="exp-card">
+      <h3><div class="exp-num">1</div>Pooling hides structure</h3>
+      <p>Classical SPC computes one Cpk from all 180 observations, mixing four material lots with different behavior. The grand mean looks centered; the pooled σ looks small. PBS segments by known covariates (lot, operator, machine) and runs Bayesian Cpk per segment. Two lots fail individually even though the pool passes.</p>
+    </div>
+    <div class="exp-card">
+      <h3><div class="exp-num">2</div>Point estimates lie about uncertainty</h3>
+      <p>Classical Cpk = 1.65 is a single number with no confidence interval. PBS gives P(Cpk &gt; 1.33) = 4% for LOT-001 — a posterior probability that honestly quantifies how sure we are. The point estimate looked safe. The full posterior says it isn't.</p>
+    </div>
+    <div class="exp-card">
+      <h3><div class="exp-num">3</div>Shifts inside control limits are invisible</h3>
+      <p>The process shift at observation 54 never triggered a Western Electric rule because it wasn't large enough to breach 3σ limits. BOCPD (Bayesian Online Changepoint Detection) detected it at P = 52% by observation 59 and confirmed it by observation 65. The shift was real — it just wasn't dramatic.</p>
+    </div>
+    <div class="exp-card">
+      <h3><div class="exp-num">4</div>Loss isn't binary</h3>
+      <p>Classical SPC says in-spec or out-of-spec. Taguchi Loss says every deviation from target costs money, and decomposes that cost into bias (off-center) vs variance (spread). Regime 2 costs $0.184/unit — 6.5× more than Regime 1 — because the post-shift bias dominates. Different regimes need different corrective actions: center it vs reduce spread.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA ═══ -->
+<section class="cta-section">
+  <h2>Your process might be lying to you too.</h2>
+  <p>Try Bayesian SPC on your own data. Free tier available — no credit card, no setup, no commitment.</p>
+  <a href="https://svend.ai/register/" class="cta-btn cta-primary">Start Free</a>
+  <a href="https://svend.ai/tools/bayesian-cpk-calculator/" class="cta-btn cta-secondary">Try Bayesian Cpk Calculator</a>
+</section>
+
+</body>
+</html>
