@@ -129,6 +129,7 @@ urlpatterns = [
 
     # Infrastructure (Synara OS layer, staff-only)
     path("internal/infra/", internal_views.api_infra, name="internal_infra"),
+    path("internal/audit-entries/", internal_views.api_audit_entries, name="internal_audit_entries"),
 
     # Site duration beacon (public — fired by sendBeacon, no auth)
     path("site-duration/", views.site_duration, name="site_duration"),

@@ -3362,3 +3362,55 @@ def api_infra(request):
         "audit": audit_data,
         "logs": logs_data,
     })
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_audit_entries(request):
+    """Return paginated audit log entries with optional filters."""
+    try:
+        from syn.audit.models import SysLogEntry
+
+        limit = min(int(request.GET.get("limit", 50)), 200)
+        event_name = request.GET.get("event_name", "").strip()
+        actor = request.GET.get("actor", "").strip()
+
+        qs = SysLogEntry.objects.order_by("-id")
+        if event_name:
+            qs = qs.filter(event_name=event_name)
+        if actor:
+            qs = qs.filter(actor__icontains=actor)
+
+        total = qs.count()
+        entries = list(qs[:limit].values(
+            "id", "timestamp", "actor", "event_name",
+            "correlation_id", "payload", "current_hash", "is_genesis",
+        ))
+
+        for e in entries:
+            e["timestamp"] = e["timestamp"].isoformat() if e["timestamp"] else None
+            e["correlation_id"] = str(e["correlation_id"]) if e["correlation_id"] else None
+            e["hash_preview"] = (e.pop("current_hash") or "")[:16] + "..."
+            # Truncate payload for preview
+            payload = e.get("payload") or {}
+            if isinstance(payload, dict) and len(str(payload)) > 200:
+                e["payload_preview"] = {k: str(v)[:60] for k, v in list(payload.items())[:5]}
+            else:
+                e["payload_preview"] = payload
+            del e["payload"]
+
+        # Distinct event names for filter dropdown
+        event_names = list(
+            SysLogEntry.objects.values_list("event_name", flat=True)
+            .distinct()
+            .order_by("event_name")
+        )
+
+        return Response({
+            "entries": entries,
+            "total": total,
+            "event_names": event_names,
+        })
+    except Exception as e:
+        logger.warning("Audit entries query failed: %s", e)
+        return Response({"entries": [], "total": 0, "event_names": [], "error": str(e)})

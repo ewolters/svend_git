@@ -91,7 +91,35 @@
     .kpi-change.down { color: #ef4444; }
     .kpi-change.neutral { color: var(--text-dim); }
 
-    /* Tabs */
+    /* Tab Groups */
+    .tab-groups {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+    .tab-groups button {
+        padding: 8px 18px;
+        border: 1px solid var(--border);
+        background: var(--bg-secondary);
+        color: var(--text-dim);
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        transition: all 0.15s;
+    }
+    .tab-groups button:hover {
+        border-color: var(--accent-primary);
+        color: var(--text-primary);
+    }
+    .tab-groups button.active {
+        background: var(--accent-primary);
+        color: var(--bg-primary);
+        border-color: var(--accent-primary);
+    }
+
+    /* Sub-tabs */
     .tab-bar {
         display: flex;
         gap: 2px;
@@ -349,22 +377,13 @@
     <div class="kpi-card"><div class="kpi-value" id="kpi-conversion">—</div><div class="kpi-label">Conversion</div></div>
 </div>
 
-<!-- Tabs -->
-<div class="tab-bar">
-    <button class="active" onclick="switchTab('users')">Users</button>
-    <button onclick="switchTab('usage')">Usage</button>
-    <button onclick="switchTab('performance')">Performance</button>
-    <button onclick="switchTab('business')">Business</button>
-    <button onclick="switchTab('insights')">AI Insights</button>
-    <button onclick="switchTab('activity')">Activity</button>
-    <button onclick="switchTab('email')">Email</button>
-    <button onclick="switchTab('content')">Content</button>
-    <button onclick="switchTab('onboarding')">Onboarding</button>
-    <button onclick="switchTab('automation')">Automation</button>
-    <button onclick="switchTab('crm')">CRM</button>
-    <button onclick="switchTab('site')">Site</button>
-    <button onclick="switchTab('infra')">Infra</button>
+<!-- Tab Groups -->
+<div class="tab-groups">
+    <button class="active" onclick="switchGroup('product')">Product</button>
+    <button onclick="switchGroup('growth')">Growth</button>
+    <button onclick="switchGroup('ops')">Operations</button>
 </div>
+<div class="tab-bar" id="tab-bar"></div>
 
 <!-- Tab: Users -->
 <div class="tab-content active" id="tab-users">
@@ -1459,6 +1478,33 @@
         <div class="chart-card"><h3>Drift by Severity</h3><canvas id="chart-infra-drift"></canvas></div>
     </div>
 
+    <!-- Audit Log Viewer -->
+    <div class="chart-card full-width" style="margin-bottom:2rem;">
+        <h3>Audit Log</h3>
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+            <select id="audit-filter-event" style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);font-family:'Inter',sans-serif;">
+                <option value="">All events</option>
+            </select>
+            <input id="audit-filter-actor" placeholder="Filter by actor..." style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-primary);font-family:'Inter',sans-serif;width:160px;" />
+            <button onclick="loadAuditEntries()" style="padding:6px 14px;border:1px solid var(--border);border-radius:4px;font-size:0.8rem;background:var(--bg-secondary);color:var(--text-dim);cursor:pointer;font-family:'Inter',sans-serif;">Filter</button>
+            <span style="margin-left:auto;font-size:0.75rem;color:var(--text-dim);" id="audit-entry-count"></span>
+        </div>
+        <div style="overflow-x:auto;max-height:500px;overflow-y:auto;">
+            <table style="width:100%;font-size:0.8rem;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);text-align:left;position:sticky;top:0;background:var(--card-bg);">
+                        <th style="padding:6px 8px;">Time</th>
+                        <th style="padding:6px 8px;">Actor</th>
+                        <th style="padding:6px 8px;">Event</th>
+                        <th style="padding:6px 8px;">Payload</th>
+                        <th style="padding:6px 8px;">Correlation</th>
+                    </tr>
+                </thead>
+                <tbody id="audit-entries-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- System Logs Section -->
     <h3 style="margin:2rem 0 12px 0;font-size:0.95rem;color:var(--text-primary);">System Logs (syn.log)</h3>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;">
@@ -2207,8 +2253,64 @@ async function loadInfra() {
             etbody.innerHTML = '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--text-dim);">No recent errors</td></tr>';
         }
 
+        // Load audit entries table
+        loadAuditEntries();
+
     } catch (e) {
         console.error('Infra tab failed:', e);
+    }
+}
+
+let auditEventNamesLoaded = false;
+
+async function loadAuditEntries() {
+    try {
+        const eventFilter = document.getElementById('audit-filter-event').value;
+        const actorFilter = document.getElementById('audit-filter-actor').value;
+        const params = new URLSearchParams({ limit: '50' });
+        if (eventFilter) params.set('event_name', eventFilter);
+        if (actorFilter) params.set('actor', actorFilter);
+
+        const r = await fetch(`/api/internal/audit-entries/?${params}`, { credentials: 'include' });
+        const data = await r.json();
+
+        // Populate event dropdown once
+        if (!auditEventNamesLoaded && data.event_names && data.event_names.length) {
+            const sel = document.getElementById('audit-filter-event');
+            data.event_names.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            });
+            auditEventNamesLoaded = true;
+        }
+
+        document.getElementById('audit-entry-count').textContent = `${data.entries.length} of ${data.total} entries`;
+
+        const tbody = document.getElementById('audit-entries-tbody');
+        tbody.innerHTML = '';
+        (data.entries || []).forEach(e => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            const payloadStr = e.payload_preview ? JSON.stringify(e.payload_preview) : '';
+            const payloadShort = payloadStr.length > 80 ? payloadStr.substring(0, 77) + '...' : payloadStr;
+            const corrShort = e.correlation_id ? e.correlation_id.substring(0, 8) + '...' : '—';
+            tr.innerHTML = `
+                <td style="padding:6px 8px;white-space:nowrap;">${e.timestamp ? new Date(e.timestamp).toLocaleString() : '—'}</td>
+                <td style="padding:6px 8px;">${e.actor || '—'}</td>
+                <td style="padding:6px 8px;font-family:monospace;font-size:0.75rem;">${e.event_name || '—'}</td>
+                <td style="padding:6px 8px;font-family:monospace;font-size:0.7rem;max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help;" title="${payloadStr.replace(/"/g, '&quot;')}">${payloadShort || '—'}</td>
+                <td style="padding:6px 8px;font-family:monospace;font-size:0.75rem;" title="${e.correlation_id || ''}">${corrShort}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        if (!(data.entries || []).length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--text-dim);">No audit entries found</td></tr>';
+        }
+    } catch (e) {
+        console.error('Audit entries load failed:', e);
     }
 }
 
@@ -2231,10 +2333,46 @@ const loaders = {
     infra: loadInfra,
 };
 
+const groups = {
+    product:  ['users', 'usage', 'performance', 'activity'],
+    growth:   ['business', 'onboarding', 'email', 'content', 'crm', 'site'],
+    ops:      ['automation', 'insights', 'infra'],
+};
+
+const tabLabels = {
+    users: 'Users', usage: 'Usage', performance: 'Performance',
+    activity: 'Activity', business: 'Business', onboarding: 'Onboarding',
+    email: 'Email', content: 'Content', crm: 'CRM', site: 'Site',
+    automation: 'Automation', insights: 'AI Insights', infra: 'Infra',
+};
+
+let activeGroup = 'product';
+
+function switchGroup(group) {
+    // Update group pills
+    document.querySelectorAll('.tab-groups button').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.tab-groups button[onclick="switchGroup('${group}')"]`).classList.add('active');
+
+    // Render sub-tabs
+    const bar = document.getElementById('tab-bar');
+    bar.innerHTML = '';
+    groups[group].forEach((tab, i) => {
+        const btn = document.createElement('button');
+        btn.textContent = tabLabels[tab];
+        btn.setAttribute('data-tab', tab);
+        btn.onclick = () => switchTab(tab);
+        bar.appendChild(btn);
+    });
+
+    activeGroup = group;
+    switchTab(groups[group][0]);
+}
+
 function switchTab(tab) {
-    // Update tab bar
-    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
-    document.querySelector(`.tab-bar button[onclick="switchTab('${tab}')"]`).classList.add('active');
+    // Update sub-tab active state
+    document.querySelectorAll('#tab-bar button').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+    });
 
     // Show/hide content
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
@@ -4783,7 +4921,7 @@ window.addEventListener('svendUserReady', (e) => {
     }
     chartDefaults();
     loadKPIs();
-    switchTab('users');
+    switchGroup('product');
 });
 </script>
 {% endblock %}
