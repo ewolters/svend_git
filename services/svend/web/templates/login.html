@@ -230,6 +230,22 @@
                 submitBtn.textContent = 'Sign In';
             }
         });
+        // -- Duration tracking --
+        var t0 = Date.now(), sent = false;
+        function sendDuration() {
+            if (sent) return;
+            sent = true;
+            var ms = Date.now() - t0;
+            if (ms < 1000) return;
+            var d = JSON.stringify({path: location.pathname, duration_ms: ms});
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon('/api/site-duration/', new Blob([d], {type: 'application/json'}));
+            }
+        }
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') sendDuration();
+        });
+        window.addEventListener('pagehide', sendDuration);
     </script>
 </body>
 </html>

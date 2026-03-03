@@ -22,6 +22,22 @@ from .common import log_agent_action, get_cached_model, safe_json_response
 logger = logging.getLogger(__name__)
 
 
+def _read_csv_safe(file_or_path):
+    """Read CSV with encoding fallback: UTF-8 → latin-1."""
+    import io
+    import pandas as pd
+    if hasattr(file_or_path, "read"):
+        raw = file_or_path.read()
+        try:
+            return pd.read_csv(io.BytesIO(raw), encoding="utf-8")
+        except UnicodeDecodeError:
+            return pd.read_csv(io.BytesIO(raw), encoding="latin-1")
+    try:
+        return pd.read_csv(file_or_path, encoding="utf-8")
+    except UnicodeDecodeError:
+        return pd.read_csv(file_or_path, encoding="latin-1")
+
+
 # =============================================================================
 # ANALYSIS WORKBENCH ENDPOINTS
 # =============================================================================
@@ -82,7 +98,7 @@ def run_analysis(request):
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
-                    df = pd.read_csv(data_path)
+                    df = _read_csv_safe(data_path)
             except Exception:
                 pass
 
@@ -92,7 +108,7 @@ def run_analysis(request):
                     data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
                     data_path = data_dir / f"{data_id}.csv"
                     if data_path.exists():
-                        df = pd.read_csv(data_path)
+                        df = _read_csv_safe(data_path)
                 except Exception:
                     pass
 
@@ -105,7 +121,7 @@ def run_analysis(request):
             except Exception:
                 pass
 
-        if df is None and analysis_type == "simulation":
+        if df is None and analysis_type in ("simulation", "bayesian"):
             df = pd.DataFrame()  # Simulation can run without data (user-defined distributions)
         elif df is None:
             return JsonResponse({"error": "No data loaded. Please load a dataset first."}, status=400)
@@ -152,6 +168,9 @@ def run_analysis(request):
         elif analysis_type == "pbs":
             from ..pbs_engine import run_pbs
             result = run_pbs(df, analysis_id, config)
+        elif analysis_type == "d_type":
+            from .d_type import run_d_type
+            result = run_d_type(df, analysis_id, config)
         elif analysis_type == "ishap":
             from ..interventional_shap import run_interventional_shap
             model_key = config.get("model_key", "")
@@ -229,6 +248,7 @@ def run_analysis(request):
                         "config": config,
                         "summary": result.get("summary", ""),
                         "guide_observation": result.get("guide_observation", ""),
+                        "plots": result.get("plots", []),
                         "plots_count": len(result.get("plots", [])),
                     }),
                     project=project,

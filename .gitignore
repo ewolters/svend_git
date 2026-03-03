@@ -11,6 +11,7 @@ venv/
 .env.production
 *.sqlite3
 *.db
+*.sql
 
 # Media uploads (user data)
 media/
@@ -25,6 +26,7 @@ staticfiles/
 
 # Temp / logs
 *.log
+logs/
 cookies.txt
 
 # Snapshots (binary archives)
@@ -35,3 +37,14 @@ cookies.txt
 *.pt
 *.onnx
 *.safetensors
+
+# Business docs / planning (root level)
+*.docx
+*.csv
+/sv*.png
+/diary.md
+/SVEND_Global_Outreach_Leads.md
+/svend-innovation-landscape.html
+/svend-sea-india-distribution-plan_1.html
+/frontier_methods_spec.html
+/pbs_foundational_theory_v3.html

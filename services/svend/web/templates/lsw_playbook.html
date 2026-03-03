@@ -1,0 +1,678 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Leadership Standard Work — Gemba Walks, Tier Meetings, Hoshin Verification{% endblock %}
+{% block meta_description %}Complete leadership standard work playbook: structured daily/weekly/monthly tasks, gemba walks, tier meeting facilitation, hoshin verification, objective execution measurement. The accountability vehicle for CI. {{ price_team }}/mo.{% endblock %}
+{% block meta_keywords %}leadership standard work, leader standard work, LSW, gemba walk, gemba management, lean leadership, daily management, hoshin verification, tier meeting, management accountability, CI leadership, lean manufacturing leadership{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/leadership-standard-work/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://svend.ai/leadership-standard-work/">
+<meta property="og:title" content="Leadership Standard Work Playbook | Svend">
+<meta property="og:description" content="LSW is the accountability vehicle. Structured daily tasks that verify strategy reaches the gemba. Not delegation — verification. Written for CI practitioners.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Leadership Standard Work Playbook",
+    "url": "https://svend.ai/leadership-standard-work/",
+    "description": "Complete leadership standard work playbook: structured daily/weekly/monthly tasks, gemba walks, hoshin verification, objective execution measurement.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "about": [
+        { "@type": "Thing", "name": "Leadership Standard Work" },
+        { "@type": "Thing", "name": "Gemba Walk" },
+        { "@type": "Thing", "name": "Lean Leadership" },
+        { "@type": "Thing", "name": "Continuous Improvement" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is leadership standard work?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Leadership standard work (LSW) is a structured set of daily, weekly, and monthly tasks that ensure leaders spend their time on the activities that matter most: verifying that systems are functioning, problems are being resolved, and strategic intent is reaching the gemba. It is not a to-do list — it is a management operating rhythm that prevents leaders from being consumed by firefighting."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is a gemba walk?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A gemba walk is structured observation at the point of work. Not a walk-through where a manager waves at operators. A disciplined visit with specific things to observe: are visual management boards current? Are standard work procedures being followed? Are there safety hazards? Are SQDC indicators green or red? The gemba walk verifies that the management system is functioning at the floor level."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does LSW connect to hoshin kanri?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "LSW includes structured tasks for hoshin verification: weekly review of hoshin project status, monthly savings validation, gemba walks to areas with active hoshin projects. Without LSW, hoshin operates at the strategic level and nobody verifies whether it is reaching the shop floor. LSW is the bridge that closes the gap between strategy and daily execution."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How much time should a leader spend on standard work?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Depends on the role. A team lead's day should be 70-80% standard work (tier meetings, floor presence, board updates). An area manager: 50-60% (tier meetings, gemba walks, resource allocation). A plant manager: 30-40% (Tier 3 meetings, strategic gemba walks, hoshin reviews). The remaining time handles exceptions and firefighting — but the standard work ensures the critical activities happen regardless."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between LSW and a daily checklist?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A checklist is a list of things to complete. LSW specifies what to do, when to do it, where to do it, what to look for, and what to do with what you find. A checklist item might say 'walk the floor.' LSW says 'walk Line 3 at 9:00 AM, check hour-by-hour board for gaps > 10%, verify 5S condition in staging area, follow up on any open newspaper items from yesterday.' The specificity is the difference."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Continuous Improvement Software", "item": "https://svend.ai/continuous-improvement-software/" },
+        { "@type": "ListItem", "position": 3, "name": "Leadership Standard Work", "item": "https://svend.ai/leadership-standard-work/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .tool-container { max-width: 1000px; }
+
+    .playbook-hero { text-align: center; margin-bottom: 2.5rem; padding-top: 1rem; }
+    .playbook-badge {
+        display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        background: rgba(232,197,71,0.12); color: #e8c547; border: 1px solid rgba(232,197,71,0.3);
+        margin-bottom: 0.75rem;
+    }
+    .playbook-hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .playbook-hero h1 strong { color: #e8c547; }
+    .playbook-hero .hero-sub {
+        color: var(--text-secondary); font-size: 1rem; max-width: 680px; margin: 0 auto; line-height: 1.7;
+    }
+
+    .playbook-toc {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+    }
+    .playbook-toc h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .playbook-toc ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.3rem; }
+    .playbook-toc a { color: var(--accent-primary); text-decoration: none; font-size: 0.88rem; line-height: 1.6; }
+    .playbook-toc a:hover { text-decoration: underline; }
+    .playbook-toc .toc-num { color: var(--text-dim); font-weight: 600; margin-right: 0.3rem; }
+
+    .pb-section {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .pb-section-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .pb-num {
+        background: #e8c547; color: #000; width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .pb-section h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .pb-section p, .pb-section li { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+    .pb-section ul, .pb-section ol { padding-left: 1.5rem; margin: 0.75rem 0; }
+    .pb-section li { margin-bottom: 0.4rem; }
+    .pb-section h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+
+    .svend-callout {
+        background: rgba(74,159,110,0.06); border: 1px solid rgba(74,159,110,0.2); border-radius: 8px;
+        padding: 0.85rem 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+    }
+    .svend-callout strong { color: var(--accent-primary); }
+
+    /* LSW Calendar */
+    .lsw-calendar {
+        margin: 1.5rem 0; overflow-x: auto;
+    }
+    .lsw-calendar table {
+        width: 100%; border-collapse: collapse; font-size: 0.78rem;
+        border: 1px solid var(--border); background: var(--bg-card);
+    }
+    .lsw-calendar th {
+        padding: 8px 10px; text-align: left; font-weight: 700; font-size: 0.7rem;
+        color: var(--text-dim); border-bottom: 2px solid var(--border);
+        text-transform: uppercase; letter-spacing: 0.5px;
+        background: var(--bg-tertiary);
+    }
+    .lsw-calendar td {
+        padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: var(--text-secondary); vertical-align: top;
+    }
+    .lsw-calendar .cadence {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px; padding: 2px 8px; border-radius: 10px;
+        display: inline-block;
+    }
+    .lsw-calendar .cadence.daily { background: rgba(74,159,110,0.12); color: #4a9f6e; }
+    .lsw-calendar .cadence.weekly { background: rgba(58,127,143,0.12); color: #3a7f8f; }
+    .lsw-calendar .cadence.monthly { background: rgba(245,158,11,0.12); color: #f59e0b; }
+    .lsw-calendar .check { color: var(--accent-primary); font-weight: 700; }
+    .lsw-calendar .miss { color: #e85747; font-weight: 700; }
+
+    /* Gemba walk route */
+    .gemba-route {
+        display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;
+        margin: 1.25rem 0; padding: 1.25rem;
+        background: var(--bg-tertiary); border-radius: 8px;
+    }
+    .gemba-stop {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+        padding: 0.7rem 1rem; text-align: center; min-width: 110px;
+    }
+    .gemba-stop strong { display: block; font-size: 0.82rem; color: var(--text-primary); }
+    .gemba-stop span { font-size: 0.7rem; color: var(--text-dim); }
+    .gemba-arrow { color: #e8c547; font-size: 1.1rem; }
+
+    /* Role cards */
+    .role-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+        margin: 1.5rem 0;
+    }
+    .role-card {
+        background: var(--bg-tertiary); border-radius: 8px; padding: 1.1rem;
+        border-top: 3px solid var(--border);
+    }
+    .role-card.team-lead { border-top-color: #4a9f6e; }
+    .role-card.area-mgr { border-top-color: #3a7f8f; }
+    .role-card.plant-mgr { border-top-color: #e8c547; }
+    .role-card strong { display: block; font-size: 0.9rem; margin-bottom: 0.3rem; }
+    .role-pct { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .role-card.team-lead .role-pct { color: #4a9f6e; }
+    .role-card.area-mgr .role-pct { color: #3a7f8f; }
+    .role-card.plant-mgr .role-pct { color: #e8c547; }
+    .role-card p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+
+    /* Completion rate */
+    .completion-bar {
+        background: var(--bg-tertiary); border-radius: 8px; padding: 1rem; margin: 1rem 0;
+    }
+    .completion-bar-label { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+    .completion-bar-track {
+        height: 24px; background: rgba(255,255,255,0.06); border-radius: 12px;
+        overflow: hidden; position: relative;
+    }
+    .completion-bar-fill {
+        height: 100%; border-radius: 12px; display: flex; align-items: center;
+        padding: 0 10px; font-size: 0.72rem; font-weight: 700; color: #000;
+    }
+    .completion-bar-fill.good { background: #4a9f6e; }
+    .completion-bar-fill.ok { background: #f59e0b; }
+    .completion-bar-fill.poor { background: #e85747; }
+
+    /* Related playbooks */
+    .related-playbooks {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem; margin: 1.5rem 0;
+    }
+    .related-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.1rem; text-decoration: none; color: inherit; transition: border-color 0.2s;
+    }
+    .related-card:hover { border-color: var(--accent-primary); }
+    .related-phase {
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.3rem;
+    }
+    .related-phase.backbone { color: #a78bfa; }
+    .related-phase.strategy { color: #f59e0b; }
+    .related-phase.shape { color: #4a9f6e; }
+    .related-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .related-desc { color: var(--text-secondary); font-size: 0.78rem; line-height: 1.5; }
+
+    .playbook-cta {
+        text-align: center; margin: 2.5rem 0 1.5rem; padding: 2.5rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .playbook-cta h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .playbook-cta p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .playbook-cta .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .cta-primary {
+        background: var(--accent-primary); color: #fff; padding: 0.7rem 2rem; border-radius: 6px;
+        text-decoration: none; font-weight: 600; font-size: 0.95rem;
+    }
+    .cta-primary:hover { background: #3a8a5a; }
+    .cta-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.7rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.95rem;
+    }
+    .cta-secondary:hover { border-color: var(--accent-primary-border); }
+
+    .pb-faq { margin-top: 2rem; }
+    .pb-faq h2 { font-size: 1.25rem; margin-bottom: 1rem; text-align: center; }
+
+    @media (max-width: 768px) {
+        .role-grid { grid-template-columns: 1fr; }
+        .gemba-route { flex-direction: column; }
+        .gemba-arrow { transform: rotate(90deg); }
+        .related-playbooks { grid-template-columns: 1fr; }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="playbook-hero">
+    <div class="playbook-badge">Consolidate</div>
+    <h1>Leadership <strong>Standard Work</strong></h1>
+    <p class="hero-sub">LSW is not a daily checklist. It is the accountability vehicle that ensures leaders spend time on verification instead of firefighting. Structured tasks that connect hoshin strategy to gemba reality &mdash; with an objective measure of whether it is happening.</p>
+</div>
+
+<div class="playbook-toc">
+    <h3>In This Playbook</h3>
+    <ol>
+        <li><a href="#s1"><span class="toc-num">1.</span> What LSW Is</a></li>
+        <li><a href="#s2"><span class="toc-num">2.</span> LSW by Role</a></li>
+        <li><a href="#s3"><span class="toc-num">3.</span> The LSW Calendar</a></li>
+        <li><a href="#s4"><span class="toc-num">4.</span> Gemba Walks as LSW</a></li>
+        <li><a href="#s5"><span class="toc-num">5.</span> Connecting LSW to MDI</a></li>
+        <li><a href="#s6"><span class="toc-num">6.</span> Connecting LSW to Hoshin</a></li>
+        <li><a href="#s7"><span class="toc-num">7.</span> Measuring Execution</a></li>
+        <li><a href="#s8"><span class="toc-num">8.</span> Common Failure Modes</a></li>
+    </ol>
+</div>
+
+<!-- Section 1 -->
+<div class="pb-section" id="s1">
+    <div class="pb-section-head">
+        <div class="pb-num">1</div>
+        <h2>What LSW Is</h2>
+    </div>
+    <p>Leadership standard work is a structured set of tasks &mdash; daily, weekly, and monthly &mdash; that define how a leader spends their time. Not what they should do if they have time. What they must do regardless of what fires are burning.</p>
+    <p>Without LSW, leaders are reactive. They spend their days responding to the loudest problem, the most urgent email, the most insistent request. The result: strategic initiatives die of neglect, MDI boards go unverified, hoshin projects stall because nobody is following up, and the gemba operates on autopilot.</p>
+
+    <h3>What LSW is not</h3>
+    <ul>
+        <li><strong>Not a to-do list.</strong> A to-do list is things I need to get done. LSW is a management operating rhythm. The tasks repeat. The discipline is in the repetition.</li>
+        <li><strong>Not delegation.</strong> LSW tasks are things the leader does personally. &ldquo;Verify 5S condition in Area 3&rdquo; means walk to Area 3 and look. Not ask someone to report on it.</li>
+        <li><strong>Not optional during busy weeks.</strong> The weeks when you are most tempted to skip LSW are the weeks it matters most. If the plant is in crisis, that is precisely when you need to verify that the management system is functioning.</li>
+        <li><strong>Not surveillance.</strong> LSW is verification, not policing. The purpose is to confirm that systems are working, not to catch people doing things wrong. The questions are &ldquo;is the system functioning?&rdquo; and &ldquo;what barriers exist?&rdquo; &mdash; not &ldquo;who screwed up?&rdquo;</li>
+    </ul>
+
+    <h3>The core principle</h3>
+    <p>A leader&rsquo;s most important job is not solving problems. It is ensuring that the system solves problems. LSW is the mechanism for verifying that the system &mdash; MDI, visual management, hoshin, standard work &mdash; is functioning. If the system is functioning, problems get surfaced and resolved through normal channels. If the system is broken, the leader needs to fix the system, not the symptoms.</p>
+</div>
+
+<!-- Section 2 -->
+<div class="pb-section" id="s2">
+    <div class="pb-section-head">
+        <div class="pb-num">2</div>
+        <h2>LSW by Role</h2>
+    </div>
+    <p>The content and time allocation of LSW varies by role. Higher in the organization, less time is spent on daily standard work and more on strategic verification. But every level has standard work. No one is &ldquo;too senior&rdquo; for structured tasks.</p>
+
+    <div class="role-grid">
+        <div class="role-card team-lead">
+            <strong>Team Lead</strong>
+            <div class="role-pct">70-80%</div>
+            <p>Daily: Pre-shift board review, Tier 1 meeting, hourly board updates, floor presence, newspaper follow-up. Weekly: 5S audit, cross-training schedule review. This role is mostly standard work with minimal firefighting time.</p>
+        </div>
+        <div class="role-card area-mgr">
+            <strong>Area Manager</strong>
+            <div class="role-pct">50-60%</div>
+            <p>Daily: Tier 2 meeting, gemba walk (2 areas), escalation follow-up, resource allocation. Weekly: Hoshin project check-in, maintenance priority review, Tier 3 prep. Monthly: KPI trend analysis, training matrix review.</p>
+        </div>
+        <div class="role-card plant-mgr">
+            <strong>Plant Manager</strong>
+            <div class="role-pct">30-40%</div>
+            <p>Daily: Brief gemba walk (1 area, rotate). Weekly: Tier 3 meeting, hoshin project status review, strategic gemba walk. Monthly: Hoshin savings review, management review inputs, LSW completion rate audit.</p>
+        </div>
+    </div>
+
+    <h3>Why percentages matter</h3>
+    <p>If a team lead spends only 30% of their time on standard work, they are firefighting 70% of the day. That means the management system is broken &mdash; problems are not being surfaced and resolved systematically, so the team lead is personally compensating. The fix is not to work harder. The fix is to repair the MDI system so problems flow through normal channels.</p>
+    <p>Conversely, if a plant manager spends 80% of their time on standard work, they are not spending enough time on strategic thinking and organizational development. The percentages are diagnostic &mdash; they tell you where the system is healthy and where it is failing.</p>
+</div>
+
+<!-- Section 3 -->
+<div class="pb-section" id="s3">
+    <div class="pb-section-head">
+        <div class="pb-num">3</div>
+        <h2>The LSW Calendar</h2>
+    </div>
+    <p>LSW is structured as a calendar, not a list. Each task has a cadence (daily, weekly, monthly), a specific time slot, and a specific location or scope. The calendar makes it visible whether the tasks are getting done.</p>
+
+    <div class="lsw-calendar">
+        <table>
+            <tr>
+                <th>Task</th>
+                <th>Cadence</th>
+                <th>Time</th>
+                <th>Location</th>
+                <th>Mon</th>
+                <th>Tue</th>
+                <th>Wed</th>
+                <th>Thu</th>
+                <th>Fri</th>
+            </tr>
+            <tr>
+                <td>Pre-shift board review</td>
+                <td><span class="cadence daily">Daily</span></td>
+                <td>6:15 AM</td>
+                <td>Tier 1 board</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="miss">&times;</td>
+                <td class="check">&check;</td>
+            </tr>
+            <tr>
+                <td>Tier 1 meeting</td>
+                <td><span class="cadence daily">Daily</span></td>
+                <td>6:30 AM</td>
+                <td>SQDC board</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+            </tr>
+            <tr>
+                <td>Gemba walk &mdash; Press area</td>
+                <td><span class="cadence daily">Daily</span></td>
+                <td>9:00 AM</td>
+                <td>Lines 1-4</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="miss">&times;</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+            </tr>
+            <tr>
+                <td>Newspaper follow-up</td>
+                <td><span class="cadence daily">Daily</span></td>
+                <td>2:00 PM</td>
+                <td>Office + floor</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+                <td class="check">&check;</td>
+            </tr>
+            <tr>
+                <td>5S area audit</td>
+                <td><span class="cadence weekly">Weekly</span></td>
+                <td>10:00 AM</td>
+                <td>Rotate areas</td>
+                <td></td>
+                <td></td>
+                <td class="check">&check;</td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>Hoshin project review</td>
+                <td><span class="cadence weekly">Weekly</span></td>
+                <td>1:00 PM</td>
+                <td>Project board</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="check">&check;</td>
+            </tr>
+            <tr>
+                <td>Training matrix update</td>
+                <td><span class="cadence monthly">Monthly</span></td>
+                <td>3:00 PM</td>
+                <td>HR/Training</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Reading the calendar</h3>
+    <p>Thursday&rsquo;s pre-shift board review shows a miss (red &times;). Why? Was the leader pulled into a crisis? Was the meeting cancelled? The calendar does not judge &mdash; it records. Over time, a pattern emerges. If gemba walks are missed every Wednesday, something systemic is happening on Wednesdays (perhaps a standing meeting conflicts). The calendar makes these patterns visible.</p>
+    <p>The goal is not 100% completion every week. The goal is high-enough completion that the management system functions, and honest recording so that gaps are visible and addressable.</p>
+</div>
+
+<!-- Section 4 -->
+<div class="pb-section" id="s4">
+    <div class="pb-section-head">
+        <div class="pb-num">4</div>
+        <h2>Gemba Walks as LSW</h2>
+    </div>
+    <p>A gemba walk is not a tour. It is structured observation at the point of work, with a specific route, specific things to observe, and a specific follow-up process. Without structure, gemba walks become &ldquo;walking around.&rdquo; Walking around does not improve anything.</p>
+
+    <h3>A structured gemba route</h3>
+    <div class="gemba-route">
+        <div class="gemba-stop">
+            <strong>Tier 1 Board</strong>
+            <span>Data current?<br>Actions assigned?</span>
+        </div>
+        <span class="gemba-arrow">&rarr;</span>
+        <div class="gemba-stop">
+            <strong>Hour-by-Hour</strong>
+            <span>Gaps &gt; 10%?<br>Reasons logged?</span>
+        </div>
+        <span class="gemba-arrow">&rarr;</span>
+        <div class="gemba-stop">
+            <strong>Work Area</strong>
+            <span>5S condition?<br>Safety hazards?</span>
+        </div>
+        <span class="gemba-arrow">&rarr;</span>
+        <div class="gemba-stop">
+            <strong>Standard Work</strong>
+            <span>Being followed?<br>Current revision?</span>
+        </div>
+        <span class="gemba-arrow">&rarr;</span>
+        <div class="gemba-stop">
+            <strong>Newspaper</strong>
+            <span>Overdue items?<br>Barriers unresolved?</span>
+        </div>
+    </div>
+
+    <h3>What to look for</h3>
+    <ul>
+        <li><strong>Visual management boards:</strong> Are they current (updated in the last 24 hours)? Are red conditions addressed with action items? Does the team reference the board or ignore it?</li>
+        <li><strong>Standard work adherence:</strong> Is the operator following the standard work procedure? Is the procedure posted and current? If there is a deviation, is it a training gap, a tooling issue, or a better method the standard has not captured?</li>
+        <li><strong>5S condition:</strong> Is the work area organized? Are tools where they belong? Is there unnecessary material or WIP accumulating? The 5S condition tells you whether shaping is being maintained.</li>
+        <li><strong>Safety:</strong> Any new hazards? Guard rails in place? PPE being used? Safety concerns raised by operators?</li>
+        <li><strong>Conversations:</strong> Talk to operators. &ldquo;What is your biggest frustration right now?&rdquo; &ldquo;Is there anything you need that you are not getting?&rdquo; &ldquo;Do you know what the hoshin objectives are this year?&rdquo; The answers tell you more than any board.</li>
+    </ul>
+
+    <h3>After the walk</h3>
+    <p>A gemba walk that does not produce action is a walking meeting. Every walk should result in one of three outcomes:</p>
+    <ol>
+        <li><strong>Confirmation:</strong> The system is working as intended. No action needed. This is a valid outcome &mdash; not every walk finds problems.</li>
+        <li><strong>Action item:</strong> Something needs attention. Put it on the newspaper with an owner and date. Follow up at the next day&rsquo;s tier meeting.</li>
+        <li><strong>System issue:</strong> The problem is not a one-off &mdash; it is a gap in the management system itself. This goes to the relevant tier for structural resolution.</li>
+    </ol>
+</div>
+
+<!-- Section 5 -->
+<div class="pb-section" id="s5">
+    <div class="pb-section-head">
+        <div class="pb-num">5</div>
+        <h2>Connecting LSW to MDI</h2>
+    </div>
+    <p>LSW is the third pillar of <a href="/managing-for-daily-improvement/">MDI</a>. Visual management makes performance visible. Daily accountability drives action. LSW ensures that leaders are present in the system, verifying and supporting rather than operating above it.</p>
+
+    <h3>LSW as MDI verification</h3>
+    <p>The most important function of LSW is verifying that the MDI system is working:</p>
+    <ul>
+        <li><strong>Are Tier 1 meetings happening?</strong> Not just scheduled &mdash; happening. With data. With actions assigned. On time, every day. If the team lead is skipping meetings, LSW catches it.</li>
+        <li><strong>Are newspapers being honored?</strong> Are items completed by their due dates? Are barriers being escalated? Are resources being provided? The newspaper only works if both sides deliver.</li>
+        <li><strong>Are visual boards current?</strong> Stale data on a board means nobody is maintaining the system. This is the earliest signal of MDI decay.</li>
+        <li><strong>Are escalations being resolved?</strong> Items escalated from Tier 1 to Tier 2 should have a response within 24 hours. LSW tracks whether this is happening.</li>
+    </ul>
+
+    <h3>The leader as system operator</h3>
+    <p>In a functioning MDI system, the leader&rsquo;s job is not to manage people &mdash; it is to manage the system that manages performance. LSW is how the leader operates that system: daily checks, weekly audits, monthly reviews. If the system is working, the leader verifies. If the system is broken, the leader fixes the system &mdash; not the individual problem.</p>
+</div>
+
+<!-- Section 6 -->
+<div class="pb-section" id="s6">
+    <div class="pb-section-head">
+        <div class="pb-num">6</div>
+        <h2>Connecting LSW to Hoshin</h2>
+    </div>
+    <p>Without LSW, <a href="/hoshin-kanri-strategy-deployment/">hoshin kanri</a> floats above the operation. Strategic objectives exist on the X-matrix. Annual targets are set. Projects are assigned. But nobody verifies whether strategic intent is reaching the gemba. LSW is that verification mechanism.</p>
+
+    <h3>Hoshin verification tasks in LSW</h3>
+    <ul>
+        <li><strong>Weekly:</strong> Review hoshin project status. Are active projects on schedule? Are action items progressing? Any blocked items that need escalation? This is a 15-minute review, not a meeting.</li>
+        <li><strong>Weekly:</strong> Walk to Tier 1 boards for areas with active hoshin projects. Do the operators know about the project? Are the project&rsquo;s KPIs visible on the board? Is the project producing visible improvement?</li>
+        <li><strong>Monthly:</strong> Review hoshin savings actuals. Are projects delivering the dollars they committed to? What is the variance? For projects behind target, what is the recovery plan?</li>
+        <li><strong>Monthly:</strong> Check X-matrix correlations. Are there orphan projects (no connection to objectives)? Are there unsupported objectives (no projects driving them)? Have any correlations changed?</li>
+        <li><strong>Quarterly:</strong> Review annual objective status. On-track, at-risk, or behind? Does the trajectory suggest year-end targets will be met? Any course corrections needed?</li>
+    </ul>
+
+    <h3>The gap LSW closes</h3>
+    <p>Most hoshin implementations fail not because the strategy is wrong but because the verification is absent. The plant manager sets ambitious objectives in January, reviews them in July, and discovers that half the projects stalled in March. Seven months of drift. LSW prevents this by building weekly and monthly hoshin checks into the management routine. The drift gets caught in weeks, not months.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> The hoshin dashboard and calendar view provide the data for LSW hoshin verification. Monthly target vs. actual by project, by-site rollup, status distribution, and X-matrix alignment metrics (linked vs. orphaned) are all available without manual data gathering. The leader&rsquo;s LSW task becomes: open the dashboard, review the data, act on the gaps.
+    </div>
+</div>
+
+<!-- Section 7 -->
+<div class="pb-section" id="s7">
+    <div class="pb-section-head">
+        <div class="pb-num">7</div>
+        <h2>Measuring Execution</h2>
+    </div>
+    <p>LSW provides an objective measure of management execution. Not opinions about whether leaders are &ldquo;engaged.&rdquo; Data: did the task happen or not?</p>
+
+    <h3>LSW completion rate</h3>
+    <p>The simplest metric: what percentage of scheduled LSW tasks were completed this week? This number tells you more about the health of the management system than any engagement survey.</p>
+
+    <div class="completion-bar">
+        <div class="completion-bar-label">Area Manager &mdash; Week of March 3</div>
+        <div class="completion-bar-track">
+            <div class="completion-bar-fill good" style="width: 87%;">87% &mdash; 20 of 23 tasks</div>
+        </div>
+    </div>
+    <div class="completion-bar">
+        <div class="completion-bar-label">Team Lead B &mdash; Week of March 3</div>
+        <div class="completion-bar-track">
+            <div class="completion-bar-fill ok" style="width: 64%;">64% &mdash; 18 of 28 tasks</div>
+        </div>
+    </div>
+    <div class="completion-bar">
+        <div class="completion-bar-label">Plant Manager &mdash; Week of March 3</div>
+        <div class="completion-bar-track">
+            <div class="completion-bar-fill good" style="width: 92%;">92% &mdash; 11 of 12 tasks</div>
+        </div>
+    </div>
+
+    <h3>What the numbers mean</h3>
+    <ul>
+        <li><strong>Above 85%:</strong> Healthy. The leader is executing the management routine with consistency. Misses are occasional and explainable.</li>
+        <li><strong>70-85%:</strong> Slipping. Some tasks are being systematically skipped. Investigate which tasks and why. Is the leader overloaded? Is the task unrealistic? Is the leader deprioritizing verification for firefighting?</li>
+        <li><strong>Below 70%:</strong> Broken. The management routine is not functioning. The leader is either overwhelmed, disengaged, or unsupported. This requires a structural conversation, not a lecture.</li>
+    </ul>
+
+    <h3>Trending, not judging</h3>
+    <p>A single week at 64% means nothing. A trend from 87% to 78% to 64% over three weeks means the system is decaying. Trend the data. Look for patterns: which tasks get dropped first? Are gemba walks the first casualty? Are hoshin checks being skipped? The pattern tells you where the management system is weakest.</p>
+
+    <h3>Leader&rsquo;s leader verification</h3>
+    <p>The plant manager&rsquo;s LSW includes verifying that area managers are executing their LSW. The area manager&rsquo;s LSW includes verifying that team leads are executing theirs. Each level verifies the level below. This is not micromanagement &mdash; it is system verification. If the team lead&rsquo;s LSW completion drops to 50%, the area manager needs to understand why and either adjust the workload, provide support, or address the root cause.</p>
+</div>
+
+<!-- Section 8 -->
+<div class="pb-section" id="s8">
+    <div class="pb-section-head">
+        <div class="pb-num">8</div>
+        <h2>Common Failure Modes</h2>
+    </div>
+
+    <h3>LSW as paperwork</h3>
+    <p>When LSW completion is tracked but the tasks are done superficially &mdash; checking the box without actually verifying anything. The leader walks to the board, checks it off, and walks away without looking at the data. 100% completion, zero value. The fix: pair completion tracking with outcome questions. Did the gemba walk produce any actions? What did you learn? If the answer is always &ldquo;nothing,&rdquo; either the system is perfect (unlikely) or the walk is not genuine.</p>
+
+    <h3>Firefighting displaces LSW</h3>
+    <p>The most common failure. A machine goes down, a customer complaint arrives, a supplier misses a delivery. The leader drops LSW to fight the fire. This is sometimes necessary. But if it happens more than once per week, the firefighting is systemic and the management system needs repair. Frequent firefighting means problems are not being surfaced and resolved through normal MDI channels.</p>
+
+    <h3>LSW designed by someone who does not do the job</h3>
+    <p>If a consultant designs the LSW calendar without consulting the people who will execute it, the tasks will not match reality. LSW must be designed by the person who will do it, reviewed by their leader, and adjusted based on experience. A team lead who has never been asked &ldquo;what should your standard work look like?&rdquo; will not own the result.</p>
+
+    <h3>No verification of the verifier</h3>
+    <p>If no one verifies the plant manager&rsquo;s LSW, the plant manager&rsquo;s discipline depends entirely on personal commitment. In mature organizations, the operations VP or regional manager reviews plant manager LSW completion and hoshin results. This is not optional &mdash; accountability at every level is what makes the system work.</p>
+</div>
+
+<!-- Related Playbooks -->
+<div style="margin: 2.5rem 0 1rem;">
+    <h2 style="font-size: 1.15rem; text-align: center; margin-bottom: 1rem;">Related Playbooks</h2>
+    <div class="related-playbooks">
+        <a href="/managing-for-daily-improvement/" class="related-card">
+            <div class="related-phase backbone">Backbone</div>
+            <div class="related-title">Managing for Daily Improvement</div>
+            <div class="related-desc">LSW is the third pillar of MDI. Tier structure, newspapers, visual management &mdash; LSW verifies all three.</div>
+        </a>
+        <a href="/hoshin-kanri-strategy-deployment/" class="related-card">
+            <div class="related-phase strategy">Strategy</div>
+            <div class="related-title">Hoshin Kanri &amp; Strategy Deployment</div>
+            <div class="related-desc">LSW includes structured hoshin verification tasks. Weekly project checks, monthly savings reviews.</div>
+        </a>
+        <a href="/5s-operational-excellence/" class="related-card">
+            <div class="related-phase shape">Shape</div>
+            <div class="related-title">5S as Operational Shaping</div>
+            <div class="related-desc">5S audits are core LSW tasks. Weekly area audits verify the shaping condition is maintained.</div>
+        </a>
+    </div>
+</div>
+
+<!-- CTA -->
+<div class="playbook-cta">
+    <h3>Verify, Don&rsquo;t Assume</h3>
+    <p>Action item tracking with completion rates, hoshin dashboard for savings verification, SPC for process monitoring &mdash; the data you need for structured leadership standard work. Team plan: {{ price_team }}/seat/mo.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="/continuous-improvement-software/" class="cta-secondary">Back to CI Hub</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}
+
+{% block faq %}
+<div class="pb-faq">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">What is leadership standard work?</div>
+        <div class="faq-a">A structured set of daily, weekly, and monthly tasks that define how a leader spends time on verification and system management. Not a to-do list &mdash; a management operating rhythm. The tasks repeat at defined cadences with specific locations and observation criteria.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is a gemba walk?</div>
+        <div class="faq-a">Structured observation at the point of work with a defined route, specific things to observe, and a follow-up process. Check visual boards for currency, verify standard work adherence, assess 5S conditions, talk to operators. Every walk produces one of three outcomes: confirmation, action item, or system issue escalation.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How much time should a leader spend on standard work?</div>
+        <div class="faq-a">Team leads: 70-80%. Area managers: 50-60%. Plant managers: 30-40%. If a team lead is at 30%, the management system is broken and they are firefighting all day. If a plant manager is at 80%, they are not spending enough time on strategic thinking. The percentages are diagnostic.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does LSW connect to hoshin?</div>
+        <div class="faq-a">LSW includes structured hoshin verification tasks: weekly project status checks, monthly savings reviews, gemba walks to active hoshin areas, quarterly objective reviews. Without LSW, hoshin operates at the strategic level and nobody verifies whether it reaches the floor. LSW closes that gap.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is a good LSW completion rate?</div>
+        <div class="faq-a">Above 85% is healthy. 70-85% is slipping &mdash; investigate which tasks are being dropped. Below 70% is broken &mdash; the management routine is not functioning. Trend the data over weeks, not individual days. Look for patterns in which tasks are skipped first.</div>
+    </div>
+</div>
+{% endblock %}

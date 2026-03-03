@@ -5,7 +5,10 @@ import math
 import numpy as np
 from scipy import stats as sp_stats
 
-from .common import _effect_magnitude, _practical_block, _fit_best_distribution
+from .common import (_effect_magnitude, _practical_block, _fit_best_distribution, _narrative,
+                     _check_normality, _check_equal_variance, _check_outliers, _cross_validate,
+                     _bayesian_shadow, _evidence_grade,
+                     SVEND_COLORS, COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_INFO, _rgba)
 
 
 def run_statistical_analysis(df, analysis_id, config):
@@ -157,6 +160,23 @@ def run_statistical_analysis(df, analysis_id, config):
             obs_parts.append("Not significant.")
         result["guide_observation"] = " ".join(obs_parts)
 
+        # Narrative
+        direction = "higher" if x.mean() > mu else "lower"
+        if pval < alpha and meaningful:
+            verdict = f"The mean of {var1} is significantly {direction} than {mu}"
+            body = f"The sample mean ({x.mean():.4f}) differs from the hypothesized value by {abs(diff_val):.4f} units &mdash; a <strong>{label}</strong> effect (Cohen's d = {abs(d):.2f}). This difference is both statistically and practically significant."
+            nexts = "Investigate what is causing the shift from the target value."
+        elif pval < alpha:
+            verdict = f"Statistically significant but small difference in {var1}"
+            body = f"The sample mean ({x.mean():.4f}) differs from {mu} (p = {pval:.4f}), but the effect size is {label} (d = {abs(d):.2f}). The difference may be too small to justify action."
+            nexts = "Evaluate whether the cost of intervention is worth a {label} improvement.".format(label=label)
+        else:
+            verdict = f"No significant difference from {mu}"
+            body = f"The sample mean ({x.mean():.4f}) is not significantly different from {mu} (p = {pval:.4f}). The effect size is {label} (d = {abs(d):.2f})."
+            nexts = "If you expected a difference, consider increasing the sample size." if label in ("medium", "large") else None
+        result["narrative"] = _narrative(verdict, body, next_steps=nexts,
+            chart_guidance="The histogram shows the data distribution. The dashed line marks the hypothesized mean; the shaded band is the 95% confidence interval.")
+
         # Explicit statistics for Synara
         result["statistics"] = {
             f"mean({var1})": float(x.mean()),
@@ -180,6 +200,48 @@ def run_statistical_analysis(df, analysis_id, config):
             "cohens_d": float(abs(d)),
         }
 
+        # ── Diagnostics: assumption checks + cross-validation ──
+        diagnostics = []
+        _norm = _check_normality(x.values, label=var1, alpha=alpha)
+        if _norm:
+            _norm["detail"] += f" With n={n}, consider a Wilcoxon signed-rank test."
+            _norm["action"] = {"label": "Run Wilcoxon Signed-Rank", "type": "stats", "analysis": "wilcoxon_1samp",
+                               "config": {"var": var1, "mu": mu}}
+            diagnostics.append(_norm)
+        _out = _check_outliers(x.values, label=var1)
+        if _out:
+            diagnostics.append(_out)
+        # Cross-validate with Wilcoxon signed-rank
+        _cv_agrees = None
+        try:
+            _wsr_stat, _wsr_p = stats.wilcoxon(x - mu)
+            _cv_result = _cross_validate(pval, _wsr_p, "t-test", "Wilcoxon signed-rank",
+                                         alpha=alpha, normality_failed=bool(_norm))
+            _cv_agrees = _cv_result.get("level") == "info"
+            diagnostics.append(_cv_result)
+        except Exception:
+            pass
+        # Effect size emphasis
+        if abs(d) >= 0.8 and pval < alpha:
+            diagnostics.append({"level": "info", "title": f"Large practical effect (Cohen's d = {abs(d):.2f})",
+                                "detail": "This difference is large enough to be practically meaningful regardless of p-value."})
+        elif abs(d) < 0.2 and pval < alpha:
+            diagnostics.append({"level": "warning", "title": f"Significant but trivial effect (d = {abs(d):.2f})",
+                                "detail": "Statistical significance with negligible practical effect. The difference may not justify action."})
+        result["diagnostics"] = diagnostics
+
+        # --- Bayesian Insurance ---
+        try:
+            _shadow = _bayesian_shadow("ttest_1samp", x=x.values, mu=mu)
+            if _shadow:
+                result["bayesian_shadow"] = _shadow
+            _grade = _evidence_grade(pval, bf10=_shadow.get("bf10") if _shadow else None,
+                                     effect_magnitude=label, cross_val_agrees=_cv_agrees)
+            if _grade:
+                result["evidence_grade"] = _grade
+        except Exception:
+            pass
+
         # Histogram with mean line and CI band
         result["plots"].append({
             "title": f"Distribution of {var1} with Mean & {conf}% CI",
@@ -189,7 +251,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "scatter", "x": [mu, mu], "y": [0, n/5], "mode": "lines", "line": {"color": "#d94a4a", "width": 2, "dash": "dash"}, "name": f"H₀ μ = {mu}"},
                 {"type": "scatter", "x": [float(ci[0]), float(ci[1]), float(ci[1]), float(ci[0]), float(ci[0])], "y": [0, 0, n/5, n/5, 0], "fill": "toself", "fillcolor": "rgba(74, 144, 217, 0.15)", "line": {"color": "rgba(74, 144, 217, 0.3)"}, "name": f"{conf}% CI"}
             ],
-            "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": var1}, "yaxis": {"title": "Count"}, "barmode": "overlay"}
+            "layout": {"height": 300, "xaxis": {"title": var1}, "yaxis": {"title": "Count"}, "barmode": "overlay"}
         })
 
     elif analysis_id == "ttest2":
@@ -257,6 +319,25 @@ def run_statistical_analysis(df, analysis_id, config):
         else:
             obs_parts.append("Not significant.")
         result["guide_observation"] = " ".join(obs_parts)
+
+        # Narrative
+        higher = var1 if diff_val > 0 else var2
+        lower = var2 if diff_val > 0 else var1
+        if pval < alpha and meaningful:
+            verdict = f"{higher} is significantly higher than {lower}"
+            body = f"The mean difference is {abs(diff_val):.4f} units &mdash; a <strong>{label}</strong> effect (Cohen's d = {abs(d):.2f}). This is both statistically and practically significant."
+            nexts = "Investigate root causes for the difference between groups."
+        elif pval < alpha:
+            verdict = f"Statistically significant but {label} difference"
+            body = f"The groups differ (p = {pval:.4f}), but the effect size is {label} (d = {abs(d):.2f}). The {abs(diff_val):.4f}-unit gap may be too small to act on."
+            nexts = "Evaluate practical importance before allocating resources."
+        else:
+            verdict = "No significant difference between groups"
+            body = f"The means of {var1} ({x.mean():.4f}) and {var2} ({y.mean():.4f}) are not significantly different (p = {pval:.4f})."
+            nexts = "If you expected a difference, consider increasing sample size or reducing measurement noise." if label in ("medium", "large") else None
+        result["narrative"] = _narrative(verdict, body, next_steps=nexts,
+            chart_guidance="Side-by-side box plots show the distribution of each group. Overlapping boxes suggest similar distributions; separated boxes suggest a real difference.")
+
         result["statistics"] = {
             f"mean({var1})": float(x.mean()),
             f"mean({var2})": float(y.mean()),
@@ -277,6 +358,67 @@ def run_statistical_analysis(df, analysis_id, config):
             "cohens_d": float(abs(d)),
         }
 
+        # ── Diagnostics: assumption checks + cross-validation ──
+        diagnostics = []
+        _norm1 = _check_normality(x.values, label=var1, alpha=alpha)
+        _norm2 = _check_normality(y.values, label=var2, alpha=alpha)
+        _any_nonnormal = bool(_norm1 or _norm2)
+        if _norm1:
+            diagnostics.append(_norm1)
+        if _norm2:
+            diagnostics.append(_norm2)
+        _eq_var = _check_equal_variance(x.values, y.values, labels=[var1, var2], alpha=alpha)
+        if _eq_var:
+            _eq_var["detail"] += " Welch's t-test (default) handles this correctly."
+            diagnostics.append(_eq_var)
+        _out1 = _check_outliers(x.values, label=var1)
+        _out2 = _check_outliers(y.values, label=var2)
+        if _out1:
+            diagnostics.append(_out1)
+        if _out2:
+            diagnostics.append(_out2)
+        # Cross-validate with Mann-Whitney
+        _cv_agrees = None
+        try:
+            _mw_u, _mw_p = stats.mannwhitneyu(x, y, alternative='two-sided')
+            _cv = _cross_validate(pval, _mw_p, "t-test", "Mann-Whitney U",
+                                  alpha=alpha, normality_failed=_any_nonnormal)
+            _cv_agrees = _cv.get("level") == "info"
+            # Enrich with effect size
+            if abs(d) >= 0.5:
+                _cv["detail"] += f" Effect size is {label} (d = {abs(d):.2f})."
+            _cv["action"] = {"label": "Run Mann-Whitney", "type": "stats", "analysis": "mann_whitney",
+                             "config": {"var": config.get("response") or config.get("var1", ""),
+                                        "group_var": config.get("group_var") or config.get("factor") or config.get("var2", "")}}
+            diagnostics.append(_cv)
+        except Exception:
+            pass
+        # Effect size emphasis
+        if abs(d) >= 0.8 and pval < alpha:
+            diagnostics.append({"level": "info", "title": f"Large practical effect (Cohen's d = {abs(d):.2f})",
+                                "detail": f"The {abs(diff_val):.4f}-unit difference is {label} \u2014 large enough to be practically meaningful."})
+        elif abs(d) < 0.2 and pval < alpha:
+            diagnostics.append({"level": "warning", "title": f"Significant but trivial effect (d = {abs(d):.2f})",
+                                "detail": "Statistical significance with negligible practical effect. Large sample sizes can make tiny differences significant."})
+        elif abs(d) >= 0.5 and pval >= alpha:
+            diagnostics.append({"level": "warning", "title": f"Moderate effect not reaching significance (d = {abs(d):.2f})",
+                                "detail": "The effect size suggests a real difference, but the sample may be too small to detect it. Consider collecting more data.",
+                                "action": {"label": "Power Analysis", "type": "stats", "analysis": "power_sample_size",
+                                           "config": {"test_type": "ttest2", "effect_size": float(abs(d)), "alpha": float(alpha)}}})
+        result["diagnostics"] = diagnostics
+
+        # --- Bayesian Insurance ---
+        try:
+            _shadow = _bayesian_shadow("ttest_2samp", x=x.values, y=y.values)
+            if _shadow:
+                result["bayesian_shadow"] = _shadow
+            _grade = _evidence_grade(pval, bf10=_shadow.get("bf10") if _shadow else None,
+                                     effect_magnitude=label, cross_val_agrees=_cv_agrees)
+            if _grade:
+                result["evidence_grade"] = _grade
+        except Exception:
+            pass
+
         # Side-by-side box plots
         result["plots"].append({
             "title": f"Comparison: {var1} vs {var2}",
@@ -284,7 +426,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "box", "y": x.tolist(), "name": var1, "marker": {"color": "#4a9f6e"}, "boxpoints": "outliers"},
                 {"type": "box", "y": y.tolist(), "name": var2, "marker": {"color": "#4a90d9"}, "boxpoints": "outliers"}
             ],
-            "layout": {"template": "plotly_dark", "height": 300, "yaxis": {"title": "Value"}}
+            "layout": {"height": 300, "yaxis": {"title": "Value"}}
         })
 
     elif analysis_id == "paired_t":
@@ -359,6 +501,23 @@ def run_statistical_analysis(df, analysis_id, config):
         else:
             obs_parts.append("Not significant.")
         result["guide_observation"] = " ".join(obs_parts)
+
+        # Narrative
+        if pval < alpha and meaningful:
+            verdict = f"Paired values {direction} significantly"
+            body = f"The mean difference is {abs(diff.mean()):.4f} units &mdash; a <strong>{label}</strong> effect (d = {abs(d):.2f}). The change is both statistically and practically significant."
+            nexts = "This confirms the intervention had a meaningful impact."
+        elif pval < alpha:
+            verdict = f"Small but statistically significant change"
+            body = f"Paired values {direction} by {abs(diff.mean()):.4f} units on average (p = {pval:.4f}), but the effect is {label} (d = {abs(d):.2f})."
+            nexts = "The change is real but may not justify the cost of the intervention."
+        else:
+            verdict = "No significant change between paired observations"
+            body = f"The mean difference ({diff.mean():.4f}) is not statistically significant (p = {pval:.4f}). The effect size is {label}."
+            nexts = "If you expected improvement, check whether the intervention was applied consistently." if label in ("medium", "large") else None
+        result["narrative"] = _narrative(verdict, body, next_steps=nexts,
+            chart_guidance="The histogram shows the distribution of paired differences. If centered away from zero, the treatment had a systematic effect.")
+
         result["statistics"] = {
             "mean_difference": float(diff.mean()),
             "std_difference": float(diff.std()),
@@ -379,6 +538,49 @@ def run_statistical_analysis(df, analysis_id, config):
             "cohens_d": float(abs(d)),
         }
 
+        # ── Diagnostics ──
+        diagnostics = []
+        _norm_d = _check_normality(diff.values, label="Differences", alpha=alpha)
+        if _norm_d:
+            _norm_d["detail"] += " For paired tests, normality of differences matters."
+            _norm_d["action"] = {"label": "Run Wilcoxon Signed-Rank", "type": "stats", "analysis": "wilcoxon_signed",
+                                 "config": {"var1": config.get("var1", ""), "var2": config.get("var2", "")}}
+            diagnostics.append(_norm_d)
+        _out_d = _check_outliers(diff.values, label="Differences")
+        if _out_d:
+            diagnostics.append(_out_d)
+        # Cross-validate with Wilcoxon signed-rank
+        _cv_agrees = None
+        try:
+            _wsr_stat, _wsr_p = stats.wilcoxon(diff)
+            _cv = _cross_validate(pval, _wsr_p, "Paired t-test", "Wilcoxon signed-rank",
+                                  alpha=alpha, normality_failed=bool(_norm_d))
+            _cv_agrees = _cv.get("level") == "info"
+            if abs(d) >= 0.5:
+                _cv["detail"] += f" Effect size is {label} (d = {abs(d):.2f})."
+            diagnostics.append(_cv)
+        except Exception:
+            pass
+        if abs(d) >= 0.8 and pval < alpha:
+            diagnostics.append({"level": "info", "title": f"Large practical effect (d = {abs(d):.2f})",
+                                "detail": f"The intervention produced a {label} change of {abs(diff.mean()):.4f} units."})
+        elif abs(d) < 0.2 and pval < alpha:
+            diagnostics.append({"level": "warning", "title": f"Significant but trivial effect (d = {abs(d):.2f})",
+                                "detail": "The change is statistically detectable but may not justify the intervention cost."})
+        result["diagnostics"] = diagnostics
+
+        # --- Bayesian Insurance ---
+        try:
+            _shadow = _bayesian_shadow("ttest_paired", x=x.values, y=y.values)
+            if _shadow:
+                result["bayesian_shadow"] = _shadow
+            _grade = _evidence_grade(pval, bf10=_shadow.get("bf10") if _shadow else None,
+                                     effect_magnitude=label, cross_val_agrees=_cv_agrees)
+            if _grade:
+                result["evidence_grade"] = _grade
+        except Exception:
+            pass
+
         # Histogram of differences
         result["plots"].append({
             "title": f"Distribution of Differences ({var1} − {var2})",
@@ -387,7 +589,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "scatter", "x": [float(diff.mean()), float(diff.mean())], "y": [0, len(x)/5], "mode": "lines", "line": {"color": "#4a90d9", "width": 2}, "name": f"Mean diff ({diff.mean():.3f})"},
                 {"type": "scatter", "x": [0, 0], "y": [0, len(x)/5], "mode": "lines", "line": {"color": "#d94a4a", "width": 2, "dash": "dash"}, "name": "Zero (no diff)"}
             ],
-            "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": "Difference"}, "yaxis": {"title": "Count"}}
+            "layout": {"height": 300, "xaxis": {"title": "Difference"}, "yaxis": {"title": "Count"}}
         })
 
     elif analysis_id == "anova":
@@ -453,6 +655,23 @@ def run_statistical_analysis(df, analysis_id, config):
             else:
                 obs_parts.append("Not significant.")
             result["guide_observation"] = " ".join(obs_parts)
+
+            # Narrative
+            if pval < 0.05 and eta_meaningful:
+                verdict = f"{factor_col} has a significant effect on {response}"
+                body = f"The factor explains <strong>{eta_sq*100:.1f}%</strong> of the variation in {response} &mdash; a <strong>{eta_label}</strong> effect ({k} groups, F = {stat:.2f}, p = {pval:.4f})."
+                nexts = f"Run <strong>Tukey HSD</strong> or <strong>Games-Howell</strong> post-hoc tests to identify which specific groups differ."
+            elif pval < 0.05:
+                verdict = f"Statistically significant but {eta_label} effect of {factor_col}"
+                body = f"At least one group mean differs (p = {pval:.4f}), but {factor_col} explains only {eta_sq*100:.1f}% of the variation ({eta_label} effect). Other factors likely dominate."
+                nexts = "Consider whether the small effect justifies further investigation. Look for other sources of variation."
+            else:
+                verdict = f"No significant difference across {factor_col} groups"
+                body = f"The {k} groups do not differ significantly (F = {stat:.2f}, p = {pval:.4f}). {factor_col} explains only {eta_sq*100:.1f}% of the variation."
+                nexts = "If you expected differences, check sample sizes and measurement precision." if eta_meaningful else None
+            result["narrative"] = _narrative(verdict, body, next_steps=nexts,
+                chart_guidance=f"The box plot shows the distribution of {response} by {factor_col}. Non-overlapping boxes suggest real differences; look for groups with notably different medians.")
+
             result["statistics"] = {
                 "f_statistic": float(stat),
                 "p_value": float(pval),
@@ -476,6 +695,70 @@ def run_statistical_analysis(df, analysis_id, config):
                 "n_groups": int(k),
             }
 
+            # ── Diagnostics ──
+            diagnostics = []
+            # Normality of residuals (approximate: check each group)
+            _any_nonnormal = False
+            for level in df[factor_col].unique():
+                grp = df[df[factor_col] == level][response].dropna()
+                _norm_g = _check_normality(grp.values, label=f"{response} [{level}]", alpha=0.05)
+                if _norm_g:
+                    _any_nonnormal = True
+                    diagnostics.append(_norm_g)
+                    break  # Report once, not per-group
+            if _any_nonnormal:
+                diagnostics[-1]["detail"] = "ANOVA assumes normality within groups. Consider Kruskal-Wallis for non-normal data."
+                diagnostics[-1]["action"] = {"label": "Run Kruskal-Wallis", "type": "stats", "analysis": "kruskal_wallis",
+                                             "config": {"response": response, "factor": factor_col}}
+            # Equal variance
+            _eq_var = _check_equal_variance(*[g.values for g in groups], labels=[str(l) for l in df[factor_col].unique()], alpha=0.05)
+            if _eq_var:
+                _eq_var["detail"] += " Consider Welch's ANOVA or Games-Howell post-hoc."
+                diagnostics.append(_eq_var)
+            # Cross-validate with Kruskal-Wallis
+            _cv_agrees = None
+            try:
+                _kw_stat, _kw_p = stats.kruskal(*groups)
+                _cv = _cross_validate(pval, _kw_p, "ANOVA", "Kruskal-Wallis",
+                                      alpha=0.05, normality_failed=_any_nonnormal)
+                _cv_agrees = _cv.get("level") == "info"
+                if eta_sq >= 0.06:
+                    _cv["detail"] += f" Effect size is {eta_label} (\u03b7\u00b2 = {eta_sq:.3f})."
+                diagnostics.append(_cv)
+            except Exception:
+                pass
+            # Effect size emphasis
+            if eta_sq >= 0.14 and pval < 0.05:
+                diagnostics.append({"level": "info", "title": f"Large practical effect (\u03b7\u00b2 = {eta_sq:.3f})",
+                                    "detail": f"{factor_col} explains {eta_sq*100:.1f}% of variation \u2014 a meaningful source of differences."})
+            elif eta_sq < 0.01 and pval < 0.05:
+                diagnostics.append({"level": "warning", "title": f"Significant but negligible effect (\u03b7\u00b2 = {eta_sq:.3f})",
+                                    "detail": f"{factor_col} explains only {eta_sq*100:.1f}% of variation. The difference is real but practically irrelevant."})
+            elif eta_sq >= 0.06 and pval >= 0.05:
+                diagnostics.append({"level": "warning", "title": f"Moderate effect not reaching significance (\u03b7\u00b2 = {eta_sq:.3f})",
+                                    "detail": "The effect size suggests real group differences but the sample may be too small.",
+                                    "action": {"label": "Power Analysis", "type": "stats", "analysis": "power_sample_size",
+                                               "config": {"test_type": "anova", "effect_size": float(eta_sq), "alpha": 0.05, "n_groups": k}}})
+            # Post-hoc suggestion
+            if pval < 0.05 and k > 2:
+                diagnostics.append({"level": "info", "title": f"Post-hoc needed: {k} groups \u2014 ANOVA only says 'at least one differs'",
+                                    "detail": "Run pairwise comparisons to identify which specific groups differ.",
+                                    "action": {"label": "Run Tukey HSD", "type": "stats", "analysis": "tukey_hsd",
+                                               "config": {"response": response, "factor": factor_col}}})
+            result["diagnostics"] = diagnostics
+
+            # --- Bayesian Insurance ---
+            try:
+                _shadow = _bayesian_shadow("anova", groups=[g.values for g in groups])
+                if _shadow:
+                    result["bayesian_shadow"] = _shadow
+                _grade = _evidence_grade(pval, bf10=_shadow.get("bf10") if _shadow else None,
+                                         effect_magnitude=eta_label, cross_val_agrees=_cv_agrees)
+                if _grade:
+                    result["evidence_grade"] = _grade
+            except Exception:
+                pass
+
             # Box plot
             result["plots"].append({
                 "title": f"{response} by {factor_col}",
@@ -485,7 +768,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     "x": df[factor_col].astype(str).tolist(),
                     "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}
                 }],
-                "layout": {"template": "plotly_dark", "height": 300}
+                "layout": {"height": 300}
             })
         else:
             result["summary"] = "Please select a factor column for ANOVA."
@@ -544,6 +827,82 @@ def run_statistical_analysis(df, analysis_id, config):
             )
             result["statistics"] = {"effects": effect_stats}
 
+            # Narrative
+            if effect_stats:
+                _sig_effects = {k: v for k, v in effect_stats.items() if v["p_value"] < 0.05}
+                strongest = max(effect_stats.items(), key=lambda x: x[1]["partial_eta_squared"])
+                s_name, s_vals = strongest
+                if _sig_effects:
+                    _ix_key = f"C({factor_a}):C({factor_b})"
+                    _has_ix = _ix_key in _sig_effects
+                    verdict = f"{'Interaction' if _has_ix else s_name} is significant (η² = {s_vals['partial_eta_squared']:.3f})"
+                    body = f"Significant effects: <strong>{', '.join(_sig_effects.keys())}</strong>."
+                    if _has_ix:
+                        body += f" The interaction means the effect of {factor_a} depends on {factor_b} — optimize jointly."
+                    nxt = "Run post-hoc tests (Tukey HSD) on significant main effects to identify which levels differ."
+                else:
+                    verdict = "No significant effects detected"
+                    body = f"Neither {factor_a}, {factor_b}, nor their interaction significantly affects {response}."
+                    nxt = "Check sample sizes and effect sizes. The study may lack power."
+                result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+                    chart_guidance="Non-parallel lines in the interaction plot suggest an interaction between factors.")
+
+            # ── Diagnostics ──
+            diagnostics = []
+            # Normality of residuals
+            try:
+                _resids = model.resid.values
+                _norm_r = _check_normality(_resids, label="Model residuals", alpha=0.05)
+                if _norm_r:
+                    _norm_r["detail"] = "Two-way ANOVA assumes normality of residuals. Consider a non-parametric alternative or data transformation."
+                    diagnostics.append(_norm_r)
+            except Exception:
+                # Fallback: check response within each factor combination
+                for _a_lev in df[factor_a].unique():
+                    for _b_lev in df[factor_b].unique():
+                        _cell = df[(df[factor_a] == _a_lev) & (df[factor_b] == _b_lev)][response].dropna()
+                        if len(_cell) >= 8:
+                            _norm_c = _check_normality(_cell.values, label=f"{response} [{_a_lev}×{_b_lev}]", alpha=0.05)
+                            if _norm_c:
+                                _norm_c["detail"] = "Non-normal data in at least one cell. ANOVA is robust for large samples but consider transformations."
+                                diagnostics.append(_norm_c)
+                                break
+                    else:
+                        continue
+                    break
+            # Equal variances across factor combinations (Levene's)
+            _cell_groups = []
+            _cell_labels = []
+            for _a_lev in df[factor_a].unique():
+                for _b_lev in df[factor_b].unique():
+                    _cell = df[(df[factor_a] == _a_lev) & (df[factor_b] == _b_lev)][response].dropna()
+                    if len(_cell) >= 2:
+                        _cell_groups.append(_cell.values)
+                        _cell_labels.append(f"{_a_lev}×{_b_lev}")
+            if len(_cell_groups) >= 2:
+                _eq_var = _check_equal_variance(*_cell_groups, labels=_cell_labels, alpha=0.05)
+                if _eq_var:
+                    _eq_var["detail"] += " Unequal variances across cells may inflate Type I error. Consider data transformation."
+                    diagnostics.append(_eq_var)
+            # Effect size emphasis: partial eta-squared per effect
+            _ix_key = f"C({factor_a}):C({factor_b})"
+            for _eff_name, _eff_vals in effect_stats.items():
+                _peta = _eff_vals["partial_eta_squared"]
+                _pval = _eff_vals["p_value"]
+                if _peta > 0.14 and _pval < 0.05:
+                    diagnostics.append({"level": "info", "title": f"Large practical effect for {_eff_name} (η²p = {_peta:.3f})",
+                                        "detail": f"{_eff_name} explains {_peta*100:.1f}% of variation after accounting for other effects — a meaningful source of differences."})
+            # Interaction warning
+            if _ix_key in effect_stats and effect_stats[_ix_key]["p_value"] < 0.05:
+                _ix_p = effect_stats[_ix_key]["p_value"]
+                diagnostics.append({"level": "info", "title": "Interaction detected \u2014 interpret main effects with caution",
+                                    "detail": f"The {factor_a}\u00d7{factor_b} interaction is significant (p = {_ix_p:.4f}). Main effects alone do not tell the full story \u2014 the effect of one factor depends on the level of the other."})
+            # No effects significant
+            if not any(v["p_value"] < 0.05 for v in effect_stats.values()):
+                diagnostics.append({"level": "warning", "title": "No detectable effects — consider increasing sample size or redesigning",
+                                    "detail": f"Neither {factor_a}, {factor_b}, nor their interaction reached significance. The study may lack statistical power."})
+            result["diagnostics"] = diagnostics
+
             # Interaction plot
             means = df.groupby([factor_a, factor_b])[response].mean().unstack()
             traces = []
@@ -559,7 +918,7 @@ def run_statistical_analysis(df, analysis_id, config):
             result["plots"].append({
                 "title": "Interaction Plot",
                 "data": traces,
-                "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": factor_a}}
+                "layout": {"height": 300, "xaxis": {"title": factor_a}}
             })
 
         except ImportError:
@@ -572,6 +931,11 @@ def run_statistical_analysis(df, analysis_id, config):
         predictors = config.get("predictors", [])
         degree = int(config.get("degree", 1))
         interactions = config.get("interactions", "none")
+
+        # Exclude specified observations (for click-to-exclude delta comparison)
+        exclude_indices = config.get("exclude_indices", [])
+        if exclude_indices:
+            df = df.drop(index=[i for i in exclude_indices if i in df.index]).reset_index(drop=True)
 
         from sklearn.linear_model import LinearRegression
         from sklearn.preprocessing import PolynomialFeatures
@@ -808,6 +1172,53 @@ def run_statistical_analysis(df, analysis_id, config):
             obs += f" Model explains only {r2*100:.0f}% of variation — limited practical use."
         result["guide_observation"] = obs
 
+        # Narrative (enhanced — coefficient interpretation, R² warning, VIF)
+        _narr_coef_parts = []
+        for _si in sig_predictors[:3]:
+            _idx = names.index(_si) if _si in names else -1
+            if _idx > 0:
+                _c = coefs[_idx]
+                _dir = "increases" if _c > 0 else "decreases"
+                _narr_coef_parts.append(f"<strong>{_si}</strong> ({_dir} {response} by {abs(_c):.4f} per unit)")
+        _r2_warn = ""
+        if r2 > 0.95 and p > 2:
+            _r2_warn = " R&sup2; > 0.95 with multiple predictors may indicate overfitting &mdash; validate on held-out data."
+        _vif_warn = ""
+        if p > 2 and n > p:
+            try:
+                _X_for_vif = X.values if hasattr(X, 'values') else X
+                _corr = np.corrcoef(_X_for_vif, rowvar=False)
+                _high_vifs = []
+                for _vi in range(min(_corr.shape[0], len(names) - 1)):
+                    _minor = np.delete(np.delete(_corr, _vi, 0), _vi, 1)
+                    _det = np.linalg.det(_minor) if _minor.size > 0 else 1
+                    _det_full = np.linalg.det(_corr) if _corr.size > 0 else 1
+                    if _det_full > 1e-10:
+                        _vif_val = _det / _det_full if _det > 0 else 0
+                    else:
+                        _vif_val = 99
+                    if _vif_val > 5:
+                        _high_vifs.append(names[_vi + 1] if _vi + 1 < len(names) else f"X{_vi}")
+                if _high_vifs:
+                    _vif_warn = f" Possible multicollinearity in: {', '.join(_high_vifs[:3])} (VIF > 5)."
+            except Exception:
+                pass
+
+        if r2_meaningful and sig_predictors:
+            verdict = f"Model explains {r2*100:.0f}% of the variation in {response}"
+            body = f"Significant predictors: {', '.join(_narr_coef_parts) if _narr_coef_parts else ', '.join(sig_predictors[:3])}. R&sup2; = {r2:.3f}, RMSE = {rmse:.4f}.{_r2_warn}{_vif_warn}"
+            nexts = "Use the What-If Explorer below to see how changing predictor values affects the predicted response."
+        elif sig_predictors:
+            verdict = f"Some predictors are significant but the model is weak"
+            body = f"The model explains only {r2*100:.0f}% of the variation (R&sup2; = {r2:.3f}). Significant predictors: {', '.join(_narr_coef_parts) if _narr_coef_parts else ', '.join(sig_predictors[:3])}. Consider adding more predictors or using a nonlinear model.{_vif_warn}"
+            nexts = "Try polynomial regression or add interaction terms. Check residual plots for patterns."
+        else:
+            verdict = f"Model does not explain {response} well"
+            body = f"No predictors are statistically significant. R&sup2; = {r2:.3f} &mdash; the model captures very little of the variation."
+            nexts = "Review variable selection. The current predictors may not be the right drivers."
+        result["narrative"] = _narrative(verdict, body, next_steps=nexts,
+            chart_guidance="The 4 diagnostic plots: (1) Residuals vs Fitted &mdash; random scatter means adequate fit, patterns mean missing terms. (2) Q-Q plot &mdash; points on the line mean normal residuals. (3) Scale-Location &mdash; flat trend means constant variance. (4) Residuals vs Leverage &mdash; points in the upper-right corner are influential outliers.")
+
         # What-If data for client-side interactive predictor explorer (degree 1 only)
         if degree == 1 and interactions == "none":
             result["what_if_data"] = {
@@ -826,7 +1237,48 @@ def run_statistical_analysis(df, analysis_id, config):
                 "response_name": response,
             }
 
+        # ── Diagnostics ──
+        diagnostics = []
+        # Residual normality
+        _norm_resid = _check_normality(residuals, label="Residuals", alpha=0.05)
+        if _norm_resid:
+            _norm_resid["detail"] = "Non-normal residuals may indicate model misspecification or outlier influence. CIs and p-values may be unreliable."
+            diagnostics.append(_norm_resid)
+        # Multicollinearity
+        if _collinear_warning:
+            diagnostics.append({"level": "error", "title": "Near-collinear predictors detected",
+                                "detail": "Standard errors are unreliable. Consider removing redundant predictors or using Ridge/Lasso regression."})
+        elif _vif_warn:
+            diagnostics.append({"level": "warning", "title": "Possible multicollinearity",
+                                "detail": _vif_warn.strip()})
+        # Autocorrelation
+        if dw < 1.5 or dw > 2.5:
+            diagnostics.append({"level": "warning", "title": f"Autocorrelation (Durbin-Watson = {dw:.2f})",
+                                "detail": "Residuals are not independent. Consider time series methods or adding lag terms."})
+        # Influential points
+        if high_cooks > 0:
+            diagnostics.append({"level": "warning", "title": f"{high_cooks} influential observations (Cook's D > {4/n:.3f})",
+                                "detail": "These points disproportionately affect the model. Investigate whether they are errors or genuine extreme cases."})
+        # Effect size emphasis
+        if r2 >= 0.7 and f_pvalue < 0.05:
+            diagnostics.append({"level": "info", "title": f"Strong model (R\u00b2 = {r2:.3f})",
+                                "detail": f"The model explains {r2*100:.0f}% of the variation \u2014 practically useful for prediction."})
+        elif r2 < 0.1 and f_pvalue < 0.05:
+            diagnostics.append({"level": "warning", "title": f"Significant but weak model (R\u00b2 = {r2:.3f})",
+                                "detail": f"The model is statistically significant but explains only {r2*100:.0f}% of the variation. Not useful for prediction."})
+        result["diagnostics"] = diagnostics
+
+        # Regression metrics for exclude-and-compare delta display
+        result["regression_metrics"] = {
+            "r_squared": round(float(r2), 6),
+            "adj_r_squared": round(float(adj_r2), 6),
+            "f_stat": round(float(f_stat), 4),
+            "rmse": round(float(rmse), 4),
+        }
+
         # Create 4-panel diagnostic plots
+        _diag_row_indices = list(range(len(y_pred)))
+        _diag_cd = [[i, float(cooks_d[i])] for i in _diag_row_indices]
 
         # 1. Residuals vs Fitted
         result["plots"].append({
@@ -838,7 +1290,9 @@ def run_statistical_analysis(df, analysis_id, config):
                     "y": residuals.tolist(),
                     "mode": "markers",
                     "marker": {"color": "rgba(74, 159, 110, 0.5)", "size": 6, "line": {"color": "#4a9f6e", "width": 1}},
-                    "name": "Residuals"
+                    "name": "Residuals",
+                    "customdata": _diag_cd,
+                    "hovertemplate": "Fitted: %{x:.4f}<br>Residual: %{y:.4f}<br>Obs #%{customdata[0]}<br>Cook's D: %{customdata[1]:.4f}<extra></extra>"
                 },
                 {
                     "type": "scatter",
@@ -849,11 +1303,14 @@ def run_statistical_analysis(df, analysis_id, config):
                     "name": "Zero line"
                 }
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Fitted values"}, "yaxis": {"title": "Residuals"}}
+            "layout": {"height": 250, "xaxis": {"title": "Fitted values"}, "yaxis": {"title": "Residuals"}},
+            "interactive": {"type": "regression_diagnostic"}
         })
 
         # 2. Normal Q-Q Plot
         sorted_std_resid = np.sort(std_residuals)
+        _qq_order = np.argsort(std_residuals)
+        _qq_cd = [[int(_qq_order[i]), float(cooks_d[_qq_order[i]])] for i in range(len(_qq_order))]
         theoretical_q = stats.norm.ppf(np.linspace(0.01, 0.99, len(sorted_std_resid)))
         result["plots"].append({
             "title": "2. Normal Q-Q",
@@ -864,7 +1321,9 @@ def run_statistical_analysis(df, analysis_id, config):
                     "y": sorted_std_resid.tolist(),
                     "mode": "markers",
                     "marker": {"color": "rgba(74, 159, 110, 0.5)", "size": 6, "line": {"color": "#4a9f6e", "width": 1}},
-                    "name": "Residuals"
+                    "name": "Residuals",
+                    "customdata": _qq_cd,
+                    "hovertemplate": "Theoretical: %{x:.3f}<br>Std. Resid: %{y:.3f}<br>Obs #%{customdata[0]}<br>Cook's D: %{customdata[1]:.4f}<extra></extra>"
                 },
                 {
                     "type": "scatter",
@@ -875,7 +1334,8 @@ def run_statistical_analysis(df, analysis_id, config):
                     "name": "Normal line"
                 }
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": "Std. Residuals"}}
+            "layout": {"height": 250, "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": "Std. Residuals"}},
+            "interactive": {"type": "regression_diagnostic"}
         })
 
         # 3. Scale-Location
@@ -888,10 +1348,13 @@ def run_statistical_analysis(df, analysis_id, config):
                     "y": sqrt_std_resid.tolist(),
                     "mode": "markers",
                     "marker": {"color": "rgba(74, 159, 110, 0.5)", "size": 6, "line": {"color": "#4a9f6e", "width": 1}},
-                    "name": "√|Std. Residuals|"
+                    "name": "\u221a|Std. Residuals|",
+                    "customdata": _diag_cd,
+                    "hovertemplate": "Fitted: %{x:.4f}<br>\u221a|Std. Resid|: %{y:.4f}<br>Obs #%{customdata[0]}<br>Cook's D: %{customdata[1]:.4f}<extra></extra>"
                 }
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Fitted values"}, "yaxis": {"title": "√|Standardized residuals|"}}
+            "layout": {"height": 250, "xaxis": {"title": "Fitted values"}, "yaxis": {"title": "\u221a|Standardized residuals|"}},
+            "interactive": {"type": "regression_diagnostic"}
         })
 
         # 4. Residuals vs Leverage
@@ -909,7 +1372,9 @@ def run_statistical_analysis(df, analysis_id, config):
                         "size": 6,
                         "colorbar": {"title": "Cook's D", "len": 0.5}
                     },
-                    "name": "Observations"
+                    "name": "Observations",
+                    "customdata": _diag_cd,
+                    "hovertemplate": "Leverage: %{x:.4f}<br>Std. Resid: %{y:.4f}<br>Obs #%{customdata[0]}<br>Cook's D: %{customdata[1]:.4f}<extra></extra>"
                 },
                 {
                     "type": "scatter",
@@ -920,7 +1385,8 @@ def run_statistical_analysis(df, analysis_id, config):
                     "showlegend": False
                 }
             ],
-            "layout": {"height": 250, "xaxis": {"title": "Leverage"}, "yaxis": {"title": "Std. Residuals"}}
+            "layout": {"height": 250, "xaxis": {"title": "Leverage"}, "yaxis": {"title": "Std. Residuals"}},
+            "interactive": {"type": "regression_diagnostic"}
         })
 
         # Explicit statistics for Synara integration
@@ -940,7 +1406,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 result["statistics"][f"p_value({feat})"] = float(p_values[i + 1])
 
     elif analysis_id == "correlation":
-        vars_list = config.get("vars", [])
+        vars_list = config.get("variables") or config.get("vars") or []
         method = config.get("method", "pearson")
 
         if vars_list:
@@ -1005,7 +1471,100 @@ def run_statistical_analysis(df, analysis_id, config):
         result["summary"] = summary
         result["guide_observation"] = f"Correlation ({method}): {len(strong_pairs)} pairs with |r| ≥ 0.3." + (
             f" Strongest: {strong_pairs[0][0]} ↔ {strong_pairs[0][1]} (r={strong_pairs[0][2]:.3f})." if strong_pairs else " No strong relationships found.")
+
+        # Narrative (enhanced — spurious warning, sample size context)
+        _n_obs = len(df[cols[0]].dropna()) if cols else 0
+        _spur_warn = ""
+        if _n_obs < 30 and strong_pairs:
+            _spur_warn = " <em>Warning: with n &lt; 30, correlations can be inflated by outliers. Verify with a larger sample.</em>"
+        elif len(cols) > 10 and strong_pairs:
+            _n_tests = len(cols) * (len(cols) - 1) // 2
+            _spur_warn = f" <em>Note: {_n_tests} pairwise tests — some correlations may be spurious. Apply Bonferroni correction (α = {0.05/_n_tests:.4f}) for strict interpretation.</em>"
+
+        if strong_pairs:
+            top = strong_pairs[0]
+            r2_pct = top[2]**2 * 100
+            verdict = f"{len(strong_pairs)} strong correlation{'s' if len(strong_pairs) > 1 else ''} found"
+            body = f"The strongest relationship is <strong>{top[0]} &harr; {top[1]}</strong> (r = {top[2]:+.3f}), sharing {r2_pct:.0f}% of their variation. Method: {method.title()}.{_spur_warn}"
+            if len(strong_pairs) > 1:
+                body += f" Second: {strong_pairs[1][0]} &harr; {strong_pairs[1][1]} (r = {strong_pairs[1][2]:+.3f})."
+            nexts = "Correlation &ne; causation. Use <strong>Causal Discovery</strong> tools or a designed experiment to test directionality. Consider partial correlations to control for confounders."
+        else:
+            verdict = "No strong correlations detected"
+            body = f"All pairwise correlations are below |r| = 0.3. The variables in this dataset appear to be largely independent ({method.title()} method, n = {_n_obs})."
+            nexts = "If you expected relationships, check for non-linear associations (try Spearman) or confounding variables that may mask true relationships."
+        result["narrative"] = _narrative(verdict, body, next_steps=nexts,
+            chart_guidance="In the heatmap, darker colors indicate stronger correlations. Green = positive (both increase together), red = negative (one increases as the other decreases).")
+
         result["statistics"] = stat_dict
+
+        # ── Diagnostics ──
+        diagnostics = []
+        # If Pearson, check normality and suggest Spearman if non-normal
+        if method == "pearson" and cols:
+            _any_nonnorm = False
+            for _cc in cols[:4]:  # check first few
+                _nd = _check_normality(df[_cc].dropna().values, label=_cc, alpha=0.05)
+                if _nd:
+                    _any_nonnorm = True
+                    break
+            if _any_nonnorm:
+                diagnostics.append({"level": "warning", "title": "Non-normal data detected (Pearson assumes normality)",
+                                    "detail": "Pearson's r is sensitive to outliers and non-normality. Spearman's rank correlation is more robust.",
+                                    "action": {"label": "Run Spearman Correlation", "type": "stats", "analysis": "correlation",
+                                               "config": {"vars": cols, "method": "spearman"}}})
+                # Cross-validate: run Spearman internally
+                try:
+                    _sp_corr = df[cols].corr(method="spearman")
+                    if strong_pairs:
+                        _sp_r = _sp_corr.loc[strong_pairs[0][0], strong_pairs[0][1]]
+                        _cv = _cross_validate(strong_pairs[0][3], strong_pairs[0][3], "Pearson", "Spearman", alpha=0.05)
+                        _cv["detail"] = f"Pearson r = {strong_pairs[0][2]:.3f}, Spearman \u03c1 = {_sp_r:.3f} for {strong_pairs[0][0]} \u2194 {strong_pairs[0][1]}."
+                        if abs(strong_pairs[0][2] - _sp_r) > 0.15:
+                            _cv["level"] = "warning"
+                            _cv["title"] = "Pearson and Spearman differ notably"
+                            _cv["detail"] += " This suggests outliers or non-linearity are affecting Pearson's r."
+                        diagnostics.append(_cv)
+                except Exception:
+                    pass
+        # Multiple testing warning
+        if len(cols) > 5:
+            _n_tests = len(cols) * (len(cols) - 1) // 2
+            diagnostics.append({"level": "info", "title": f"{_n_tests} pairwise comparisons \u2014 multiple testing risk",
+                                "detail": f"With {_n_tests} tests, expect ~{_n_tests * 0.05:.0f} false positives at \u03b1=0.05. Apply Bonferroni (\u03b1 = {0.05/_n_tests:.4f}) for strict control."})
+        # Effect size emphasis
+        if strong_pairs and strong_pairs[0][2]**2 >= 0.5:
+            diagnostics.append({"level": "info", "title": f"Strong shared variation: {strong_pairs[0][0]} \u2194 {strong_pairs[0][1]} ({strong_pairs[0][2]**2*100:.0f}%)",
+                                "detail": "These variables share over half their variation \u2014 one may be predictable from the other."})
+        result["diagnostics"] = diagnostics
+
+        # --- Bayesian Insurance (strongest pair only) ---
+        try:
+            if strong_pairs:
+                _sp = strong_pairs[0]
+                _sp_data = df[[_sp[0], _sp[1]]].dropna()
+                _shadow = _bayesian_shadow("correlation", x=_sp_data[_sp[0]].values, y=_sp_data[_sp[1]].values)
+                if _shadow:
+                    result["bayesian_shadow"] = _shadow
+                _r2_label, _ = _effect_magnitude(_sp[2] ** 2, "r_squared")
+                _grade = _evidence_grade(_sp[3], bf10=_shadow.get("bf10") if _shadow else None,
+                                         effect_magnitude=_r2_label)
+                if _grade:
+                    result["evidence_grade"] = _grade
+        except Exception:
+            pass
+
+        # Build p-value customdata matrix for heatmap hover
+        p_matrix = []
+        for r_col in numeric_cols:
+            row = []
+            for c_col in numeric_cols:
+                if r_col == c_col:
+                    row.append("\u2014")
+                else:
+                    pv = stat_dict.get(f"p({r_col},{c_col})") or stat_dict.get(f"p({c_col},{r_col})")
+                    row.append(f"p = {pv:.4f}" if pv is not None else "\u2014")
+            p_matrix.append(row)
 
         # Heatmap
         result["plots"].append({
@@ -1019,9 +1578,12 @@ def run_statistical_analysis(df, analysis_id, config):
                 "zmid": 0,
                 "text": [[f"{v:.3f}" for v in row] for row in corr_matrix.values],
                 "texttemplate": "%{text}",
-                "textfont": {"size": 10}
+                "textfont": {"size": 10},
+                "customdata": p_matrix,
+                "hovertemplate": "r(%{x}, %{y}) = %{text}<br>%{customdata}<extra></extra>"
             }],
-            "layout": {"template": "plotly_dark", "height": 400}
+            "layout": {"height": 400},
+            "interactive": {"type": "correlation_heatmap", "columns": numeric_cols}
         })
 
     elif analysis_id == "normality":
@@ -1091,7 +1653,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 }
             ],
             "layout": {
-                "template": "plotly_dark",
+                
                 "height": 300,
                 "xaxis": {"title": "Theoretical Quantiles"},
                 "yaxis": {"title": "Sample Quantiles"}
@@ -1110,8 +1672,91 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "histogram", "x": x.tolist(), "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1}}, "name": "Data"},
                 {"type": "scatter", "x": x_range.tolist(), "y": normal_scaled.tolist(), "mode": "lines", "line": {"color": "#d94a4a", "width": 2}, "name": "Normal fit"}
             ],
-            "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": var}, "yaxis": {"title": "Count"}, "barmode": "overlay"}
+            "layout": {"height": 300, "xaxis": {"title": var}, "yaxis": {"title": "Count"}, "barmode": "overlay"}
         })
+
+        # Shape descriptors
+        _skew = float(x.skew()) if hasattr(x, 'skew') else float(pd.Series(x).skew())
+        _kurt = float(x.kurtosis()) if hasattr(x, 'kurtosis') else float(pd.Series(x).kurtosis())
+        _shape_parts = []
+        if abs(_skew) > 1:
+            _shape_parts.append(f"{'right' if _skew > 0 else 'left'}-skewed (skewness = {_skew:.2f})")
+        elif abs(_skew) > 0.5:
+            _shape_parts.append(f"moderately {'right' if _skew > 0 else 'left'}-skewed (skewness = {_skew:.2f})")
+        if _kurt > 1:
+            _shape_parts.append(f"heavy-tailed (excess kurtosis = {_kurt:.2f})")
+        elif _kurt < -1:
+            _shape_parts.append(f"light-tailed (excess kurtosis = {_kurt:.2f})")
+        _shape_desc = ", ".join(_shape_parts) if _shape_parts else "approximately symmetric with normal tail weight"
+
+        # Significance and test label depend on test type
+        if test_type == "anderson":
+            _is_sig = stat_result.statistic > stat_result.critical_values[2]  # 5% level
+            _test_label = "Anderson-Darling"
+            _stat_str = f"A\u00b2 = {stat_result.statistic:.4f}, 5% critical value = {stat_result.critical_values[2]:.4f}"
+        elif test_type == "shapiro":
+            _is_sig = pval < 0.05
+            _test_label = "Shapiro-Wilk"
+            _stat_str = f"W = {stat:.4f}, p = {pval:.4f}"
+        else:
+            _is_sig = pval < 0.05
+            _test_label = "Kolmogorov-Smirnov"
+            _stat_str = f"D = {stat:.4f}, p = {pval:.4f}"
+
+        if _is_sig:
+            _n_verdict = "Data departs significantly from normality"
+            _n_body = f"The {_test_label} test ({_stat_str}) rejects the normality assumption at \u03b1 = 0.05. The distribution is {_shape_desc}."
+            _n_next = "For hypothesis tests, consider non-parametric alternatives (Mann-Whitney, Kruskal-Wallis). For capability analysis, use non-normal methods or fit an appropriate distribution."
+        else:
+            _n_verdict = "Data appears normally distributed"
+            _n_body = f"The {_test_label} test ({_stat_str}) does not reject normality at \u03b1 = 0.05. The distribution is {_shape_desc}."
+            _n_next = "Standard parametric methods (t-tests, ANOVA, normal capability) are appropriate for this data."
+
+        result["guide_observation"] = f"Normality test ({_test_label}): {_stat_str}. {'Data is NOT normal.' if _is_sig else 'Data appears normal.'} Distribution is {_shape_desc}."
+        result["narrative"] = _narrative(
+            _n_verdict, _n_body,
+            next_steps=_n_next,
+            chart_guidance="Points falling off the Q-Q diagonal indicate departures from normality. The histogram overlay shows how well the normal curve fits the data."
+        )
+
+        # ── Diagnostics ──
+        diagnostics = []
+        _out = _check_outliers(x.values, label=var)
+        if _out:
+            _out["detail"] += " Outliers inflate test statistics and can cause false rejection of normality."
+            diagnostics.append(_out)
+
+        # Effect size: deviation from normality via skewness/kurtosis
+        _dev_parts = []
+        if abs(_skew) > 0.5:
+            _dev_parts.append(f"skewness = {_skew:.2f}")
+        if abs(_kurt) > 1:
+            _dev_parts.append(f"excess kurtosis = {_kurt:.2f}")
+        if _dev_parts:
+            diagnostics.append({"level": "info", "title": f"Shape deviation: {', '.join(_dev_parts)}",
+                                "detail": f"Skewness = {_skew:.2f} (0 = symmetric), excess kurtosis = {_kurt:.2f} (0 = normal tails). Large departures indicate non-normality even if the test is marginal."})
+
+        # Parametric / non-parametric guidance
+        if not _is_sig:
+            diagnostics.append({"level": "info", "title": "Data supports parametric methods",
+                                "detail": "The normality assumption holds. t-tests, ANOVA, and regression are appropriate for this data."})
+        else:
+            diagnostics.append({"level": "action", "title": "Non-normal data — consider distribution fitting or transformation",
+                                "detail": "Fit an alternative distribution or apply a variance-stabilizing transformation to enable parametric analysis.",
+                                "actions": [
+                                    {"label": "Fit Distribution", "type": "stats", "analysis": "distribution_fit", "config": {"var": var}},
+                                    {"label": "Box-Cox Transform", "type": "stats", "analysis": "box_cox", "config": {"var": var}},
+                                ]})
+
+        # Sample size advisory
+        if n < 20:
+            diagnostics.append({"level": "warning", "title": f"Low sample size (n = {n})",
+                                "detail": "Normality tests have low power with fewer than 20 observations. Failure to reject normality does not mean the data is normal — inspect the Q-Q plot visually."})
+        elif n > 5000:
+            diagnostics.append({"level": "warning", "title": f"Very large sample (n = {n:,})",
+                                "detail": "With n > 5,000, normality tests are over-sensitive and will reject even trivial departures. Focus on the Q-Q plot and practical effect of skewness/kurtosis."})
+
+        result["diagnostics"] = diagnostics
 
     elif analysis_id == "chi2":
         row_var = config.get("row_var") or config.get("var1") or config.get("var")
@@ -1167,6 +1812,29 @@ def run_statistical_analysis(df, analysis_id, config):
         else:
             obs_parts.append("No significant association.")
         result["guide_observation"] = " ".join(obs_parts)
+
+        # Narrative
+        # Find the cell with largest standardized residual for specific insight
+        std_resid = (contingency.values - expected) / np.sqrt(np.maximum(expected, 1))
+        max_idx = np.unravel_index(np.abs(std_resid).argmax(), std_resid.shape)
+        max_row_label = contingency.index[max_idx[0]]
+        max_col_label = contingency.columns[max_idx[1]]
+        max_direction = "over" if std_resid[max_idx] > 0 else "under"
+        if pval < 0.05 and v_meaningful:
+            verdict = f"{v_label.title()} association between {row_var} and {col_var}"
+            body = f"Cram&eacute;r's V = {cramers_v:.3f} ({v_label}). The most notable pattern: <strong>{max_row_label}</strong> is {max_direction}-represented in <strong>{max_col_label}</strong> relative to what independence would predict."
+            nexts = "Examine the cells with the largest residuals to understand the pattern driving the association."
+        elif pval < 0.05:
+            verdict = f"Weak but significant association between {row_var} and {col_var}"
+            body = f"The variables are statistically associated (p = {pval:.4f}), but the effect is {v_label} (V = {cramers_v:.3f}). Largest departure: {max_row_label} &times; {max_col_label}."
+            nexts = "The association is real but may not be strong enough to act on."
+        else:
+            verdict = f"No significant association between {row_var} and {col_var}"
+            body = f"The chi-square test does not detect a meaningful relationship (p = {pval:.4f}, V = {cramers_v:.3f}). These variables appear to be independent."
+            nexts = None
+        result["narrative"] = _narrative(verdict, body, next_steps=nexts,
+            chart_guidance="The grouped bar chart shows observed counts by category. Bars that deviate from the overall pattern indicate cells driving the association.")
+
         result["statistics"] = {
             "chi2": float(chi2),
             "dof": int(dof),
@@ -1188,6 +1856,46 @@ def run_statistical_analysis(df, analysis_id, config):
             "dof": int(dof),
         }
 
+        # ── Diagnostics ──
+        diagnostics = []
+        # Expected cell count check
+        _low_expected = int(np.sum(expected < 5))
+        _pct_low = _low_expected / expected.size * 100 if expected.size > 0 else 0
+        if _pct_low > 20:
+            diagnostics.append({"level": "error", "title": f"{_low_expected} cells ({_pct_low:.0f}%) have expected count < 5",
+                                "detail": "Chi-square approximation is unreliable. Consider Fisher's exact test or collapsing categories.",
+                                "action": {"label": "Run Fisher Exact", "type": "stats", "analysis": "fisher_exact",
+                                           "config": {"row_var": row_var, "col_var": col_var}} if contingency.shape == (2, 2) else None})
+        elif _low_expected > 0:
+            diagnostics.append({"level": "warning", "title": f"{_low_expected} cells have expected count < 5",
+                                "detail": "Some expected counts are low. Results may be approximate."})
+        # Effect size emphasis
+        if cramers_v >= 0.3 and pval < 0.05:
+            diagnostics.append({"level": "info", "title": f"Meaningful association (Cram\u00e9r's V = {cramers_v:.3f})",
+                                "detail": f"The relationship between {row_var} and {col_var} is strong enough to be practically relevant."})
+        elif cramers_v < 0.1 and pval < 0.05:
+            diagnostics.append({"level": "warning", "title": f"Significant but negligible association (V = {cramers_v:.3f})",
+                                "detail": "Statistical significance with trivial effect. Large sample sizes can detect meaningless associations."})
+        # Clean None actions
+        diagnostics = [d for d in diagnostics if d is not None]
+        for d in diagnostics:
+            if d.get("action") is None and "action" in d:
+                del d["action"]
+        result["diagnostics"] = diagnostics
+
+        # --- Bayesian Insurance ---
+        try:
+            _shadow = _bayesian_shadow("chi2", contingency=contingency.values,
+                                       chi2_stat=chi2, dof=dof, n_obs=n_obs)
+            if _shadow:
+                result["bayesian_shadow"] = _shadow
+            _grade = _evidence_grade(pval, bf10=_shadow.get("bf10") if _shadow else None,
+                                     effect_magnitude=v_label)
+            if _grade:
+                result["evidence_grade"] = _grade
+        except Exception:
+            pass
+
         # Heatmap of observed counts
         result["plots"].append({
             "title": f"Contingency Table: {row_var} × {col_var}",
@@ -1201,7 +1909,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 "texttemplate": "%{text}",
                 "textfont": {"size": 12}
             }],
-            "layout": {"template": "plotly_dark", "height": 300}
+            "layout": {"height": 300}
         })
 
     elif analysis_id == "prop_1sample":
@@ -1279,7 +1987,6 @@ def run_statistical_analysis(df, analysis_id, config):
                 "shapes": [{"type": "line", "x0": -0.5, "x1": 0.5, "y0": p0, "y1": p0,
                             "line": {"color": "#e89547", "dash": "dash", "width": 2}}],
                 "annotations": [{"x": 0.5, "y": p0, "text": f"H₀: p={p0}", "showarrow": False, "xanchor": "left", "font": {"color": "#e89547"}}],
-                "template": "plotly_white"
             }
         })
 
@@ -1289,6 +1996,31 @@ def run_statistical_analysis(df, analysis_id, config):
             "z_statistic": float(z_stat), "p_value": p_val,
             "ci_lower": ci_lo, "ci_upper": ci_hi, "alternative": alt
         }
+
+        # Narrative
+        if p_val < alpha:
+            verdict = f"Proportion differs from {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
+            body = (f"The observed proportion {p_hat:.4f} ({x}/{n}) is significantly different from the hypothesized value of {p0}. "
+                    f"Wilson {100*(1-alpha):.0f}% CI: ({ci_lo:.4f}, {ci_hi:.4f}).")
+            nxt = "Investigate why the proportion deviates from the target. If it's a defect rate, identify root causes."
+        else:
+            verdict = f"Proportion consistent with {p0} (p\u0302 = {p_hat:.4f}, p = {p_val:.4f})"
+            body = (f"The observed proportion {p_hat:.4f} ({x}/{n}) is not significantly different from {p0}. "
+                    f"Wilson {100*(1-alpha):.0f}% CI: ({ci_lo:.4f}, {ci_hi:.4f}) includes the hypothesized value.")
+            nxt = "No evidence of departure from the target. Continue monitoring."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="The bar shows the observed proportion with CI error bars. The dashed line is the hypothesized value.")
+
+        # --- Bayesian Insurance ---
+        try:
+            _shadow = _bayesian_shadow("proportion", x=x, n=n, p0=p0)
+            if _shadow:
+                result["bayesian_shadow"] = _shadow
+            _grade = _evidence_grade(p_val, bf10=_shadow.get("bf10") if _shadow else None)
+            if _grade:
+                result["evidence_grade"] = _grade
+        except Exception:
+            pass
 
     elif analysis_id == "prop_2sample":
         """
@@ -1373,7 +2105,6 @@ def run_statistical_analysis(df, analysis_id, config):
             "layout": {
                 "title": "Proportions by Group",
                 "yaxis": {"title": "Proportion", "range": [0, max(p1, p2) * 1.3 + 0.05]},
-                "template": "plotly_white"
             }
         })
 
@@ -1388,8 +2119,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 "title": f"Difference in Proportions ({100*(1-alpha):.0f}% CI)",
                 "xaxis": {"title": "p₁ − p₂", "zeroline": True, "zerolinecolor": "#e89547", "zerolinewidth": 2},
                 "shapes": [{"type": "line", "x0": 0, "x1": 0, "y0": -0.5, "y1": 0.5, "line": {"color": "#e89547", "dash": "dash"}}],
-                "height": 200, "template": "plotly_white"
-            }
+                "height": 200            }
         })
 
         result["guide_observation"] = f"2-prop Z-test: p₁={p1:.4f} vs p₂={p2:.4f}, Z={z_stat:.3f}, p={p_val:.4f}. " + ("Significant." if p_val < alpha else "Not significant.")
@@ -1398,6 +2128,22 @@ def run_statistical_analysis(df, analysis_id, config):
             "difference": diff, "z_statistic": float(z_stat), "p_value": p_val,
             "ci_lower": ci_lo, "ci_upper": ci_hi, "alternative": alt
         }
+
+        # Narrative
+        if p_val < alpha:
+            higher = str(groups[0]) if p1 > p2 else str(groups[1])
+            verdict = f"Proportions differ significantly (p = {p_val:.4f})"
+            body = (f"<strong>{groups[0]}</strong>: {p1:.4f} ({x1}/{n1}) vs <strong>{groups[1]}</strong>: {p2:.4f} ({x2}/{n2}). "
+                    f"Difference = {diff:.4f}, {100*(1-alpha):.0f}% CI ({ci_lo:.4f}, {ci_hi:.4f}). "
+                    f"<strong>{higher}</strong> has the higher rate.")
+            nxt = "Investigate what differs between the groups. If these are defect rates, focus improvement on the higher-rate group."
+        else:
+            verdict = f"No significant difference in proportions (p = {p_val:.4f})"
+            body = (f"<strong>{groups[0]}</strong>: {p1:.4f} ({x1}/{n1}) vs <strong>{groups[1]}</strong>: {p2:.4f} ({x2}/{n2}). "
+                    f"Difference = {diff:.4f}, {100*(1-alpha):.0f}% CI ({ci_lo:.4f}, {ci_hi:.4f}) includes zero.")
+            nxt = "No evidence the groups differ. If you expected a difference, consider increasing sample sizes."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="Bars show group proportions. The CI plot shows whether the difference CI excludes zero (significant) or includes it (not significant).")
 
     elif analysis_id == "fisher_exact":
         """
@@ -1459,7 +2205,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "bar", "x": col_labels, "y": [int(table[0, 0]), int(table[0, 1])], "name": row_labels[0], "marker": {"color": "#4a9f6e"}},
                 {"type": "bar", "x": col_labels, "y": [int(table[1, 0]), int(table[1, 1])], "name": row_labels[1], "marker": {"color": "#4a90d9"}}
             ],
-            "layout": {"title": "Contingency Table", "barmode": "stack", "yaxis": {"title": "Count"}, "template": "plotly_white"}
+            "layout": {"title": "Contingency Table", "barmode": "stack", "yaxis": {"title": "Count"}}
         })
 
         # Odds ratio forest-style plot
@@ -1474,8 +2220,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     "title": f"Odds Ratio ({100*(1-alpha):.0f}% CI)",
                     "xaxis": {"title": "Odds Ratio", "type": "log"},
                     "shapes": [{"type": "line", "x0": 1, "x1": 1, "y0": -0.5, "y1": 0.5, "line": {"color": "#e89547", "dash": "dash"}}],
-                    "height": 180, "template": "plotly_white"
-                }
+                    "height": 180                }
             })
 
         result["guide_observation"] = f"Fisher's exact: OR={odds_ratio:.3f}, p={p_val:.4f}. " + ("Significant association." if p_val < alpha else "No association.")
@@ -1484,6 +2229,18 @@ def run_statistical_analysis(df, analysis_id, config):
             "or_ci_lower": float(or_ci_lo), "or_ci_upper": float(or_ci_hi),
             "table": table.tolist(), "alternative": alt
         }
+
+        if p_val < alpha:
+            verdict = f"Significant association (OR = {odds_ratio:.2f}, p = {p_val:.4f})"
+            _dir = "higher" if odds_ratio > 1 else "lower"
+            body = f"The odds of {ct.index[0]} are <strong>{odds_ratio:.2f}x</strong> {_dir} in {ct.columns[0]} vs {ct.columns[1]}. CI: ({or_ci_lo:.2f}, {or_ci_hi:.2f})."
+            nxt = "Investigate what drives the association. Consider confounders that may explain the relationship."
+        else:
+            verdict = f"No significant association (p = {p_val:.4f})"
+            body = f"OR = {odds_ratio:.2f}, CI: ({or_ci_lo:.2f}, {or_ci_hi:.2f}) — the CI includes 1, indicating no significant odds difference."
+            nxt = "No evidence of association. If expected, increase sample size for more power."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="OR > 1 means higher odds in the first group. CI not crossing 1 (dashed line) = significant.")
 
     elif analysis_id == "poisson_1sample":
         """
@@ -1555,7 +2312,6 @@ def run_statistical_analysis(df, analysis_id, config):
                 "shapes": [{"type": "line", "x0": -0.5, "x1": 0.5, "y0": rate0, "y1": rate0,
                             "line": {"color": "#e89547", "dash": "dash", "width": 2}}],
                 "annotations": [{"x": 0.5, "y": rate0, "text": f"H₀: λ={rate0}", "showarrow": False, "xanchor": "left", "font": {"color": "#e89547"}}],
-                "template": "plotly_white"
             }
         })
 
@@ -1570,11 +2326,17 @@ def run_statistical_analysis(df, analysis_id, config):
             "layout": {
                 "title": f"Poisson Distribution under H₀ (observed = {int(total_count)})",
                 "xaxis": {"title": "Count"}, "yaxis": {"title": "Probability"},
-                "template": "plotly_white"
             }
         })
 
         result["guide_observation"] = f"Poisson rate test: observed rate={observed_rate:.4f}, H₀ rate={rate0}, p={p_val:.4f}. " + ("Significant." if p_val < alpha else "Not significant.")
+        if p_val < alpha:
+            verdict = f"Rate differs from {rate0} (observed = {observed_rate:.4f}, p = {p_val:.4f})"
+            body = f"Observed count = {total_count:.0f} over {n} observations. Rate {observed_rate:.4f} is significantly different from hypothesized rate {rate0}."
+        else:
+            verdict = f"Rate consistent with {rate0} (p = {p_val:.4f})"
+            body = f"Observed rate {observed_rate:.4f} is not significantly different from {rate0}."
+        result["narrative"] = _narrative(verdict, body, next_steps="If rate is higher than target, investigate common causes. Poisson tests assume events occur independently at a constant rate.")
         result["statistics"] = {
             "total_count": total_count, "exposure": exposure,
             "observed_rate": observed_rate, "hypothesized_rate": rate0,
@@ -1665,6 +2427,10 @@ def run_statistical_analysis(df, analysis_id, config):
                 "ci_variance_lower": ci_lo_var, "ci_variance_upper": ci_hi_var,
             }
             result["guide_observation"] = f"One-sample variance test: s={s:.4f} vs σ₀={sigma0}, χ²={chi2_stat:.3f}, p={p_val:.4f}. " + ("Significant." if p_val < alpha else "Not significant.")
+            if p_val < alpha:
+                result["narrative"] = _narrative(f"Variance differs from \u03c3\u2080\u00b2 = {sigma0**2:.4f} (p = {p_val:.4f})", f"Sample std dev s = {s:.4f} is significantly different from hypothesized \u03c3\u2080 = {sigma0:.4f}.", next_steps="Investigate process changes that may have increased or decreased variability.")
+            else:
+                result["narrative"] = _narrative(f"Variance consistent with \u03c3\u2080 = {sigma0} (p = {p_val:.4f})", f"Sample std dev s = {s:.4f} is consistent with \u03c3\u2080 = {sigma0:.4f}.")
 
         else:
             # Multi-group: Bartlett's + Levene's (always both)
@@ -1736,6 +2502,10 @@ def run_statistical_analysis(df, analysis_id, config):
                 result["statistics"]["f_p_value"] = float(f_p)
 
             result["guide_observation"] = f"Variance test ({k} groups): Levene's p={lev_p:.4f}, Bartlett's p={bart_p:.4f}. " + ("Variances differ." if sig else "Variances are equal.")
+            if sig:
+                result["narrative"] = _narrative(f"Group variances differ significantly", f"Levene's p = {lev_p:.4f}, Bartlett's p = {bart_p:.4f}. At least one group has a different spread.", next_steps="Use Welch's ANOVA or Games-Howell post-hoc (both handle unequal variances).")
+            else:
+                result["narrative"] = _narrative(f"Group variances are equal", f"Levene's p = {lev_p:.4f}, Bartlett's p = {bart_p:.4f}. Equal-variance assumption is reasonable.", next_steps="Proceed with standard ANOVA and Tukey HSD post-hoc.")
 
             # Side-by-side box/strip plots showing spread
             traces = []
@@ -1748,7 +2518,7 @@ def run_statistical_analysis(df, analysis_id, config):
             result["plots"].append({
                 "title": "Variability Comparison",
                 "data": traces,
-                "layout": {"template": "plotly_dark", "height": 300, "yaxis": {"title": "Value"}},
+                "layout": {"height": 300, "yaxis": {"title": "Value"}},
             })
 
             # Interval plot of standard deviations
@@ -1761,9 +2531,41 @@ def run_statistical_analysis(df, analysis_id, config):
                 "layout": {
                     "title": "Standard Deviations by Group",
                     "yaxis": {"title": "Std Dev", "rangemode": "tozero"},
-                    "template": "plotly_white", "height": 250,
+                    "height": 250,
                 },
             })
+
+            # ── Diagnostics ──
+            diagnostics = []
+            # Check normality of each group (F-test / Bartlett are sensitive to non-normality)
+            _any_non_normal = False
+            for _gl, _gd in zip(groups_labels, groups_data):
+                _gn = _check_normality(_gd, label=str(_gl))
+                if _gn:
+                    _any_non_normal = True
+                    diagnostics.append(_gn)
+            if _any_non_normal:
+                diagnostics.append({"level": "warning", "title": "Non-normal data detected — F-test and Bartlett's are unreliable",
+                                    "detail": "The F-test and Bartlett's test assume normality. Use Levene's (median-centered) or Brown-Forsythe test for robust variance comparison."})
+
+            # Check outliers per group
+            for _gl, _gd in zip(groups_labels, groups_data):
+                _go = _check_outliers(_gd, label=str(_gl))
+                if _go:
+                    diagnostics.append(_go)
+
+            # Variance ratio interpretation (for 2-group case)
+            if k == 2 and variances[1] > 0:
+                _vratio = variances[0] / variances[1]
+                _vratio_display = _vratio if _vratio >= 1 else 1 / _vratio
+                if _vratio_display > 4:
+                    diagnostics.append({"level": "warning", "title": f"Large variance inequality (ratio = {_vratio_display:.2f})",
+                                        "detail": "Variance ratio exceeds 4:1. For means comparisons, use Welch's t-test which does not assume equal variances."})
+                elif 0.5 <= _vratio <= 2 and sig:
+                    diagnostics.append({"level": "info", "title": f"Significant but practically similar variances (ratio = {_vratio_display:.2f})",
+                                        "detail": "The test detects a statistically significant difference, but the variance ratio is near 1. The practical impact on downstream analyses (t-tests, ANOVA) is minimal."})
+
+            result["diagnostics"] = diagnostics
 
         result["summary"] = summary
 
@@ -1869,7 +2671,7 @@ def run_statistical_analysis(df, analysis_id, config):
             "layout": {
                 "title": "Rates by Group",
                 "yaxis": {"title": "Rate", "rangemode": "tozero"},
-                "template": "plotly_white", "height": 280,
+                "height": 280,
             },
         })
 
@@ -1888,11 +2690,18 @@ def run_statistical_analysis(df, analysis_id, config):
                     "xaxis": {"title": "r₁ / r₂", "type": "log"},
                     "shapes": [{"type": "line", "x0": 1, "x1": 1, "y0": -0.5, "y1": 0.5,
                                 "line": {"color": "#e89547", "dash": "dash"}}],
-                    "height": 180, "template": "plotly_white",
+                    "height": 180,
                 },
             })
 
         result["guide_observation"] = f"Two-sample Poisson: r₁={r1:.4f} vs r₂={r2:.4f}, ratio={rate_ratio:.3f}, p={p_val:.4f}. " + ("Rates differ." if p_val < alpha else "Not significant.")
+        if p_val < alpha:
+            verdict = f"Rates differ significantly (ratio = {rate_ratio:.3f}, p = {p_val:.4f})"
+            body = f"Rate 1 = {r1:.4f} vs Rate 2 = {r2:.4f}. The rates are significantly different."
+        else:
+            verdict = f"No significant difference in rates (p = {p_val:.4f})"
+            body = f"Rate 1 = {r1:.4f} vs Rate 2 = {r2:.4f} (ratio = {rate_ratio:.3f}). Cannot conclude the rates differ."
+        result["narrative"] = _narrative(verdict, body, next_steps="If rates differ, investigate what process or environmental differences drive the gap.")
         result["statistics"] = {
             "count1": c1, "count2": c2, "exposure1": e1, "exposure2": e2,
             "rate1": r1, "rate2": r2, "rate_ratio": float(rate_ratio),
@@ -2030,11 +2839,17 @@ def run_statistical_analysis(df, analysis_id, config):
             "layout": {
                 "title": "Process Sigma Level",
                 "yaxis": {"title": "DPMO", "type": "log"},
-                "template": "plotly_white", "height": 280,
+                "height": 280,
             },
         })
 
         result["guide_observation"] = f"Attribute capability: DPMO={dpmo:.0f}, Sigma={sigma_st:.1f}, Yield={yield_pct:.2f}%."
+        _sigma_label = "world-class" if sigma_st >= 6 else "excellent" if sigma_st >= 5 else "good" if sigma_st >= 4 else "needs improvement" if sigma_st >= 3 else "poor"
+        result["narrative"] = _narrative(
+            f"Attribute Capability: {sigma_st:.1f}\u03c3 ({_sigma_label})",
+            f"DPMO = {dpmo:.0f}, Yield = {yield_pct:.2f}%. Process sigma level = {sigma_st:.1f}.",
+            next_steps="Focus on reducing DPMO. Pareto the top defect types to prioritize improvement." if sigma_st < 4 else "Strong capability. Monitor and maintain.",
+            chart_guidance="The sigma scale: 3\u03c3 = 66,807 DPMO, 4\u03c3 = 6,210 DPMO, 6\u03c3 = 3.4 DPMO.")
         result["statistics"] = {
             "defects": d, "units": n, "opportunities": opp,
             "dpu": dpu, "dpo": dpo, "dpmo": dpmo,
@@ -2159,11 +2974,16 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"x": p_low, "y": 0.95, "yref": "paper", "text": "0.135%ile", "showarrow": False, "font": {"color": "#7a5fb8", "size": 9}},
                     {"x": p_high, "y": 0.95, "yref": "paper", "text": "99.865%ile", "showarrow": False, "font": {"color": "#7a5fb8", "size": 9}},
                 ],
-                "template": "plotly_white", "height": 300,
+                "height": 300,
             },
         })
 
         result["guide_observation"] = f"Nonparametric capability: Cnpk={cnpk:.3f}, Empirical PPM={ppm_total:.0f}. Data is {'normal' if is_normal else 'non-normal'}."
+        _cnpk_label = "capable" if cnpk >= 1.33 else "marginal" if cnpk >= 1.0 else "not capable"
+        result["narrative"] = _narrative(
+            f"Non-parametric Cpk = {cnpk:.3f} ({_cnpk_label})",
+            f"Distribution-free capability using percentile-based estimates. PPM = {ppm_total:.0f}. Data is {'normal' if is_normal else 'non-normal — this method is more appropriate than standard Cpk'}.",
+            next_steps="Non-normal capability avoids distributional assumptions. If Cnpk < 1.33, reduce variation or center the process." if cnpk < 1.33 else "Process is capable. Monitor with control charts.")
         result["statistics"] = {
             "cnp": cnp, "cnpk": cnpk, "cnpk_upper": cnpk_upper, "cnpk_lower": cnpk_lower,
             "cp_normal": cp_normal, "cpk_normal": cpk_normal,
@@ -2318,7 +3138,7 @@ def run_statistical_analysis(df, analysis_id, config):
             "layout": {
                 "title": "Average Predicted Probability by Class",
                 "yaxis": {"title": "Avg Probability", "range": [0, max(avg_probs) * 1.2 + 0.05]},
-                "template": "plotly_white", "height": 280,
+                "height": 280,
             },
         })
 
@@ -2339,11 +3159,12 @@ def run_statistical_analysis(df, analysis_id, config):
                     "title": "Coefficients by Category",
                     "barmode": "group",
                     "yaxis": {"title": "Coefficient"},
-                    "template": "plotly_white", "height": 300,
+                    "height": 300,
                 },
             })
 
         result["guide_observation"] = f"Nominal logistic: {len(classes)} categories, accuracy={accuracy:.1%}."
+        result["narrative"] = _narrative(f"Nominal Logistic: {accuracy:.1%} accuracy across {len(classes)} categories", f"Multinomial logistic regression for <strong>{response}</strong> with {len(predictors)} predictor{'s' if len(predictors) > 1 else ''}.", next_steps="Check per-class accuracy in the classification report. Imbalanced classes may inflate overall accuracy.")
         result["statistics"] = {
             "n": len(data_clean), "n_classes": len(classes),
             "classes": [str(c) for c in class_names],
@@ -2449,7 +3270,7 @@ def run_statistical_analysis(df, analysis_id, config):
                  "mode": "lines", "line": {"color": "#888", "dash": "dot", "width": 1}, "name": "Identity (y=x)"},
             ],
             "layout": {"title": "Deming vs OLS Regression", "xaxis": {"title": var_x}, "yaxis": {"title": var_y},
-                        "template": "plotly_white", "height": 350}
+                        "height": 350}
         })
 
         # Bland-Altman plot
@@ -2474,10 +3295,11 @@ def run_statistical_analysis(df, analysis_id, config):
                              "y0": diff_mean - 1.96 * diff_std, "y1": diff_mean - 1.96 * diff_std,
                              "line": {"color": "#d94a4a", "dash": "dash", "width": 1}},
                         ],
-                        "template": "plotly_white", "height": 300}
+                        "height": 300}
         })
 
         result["guide_observation"] = f"Deming regression: slope={b1_deming:.4f}, intercept={b0_deming:.4f}, R2={r_squared:.4f}."
+        result["narrative"] = _narrative(f"Deming (Orthogonal) Regression: R\u00b2 = {r_squared:.4f}", f"Slope = {b1_deming:.4f}, intercept = {b0_deming:.4f}. Unlike OLS, Deming regression accounts for measurement error in both X and Y.", next_steps="Use Deming regression for method comparison studies where both measurements have error. A slope near 1 and intercept near 0 indicates good agreement.")
         result["statistics"] = {
             "deming_slope": b1_deming, "deming_intercept": b0_deming,
             "ols_slope": b1_ols, "ols_intercept": b0_ols,
@@ -2582,7 +3404,7 @@ def run_statistical_analysis(df, analysis_id, config):
                  "mode": "lines", "line": {"color": "#e89547", "width": 2}, "name": f"Fitted ({model_type})"},
             ],
             "layout": {"title": f"Nonlinear Fit: {model_type}", "xaxis": {"title": var_x},
-                        "yaxis": {"title": var_y}, "template": "plotly_white", "height": 350}
+                        "yaxis": {"title": var_y}, "height": 350}
         })
 
         residuals_nlr = y - y_pred
@@ -2595,10 +3417,12 @@ def run_statistical_analysis(df, analysis_id, config):
                         "yaxis": {"title": "Residual"},
                         "shapes": [{"type": "line", "x0": float(y_pred.min()), "x1": float(y_pred.max()),
                                     "y0": 0, "y1": 0, "line": {"color": "#888", "dash": "dash"}}],
-                        "template": "plotly_white", "height": 250}
+                        "height": 250}
         })
 
         result["guide_observation"] = f"Nonlinear regression ({model_type}): R2={r_squared:.4f}, RMSE={rmse:.4f}."
+        _nl_label = "strong" if r_squared > 0.7 else "moderate" if r_squared > 0.3 else "weak"
+        result["narrative"] = _narrative(f"Nonlinear Regression ({model_type}): R\u00b2 = {r_squared:.4f} ({_nl_label})", f"RMSE = {rmse:.4f}. The {model_type} model captures non-linear patterns in the data.", next_steps="Compare with linear regression. If R\u00b2 improves substantially, the non-linear model is justified.")
         result["statistics"] = {
             "model": model_type, "n": n,
             "parameters": {name: float(val) for name, val in zip(param_names, popt)},
@@ -2699,10 +3523,11 @@ def run_statistical_analysis(df, analysis_id, config):
             ],
             "layout": {"title": f"OC Curve (n={n_sample}, k={k_val:.3f})", "xaxis": {"title": "Percent Defective (%)"},
                         "yaxis": {"title": "Probability of Acceptance", "range": [0, 1.05]},
-                        "template": "plotly_white", "height": 350}
+                        "height": 350}
         })
 
         result["guide_observation"] = f"Variables sampling plan: n={n_sample}, k={k_val:.4f} for AQL={aql}%, LTPD={ltpd}%."
+        result["narrative"] = _narrative(f"Variables Sampling Plan: n = {n_sample}, k = {k_val:.4f}", f"Sample {n_sample} items and accept if the sample mean is within k\u00d7s of the spec limit. AQL = {aql}%, LTPD = {ltpd}%.", next_steps="This plan assumes normally distributed measurements. Verify normality before use.")
         result["statistics"] = {
             "n": n_sample, "k": k_val, "aql": aql, "ltpd": ltpd,
             "alpha": alpha_risk, "beta": beta_risk, "lot_size": lot_size,
@@ -2852,6 +3677,8 @@ def run_statistical_analysis(df, analysis_id, config):
 
             n_sig_pr = sum(1 for c in coefs_pr if c["p"] < 0.05 and c["name"] != "Intercept")
             result["guide_observation"] = f"Poisson regression: {n_sig_pr}/{len(non_intercept)} predictors significant. Dispersion={dispersion_pr:.2f}."
+            _disp_note = " Overdispersion detected — consider negative binomial." if dispersion_pr > 2 else ""
+            result["narrative"] = _narrative(f"Poisson Regression: {n_sig_pr} significant predictors", f"{n_sig_pr} of {len(non_intercept)} predictors significant. Dispersion = {dispersion_pr:.2f}.{_disp_note}", next_steps="Poisson regression models count data. Coefficients are log rate ratios — exp(coef) gives the rate multiplier.")
             result["statistics"] = {
                 "n": n_pr, "deviance": dev_pr, "df_resid": df_resid_pr,
                 "pearson_chi2": pearson_chi2_pr, "dispersion": dispersion_pr,
@@ -2935,7 +3762,7 @@ def run_statistical_analysis(df, analysis_id, config):
             "title": "OC Curve Comparison",
             "data": oc_traces,
             "layout": {"height": 400, "xaxis": {"title": "Lot Defect Rate (%)"},
-                       "yaxis": {"title": "P(Accept)", "range": [0, 1.05]}, "template": "plotly_white"}
+                       "yaxis": {"title": "P(Accept)", "range": [0, 1.05]}}
         })
 
         # AOQ comparison
@@ -2946,7 +3773,7 @@ def run_statistical_analysis(df, analysis_id, config):
             "title": "AOQ Curve Comparison",
             "data": aoq_traces,
             "layout": {"height": 350, "xaxis": {"title": "Incoming Defect Rate (%)"},
-                       "yaxis": {"title": "Average Outgoing Quality (%)"}, "template": "plotly_white"}
+                       "yaxis": {"title": "Average Outgoing Quality (%)"}}
         })
 
         # Summary table
@@ -2967,6 +3794,7 @@ def run_statistical_analysis(df, analysis_id, config):
         result["summary"] = summary_mpc
 
         result["guide_observation"] = f"Compared {len(plan_results)} sampling plans. Best consumer risk: {best_beta:.3f}."
+        result["narrative"] = _narrative(f"Sampling Plan Comparison: {len(plan_results)} plans evaluated", f"Best consumer risk (\u03b2) = {best_beta:.3f}. Compare OC curves to find the best trade-off between sample size and protection.", next_steps="Choose the plan that balances inspection cost (sample size) with risk. Lower \u03b2 = better consumer protection.")
         result["statistics"] = {
             "plans": [{k: v for k, v in pr.items() if k not in ("pa_values", "aoq_values", "color")} for pr in plan_results],
             "aql": aql_mpc, "ltpd": ltpd_mpc, "lot_size": lot_size_mpc,
@@ -3078,7 +3906,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"type": "scatter", "y": [ucl_i] * n_cs, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"UCL={ucl_i:.2f}"},
                     {"type": "scatter", "y": [lcl_i] * n_cs, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"LCL={lcl_i:.2f}"},
                 ],
-                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False},
+                "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "showlegend": False},
                 "group": "Control Charts",
             })
             mr_ucl = mr_bar * 3.267
@@ -3090,7 +3918,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"type": "scatter", "y": [mr_bar] * len(mr), "mode": "lines", "line": {"color": "#e8c547", "width": 1}},
                     {"type": "scatter", "y": [mr_ucl] * len(mr), "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                 ],
-                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False},
+                "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "showlegend": False},
                 "group": "Control Charts",
             })
         else:
@@ -3114,7 +3942,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"type": "scatter", "y": [xbar_bar + a2 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                     {"type": "scatter", "y": [xbar_bar - a2 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                 ],
-                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False},
+                "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "showlegend": False},
                 "group": "Control Charts",
             })
             result["plots"].append({
@@ -3125,7 +3953,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"type": "scatter", "y": [d4 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                     {"type": "scatter", "y": [d3 * r_bar] * n_sg, "mode": "lines", "line": {"color": "#e85747", "dash": "dash", "width": 1}},
                 ],
-                "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30}, "showlegend": False},
+                "layout": {"height": 200, "margin": {"t": 30, "b": 30}, "showlegend": False},
                 "group": "Control Charts",
             })
 
@@ -3142,7 +3970,7 @@ def run_statistical_analysis(df, analysis_id, config):
             "title": "Last Observations",
             "data": [{"type": "scatter", "y": last_obs.tolist(), "mode": "lines+markers",
                       "marker": {"size": 3, "color": "#9aaa9a"}, "line": {"color": "#9aaa9a", "width": 1}}],
-            "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
+            "layout": {"height": 200, "margin": {"t": 30, "b": 30},
                         "shapes": spec_shapes, "showlegend": False},
             "group": "Control Charts",
         })
@@ -3167,7 +3995,7 @@ def run_statistical_analysis(df, analysis_id, config):
             "title": "Capability Histogram",
             "data": [{"type": "histogram", "x": col_cs.tolist(), "marker": {"color": "#4a9f6e", "opacity": 0.7},
                       "nbinsx": min(30, n_cs // 3)}],
-            "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
+            "layout": {"height": 200, "margin": {"t": 30, "b": 30},
                         "shapes": hist_shapes, "annotations": hist_annot, "showlegend": False},
             "group": "Capability",
         })
@@ -3180,7 +4008,7 @@ def run_statistical_analysis(df, analysis_id, config):
             "title": "Normal Probability Plot",
             "data": [{"type": "scatter", "x": theoretical_cs, "y": sorted_cs.tolist(), "mode": "markers",
                       "marker": {"color": "#4a9f6e", "size": 3}}],
-            "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
+            "layout": {"height": 200, "margin": {"t": 30, "b": 30},
                         "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": var_cs}, "showlegend": False},
             "group": "Capability",
         })
@@ -3200,13 +4028,19 @@ def run_statistical_analysis(df, analysis_id, config):
             "title": "Capability Statistics",
             "data": [{"type": "scatter", "x": [0.5], "y": [0.5], "mode": "text",
                       "text": [stats_text_cs], "textfont": {"size": 14, "color": "#4a9f6e"}}],
-            "layout": {"height": 200, "template": "plotly_dark", "margin": {"t": 30, "b": 30},
+            "layout": {"height": 200, "margin": {"t": 30, "b": 30},
                         "xaxis": {"visible": False, "range": [0, 1]}, "yaxis": {"visible": False, "range": [0, 1]},
                         "showlegend": False},
             "group": "Capability",
         })
 
         result["guide_observation"] = f"Capability sixpack: Cpk={cpk_val:.3f}, PPM={ppm_total:.0f}."
+        _cpk_label = "capable" if cpk_val >= 1.33 else "marginal" if cpk_val >= 1.0 else "not capable"
+        result["narrative"] = _narrative(
+            f"Capability Sixpack: Cpk = {cpk_val:.3f} ({_cpk_label})",
+            f"PPM = {ppm_total:.0f}. The sixpack combines control charts, capability histogram, normal probability plot, and capability indices in one view.",
+            next_steps="The sixpack verifies two prerequisites: (1) process stability (control chart) and (2) normality (probability plot). Only trust Cpk if both are satisfied.",
+            chart_guidance="Six panels: I chart (stability), moving range (variation stability), last 25 observations, capability histogram, normal probability plot, and capability summary.")
         result["statistics"] = {
             "n": n_cs, "mean": x_bar_cs, "stdev": s_cs,
             "cp": cp_val, "cpk": cpk_val, "cpl": cpl_val, "cpu": cpu_val,
@@ -3317,10 +4151,14 @@ def run_statistical_analysis(df, analysis_id, config):
         result["plots"].append({
             "data": chart_data,
             "layout": {"title": "ANOM Chart", "xaxis": {"title": factor_anom or "Group"}, "yaxis": {"title": var_anom},
-                        "template": "plotly_white", "height": 350}
+                        "height": 350}
         })
 
         result["guide_observation"] = f"ANOM: {len(outside)} of {k_anom} groups outside decision limits." if outside else f"ANOM: All {k_anom} groups within decision limits."
+        if outside:
+            result["narrative"] = _narrative(f"ANOM: {len(outside)} of {k_anom} groups differ from overall mean", f"Groups outside decision limits: <strong>{', '.join(str(o) for o in outside[:5])}</strong>. These are significantly different from the grand mean.", next_steps="ANOM is a graphical alternative to ANOVA. Groups outside the limits warrant investigation.", chart_guidance="Points outside the dashed decision limits differ significantly from the overall average.")
+        else:
+            result["narrative"] = _narrative(f"ANOM: All {k_anom} groups within decision limits", "No group means are significantly different from the overall mean.", chart_guidance="All points within the decision limits = no significant group differences.")
         result["statistics"] = {
             "grand_mean": grand_mean, "mse": mse_anom, "k": k_anom, "n_total": n_total,
             "group_means": {str(g): m for g, m in zip(groups_labels, group_means)},
@@ -3420,7 +4258,6 @@ def run_statistical_analysis(df, analysis_id, config):
                     error_term = "Residual"
 
                 f_val = ms / error_ms if error_ms > 0 else 0
-                from scipy import stats as sp_stats
                 p_val = 1 - sp_stats.f.cdf(f_val, df_val, error_df) if f_val > 0 else 1.0
                 pct_contrib = ss / ss_total * 100
 
@@ -3490,6 +4327,7 @@ def run_statistical_analysis(df, analysis_id, config):
             n_sig_sp = sum(1 for r in anova_rows if r.get("significant"))
             result["guide_observation"] = f"Split-plot ANOVA: {n_sig_sp} significant terms. WP factors tested against WP error, SP factors against residual."
             result["statistics"] = {"anova_table": anova_rows, "r_squared": float(model_sp.rsquared), "n": len(data_sp)}
+            result["narrative"] = _narrative(f"Split-Plot ANOVA: {n_sig_sp} significant term{'s' if n_sig_sp != 1 else ''}", f"R\u00b2 = {model_sp.rsquared:.3f}. Whole-plot factors are tested against the whole-plot error, subplot factors against the residual error.", next_steps="Split-plot designs arise when some factors are harder to change than others. Check both error terms for proper inference.")
 
         except Exception as e:
             result["summary"] = f"Split-plot ANOVA error: {str(e)}"
@@ -3675,6 +4513,11 @@ def run_statistical_analysis(df, analysis_id, config):
 
             best_p = p_gg if (k_rm > 2 and p_mauchly < 0.05) else p_val_rm
             result["guide_observation"] = f"Repeated measures ANOVA: F({df_condition},{df_error_rm})={f_val_rm:.3f}, p={best_p:.4f}, η²={eta_sq:.4f}."
+            _eta_label = "large" if eta_sq > 0.14 else "medium" if eta_sq > 0.06 else "small"
+            if best_p < 0.05:
+                result["narrative"] = _narrative(f"Conditions differ significantly (F = {f_val_rm:.3f}, p = {best_p:.4f})", f"\u03b7\u00b2 = {eta_sq:.4f} ({_eta_label} effect). The repeated-measures factor significantly affects the response.", next_steps="Run post-hoc paired comparisons to identify which conditions differ.")
+            else:
+                result["narrative"] = _narrative(f"No significant effect across conditions (p = {best_p:.4f})", f"\u03b7\u00b2 = {eta_sq:.4f}. The conditions do not significantly differ.", next_steps="If sphericity is violated (Mauchly's test), use Greenhouse-Geisser or Huynh-Feldt correction.")
             result["statistics"] = {
                 "f_value": f_val_rm, "p_value": p_val_rm, "df_condition": df_condition,
                 "df_error": df_error_rm, "ss_condition": ss_condition, "ss_error": ss_error_rm,
@@ -3726,7 +4569,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
                 {"x": [n_req], "y": [target_power], "mode": "markers", "name": f"n={n_req}", "marker": {"size": 10, "color": "#d94a4a"}}
             ],
-            "layout": {"title": f"Power Curve — 1-Sample Z (δ={delta}, σ={sigma})", "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Power", "range": [0, 1]}, "template": "plotly_white"}
+            "layout": {"title": f"Power Curve — 1-Sample Z (δ={delta}, σ={sigma})", "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Power", "range": [0, 1]}}
         })
 
         result["summary"] = (
@@ -3737,6 +4580,13 @@ def run_statistical_analysis(df, analysis_id, config):
         )
         result["guide_observation"] = f"1-sample Z power: need n={n_req} for d={d:.3f} at power={target_power}."
         result["statistics"] = {"required_n": n_req, "effect_size_d": d, "alpha": alpha, "power": target_power, "delta": delta, "sigma": sigma}
+        _pz_mag = "large" if d >= 0.8 else ("medium" if d >= 0.5 else "small")
+        result["narrative"] = _narrative(
+            f"Power Analysis — n = {n_req} required",
+            f"To detect a {_pz_mag} effect (d = {d:.3f}) with {target_power*100:.0f}% power at \u03b1 = {alpha}, you need <strong>n = {n_req}</strong> observations.",
+            next_steps="If n is too large, consider increasing the acceptable effect size or relaxing \u03b1.",
+            chart_guidance="The power curve shows how power increases with sample size. The red dot marks your required n."
+        )
 
     elif analysis_id == "power_1prop":
         """
@@ -3783,7 +4633,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
                 {"x": [n_req], "y": [target_power], "mode": "markers", "name": f"n={n_req}", "marker": {"size": 10, "color": "#d94a4a"}}
             ],
-            "layout": {"title": f"Power Curve — 1-Proportion (p₀={p0}, pₐ={pa})", "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Power", "range": [0, 1]}, "template": "plotly_white"}
+            "layout": {"title": f"Power Curve — 1-Proportion (p₀={p0}, pₐ={pa})", "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Power", "range": [0, 1]}}
         })
 
         result["summary"] = (
@@ -3794,6 +4644,12 @@ def run_statistical_analysis(df, analysis_id, config):
         )
         result["guide_observation"] = f"1-prop power: need n={n_req} to detect p={pa} vs p₀={p0} at power={target_power}."
         result["statistics"] = {"required_n": n_req, "p0": p0, "pa": pa, "cohens_h": h, "alpha": alpha, "power": target_power}
+        result["narrative"] = _narrative(
+            f"Power Analysis — n = {n_req} for proportion test",
+            f"To detect a shift from p\u2080 = {p0} to p\u2081 = {pa} (Cohen's h = {h:.3f}) with {target_power*100:.0f}% power, you need <strong>n = {n_req}</strong>.",
+            next_steps="Use p = 0.5 for a conservative estimate if the expected proportion is unknown.",
+            chart_guidance="The curve shows power vs sample size. The red dot marks your target."
+        )
 
     elif analysis_id == "power_2prop":
         """
@@ -3840,7 +4696,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
                 {"x": [n1], "y": [target_power], "mode": "markers", "name": f"n₁={n1}", "marker": {"size": 10, "color": "#d94a4a"}}
             ],
-            "layout": {"title": f"Power Curve — 2-Proportion (p₁={p1}, p₂={p2})", "xaxis": {"title": "Sample Size per Group (n₁)"}, "yaxis": {"title": "Power", "range": [0, 1]}, "template": "plotly_white"}
+            "layout": {"title": f"Power Curve — 2-Proportion (p₁={p1}, p₂={p2})", "xaxis": {"title": "Sample Size per Group (n₁)"}, "yaxis": {"title": "Power", "range": [0, 1]}}
         })
 
         result["summary"] = (
@@ -3850,6 +4706,12 @@ def run_statistical_analysis(df, analysis_id, config):
             f"<<COLOR:green>>Required: n₁ = {n1}, n₂ = {n2} (total = {n1 + n2})<</COLOR>>\n"
         )
         result["guide_observation"] = f"2-prop power: need n₁={n1}, n₂={n2} for |Δp|={abs(p1 - p2):.3f} at power={target_power}."
+        result["narrative"] = _narrative(
+            f"Power Analysis — n\u2081 = {n1}, n\u2082 = {n2} per group",
+            f"To detect |p\u2081 \u2212 p\u2082| = {abs(p1 - p2):.3f} (h = {h:.3f}) with {target_power*100:.0f}% power: <strong>n\u2081 = {n1}, n\u2082 = {n2}</strong>.",
+            next_steps="Equal allocation (ratio = 1) is most efficient. Unequal ratios require larger total n.",
+            chart_guidance="The power curve shows power vs n\u2081. The red dot marks your target."
+        )
         result["statistics"] = {"n1": n1, "n2": n2, "total_n": n1 + n2, "p1": p1, "p2": p2, "cohens_h": h, "alpha": alpha, "power": target_power}
 
     elif analysis_id == "power_1variance":
@@ -3907,7 +4769,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
                 {"x": [n_req], "y": [target_power], "mode": "markers", "name": f"n={n_req}", "marker": {"size": 10, "color": "#d94a4a"}}
             ],
-            "layout": {"title": f"Power Curve — 1-Variance (σ₀={sigma0}, σ₁={sigma1})", "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Power", "range": [0, 1]}, "template": "plotly_white"}
+            "layout": {"title": f"Power Curve — 1-Variance (σ₀={sigma0}, σ₁={sigma1})", "xaxis": {"title": "Sample Size (n)"}, "yaxis": {"title": "Power", "range": [0, 1]}}
         })
 
         result["summary"] = (
@@ -3917,6 +4779,12 @@ def run_statistical_analysis(df, analysis_id, config):
             f"<<COLOR:green>>Required sample size: n = {n_req}<</COLOR>>\n"
         )
         result["guide_observation"] = f"1-variance power: need n={n_req} to detect σ₁={sigma1} vs σ₀={sigma0} at power={target_power}."
+        result["narrative"] = _narrative(
+            f"Power Analysis — n = {n_req} for variance test",
+            f"To detect \u03c3\u2081 = {sigma1} vs \u03c3\u2080 = {sigma0} (ratio = {ratio_sq:.3f}) with {target_power*100:.0f}% power: <strong>n = {n_req}</strong>.",
+            next_steps="Variance tests require larger samples than mean tests. Consider if a practical change in spread matters.",
+            chart_guidance="Power curve shows how detection probability increases with n."
+        )
         result["statistics"] = {"required_n": n_req, "sigma0": sigma0, "sigma1": sigma1, "variance_ratio": ratio_sq, "alpha": alpha, "power": target_power}
 
     elif analysis_id == "power_2variance":
@@ -3970,7 +4838,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
                 {"x": [n_req], "y": [target_power], "mode": "markers", "name": f"n₁={n_req}", "marker": {"size": 10, "color": "#d94a4a"}}
             ],
-            "layout": {"title": f"Power Curve — 2-Variance F-Test (ratio={var_ratio})", "xaxis": {"title": "Sample Size per Group (n₁)"}, "yaxis": {"title": "Power", "range": [0, 1]}, "template": "plotly_white"}
+            "layout": {"title": f"Power Curve — 2-Variance F-Test (ratio={var_ratio})", "xaxis": {"title": "Sample Size per Group (n₁)"}, "yaxis": {"title": "Power", "range": [0, 1]}}
         })
 
         result["summary"] = (
@@ -3980,6 +4848,12 @@ def run_statistical_analysis(df, analysis_id, config):
             f"<<COLOR:green>>Required: n₁ = {n_req}, n₂ = {n2_req} (total = {n_req + n2_req})<</COLOR>>\n"
         )
         result["guide_observation"] = f"2-variance power: need n₁={n_req}, n₂={n2_req} for ratio={var_ratio} at power={target_power}."
+        result["narrative"] = _narrative(
+            f"Power Analysis — n\u2081 = {n_req}, n\u2082 = {n2_req} for F-test",
+            f"To detect a variance ratio of {var_ratio} between two groups with {target_power*100:.0f}% power: <strong>n\u2081 = {n_req}, n\u2082 = {n2_req}</strong>.",
+            next_steps="F-tests are sensitive to non-normality. Consider Levene's test as a robust alternative.",
+            chart_guidance="Power curve shows power vs n\u2081. Equal group sizes maximize power."
+        )
         result["statistics"] = {"n1": n_req, "n2": n2_req, "total_n": n_req + n2_req, "variance_ratio": var_ratio, "alpha": alpha, "power": target_power}
 
     elif analysis_id == "power_equivalence":
@@ -4020,7 +4894,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": ns, "y": powers, "mode": "lines", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
                 {"x": [n_req], "y": [target_power], "mode": "markers", "name": f"n/group={n_req}", "marker": {"size": 10, "color": "#d94a4a"}}
             ],
-            "layout": {"title": f"Power Curve — Equivalence (TOST, margin=±{margin})", "xaxis": {"title": "Sample Size per Group"}, "yaxis": {"title": "Power", "range": [0, 1]}, "template": "plotly_white"}
+            "layout": {"title": f"Power Curve — Equivalence (TOST, margin=±{margin})", "xaxis": {"title": "Sample Size per Group"}, "yaxis": {"title": "Power", "range": [0, 1]}}
         })
 
         result["summary"] = (
@@ -4030,6 +4904,12 @@ def run_statistical_analysis(df, analysis_id, config):
             f"<<COLOR:green>>Required: n = {n_req} per group (total = {2 * n_req})<</COLOR>>\n"
         )
         result["guide_observation"] = f"Equivalence power: need n={n_req}/group for margin=±{margin}, δ={delta} at power={target_power}."
+        result["narrative"] = _narrative(
+            f"Power Analysis — n = {n_req} per group for equivalence",
+            f"To demonstrate equivalence within \u00b1{margin} (true \u03b4 = {delta}) with {target_power*100:.0f}% power: <strong>n = {n_req} per group</strong>.",
+            next_steps="Tighter margins require more samples. Ensure the margin reflects a practically meaningful difference.",
+            chart_guidance="Power curve shows how close to the margin the true difference must be for the test to succeed."
+        )
         result["statistics"] = {"n_per_group": n_req, "total_n": 2 * n_req, "margin": margin, "delta": delta, "sigma": sigma, "alpha": alpha, "power": target_power}
 
     elif analysis_id == "power_doe":
@@ -4087,7 +4967,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": reps_range, "y": powers, "mode": "lines+markers", "name": "Power", "line": {"color": "#4a90d9", "width": 2}},
                 {"x": [req_reps], "y": [target_power], "mode": "markers", "name": f"reps={req_reps}", "marker": {"size": 12, "color": "#d94a4a", "symbol": "star"}}
             ],
-            "layout": {"title": f"DOE Power — 2^{n_factors} Factorial (Δ={delta}, σ={sigma})", "xaxis": {"title": "Number of Replicates", "dtick": 1}, "yaxis": {"title": "Power", "range": [0, 1]}, "template": "plotly_white"}
+            "layout": {"title": f"DOE Power — 2^{n_factors} Factorial (Δ={delta}, σ={sigma})", "xaxis": {"title": "Number of Replicates", "dtick": 1}, "yaxis": {"title": "Power", "range": [0, 1]}}
         })
 
         n_total_req = n_runs_base * req_reps
@@ -4099,6 +4979,12 @@ def run_statistical_analysis(df, analysis_id, config):
             f"<<COLOR:green>>Required replicates: {req_reps} → total runs = {n_total_req}<</COLOR>>\n"
         )
         result["guide_observation"] = f"DOE power: 2^{n_factors} design needs {req_reps} reps ({n_total_req} runs) to detect Δ={delta} at power={target_power}."
+        result["narrative"] = _narrative(
+            f"DOE Power — {req_reps} replicates ({n_total_req} runs)",
+            f"A 2^{n_factors} factorial design needs <strong>{req_reps} replicates</strong> ({n_total_req} total runs) to detect an effect of \u0394 = {delta} (\u03c3 = {sigma}) with {target_power*100:.0f}% power.",
+            next_steps="If too many runs, consider a fractional factorial or screen fewer factors first.",
+            chart_guidance="Power increases with replicates. The red dot marks the minimum replicates needed."
+        )
         result["statistics"] = {"factors": n_factors, "base_runs": n_runs_base, "required_reps": req_reps, "total_runs": n_total_req, "delta": delta, "sigma": sigma, "alpha": alpha, "power": target_power}
 
     elif analysis_id == "sample_size_ci":
@@ -4127,7 +5013,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"x": [n_req], "y": [target_width], "mode": "markers", "name": f"n={n_req}", "marker": {"size": 10, "color": "#d94a4a"}},
                     {"x": ns, "y": [target_width] * len(ns), "mode": "lines", "name": "Target", "line": {"color": "#d94a4a", "dash": "dash", "width": 1}}
                 ],
-                "layout": {"title": f"CI Half-Width vs n — Proportion (p≈{p_est})", "xaxis": {"title": "Sample Size"}, "yaxis": {"title": "Half-Width"}, "template": "plotly_white"}
+                "layout": {"title": f"CI Half-Width vs n — Proportion (p≈{p_est})", "xaxis": {"title": "Sample Size"}, "yaxis": {"title": "Half-Width"}}
             })
 
             extra_text = f"<<COLOR:text>>Expected proportion: p ≈ {p_est}<</COLOR>>\n"
@@ -4144,7 +5030,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     {"x": [n_req], "y": [target_width], "mode": "markers", "name": f"n={n_req}", "marker": {"size": 10, "color": "#d94a4a"}},
                     {"x": ns, "y": [target_width] * len(ns), "mode": "lines", "name": "Target", "line": {"color": "#d94a4a", "dash": "dash", "width": 1}}
                 ],
-                "layout": {"title": f"CI Half-Width vs n — Mean (σ={sigma})", "xaxis": {"title": "Sample Size"}, "yaxis": {"title": "Half-Width"}, "template": "plotly_white"}
+                "layout": {"title": f"CI Half-Width vs n — Mean (σ={sigma})", "xaxis": {"title": "Sample Size"}, "yaxis": {"title": "Half-Width"}}
             })
             extra_text = f"<<COLOR:text>>Population σ = {sigma}<</COLOR>>\n"
 
@@ -4156,6 +5042,13 @@ def run_statistical_analysis(df, analysis_id, config):
             f"<<COLOR:green>>Required sample size: n = {n_req}<</COLOR>>\n"
         )
         result["guide_observation"] = f"Sample size for {conf_level:.0%} CI with half-width={target_width}: n={n_req}."
+        result["narrative"] = _narrative(
+            f"Sample Size for {conf_level:.0%} CI — n = {n_req}",
+            f"To achieve a {conf_level:.0%} confidence interval with half-width \u2264 {target_width}: <strong>n = {n_req}</strong>. "
+            f"Type: {est_type}.",
+            next_steps="Wider margins require fewer samples. Use a pilot study to estimate \u03c3 if unknown.",
+            chart_guidance="The curve shows how CI half-width shrinks as n increases. The dashed line is your target precision."
+        )
         result["statistics"] = {"required_n": n_req, "type": est_type, "confidence": conf_level, "half_width": target_width}
 
     elif analysis_id == "sample_size_tolerance":
@@ -4214,7 +5107,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": ns, "y": [z_p] * len(ns), "mode": "lines", "name": f"z_p={z_p:.3f} (asymptote)", "line": {"color": "#4a9f6e", "dash": "dash", "width": 1}},
                 {"x": [n_req], "y": [z_p * math.sqrt(n_req / chi2_dist.ppf(1 - confidence, n_req - 1)) if chi2_dist.ppf(1 - confidence, n_req - 1) > 0 else z_p], "mode": "markers", "name": f"n={n_req}", "marker": {"size": 10, "color": "#d94a4a"}}
             ],
-            "layout": {"title": f"Tolerance k-Factor vs n ({coverage:.0%}/{confidence:.0%})", "xaxis": {"title": "Sample Size"}, "yaxis": {"title": "k-Factor"}, "template": "plotly_white"}
+            "layout": {"title": f"Tolerance k-Factor vs n ({coverage:.0%}/{confidence:.0%})", "xaxis": {"title": "Sample Size"}, "yaxis": {"title": "k-Factor"}}
         })
 
         result["summary"] = (
@@ -4226,6 +5119,13 @@ def run_statistical_analysis(df, analysis_id, config):
             f"<<COLOR:text>>At this n, the tolerance k-factor ≈ {z_p * math.sqrt(n_req / chi2_dist.ppf(1 - confidence, n_req - 1)):.3f} (asymptote = {z_p:.3f})<</COLOR>>\n"
         )
         result["guide_observation"] = f"Tolerance interval ({coverage:.0%}/{confidence:.0%}): need n={n_req}."
+        result["narrative"] = _narrative(
+            f"Sample Size for Tolerance Interval — n = {n_req}",
+            f"To bound {coverage:.0%} of the population with {confidence:.0%} confidence ({interval_type}): <strong>n = {n_req}</strong>. "
+            f"The k-factor converges to z = {z_p:.3f} as n increases.",
+            next_steps="Tolerance intervals are critical for capability studies — ensure n is sufficient before reporting Cpk.",
+            chart_guidance="The k-factor curve shows how the tolerance multiplier decreases (tightens) with more data. It asymptotes to z_p."
+        )
         result["statistics"] = {"required_n": n_req, "coverage": coverage, "confidence": confidence, "type": interval_type, "z_p": z_p}
 
     elif analysis_id == "granger":
@@ -4353,6 +5253,10 @@ def run_statistical_analysis(df, analysis_id, config):
             })
 
             result["guide_observation"] = f"Granger causality: {var_x} → {var_y} " + (f"significant at lags {significant_lags}." if significant_lags else "not significant.")
+            if significant_lags:
+                result["narrative"] = _narrative(f"{var_x} Granger-causes {var_y} at lags {significant_lags}", f"Past values of <strong>{var_x}</strong> contain information that helps predict <strong>{var_y}</strong> beyond its own history.", next_steps="Granger causality is predictive, not causal. It means X helps forecast Y, not that X causes Y. Test both directions.")
+            else:
+                result["narrative"] = _narrative(f"No Granger causality from {var_x} to {var_y}", f"Past values of {var_x} do not significantly improve predictions of {var_y}.", next_steps="Try more lags or test the reverse direction. Granger causality is specific to the lag structure tested.")
 
             # Statistics for Synara
             result["statistics"] = {
@@ -4478,6 +5382,10 @@ def run_statistical_analysis(df, analysis_id, config):
             })
 
             result["guide_observation"] = f"Detected {len(change_points)} change point(s) in {var}." + (" Investigate what caused these shifts." if change_points else " Process appears stable.")
+            if change_points:
+                result["narrative"] = _narrative(f"{len(change_points)} change point{'s' if len(change_points) > 1 else ''} detected in {var}", f"The process shifted at {'these points' if len(change_points) > 1 else 'this point'}. Each change point represents a significant level shift.", next_steps="Investigate what changed at each point: new material, operator, equipment, or environmental conditions.", chart_guidance="Vertical lines mark detected change points. Segments between them have different statistical properties.")
+            else:
+                result["narrative"] = _narrative(f"No change points detected in {var}", "The process appears stable over the observation period — no significant level shifts.", next_steps="Stable process. Monitor with control charts to detect future shifts early.")
 
             # Statistics for Synara
             result["statistics"] = {
@@ -4557,6 +5465,62 @@ def run_statistical_analysis(df, analysis_id, config):
         result["guide_observation"] = f"Mann-Whitney U test p = {pval:.4f}. " + ("Groups differ significantly." if pval < 0.05 else "No significant difference.")
         result["statistics"] = {"U_statistic": float(stat), "p_value": float(pval), "effect_size_r": float(effect_size)}
 
+        # ── Diagnostics: assumption checks + cross-validation ──
+        diagnostics = []
+        _alpha = 0.05
+        _out1 = _check_outliers(group1.values, label=str(groups[0]))
+        _out2 = _check_outliers(group2.values, label=str(groups[1]))
+        if _out1:
+            diagnostics.append(_out1)
+        if _out2:
+            diagnostics.append(_out2)
+        # Cross-validate with t-test (if data is roughly normal)
+        try:
+            _norm1 = _check_normality(group1.values, label=str(groups[0]), alpha=_alpha)
+            _norm2 = _check_normality(group2.values, label=str(groups[1]), alpha=_alpha)
+            _any_nonnormal = bool(_norm1 or _norm2)
+            _t_stat, _t_p = stats.ttest_ind(group1, group2, equal_var=False)
+            _cv = _cross_validate(pval, _t_p, "Mann-Whitney U", "Welch's t-test",
+                                  alpha=_alpha, normality_failed=_any_nonnormal)
+            _cv["action"] = {"label": "Run t-test", "type": "stats", "analysis": "ttest2",
+                             "config": {"var": config.get("var", ""),
+                                        "group_var": config.get("group_var", "")}}
+            diagnostics.append(_cv)
+        except Exception:
+            pass
+        # Effect size emphasis (rank-biserial r)
+        _mw_r_abs = abs(effect_size)
+        if _mw_r_abs >= 0.5 and pval < _alpha:
+            diagnostics.append({"level": "info", "title": f"Large practical effect (rank-biserial r = {effect_size:.3f})",
+                                "detail": f"The rank-biserial correlation of {effect_size:.3f} indicates a large separation between groups — practically meaningful."})
+        elif _mw_r_abs < 0.1 and pval < _alpha:
+            diagnostics.append({"level": "warning", "title": f"Significant but trivial effect (r = {effect_size:.3f})",
+                                "detail": "Statistical significance with negligible practical effect. Large sample sizes can make tiny rank differences significant."})
+        elif _mw_r_abs >= 0.3 and pval >= _alpha:
+            diagnostics.append({"level": "warning", "title": f"Moderate effect not reaching significance (r = {effect_size:.3f})",
+                                "detail": "The effect size suggests a real difference, but the sample may be too small to detect it. Consider collecting more data.",
+                                "action": {"label": "Power Analysis", "type": "stats", "analysis": "power_sample_size",
+                                           "config": {"test_type": "mann_whitney", "effect_size": float(_mw_r_abs), "alpha": float(_alpha)}}})
+        result["diagnostics"] = diagnostics
+
+        # Narrative
+        _mw_eff_abs = abs(effect_size)
+        _mw_eff_label = "large" if _mw_eff_abs >= 0.5 else ("medium" if _mw_eff_abs >= 0.3 else "small")
+        _mw_higher = groups[0] if group1.median() > group2.median() else groups[1]
+        if pval < 0.05:
+            _mw_verdict = f"Groups differ significantly (rank-biserial r = {effect_size:.3f}, {_mw_eff_label} effect)"
+            _mw_body = f"Values in <strong>{_mw_higher}</strong> tend to be higher (median {max(group1.median(), group2.median()):.4f} vs {min(group1.median(), group2.median()):.4f}). The Mann-Whitney U test (p = {pval:.4f}) confirms this difference is unlikely due to chance."
+            _mw_next = "Investigate the root cause of the difference between groups."
+        else:
+            _mw_verdict = "No significant difference between groups"
+            _mw_body = f"The Mann-Whitney U test (p = {pval:.4f}) does not detect a significant difference between {groups[0]} and {groups[1]}. Effect size r = {effect_size:.3f} ({_mw_eff_label})."
+            _mw_next = "Consider whether the sample size provides adequate power, or use a bootstrap CI for distribution-free inference."
+        result["narrative"] = _narrative(
+            _mw_verdict, _mw_body,
+            next_steps=_mw_next,
+            chart_guidance="Box plots show the median (center line), IQR (box), and range (whiskers). Non-overlapping boxes suggest different central tendencies."
+        )
+
     elif analysis_id == "kruskal":
         """
         Kruskal-Wallis H Test - non-parametric alternative to one-way ANOVA.
@@ -4620,6 +5584,56 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["guide_observation"] = f"Kruskal-Wallis H = {stat:.2f}, p = {pval:.4f}. " + ("Groups differ." if pval < 0.05 else "No difference.")
         result["statistics"] = {"H_statistic": float(stat), "p_value": float(pval), "epsilon_squared": float(epsilon_sq)}
+
+        # ── Diagnostics: assumption checks + cross-validation ──
+        diagnostics = []
+        _alpha = 0.05
+        for _g_name, _g_data in zip(groups, group_data):
+            _out = _check_outliers(_g_data, label=str(_g_name))
+            if _out:
+                diagnostics.append(_out)
+        # Cross-validate with one-way ANOVA (if groups roughly normal)
+        try:
+            _norms = [_check_normality(gd, label=str(gn), alpha=_alpha) for gn, gd in zip(groups, group_data)]
+            _any_nonnormal = any(_norms)
+            _f_stat, _f_p = stats.f_oneway(*group_data)
+            _cv = _cross_validate(pval, _f_p, "Kruskal-Wallis", "One-way ANOVA",
+                                  alpha=_alpha, normality_failed=_any_nonnormal)
+            _cv["action"] = {"label": "Run ANOVA", "type": "stats", "analysis": "anova",
+                             "config": {"var": config.get("var", ""),
+                                        "group_var": config.get("group_var", "")}}
+            diagnostics.append(_cv)
+        except Exception:
+            pass
+        # Effect size emphasis (η² = H / (n - 1))
+        _eta_sq = stat / (n_total - 1) if n_total > 1 else 0.0
+        if _eta_sq > 0.14 and pval < _alpha:
+            diagnostics.append({"level": "info", "title": f"Large practical effect (\u03b7\u00b2 = {_eta_sq:.4f})",
+                                "detail": f"The eta-squared of {_eta_sq:.4f} indicates a large effect — group membership explains a substantial share of rank variance."})
+        elif _eta_sq < 0.01 and pval < _alpha:
+            diagnostics.append({"level": "warning", "title": f"Significant but trivial effect (\u03b7\u00b2 = {_eta_sq:.4f})",
+                                "detail": "Statistical significance with negligible practical effect. Large combined sample size can make tiny rank differences significant."})
+        elif _eta_sq >= 0.06 and pval >= _alpha:
+            diagnostics.append({"level": "warning", "title": f"Moderate effect not reaching significance (\u03b7\u00b2 = {_eta_sq:.4f})",
+                                "detail": "The effect size suggests real group differences, but the sample may be too small. Consider collecting more data.",
+                                "action": {"label": "Power Analysis", "type": "stats", "analysis": "power_sample_size",
+                                           "config": {"test_type": "kruskal", "effect_size": float(_eta_sq), "alpha": float(_alpha)}}})
+        result["diagnostics"] = diagnostics
+
+        # Narrative
+        _es_label = "large" if epsilon_sq > 0.14 else "medium" if epsilon_sq > 0.06 else "small"
+        if pval < 0.05:
+            verdict = f"Groups differ significantly (H = {stat:.2f}, p = {pval:.4f})"
+            body = (f"At least one of {len(groups)} groups has a different distribution of <strong>{var}</strong> "
+                    f"(ε² = {epsilon_sq:.3f}, {_es_label} effect). This is the non-parametric equivalent of one-way ANOVA.")
+            nxt = "Run Dunn's post-hoc test to identify which specific groups differ."
+        else:
+            verdict = f"No significant difference among groups (p = {pval:.4f})"
+            body = (f"The {len(groups)} groups of <strong>{var}</strong> do not differ significantly "
+                    f"(H = {stat:.2f}, ε² = {epsilon_sq:.3f}).")
+            nxt = "If you expected a difference, check sample sizes — the test may lack power with small groups."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="Box plots show group distributions. Compare medians (middle lines) and spreads (box widths). Outlier dots may drive rank differences.")
 
     elif analysis_id == "wilcoxon":
         """
@@ -4699,6 +5713,48 @@ def run_statistical_analysis(df, analysis_id, config):
         result["guide_observation"] = f"Wilcoxon signed-rank W = {stat:.2f}, p = {pval:.4f}. " + ("Paired samples differ." if pval < 0.05 else "No paired difference.")
         result["statistics"] = {"W_statistic": float(stat), "p_value": float(pval), "effect_size_r": float(effect_r), "median_diff": float(np.median(diffs)), "n_pairs": int(min_len)}
 
+        # ── Diagnostics: assumption checks + cross-validation ──
+        diagnostics = []
+        _alpha = 0.05
+        _out_diffs = _check_outliers(diffs, label="Paired differences")
+        if _out_diffs:
+            diagnostics.append(_out_diffs)
+        # Cross-validate with paired t-test
+        try:
+            _norm_diffs = _check_normality(diffs, label="Paired differences", alpha=_alpha)
+            _any_nonnormal = bool(_norm_diffs)
+            _t_stat, _t_p = stats.ttest_rel(sample1, sample2)
+            _cv = _cross_validate(pval, _t_p, "Wilcoxon signed-rank", "Paired t-test",
+                                  alpha=_alpha, normality_failed=_any_nonnormal)
+            _cv["action"] = {"label": "Run paired t-test", "type": "stats", "analysis": "ttest_paired",
+                             "config": {"var1": config.get("var1", ""), "var2": config.get("var2", "")}}
+            diagnostics.append(_cv)
+        except Exception:
+            pass
+        # Effect size emphasis (r = Z / sqrt(N))
+        if effect_r >= 0.5 and pval < _alpha:
+            diagnostics.append({"level": "info", "title": f"Large practical effect (r = {effect_r:.4f})",
+                                "detail": f"The effect size r = {effect_r:.4f} indicates a large paired difference — practically meaningful."})
+        elif effect_r < 0.1 and pval < _alpha:
+            diagnostics.append({"level": "warning", "title": f"Significant but trivial effect (r = {effect_r:.4f})",
+                                "detail": "Statistical significance with negligible practical effect. Large sample sizes can make tiny paired differences significant."})
+        elif effect_r >= 0.3 and pval >= _alpha:
+            diagnostics.append({"level": "warning", "title": f"Moderate effect not reaching significance (r = {effect_r:.4f})",
+                                "detail": "The effect size suggests a real paired difference, but the sample may be too small to detect it. Consider collecting more data.",
+                                "action": {"label": "Power Analysis", "type": "stats", "analysis": "power_sample_size",
+                                           "config": {"test_type": "wilcoxon", "effect_size": float(effect_r), "alpha": float(_alpha)}}})
+        result["diagnostics"] = diagnostics
+
+        _er_label = "large" if effect_r > 0.5 else "medium" if effect_r > 0.3 else "small"
+        if pval < 0.05:
+            verdict = f"Paired samples differ (W = {stat:.1f}, p = {pval:.4f})"
+            body = f"Median difference = {np.median(diffs):.4f} ({_er_label} effect, r = {effect_r:.3f}). The paired measurements are significantly different."
+        else:
+            verdict = f"No significant paired difference (p = {pval:.4f})"
+            body = f"Median difference = {np.median(diffs):.4f} (r = {effect_r:.3f}). Cannot conclude the paired measurements differ."
+        result["narrative"] = _narrative(verdict, body, next_steps="If significant, investigate what systematic factor drives the difference between paired measurements.",
+            chart_guidance="The distribution of paired differences. Values centered away from zero indicate a systematic shift.")
+
     elif analysis_id == "friedman":
         """
         Friedman Test - non-parametric alternative to repeated measures ANOVA.
@@ -4771,6 +5827,16 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["guide_observation"] = f"Friedman chi2 = {stat:.2f}, p = {pval:.4f}, W = {kendall_w:.3f}. " + ("Conditions differ." if pval < 0.05 else "No difference.")
         result["statistics"] = {"chi2_statistic": float(stat), "p_value": float(pval), "kendall_w": float(kendall_w), "df": int(k - 1), "n_subjects": int(n_subjects)}
+        _w_label = "strong" if kendall_w > 0.7 else "moderate" if kendall_w > 0.3 else "weak"
+        if pval < 0.05:
+            verdict = f"Conditions differ significantly (\u03c7\u00b2 = {stat:.2f}, p = {pval:.4f})"
+            body = f"At least one of {k} conditions has a different distribution ({n_subjects} subjects). Kendall's W = {kendall_w:.3f} ({_w_label} concordance)."
+            nxt = "Run post-hoc Wilcoxon signed-rank tests with Bonferroni correction to identify which conditions differ."
+        else:
+            verdict = f"No significant difference across conditions (p = {pval:.4f})"
+            body = f"The {k} conditions do not differ significantly (W = {kendall_w:.3f}). No evidence of a treatment effect."
+            nxt = "If expected, increase sample size. The Friedman test has lower power than repeated-measures ANOVA."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt)
 
     elif analysis_id == "spearman":
         """
@@ -4843,6 +5909,14 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["guide_observation"] = f"Spearman rho = {rho:.3f}, p = {pval:.4f}. {strength.capitalize()} {direction} monotonic association."
         result["statistics"] = {"spearman_rho": float(rho), "p_value": float(pval), "ci_lower": float(ci_low), "ci_upper": float(ci_high), "n": int(n)}
+        if pval < 0.05:
+            verdict = f"{strength.capitalize()} {direction} monotonic relationship (\u03c1 = {rho:+.3f})"
+            body = f"<strong>{var1}</strong> and <strong>{var2}</strong> have a {strength} {direction} monotonic association (p = {pval:.4f}, 95% CI [{ci_low:+.3f}, {ci_high:+.3f}]). Spearman's rank correlation is robust to outliers and non-linear relationships."
+        else:
+            verdict = f"No significant monotonic relationship (\u03c1 = {rho:+.3f}, p = {pval:.4f})"
+            body = f"No significant monotonic association between <strong>{var1}</strong> and <strong>{var2}</strong>."
+        result["narrative"] = _narrative(verdict, body, next_steps="Spearman captures monotonic (not just linear) relationships. For linear-only, use Pearson. For causal testing, use designed experiments.",
+            chart_guidance="Points along a rising/falling curve = monotonic relationship. Spearman doesn't require linearity.")
 
     elif analysis_id == "main_effects":
         """
@@ -4913,6 +5987,23 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"Main effects plot for {len(factors)} factor(s). Check for steep slopes indicating strong effects."
+
+        # Narrative — find factor with largest effect range
+        effect_ranges = []
+        for factor in factors:
+            fmeans = df.groupby(factor)[response].mean()
+            effect_ranges.append((factor, float(fmeans.max() - fmeans.min())))
+        effect_ranges.sort(key=lambda x: x[1], reverse=True)
+        top_factor, top_range = effect_ranges[0]
+        grand_mean = float(y.mean())
+        verdict = f"Main Effects — <strong>{top_factor}</strong> has the largest effect (range = {top_range:.4f})"
+        body = (f"Across {len(factors)} factor{'s' if len(factors) > 1 else ''}, <strong>{top_factor}</strong> "
+                f"produces the widest swing in mean {response} ({top_range:.4f}). Grand mean = {grand_mean:.4f}.")
+        if len(effect_ranges) > 1:
+            body += f" Second: {effect_ranges[1][0]} (range = {effect_ranges[1][1]:.4f})."
+        nxt = "Steep slopes = strong effects, flat lines = negligible. Run an interaction plot to check whether factors act independently."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="Each panel shows how one factor's levels shift the response mean. The dashed line is the grand mean.")
 
     elif analysis_id == "interaction":
         """
@@ -4989,6 +6080,21 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"Interaction plot for {factor1} × {factor2}. " + ("Non-parallel lines suggest interaction." if 'has_interaction' in dir() and has_interaction else "Check for parallel lines.")
+
+        # Narrative
+        _has_ix = 'has_interaction' in dir() and has_interaction
+        if _has_ix:
+            verdict = f"Interaction detected — {factor1} × {factor2}"
+            body = (f"The effect of <strong>{factor1}</strong> on {response} depends on the level of <strong>{factor2}</strong> "
+                    f"(non-parallel lines). This means you cannot optimize {factor1} without considering {factor2}.")
+            nxt = f"Factors interact — optimize them jointly, not independently. Consider a full factorial DOE to quantify the interaction effect."
+        else:
+            verdict = f"No strong interaction — {factor1} × {factor2}"
+            body = (f"Lines are approximately parallel, suggesting <strong>{factor1}</strong> and <strong>{factor2}</strong> "
+                    f"act independently on {response}. Each factor's effect is consistent across levels of the other.")
+            nxt = "Factors appear independent — you can optimize each separately. Confirm with ANOVA interaction term if needed."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="Parallel lines = no interaction (factors act independently). Crossing or diverging lines = interaction (combined effect differs from individual effects).")
 
     elif analysis_id == "logistic":
         """
@@ -5134,6 +6240,56 @@ def run_statistical_analysis(df, analysis_id, config):
         result["summary"] = summary
         result["guide_observation"] = f"Logistic regression with AUC = {roc_auc:.3f}. Odds ratios > 1 increase probability of outcome."
         result["statistics"] = {"AUC": float(roc_auc), "accuracy": float((y_pred == y_test).mean())}
+        _auc_label = "excellent" if roc_auc > 0.9 else "good" if roc_auc > 0.8 else "fair" if roc_auc > 0.7 else "poor"
+        _acc = float((y_pred == y_test).mean())
+        verdict = f"Logistic model AUC = {roc_auc:.3f} ({_auc_label} discrimination)"
+        body = f"The model classifies {response} using {len(predictors)} predictor{'s' if len(predictors) > 1 else ''} with {_acc*100:.1f}% accuracy on held-out data. AUC = {roc_auc:.3f}."
+        result["narrative"] = _narrative(verdict, body, next_steps="AUC > 0.8 = good model. Check the confusion matrix for class-specific performance. Odds ratios > 1 increase the probability of the outcome.",
+            chart_guidance="ROC curve: the further from the diagonal, the better the model discriminates. The confusion matrix shows where the model makes errors.")
+
+        # ── Diagnostics ──
+        diagnostics = []
+        # Check for separation (perfect prediction) — extremely large coefficients
+        for i, (pred, coef) in enumerate(zip(predictors, coefs)):
+            if abs(coef) > 10:
+                diagnostics.append({"level": "warning", "title": f"Possible separation: |coef| = {abs(coef):.1f} for {pred}",
+                                    "detail": f"Coefficient for '{pred}' is extremely large ({coef:.2f}), suggesting perfect or quasi-perfect separation. The model may be unreliable — consider penalized regression (Ridge/LASSO) or Firth's method."})
+        # Sample size per predictor (rule of thumb: 10-20 events per predictor)
+        _n_events = int(y_train.sum())
+        _n_non_events = int(len(y_train) - _n_events)
+        _min_class = min(_n_events, _n_non_events)
+        _epp = _min_class / len(predictors) if len(predictors) > 0 else _min_class
+        if _epp < 10:
+            diagnostics.append({"level": "warning", "title": f"Low events per predictor ({_epp:.1f} EPP)",
+                                "detail": f"Only {_min_class} events for {len(predictors)} predictor{'s' if len(predictors) > 1 else ''} (EPP = {_epp:.1f}). Rule of thumb is 10–20 EPP. Results may be overfitted and unstable."})
+        # Multicollinearity check (VIF for multiple predictors)
+        if len(predictors) >= 2:
+            try:
+                from statsmodels.stats.outliers_influence import variance_inflation_factor
+                _X_vif = X_train.values
+                _vif_vals = []
+                for _vi in range(len(predictors)):
+                    _vif_vals.append(variance_inflation_factor(_X_vif, _vi))
+                _high_vif = [(predictors[_vi], _vif_vals[_vi]) for _vi in range(len(predictors)) if _vif_vals[_vi] > 5]
+                if _high_vif:
+                    _vif_str = ", ".join(f"{n} (VIF={v:.1f})" for n, v in _high_vif)
+                    diagnostics.append({"level": "warning", "title": "Multicollinearity detected",
+                                        "detail": f"High VIF: {_vif_str}. Correlated predictors inflate standard errors and make individual coefficients unreliable."})
+            except Exception:
+                pass
+        # Effect size emphasis: odds ratios
+        for i, (pred, odds) in enumerate(zip(predictors, odds_ratios)):
+            if odds > 5 or odds < 0.2:
+                diagnostics.append({"level": "info", "title": f"Large odds ratio for {pred} (OR = {odds:.2f})",
+                                    "detail": f"A one-unit increase in '{pred}' {'multiplies' if odds > 1 else 'divides'} the odds of {response} by {odds:.2f} — a practically significant effect."})
+            elif 0.8 <= odds <= 1.2 and _se_coefs is not None:
+                # Check if statistically significant despite trivial OR
+                _z = coefs[i] / _se_coefs[i] if _se_coefs[i] > 0 else 0
+                _p_coef = 2 * (1 - sp_stats.norm.cdf(abs(_z)))
+                if _p_coef < 0.05:
+                    diagnostics.append({"level": "warning", "title": f"Significant but trivial effect for {pred} (OR = {odds:.2f})",
+                                        "detail": f"'{pred}' is statistically significant (p = {_p_coef:.4f}) but the odds ratio is near 1 — the practical impact is negligible."})
+        result["diagnostics"] = diagnostics
 
     elif analysis_id == "f_test":
         """
@@ -5190,6 +6346,14 @@ def run_statistical_analysis(df, analysis_id, config):
         result["summary"] = summary
         result["guide_observation"] = f"F = {F:.2f}, p = {p_value:.4f}. " + ("Variances differ significantly." if p_value < 0.05 else "Variances are similar.")
         result["statistics"] = {"F_statistic": float(F), "p_value": float(p_value), "variance_ratio": float(max(var1,var2)/min(var1,var2))}
+        _vr = float(max(var1,var2)/min(var1,var2)) if min(var1,var2) > 0 else 0
+        if p_value < 0.05:
+            verdict = f"Variances differ significantly (F = {F:.2f}, p = {p_value:.4f})"
+            body = f"Variance ratio = {_vr:.2f}. Use Welch's t-test (not pooled) or non-parametric tests for group comparisons."
+        else:
+            verdict = f"Variances are similar (F = {F:.2f}, p = {p_value:.4f})"
+            body = f"Variance ratio = {_vr:.2f}. The equal-variance assumption is reasonable for pooled t-tests and ANOVA."
+        result["narrative"] = _narrative(verdict, body, next_steps="F-test is sensitive to non-normality. For robust alternatives, use Levene's test.")
 
         # Variance comparison bar chart + side-by-side box plots
         result["plots"].append({
@@ -5197,7 +6361,7 @@ def run_statistical_analysis(df, analysis_id, config):
             "data": [
                 {"type": "bar", "x": [str(groups[0]), str(groups[1])], "y": [float(var1), float(var2)], "marker": {"color": ["#4a9f6e", "#4a90d9"]}, "name": "Variance"},
             ],
-            "layout": {"template": "plotly_dark", "height": 250, "yaxis": {"title": "Variance"}, "xaxis": {"title": group_var}}
+            "layout": {"height": 250, "yaxis": {"title": "Variance"}, "xaxis": {"title": group_var}}
         })
         result["plots"].append({
             "title": f"Distribution by Group: {var}",
@@ -5205,7 +6369,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "box", "y": g1.tolist(), "name": str(groups[0]), "marker": {"color": "#4a9f6e"}, "boxpoints": "outliers"},
                 {"type": "box", "y": g2.tolist(), "name": str(groups[1]), "marker": {"color": "#4a90d9"}, "boxpoints": "outliers"}
             ],
-            "layout": {"template": "plotly_dark", "height": 300, "yaxis": {"title": var}}
+            "layout": {"height": 300, "yaxis": {"title": var}}
         })
 
     elif analysis_id == "equivalence":
@@ -5296,6 +6460,53 @@ def run_statistical_analysis(df, analysis_id, config):
         result["guide_observation"] = f"TOST p = {p_tost:.4f}. " + (f"Groups equivalent within ±{margin}." if p_tost < 0.05 else "Cannot confirm equivalence.")
         result["statistics"] = {"TOST_p_value": float(p_tost), "mean_difference": float(diff), "margin": float(margin)}
 
+        # Narrative
+        if p_tost < 0.05:
+            verdict = f"Groups are equivalent within ±{margin} (TOST p = {p_tost:.4f})"
+            body = (f"The mean difference ({diff:.4f}) falls within the equivalence margin of ±{margin}. "
+                    f"90% CI [{_ci90_lo:.4f}, {_ci90_hi:.4f}] is entirely inside the equivalence bounds. "
+                    f"This provides statistical evidence that the groups are practically equivalent.")
+            nxt = "Equivalence confirmed. The groups can be treated as interchangeable within the specified margin."
+        else:
+            verdict = f"Cannot confirm equivalence (TOST p = {p_tost:.4f})"
+            body = (f"The mean difference is {diff:.4f}, but the 90% CI [{_ci90_lo:.4f}, {_ci90_hi:.4f}] "
+                    f"extends beyond the ±{margin} equivalence margin. Cannot conclude the groups are equivalent.")
+            nxt = "Consider: (1) widening the margin if scientifically justified, (2) increasing sample size for more power, or (3) the groups may genuinely differ."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="The green shaded region is the equivalence zone (±margin). If the CI (error bars) falls entirely within it, equivalence is confirmed.")
+
+        # ── Diagnostics ──
+        diagnostics = []
+        _norm1 = _check_normality(g1.values, label=f"{var} [{groups[0]}]")
+        if _norm1:
+            diagnostics.append(_norm1)
+        _norm2 = _check_normality(g2.values, label=f"{var} [{groups[1]}]")
+        if _norm2:
+            diagnostics.append(_norm2)
+        _out1 = _check_outliers(g1.values, label=f"{var} [{groups[0]}]")
+        if _out1:
+            diagnostics.append(_out1)
+        _out2 = _check_outliers(g2.values, label=f"{var} [{groups[1]}]")
+        if _out2:
+            diagnostics.append(_out2)
+
+        # Cohen's d alongside TOST
+        _pooled_std = np.sqrt(((n1 - 1) * std1**2 + (n2 - 1) * std2**2) / (n1 + n2 - 2)) if (n1 + n2 > 2) else 1.0
+        _d = abs(diff) / _pooled_std if _pooled_std > 0 else 0.0
+        _d_label, _d_meaningful = _effect_magnitude(_d, "cohens_d")
+
+        if p_tost < 0.05 and not _d_meaningful:
+            diagnostics.append({"level": "info", "title": f"Groups are both statistically and practically equivalent (d = {_d:.2f}, {_d_label})",
+                                "detail": f"TOST confirms equivalence and Cohen's d = {_d:.2f} indicates a {_d_label} effect — the groups are interchangeable."})
+        elif p_tost < 0.05 and _d_meaningful:
+            diagnostics.append({"level": "warning", "title": f"Formally equivalent but meaningful difference exists (d = {_d:.2f}, {_d_label})",
+                                "detail": f"TOST p = {p_tost:.4f} confirms equivalence within ±{margin}, but Cohen's d = {_d:.2f} ({_d_label}) suggests a practically relevant difference. Consider tightening the equivalence margin."})
+        else:
+            diagnostics.append({"level": "info", "title": f"Effect size: Cohen's d = {_d:.2f} ({_d_label})",
+                                "detail": f"Equivalence not confirmed (TOST p = {p_tost:.4f}). The observed effect is {_d_label}. Consider widening the equivalence margin if scientifically justified, or increasing sample size (current n1={n1}, n2={n2})."})
+
+        result["diagnostics"] = diagnostics
+
     elif analysis_id == "runs_test":
         """
         Runs test for randomness in a sequence.
@@ -5381,6 +6592,15 @@ def run_statistical_analysis(df, analysis_id, config):
         result["summary"] = summary
         result["guide_observation"] = f"Runs test: {n_runs} runs, p = {p_value:.4f}. " + ("Non-random pattern detected." if p_value < 0.05 else "Sequence appears random.")
         result["statistics"] = {"runs": int(n_runs), "expected_runs": float(expected_runs), "Z_statistic": float(z), "p_value": float(p_value)}
+        if p_value < 0.05:
+            verdict = f"Non-random pattern detected ({n_runs} runs, p = {p_value:.4f})"
+            body = f"Expected {expected_runs:.1f} runs but observed {n_runs}. " + ("Too few runs = clustering/trends." if n_runs < expected_runs else "Too many runs = oscillation/over-correction.")
+            nxt = "Investigate the cause of non-randomness: time trends, autocorrelation, or cyclical patterns."
+        else:
+            verdict = f"Sequence appears random (p = {p_value:.4f})"
+            body = f"Observed {n_runs} runs vs {expected_runs:.1f} expected. No evidence of non-random patterns."
+            nxt = None
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt)
 
     elif analysis_id == "sign_test":
         """
@@ -5445,12 +6665,19 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "scatter", "y": [h0_median]*len(data), "mode": "lines", "name": f"H₀ ({h0_median})",
                  "line": {"color": "#d94a4a", "dash": "dot"}},
             ],
-            "layout": {"template": "plotly_dark", "height": 250, "showlegend": True, "xaxis": {"title": "Observation"}, "yaxis": {"title": var}}
+            "layout": {"height": 250, "showlegend": True, "xaxis": {"title": "Observation"}, "yaxis": {"title": var}}
         })
 
         result["summary"] = summary
         result["guide_observation"] = f"Sign test p = {p_value:.4f}. " + (f"Median differs from {h0_median}." if p_value < 0.05 else f"No evidence median differs from {h0_median}.")
         result["statistics"] = {"sample_median": float(sample_median), "above": int(above), "below": int(below), "p_value": float(p_value)}
+        if p_value < 0.05:
+            verdict = f"Median differs from {h0_median} (p = {p_value:.4f})"
+            body = f"Sample median = {sample_median:.4f}. {above} values above and {below} below {h0_median}. The imbalance is significant."
+        else:
+            verdict = f"Median consistent with {h0_median} (p = {p_value:.4f})"
+            body = f"Sample median = {sample_median:.4f}. {above} above and {below} below. No significant departure from {h0_median}."
+        result["narrative"] = _narrative(verdict, body, next_steps="The sign test is the most robust non-parametric test — it only uses the direction of differences, not magnitudes.")
 
     elif analysis_id == "mood_median":
         """
@@ -5514,12 +6741,19 @@ def run_statistical_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": f"Mood's Median Test: {var} by {group_col}",
             "data": traces,
-            "layout": {"template": "plotly_dark", "height": 280, "showlegend": True}
+            "layout": {"height": 280, "showlegend": True}
         })
 
         result["summary"] = summary
         result["guide_observation"] = f"Mood's median test: χ² = {chi2:.2f}, p = {p_value:.4f}. " + ("Medians differ." if p_value < 0.05 else "No evidence of median differences.")
         result["statistics"] = {"chi_squared": float(chi2), "df": int(dof), "p_value": float(p_value), "grand_median": float(grand_median)}
+        if p_value < 0.05:
+            verdict = f"Group medians differ (\u03c7\u00b2 = {chi2:.2f}, p = {p_value:.4f})"
+            body = f"At least one group's median differs from the grand median of {grand_median:.4f}."
+        else:
+            verdict = f"No significant median differences (p = {p_value:.4f})"
+            body = f"All groups have medians consistent with the grand median of {grand_median:.4f}."
+        result["narrative"] = _narrative(verdict, body, next_steps="Mood's test is more robust than Kruskal-Wallis to outliers but has less power. Use when outlier resistance is critical.")
 
     elif analysis_id == "multi_vari":
         """
@@ -5667,7 +6901,54 @@ def run_statistical_analysis(df, analysis_id, config):
         summary += f"  • Compare spreads to identify dominant sources of variation\n"
 
         result["summary"] = summary
+
+        # Variance decomposition for narrative
+        _mv_all = df[response].dropna()
+        _mv_total_var = float(_mv_all.var())
+        if len(factors) == 1 and _mv_total_var > 0:
+            _mv_grand = float(_mv_all.mean())
+            _mv_grp = df.groupby(factors[0])[response]
+            _mv_means = _mv_grp.mean()
+            _mv_sizes = _mv_grp.count()
+            _mv_ss_between = sum(float(_mv_sizes[g]) * (float(_mv_means[g]) - _mv_grand) ** 2 for g in _mv_means.index)
+            _mv_ss_total = float(np.sum((_mv_all.values - _mv_grand) ** 2))
+            _mv_pct = (_mv_ss_between / _mv_ss_total * 100) if _mv_ss_total > 0 else 0
+            _mv_dominant = f"Between-{factors[0]}" if _mv_pct > 50 else f"Within-{factors[0]}"
+            _mv_verdict = f"{_mv_dominant} variation dominates ({_mv_pct:.0f}% between-group)"
+            _mv_body = f"Variation between levels of <strong>{factors[0]}</strong> accounts for {_mv_pct:.0f}% of total variation in {response}. {'Focus improvement on the between-group differences.' if _mv_pct > 50 else 'Focus improvement on reducing within-group variation (consistency).'}"
+            _mv_next = "Run a one-way ANOVA to formally test if the between-group difference is statistically significant."
+        elif len(factors) >= 2 and _mv_total_var > 0:
+            _mv_grand = float(_mv_all.mean())
+            _mv_f1_means = df.groupby(factors[0])[response].mean()
+            _mv_f2_means = df.groupby(factors[1])[response].mean()
+            _mv_f1_sizes = df.groupby(factors[0])[response].count()
+            _mv_f2_sizes = df.groupby(factors[1])[response].count()
+            _mv_ss1 = sum(float(_mv_f1_sizes[g]) * (float(_mv_f1_means[g]) - _mv_grand) ** 2 for g in _mv_f1_means.index)
+            _mv_ss2 = sum(float(_mv_f2_sizes[g]) * (float(_mv_f2_means[g]) - _mv_grand) ** 2 for g in _mv_f2_means.index)
+            _mv_ss_total = float(np.sum((_mv_all.values - _mv_grand) ** 2))
+            _mv_pct1 = (_mv_ss1 / _mv_ss_total * 100) if _mv_ss_total > 0 else 0
+            _mv_pct2 = (_mv_ss2 / _mv_ss_total * 100) if _mv_ss_total > 0 else 0
+            _mv_dom = factors[0] if _mv_pct1 > _mv_pct2 else factors[1]
+            _mv_dom_pct = max(_mv_pct1, _mv_pct2)
+            _mv_residual_pct = max(0, 100 - _mv_pct1 - _mv_pct2)
+            _mv_verdict = f"{_mv_dom} explains the most variation ({_mv_dom_pct:.0f}%)"
+            _mv_body = (f"<strong>{factors[0]}</strong> accounts for {_mv_pct1:.0f}% and <strong>{factors[1]}</strong> for {_mv_pct2:.0f}% "
+                        f"of total variation in {response}. Residual (within-group + interaction) = {_mv_residual_pct:.0f}%. "
+                        f"Focus improvement on <strong>{_mv_dom}</strong>.")
+            if _mv_residual_pct > 50:
+                _mv_body += " High residual variation suggests interactions or unmeasured factors may be important."
+            _mv_next = f"Run a two-way ANOVA to test if the {factors[0]} × {factors[1]} interaction is significant. If so, optimize the factors jointly."
+        else:
+            _mv_verdict = f"Multi-vari analysis of {response}"
+            _mv_body = f"Showing variation across {len(factors)} factor(s)."
+            _mv_next = None
+
         result["guide_observation"] = f"Multi-vari chart showing variation in {response} across {len(factors)} factor(s)."
+        result["narrative"] = _narrative(
+            _mv_verdict, _mv_body,
+            next_steps=_mv_next,
+            chart_guidance="Wider vertical spread = more within-group variation. Differences between group means (connected line) = between-group variation. The dominant source of variation is where improvement effort should focus."
+        )
 
     elif analysis_id == "arima":
         """
@@ -5752,6 +7033,8 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"ARIMA({p},{d},{q}) model. {'Stationary data.' if adf_pval < 0.05 else 'Consider differencing.'}"
+        _arima_stationarity = "Data is stationary (ADF p < 0.05)." if adf_pval < 0.05 else "Data may need differencing (ADF p >= 0.05)."
+        result["narrative"] = _narrative(f"ARIMA({p},{d},{q}) Time Series Model", f"{_arima_stationarity} Model captures autoregressive and moving average patterns.", next_steps="Check residual ACF for remaining autocorrelation. White noise residuals = good model. Use the forecast for planning.", chart_guidance="Forecast shows predicted values with confidence bands. Wider bands = more uncertainty further out.")
 
     elif analysis_id == "sarima":
         """
@@ -5887,7 +7170,6 @@ def run_statistical_analysis(df, analysis_id, config):
                         {"type": "line", "x0": 0, "x1": n_lags, "y0": ci_bound, "y1": ci_bound, "line": {"color": "#e89547", "dash": "dash"}},
                         {"type": "line", "x0": 0, "x1": n_lags, "y0": -ci_bound, "y1": -ci_bound, "line": {"color": "#e89547", "dash": "dash"}}
                     ],
-                    "template": "plotly_white"
                 }
             })
 
@@ -5897,6 +7179,8 @@ def run_statistical_analysis(df, analysis_id, config):
                 "order": [p, d, q], "seasonal_order": [P, D, Q, m]
             }
             result["guide_observation"] = f"SARIMA({p},{d},{q})({P},{D},{Q})[{m}]: AIC={fitted.aic:.1f}. " + ("Good residuals." if lb_p > 0.05 else "Check residuals.")
+            _sarima_resid = "Residuals pass Ljung-Box (no remaining autocorrelation)." if lb_p > 0.05 else "Residuals show remaining pattern — consider adjusting model orders."
+            result["narrative"] = _narrative(f"SARIMA({p},{d},{q})({P},{D},{Q})[{m}] — seasonal time series model", f"AIC = {fitted.aic:.1f}. Seasonal period = {m}. {_sarima_resid}", next_steps="Use the forecast for seasonal planning. Compare AIC with alternative models (lower = better).")
 
         except Exception as e:
             summary += f"<<COLOR:warning>>Model fitting failed: {str(e)}<</COLOR>>\n"
@@ -5983,6 +7267,8 @@ def run_statistical_analysis(df, analysis_id, config):
         result["summary"] = summary
         result["guide_observation"] = f"Decomposition with {seasonal_strength:.0%} seasonal strength."
         result["statistics"] = {"seasonal_strength": float(seasonal_strength), "trend_change": float(trend_clean.iloc[-1] - trend_clean.iloc[0])}
+        _trend_dir = "upward" if trend_clean.iloc[-1] > trend_clean.iloc[0] else "downward" if trend_clean.iloc[-1] < trend_clean.iloc[0] else "flat"
+        result["narrative"] = _narrative(f"Time Series Decomposition: {seasonal_strength:.0%} seasonal strength", f"Trend is {_trend_dir}. Seasonal component accounts for {seasonal_strength:.0%} of the variation.", next_steps="Strong seasonality means seasonal adjustments are needed. The residual component shows unexplained variation.", chart_guidance="Four panels: observed data, trend (long-term direction), seasonal (repeating pattern), residual (random noise).")
 
     elif analysis_id == "acf_pacf":
         """
@@ -6051,6 +7337,7 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"ACF/PACF analysis. Significant lags help identify ARIMA orders."
+        result["narrative"] = _narrative("ACF/PACF — Autocorrelation Analysis", "ACF shows overall correlation at each lag. PACF shows direct (partial) correlation after removing intermediate lags.", next_steps="ACF dying slowly + PACF cutting off = AR model (p = PACF cutoff). ACF cutting off + PACF dying slowly = MA model (q = ACF cutoff).", chart_guidance="Bars outside the shaded region are statistically significant. Use these to determine ARIMA model orders.")
 
     elif analysis_id == "weibull":
         """
@@ -6155,6 +7442,8 @@ def run_statistical_analysis(df, analysis_id, config):
         result["summary"] = summary
         result["guide_observation"] = f"Weibull β={shape:.2f} ({'wear-out' if shape > 1 else 'early failure' if shape < 1 else 'random'}), η={scale:.2f}."
         result["statistics"] = {"shape_beta": float(shape), "scale_eta": float(scale), "MTTF": float(mean_life), "B10": float(b10)}
+        _fail_mode = "wear-out (increasing hazard)" if shape > 1 else "early failure (decreasing hazard)" if shape < 1 else "random failure (constant hazard)"
+        result["narrative"] = _narrative(f"Weibull: \u03b2 = {shape:.2f} — {_fail_mode}", f"Scale \u03b7 = {scale:.2f}, MTTF = {mean_life:.1f}, B10 = {b10:.1f}. Shape parameter reveals the failure mode.", next_steps="\u03b2 < 1: improve screening/burn-in. \u03b2 = 1: failures are random (maintenance won't help). \u03b2 > 1: preventive maintenance at B10 life.", chart_guidance="Probability plot: points on the line = good Weibull fit. The slope is related to \u03b2 (steeper = more concentrated failures).")
 
     elif analysis_id == "kaplan_meier":
         """
@@ -6249,7 +7538,6 @@ def run_statistical_analysis(df, analysis_id, config):
                         "title": "Kaplan-Meier Survival Curves by Group",
                         "xaxis": {"title": f"Time ({time_col})"},
                         "yaxis": {"title": "Survival Probability", "range": [0, 1.05]},
-                        "template": "plotly_white"
                     }
                 })
 
@@ -6272,7 +7560,6 @@ def run_statistical_analysis(df, analysis_id, config):
                         "title": "Cumulative Hazard by Group",
                         "xaxis": {"title": f"Time ({time_col})"},
                         "yaxis": {"title": "H(t) = −ln S(t)"},
-                        "template": "plotly_white"
                     }
                 })
 
@@ -6324,7 +7611,6 @@ def run_statistical_analysis(df, analysis_id, config):
                         "title": "Kaplan-Meier Survival Curve",
                         "xaxis": {"title": f"Time ({time_col})"},
                         "yaxis": {"title": "Survival Probability", "range": [0, 1.05]},
-                        "template": "plotly_white"
                     }
                 })
 
@@ -6339,7 +7625,6 @@ def run_statistical_analysis(df, analysis_id, config):
                         "title": "Cumulative Hazard Function",
                         "xaxis": {"title": f"Time ({time_col})"},
                         "yaxis": {"title": "H(t) = −ln S(t)"},
-                        "template": "plotly_white"
                     }
                 })
 
@@ -6355,6 +7640,19 @@ def run_statistical_analysis(df, analysis_id, config):
                     "n_total": len(data), "n_events": int(events.sum()),
                     "n_censored": int((events == 0).sum()), "median_survival": median
                 }
+
+                # Narrative
+                _n_total = len(data)
+                _n_events = int(events.sum())
+                _n_cens = int((events == 0).sum())
+                _cens_pct = _n_cens / _n_total * 100 if _n_total > 0 else 0
+                _med_str = f"{median:.1f}" if median else "not reached"
+                verdict = f"Kaplan-Meier: median survival = {_med_str} (N = {_n_total})"
+                body = (f"Of {_n_total} subjects, {_n_events} experienced the event and {_n_cens} ({_cens_pct:.0f}%) were censored. "
+                        + (f"Median survival time is <strong>{median:.1f}</strong>." if median else "Median survival was <strong>not reached</strong> — more than 50% survived beyond the observation period."))
+                nxt = "Compare groups with log-rank test. For covariate-adjusted analysis, use Cox Proportional Hazards."
+                result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+                    chart_guidance="The step function shows the probability of surviving beyond each time point. Steps down = events. Censored observations are marked with ticks.")
 
         except Exception as e:
             result["summary"] = f"Kaplan-Meier error: {str(e)}"
@@ -6466,7 +7764,6 @@ def run_statistical_analysis(df, analysis_id, config):
                     "xaxis": {"title": "Hazard Ratio", "type": "log"},
                     "yaxis": {"title": ""},
                     "shapes": [{"type": "line", "x0": 1, "x1": 1, "y0": -0.5, "y1": len(covariate_names) - 0.5, "line": {"dash": "dash", "color": "red"}}],
-                    "template": "plotly_white"
                 }
             })
 
@@ -6482,8 +7779,7 @@ def run_statistical_analysis(df, analysis_id, config):
                     "title": "Linear Predictor Distribution by Event Status",
                     "xaxis": {"title": "Linear Predictor (Xβ)"},
                     "yaxis": {"title": "Count"},
-                    "barmode": "overlay", "template": "plotly_white"
-                }
+                    "barmode": "overlay"                }
             })
 
             # Martingale-like residuals vs linear predictor
@@ -6510,7 +7806,6 @@ def run_statistical_analysis(df, analysis_id, config):
                     "yaxis": {"title": "Martingale Residual"},
                     "shapes": [{"type": "line", "x0": float(lp.min()), "x1": float(lp.max()), "y0": 0, "y1": 0,
                                 "line": {"color": "#e89547", "dash": "dash"}}],
-                    "template": "plotly_white"
                 }
             })
 
@@ -6519,6 +7814,24 @@ def run_statistical_analysis(df, analysis_id, config):
 
             result["summary"] = f"**Cox Proportional Hazards Regression**\n\nN = {len(data)}, Events = {n_events}, Censored = {len(data) - n_events}\nConcordance index (C) = {c_index:.3f}\n{'Log-likelihood = ' + f'{ll:.2f}' if ll else ''}\n\n{table}"
             result["guide_observation"] = f"Cox PH: n={len(data)}, {n_events} events, C-index={c_index:.3f}. " + ", ".join(f"{covariate_names[i]}: HR={hr[i]:.2f} (p={p_vals[i]:.4f})" for i in range(len(covariate_names)))
+
+            # Narrative
+            _sig_covs = [(covariate_names[i], float(hr[i]), float(p_vals[i])) for i in range(len(covariate_names)) if p_vals[i] < 0.05]
+            _c_label = "excellent" if c_index > 0.8 else "good" if c_index > 0.7 else "moderate" if c_index > 0.6 else "weak"
+            verdict = f"Cox PH: C-index = {c_index:.3f} ({_c_label} discrimination)"
+            body = f"Model fit on {len(data)} subjects ({n_events} events). "
+            if _sig_covs:
+                _top = _sig_covs[0]
+                body += f"Significant predictors: "
+                _parts = []
+                for _name, _hr, _pv in _sig_covs[:3]:
+                    _dir = "increases" if _hr > 1 else "decreases"
+                    body += f"<strong>{_name}</strong> (HR = {_hr:.2f}, p = {_pv:.4f}) {_dir} hazard by {abs(_hr - 1)*100:.0f}%. "
+            else:
+                body += "No covariates are significant at α = 0.05."
+            nxt = "Check proportional hazards assumption via Schoenfeld residuals. HR > 1 = increased risk; HR < 1 = protective."
+            result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+                chart_guidance="Forest plot: HR > 1 (right of dashed line) = increased hazard. CI not crossing 1 = significant. Risk score histogram shows model discrimination.")
 
             result["statistics"] = {
                 "n_total": len(data),
@@ -6662,6 +7975,31 @@ def run_statistical_analysis(df, analysis_id, config):
         result["guide_observation"] = f"Gage R&R = {pct_gage_rr:.1f}%. " + ("Acceptable." if pct_gage_rr < 30 else "Needs improvement.")
         result["statistics"] = {"gage_rr_pct": float(pct_gage_rr), "repeatability_pct": float(pct_repeatability), "reproducibility_pct": float(pct_reproducibility), "ndc": int(ndc)}
 
+        # Narrative
+        if pct_gage_rr < 10:
+            verdict = f"Gage R&R = {pct_gage_rr:.1f}% — Measurement system acceptable"
+            assessment = "excellent"
+        elif pct_gage_rr < 30:
+            verdict = f"Gage R&R = {pct_gage_rr:.1f}% — Marginal measurement system"
+            assessment = "marginal"
+        else:
+            verdict = f"Gage R&R = {pct_gage_rr:.1f}% — Measurement system unacceptable"
+            assessment = "unacceptable"
+
+        dominant = "repeatability (equipment variation)" if pct_repeatability > pct_reproducibility else "reproducibility (operator variation)"
+        body = (f"The measurement system consumes <strong>{pct_gage_rr:.1f}%</strong> of total observed variation. "
+                f"The dominant component is {dominant}. "
+                f"Part-to-part variation accounts for {pct_part:.1f}%. "
+                f"Number of distinct categories (ndc) = {ndc}" + (" — adequate discrimination." if ndc >= 5 else " — insufficient discrimination (need \u2265 5)."))
+        if assessment == "unacceptable":
+            nxt = f"Fix the measurement system before using this data for process analysis. Focus on reducing {dominant}."
+        elif assessment == "marginal":
+            nxt = f"Acceptable for some applications. To improve, focus on reducing {dominant}."
+        else:
+            nxt = "Measurement system is adequate. Data from this gage can be trusted for process analysis and capability studies."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="The components bar chart shows where variation originates. Tall Gage R&R bars = measurement noise dominates over true part differences.")
+
     # ── MSA (Measurement System Analysis) Expansion ─────────────────────────
 
     elif analysis_id == "gage_rr_nested":
@@ -6750,18 +8088,20 @@ def run_statistical_analysis(df, analysis_id, config):
         # Plots
         result["plots"].append({
             "data": [{"type": "box", "x": data[operator].astype(str).tolist(), "y": data[measurement].tolist(), "marker": {"color": "#4a9f6e"}}],
-            "layout": {"title": f"{measurement} by {operator}", "xaxis": {"title": operator}, "template": "plotly_white"}
+            "layout": {"title": f"{measurement} by {operator}", "xaxis": {"title": operator}}
         })
         result["plots"].append({
             "data": [{"type": "bar", "x": ["Gage R&R", "Repeatability", "Reproducibility", "Part-to-Part"],
                       "y": [pct_gage_rr, pct_repeat, pct_reprod, pct_part],
                       "marker": {"color": ["#e89547", "#4a9f6e", "#47a5e8", "#9aaa9a"]}}],
-            "layout": {"title": "Components of Variation", "yaxis": {"title": "% Study Var"}, "template": "plotly_white"}
+            "layout": {"title": "Components of Variation", "yaxis": {"title": "% Study Var"}}
         })
 
         result["summary"] = summary
         result["guide_observation"] = f"Nested Gage R&R = {pct_gage_rr:.1f}%, NDC={ndc}. " + ("Acceptable." if pct_gage_rr < 30 else "Needs improvement.")
         result["statistics"] = {"gage_rr_pct": float(pct_gage_rr), "repeatability_pct": float(pct_repeat), "reproducibility_pct": float(pct_reprod), "part_pct": float(pct_part), "ndc": ndc}
+        _grr_label = "acceptable" if pct_gage_rr < 10 else "marginal" if pct_gage_rr < 30 else "unacceptable"
+        result["narrative"] = _narrative(f"Nested Gage R&R = {pct_gage_rr:.1f}% ({_grr_label})", f"Designed for destructive testing where operators measure different parts. NDC = {ndc}. Repeatability = {pct_repeat:.1f}%, Reproducibility = {pct_reprod:.1f}%.", next_steps="For destructive testing, nested designs are required. NDC \u2265 5 means adequate discrimination." if ndc >= 5 else "NDC < 5 — measurement system cannot adequately distinguish parts. Improve the measurement process.")
 
     elif analysis_id == "gage_rr_expanded":
         """
@@ -6911,14 +8251,14 @@ def run_statistical_analysis(df, analysis_id, config):
         result["plots"].append({
             "data": [{"type": "bar", "x": bar_labels, "y": bar_vals, "marker": {"color": bar_colors}}],
             "layout": {"title": "Components of Variation", "yaxis": {"title": "% Study Variation"},
-                        "template": "plotly_white", "height": 300}
+                        "height": 300}
         })
 
         # Measurement by Part
         result["plots"].append({
             "data": [{"type": "box", "x": data_grr[part].astype(str).tolist(), "y": data_grr[measurement].tolist(),
                       "marker": {"color": "#4a9f6e"}}],
-            "layout": {"title": f"{measurement} by {part}", "height": 250, "template": "plotly_white"}
+            "layout": {"title": f"{measurement} by {part}", "height": 250}
         })
 
         # Measurement by each factor
@@ -6927,10 +8267,12 @@ def run_statistical_analysis(df, analysis_id, config):
                 result["plots"].append({
                     "data": [{"type": "box", "x": data_grr[f_name].astype(str).tolist(),
                               "y": data_grr[measurement].tolist(), "marker": {"color": "#47a5e8"}}],
-                    "layout": {"title": f"{measurement} by {f_name}", "height": 250, "template": "plotly_white"}
+                    "layout": {"title": f"{measurement} by {f_name}", "height": 250}
                 })
 
         result["guide_observation"] = f"Expanded Gage R&R = {pct_rr:.1f}%, NDC={ndc}. {len(all_factors)} factors analyzed."
+        _grr_label = "acceptable" if pct_rr < 10 else "marginal" if pct_rr < 30 else "unacceptable"
+        result["narrative"] = _narrative(f"Expanded Gage R&R = {pct_rr:.1f}% ({_grr_label})", f"Analyzed {len(all_factors)} factors. NDC = {ndc}. Expanded study includes additional sources of variation beyond standard operator/part.", next_steps="Address the largest variance component first. NDC \u2265 5 needed for adequate part discrimination.")
         result["statistics"] = {
             "gage_rr_pct": float(pct_rr), "repeatability_pct": float(pct_repeat),
             "reproducibility_pct": float(pct_reprod), "part_pct": float(pct_part),
@@ -6987,7 +8329,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": ref_range.tolist(), "y": fit_line.tolist(), "mode": "lines", "name": f"Fit (slope={slope:.4f})", "line": {"color": "#d94a4a", "width": 2}},
                 {"x": ref_range.tolist(), "y": [0] * len(ref_range), "mode": "lines", "name": "Zero bias", "line": {"color": "#4a9f6e", "dash": "dash", "width": 1}}
             ],
-            "layout": {"title": "Gage Linearity (Bias vs Reference)", "xaxis": {"title": "Reference Value"}, "yaxis": {"title": "Bias (Measured − Reference)"}, "template": "plotly_white"}
+            "layout": {"title": "Gage Linearity (Bias vs Reference)", "xaxis": {"title": "Reference Value"}, "yaxis": {"title": "Bias (Measured − Reference)"}}
         })
 
         # Bias by reference level (grouped)
@@ -6998,12 +8340,16 @@ def run_statistical_analysis(df, analysis_id, config):
             "data": [{"type": "bar", "x": [str(g) for g in grouped_bias.index], "y": grouped_bias["mean"].tolist(),
                       "error_y": {"type": "data", "array": (grouped_bias["std"] / np.sqrt(grouped_bias["count"])).tolist(), "visible": True},
                       "marker": {"color": "#e89547"}}],
-            "layout": {"title": "Average Bias by Reference Level", "xaxis": {"title": "Reference Range"}, "yaxis": {"title": "Average Bias"}, "template": "plotly_white"}
+            "layout": {"title": "Average Bias by Reference Level", "xaxis": {"title": "Reference Range"}, "yaxis": {"title": "Average Bias"}}
         })
 
         result["summary"] = summary
         result["guide_observation"] = f"Linearity: slope={slope:.4f} (p={p_value:.4f}), overall bias={overall_bias:.4f}. " + ("Linearity issue detected." if p_value < 0.05 else "No linearity issue.")
         result["statistics"] = {"bias": float(overall_bias), "slope": float(slope), "intercept": float(intercept), "r_squared": float(r_value**2), "p_value": float(p_value), "bias_pct": float(bias_pct)}
+        if p_value < 0.05:
+            result["narrative"] = _narrative(f"Linearity issue detected (slope = {slope:.4f}, p = {p_value:.4f})", f"Bias changes with the reference value. Overall bias = {overall_bias:.4f} ({bias_pct:.2f}%). The gage measures differently at different points in the range.", next_steps="Recalibrate the gage across its operating range. Check for non-linear sensor response.")
+        else:
+            result["narrative"] = _narrative(f"No linearity issue (slope = {slope:.4f}, p = {p_value:.4f})", f"Bias is consistent across the measurement range. Overall bias = {overall_bias:.4f} ({bias_pct:.2f}%).", next_steps="Linearity is acceptable. If bias is significant, apply a calibration offset.")
 
     elif analysis_id == "gage_type1":
         """
@@ -7059,7 +8405,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "histogram", "x": data.tolist(), "marker": {"color": "#4a90d9", "opacity": 0.7}, "name": "Measurements"},
                 {"type": "scatter", "x": [ref_value, ref_value], "y": [0, n * 0.3], "mode": "lines", "name": f"Ref = {ref_value}", "line": {"color": "#d94a4a", "width": 2, "dash": "dash"}}
             ],
-            "layout": {"title": "Type 1 Gage Study — Measurement Distribution", "xaxis": {"title": measurement}, "yaxis": {"title": "Count"}, "template": "plotly_white"}
+            "layout": {"title": "Type 1 Gage Study — Measurement Distribution", "xaxis": {"title": measurement}, "yaxis": {"title": "Count"}}
         })
 
         # Run chart
@@ -7069,12 +8415,17 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"x": [1, n], "y": [ref_value, ref_value], "mode": "lines", "name": "Reference", "line": {"color": "#d94a4a", "dash": "dash", "width": 2}},
                 {"x": [1, n], "y": [mean_val, mean_val], "mode": "lines", "name": f"Mean = {mean_val:.4f}", "line": {"color": "#4a9f6e", "width": 1}}
             ],
-            "layout": {"title": "Run Chart", "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}, "template": "plotly_white"}
+            "layout": {"title": "Run Chart", "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}}
         })
 
         result["summary"] = summary
         result["guide_observation"] = f"Type 1 Gage: Cg={cg:.3f}, Cgk={cgk:.3f}, bias={bias:.4f} (p={p_val:.4f}). " + ("Acceptable." if cg >= 1.33 and cgk >= 1.33 else "Not acceptable.")
         result["statistics"] = {"mean": float(mean_val), "std": float(std_val), "bias": float(bias), "p_value": float(p_val), "cg": float(cg), "cgk": float(cgk)}
+        _t1_ok = cg >= 1.33 and cgk >= 1.33
+        result["narrative"] = _narrative(
+            f"Type 1 Gage Study: {'Acceptable' if _t1_ok else 'Not acceptable'} (Cg = {cg:.3f}, Cgk = {cgk:.3f})",
+            f"Repeatability study against a reference standard. Bias = {bias:.4f} (p = {p_val:.4f}). Cg measures precision, Cgk measures precision + bias.",
+            next_steps="Both Cg and Cgk should be \u2265 1.33. If Cg is OK but Cgk is low, recalibrate to reduce bias." if not _t1_ok else "Gage is acceptable for this measurement. Recheck periodically.")
 
     elif analysis_id == "attribute_gage":
         """
@@ -7145,7 +8496,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 "data": [{"type": "heatmap", "z": [[tn, fn], [fp, tp]], "x": [str(unique_vals[0]), str(unique_vals[1])],
                           "y": [str(unique_vals[0]), str(unique_vals[1])], "text": [[str(tn), str(fn)], [str(fp), str(tp)]],
                           "texttemplate": "%{text}", "colorscale": [[0, "#f0f0f0"], [1, "#4a90d9"]], "showscale": False}],
-                "layout": {"title": "Confusion Matrix", "xaxis": {"title": "Reference"}, "yaxis": {"title": "Appraiser Call"}, "template": "plotly_white"}
+                "layout": {"title": "Confusion Matrix", "xaxis": {"title": "Reference"}, "yaxis": {"title": "Appraiser Call"}}
             })
 
             result["statistics"] = {"agreement_pct": float(pct_agree), "sensitivity": float(sensitivity), "specificity": float(specificity), "false_alarm_rate": float(false_alarm), "miss_rate": float(miss_rate)}
@@ -7164,11 +8515,12 @@ def run_statistical_analysis(df, analysis_id, config):
             result["plots"].append({
                 "data": [{"type": "bar", "x": [str(a) for a in appraisers], "y": app_agree,
                           "marker": {"color": ["#4a9f6e" if a >= 90 else "#d94a4a" for a in app_agree]}}],
-                "layout": {"title": "Agreement % by Appraiser", "xaxis": {"title": "Appraiser"}, "yaxis": {"title": "% Agreement", "range": [0, 100]}, "template": "plotly_white"}
+                "layout": {"title": "Agreement % by Appraiser", "xaxis": {"title": "Appraiser"}, "yaxis": {"title": "% Agreement", "range": [0, 100]}}
             })
 
         result["summary"] = summary
         result["guide_observation"] = f"Attribute gage: {pct_agree:.1f}% overall agreement. " + ("Acceptable." if pct_agree >= 90 else "Needs improvement.")
+        result["narrative"] = _narrative(f"Attribute Gage: {pct_agree:.1f}% agreement", f"{'Acceptable' if pct_agree >= 90 else 'Needs improvement'} — target is \u2265 90% agreement.", next_steps="If low, provide clearer standards, better training, or improved measurement tools." if pct_agree < 90 else "Agreement is adequate. Monitor periodically.")
 
     elif analysis_id == "attribute_agreement":
         """
@@ -7288,19 +8640,502 @@ def run_statistical_analysis(df, analysis_id, config):
         result["plots"].append({
             "data": [{"type": "bar", "x": [str(a) for a in appraisers], "y": app_agreements,
                       "marker": {"color": "#4a90d9"}}],
-            "layout": {"title": "Within-Appraiser Agreement %", "xaxis": {"title": "Appraiser"}, "yaxis": {"title": "% Self-Consistent", "range": [0, 100]}, "template": "plotly_white"}
+            "layout": {"title": "Within-Appraiser Agreement %", "xaxis": {"title": "Appraiser"}, "yaxis": {"title": "% Self-Consistent", "range": [0, 100]}}
         })
 
         if pairwise_kappas:
             result["plots"].append({
                 "data": [{"type": "bar", "x": [p[0] for p in pairwise_kappas], "y": [p[1] for p in pairwise_kappas],
                           "marker": {"color": ["#4a9f6e" if p[1] >= 0.6 else "#e89547" if p[1] >= 0.4 else "#d94a4a" for p in pairwise_kappas]}}],
-                "layout": {"title": "Pairwise Cohen's Kappa", "xaxis": {"title": "Pair"}, "yaxis": {"title": "κ", "range": [-0.2, 1]}, "template": "plotly_white"}
+                "layout": {"title": "Pairwise Cohen's Kappa", "xaxis": {"title": "Pair"}, "yaxis": {"title": "κ", "range": [-0.2, 1]}}
             })
 
         result["summary"] = summary
         result["guide_observation"] = f"Attribute agreement: κ={kappa_val:.3f} ({interp}). " + ("Good agreement." if kappa_val >= 0.6 else "Agreement needs improvement.")
         result["statistics"] = {"kappa": float(kappa_val), "interpretation": interp, "n_appraisers": n_appraisers, "n_parts": n_parts}
+        result["narrative"] = _narrative(f"Attribute Agreement: \u03ba = {kappa_val:.3f} ({interp})", f"Fleiss' kappa measures inter-rater agreement beyond chance. {n_appraisers} appraisers assessed {n_parts} parts.", next_steps="\u03ba > 0.8 = excellent, 0.6\u20130.8 = good, 0.4\u20130.6 = moderate, < 0.4 = poor. Improve with clearer standards and training." if kappa_val < 0.8 else "Agreement is strong. Standards and training are effective.")
+
+        # Diagnostics for attribute_agreement
+        diagnostics = []
+        if kappa_val < 0.4:
+            diagnostics.append({"level": "error", "title": f"Poor agreement (\u03ba = {kappa_val:.3f})",
+                                "detail": "Raters are not consistent. Measurement system is unreliable for this attribute. Retrain and re-evaluate."})
+        elif kappa_val < 0.6:
+            diagnostics.append({"level": "warning", "title": f"Moderate agreement (\u03ba = {kappa_val:.3f})",
+                                "detail": "Agreement is borderline. Clarify decision criteria and provide reference standards."})
+        elif kappa_val >= 0.8:
+            diagnostics.append({"level": "info", "title": f"Excellent agreement (\u03ba = {kappa_val:.3f})",
+                                "detail": "Raters are highly consistent. Measurement system is reliable for this attribute."})
+        result["diagnostics"] = diagnostics
+
+    elif analysis_id == "icc":
+        """
+        Intraclass Correlation Coefficient (ICC) — reliability and agreement for continuous measurements.
+        Supports ICC(1,1), ICC(2,1), ICC(3,1), ICC(1,k), ICC(2,k), ICC(3,k).
+        """
+        rater_col = config.get("rater") or config.get("appraiser") or config.get("operator")
+        subject_col = config.get("subject") or config.get("part") or config.get("item")
+        value_col = config.get("value") or config.get("measurement") or config.get("var")
+        icc_type = config.get("icc_type", "ICC(2,1)")  # default to two-way random, single
+
+        data = df[[rater_col, subject_col, value_col]].dropna()
+        subjects = data[subject_col].unique()
+        raters = data[rater_col].unique()
+        n = len(subjects)
+        k = len(raters)
+
+        if n < 3 or k < 2:
+            result["summary"] = f"Error: ICC requires at least 3 subjects and 2 raters. Found {n} subjects, {k} raters."
+            return result
+
+        # Pivot to subjects × raters matrix
+        pivot = data.pivot_table(index=subject_col, columns=rater_col, values=value_col, aggfunc='mean')
+        pivot = pivot.dropna()
+        Y = pivot.values
+        n, k = Y.shape
+
+        grand_mean = np.mean(Y)
+        row_means = np.mean(Y, axis=1)
+        col_means = np.mean(Y, axis=0)
+
+        # Sum of squares
+        SS_total = np.sum((Y - grand_mean) ** 2)
+        SS_rows = k * np.sum((row_means - grand_mean) ** 2)  # Between subjects
+        SS_cols = n * np.sum((col_means - grand_mean) ** 2)  # Between raters
+        SS_error = SS_total - SS_rows - SS_cols
+        SS_within = SS_total - SS_rows
+
+        # Mean squares
+        MS_rows = SS_rows / (n - 1) if n > 1 else 0
+        MS_cols = SS_cols / (k - 1) if k > 1 else 0
+        MS_error = SS_error / ((n - 1) * (k - 1)) if (n > 1 and k > 1) else 1e-10
+        MS_within = SS_within / (n * (k - 1)) if n * (k - 1) > 0 else 1e-10
+
+        # Calculate all ICC forms
+        icc_values = {}
+        # ICC(1,1): One-way random, single measures
+        icc_values["ICC(1,1)"] = (MS_rows - MS_within) / (MS_rows + (k - 1) * MS_within) if (MS_rows + (k - 1) * MS_within) > 0 else 0
+        # ICC(2,1): Two-way random, single measures
+        icc_values["ICC(2,1)"] = (MS_rows - MS_error) / (MS_rows + (k - 1) * MS_error + k * (MS_cols - MS_error) / n) if (MS_rows + (k - 1) * MS_error + k * (MS_cols - MS_error) / n) > 0 else 0
+        # ICC(3,1): Two-way mixed, single measures
+        icc_values["ICC(3,1)"] = (MS_rows - MS_error) / (MS_rows + (k - 1) * MS_error) if (MS_rows + (k - 1) * MS_error) > 0 else 0
+        # ICC(1,k): One-way random, average measures
+        icc_values["ICC(1,k)"] = (MS_rows - MS_within) / MS_rows if MS_rows > 0 else 0
+        # ICC(2,k): Two-way random, average measures
+        icc_values["ICC(2,k)"] = (MS_rows - MS_error) / (MS_rows + (MS_cols - MS_error) / n) if (MS_rows + (MS_cols - MS_error) / n) > 0 else 0
+        # ICC(3,k): Two-way mixed, average measures
+        icc_values["ICC(3,k)"] = (MS_rows - MS_error) / MS_rows if MS_rows > 0 else 0
+
+        # Primary ICC value
+        icc_val = float(icc_values.get(icc_type, icc_values["ICC(2,1)"]))
+        icc_val = max(-1, min(1, icc_val))
+
+        # Confidence interval via F-distribution (for ICC(2,1))
+        try:
+            F_val = MS_rows / MS_error if MS_error > 0 else 1
+            df1, df2 = n - 1, (n - 1) * (k - 1)
+            F_lo = F_val / stats.f.ppf(0.975, df1, df2) if stats.f.ppf(0.975, df1, df2) > 0 else F_val
+            F_hi = F_val / stats.f.ppf(0.025, df1, df2) if stats.f.ppf(0.025, df1, df2) > 0 else F_val
+            ci_lo = max(-1, (F_lo - 1) / (F_lo + k - 1))
+            ci_hi = min(1, (F_hi - 1) / (F_hi + k - 1))
+        except Exception:
+            ci_lo, ci_hi = icc_val - 0.1, min(1, icc_val + 0.1)
+
+        # Interpretation (Koo & Li 2016)
+        if icc_val >= 0.9:
+            interp = "excellent"
+        elif icc_val >= 0.75:
+            interp = "good"
+        elif icc_val >= 0.5:
+            interp = "moderate"
+        else:
+            interp = "poor"
+
+        # Summary
+        _eq = "=" * 70
+        _dash = "-" * 60
+        summary = f"<<COLOR:accent>>{_eq}<</COLOR>>\n"
+        summary += "<<COLOR:title>>INTRACLASS CORRELATION COEFFICIENT (ICC)<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{_eq}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Subjects:<</COLOR>> {n}    <<COLOR:text>>Raters:<</COLOR>> {k}\n"
+        summary += f"<<COLOR:text>>ICC Type:<</COLOR>> {icc_type}\n\n"
+
+        summary += "<<COLOR:highlight>>All ICC Forms:<</COLOR>>\n"
+        summary += f"  {'Form':<12} {'Value':>8}  {'Use Case'}\n"
+        summary += f"  {_dash}\n"
+        _use_cases = {
+            "ICC(1,1)": "One-way random, single rater",
+            "ICC(2,1)": "Two-way random, single rater (most common)",
+            "ICC(3,1)": "Two-way mixed, single rater",
+            "ICC(1,k)": "One-way random, average of k raters",
+            "ICC(2,k)": "Two-way random, average of k raters",
+            "ICC(3,k)": "Two-way mixed, average of k raters",
+        }
+        for form, val in icc_values.items():
+            marker = " <<" if form == icc_type else ""
+            summary += f"  {form:<12} {val:>8.4f}  {_use_cases.get(form, '')}{marker}\n"
+
+        summary += f"\n<<COLOR:highlight>>Selected: {icc_type} = {icc_val:.4f} ({interp})<</COLOR>>\n"
+        summary += f"  95% CI: [{ci_lo:.4f}, {ci_hi:.4f}]\n\n"
+
+        summary += "<<COLOR:highlight>>ANOVA Table:<</COLOR>>\n"
+        summary += f"  {'Source':<20} {'SS':>12} {'df':>6} {'MS':>12}\n"
+        summary += f"  {_dash}\n"
+        summary += f"  {'Between Subjects':<20} {SS_rows:>12.4f} {n-1:>6} {MS_rows:>12.4f}\n"
+        summary += f"  {'Between Raters':<20} {SS_cols:>12.4f} {k-1:>6} {MS_cols:>12.4f}\n"
+        summary += f"  {'Residual':<20} {SS_error:>12.4f} {(n-1)*(k-1):>6} {MS_error:>12.4f}\n"
+        summary += f"  {'Total':<20} {SS_total:>12.4f} {n*k-1:>6}\n"
+
+        result["summary"] = summary
+        result["guide_observation"] = f"ICC ({icc_type}) = {icc_val:.3f} ({interp}). {k} raters, {n} subjects. 95% CI [{ci_lo:.3f}, {ci_hi:.3f}]."
+
+        result["narrative"] = _narrative(
+            f"Reliability: ICC = {icc_val:.3f} ({interp})",
+            f"The {icc_type} intraclass correlation is <strong>{icc_val:.3f}</strong> ({interp}) with 95% CI [{ci_lo:.3f}, {ci_hi:.3f}]. "
+            f"{k} raters measured {n} subjects."
+            + (" Measurement system is reliable." if icc_val >= 0.75 else " Measurement system needs improvement." if icc_val >= 0.5 else " Measurement system is unreliable \u2014 reduce rater variability before using this measurement for decisions."),
+            next_steps="ICC > 0.9 = excellent, 0.75\u20130.9 = good, 0.5\u20130.75 = moderate, < 0.5 = poor. For MSA, target ICC > 0.9." if icc_val < 0.9 else "Excellent reliability. System is suitable for critical measurements.",
+            chart_guidance="The rater comparison plot shows each subject measured by each rater. Tight clustering = good agreement."
+        )
+
+        # Diagnostics
+        diagnostics = []
+        if icc_val < 0.5:
+            diagnostics.append({"level": "error", "title": f"Poor reliability (ICC = {icc_val:.3f})",
+                                "detail": "More than half the variation is from measurement error. Do not use this measurement system for decisions."})
+        elif icc_val < 0.75:
+            diagnostics.append({"level": "warning", "title": f"Moderate reliability (ICC = {icc_val:.3f})",
+                                "detail": "Acceptable for group comparisons but not for individual assessments. Improve standardization."})
+        elif icc_val >= 0.9:
+            diagnostics.append({"level": "info", "title": f"Excellent reliability (ICC = {icc_val:.3f})",
+                                "detail": "Measurement system is highly reliable. Suitable for individual-level decisions."})
+        # Rater bias
+        if MS_cols > 2 * MS_error:
+            diagnostics.append({"level": "warning", "title": "Systematic rater bias detected",
+                                "detail": "Between-rater variance is large relative to error. Some raters consistently rate higher or lower."})
+        result["diagnostics"] = diagnostics
+
+        result["statistics"] = {
+            "icc": float(icc_val), "icc_type": icc_type,
+            "ci_lower": float(ci_lo), "ci_upper": float(ci_hi),
+            "interpretation": interp, "n_subjects": n, "n_raters": k,
+            "all_icc": {k: float(v) for k, v in icc_values.items()},
+        }
+
+        # Rater comparison plot
+        plot_data = []
+        for rater in raters:
+            rater_data = pivot[rater].values if rater in pivot.columns else []
+            if len(rater_data) > 0:
+                plot_data.append({
+                    "type": "scatter", "y": rater_data.tolist(),
+                    "x": list(range(1, len(rater_data) + 1)),
+                    "mode": "markers+lines", "name": str(rater),
+                    "line": {"width": 1}, "marker": {"size": 6},
+                })
+        result["plots"].append({
+            "title": f"Rater Comparison ({icc_type} = {icc_val:.3f})",
+            "data": plot_data,
+            "layout": {"height": 300, "xaxis": {"title": "Subject"}, "yaxis": {"title": value_col}},
+        })
+
+        # ICC bar chart
+        result["plots"].append({
+            "title": "ICC Forms Comparison",
+            "data": [{"type": "bar", "x": list(icc_values.keys()), "y": [float(v) for v in icc_values.values()],
+                       "marker": {"color": ["#4a9f6e" if v >= 0.75 else "#e8953f" if v >= 0.5 else "#dc5050" for v in icc_values.values()]}}],
+            "layout": {"height": 250, "yaxis": {"title": "ICC", "range": [0, 1.05]},
+                        "shapes": [{"type": "line", "y0": 0.75, "y1": 0.75, "x0": -0.5, "x1": 5.5,
+                                    "line": {"color": "#4a9f6e", "width": 1, "dash": "dash"}}]},
+        })
+
+    elif analysis_id == "krippendorff_alpha":
+        """
+        Krippendorff's Alpha — universal agreement metric for any data level, any number of raters, missing data OK.
+        """
+        rater_col = config.get("rater") or config.get("appraiser") or config.get("operator")
+        subject_col = config.get("subject") or config.get("part") or config.get("item")
+        value_col = config.get("value") or config.get("measurement") or config.get("var")
+        level = config.get("level", "interval")  # nominal, ordinal, interval, ratio
+
+        data = df[[rater_col, subject_col, value_col]].dropna()
+        subjects = data[subject_col].unique()
+        raters = data[rater_col].unique()
+        n_subj = len(subjects)
+        n_raters = len(raters)
+
+        if n_subj < 3 or n_raters < 2:
+            result["summary"] = f"Error: Need at least 3 subjects and 2 raters. Found {n_subj} subjects, {n_raters} raters."
+            return result
+
+        # Build reliability data matrix (raters × subjects)
+        pivot = data.pivot_table(index=rater_col, columns=subject_col, values=value_col, aggfunc='first')
+        R = pivot.values  # raters × subjects, may have NaN
+
+        # Compute Krippendorff's alpha
+        # Collect all value pairs within each unit
+        n_total = 0
+        D_o = 0.0  # observed disagreement
+        all_values = []
+
+        for j in range(R.shape[1]):  # each subject
+            col = R[:, j]
+            valid = col[~np.isnan(col)]
+            m = len(valid)
+            if m < 2:
+                continue
+            all_values.extend(valid)
+            n_total += m
+            # Within-unit disagreement
+            for a in range(m):
+                for b in range(a + 1, m):
+                    if level == "nominal":
+                        D_o += 0 if valid[a] == valid[b] else 1
+                    else:  # interval/ratio
+                        D_o += (valid[a] - valid[b]) ** 2
+            D_o_pairs = m * (m - 1) / 2
+
+        # Expected disagreement
+        all_vals = np.array(all_values)
+        n_v = len(all_vals)
+        D_e = 0.0
+        if n_v >= 2:
+            if level == "nominal":
+                unique_vals, counts = np.unique(all_vals, return_counts=True)
+                for c in counts:
+                    D_e += c * (n_v - c)
+                D_e /= (n_v * (n_v - 1))
+            else:
+                for a in range(n_v):
+                    for b in range(a + 1, n_v):
+                        D_e += (all_vals[a] - all_vals[b]) ** 2
+                D_e = D_e * 2 / (n_v * (n_v - 1))
+
+        # Compute alpha
+        # Normalize observed disagreement
+        n_pairs_obs = 0
+        D_o_norm = 0.0
+        for j in range(R.shape[1]):
+            col = R[:, j]
+            valid = col[~np.isnan(col)]
+            m = len(valid)
+            if m < 2:
+                continue
+            pairs = m * (m - 1) / 2
+            n_pairs_obs += pairs
+            for a in range(m):
+                for b in range(a + 1, m):
+                    if level == "nominal":
+                        D_o_norm += 0 if valid[a] == valid[b] else 1
+                    else:
+                        D_o_norm += (valid[a] - valid[b]) ** 2
+
+        if n_pairs_obs > 0:
+            D_o_avg = D_o_norm / n_pairs_obs
+        else:
+            D_o_avg = 0
+
+        alpha = 1 - D_o_avg / D_e if D_e > 0 else 1.0
+        alpha = max(-1, min(1, float(alpha)))
+
+        # Interpretation
+        if alpha >= 0.8:
+            interp = "reliable"
+        elif alpha >= 0.667:
+            interp = "tentatively acceptable"
+        else:
+            interp = "unacceptable"
+
+        # Summary
+        _eq = "=" * 70
+        summary = f"<<COLOR:accent>>{_eq}<</COLOR>>\n"
+        summary += "<<COLOR:title>>KRIPPENDORFF'S ALPHA<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{_eq}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Subjects:<</COLOR>> {n_subj}    <<COLOR:text>>Raters:<</COLOR>> {n_raters}    <<COLOR:text>>Level:<</COLOR>> {level}\n\n"
+        summary += f"<<COLOR:highlight>>Alpha = {alpha:.4f} ({interp})<</COLOR>>\n"
+        summary += f"  Observed disagreement: {D_o_avg:.4f}\n"
+        summary += f"  Expected disagreement: {D_e:.4f}\n\n"
+        summary += "<<COLOR:text>>Interpretation (Krippendorff):<</COLOR>>\n"
+        summary += "  \u03b1 \u2265 0.800: Reliable\n"
+        summary += "  0.667 \u2264 \u03b1 < 0.800: Tentatively acceptable\n"
+        summary += "  \u03b1 < 0.667: Unacceptable for drawing conclusions\n"
+
+        result["summary"] = summary
+        result["guide_observation"] = f"Krippendorff's \u03b1 = {alpha:.3f} ({interp}). {n_raters} raters, {n_subj} subjects, {level} level."
+
+        result["narrative"] = _narrative(
+            f"Agreement: \u03b1 = {alpha:.3f} ({interp})",
+            f"Krippendorff's alpha is <strong>{alpha:.3f}</strong> ({interp}) for {n_raters} raters across {n_subj} subjects at the {level} measurement level. "
+            + ("Data is reliable for analysis." if alpha >= 0.8 else "Data is tentatively usable but agreement should be improved." if alpha >= 0.667 else "Agreement is too low \u2014 conclusions from this data are unreliable."),
+            next_steps="Improve rater training and standardize measurement procedures." if alpha < 0.8 else "Agreement is sufficient. Proceed with analysis.",
+            chart_guidance="The heatmap shows each rater's measurements by subject. Consistent colors across raters = good agreement."
+        )
+
+        # Diagnostics
+        diagnostics = []
+        if alpha < 0.667:
+            diagnostics.append({"level": "error", "title": f"Unacceptable agreement (\u03b1 = {alpha:.3f})",
+                                "detail": "Do not draw conclusions from this data. Raters disagree too much.",
+                                "action": {"label": "Run ICC for details", "type": "stats", "analysis": "icc",
+                                           "config": {"rater": rater_col, "subject": subject_col, "value": value_col}}})
+        elif alpha < 0.8:
+            diagnostics.append({"level": "warning", "title": f"Borderline agreement (\u03b1 = {alpha:.3f})",
+                                "detail": "Tentatively acceptable. Consider improving standardization before critical decisions."})
+        else:
+            diagnostics.append({"level": "info", "title": f"Reliable agreement (\u03b1 = {alpha:.3f})",
+                                "detail": "Raters are consistent. Data is suitable for analysis and decision-making."})
+        result["diagnostics"] = diagnostics
+
+        result["statistics"] = {
+            "alpha": alpha, "interpretation": interp,
+            "D_observed": float(D_o_avg), "D_expected": float(D_e),
+            "level": level, "n_subjects": n_subj, "n_raters": n_raters,
+        }
+
+        # Heatmap of ratings
+        result["plots"].append({
+            "title": f"Rater \u00d7 Subject Matrix (\u03b1 = {alpha:.3f})",
+            "data": [{"type": "heatmap", "z": R.tolist(),
+                       "x": [str(s) for s in subjects[:50]], "y": [str(r) for r in raters],
+                       "colorscale": "Viridis", "text": [[f"{v:.2f}" if not np.isnan(v) else "" for v in row] for row in R],
+                       "texttemplate": "%{text}", "textfont": {"size": 10}}],
+            "layout": {"height": max(200, n_raters * 30 + 80), "xaxis": {"title": "Subject"}, "yaxis": {"title": "Rater"}},
+        })
+
+    elif analysis_id == "bland_altman":
+        """
+        Bland-Altman Method Comparison — assess agreement between two measurement methods.
+        """
+        method1 = config.get("method1") or config.get("var1")
+        method2 = config.get("method2") or config.get("var2")
+
+        m1 = df[method1].dropna()
+        m2 = df[method2].dropna()
+        common = m1.index.intersection(m2.index)
+        m1, m2 = m1.loc[common].values, m2.loc[common].values
+        n = len(m1)
+
+        if n < 5:
+            result["summary"] = f"Error: Need at least 5 paired measurements. Found {n}."
+            return result
+
+        diffs = m1 - m2
+        means = (m1 + m2) / 2
+        bias = float(np.mean(diffs))
+        sd_diff = float(np.std(diffs, ddof=1))
+        loa_upper = bias + 1.96 * sd_diff
+        loa_lower = bias - 1.96 * sd_diff
+
+        # CI for bias
+        se_bias = sd_diff / np.sqrt(n)
+        t_crit = float(stats.t.ppf(0.975, n - 1))
+        bias_ci = (bias - t_crit * se_bias, bias + t_crit * se_bias)
+
+        # CI for LOA
+        se_loa = np.sqrt(3 * sd_diff ** 2 / n)
+        loa_lower_ci = (loa_lower - t_crit * se_loa, loa_lower + t_crit * se_loa)
+        loa_upper_ci = (loa_upper - t_crit * se_loa, loa_upper + t_crit * se_loa)
+
+        # Proportional bias check (correlation between difference and mean)
+        r_prop, p_prop = stats.pearsonr(means, diffs) if n > 3 else (0, 1)
+
+        # Percentage of points within LOA
+        within_loa = float(np.mean((diffs >= loa_lower) & (diffs <= loa_upper)) * 100)
+
+        # Summary
+        _eq = "=" * 70
+        summary = f"<<COLOR:accent>>{_eq}<</COLOR>>\n"
+        summary += "<<COLOR:title>>BLAND-ALTMAN METHOD COMPARISON<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{_eq}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Method 1:<</COLOR>> {method1}    <<COLOR:text>>Method 2:<</COLOR>> {method2}    <<COLOR:text>>n:<</COLOR>> {n}\n\n"
+        summary += f"<<COLOR:highlight>>Bias (mean difference):<</COLOR>> {bias:.4f}  95% CI [{bias_ci[0]:.4f}, {bias_ci[1]:.4f}]\n"
+        summary += f"<<COLOR:highlight>>Limits of Agreement:<</COLOR>>\n"
+        summary += f"  Upper: {loa_upper:.4f}  95% CI [{loa_upper_ci[0]:.4f}, {loa_upper_ci[1]:.4f}]\n"
+        summary += f"  Lower: {loa_lower:.4f}  95% CI [{loa_lower_ci[0]:.4f}, {loa_lower_ci[1]:.4f}]\n"
+        summary += f"  Width: {loa_upper - loa_lower:.4f}\n\n"
+        summary += f"<<COLOR:text>>Points within LOA:<</COLOR>> {within_loa:.1f}%\n"
+        summary += f"<<COLOR:text>>Proportional bias:<</COLOR>> r = {r_prop:.3f}, p = {p_prop:.4f}\n"
+
+        result["summary"] = summary
+        result["guide_observation"] = f"Bland-Altman: bias = {bias:.4f}, LOA = [{loa_lower:.4f}, {loa_upper:.4f}]. {within_loa:.0f}% within LOA."
+
+        bias_meaningful = abs(bias) > 0.1 * np.mean(np.abs(means)) if np.mean(np.abs(means)) > 0 else abs(bias) > 0
+        result["narrative"] = _narrative(
+            f"Bias: {bias:.4f} | LOA width: {loa_upper - loa_lower:.4f}",
+            f"The mean difference between <strong>{method1}</strong> and <strong>{method2}</strong> is {bias:.4f} "
+            f"(95% CI [{bias_ci[0]:.4f}, {bias_ci[1]:.4f}]). "
+            f"The limits of agreement span {loa_upper - loa_lower:.4f} units. "
+            f"{within_loa:.1f}% of measurements fall within the LOA."
+            + (f" <strong>Proportional bias detected</strong> (r = {r_prop:.3f}, p = {p_prop:.4f}) \u2014 disagreement varies with magnitude." if p_prop < 0.05 else ""),
+            next_steps="Judge whether the LOA width is clinically/practically acceptable. If bias is consistent, one method can be calibrated to the other." if bias_meaningful else "Bias is negligible. Focus on whether the LOA width is acceptable for your application.",
+            chart_guidance="Points should scatter randomly around the bias line (dashed). Funnel shapes indicate proportional bias. Points outside LOA are outlier disagreements."
+        )
+
+        # Diagnostics
+        diagnostics = []
+        if p_prop < 0.05:
+            diagnostics.append({"level": "warning", "title": f"Proportional bias detected (r = {r_prop:.3f})",
+                                "detail": "Disagreement between methods changes with measurement magnitude. A simple calibration offset won't work."})
+        if abs(bias) > 0:
+            _bias_zero = 0 >= bias_ci[0] and 0 <= bias_ci[1]
+            if not _bias_zero:
+                diagnostics.append({"level": "warning", "title": f"Systematic bias: {bias:.4f} (CI excludes zero)",
+                                    "detail": f"{method1} reads consistently {'higher' if bias > 0 else 'lower'} than {method2}."})
+            else:
+                diagnostics.append({"level": "info", "title": f"No significant bias (CI includes zero)",
+                                    "detail": f"Mean difference {bias:.4f} is not significantly different from zero."})
+        if within_loa < 90:
+            diagnostics.append({"level": "warning", "title": f"Only {within_loa:.0f}% within LOA (expected ~95%)",
+                                "detail": "More outlier disagreements than expected. Check for specific conditions where methods diverge."})
+        result["diagnostics"] = diagnostics
+
+        result["statistics"] = {
+            "bias": bias, "sd_diff": sd_diff,
+            "loa_upper": float(loa_upper), "loa_lower": float(loa_lower),
+            "bias_ci": [float(bias_ci[0]), float(bias_ci[1])],
+            "within_loa_pct": within_loa,
+            "proportional_bias_r": float(r_prop), "proportional_bias_p": float(p_prop),
+            "n": n,
+        }
+
+        # Bland-Altman plot
+        result["plots"].append({
+            "title": f"Bland-Altman: {method1} vs {method2}",
+            "data": [
+                {"type": "scatter", "x": means.tolist(), "y": diffs.tolist(),
+                 "mode": "markers", "marker": {"color": "rgba(74, 159, 110, 0.5)", "size": 7}, "name": "Differences"},
+            ],
+            "layout": {
+                "height": 350,
+                "xaxis": {"title": f"Mean of {method1} and {method2}"},
+                "yaxis": {"title": f"{method1} \u2212 {method2}"},
+                "shapes": [
+                    {"type": "line", "x0": float(min(means)), "x1": float(max(means)), "y0": bias, "y1": bias,
+                     "line": {"color": "#4a90d9", "width": 2, "dash": "dash"}},
+                    {"type": "line", "x0": float(min(means)), "x1": float(max(means)), "y0": loa_upper, "y1": loa_upper,
+                     "line": {"color": "#dc5050", "width": 1.5, "dash": "dot"}},
+                    {"type": "line", "x0": float(min(means)), "x1": float(max(means)), "y0": loa_lower, "y1": loa_lower,
+                     "line": {"color": "#dc5050", "width": 1.5, "dash": "dot"}},
+                ],
+                "annotations": [
+                    {"x": float(max(means)), "y": bias, "text": f"Bias: {bias:.3f}", "showarrow": False,
+                     "font": {"color": "#4a90d9", "size": 10}, "xanchor": "left"},
+                    {"x": float(max(means)), "y": loa_upper, "text": f"+1.96SD: {loa_upper:.3f}", "showarrow": False,
+                     "font": {"color": "#dc5050", "size": 10}, "xanchor": "left"},
+                    {"x": float(max(means)), "y": loa_lower, "text": f"\u22121.96SD: {loa_lower:.3f}", "showarrow": False,
+                     "font": {"color": "#dc5050", "size": 10}, "xanchor": "left"},
+                ],
+            },
+        })
+
+        # Histogram of differences
+        result["plots"].append({
+            "title": "Distribution of Differences",
+            "data": [{"type": "histogram", "x": diffs.tolist(), "marker": {"color": "rgba(74, 159, 110, 0.4)"}, "name": "Differences"}],
+            "layout": {"height": 250, "xaxis": {"title": f"{method1} \u2212 {method2}"}, "yaxis": {"title": "Count"},
+                        "shapes": [{"type": "line", "x0": bias, "x1": bias, "y0": 0, "y1": 1, "yref": "paper",
+                                    "line": {"color": "#4a90d9", "width": 2, "dash": "dash"}}]},
+        })
 
     elif analysis_id == "stepwise":
         """
@@ -7450,6 +9285,10 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"Stepwise regression selected {len(selected)} of {len(predictors)} predictors."
+        result["narrative"] = _narrative(
+            f"Stepwise selected {len(selected)} of {len(predictors)} predictors",
+            f"Automatic variable selection retained: <strong>{', '.join(selected[:5]) if selected else 'none'}</strong>." + (f" ({len(selected) - 5} more)" if len(selected) > 5 else ""),
+            next_steps="Stepwise results should be validated. The selected model may overfit — use cross-validation or best subsets for comparison.")
 
     elif analysis_id == "best_subsets":
         """
@@ -7537,6 +9376,11 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"Best subsets: recommended {best['k']}-variable model with Adj R² = {best['adj_r2']:.4f}"
+        result["narrative"] = _narrative(
+            f"Best subsets: {best['k']}-variable model recommended (Adj R\u00b2 = {best['adj_r2']:.4f})",
+            f"Best predictors: <strong>{', '.join(best.get('vars', []))}</strong>. Evaluated all variable combinations to find the best trade-off between fit and complexity.",
+            next_steps="More variables = higher R\u00b2 but risk overfitting. Choose the model where Adj R\u00b2 plateaus.",
+            chart_guidance="Each row is a model size (k variables). Stars mark the best model at each size. Choose where improvement flattens.")
         result["statistics"] = {
             "best_r2": float(best["r2"]),
             "best_adj_r2": float(best["adj_r2"]),
@@ -7675,6 +9519,53 @@ def run_statistical_analysis(df, analysis_id, config):
             "bootstrap_se": float(np.std(boot_stats))
         }
 
+        # Narrative
+        _boot_bias = float(np.mean(boot_stats) - observed)
+        _boot_se = float(np.std(boot_stats))
+        _ci_width = bca_upper - bca_lower
+        verdict = f"Bootstrap {conf_level*100:.0f}% CI for {statistic}: ({bca_lower:.4f}, {bca_upper:.4f})"
+        body = (f"Observed {statistic} = <strong>{observed:.4f}</strong>. "
+                f"After {n_bootstrap} resamples, the BCa interval is ({bca_lower:.4f}, {bca_upper:.4f}). "
+                f"Bootstrap SE = {_boot_se:.4f}, bias = {_boot_bias:.4f}."
+                + (f" The BCa method corrects for bias and skewness in the bootstrap distribution." if abs(_boot_bias) > 0.01 * abs(observed) else ""))
+        nxt = f"The interval width ({_ci_width:.4f}) reflects estimation precision. To narrow it, increase the sample size (currently n = {n})."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="The histogram shows the bootstrap sampling distribution. Orange dashed line = observed value. Red triangles = CI bounds.")
+
+        # ── Diagnostics ──
+        diagnostics = []
+        # Small sample warning
+        if n < 20:
+            diagnostics.append({"level": "warning", "title": f"Small sample (n = {n})",
+                                "detail": "Bootstrap reliability degrades with fewer than 20 observations. CI coverage may be inaccurate."})
+        # Outlier check — outliers can dominate bootstrap resamples
+        _out = _check_outliers(data, label=var)
+        if _out:
+            _out["detail"] += " Outliers can dominate bootstrap resamples, inflating or deflating the CI."
+            diagnostics.append(_out)
+        # Compare bootstrap CI with parametric CI (for mean statistic)
+        if statistic == "mean" and n >= 3:
+            _se_param = np.std(data, ddof=1) / np.sqrt(n)
+            _t_crit = stats.t.ppf(1 - alpha / 2, n - 1)
+            _param_lower = observed - _t_crit * _se_param
+            _param_upper = observed + _t_crit * _se_param
+            _param_width = _param_upper - _param_lower
+            _boot_width = bca_upper - bca_lower
+            _rel_diff = abs(_boot_width - _param_width) / (_param_width + 1e-15)
+            if _rel_diff < 0.15:
+                diagnostics.append({"level": "info", "title": "Bootstrap confirms parametric assumptions",
+                                    "detail": f"Bootstrap CI width ({_boot_width:.4f}) closely matches parametric t-interval ({_param_width:.4f}). Normal assumption appears reasonable."})
+            else:
+                diagnostics.append({"level": "warning", "title": "Bootstrap and parametric CIs disagree",
+                                    "detail": f"Bootstrap CI width ({_boot_width:.4f}) differs from parametric t-interval ({_param_width:.4f}) by {_rel_diff*100:.0f}%. Distribution may be non-normal. Trust the bootstrap."})
+        # BCa vs percentile divergence
+        _perc_width = ci_upper - ci_lower
+        _bca_width = bca_upper - bca_lower
+        if abs(_bca_width - _perc_width) / (_perc_width + 1e-15) > 0.10:
+            diagnostics.append({"level": "info", "title": "BCa correction is meaningful",
+                                "detail": f"BCa interval ({bca_lower:.4f}, {bca_upper:.4f}) differs from percentile interval ({ci_lower:.4f}, {ci_upper:.4f}). The BCa method is correcting for bias and/or skewness in the bootstrap distribution."})
+        result["diagnostics"] = diagnostics
+
         # Histogram of bootstrap distribution
         result["plots"].append({
             "title": f"Bootstrap Distribution of {statistic.title()}",
@@ -7761,6 +9652,11 @@ def run_statistical_analysis(df, analysis_id, config):
 
         result["summary"] = summary
         result["guide_observation"] = f"Box-Cox optimal λ = {optimal_lambda:.3f}. {suggestion}."
+        result["narrative"] = _narrative(
+            f"Box-Cox: optimal \u03bb = {optimal_lambda:.3f}",
+            f"{suggestion}. The Box-Cox transformation finds the power that best normalizes the data.",
+            next_steps="Apply the transformation before running parametric tests (t-test, ANOVA, regression) if data is non-normal.",
+            chart_guidance="The log-likelihood curve shows which \u03bb best normalizes the data. The 95% CI indicates the range of acceptable values.")
         result["statistics"] = {
             "optimal_lambda": float(optimal_lambda),
             "p_before": float(p_before),
@@ -7797,7 +9693,7 @@ def run_statistical_analysis(df, analysis_id, config):
                 {"type": "scatter", "x": lambda_range.tolist(), "y": log_likelihoods, "mode": "lines", "line": {"color": "#4a9f6e", "width": 2}, "name": "Log-Likelihood"},
                 {"type": "scatter", "x": [float(optimal_lambda)], "y": [max(log_likelihoods)], "mode": "markers", "marker": {"color": "#d94a4a", "size": 10, "symbol": "diamond"}, "name": f"Optimal λ = {optimal_lambda:.3f}"}
             ],
-            "layout": {"template": "plotly_dark", "height": 250, "xaxis": {"title": "Lambda (λ)"}, "yaxis": {"title": "Log-Likelihood"}}
+            "layout": {"height": 250, "xaxis": {"title": "Lambda (λ)"}, "yaxis": {"title": "Log-Likelihood"}}
         })
 
     # ── Run Chart ──────────────────────────────────────────────────────────
@@ -7884,6 +9780,10 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
             result["summary"] = summary
             result["guide_observation"] = f"Run chart: {n} obs, median={median_val:.4g}, {runs} runs."
+            result["narrative"] = _narrative(
+                f"Run Chart: {n} observations, {runs} runs",
+                f"Median = {median_val:.4g}. A run chart monitors process behavior over time without requiring control limits.",
+                next_steps="Look for trends (6+ consecutive increasing/decreasing), runs (8+ points on one side of median), or cycles. These indicate non-random behavior.")
 
             # Plot
             traces = [
@@ -7955,6 +9855,31 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 result["summary"] = summary
                 result["guide_observation"] = f"Grubbs' test on {var}: suspect={suspect:.4g}, G={G:.3f}, {'outlier' if is_outlier else 'not outlier'} at α={alpha}."
                 result["statistics"] = {"G": G, "G_critical": G_crit, "suspect_value": suspect, "is_outlier": is_outlier}
+                if is_outlier:
+                    result["narrative"] = _narrative(f"Outlier detected: {suspect:.4g} (G = {G:.3f})", f"Value {suspect:.4g} is a statistical outlier at \u03b1 = {alpha}. G = {G:.3f} exceeds critical value {G_crit:.3f}.", next_steps="Investigate the outlier. If it's a data entry error, correct it. If real, consider robust methods.")
+                else:
+                    result["narrative"] = _narrative(f"No outlier detected (G = {G:.3f})", f"Most extreme value {suspect:.4g} is not a statistical outlier. G = {G:.3f} < {G_crit:.3f}.", next_steps="All values are within expected range for a normal distribution.")
+
+                # ── Diagnostics ──
+                diagnostics = []
+                # Normality check — Grubbs assumes normality
+                _norm = _check_normality(vals, label=var, alpha=alpha)
+                if _norm:
+                    _norm["detail"] = "Grubbs' test assumes normality. Non-normal data may produce false outlier flags. Consider IQR or robust methods."
+                    diagnostics.append(_norm)
+                # Sample size warning
+                if n < 7:
+                    diagnostics.append({"level": "warning", "title": f"Very small sample (n = {n})",
+                                        "detail": "Grubbs' test has very low power with fewer than 7 observations. The test may fail to detect true outliers."})
+                # Outlier-specific diagnostics
+                if is_outlier:
+                    diagnostics.append({"level": "info", "title": "Investigate outlier impact",
+                                        "detail": f"Value {suspect:.4g} was flagged as an outlier. Determine if it is a data entry error, measurement artifact, or genuine extreme observation before removing it.",
+                                        "action": {"label": "Investigate Impact", "type": "stats", "analysis": "robust_regression"}})
+                    # Masking warning
+                    diagnostics.append({"level": "warning", "title": "Potential masking effect",
+                                        "detail": "Grubbs' test examines one outlier at a time. If multiple outliers exist, they can mask each other — the presence of one extreme value may prevent detection of others. Re-run after addressing this outlier."})
+                result["diagnostics"] = diagnostics
 
                 # Highlight plot
                 colors = ["#4a9f6e" if i != max_idx else "#d94a4a" for i in range(n)]
@@ -8024,6 +9949,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             result["summary"] = summary
             result["guide_observation"] = f"CCF({var1}, {var2}): lag-0 r={ccf_vals[max_lag]:.3f}, {len(sig_lags)} significant lags."
             result["statistics"] = {"lag_0_correlation": ccf_vals[max_lag], "significant_lags": len(sig_lags)}
+            result["narrative"] = _narrative(f"Cross-Correlation: lag-0 r = {ccf_vals[max_lag]:.3f}, {len(sig_lags)} significant lags", f"CCF shows how <strong>{var1}</strong> and <strong>{var2}</strong> relate at different time lags. Positive lags = {var1} leads {var2}.", next_steps="Significant negative lags suggest {var2} leads {var1}. Use the peak lag for lead-lag transfer function modeling.", chart_guidance="Bars outside the shaded band are significant. The lag at peak correlation suggests the delay between the series.")
 
             result["plots"].append({
                 "title": f"Cross-Correlation: {var1} vs {var2}",
@@ -8107,6 +10033,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 result["summary"] = summary
                 result["guide_observation"] = f"Johnson transform: best family={best_family}, p={best['p_value']:.4f}."
                 result["statistics"] = {"best_family": best_family, "p_original": float(p_orig), "p_transformed": best["p_value"]}
+                result["narrative"] = _narrative(f"Johnson Transform: {best_family} family (p = {best['p_value']:.4f})", f"Original data normality p = {p_orig:.4f}. After {best_family} transformation, p = {best['p_value']:.4f}.", next_steps="Use the Johnson-transformed data for parametric analyses requiring normality. Unlike Box-Cox, Johnson handles bounded and unbounded distributions.")
 
                 # Plots: before and after
                 result["plots"].append({
@@ -8211,6 +10138,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["summary"] = summary
         result["guide_observation"] = f"Robust regression ({method}) identified {len(outliers)} low-weight observations."
+        result["narrative"] = _narrative(f"Robust Regression ({method}): {len(outliers)} influential points down-weighted", f"Robust regression reduces the influence of outliers. {len(outliers)} observation{'s' if len(outliers) != 1 else ''} received low weight.", next_steps="Compare coefficients with OLS regression. Large differences indicate outliers were distorting the OLS fit.")
         result["statistics"] = {
             "n_outliers": len(outliers),
             "method": method,
@@ -8333,6 +10261,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["summary"] = summary
         result["guide_observation"] = f"Tolerance interval ({proportion*100:.0f}%/{confidence*100:.0f}%): ({tol_lower_normal:.4f}, {tol_upper_normal:.4f})"
+        result["narrative"] = _narrative(f"Tolerance Interval: ({tol_lower_normal:.4f}, {tol_upper_normal:.4f})", f"We are {confidence*100:.0f}% confident that at least {proportion*100:.0f}% of the population falls within this interval.", next_steps="Tolerance intervals are wider than confidence intervals because they cover the population, not just the mean. Compare with specification limits.")
         result["statistics"] = {
             "tol_lower_normal": float(tol_lower_normal),
             "tol_upper_normal": float(tol_upper_normal),
@@ -8470,12 +10399,14 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 "height": 280,
                 "xaxis": {"title": factor},
                 "yaxis": {"title": f"Mean {response}"},
-                "template": "plotly_white"
             }
         })
 
         result["guide_observation"] = f"Tukey HSD: {n_sig}/{n_total} pairwise comparisons significant at α={alpha}."
         result["statistics"] = {"pairs": pairs, "n_significant": n_sig, "n_comparisons": n_total, "alpha": alpha}
+        verdict = f"Tukey HSD: {n_sig} of {n_total} pairs differ significantly"
+        body = f"<strong>{n_sig}</strong> pairwise comparisons are significant at \u03b1 = {alpha} (family-wise error controlled)." if n_sig > 0 else f"No pairwise differences are significant at \u03b1 = {alpha}."
+        result["narrative"] = _narrative(verdict, body, next_steps="Tukey HSD controls the family-wise error rate. Pairs with non-overlapping CIs differ significantly.")
 
     elif analysis_id == "dunnett":
         """
@@ -8565,6 +10496,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["guide_observation"] = f"Dunnett's test vs {control}: {n_sig}/{len(comparisons)} treatments differ."
         result["statistics"] = {"comparisons": comparisons, "control": str(control)}
+        verdict = f"Dunnett's: {n_sig} of {len(comparisons)} treatments differ from control ({control})"
+        body = f"Comparing all treatments against the control group <strong>{control}</strong>." + (f" {n_sig} treatment{'s' if n_sig > 1 else ''} show{'s' if n_sig == 1 else ''} a significant difference." if n_sig else " No treatments differ from control.")
+        result["narrative"] = _narrative(verdict, body, next_steps="Dunnett's test is more powerful than Tukey when comparing only to a control group.")
 
     elif analysis_id == "games_howell":
         """
@@ -8679,6 +10613,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["guide_observation"] = f"Games-Howell: {n_sig}/{len(pairs)} pairs significant (unequal variances assumed)."
         result["statistics"] = {"pairs": pairs, "n_significant": n_sig}
+        verdict = f"Games-Howell: {n_sig} of {len(pairs)} pairs differ"
+        body = f"Post-hoc comparison assuming unequal variances. <strong>{n_sig}</strong> pair{'s' if n_sig != 1 else ''} significant." if n_sig else "No pairs differ significantly."
+        result["narrative"] = _narrative(verdict, body, next_steps="Games-Howell is preferred when group variances are unequal (Levene's test significant).")
 
     elif analysis_id == "dunn":
         """
@@ -8797,6 +10734,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["guide_observation"] = f"Dunn's test: {n_sig}/{len(pairs)} pairwise comparisons significant (Bonferroni)."
         result["statistics"] = {"pairs": pairs, "n_significant": n_sig, "n_comparisons": n_comparisons}
+        verdict = f"Dunn's test: {n_sig} of {len(pairs)} pairs differ (Bonferroni corrected)"
+        body = f"Non-parametric post-hoc following Kruskal-Wallis. <strong>{n_sig}</strong> pair{'s' if n_sig != 1 else ''} significant after Bonferroni correction." if n_sig else "No pairs differ after correction."
+        result["narrative"] = _narrative(verdict, body, next_steps="Dunn's test is the appropriate post-hoc for Kruskal-Wallis (non-parametric). Bonferroni controls family-wise error.")
 
     # =====================================================================
     # Scheffé Test
@@ -8888,6 +10828,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["guide_observation"] = f"Scheffé: {n_sig_sch}/{len(pairs_sch)} pairs significant at α={alpha_sch}."
         result["statistics"] = {"pairs": pairs_sch, "mse": mse_sch, "scheffe_critical": scheffe_crit, "k": k_sch}
+        verdict = f"Scheff\u00e9: {n_sig_sch} of {len(pairs_sch)} contrasts significant"
+        body = f"The most conservative post-hoc test. <strong>{n_sig_sch}</strong> comparison{'s' if n_sig_sch != 1 else ''} significant." if n_sig_sch else "No comparisons significant — Scheffé is the most conservative test."
+        result["narrative"] = _narrative(verdict, body, next_steps="Scheffé controls error for ALL possible contrasts (not just pairwise). Use Tukey for more power on pairwise comparisons only.")
 
     # =====================================================================
     # Bonferroni Post-Hoc Test
@@ -8977,6 +10920,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["guide_observation"] = f"Bonferroni: {n_sig_bon}/{len(pairs_bon)} pairs significant (adj. α={alpha_adj:.4f})."
         result["statistics"] = {"pairs": pairs_bon, "mse": mse_bon, "alpha_adjusted": alpha_adj}
+        verdict = f"Bonferroni: {n_sig_bon} of {len(pairs_bon)} pairs significant (adj. \u03b1 = {alpha_adj:.4f})"
+        body = f"Family-wise error controlled by dividing \u03b1 by {len(pairs_bon)} comparisons." + (f" <strong>{n_sig_bon}</strong> pair{'s' if n_sig_bon != 1 else ''} survive correction." if n_sig_bon else " No pairs survive correction.")
+        result["narrative"] = _narrative(verdict, body, next_steps="Bonferroni is simple but conservative. For more power, use Tukey HSD (pairwise) or Holm-Bonferroni (step-down).")
 
     # =====================================================================
     # Hsu's MCB (Multiple Comparisons with the Best)
@@ -9090,6 +11036,9 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
 
         result["guide_observation"] = f"Hsu's MCB: {n_could_be_best}/{k_hsu} groups could be best. Best={best_group}."
         result["statistics"] = {"comparisons": comparisons_hsu, "best_group": best_group, "direction": direction, "mse": mse_hsu}
+        verdict = f"Hsu's MCB: {n_could_be_best} of {k_hsu} groups could be the best"
+        body = f"Current best group: <strong>{best_group}</strong> ({direction}). {n_could_be_best} group{'s' if n_could_be_best != 1 else ''} cannot be ruled out as the best."
+        result["narrative"] = _narrative(verdict, body, next_steps="MCB (Multiple Comparisons with the Best) identifies which groups could plausibly be the best. Narrow the field with more data.")
 
     elif analysis_id == "hotelling_t2":
         """
@@ -9196,12 +11145,15 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 "height": 300, "boxmode": "group",
                 "xaxis": {"title": "Response Variable"},
                 "yaxis": {"title": "Value"},
-                "template": "plotly_white"
             }
         })
 
         result["guide_observation"] = f"Hotelling's T² = {T2:.2f}, F = {F_stat:.2f}, p = {p_value:.4f}. " + ("Groups differ." if p_value < alpha else "No difference.")
         result["statistics"] = {"T2": T2, "F_statistic": F_stat, "p_value": p_value, "df1": df1, "df2": df2, "mean_diff": diff.tolist()}
+        if p_value < alpha:
+            result["narrative"] = _narrative(f"Multivariate means differ (T\u00b2 = {T2:.2f}, p = {p_value:.4f})", "The groups differ when considering all response variables simultaneously. Hotelling's T\u00b2 is the multivariate extension of the t-test.", next_steps="Examine individual variables to identify which drive the difference. Consider MANOVA for more than 2 groups.")
+        else:
+            result["narrative"] = _narrative(f"No multivariate difference (p = {p_value:.4f})", "The groups do not differ significantly across the combined set of variables.", next_steps="Even if individual variables differ, the multivariate test considers their correlation structure.")
 
     elif analysis_id == "manova":
         """
@@ -9386,7 +11338,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
         result["plots"].append({
             "title": "Response Distributions by Group",
             "data": box_traces_m,
-            "layout": {"height": 300, "boxmode": "group", "xaxis": {"title": "Response"}, "yaxis": {"title": "Value"}, "template": "plotly_white"}
+            "layout": {"height": 300, "boxmode": "group", "xaxis": {"title": "Response"}, "yaxis": {"title": "Value"}}
         })
 
         # Correlation heatmap of response variables
@@ -9399,7 +11351,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 "text": [[f"{corr_mat[i][j]:.3f}" for j in range(len(responses))] for i in range(len(responses))],
                 "texttemplate": "%{text}", "showscale": True
             }],
-            "layout": {"title": "Response Correlation Matrix", "height": 300, "template": "plotly_white"}
+            "layout": {"title": "Response Correlation Matrix", "height": 300}
         })
 
         result["guide_observation"] = f"MANOVA: Wilks' Λ = {wilks:.4f}, p = {p_wilks:.4f}; Pillai's V = {pillai:.4f}, p = {p_pillai:.4f}. " + ("Multivariate effect detected." if p_pillai < alpha else "No multivariate effect.")
@@ -9411,6 +11363,20 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
             "eigenvalues": eigenvalues.tolist(),
             "n_groups": k, "n_responses": p, "N": N
         }
+
+        # Narrative
+        _mv_sig = p_pillai < alpha
+        _mv_eta2 = float(pillai)  # Pillai's trace approximates multivariate η²
+        _mv_mag = "large" if _mv_eta2 > 0.25 else ("medium" if _mv_eta2 > 0.10 else "small")
+        result["narrative"] = _narrative(
+            f"MANOVA — {'Significant' if _mv_sig else 'No significant'} multivariate effect (Pillai's V = {pillai:.4f})",
+            f"Testing {p} response variables across {k} groups (N = {N}). "
+            + (f"The factor has a {_mv_mag} multivariate effect (Wilks' Λ = {wilks:.4f}, p = {p_wilks:.4f}). Examine per-response ANOVAs to identify which variables drive the difference."
+               if _mv_sig else
+               f"No evidence of group differences across the response variables jointly (Wilks' Λ = {wilks:.4f}, p = {p_wilks:.4f})."),
+            next_steps="Run univariate ANOVAs per response with Bonferroni correction to identify which variables differ." if _mv_sig else "Check individual ANOVAs — marginal effects may exist that the joint test misses.",
+            chart_guidance="The scatter plot shows group separation in the first two response dimensions. Non-overlapping clusters confirm a multivariate effect."
+        )
 
     elif analysis_id == "nested_anova":
         """
@@ -9527,7 +11493,6 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "xaxis": {"title": "Fitted Values"}, "yaxis": {"title": "Residuals"},
                     "shapes": [{"type": "line", "x0": float(fitted_vals.min()), "x1": float(fitted_vals.max()),
                                 "y0": 0, "y1": 0, "line": {"color": "#e89547", "dash": "dash"}}],
-                    "template": "plotly_white"
                 }
             })
 
@@ -9548,11 +11513,14 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 "layout": {
                     "height": 280,
                     "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": "Sample Quantiles"},
-                    "template": "plotly_white"
                 }
             })
 
             result["guide_observation"] = f"Nested ANOVA: ICC = {icc:.3f} ({icc*100:.1f}% variance from {random_factor}). " + ("Fixed effect significant." if sig_fixed else "Fixed effect not significant.")
+            if sig_fixed:
+                result["narrative"] = _narrative(f"Nested ANOVA: fixed effect significant, ICC = {icc:.3f}", f"{icc*100:.1f}% of variation comes from <strong>{random_factor}</strong>. The fixed effect significantly affects the response.", next_steps="The ICC tells you how much of the variation is between groups vs within. High ICC = groups are very different.")
+            else:
+                result["narrative"] = _narrative(f"Nested ANOVA: no significant fixed effect (ICC = {icc:.3f})", f"{icc*100:.1f}% of variation comes from {random_factor}. The fixed effect is not significant.", next_steps="Low ICC and non-significant fixed effect suggests most variation is within groups.")
             result["statistics"] = {
                 "fixed_effects": fixed_effects,
                 "var_random": var_random,
@@ -9667,7 +11635,6 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "title": f"Operating Characteristic (OC) Curve — {plan_desc}",
                     "xaxis": {"title": "Lot Defect Rate (%)"},
                     "yaxis": {"title": "Probability of Acceptance", "range": [0, 1.05]},
-                    "template": "plotly_white"
                 }
             })
 
@@ -9690,13 +11657,13 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "title": "Average Outgoing Quality (AOQ) Curve",
                     "xaxis": {"title": "Incoming Defect Rate (%)"},
                     "yaxis": {"title": "Average Outgoing Quality (%)"},
-                    "template": "plotly_white"
                 }
             })
 
             result["summary"] = f"**Acceptance Sampling Plan**\n\n**Plan:** {plan_desc}\n**Lot size:** {lot_size}\n\n| Metric | Value |\n|---|---|\n| P(accept) at AQL ({aql*100:.1f}%) | {pa_aql:.4f} |\n| P(accept) at LTPD ({ltpd*100:.1f}%) | {pa_ltpd:.4f} |\n| Producer's risk (α) | {alpha_risk:.4f} ({alpha_risk*100:.1f}%) |\n| Consumer's risk (β) | {beta_risk:.4f} ({beta_risk*100:.1f}%) |\n| AOQL | {aoql*100:.4f}% at p={aoql_p*100:.2f}% |\n| ATI at AQL | {float(np.interp(aql, p_range, ati_values)):.0f} units |"
 
             result["guide_observation"] = f"Acceptance sampling ({plan_desc}): α={alpha_risk:.3f}, β={beta_risk:.3f}, AOQL={aoql*100:.4f}%."
+            result["narrative"] = _narrative(f"Acceptance Sampling: {plan_desc}", f"Producer's risk (\u03b1) = {alpha_risk:.3f}, Consumer's risk (\u03b2) = {beta_risk:.3f}, AOQL = {aoql*100:.4f}%.", next_steps="The OC curve shows acceptance probability vs lot quality. AOQL is the worst average quality that passes through.", chart_guidance="OC curve: steeper = better discrimination between good and bad lots. The curve should drop sharply at the quality threshold.")
 
             result["statistics"] = {
                 "plan_type": plan_type,
@@ -10004,7 +11971,6 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "xaxis": {"title": "Fitted Value"}, "yaxis": {"title": "Residual"},
                     "shapes": [{"type": "line", "x0": float(fitted_vals.min()), "x1": float(fitted_vals.max()),
                                 "y0": 0, "y1": 0, "line": {"color": "#e89547", "dash": "dash"}}],
-                    "template": "plotly_white"
                 }
             })
 
@@ -10022,7 +11988,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                            theoretical_q[-1] * np.std(sorted_resid) + np.mean(sorted_resid)],
                      "mode": "lines", "line": {"color": "#e89547", "dash": "dash"}, "name": "Reference"}
                 ],
-                "layout": {"height": 280, "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": "Sample Quantiles"}, "template": "plotly_white"}
+                "layout": {"height": 280, "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": "Sample Quantiles"}}
             })
 
             # 3. Residuals Histogram
@@ -10032,7 +11998,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 "title": "Histogram of Residuals",
                 "data": [{"type": "bar", "x": bin_centers, "y": hist_vals.tolist(),
                           "marker": {"color": "#4a90d9", "opacity": 0.7}}],
-                "layout": {"height": 250, "xaxis": {"title": "Residual"}, "yaxis": {"title": "Frequency"}, "template": "plotly_white"}
+                "layout": {"height": 250, "xaxis": {"title": "Residual"}, "yaxis": {"title": "Frequency"}}
             })
 
             # 4. Residuals vs Observation Order
@@ -10048,7 +12014,6 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "xaxis": {"title": "Observation Order"}, "yaxis": {"title": "Residual"},
                     "shapes": [{"type": "line", "x0": 1, "x1": len(resid_vals),
                                 "y0": 0, "y1": 0, "line": {"color": "#e89547", "dash": "dash"}}],
-                    "template": "plotly_white"
                 }
             })
 
@@ -10073,7 +12038,6 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                             "shapes": [{"type": "line", "x0": -0.5, "x1": len(levels) - 0.5,
                                         "y0": grand_mean, "y1": grand_mean,
                                         "line": {"color": "#999", "dash": "dash", "width": 1}}],
-                            "template": "plotly_white"
                         }
                     })
 
@@ -10098,7 +12062,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                         result["plots"].append({
                             "title": f"Interaction Plot: {f1} × {f2}",
                             "data": traces,
-                            "layout": {"height": 280, "xaxis": {"title": f1}, "yaxis": {"title": f"Mean of {response}"}, "template": "plotly_white"}
+                            "layout": {"height": 280, "xaxis": {"title": f1}, "yaxis": {"title": f"Mean of {response}"}}
                         })
 
             # ── ANCOVA: Covariate scatter by factor ──
@@ -10129,10 +12093,108 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                         result["plots"].append({
                             "title": f"Covariate Plot: {response} vs {c} by {f}",
                             "data": traces_cov,
-                            "layout": {"height": 300, "xaxis": {"title": c}, "yaxis": {"title": response}, "template": "plotly_white"}
+                            "layout": {"height": 300, "xaxis": {"title": c}, "yaxis": {"title": response}}
                         })
 
             result["guide_observation"] = f"{model_label}: {response} ~ {' + '.join(fixed_factors + covariates + random_factors)}. N={N}."
+
+            # Narrative
+            try:
+                _r2 = float(model.rsquared)
+                _f_p = float(model.f_pvalue)
+                _sig_terms = [t for t in model.pvalues.index if model.pvalues[t] < 0.05 and t != "Intercept"]
+                _r2_pct = _r2 * 100
+                _r2_label = "strong" if _r2 > 0.7 else "moderate" if _r2 > 0.3 else "weak"
+                verdict = f"{model_label}: R² = {_r2:.3f} ({_r2_label} fit, {_r2_pct:.1f}% variance explained)"
+                body = (f"The model {response} ~ {' + '.join(fixed_factors + covariates + random_factors)} "
+                        f"is {'significant' if _f_p < 0.05 else 'not significant'} overall (F p = {_f_p:.4f}). ")
+                if _sig_terms:
+                    body += f"Significant terms: <strong>{', '.join(str(t) for t in _sig_terms[:5])}</strong>."
+                else:
+                    body += "No individual terms are significant at α = 0.05."
+                nxt = "Check the residual plots for model adequacy: random scatter = good fit; patterns = missing terms or non-linearity."
+                result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+                    chart_guidance="Residuals vs Fitted: random scatter = adequate model. Normal Q-Q: points on diagonal = normally distributed residuals.")
+            except Exception:
+                pass
+
+            # ── Diagnostics ──
+            diagnostics = []
+            # Normality of residuals
+            try:
+                _norm_r = _check_normality(resid_vals.values, label="Model residuals", alpha=0.05)
+                if _norm_r:
+                    _norm_r["detail"] = "GLM assumes normality of residuals. Non-normality may affect confidence intervals and p-values."
+                    diagnostics.append(_norm_r)
+            except Exception:
+                pass
+            # Check deviance residuals for patterns (mean should be ~0, look for systematic bias)
+            try:
+                _resid_mean = float(np.mean(resid_vals.values))
+                _resid_std = float(np.std(resid_vals.values))
+                # Check for skewness in residuals (pattern indicator)
+                from scipy.stats import skew as _skew_fn
+                _resid_skew = float(_skew_fn(resid_vals.values))
+                if abs(_resid_skew) > 1.0:
+                    diagnostics.append({"level": "warning", "title": f"Residuals are skewed (skewness = {_resid_skew:.2f})",
+                                        "detail": "Skewed residuals suggest the model may be missing non-linear terms or the response needs transformation."})
+            except Exception:
+                pass
+            # Report pseudo-R² / R² and model fit assessment
+            try:
+                if has_random:
+                    # Mixed model: use marginal R² approximation
+                    _ss_resid_m = float(np.sum(resid_vals.values ** 2))
+                    _ss_total_m = float(np.sum((data[response].values - data[response].mean()) ** 2))
+                    _pseudo_r2 = 1 - _ss_resid_m / _ss_total_m if _ss_total_m > 0 else 0
+                    if _pseudo_r2 > 0.7:
+                        diagnostics.append({"level": "info", "title": f"Good model fit (marginal R² ≈ {_pseudo_r2:.3f})",
+                                            "detail": f"The model explains approximately {_pseudo_r2*100:.1f}% of the total variation."})
+                    elif _pseudo_r2 < 0.1:
+                        diagnostics.append({"level": "warning", "title": f"Weak model (marginal R² ≈ {_pseudo_r2:.3f})",
+                                            "detail": f"The model explains only {_pseudo_r2*100:.1f}% of variation. Consider adding predictors or checking model specification."})
+                else:
+                    # Fixed model: use R² from OLS
+                    _r2_val = float(model.rsquared)
+                    _f_pval = float(model.f_pvalue)
+                    if _r2_val > 0.7 and _f_pval < 0.05:
+                        diagnostics.append({"level": "info", "title": f"Strong model (R² = {_r2_val:.3f})",
+                                            "detail": f"The model explains {_r2_val*100:.0f}% of the variation — practically useful for prediction."})
+                    elif _r2_val < 0.1 and _f_pval < 0.05:
+                        diagnostics.append({"level": "warning", "title": f"Significant but weak model (R² = {_r2_val:.3f})",
+                                            "detail": f"The model is statistically significant but explains only {_r2_val*100:.0f}% of the variation. Not useful for prediction."})
+                    elif _r2_val < 0.1 and _f_pval >= 0.05:
+                        diagnostics.append({"level": "warning", "title": f"Weak and non-significant model (R² = {_r2_val:.3f}, F p = {_f_pval:.4f})",
+                                            "detail": "The model barely reduces deviance from the null model. Consider different predictors or a simpler model."})
+            except Exception:
+                pass
+            # Overdispersion check (residual deviance / df >> 1)
+            try:
+                if not has_random:
+                    _resid_dev = float(np.sum(resid_vals.values ** 2))
+                    _df_resid = N - len(model.params)
+                    _disp_ratio = _resid_dev / _df_resid if _df_resid > 0 else 1.0
+                    if _disp_ratio > 2.0:
+                        diagnostics.append({"level": "warning", "title": f"Possible overdispersion (residual deviance/df = {_disp_ratio:.2f})",
+                                            "detail": "The residual variance is much larger than expected. If using count or proportion data, consider a quasi-likelihood approach or negative binomial model."})
+            except Exception:
+                pass
+            # Effect size emphasis from ANOVA table (partial eta-squared for significant effects)
+            try:
+                if not has_random and has_factors:
+                    for idx in anova_table.index:
+                        if idx in ('Residual', 'Intercept'):
+                            continue
+                        if 'PR(>F)' in anova_table.columns and 'sum_sq' in anova_table.columns:
+                            _pv = float(anova_table.loc[idx, 'PR(>F)']) if not np.isnan(anova_table.loc[idx, 'PR(>F)']) else 1.0
+                            _ss_eff = float(anova_table.loc[idx, 'sum_sq'])
+                            _eta_p = _ss_eff / (_ss_eff + ss_residual) if (_ss_eff + ss_residual) > 0 else 0
+                            if _eta_p > 0.14 and _pv < 0.05:
+                                diagnostics.append({"level": "info", "title": f"Large effect: {idx} (η²p = {_eta_p:.3f})",
+                                                    "detail": f"{idx} explains {_eta_p*100:.1f}% of remaining variation — a practically important effect."})
+            except Exception:
+                pass
+            result["diagnostics"] = diagnostics
 
         except Exception as e:
             result["summary"] = f"GLM error: {str(e)}"
@@ -10272,7 +12334,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                         "error_y": {"type": "data", "array": sds, "visible": True},
                         "type": "bar", "marker": {"color": "#4a90d9"}
                     }],
-                    "layout": {"height": 250, "yaxis": {"title": resp}, "xaxis": {"title": factor}, "template": "plotly_white"}
+                    "layout": {"height": 250, "yaxis": {"title": resp}, "xaxis": {"title": factor}}
                 })
 
             result["statistics"] = {
@@ -10283,6 +12345,20 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 "n_groups": k, "n_responses": p, "n": N
             }
             result["guide_observation"] = f"MANOVA: {', '.join(responses)} by {factor}. Wilks' Λ={wilks:.4f}" + (f", p={p_wilks:.4f}" if p_wilks else "") + "."
+
+            # Narrative
+            try:
+                _mv2_sig = p_wilks is not None and p_wilks < alpha
+                result["narrative"] = _narrative(
+                    f"MANOVA — {'Significant' if _mv2_sig else 'No significant'} multivariate effect",
+                    f"Testing {', '.join(responses)} jointly by {factor} ({k} groups, N = {N}). "
+                    + (f"Wilks' Λ = {wilks:.4f}" + (f" (p = {p_wilks:.4f})" if p_wilks else "") + ". ")
+                    + ("The factor significantly affects the responses jointly." if _mv2_sig else "No evidence of a joint multivariate effect."),
+                    next_steps="Examine the per-response bar charts to see which variables drive the group separation." if _mv2_sig else None,
+                    chart_guidance="Bar charts show group means ± SD for each response. Large non-overlapping error bars suggest meaningful differences."
+                )
+            except Exception:
+                pass
 
         except Exception as e:
             result["summary"] = f"MANOVA error: {str(e)}"
@@ -10363,7 +12439,6 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                         {"x": lower, "y": max(hist_vals) * 1.05, "text": f"Lower: {lower:.2f}", "showarrow": False, "font": {"color": "#d94a4a"}},
                         {"x": upper, "y": max(hist_vals) * 1.05, "text": f"Upper: {upper:.2f}", "showarrow": False, "font": {"color": "#d94a4a"}},
                     ],
-                    "template": "plotly_white"
                 }
             })
 
@@ -10457,7 +12532,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "textinfo": "label+percent",
                     "hole": 0.3
                 }],
-                "layout": {"height": 300, "template": "plotly_white"}
+                "layout": {"height": 300}
             })
 
             # Bar chart
@@ -10469,7 +12544,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                     "text": [f"{pct[k]:.1f}%" for k in labels],
                     "textposition": "outside"
                 }],
-                "layout": {"height": 280, "yaxis": {"title": "Variance"}, "template": "plotly_white"}
+                "layout": {"height": 280, "yaxis": {"title": "Variance"}}
             })
 
             result["statistics"] = {
@@ -10478,6 +12553,8 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 "method": method, "n": N
             }
             result["guide_observation"] = f"Variance components: " + ", ".join([f"{k}={pct[k]:.1f}%" for k in components]) + "."
+            _top_comp = max(pct.items(), key=lambda x: x[1]) if pct else ("", 0)
+            result["narrative"] = _narrative(f"Variance Components: {_top_comp[0]} dominates ({_top_comp[1]:.1f}%)", f"Breakdown: {', '.join(f'{k} = {v:.1f}%' for k, v in pct.items())}.", next_steps=f"Focus improvement on <strong>{_top_comp[0]}</strong> — reducing the largest variance component gives the most impact.")
 
         except Exception as e:
             result["summary"] = f"Variance components error: {str(e)}"
@@ -10566,7 +12643,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 result["plots"].append({
                     "title": f"Predicted Probabilities by {predictors[0]}",
                     "data": traces,
-                    "layout": {"height": 300, "xaxis": {"title": predictors[0]}, "yaxis": {"title": "Probability"}, "template": "plotly_white"}
+                    "layout": {"height": 300, "xaxis": {"title": predictors[0]}, "yaxis": {"title": "Probability"}}
                 })
 
             result["statistics"] = {
@@ -10575,6 +12652,7 @@ Variable: {var}  |  N = {n}  |  Median = {median_val:.6g}
                 "aic": float(fit.aic) if hasattr(fit, 'aic') else None,
             }
             result["guide_observation"] = f"Ordinal logistic: {response} ({len(categories)} levels) ~ {', '.join(predictors)}. N={N}."
+            result["narrative"] = _narrative(f"Ordinal Logistic: {response} ({len(categories)} ordered levels)", f"Predicting ordered outcome using {len(predictors)} predictor{'s' if len(predictors) > 1 else ''}. N = {N}.", next_steps="Coefficients represent log odds of being in a higher category. Check the proportional odds assumption.")
 
         except ImportError:
             result["summary"] = "Ordinal logistic requires statsmodels >= 0.13. Install with: pip install --upgrade statsmodels"
@@ -10668,7 +12746,7 @@ Top Correlations:
                               "colorscale": "RdBu_r", "zmin": -1, "zmax": 1,
                               "text": [[f"{v:.2f}" for v in row] for row in corr_matrix.values],
                               "texttemplate": "%{text}", "hovertemplate": "%{x} vs %{y}: %{z:.3f}<extra></extra>"}],
-                    "layout": {"title": "Correlation Matrix", "height": 400, "template": "plotly_white"}
+                    "layout": {"title": "Correlation Matrix", "height": 400}
                 })
 
             # Plot 2: Missing percentage bar chart
@@ -10679,7 +12757,7 @@ Top Correlations:
                     "data": [{"type": "bar", "x": [round(p, 1) for p in miss_pcts], "y": miss_cols,
                               "orientation": "h", "marker": {"color": "rgba(232,71,71,0.6)"}}],
                     "layout": {"title": "Missing Data by Column (%)", "height": max(250, len(miss_cols) * 25),
-                               "xaxis": {"title": "% Missing"}, "template": "plotly_white", "margin": {"l": 120}}
+                               "xaxis": {"title": "% Missing"}, "margin": {"l": 120}}
                 })
 
             # Plot 3: Distribution grid (top 6 numeric)
@@ -10688,11 +12766,27 @@ Top Correlations:
                 if len(vals) > 0:
                     result["plots"].append({
                         "data": [{"type": "histogram", "x": vals, "marker": {"color": "rgba(74,144,217,0.6)"}, "nbinsx": 30}],
-                        "layout": {"title": f"Distribution: {col}", "height": 250, "template": "plotly_white",
+                        "layout": {"title": f"Distribution: {col}", "height": 250,
                                    "xaxis": {"title": col}, "yaxis": {"title": "Count"}}
                     })
 
             result["guide_observation"] = f"Data profile: {n_rows} rows, {n_cols} cols, {total_missing} missing cells, {len(numeric_cols)} numeric columns."
+
+            # Narrative
+            _dp_miss_note = f" {total_missing} cells are missing ({total_missing/total_cells*100:.1f}%)." if total_missing > 0 else " No missing data detected."
+            _dp_top_corr = ""
+            if len(numeric_cols) >= 2:
+                _corr = df[numeric_cols].corr()
+                _tri = _corr.where(np.triu(np.ones(_corr.shape, dtype=bool), k=1))
+                _max_pair = _tri.stack().abs().idxmax() if _tri.stack().abs().max() > 0.5 else None
+                if _max_pair:
+                    _dp_top_corr = f" Strongest correlation: <strong>{_max_pair[0]}</strong> ↔ <strong>{_max_pair[1]}</strong> (r = {_corr.loc[_max_pair[0], _max_pair[1]]:.3f})."
+            result["narrative"] = _narrative(
+                f"Dataset: {n_rows:,} rows × {n_cols} columns ({len(numeric_cols)} numeric, {len(df.select_dtypes(include=['object', 'category']).columns)} categorical)",
+                f"The dataset contains {n_rows:,} observations across {n_cols} variables.{_dp_miss_note}{_dp_top_corr}",
+                next_steps="Check distributions for skewness, then run normality tests before parametric analysis.",
+                chart_guidance="The correlation heatmap highlights linear relationships. Red/blue extremes indicate strong positive/negative associations."
+            )
 
         except Exception as e:
             result["summary"] = f"Data profile error: {str(e)}"
@@ -10744,7 +12838,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                               "colorscale": "RdBu_r", "zmin": -1, "zmax": 1,
                               "text": [[f"{v:.2f}" for v in row] for row in corr_matrix.values],
                               "texttemplate": "%{text}", "hovertemplate": "%{x} vs %{y}: %{z:.3f}<extra></extra>"}],
-                    "layout": {"title": "Correlation Matrix", "height": 350, "template": "plotly_white"}
+                    "layout": {"title": "Correlation Matrix", "height": 350}
                 })
 
             # Distribution histograms (up to 12 numeric)
@@ -10753,7 +12847,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                 if len(vals) > 0:
                     result["plots"].append({
                         "data": [{"type": "histogram", "x": vals, "marker": {"color": "rgba(74,144,217,0.6)"}, "nbinsx": 30}],
-                        "layout": {"title": f"{col}", "height": 220, "template": "plotly_white",
+                        "layout": {"title": f"{col}", "height": 220,
                                    "xaxis": {"title": col}, "yaxis": {"title": "Count"},
                                    "margin": {"t": 30, "b": 40, "l": 50, "r": 20}}
                     })
@@ -10766,10 +12860,19 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                     "data": [{"type": "bar", "x": [round(p, 1) for p in miss_pcts], "y": miss_cols,
                               "orientation": "h", "marker": {"color": "rgba(232,71,71,0.6)"}}],
                     "layout": {"title": "Missing Data (%)", "height": max(200, len(miss_cols) * 22),
-                               "xaxis": {"title": "% Missing"}, "template": "plotly_white", "margin": {"l": 120}}
+                               "xaxis": {"title": "% Missing"}, "margin": {"l": 120}}
                 })
 
             result["guide_observation"] = f"Auto-profile: {n_rows} rows, {n_cols} cols, {total_missing} missing, {len(numeric_cols)} numeric."
+
+            # Narrative
+            _ap_miss = f" {total_missing} missing cells ({miss_pct:.1f}%) — check the missing data bar chart." if total_missing > 0 else " Dataset is complete (no missing values)."
+            result["narrative"] = _narrative(
+                f"Data Overview: {n_rows:,} rows × {n_cols} columns",
+                f"{len(numeric_cols)} numeric, {len(cat_cols)} categorical, {len(dt_cols)} datetime columns.{_ap_miss}",
+                next_steps="Review distributions for normality. Address missing data before hypothesis testing.",
+                chart_guidance="Histograms show the shape of each numeric variable. Look for skewness, bimodality, or outliers."
+            )
 
         except Exception as e:
             result["summary"] = f"Auto-profile error: {str(e)}"
@@ -10777,8 +12880,6 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
     # ── Graphical Summary (Minitab-style) ────────────────────────────────
     elif analysis_id == "graphical_summary":
         try:
-            from scipy import stats as sp_stats
-
             conf_level = config.get("confidence", 0.95)
             selected = config.get("vars", [])
             numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -10926,7 +13027,7 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
                         name="Median CI", showlegend=False
                     ), row=3, col=1)
 
-                    fig.update_layout(height=520, template="plotly_white",
+                    fig.update_layout(height=520,
                                       margin=dict(t=40, b=30, l=60, r=20))
                     fig.update_yaxes(showticklabels=False, row=2, col=1)
 
@@ -10955,6 +13056,15 @@ Missing: {total_missing} / {total_cells} ({miss_pct:.1f}%)
 
                 result["summary"] = "\n\n".join(all_summaries)
                 result["guide_observation"] = f"Graphical summary for {len(selected)} variable(s) at {conf_level*100:.0f}% confidence."
+
+                # Narrative — use first variable's stats as lead
+                if selected and len(all_summaries) > 0:
+                    result["narrative"] = _narrative(
+                        f"Graphical Summary — {len(selected)} variable{'s' if len(selected) > 1 else ''} at {conf_level*100:.0f}% confidence",
+                        f"Each panel shows the histogram with normal fit overlay, boxplot, and confidence intervals for mean and median. Review the Anderson-Darling test result to determine if the normal distribution is appropriate.",
+                        next_steps="If data departs from normality, consider non-parametric tests or a Box-Cox / Johnson transform.",
+                        chart_guidance="Points in the boxplot beyond the whiskers are potential outliers. If the histogram shape is skewed or bimodal, the normal fit (red curve) will visually misfit."
+                    )
 
         except Exception as e:
             import traceback
@@ -11063,18 +13173,33 @@ MCAR Test (Chi-squared approximation):
                               "colorscale": [[0, "rgba(74,144,217,0.15)"], [1, "rgba(232,71,71,0.7)"]],
                               "showscale": False, "hovertemplate": "%{x}: %{z}<extra>0=present, 1=missing</extra>"}],
                     "layout": {"title": "Missing Data Patterns", "height": max(300, len(z_data) * 25 + 100),
-                               "template": "plotly_white", "xaxis": {"tickangle": -45}, "margin": {"b": 100, "l": 150}}
+                               "xaxis": {"tickangle": -45}, "margin": {"b": 100, "l": 150}}
                 })
 
             # Plot 2: Row completeness histogram
             result["plots"].append({
                 "data": [{"type": "histogram", "x": row_completeness.tolist(), "nbinsx": 20,
                           "marker": {"color": "rgba(74,159,110,0.6)"}}],
-                "layout": {"title": "Row Completeness Distribution", "height": 280, "template": "plotly_white",
+                "layout": {"title": "Row Completeness Distribution", "height": 280,
                            "xaxis": {"title": "% Complete", "range": [0, 105]}, "yaxis": {"title": "Row Count"}}
             })
 
             result["guide_observation"] = f"Missing data: {int(miss_count.sum())} cells across {len(cols_with_missing)} columns. {n_patterns} unique patterns."
+
+            # Narrative
+            _md_total = int(miss_count.sum())
+            _md_pct = _md_total / (n_rows * n_cols) * 100 if n_rows * n_cols > 0 else 0
+            _md_worst = cols_with_missing.index[0] if len(cols_with_missing) > 0 else "N/A"
+            _md_worst_pct = float(miss_pct[_md_worst]) if len(cols_with_missing) > 0 else 0
+            _md_severity = "minimal" if _md_pct < 5 else ("moderate" if _md_pct < 20 else "substantial")
+            result["narrative"] = _narrative(
+                f"Missing Data — {_md_severity} ({_md_pct:.1f}% of cells)",
+                f"{_md_total:,} missing cells across {len(cols_with_missing)} columns in {n_patterns} unique patterns. "
+                + (f"Worst column: <strong>{_md_worst}</strong> ({_md_worst_pct:.1f}% missing). " if len(cols_with_missing) > 0 else "")
+                + f"{complete_rows} of {n_rows} rows ({complete_rows/n_rows*100:.1f}%) are complete.",
+                next_steps="If missingness is random (MCAR), listwise deletion is safe. Otherwise consider multiple imputation.",
+                chart_guidance="The heatmap shows which columns are missing together (correlated patterns suggest non-random missingness)."
+            )
 
         except Exception as e:
             result["summary"] = f"Missing data analysis error: {str(e)}"
@@ -11188,11 +13313,23 @@ MCAR Test (Chi-squared approximation):
                     "data": [{"type": "box", "y": vals, "name": col, "boxpoints": "outliers",
                               "marker": {"color": "rgba(74,144,217,0.6)", "outliercolor": "rgba(232,71,71,0.8)"},
                               "line": {"color": "rgba(74,144,217,0.8)"}}],
-                    "layout": {"title": f"Outlier Detection: {col}", "height": 300, "template": "plotly_white",
+                    "layout": {"title": f"Outlier Detection: {col}", "height": 300,
                                "yaxis": {"title": col}}
                 })
 
             result["guide_observation"] = f"Outlier analysis on {len(columns)} columns with {len(methods)} methods."
+
+            # Narrative
+            _oa_total = sum(info["count"] for col_res in all_results.values() for info in col_res.values())
+            _oa_worst_col = max(all_results.keys(), key=lambda c: max(info["count"] for info in all_results[c].values())) if all_results else ""
+            _oa_worst_n = max(info["count"] for info in all_results[_oa_worst_col].values()) if _oa_worst_col else 0
+            result["narrative"] = _narrative(
+                f"Outlier Analysis — {len(columns)} columns, {len(methods)} method{'s' if len(methods) > 1 else ''}",
+                (f"Most outliers detected in <strong>{_oa_worst_col}</strong> ({_oa_worst_n} points). " if _oa_worst_col else "")
+                + f"Methods used: {', '.join(methods)}. Review boxplots for visual confirmation before removing any points.",
+                next_steps="Investigate outliers for data entry errors or special causes. Do not blindly remove — they may carry process information.",
+                chart_guidance="Points beyond whiskers in the boxplots are flagged. Compare across methods for consensus."
+            )
 
         except Exception as e:
             result["summary"] = f"Outlier analysis error: {str(e)}"
@@ -11257,11 +13394,26 @@ MCAR Test (Chi-squared approximation):
                 result["plots"].append({
                     "data": [{"type": "histogram", "x": group_sizes_list,
                               "marker": {"color": "rgba(232,149,71,0.6)"}}],
-                    "layout": {"title": "Duplicate Group Sizes", "height": 280, "template": "plotly_white",
+                    "layout": {"title": "Duplicate Group Sizes", "height": 280,
                                "xaxis": {"title": "Copies per Group"}, "yaxis": {"title": "Number of Groups"}}
                 })
 
             result["guide_observation"] = f"Duplicate analysis ({mode}): {n_dup_rows} duplicate rows in {n_dup_groups} groups."
+
+            # Narrative
+            _da_pct = n_dup_rows / len(df) * 100 if len(df) > 0 else 0
+            if n_dup_rows == 0:
+                _da_verdict = "No duplicates found"
+                _da_body = f"All {len(df):,} rows are unique across the checked columns."
+            else:
+                _da_verdict = f"{n_dup_rows:,} duplicate rows ({_da_pct:.1f}%)"
+                _da_body = f"{n_dup_groups} duplicate groups found. {n_extra} rows are extra copies that could be removed, leaving {len(df) - n_extra:,} unique rows."
+            result["narrative"] = _narrative(
+                f"Duplicate Analysis — {_da_verdict}",
+                _da_body,
+                next_steps="Verify duplicates are true repeats (not valid repeat measurements) before removing." if n_dup_rows > 0 else None,
+                chart_guidance="The histogram shows how many copies exist per duplicate group." if n_dup_rows > 0 else None
+            )
 
         except Exception as e:
             result["summary"] = f"Duplicate analysis error: {str(e)}"
@@ -11409,7 +13561,7 @@ Interpretation:
             ]
             result["plots"].append({
                 "data": forest_data,
-                "layout": {"title": "Forest Plot", "height": max(350, k * 30 + 120), "template": "plotly_white",
+                "layout": {"title": "Forest Plot", "height": max(350, k * 30 + 120),
                            "yaxis": {"tickvals": forest_y + [0], "ticktext": study_labels + ["Pooled (RE)"],
                                      "range": [-1, k + 1]},
                            "xaxis": {"title": "Effect Size", "zeroline": True},
@@ -11429,11 +13581,23 @@ Interpretation:
                     {"type": "scatter", "x": [re_est, re_est], "y": [0, max(ses) * 1.1], "mode": "lines",
                      "line": {"color": "rgba(232,71,71,0.5)", "dash": "dot"}, "name": "Pooled", "hoverinfo": "skip"}
                 ],
-                "layout": {"title": "Funnel Plot", "height": 350, "template": "plotly_white",
+                "layout": {"title": "Funnel Plot", "height": 350,
                            "xaxis": {"title": "Effect Size"}, "yaxis": {"title": "Standard Error", "autorange": "reversed"}}
             })
 
             result["guide_observation"] = f"Meta-analysis of {k} studies. RE pooled: {re_est:.4f}. I²={I2:.1f}%. {interpretation}"
+
+            # Narrative
+            _ma_sig = "statistically significant" if re_p < 0.05 else "not statistically significant"
+            _ma_het = "low" if I2 < 25 else ("moderate" if I2 < 75 else "high")
+            _ma_model = "Fixed effects may suffice." if I2 < 25 else "Random effects model is preferred due to heterogeneity."
+            result["narrative"] = _narrative(
+                f"Meta-Analysis — {k} studies, pooled effect = {re_est:.4f} (RE)",
+                f"The random-effects pooled estimate is {re_est:.4f} (95% CI: {re_ci_lo:.4f} to {re_ci_hi:.4f}), {_ma_sig} (p = {re_p:.4f}). "
+                f"Heterogeneity is {_ma_het} (I² = {I2:.1f}%, τ² = {tau2:.4f}). {_ma_model}",
+                next_steps="Inspect the funnel plot for asymmetry (publication bias). Consider subgroup analysis if I² is high.",
+                chart_guidance="In the forest plot, study size is proportional to marker area. The red diamond is the pooled estimate. The funnel plot should be symmetric if no publication bias exists."
+            )
 
         except Exception as e:
             result["summary"] = f"Meta-analysis error: {str(e)}"
@@ -11509,7 +13673,7 @@ Interpretation:
                         {"type": "scatter", "x": [0, 0], "y": [-0.5, 1.5], "mode": "lines",
                          "line": {"color": "gray", "dash": "dash"}, "showlegend": False}
                     ],
-                    "layout": {"title": f"{name} with 95% CI", "height": 200, "template": "plotly_white",
+                    "layout": {"title": f"{name} with 95% CI", "height": 200,
                                "xaxis": {"title": "Effect Size"}, "showlegend": False}
                 })
 
@@ -11563,7 +13727,7 @@ Interpretation:
                         {"type": "scatter", "x": [1, 1], "y": [-0.5, 1.5], "mode": "lines",
                          "line": {"color": "gray", "dash": "dash"}, "showlegend": False}
                     ],
-                    "layout": {"title": f"{name} with 95% CI", "height": 200, "template": "plotly_white",
+                    "layout": {"title": f"{name} with 95% CI", "height": 200,
                                "xaxis": {"title": name}, "showlegend": False}
                 })
             else:
@@ -11572,8 +13736,683 @@ Interpretation:
             result["summary"] = summary
             result["guide_observation"] = f"Effect size calculated: {effect_type}"
 
+            # Narrative
+            try:
+                if effect_type in ("cohens_d", "hedges_g", "glass_delta"):
+                    result["narrative"] = _narrative(
+                        f"{name} = {d:.4f} — {magnitude} effect",
+                        f"The standardized difference between groups is {d:.4f} (95% CI: {ci_lo:.4f} to {ci_hi:.4f}). "
+                        f"By Cohen's benchmarks this is a <strong>{magnitude.lower()}</strong> effect. "
+                        + ("The CI excludes zero, confirming a meaningful difference." if (ci_lo > 0 or ci_hi < 0) else "The CI includes zero — the difference may not be meaningful."),
+                        next_steps="Report this alongside the p-value for a complete picture of both statistical and practical significance."
+                    )
+                elif effect_type in ("odds_ratio", "risk_ratio"):
+                    result["narrative"] = _narrative(
+                        f"{name} = {es:.4f}",
+                        f"The {name.lower()} is {es:.4f} (95% CI: {ci_lo:.4f} to {ci_hi:.4f}). "
+                        + ("The CI excludes 1.0, indicating a significant association." if (ci_lo > 1 or ci_hi < 1) else "The CI includes 1.0 — the association is not statistically significant."),
+                        next_steps="Consider confounding variables. An adjusted analysis (logistic regression) may be more appropriate."
+                    )
+            except Exception:
+                pass
+
         except Exception as e:
             result["summary"] = f"Effect size error: {str(e)}"
+
+    elif analysis_id == "distribution_fit":
+        """
+        General-purpose distribution fitting — fits 12+ distributions,
+        ranks by AIC/BIC, provides probability plots for top fits.
+        """
+        var = config.get("var") or config.get("var1")
+        x = df[var].dropna().values.astype(float)
+        n = len(x)
+
+        if n < 5:
+            result["summary"] = "Need at least 5 data points for distribution fitting."
+            return result
+
+        # Candidate distributions with scipy names and display names
+        candidates = [
+            ("norm", "Normal", {}),
+            ("lognorm", "Lognormal", {}),
+            ("weibull_min", "Weibull", {}),
+            ("gamma", "Gamma", {}),
+            ("beta", "Beta", {}),
+            ("expon", "Exponential", {}),
+            ("logistic", "Logistic", {}),
+            ("rayleigh", "Rayleigh", {}),
+            ("invgauss", "Inverse Gaussian", {}),
+        ]
+
+        # Only try lognormal/gamma/weibull/beta/exponential/rayleigh/invgauss if data > 0
+        has_negative = np.any(x <= 0)
+
+        fit_results = []
+        for dist_name, display_name, extra_kwargs in candidates:
+            # Skip distributions that require positive data
+            if has_negative and dist_name in ("lognorm", "weibull_min", "gamma", "beta", "expon", "rayleigh", "invgauss"):
+                continue
+            # Beta requires data in (0, 1) range
+            if dist_name == "beta" and (np.min(x) <= 0 or np.max(x) >= 1):
+                continue
+            try:
+                dist_obj = getattr(stats, dist_name)
+                params = dist_obj.fit(x, **extra_kwargs)
+                # Log-likelihood
+                ll = np.sum(dist_obj.logpdf(x, *params))
+                if not np.isfinite(ll):
+                    continue
+                k = len(params)
+                aic = 2 * k - 2 * ll
+                bic = k * np.log(n) - 2 * ll
+                # Anderson-Darling statistic (compare CDF)
+                sorted_x = np.sort(x)
+                cdf_vals = dist_obj.cdf(sorted_x, *params)
+                cdf_vals = np.clip(cdf_vals, 1e-15, 1 - 1e-15)
+                ad_stat = -n - np.sum((2 * np.arange(1, n + 1) - 1) * (np.log(cdf_vals) + np.log(1 - cdf_vals[::-1]))) / n
+                # KS test
+                ks_stat, ks_pval = stats.kstest(x, dist_name, args=params)
+                fit_results.append({
+                    "dist_name": dist_name,
+                    "display_name": display_name,
+                    "params": params,
+                    "param_names": dist_obj.shapes.split(", ") if dist_obj.shapes else [],
+                    "ll": ll,
+                    "aic": aic,
+                    "bic": bic,
+                    "ad_stat": ad_stat,
+                    "ks_stat": ks_stat,
+                    "ks_pval": ks_pval,
+                })
+            except Exception:
+                continue
+
+        if not fit_results:
+            result["summary"] = "No distributions could be fit to this data."
+            return result
+
+        # Sort by AIC
+        fit_results.sort(key=lambda r: r["aic"])
+        best = fit_results[0]
+
+        # Summary
+        summary = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>DISTRIBUTION FITTING<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:highlight>>Variable:<</COLOR>> {var} (n = {n})\n"
+        summary += f"<<COLOR:highlight>>Distributions tested:<</COLOR>> {len(fit_results)}\n\n"
+        summary += f"<<COLOR:accent>>── AIC/BIC Ranking (lower = better) ──<</COLOR>>\n"
+        summary += f"  {'Rank':<5} {'Distribution':<22} {'AIC':>10} {'BIC':>10} {'KS p':>8} {'AD':>8}\n"
+        summary += f"  {'-' * 65}\n"
+        for i, fr in enumerate(fit_results):
+            marker = "<<COLOR:good>>★<</COLOR>>" if i == 0 else f"  {i + 1}"
+            ks_color = "good" if fr["ks_pval"] >= 0.05 else "bad"
+            summary += f"  {marker:<5} {fr['display_name']:<22} {fr['aic']:>10.2f} {fr['bic']:>10.2f} <<COLOR:{ks_color}>>{fr['ks_pval']:>8.4f}<</COLOR>> {fr['ad_stat']:>8.3f}\n"
+
+        # Parameter table for top 3
+        summary += f"\n<<COLOR:accent>>── Parameter Estimates (Top 3) ──<</COLOR>>\n"
+        for i, fr in enumerate(fit_results[:3]):
+            dist_obj = getattr(stats, fr["dist_name"])
+            param_names = list(fr["param_names"]) + ["loc", "scale"]
+            param_str = ", ".join(f"{name}={val:.4f}" for name, val in zip(param_names, fr["params"]))
+            summary += f"  {fr['display_name']}: {param_str}\n"
+
+        result["summary"] = summary
+
+        # Histogram with top 3 PDF overlays
+        x_range = np.linspace(float(x.min()), float(x.max()), 200)
+        bin_width = (x.max() - x.min()) / min(30, max(5, int(np.sqrt(n))))
+        hist_trace = {"type": "histogram", "x": x.tolist(), "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}}, "name": "Data"}
+        pdf_colors = ["#d94a4a", "#47a5e8", "#e89547"]
+        pdf_traces = []
+        for i, fr in enumerate(fit_results[:3]):
+            dist_obj = getattr(stats, fr["dist_name"])
+            pdf_vals = dist_obj.pdf(x_range, *fr["params"]) * n * bin_width
+            pdf_traces.append({"type": "scatter", "x": x_range.tolist(), "y": pdf_vals.tolist(), "mode": "lines", "line": {"color": pdf_colors[i], "width": 2}, "name": f"{fr['display_name']} (AIC={fr['aic']:.0f})"})
+        result["plots"].append({
+            "title": f"Distribution Fit: {var}",
+            "data": [hist_trace] + pdf_traces,
+            "layout": {"height": 320, "xaxis": {"title": var}, "yaxis": {"title": "Count"}, "barmode": "overlay"}
+        })
+
+        # Probability plots for top 4
+        for i, fr in enumerate(fit_results[:4]):
+            dist_obj = getattr(stats, fr["dist_name"])
+            sorted_x = np.sort(x)
+            theoretical = dist_obj.ppf((np.arange(1, n + 1) - 0.5) / n, *fr["params"])
+            if not np.all(np.isfinite(theoretical)):
+                continue
+            result["plots"].append({
+                "title": f"Probability Plot: {fr['display_name']}",
+                "data": [
+                    {"type": "scatter", "x": theoretical.tolist(), "y": sorted_x.tolist(), "mode": "markers", "marker": {"color": "rgba(74, 159, 110, 0.5)", "size": 5}, "name": "Data"},
+                    {"type": "scatter", "x": [float(min(theoretical.min(), sorted_x.min())), float(max(theoretical.max(), sorted_x.max()))], "y": [float(min(theoretical.min(), sorted_x.min())), float(max(theoretical.max(), sorted_x.max()))], "mode": "lines", "line": {"color": "#ff7675", "dash": "dash"}, "name": "Perfect fit"}
+                ],
+                "layout": {"height": 250, "xaxis": {"title": f"Theoretical ({fr['display_name']})"}, "yaxis": {"title": "Sample"}}
+            })
+
+        # Shape interpretation for best fit
+        _shape_desc = ""
+        if best["dist_name"] == "norm":
+            _shape_desc = "symmetric, bell-shaped"
+        elif best["dist_name"] == "lognorm":
+            _shape_desc = "right-skewed with a long upper tail — common in cycle times, financial data, and natural phenomena"
+        elif best["dist_name"] == "weibull_min":
+            shape_param = best["params"][0]
+            if shape_param < 1:
+                _shape_desc = "decreasing failure rate (infant mortality pattern)"
+            elif abs(shape_param - 1) < 0.1:
+                _shape_desc = "constant failure rate (random / exponential-like)"
+            else:
+                _shape_desc = f"increasing failure rate (wear-out pattern, shape = {shape_param:.2f})"
+        elif best["dist_name"] == "gamma":
+            _shape_desc = "right-skewed, flexible shape — common in wait times and queuing"
+        elif best["dist_name"] == "expon":
+            _shape_desc = "memoryless / constant hazard rate — common in reliability"
+        elif best["dist_name"] == "logistic":
+            _shape_desc = "symmetric but heavier-tailed than normal"
+        elif best["dist_name"] == "beta":
+            _shape_desc = "bounded on [0,1] — common for proportions and probabilities"
+        elif best["dist_name"] == "rayleigh":
+            _shape_desc = "right-skewed, useful for magnitudes (e.g., wind speed, vibration)"
+        elif best["dist_name"] == "invgauss":
+            _shape_desc = "right-skewed with heavy upper tail — common in first-passage times"
+        else:
+            _shape_desc = "see probability plot for shape assessment"
+
+        _aic_delta = fit_results[1]["aic"] - best["aic"] if len(fit_results) > 1 else 0
+        _aic_strength = "decisively" if _aic_delta > 10 else ("substantially" if _aic_delta > 4 else "marginally")
+
+        result["guide_observation"] = f"Best fit: {best['display_name']} (AIC = {best['aic']:.1f}). {_shape_desc.capitalize()}."
+        result["narrative"] = _narrative(
+            f"{best['display_name']} provides the best fit (\u0394AIC = {_aic_delta:.1f} {_aic_strength} better than {fit_results[1]['display_name'] if len(fit_results) > 1 else 'N/A'})",
+            f"The data is best described by a <strong>{best['display_name']}</strong> distribution (AIC = {best['aic']:.1f}, KS p = {best['ks_pval']:.4f}). Shape: {_shape_desc}.",
+            next_steps="Use the fitted distribution for reliability analysis, non-normal capability, or simulation inputs. If KS p < 0.05, consider transformations or mixture models.",
+            chart_guidance="Points on the probability plot diagonal = good fit. Systematic curvature = misfit. The histogram overlay compares the top 3 fitted PDFs to the data."
+        )
+        result["statistics"] = {
+            "best_distribution": best["display_name"],
+            "best_aic": float(best["aic"]),
+            "best_bic": float(best["bic"]),
+            "best_ks_pval": float(best["ks_pval"]),
+            "n_distributions_tested": len(fit_results),
+        }
+
+        # ── Diagnostics ──
+        diagnostics = []
+        # AIC ambiguity — top 2 distributions indistinguishable
+        if len(fit_results) > 1:
+            _aic_gap = fit_results[1]["aic"] - best["aic"]
+            if _aic_gap < 2:
+                diagnostics.append({"level": "warning", "title": "Top distributions are statistically indistinguishable",
+                                    "detail": f"AIC difference between {best['display_name']} and {fit_results[1]['display_name']} is only {_aic_gap:.1f} (< 2). Choose based on domain knowledge."})
+        # Best fit is Normal — parametric methods appropriate
+        if best["dist_name"] == "norm":
+            diagnostics.append({"level": "info", "title": "Normal distribution confirmed",
+                                "detail": "Parametric methods (t-tests, ANOVA, control charts) are appropriate for this data."})
+        # Best fit is non-Normal — suggest non-normal capability and transformation
+        if best["dist_name"] != "norm":
+            diagnostics.append({"level": "info", "title": f"Data follows {best['display_name']} distribution",
+                                "detail": "Standard parametric assumptions may not hold. Consider non-normal capability analysis or transforming to normal.",
+                                "action": {"label": "Non-Normal Capability", "type": "stats", "analysis": "nonnormal_capability_np", "config": {"var": var}}})
+            diagnostics.append({"level": "info", "title": "Transform to Normal",
+                                "detail": f"A Box-Cox or Johnson transformation may normalize the data for parametric analysis.",
+                                "action": {"label": "Transform to Normal", "type": "stats", "analysis": "box_cox", "config": {"var": var}}})
+        # All fits are poor — no standard distribution fits well
+        _all_poor = all(fr["ks_pval"] < 0.05 for fr in fit_results)
+        if _all_poor:
+            diagnostics.append({"level": "warning", "title": "No standard distribution fits well",
+                                "detail": "All candidate distributions have KS p < 0.05. The data may come from a mixture of populations. Consider mixture models.",
+                                "action": {"label": "Mixture Model", "type": "stats", "analysis": "mixture_model", "config": {"var": var}}})
+        result["diagnostics"] = diagnostics
+
+    elif analysis_id == "mixture_model":
+        # Gaussian Mixture Model — detect hidden subpopulations
+        from sklearn.mixture import GaussianMixture
+
+        col = config.get("var") or config.get("variable") or config.get("column")
+        max_k = min(int(config.get("max_k") or config.get("max_components") or 6), 10)
+
+        if not col or col not in df.columns:
+            result["summary"] = "Error: Specify a numeric column."
+            return result
+
+        data = df[col].dropna().values.astype(float).reshape(-1, 1)
+        n = len(data)
+
+        if n < 20:
+            result["summary"] = "Error: Need at least 20 observations."
+            return result
+
+        # Fit GMMs with k=1..max_k, select by BIC
+        results_k = []
+        for k in range(1, max_k + 1):
+            gmm = GaussianMixture(n_components=k, random_state=42, n_init=5)
+            gmm.fit(data)
+            bic = gmm.bic(data)
+            aic = gmm.aic(data)
+            results_k.append({"k": k, "bic": float(bic), "aic": float(aic), "model": gmm})
+
+        best_k_idx = int(np.argmin([r["bic"] for r in results_k]))
+        best = results_k[best_k_idx]
+        best_gmm = best["model"]
+        k_best = best["k"]
+
+        # Extract component parameters
+        components = []
+        for j in range(k_best):
+            components.append({
+                "mean": float(best_gmm.means_[j, 0]),
+                "std": float(np.sqrt(best_gmm.covariances_[j, 0, 0])),
+                "weight": float(best_gmm.weights_[j]),
+            })
+        components.sort(key=lambda c: c["mean"])
+
+        # Assign labels
+        labels = best_gmm.predict(data)
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>GAUSSIAN MIXTURE MODEL<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Variable:<</COLOR>> {col}    N: {n}\n"
+        summary += f"<<COLOR:text>>Best k:<</COLOR>> {k_best} components (by BIC)\n\n"
+
+        if k_best == 1:
+            summary += f"<<COLOR:success>>Data is consistent with a single population.<</COLOR>>\n"
+            summary += f"  Mean: {components[0]['mean']:.4f}    Std: {components[0]['std']:.4f}\n"
+        else:
+            summary += f"<<COLOR:warning>>Data is best described as {k_best} overlapping populations:<</COLOR>>\n\n"
+            for j, c in enumerate(components):
+                summary += f"  Component {j+1}: \u03bc={c['mean']:.4f}, \u03c3={c['std']:.4f}, weight={c['weight']:.1%}\n"
+
+        summary += f"\n<<COLOR:accent>>\u2500\u2500 Model Comparison (BIC) \u2500\u2500<</COLOR>>\n"
+        for r in results_k:
+            marker = " \u2190 best" if r["k"] == k_best else ""
+            summary += f"  k={r['k']}: BIC={r['bic']:.1f}{marker}\n"
+
+        result["summary"] = summary
+        result["statistics"] = {
+            "best_k": k_best, "components": components,
+            "bic_values": {r["k"]: r["bic"] for r in results_k},
+        }
+
+        if k_best == 1:
+            result["guide_observation"] = f"Mixture model: single population (\u03bc={components[0]['mean']:.3f}, \u03c3={components[0]['std']:.3f})."
+            result["narrative"] = _narrative(
+                f"Mixture Model \u2014 single population",
+                f"BIC selects k=1: the data is consistent with a single Gaussian (\u03bc={components[0]['mean']:.4f}, \u03c3={components[0]['std']:.4f}). "
+                "No evidence of hidden subpopulations.",
+                next_steps="If you suspect stratification, check whether grouping by a categorical variable (shift, supplier, machine) reveals separation.",
+            )
+        else:
+            _mm_desc = "; ".join(f"one at {c['mean']:.3f} ({c['weight']:.0%})" for c in components)
+            result["guide_observation"] = f"Mixture model: {k_best} populations detected \u2014 {_mm_desc}."
+            _mm_gap = max(abs(components[i+1]["mean"] - components[i]["mean"]) for i in range(len(components)-1))
+            result["narrative"] = _narrative(
+                f"Mixture Model \u2014 {k_best} populations detected",
+                f"BIC selects k={k_best}: the data is best described as {k_best} overlapping Gaussians. "
+                + " ".join(f"<strong>Component {j+1}</strong>: \u03bc={c['mean']:.4f}, \u03c3={c['std']:.4f} ({c['weight']:.0%} of data)."
+                           for j, c in enumerate(components))
+                + f" The largest gap between means is {_mm_gap:.4f}.",
+                next_steps="This often indicates an uncontrolled stratification variable (shift, supplier, machine, cavity). "
+                           "Investigate what separates the subpopulations. If intentional, analyze each component's capability separately.",
+                chart_guidance="The histogram shows the overall data. Overlaid curves show each fitted component. "
+                              "If the components are well-separated, a stratification variable is likely driving the split."
+            )
+
+        # Plot: histogram with overlaid component densities
+        x_plot = np.linspace(float(data.min()) - 2 * components[-1]["std"],
+                             float(data.max()) + 2 * components[-1]["std"], 300)
+        plot_data_list = [
+            {"type": "histogram", "x": data.ravel().tolist(), "nbinsx": min(50, n // 3),
+             "marker": {"color": "rgba(74, 159, 110, 0.3)", "line": {"color": "#4a9f6e", "width": 1}},
+             "name": "Data", "yaxis": "y2"},
+        ]
+        colors = ["#4a90d9", "#dc5050", "#d4a24a", "#6ab7d4", "#9b59b6", "#e67e22"]
+        total_density = np.zeros_like(x_plot)
+        for j, c in enumerate(components):
+            dens = c["weight"] * sp_stats.norm.pdf(x_plot, c["mean"], c["std"])
+            total_density += dens
+            if k_best > 1:
+                plot_data_list.append({
+                    "type": "scatter", "x": x_plot.tolist(), "y": dens.tolist(),
+                    "line": {"color": colors[j % len(colors)], "width": 2, "dash": "dash"},
+                    "name": f"Component {j+1} ({c['weight']:.0%})",
+                })
+        plot_data_list.append({
+            "type": "scatter", "x": x_plot.tolist(), "y": total_density.tolist(),
+            "line": {"color": "#4a9f6e", "width": 2}, "name": "Mixture",
+        })
+
+        result["plots"].append({
+            "title": f"Mixture Model ({col}) \u2014 {k_best} component{'s' if k_best > 1 else ''}",
+            "data": plot_data_list,
+            "layout": {
+                "height": 320,
+                "xaxis": {"title": col},
+                "yaxis": {"title": "Density", "side": "left"},
+                "yaxis2": {"overlaying": "y", "side": "right", "showgrid": False, "title": "Count"},
+                "barmode": "overlay",
+            },
+        })
+
+        # Plot: BIC curve
+        result["plots"].append({
+            "title": "BIC vs Number of Components",
+            "data": [{
+                "type": "scatter",
+                "x": [r["k"] for r in results_k],
+                "y": [r["bic"] for r in results_k],
+                "mode": "lines+markers",
+                "marker": {"size": 8, "color": ["#4a9f6e" if r["k"] == k_best else "#999" for r in results_k]},
+                "line": {"color": "#4a90d9"},
+            }],
+            "layout": {"height": 220, "xaxis": {"title": "k (components)", "dtick": 1}, "yaxis": {"title": "BIC"}},
+        })
+
+    elif analysis_id == "sprt":
+        # Sequential Probability Ratio Test (Wald)
+        col = config.get("var") or config.get("variable") or config.get("column")
+        # Frontend sends mu0/mu1; backend also accepts target/delta
+        mu0 = config.get("mu0")
+        mu1 = config.get("mu1")
+        if mu0 is not None and mu1 is not None:
+            target = float(mu0)
+            delta = float(mu1) - float(mu0)
+        else:
+            target = float(config.get("target", 0))
+            delta = float(config.get("delta", 1.0))
+        sigma = config.get("sigma")
+        alpha = float(config.get("alpha", 0.05))
+        beta = float(config.get("beta", 0.10))
+
+        if not col or col not in df.columns:
+            result["summary"] = "Error: Specify a numeric column."
+            return result
+
+        data = df[col].dropna().values.astype(float)
+        n = len(data)
+
+        if sigma is not None:
+            sigma = float(sigma)
+        else:
+            sigma = float(np.std(data, ddof=1))
+
+        # SPRT for H0: mu = target vs H1: mu = target + delta
+        # Log-likelihood ratio for each observation
+        mu0 = target
+        mu1 = target + delta
+
+        # Wald boundaries
+        A = np.log((1 - beta) / alpha)   # upper boundary (reject H0)
+        B = np.log(beta / (1 - alpha))   # lower boundary (accept H0)
+
+        # Cumulative log-likelihood ratio
+        ll_ratio = np.cumsum((data - mu0) * delta / sigma**2 - delta**2 / (2 * sigma**2))
+
+        # Find decision point
+        decision_idx = None
+        decision = "Continue sampling"
+        for i in range(n):
+            if ll_ratio[i] >= A:
+                decision_idx = i
+                decision = "Reject H0 (effect detected)"
+                break
+            elif ll_ratio[i] <= B:
+                decision_idx = i
+                decision = "Accept H0 (no effect)"
+                break
+
+        samples_used = decision_idx + 1 if decision_idx is not None else n
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>SEQUENTIAL PROBABILITY RATIO TEST (SPRT)<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Variable:<</COLOR>> {col}    N: {n}\n"
+        summary += f"<<COLOR:text>>H\u2080:<</COLOR>> \u03bc = {mu0:.4f}\n"
+        summary += f"<<COLOR:text>>H\u2081:<</COLOR>> \u03bc = {mu1:.4f} (shift = {delta:.4f})\n"
+        summary += f"<<COLOR:text>>\u03c3:<</COLOR>> {sigma:.4f}\n"
+        summary += f"<<COLOR:text>>\u03b1:<</COLOR>> {alpha}    \u03b2: {beta}\n\n"
+        summary += f"<<COLOR:accent>>\u2500\u2500 Decision Boundaries \u2500\u2500<</COLOR>>\n"
+        summary += f"  Upper (reject H\u2080): {A:.3f}\n"
+        summary += f"  Lower (accept H\u2080): {B:.3f}\n\n"
+        summary += f"<<COLOR:accent>>\u2500\u2500 Result \u2500\u2500<</COLOR>>\n"
+        summary += f"  {decision}\n"
+        summary += f"  Samples used: {samples_used} (of {n} available)\n"
+        if decision_idx is not None and decision_idx < n - 1:
+            saved = n - samples_used
+            summary += f"  Samples saved vs fixed-n: {saved} ({saved/n*100:.0f}%)\n"
+
+        result["summary"] = summary
+        result["statistics"] = {
+            "decision": decision, "samples_used": samples_used,
+            "upper_boundary": float(A), "lower_boundary": float(B),
+            "final_llr": float(ll_ratio[min(decision_idx or n-1, n-1)]),
+        }
+        result["guide_observation"] = f"SPRT: {decision} after {samples_used} samples (of {n})."
+
+        _sprt_savings = f" Saved {n - samples_used} inspections ({(n - samples_used)/n*100:.0f}%) vs fixed-sample testing." if decision_idx is not None and decision_idx < n - 1 else ""
+        result["narrative"] = _narrative(
+            f"SPRT \u2014 {decision} (n = {samples_used})",
+            f"Testing H\u2080: \u03bc = {mu0:.4f} vs H\u2081: \u03bc = {mu1:.4f} (shift = {delta:.4f}). "
+            f"The cumulative evidence {'crossed the upper boundary at observation {}'.format(samples_used) if 'Reject' in decision else 'crossed the lower boundary at observation {}'.format(samples_used) if 'Accept' in decision else 'did not reach either boundary'}. "
+            f"{decision}.{_sprt_savings}",
+            next_steps="SPRT is the most sample-efficient hypothesis test \u2014 it reaches decisions with fewer samples than fixed-n tests. "
+                       "For incoming inspection, this means fewer units tested per lot.",
+            chart_guidance="The path shows cumulative evidence. Crossing the upper red line = reject H\u2080 (shift detected). "
+                          "Crossing the lower green line = accept H\u2080 (no shift). Staying between = undecided."
+        )
+
+        # Plot: SPRT path with boundaries
+        plot_n = min(n, samples_used + 20) if decision_idx is not None else n
+        result["plots"].append({
+            "title": "SPRT Evidence Path",
+            "data": [
+                {"type": "scatter", "x": list(range(1, plot_n + 1)), "y": ll_ratio[:plot_n].tolist(),
+                 "mode": "lines", "line": {"color": "#4a90d9", "width": 2}, "name": "Log-LR"},
+            ],
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": "Sample Number"},
+                "yaxis": {"title": "Cumulative Log-Likelihood Ratio"},
+                "shapes": [
+                    {"type": "line", "x0": 1, "x1": plot_n, "y0": float(A), "y1": float(A),
+                     "line": {"color": "#dc5050", "dash": "dash", "width": 2}},
+                    {"type": "line", "x0": 1, "x1": plot_n, "y0": float(B), "y1": float(B),
+                     "line": {"color": "#4a9f6e", "dash": "dash", "width": 2}},
+                    {"type": "line", "x0": 1, "x1": plot_n, "y0": 0, "y1": 0,
+                     "line": {"color": "#888", "width": 1, "dash": "dot"}},
+                ],
+                "annotations": [
+                    {"x": plot_n, "y": float(A), "text": "Reject H\u2080", "showarrow": False,
+                     "xanchor": "right", "font": {"color": "#dc5050", "size": 10}},
+                    {"x": plot_n, "y": float(B), "text": "Accept H\u2080", "showarrow": False,
+                     "xanchor": "right", "font": {"color": "#4a9f6e", "size": 10}},
+                ],
+            },
+        })
+
+    elif analysis_id == "copula":
+        # Copula-Based Dependency Modeling
+        var1 = config.get("var1") or config.get("variable1")
+        var2 = config.get("var2") or config.get("variable2")
+
+        if not var1 or not var2 or var1 not in df.columns or var2 not in df.columns:
+            result["summary"] = "Error: Specify two numeric columns."
+            return result
+
+        x = df[var1].dropna()
+        y = df[var2].loc[x.index].dropna()
+        x = x.loc[y.index].values.astype(float)
+        y = y.values.astype(float)
+        n = len(x)
+
+        if n < 20:
+            result["summary"] = "Error: Need at least 20 paired observations."
+            return result
+
+        # Transform to pseudo-observations (empirical CDF / ranks)
+        from scipy.stats import rankdata
+        u = rankdata(x) / (n + 1)
+        v = rankdata(y) / (n + 1)
+
+        # Pearson and Spearman for reference
+        pearson_r, pearson_p = sp_stats.pearsonr(x, y)
+        spearman_r, spearman_p = sp_stats.spearmanr(x, y)
+        kendall_tau, kendall_p = sp_stats.kendalltau(x, y)
+
+        # Fit copulas via maximum pseudo-likelihood
+        # 1. Gaussian copula: parameter = correlation on normal quantiles
+        z_u = sp_stats.norm.ppf(np.clip(u, 0.001, 0.999))
+        z_v = sp_stats.norm.ppf(np.clip(v, 0.001, 0.999))
+        rho_gauss = float(np.corrcoef(z_u, z_v)[0, 1])
+        # Log-likelihood for Gaussian copula
+        ll_gauss = 0.0
+        for i in range(n):
+            rho2 = rho_gauss**2
+            if rho2 < 1:
+                ll_gauss += -0.5 * np.log(1 - rho2) + rho2 * (z_u[i]**2 + z_v[i]**2) / (2*(1 - rho2)) - rho_gauss * z_u[i] * z_v[i] / (1 - rho2) + rho_gauss * z_u[i] * z_v[i] / (1 - rho2)
+        # Simplified: use the bivariate normal copula density
+        ll_gauss = float(np.sum(sp_stats.multivariate_normal.logpdf(
+            np.column_stack([z_u, z_v]),
+            mean=[0, 0],
+            cov=[[1, rho_gauss], [rho_gauss, 1]]
+        ) - sp_stats.norm.logpdf(z_u) - sp_stats.norm.logpdf(z_v)))
+
+        # 2. Clayton copula: theta > 0 for positive dependence
+        # Kendall's tau = theta / (theta + 2)
+        if kendall_tau > 0.01:
+            theta_clayton = max(2 * kendall_tau / (1 - kendall_tau), 0.01)
+        else:
+            theta_clayton = 0.01
+        # Clayton copula density: c(u,v) = (1+theta) * (u*v)^(-1-theta) * (u^-theta + v^-theta - 1)^(-1/theta - 2)
+        try:
+            t = theta_clayton
+            term = np.clip(u**(-t) + v**(-t) - 1, 1e-15, None)
+            ll_clayton = float(np.sum(np.log(1 + t) + (-1 - t) * (np.log(u) + np.log(v)) + (-1/t - 2) * np.log(term)))
+        except Exception:
+            ll_clayton = -np.inf
+
+        # 3. Frank copula: use Kendall's tau to estimate theta
+        # tau = 1 - 4/theta * (1 - D1(theta)/theta) where D1 is Debye function
+        # Approximate: theta ≈ solve tau equation via bisection
+        def _frank_tau(theta):
+            if abs(theta) < 1e-6:
+                return 0.0
+            # Debye function D1(x) = (1/x) * integral_0^x t/(exp(t)-1) dt
+            from scipy.integrate import quad as _quad
+            d1, _ = _quad(lambda t: t / (np.exp(t) - 1 + 1e-15), 0, abs(theta))
+            d1 /= abs(theta)
+            return 1 - 4 / theta * (1 - d1)
+
+        # Bisection search for Frank theta
+        theta_frank = 0.0
+        if abs(kendall_tau) > 0.01:
+            lo_f, hi_f = -30.0, 30.0
+            for _ in range(50):
+                mid = (lo_f + hi_f) / 2
+                if abs(mid) < 1e-6:
+                    mid = 0.01
+                tau_mid = _frank_tau(mid)
+                if tau_mid < kendall_tau:
+                    lo_f = mid
+                else:
+                    hi_f = mid
+            theta_frank = (lo_f + hi_f) / 2
+
+        # Frank copula density
+        try:
+            t = theta_frank
+            if abs(t) > 0.01:
+                num = -t * (np.exp(-t) - 1) * np.exp(-t * (u + v))
+                den = ((np.exp(-t * u) - 1) * (np.exp(-t * v) - 1) + (np.exp(-t) - 1))**2
+                ll_frank = float(np.sum(np.log(np.clip(num / den, 1e-300, None))))
+            else:
+                ll_frank = 0.0
+        except Exception:
+            ll_frank = -np.inf
+
+        # Compare by AIC (each copula has 1 parameter)
+        copulas = [
+            {"name": "Gaussian", "param": rho_gauss, "param_name": "\u03c1", "ll": ll_gauss, "aic": -2*ll_gauss + 2},
+            {"name": "Clayton", "param": theta_clayton, "param_name": "\u03b8", "ll": ll_clayton, "aic": -2*ll_clayton + 2},
+            {"name": "Frank", "param": theta_frank, "param_name": "\u03b8", "ll": ll_frank, "aic": -2*ll_frank + 2},
+        ]
+        copulas.sort(key=lambda c: c["aic"])
+        best_cop = copulas[0]
+
+        # Tail dependence
+        # Clayton: lower tail = 2^(-1/theta), upper = 0
+        # Gaussian: both = 0 (for |rho| < 1)
+        # Frank: both = 0
+        lower_tail = 2**(-1/theta_clayton) if theta_clayton > 0.01 else 0.0
+        tail_note = ""
+        if best_cop["name"] == "Clayton":
+            tail_note = f"Clayton copula has lower-tail dependence = {lower_tail:.3f} \u2014 variables are more correlated in the low/defect region."
+        elif best_cop["name"] == "Gaussian":
+            tail_note = "Gaussian copula has no tail dependence \u2014 correlation is symmetric across the distribution."
+        elif best_cop["name"] == "Frank":
+            tail_note = "Frank copula has no tail dependence \u2014 dependency is symmetric and concentrated in the middle."
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>COPULA DEPENDENCY MODELING<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>{var1}<</COLOR>> \u00d7 <<COLOR:text>>{var2}<</COLOR>>    N: {n}\n\n"
+        summary += f"<<COLOR:accent>>\u2500\u2500 Marginal Correlations \u2500\u2500<</COLOR>>\n"
+        summary += f"  Pearson r:    {pearson_r:.4f} (p={pearson_p:.4f})\n"
+        summary += f"  Spearman \u03c1:  {spearman_r:.4f} (p={spearman_p:.4f})\n"
+        summary += f"  Kendall \u03c4:   {kendall_tau:.4f} (p={kendall_p:.4f})\n\n"
+        summary += f"<<COLOR:accent>>\u2500\u2500 Copula Fit (ranked by AIC) \u2500\u2500<</COLOR>>\n"
+        for j, c in enumerate(copulas):
+            marker = " \u2190 best" if j == 0 else ""
+            summary += f"  {c['name']:<12} {c['param_name']}={c['param']:.4f}  AIC={c['aic']:.1f}{marker}\n"
+        summary += f"\n{tail_note}\n"
+
+        result["summary"] = summary
+        result["statistics"] = {
+            "best_copula": best_cop["name"], "best_param": best_cop["param"],
+            "pearson_r": float(pearson_r), "spearman_r": float(spearman_r),
+            "kendall_tau": float(kendall_tau), "lower_tail_dep": float(lower_tail),
+            "copulas": [{k: v for k, v in c.items() if k != "ll"} for c in copulas],
+        }
+        result["guide_observation"] = f"Copula: best fit = {best_cop['name']} ({best_cop['param_name']}={best_cop['param']:.3f}). Kendall \u03c4 = {kendall_tau:.3f}."
+
+        result["narrative"] = _narrative(
+            f"Copula \u2014 {best_cop['name']} fits best ({best_cop['param_name']} = {best_cop['param']:.3f})",
+            f"The {best_cop['name']} copula best describes the dependency between <strong>{var1}</strong> and <strong>{var2}</strong> "
+            f"(AIC = {best_cop['aic']:.1f}). Kendall \u03c4 = {kendall_tau:.4f}. {tail_note}",
+            next_steps="Copulas separate dependency structure from marginal distributions. "
+                       "Use this for joint probability calculations (e.g., P(both variables exceed spec)) "
+                       "that would be wrong under a bivariate normal assumption.",
+            chart_guidance="The pseudo-observation scatter shows the dependency structure in [0,1]\u00b2 space. "
+                          "Clustering in corners = tail dependence. Uniform spread = independence."
+        )
+
+        # Plot 1: pseudo-observation scatter
+        result["plots"].append({
+            "title": "Pseudo-Observations (Copula Space)",
+            "data": [{
+                "type": "scatter", "x": u.tolist(), "y": v.tolist(),
+                "mode": "markers", "marker": {"size": 4, "color": "#4a90d9", "opacity": 0.5},
+                "name": "Pseudo-obs",
+            }],
+            "layout": {
+                "height": 300,
+                "xaxis": {"title": f"F({var1})", "range": [0, 1]},
+                "yaxis": {"title": f"F({var2})", "range": [0, 1]},
+            },
+        })
+
+        # Plot 2: original scatter with marginal densities
+        result["plots"].append({
+            "title": f"{var1} vs {var2}",
+            "data": [{
+                "type": "scatter", "x": x.tolist(), "y": y.tolist(),
+                "mode": "markers", "marker": {"size": 4, "color": "#4a9f6e", "opacity": 0.5},
+            }],
+            "layout": {"height": 280, "xaxis": {"title": var1}, "yaxis": {"title": var2}},
+        })
 
     return result
 

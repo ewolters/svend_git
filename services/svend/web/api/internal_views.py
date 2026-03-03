@@ -43,7 +43,7 @@ PAID_TIERS = list(TIER_PRICES.keys())
 
 # Internal/test accounts excluded from all analytics (non-staff accounts
 # that shouldn't inflate customer metrics — e.g. team members, test users).
-INTERNAL_USERNAMES = {"rtWzrd"}
+INTERNAL_USERNAMES = {"rtWzrd", "adamlbowden"}
 
 # Tenant slugs whose owner/admin members get internal dashboard access.
 INTERNAL_TENANT_SLUGS = {"svend"}
@@ -2801,7 +2801,7 @@ def api_site_analytics(request):
     days = _get_days(request)
     now = timezone.now()
     since = now - timedelta(days=days)
-    visits = SiteVisit.objects.filter(viewed_at__gte=since, is_bot=False)
+    visits = SiteVisit.objects.filter(viewed_at__gte=since, is_bot=False).exclude(path__contains="#_")
 
     # Daily visitors
     daily = list(
@@ -2949,6 +2949,31 @@ def api_site_analytics(request):
     has_duration = len(all_durations)
     no_duration = total_hits - has_duration
 
+    # Registration funnel (from funnel_event beacon — paths with #_)
+    funnel_events = SiteVisit.objects.filter(
+        viewed_at__gte=since, is_bot=False, path__contains="#_"
+    )
+    reg_page_views = visits.filter(path="/register/").values("ip_hash").distinct().count()
+    funnel_data = {
+        "page_views": reg_page_views,
+    }
+    for action in ("email_focus", "password_focus", "submit_attempt", "submit_error", "submit_success"):
+        funnel_data[action] = (
+            funnel_events
+            .filter(path=f"/register/#_{action}")
+            .values("ip_hash").distinct().count()
+        )
+    # Recent errors (detail stored in referrer_domain field)
+    recent_errors = list(
+        funnel_events
+        .filter(path="/register/#_submit_error")
+        .order_by("-viewed_at")
+        .values_list("referrer_domain", "country", "viewed_at")[:10]
+    )
+    funnel_data["recent_errors"] = [
+        {"error": e[0], "country": e[1], "at": str(e[2])} for e in recent_errors
+    ]
+
     return Response({
         "daily": [
             {"date": str(d["date"]), "total": d["total"], "unique": d["unique"]}
@@ -2981,6 +3006,7 @@ def api_site_analytics(request):
             }
             for d in page_durations
         ],
+        "registration_funnel": funnel_data,
     })
 
 

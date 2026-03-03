@@ -31,6 +31,22 @@ from .common import (
 logger = logging.getLogger(__name__)
 
 
+def _read_csv_safe(file_or_path):
+    """Read CSV with encoding fallback: UTF-8 → latin-1."""
+    import io
+    import pandas as pd
+    if hasattr(file_or_path, "read"):
+        raw = file_or_path.read()
+        try:
+            return pd.read_csv(io.BytesIO(raw), encoding="utf-8")
+        except UnicodeDecodeError:
+            return pd.read_csv(io.BytesIO(raw), encoding="latin-1")
+    try:
+        return pd.read_csv(file_or_path, encoding="utf-8")
+    except UnicodeDecodeError:
+        return pd.read_csv(file_or_path, encoding="latin-1")
+
+
 @require_http_methods(["POST"])
 @gated_paid
 def dsw_from_intent(request):
@@ -174,7 +190,7 @@ def dsw_from_data(request):
 
     try:
         import pandas as pd
-        df = pd.read_csv(file)
+        df = _read_csv_safe(file)
 
         if target not in df.columns:
             return JsonResponse({"error": f'Target column "{target}" not found in data'}, status=400)
@@ -477,7 +493,7 @@ def run_model(request, model_id):
             model = pickle.load(f)
 
         if "file" in request.FILES:
-            df = pd.read_csv(request.FILES["file"])
+            df = _read_csv_safe(request.FILES["file"])
         elif request.body:
             data = json.loads(request.body)
             if "data" in data:
@@ -966,7 +982,7 @@ def scrub_data(request):
         from scrub import DataCleaner, CleaningConfig
 
         if "file" in request.FILES:
-            df = pd.read_csv(request.FILES["file"])
+            df = _read_csv_safe(request.FILES["file"])
         elif request.body:
             data = json.loads(request.body)
             if "data" in data: df = pd.DataFrame(data["data"])
@@ -1015,7 +1031,7 @@ def scrub_analyze(request):
         from scrub import DataCleaner
 
         if "file" in request.FILES:
-            df = pd.read_csv(request.FILES["file"])
+            df = _read_csv_safe(request.FILES["file"])
         elif request.body:
             data = json.loads(request.body)
             if "data" in data: df = pd.DataFrame(data["data"])

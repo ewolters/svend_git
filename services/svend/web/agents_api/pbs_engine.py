@@ -32,6 +32,8 @@ import numpy as np
 from scipy import stats as sp_stats
 from scipy.special import gammaln
 
+from .dsw.common import _narrative
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -2666,6 +2668,37 @@ def _run_full_pbs(y, prior, USL, LSL, target, hazard_lambda, config,
 
     result["summary"] = "\n".join(lines)
 
+    result["narrative"] = _narrative(
+        "Process Belief System",
+        narrative,
+        chart_guidance="Charts are grouped by tab: Belief (shift detection), Control (adaptive limits), Prediction (forward projection), Capability (Bayesian Cpk), Health (multi-stream fusion)."
+    )
+
+    result["education"] = {
+        "title": "Understanding the Process Belief System",
+        "content": "<dl>"
+            "<dt>What is PBS?</dt>"
+            "<dd>The Process Belief System fuses five complementary monitoring streams into a single coherent picture of process health. "
+            "Unlike traditional SPC which uses fixed rules, PBS continuously updates a probabilistic belief state as each observation arrives.</dd>"
+            "<dt>Belief Chart — P(shifted)</dt>"
+            "<dd>Uses Bayesian Online Changepoint Detection (BOCPD) to estimate the probability your process has shifted. "
+            "Below 20% = stable. Above 95% = alarm. The system runs multiple sensitivity settings (\u03bb values) to ensure detected shifts are robust.</dd>"
+            "<dt>E-values &amp; E-Detector</dt>"
+            "<dd>E-values are <em>anytime-valid</em> evidence measures — unlike p-values, they can be checked continuously without inflating false alarm rates. "
+            "An E-value of 50:1 means the data is 50\u00d7 more likely under 'changed' than 'stable.' "
+            "The E-Detector provides a distribution-free companion that works even for non-normal data.</dd>"
+            "<dt>Adaptive Control Limits</dt>"
+            "<dd>Bayesian control limits that start wide (reflecting uncertainty) and narrow as data accumulates. "
+            "They converge toward traditional \u00b13\u03c3 limits as the posterior gains precision.</dd>"
+            "<dt>Bayesian Cpk</dt>"
+            "<dd>Instead of a single Cpk number, PBS gives you the full posterior distribution of Cpk. "
+            "P(Cpk > 1.33) is the key metric: it tells you the probability your process is truly capable, accounting for estimation uncertainty.</dd>"
+            "<dt>Health Score</dt>"
+            "<dd>A 0\u2013100% composite that fuses shift detection, capability, trend, and E-Detector streams. "
+            "Below 50% = unhealthy. 50\u201375% = at risk. Above 75% = healthy. The primary driver identifies which stream is pulling health down most.</dd>"
+            "</dl>"
+    }
+
     result["statistics"] = {
         "test": "pbs_full",
         "n": n,
@@ -2768,6 +2801,41 @@ def _run_belief_only(y, prior, hazard_lambda, config, beta_robustness=0.0):
         "alert_level": last.alert_level,
         "regime_mean": last.current_regime_mean,
     }
+    sp = last.shift_probability
+    if sp < 0.20:
+        _bv = "Process is stable"
+        _bb = f"Shift probability is {sp:.0%} \u2014 no evidence of a process change."
+        _bn = "Continue monitoring. No action needed."
+    elif sp < 0.50:
+        _bv = "Early signs of change"
+        _bb = f"Shift probability is {sp:.0%}. The detector is picking up some evidence but hasn't confirmed a shift."
+        _bn = "Watch closely. If probability continues rising, investigate."
+    elif sp < 0.80:
+        _bv = f"Process is likely shifting \u2014 P = {sp:.0%}"
+        _bb = f"Regime mean has moved to {last.current_regime_mean:.4f}. Evidence is building but not yet decisive."
+        _bn = "Begin investigation. Check recent process changes, material lots, or operator shifts."
+    else:
+        _bv = f"Process has shifted \u2014 P = {sp:.0%}"
+        _bb = f"New regime mean: {last.current_regime_mean:.4f}. Run length: {last.most_likely_run_length} observations since last shift."
+        _bn = "Investigate immediately. Identify assignable cause and determine if corrective action is needed."
+    result["narrative"] = _narrative(_bv, _bb, next_steps=_bn,
+        chart_guidance="The y-axis shows P(shifted) \u2014 the probability that the process mean has changed. Below the gold dotted line (50%) is normal. Above the red dashed line (95%) is an alarm.")
+    result["education"] = {
+        "title": "Understanding the Belief Chart",
+        "content": "<dl>"
+            "<dt>What is this?</dt>"
+            "<dd>The Belief Chart uses Bayesian Online Changepoint Detection (BOCPD) to continuously estimate the probability that your process has shifted. "
+            "Unlike traditional control charts that use fixed rules, this accumulates evidence and reports a probability.</dd>"
+            "<dt>P(shifted)</dt>"
+            "<dd>The probability that current data comes from a different distribution than before. "
+            "Below 20% = stable. 20\u201350% = watch. 50\u201380% = likely shifting. Above 95% = alarm.</dd>"
+            "<dt>Run length</dt>"
+            "<dd>How many observations since the last detected regime change. A sudden drop in run length signals a new regime has started.</dd>"
+            "<dt>What's good?</dt>"
+            "<dd>A flat line near zero means your process is stable and predictable. Spikes that return to zero are transient \u2014 "
+            "the detector considered a shift but the evidence didn't hold.</dd>"
+            "</dl>"
+    }
     result["guide_observation"] = result["summary"]
     return result
 
@@ -2851,6 +2919,33 @@ def _run_edetector_only(y, mu_0, USL, LSL, sigma_cal, config):
         "alpha": alpha,
         "n_alarms": len(alarm_ts),
     }
+    if status == "ALARM":
+        _ev = f"E-Detector alarm \u2014 {evidence_ratio:.0f}:1 evidence"
+        _eb = f"The distribution-free detector has crossed the alarm threshold. This detection is guaranteed to have a false alarm rate \u2264 {alpha:.0%} regardless of the data distribution."
+        _en = "Investigate the source of change. This alarm is valid even for non-normal data."
+    else:
+        _ev = "E-Detector monitoring \u2014 no alarm"
+        _eb = f"Log-evidence: {last.log_N_combined:.1f} (threshold: {threshold:.1f}). The detector has not accumulated enough evidence to declare a change."
+        _en = "Continue monitoring. The detector will alarm if cumulative evidence exceeds the threshold."
+    result["narrative"] = _narrative(_ev, _eb, next_steps=_en,
+        chart_guidance="The green line shows cumulative log-evidence against in-control. When it crosses the red dashed threshold, the detector alarms. Diamond markers show alarm points.")
+    result["education"] = {
+        "title": "Understanding the E-Detector",
+        "content": "<dl>"
+            "<dt>What is this?</dt>"
+            "<dd>The E-Detector is a distribution-free changepoint detector (Shin, Ramdas &amp; Rinaldo 2024). "
+            "Unlike traditional tests that assume normality, this works for <em>any</em> data distribution \u2014 skewed, heavy-tailed, or otherwise.</dd>"
+            "<dt>log(N)</dt>"
+            "<dd>The cumulative evidence statistic. Think of it as a running score: each observation adds or subtracts evidence. "
+            "When the score crosses the threshold, there's enough evidence to declare a change.</dd>"
+            "<dt>The guarantee</dt>"
+            "<dd>ARL \u2265 1/\u03b1 means: on average, you'll wait at least 1/\u03b1 observations before a false alarm. "
+            f"With \u03b1 = {alpha}, that's at least {1/alpha:.0f} observations \u2014 and this holds regardless of your data's shape.</dd>"
+            "<dt>When to use this vs. Belief Chart</dt>"
+            "<dd>Use E-Detector when you can't assume normality or want a formal false-alarm guarantee. "
+            "Use Belief Chart when you want richer information (regime means, run lengths, shift probability).</dd>"
+            "</dl>"
+    }
     result["guide_observation"] = result["summary"]
     return result
 
@@ -2887,6 +2982,42 @@ def _run_evidence_only(y, prior, mu_0, config, sigma_ref):
         "test": "pbs_evidence",
         "e_value": last.e_value_accumulated,
         "evidence_level": last.evidence_level,
+    }
+    ev = last.e_value_accumulated
+    if ev < 3:
+        _vv = "No evidence of change"
+        _vb = f"E-value: {ev:.1f}:1 \u2014 not enough evidence to distinguish from normal variation."
+        _vn = "Continue collecting data. E-values grow as evidence accumulates."
+    elif ev < 20:
+        _vv = f"Notable evidence \u2014 {ev:.1f}:1"
+        _vb = "Some evidence against the in-control hypothesis, but not yet strong enough for a confident conclusion."
+        _vn = "Continue monitoring. Evidence is building but not yet actionable."
+    elif ev < 100:
+        _vv = f"Strong evidence \u2014 {ev:.1f}:1 against in-control"
+        _vb = "The data provides strong evidence that the process has changed from its reference state."
+        _vn = "Investigate the process change. This level of evidence is rarely due to chance."
+    else:
+        _vv = f"Decisive evidence \u2014 {ev:.0f}:1 against in-control"
+        _vb = f"Overwhelming evidence of a process change. The chance of this arising by random variation is less than 1 in {ev:.0f}."
+        _vn = "Investigate immediately. The evidence is conclusive."
+    result["narrative"] = _narrative(_vv, _vb, next_steps=_vn,
+        chart_guidance="The y-axis shows log(E-value). The green dashed line marks 'Strong' evidence (20:1, log \u2248 3.0). Values above this line indicate a real process change.")
+    result["education"] = {
+        "title": "Understanding E-Values",
+        "content": "<dl>"
+            "<dt>What is an E-value?</dt>"
+            "<dd>An E-value measures evidence against a hypothesis \u2014 here, the hypothesis that your process is still in control. "
+            "An E-value of 50 means the data is 50 times more likely under 'process changed' than under 'process stable.'</dd>"
+            "<dt>Why not p-values?</dt>"
+            "<dd>P-values can't be monitored continuously \u2014 if you keep checking, you'll eventually get a false alarm. "
+            "E-values are <em>anytime-valid</em>: you can check as often as you want without inflating your error rate. This is critical for ongoing process monitoring.</dd>"
+            "<dt>The log scale</dt>"
+            "<dd>The chart shows log(E) because E-values can grow very large. log(E) \u2248 3 means E \u2248 20:1 (strong). "
+            "log(E) \u2248 4.6 means E \u2248 100:1 (decisive). Below 0 = evidence favors in-control.</dd>"
+            "<dt>Evidence levels</dt>"
+            "<dd>None (&lt;3:1) \u2192 Notable (3\u201320:1) \u2192 Strong (20\u2013100:1) \u2192 Decisive (&gt;100:1). "
+            "These thresholds are calibrated to match scientific standards of evidence.</dd>"
+            "</dl>"
     }
     result["guide_observation"] = result["summary"]
     return result
@@ -2941,6 +3072,46 @@ def _run_predictive_only(y, USL, LSL, config):
         "prob_exceed_10": pred.prob_exceed_spec_10,
         "prob_exceed_25": pred.prob_exceed_spec_25,
     }
+    _slope = pred.current_slope
+    _p_pos = pred.slope_probability_positive
+    _p10 = pred.prob_exceed_spec_10
+    if abs(_slope) < 1e-6:
+        _pv = "Trend is flat \u2014 process is stable"
+        _pb = f"Slope: {_slope:.5f} per observation. No meaningful drift detected."
+    elif _p_pos > 0.9:
+        _pv = f"Upward trend detected \u2014 slope = {_slope:.5f}"
+        _pb = f"P(slope > 0) = {_p_pos:.0%}. Process is drifting upward."
+    elif _p_pos < 0.1:
+        _pv = f"Downward trend detected \u2014 slope = {_slope:.5f}"
+        _pb = f"P(slope > 0) = {_p_pos:.0%}. Process is drifting downward."
+    else:
+        _pv = f"Uncertain trend \u2014 slope = {_slope:.5f}"
+        _pb = f"P(slope > 0) = {_p_pos:.0%}. Direction not yet clear."
+    if (USL is not None or LSL is not None) and _p10 > 0.05:
+        _pb += f" Spec exceedance risk: {_p10:.0%} within 10 observations."
+        _pn = "Monitor closely \u2014 trend may push process out of spec." if _p10 > 0.20 else "Risk is moderate. Continue monitoring."
+    else:
+        _pn = "No immediate spec exceedance risk." if (USL or LSL) else "Add spec limits (USL/LSL) to assess exceedance risk."
+    result["narrative"] = _narrative(_pv, _pb, next_steps=_pn,
+        chart_guidance="The gold line is the predicted mean. The shaded fan shows the 90% credible interval \u2014 future observations should fall within this band 90% of the time.")
+    result["education"] = {
+        "title": "Understanding the Predictive Chart",
+        "content": "<dl>"
+            "<dt>What is this?</dt>"
+            "<dd>The Predictive Chart fits a Bayesian linear trend to recent data and projects it forward. "
+            "The widening fan reflects increasing uncertainty the further you predict.</dd>"
+            "<dt>Slope</dt>"
+            "<dd>The estimated rate of change per observation. The credible interval shows plausible values for the true slope, "
+            "accounting for estimation uncertainty. P(slope > 0) tells you how confident we are the trend is upward.</dd>"
+            "<dt>Spec exceedance probability</dt>"
+            "<dd>If you provided spec limits, this is the probability that future observations will fall outside spec. "
+            "It accounts for both the trend direction <em>and</em> the random scatter around the trend. "
+            "Under 5% = negligible risk. 5\u201320% = watch. Above 20% = take action.</dd>"
+            "<dt>Credible intervals vs confidence intervals</dt>"
+            "<dd>The shaded fan is a <em>credible interval</em> \u2014 there's a 90% probability the next value falls inside it. "
+            "This is the Bayesian interpretation, which is what most people intuitively expect from an interval estimate.</dd>"
+            "</dl>"
+    }
     result["guide_observation"] = result["summary"]
     return result
 
@@ -2983,6 +3154,32 @@ def _run_adaptive_only(y, prior, config):
     )
     result["statistics"] = {"test": "pbs_adaptive",
                             "cl": last.cl, "ucl": last.ucl, "lcl": last.lcl}
+    _width = last.ucl - last.lcl
+    result["narrative"] = _narrative(
+        f"Adaptive limits: CL = {last.cl:.4f}",
+        f"UCL = {last.ucl:.4f}, LCL = {last.lcl:.4f} (width = {_width:.4f}). "
+        f"Based on {last.n_obs} observations. Limits narrow as posterior precision increases.",
+        next_steps="These limits adapt to your data. Early observations show wider limits reflecting prior uncertainty; "
+                   "limits converge toward traditional \u00b13\u03c3 as more data arrives.",
+        chart_guidance="The dashed red lines are the adaptive control limits. They narrow over time as the Bayesian posterior gains precision. "
+                       "Points outside the limits suggest a process change."
+    )
+    result["education"] = {
+        "title": "Understanding Adaptive Control Limits",
+        "content": "<dl>"
+            "<dt>What is this?</dt>"
+            "<dd>Adaptive control limits are Bayesian prediction intervals that account for your current uncertainty about the process. "
+            "They start wide (when you have little data) and narrow as evidence accumulates.</dd>"
+            "<dt>Why do limits narrow?</dt>"
+            "<dd>With each observation, the Bayesian posterior becomes more precise about the true process mean and variance. "
+            "Wider limits early on prevent false alarms when you're still learning the process.</dd>"
+            "<dt>How is this different from Shewhart?</dt>"
+            "<dd>Traditional Shewhart charts use fixed limits (\u03bc \u00b1 3\u03c3) that don't change. Adaptive limits reflect actual uncertainty \u2014 "
+            "they're wider when you're unsure and narrower when you're confident. They converge to Shewhart limits asymptotically.</dd>"
+            "<dt>When to use</dt>"
+            "<dd>Adaptive limits are best for new processes, short production runs, or after a known process change when you need to quickly re-establish limits.</dd>"
+            "</dl>"
+    }
     result["guide_observation"] = result["summary"]
     return result
 
@@ -3045,6 +3242,43 @@ def _run_cpk_only(y, prior, USL, LSL, config):
         "p_above_133": cpk.cpk_probability_above_133,
         "classical": cpk.classical_cpk,
     }
+    _cpk_v = cpk.cpk_point_estimate
+    _p133 = cpk.cpk_probability_above_133
+    if _cpk_v >= 1.33 and _p133 >= 0.80:
+        _cv = f"Process is capable \u2014 Cpk = {_cpk_v:.2f}"
+        _cb = f"P(Cpk > 1.33) = {_p133:.0%}. High confidence the process meets the 4-sigma standard."
+        _cn = "Process is performing well. Monitor for stability."
+    elif _cpk_v >= 1.0:
+        _cv = f"Marginally capable \u2014 Cpk = {_cpk_v:.2f}"
+        _cb = f"P(Cpk > 1.33) = {_p133:.0%}. Process meets minimum but not the 4-sigma target."
+        _cn = "Investigate sources of variation. Centering the process or reducing spread could push Cpk above 1.33."
+    else:
+        _cv = f"Not capable \u2014 Cpk = {_cpk_v:.2f}"
+        _cb = f"P(Cpk > 1.33) = {_p133:.0%}. Process spread exceeds specification tolerance."
+        _cn = "Reduce variation or widen spec limits. Identify dominant sources of variation."
+    _cb += f" Classical Cpk: {cpk.classical_cpk:.2f}."
+    result["narrative"] = _narrative(_cv, _cb, next_steps=_cn,
+        chart_guidance="The histogram shows the posterior distribution of Cpk. The gold dashed line is the 1.33 target. "
+                       "The red dashed line is the 1.0 minimum. More density to the right of 1.33 = more confidence in capability.")
+    result["education"] = {
+        "title": "Understanding Bayesian Cpk",
+        "content": "<dl>"
+            "<dt>What is Cpk?</dt>"
+            "<dd>Cpk measures how well your process fits within specification limits. "
+            "Cpk \u2265 1.33 means the process spread uses at most 75% of the spec tolerance (4-sigma standard). "
+            "Cpk \u2265 1.0 is the minimum acceptable (3-sigma). Below 1.0, defects are expected.</dd>"
+            "<dt>Why Bayesian?</dt>"
+            "<dd>Classical Cpk gives you one number but no uncertainty. Bayesian Cpk gives you the <em>full distribution</em> \u2014 "
+            "how confident you should be in that number. With 20 observations, a Cpk of 1.5 might really be anywhere from 0.9 to 2.1. "
+            "With 200 observations, the uncertainty shrinks dramatically.</dd>"
+            "<dt>P(Cpk > 1.33)</dt>"
+            "<dd>This is the key metric: the probability that your process is truly capable. "
+            "80%+ = confident. 50\u201380% = uncertain. Below 50% = more likely not capable.</dd>"
+            "<dt>Credible interval width</dt>"
+            "<dd>A wide interval means you need more data. A narrow interval means the estimate is reliable. "
+            "Collecting 30+ observations typically gives a useful posterior.</dd>"
+            "</dl>"
+    }
     result["guide_observation"] = result["summary"]
     return result
 
@@ -3097,6 +3331,42 @@ def _run_cpk_traj_only(y, prior, USL, LSL, config):
         "trend_slope": out.trend_slope,
         "prob_declining": out.prob_cpk_declining,
         "est_obs_to_threshold": out.estimated_obs_to_threshold,
+    }
+    _pd = out.prob_cpk_declining
+    _sl = out.trend_slope
+    if _pd < 0.30:
+        _tv = f"Cpk is stable or improving \u2014 P(declining) = {_pd:.0%}"
+        _tb = f"Trend slope: {_sl:.5f} per observation. No evidence of capability degradation."
+        _tn = "Process capability is holding. Continue routine monitoring."
+    elif _pd < 0.70:
+        _tv = f"Cpk trend is uncertain \u2014 P(declining) = {_pd:.0%}"
+        _tb = f"Trend slope: {_sl:.5f}. Not enough evidence to confirm whether capability is improving or declining."
+        _tn = "Collect more data to resolve the trend direction."
+    else:
+        _tv = f"Cpk is declining \u2014 P(declining) = {_pd:.0%}"
+        _tb = f"Trend slope: {_sl:.5f} per observation."
+        if out.estimated_obs_to_threshold is not None:
+            _tb += f" At this rate, Cpk will cross below {out.threshold} in approximately {out.estimated_obs_to_threshold} observations."
+        _tn = "Investigate sources of increasing variation or mean drift. Act before capability falls below threshold."
+    result["narrative"] = _narrative(_tv, _tb, next_steps=_tn,
+        chart_guidance="The green line tracks Cpk over time with 90% credible bands. The gold dashed line is the 1.33 target. "
+                       "A downward slope means capability is deteriorating.")
+    result["education"] = {
+        "title": "Understanding the Cpk Trajectory",
+        "content": "<dl>"
+            "<dt>What is this?</dt>"
+            "<dd>The Cpk Trajectory tracks how your process capability evolves over time. A rolling Bayesian Cpk is computed "
+            "at each observation and a linear trend is fitted to detect improvement or degradation.</dd>"
+            "<dt>P(declining)</dt>"
+            "<dd>The probability that the true trend slope is negative (Cpk getting worse). "
+            "Below 30% = likely stable or improving. 30\u201370% = uncertain. Above 70% = likely declining.</dd>"
+            "<dt>Time to threshold</dt>"
+            "<dd>If the trend is declining, this estimates how many observations until Cpk crosses below the target (default 1.33). "
+            "This assumes the linear trend continues \u2014 intervention can change the trajectory.</dd>"
+            "<dt>The credible band</dt>"
+            "<dd>The shaded region shows 90% credible interval for rolling Cpk. Early observations have wider bands "
+            "because the posterior is still learning. Narrowing bands indicate increasing confidence.</dd>"
+            "</dl>"
     }
     result["guide_observation"] = result["summary"]
     return result
@@ -3158,5 +3428,60 @@ def _run_health_only(y, prior, USL, LSL, mu_0, hazard_lambda, config,
         "streams": health.stream_contributions,
         "primary_driver": health.primary_driver,
     }
+
+    # --- narrative ---
+    oh = health.overall_health
+    driver = health.primary_driver
+    stream_str = ", ".join(f"{k} {v:.0%}" for k, v in health.stream_contributions.items())
+    if oh >= 0.75:
+        verdict_word = "Healthy"
+        body = (f"Overall health score is <strong>{oh:.0%}</strong> — the process "
+                f"is performing well across monitored streams ({stream_str}). "
+                f"Primary driver: <em>{driver}</em>.")
+    elif oh >= 0.50:
+        verdict_word = "At Risk"
+        body = (f"Overall health score is <strong>{oh:.0%}</strong> — some streams "
+                f"show degradation ({stream_str}). Primary concern: <em>{driver}</em>. "
+                f"Investigate the weakest stream to prevent further decline.")
+    else:
+        verdict_word = "Unhealthy"
+        body = (f"Overall health score is <strong>{oh:.0%}</strong> — significant "
+                f"issues detected ({stream_str}). Primary driver: <em>{driver}</em>. "
+                f"Immediate investigation recommended.")
+    result["narrative"] = _narrative(
+        f"Process Health: {verdict_word} — {oh:.0%}",
+        body,
+        chart_guidance="The bar chart shows each stream's health contribution. Green (>70%) is healthy, amber (40-70%) needs attention, red (<40%) needs action.",
+        next_steps=("Monitor — process is healthy." if oh >= 0.75
+                    else f"Investigate the <em>{driver}</em> stream." if oh >= 0.50
+                    else f"Prioritise root-cause analysis on <em>{driver}</em>; consider running individual PBS analyses for detail.")
+    )
+
+    # --- education ---
+    result["education"] = {
+        "title": "Understanding Process Health Score",
+        "content": (
+            "<dl>"
+            "<dt>What is the Health Score?</dt>"
+            "<dd>A single 0–100% metric that fuses multiple monitoring streams into one "
+            "view of process condition. It uses log-linear fusion — each stream contributes "
+            "proportionally, and a single failing stream pulls the score down quickly.</dd>"
+            "<dt>What streams feed the score?</dt>"
+            "<dd><strong>SPC</strong> — stability from Belief Chart (shift probability). "
+            "<strong>Cpk</strong> — capability relative to specs (P(Cpk &gt; 1.33)). "
+            "<strong>Trend</strong> — forward-looking risk from Predictive Chart "
+            "(probability of exceeding spec in 10 observations).</dd>"
+            "<dt>What does 'Primary Driver' mean?</dt>"
+            "<dd>The stream contributing most to the current score — i.e., the area "
+            "having the biggest impact (positive or negative) on overall health.</dd>"
+            "<dt>How to interpret</dt>"
+            "<dd><strong>≥ 75%</strong>: Healthy — process is stable, capable, and "
+            "not trending toward trouble. <strong>50–75%</strong>: At risk — one or more "
+            "streams are degrading; investigate the primary driver. <strong>&lt; 50%</strong>: "
+            "Unhealthy — significant issues; run individual PBS analyses for detail.</dd>"
+            "</dl>"
+        )
+    }
+
     result["guide_observation"] = result["summary"]
     return result

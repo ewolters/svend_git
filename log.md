@@ -15,6 +15,898 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-03-03 — DSW Mobile Optimization + Expand Overlay Fix
+
+**Files changed:**
+- `services/svend/web/templates/workbench_new.html`:
+  - **Global fix**: `.dsw-chart-overlay-plot` gets opaque background (`var(--bg-secondary)`) + border-radius
+  - **Tablet (768px)**: Stats grid `minmax(300px)`, modal `max-width: 95vw`, ribbon horizontal scroll (tabs + content), output padding reduced, tab close buttons 24px, data panel 180px, AI panel 320px
+  - **Phone (480px)**: Stats grid single-column, form-row-inline stacks, modals full-screen, ribbon 44px touch targets, output padding minimal, data panel 150px, AI panel full-width, header wraps, expand overlay 98vw×75vh, Synara panels stack vertically, metric grid tighter
+
+**Verification:** Chrome DevTools responsive mode at 768px / 480px / 375px. Desktop unchanged.
+
+---
+
+### 2026-03-03 — Universal Chart Expand Button
+
+**Files changed:**
+- `services/svend/web/templates/workbench_new.html`:
+  - **CSS**: Added `.dsw-expand-btn` (hover-reveal button, top-right of chart), `.dsw-chart-overlay` (full-viewport dark overlay for expanded view)
+  - **`_addExpandBtn(el, plotObj)`**: Helper that injects expand button into any chart container, stores plot JSON for re-rendering
+  - **`expandChart(sourceEl)`**: Opens full-viewport overlay, re-renders chart at 90vw×82vh with Plotly mode bar enabled. Close via button, backdrop click, or Escape
+  - **`renderPlotlyChart`**: Calls `_addExpandBtn` (covers all DSW stats, SPC, PBS, D-type charts)
+  - **Scattered sites**: Added `_addExpandBtn` to Graph ribbon plots, DOE analysis/contour plots, ML model plots, campaign timeline, autopilot plots
+  - Covers every `Plotly.newPlot` call except: the expand overlay itself, and tiny inline correlation scatters
+
+**Verification:** Hover any chart → expand icon appears top-right. Click → full-viewport chart with mode bar. Escape to close.
+
+---
+
+### 2026-03-02 — Migrate All SPC Charts to DSW Plotly Path (Kill Chart.js Rendering)
+
+**Files changed:**
+- `services/svend/web/templates/workbench_new.html`:
+  - **Migrated I-MR, X-bar R, P, C** from old `openSPCDialog` → `openSPCExtDialog` (DSW Plotly path)
+  - Added 4 new dialog branches in `openSPCExtDialog` for `imr`, `xbar_r`, `p_chart`, `c_chart`
+  - **Removed dead code**: `openSPCDialog()`, `runControlChart()`, `renderControlChartOutput()`, `drawControlChart()`, `renderCapabilityOutput()`, `chartInstances` variable
+  - All SPC charts now use unified DSW backend → `renderStatsOutput` → Plotly rendering with narratives, range sliders, OOC markers, spc_inspect, RCA integration
+
+**Verification:** All control chart buttons in Quality ribbon now invoke `openSPCExtDialog`. No remaining references to old Chart.js rendering path.
+
+---
+
+### 2026-03-02 — SPC Control Chart Standardization (Xbar-S as Reference)
+
+**Files changed:**
+- `services/svend/web/agents_api/dsw/spc.py`:
+  - **Heights**: Standardized all primary control chart heights from 340 → 290 (P, NP, C, U, CUSUM, EWMA, Laney P', Laney U', Moving Average, MEWMA, Entropy SPC, Degradation, Conformal P-value)
+  - **Marker size**: Added `"size": 5` to data traces on Xbar-R, P, NP, C, U, Laney P', Laney U'. Standardized EWMA marker to match (with outline)
+  - **Narratives**: Added `_narrative()` to CUSUM, EWMA, Laney P', Laney U', Moving Average — all now have in-control/out-of-control verdicts, chart guidance, and next steps
+  - **guide_observation**: Added to P, CUSUM, EWMA, Laney P', Laney U', Moving Average
+  - All charts now match the Xbar-S visual standard: height 290, size 5 markers with green outline, green CL, red dashed UCL/LCL, range slider, spc_inspect interactivity
+
+**Verification:** Run any SPC chart from Quality ribbon → all render at same height with consistent marker styling. CUSUM/EWMA/Laney/MA now show narratives above charts.
+
+---
+
+### 2026-03-02 — D-Type Narratives + Educational Explanations
+
+**Files changed:**
+- `services/svend/web/agents_api/dsw/d_type.py` — Added `result["education"]` to D-Chart and D-Cpk (already had narratives). Added both `result["narrative"]` (via `_d_narrative`) and `result["education"]` to D-NonNorm (3-tier capability verdict + normality penalty), D-Equiv (batch equivalence verdict + non-equivalent batch listing), D-Sig (most divergent group + peak divergence time), D-Multi (MCpk verdict + T² outlier count). All 6 D-type analyses now have narratives above charts and purple collapsible education sections.
+
+**Verification:** Run any D-type analysis → narrative appears prominently, purple "Understanding..." section appears below.
+
+---
+
+### 2026-03-02 — PBS Narratives + Educational Explanations
+
+**Files changed:**
+- `services/svend/web/agents_api/pbs_engine.py` — Added `from .dsw.common import _narrative`; added `result["narrative"]` (rich HTML via `_narrative()`) and `result["education"]` (collapsible purple-themed explanation) to all 9 PBS analysis functions:
+  - `_run_full_pbs`: Assigns the existing `ProcessNarrative.generate()` output + comprehensive education covering all PBS components
+  - `_run_belief_only`: 4-tier shift probability narrative (stable/early signs/likely shifting/shifted) + BOCPD education
+  - `_run_edetector_only`: ALARM/MONITORING status narrative + distribution-free guarantees education
+  - `_run_evidence_only`: 4-tier E-value narrative (none/notable/strong/decisive) + E-values vs p-values education
+  - `_run_predictive_only`: Trend direction + spec exceedance risk narrative + prediction fan education
+  - `_run_adaptive_only`: Limit width + convergence narrative + adaptive vs Shewhart education
+  - `_run_cpk_only`: Capability verdict (capable/marginal/not capable) + Bayesian Cpk education
+  - `_run_cpk_traj_only`: Trend direction + time-to-threshold narrative + trajectory education
+  - `_run_health_only`: 3-tier health narrative (healthy/at risk/unhealthy) + log-linear fusion education
+- `services/svend/web/templates/workbench_new.html` — Added `.dsw-education` CSS (purple-themed, collapsible `<details>`) and rendering block in `renderStatsOutput()` for `result.education`
+
+**Verification:** Run any PBS analysis → narrative appears prominently above charts (not buried in collapsed section). Purple "Understanding This Analysis" collapsible section appears below narrative. All 9 analyses produce both narrative + education.
+
+---
+
+### 2026-03-02 — Counterfactual Analysis Explorers (5 Interactive What-If Sections)
+
+**Files changed:**
+- `services/svend/web/agents_api/dsw/spc.py` — Added `what_if_data` (type `spc_intervention`) to IMR, Xbar-R, Xbar-S, CUSUM, EWMA charts. Only emitted when OOC points detected. Includes values, center, UCL/LCL, sigma, OOC indices, first_ooc. CUSUM also includes cusum_pos/neg arrays and h/k params; EWMA includes ewma array and lambda param.
+- `services/svend/web/agents_api/dsw/bayesian.py` — Added `what_if_data` to bayes_system (type `bayes_system` with component posteriors for MC), bayes_warranty (type `bayes_warranty` with rate/fleet/forecast), bayes_spares (type `bayes_spares` with rate/horizon/stock/costs)
+- `services/svend/web/agents_api/quality_economics.py` — Added `what_if_data` to Taguchi loss (type `taguchi` with k, μ, σ, E[L], loss_type)
+- `services/svend/web/templates/workbench_new.html` — Extended what_if_data dispatcher (5 new types); added 5 `append*WhatIf()` functions:
+  - `appendTaguchiWhatIf`: Two sliders (μ, σ), computes `E[L] = k*(σ²+(μ-T)²)`, shows current/counterfactual/delta/total savings
+  - `appendWarrantyWhatIf`: Rate reduction slider (0-50%), shows current/counterfactual/avoided claims
+  - `appendSparesWhatIf`: Demand multiplier slider (0.5-2.0×), shows optimal stock change with Normal approx
+  - `appendSystemWhatIf`: Component dropdown + reliability slider, client-side MC (2000 draws from Beta posteriors), series/parallel/k-of-n topology
+  - `appendSpcInterventionWhatIf`: Intervention point slider + mini Plotly chart showing original (faded) vs counterfactual trace, OOC points avoided, avg shift metrics
+
+**Verification:** Run each analysis → confirm "Counterfactual Explorer" collapsible section appears below charts → drag sliders → metrics update live. SPC requires OOC points to trigger.
+
+---
+
+### 2026-03-02 — Bayesian Reliability Suite (8 New Analyses)
+
+**Files changed:**
+- `services/svend/web/agents_api/dsw/bayesian.py` — Added 8 Bayesian reliability analyses (appended after `bayes_meta`):
+  - `bayes_demo`: Reliability Demonstration (Beta-Binomial conjugate, P(R≥target), 3 plots)
+  - `bayes_spares`: Spare Parts Planning (Gamma-Poisson, optimal stock via NegBin CDF, 3 plots)
+  - `bayes_system`: System Reliability (MC propagation through series/parallel/k-of-n, Birnbaum importance, 3 plots)
+  - `bayes_warranty`: Warranty Forecast (Gamma-Poisson on failure rate, MC cumulative claims, 3 plots)
+  - `bayes_repairable`: NHPP Repairable Systems (100×100 grid posterior on Crow-AMSAA β/θ, P(deteriorating), 3 plots)
+  - `bayes_rul`: Remaining Useful Life (per-unit OLS slopes → Normal-InverseGamma posterior on degradation rate, 3 plots)
+  - `bayes_alt`: Accelerated Life Testing (Weibull MLE per stress → regression → Normal-InverseGamma → MC at use condition, 3 plots)
+  - `bayes_comprisk`: Competing Risks (Dirichlet-Multinomial mode probabilities + per-mode Weibull grid, CIF with credible bands, 3 plots)
+- `services/svend/web/agents_api/dsw/dispatch.py` — Line 124: allow `df=None` for `"bayesian"` type (was only `"simulation"`), enables parameter-only analyses
+- `services/svend/web/templates/workbench_new.html` — Added "Bayesian Reliability" ribbon group (8 buttons) after Measurement; `openBayesReliabilityDialog(mode)` with 8 modes; `runBayesReliabilityParam()` helper for parameter-only analyses
+
+**Verification:** Load workbench → Bayesian tab → see new "Bayesian Reliability" group. Test Demo (no data needed): n=50, k=0, target=0.99. Load reliability data → test Repairable, Warranty, ALT, Competing Risks.
+
+---
+
+### 2026-03-01 — Bayesian Ribbon Tab + D-Type Process Intelligence Engine (Enhanced)
+
+**Files changed:**
+- `services/svend/web/templates/workbench_new.html` — Added "Bayesian" ribbon tab (moved 10 pure Bayesian inference tests from Belief tab); added D-Chart and D-Cpk buttons under new "Divergence" group in Belief tab; added `openDTypeDialog()` function for D-Chart/D-Cpk configuration dialogs; added warning notes about longer analysis time in both D-Type modals
+- `services/svend/web/agents_api/dsw/d_type.py` — NEW: D-Type Process Intelligence engine
+  - **D-Chart** (4 plots): factor JSD over time line chart, cumulative information score bars, divergence heatmap (factor × time matrix), KDE overlay of most divergent factor vs others at peak window. Includes onset/phase detection (baseline comparison with 3×IQR threshold)
+  - **D-Cpk** (4 plots): signed JSD diverging bar chart, distribution overlay with LSL/USL spec limits, counterfactual Cpk bars, PPM defect rate bars. Uses full density JSD (not Bernoulli) for consistency with D-Chart
+  - **Shared core**: KDEpy FFTKDE with ISJ bandwidth (fast FFT path, ~3× speedup over scipy), JSD with ε=1e-300 floor to prevent inf, bootstrap noise floor (B=200)
+- `services/svend/web/agents_api/dsw/dispatch.py` — Added `d_type` analysis type routing to `d_type.run_d_type()`
+- `services/svend/web/media/analysis_data/2/data_d7de3fab10c3.csv` — Demo dataset: 2700 rows, 90 days, 3 shifts (A stable, B mean drift day 46, C variance inflation day 31)
+- System: Installed KDEpy for ISJ bandwidth selection (`/usr/bin/python3 -m pip install KDEpy`)
+
+**Key fixes during development:**
+- `_d_narrative()` returns HTML string (not dict) — frontend calls `.trim()` on `result.narrative`
+- JSD epsilon floor (`1e-300`) prevents inf from scipy's `rel_entr` when KDE has zero mass at some grid points
+- Switched from scipy `gaussian_kde` to KDEpy `FFTKDE` for all density evaluation: D-Chart 24s→14s, D-Cpk 5s→1.5s
+- D-Cpk switched from Bernoulli JSD to full density JSD for consistency with D-Chart
+- Window labels: check dtype before `pd.to_datetime()` to avoid epoch parsing of integer columns (was showing "1970-01-01")
+- Onset detection: per-factor baseline comparison (first third of windows, p75 + 3×max(IQR, noise) threshold) instead of global noise threshold (was false-alarming on all factors)
+
+**Verification:**
+1. D-Chart: 4 plots at height 400, onset detected for Shift B at day 58 only (no false alarms on A or C)
+2. D-Cpk: 4 plots at height 400, B and C correctly flagged as significant, PPM rates shown
+3. Both tools give consistent results (B is most divergent in both)
+4. Saved workbench "D-Type Demo: 3-Shift Factor Divergence" loads demo data for user eric.wolters@svend.ai
+
+---
+
+### 2026-03-01 — OSHA Floor Marking Color Standards + Brady Tape Affiliate Links (5S Playbook)
+
+**Files changed:**
+- `templates/5s_playbook.html` — Added OSHA/ANSI floor marking color chart, Brady ToughStripe product recommendations with Amazon Associates affiliate links
+
+**What:**
+- Added OSHA floor marking color standards table to Section 5 (Visual Systems That Enable Execution) with 8 colors: Yellow (aisles), White (equipment), Red (defects/fire), Orange (inspection), Green (finished goods/safety), Blue (raw materials/WIP), Black/Yellow striped (physical hazards), Red/White striped (fire equipment clearance)
+- Each color has a CSS swatch, meaning, typical use, and OSHA/ANSI standard reference
+- Added Brady ToughStripe Max product cards (2" and 3" × 100') with Amazon affiliate links (tag=svend-20)
+- Added FAQ entry for OSHA floor marking colors (both JSON-LD structured data and visible FAQ)
+- Affiliate disclosure at bottom of product section
+
+**Why:** Practitioners setting up or reshaping areas need the color standard reference. Brady ToughStripe is the industry standard — affiliate links (Amazon Associates) provide revenue without inventory.
+
+**Verify:** `curl -s -H "X-Forwarded-Proto: https" http://localhost:8000/5s-operational-excellence/ | grep "OSHA Floor Marking"` → 1 match
+
+---
+
+### 2026-03-01 — Continuous Improvement Landing Pages (Hub + 6 Spoke Playbooks)
+
+**Files changed:**
+- `templates/continuous_improvement.html` — NEW: CI hub page with Campaign Framework (Shape/Execute/Consolidate), MDI tier diagram, doctrine points, spoke navigation grid, product showcase, founder section, FAQ (7 questions), structured data (WebPage + FAQPage + BreadcrumbList)
+- `templates/hoshin_playbook.html` — NEW: Hoshin Kanri playbook (8 sections): X-matrix explained with CSS diagram + correlation grid, catchball mechanism, annual planning cycle, monthly savings tracking with example table, VSM-to-hoshin pipeline, MDI connection, failure modes
+- `templates/mdi_playbook.html` — NEW: MDI playbook (8 sections): tier structure with CSS diagram, visual management (SQDC board), newspapers as bilateral contracts with mockup table, Tier 1/2 meeting agendas, culture/trust progression, hoshin connection
+- `templates/lsw_playbook.html` — NEW: Leadership Standard Work playbook (8 sections): LSW calendar mockup with check/miss tracking, gemba walk route diagram, role cards (team lead/area mgr/plant mgr with % standard work), completion rate bars, hoshin verification, failure modes
+- `templates/5s_playbook.html` — NEW: 5S playbook (7 sections): shaping progression diagram, five S cards grid, audit scorecard table, communication with operators, preventing culmination (Clausewitz/respect for people), visual systems hierarchy, Campaign connection
+- `templates/kaizen_playbook.html` — NEW: Kaizen execution guide (7 sections): PDSA cycle CSS diagram (4-quadrant), A3 mockup (6-cell grid), campaign execution flow (VSM→burst→A3→PDSA→hoshin), rapid gemba experimentation, standard work for kaizen, strategic vs local kaizen
+- `templates/vsm_playbook.html` — NEW: VSM playbook (7 sections): VSM flow diagram with data boxes + kaizen bursts, timeline bar, constraint identification cards, future-state design, Monte Carlo simulation, hoshin promotion pipeline diagram, Campaign cycle integration
+- `api/landing_views.py` — Added 7 view functions (ci_hub_view, mdi_playbook_view, hoshin_playbook_view, kaizen_playbook_view, five_s_playbook_view, lsw_playbook_view, vsm_playbook_view)
+- `svend/urls.py` — Added 7 URL patterns + 7 sitemap entries for all CI pages
+- `templates/tool_base.html` — Added 7 CI page links to footer (CI Software, MDI, Hoshin, Kaizen, 5S, LSW, VSM)
+
+**Architecture:**
+- Hub + 6 spoke playbook pattern matching ISO audit playbook structure
+- All pages extend tool_base.html with get_pricing_context for localized pricing
+- Each page has full structured data: Article/WebPage + FAQPage + BreadcrumbList JSON-LD
+- Cross-linked: Hub→all spokes, each spoke→3 related spokes + back to hub
+- CSS-only diagrams throughout (no external images): X-matrix, PDSA cycle, MDI tiers, SQDC boards, VSM flow, newspaper mockups, LSW calendar, gemba route, etc.
+- Framework visible, tactical details in gated sections (client-side gate, full HTML renders for SEO)
+- Product tie-ins integrated naturally via .svend-callout blocks referencing actual Svend features
+
+**Verification:**
+```bash
+for url in /continuous-improvement-software/ /managing-for-daily-improvement/ /hoshin-kanri-strategy-deployment/ /kaizen-execution-guide/ /5s-operational-excellence/ /leadership-standard-work/ /value-stream-mapping-methodology/; do
+  curl -s -o /dev/null -w "$url -> %{http_code}\n" -H "X-Forwarded-Proto: https" http://localhost:8000${url}
+done
+# All return 200
+# Sitemap: curl -s -H "X-Forwarded-Proto: https" http://localhost:8000/sitemap.xml | grep "continuous-improvement\|hoshin\|kaizen\|5s-operational\|leadership-standard\|managing-for-daily\|value-stream"
+```
+
+---
+
+### 2026-03-01 — DSW Chart & Narrative Import + Report Rendering + PDF Export
+
+**Files changed:**
+- `services/svend/web/agents_api/dsw/dispatch.py` — DSWResult now persists full Plotly JSON plots (not just `plots_count`). Analysis results are now importable with charts.
+- `services/svend/web/agents_api/dsw/chart_render.py` — **NEW.** Server-side Plotly JSON → SVG conversion via kaleido 0.2.1. `plotly_dict_to_svg()` and `render_dsw_charts()`.
+- `services/svend/web/agents_api/report_views.py` — DSW import now pulls full narrative, statistics, and renders charts to SVG stored in `embedded_diagrams`. Added `include` parameter for granular import (narrative/statistics/charts). Added `export_report_pdf()` — markdown → HTML → WeasyPrint → PDF. Added `_dsw_has_charts()` / `_dsw_plots_count()` to available_imports.
+- `services/svend/web/agents_api/a3_views.py` — Mirror of report DSW import enrichment. Added `export_a3_pdf()` with same markdown → HTML → PDF pipeline. Added `A3_SECTIONS` constant.
+- `services/svend/web/agents_api/report_urls.py` — Added `export/pdf/` route.
+- `services/svend/web/agents_api/a3_urls.py` — Added `export/pdf/` route.
+- `services/svend/web/templates/report.html` — Preview/Edit toggle (renders markdown via marked.js), Export PDF button, granular DSW import picker (narrative/statistics/charts checkboxes).
+- `services/svend/web/templates/a3.html` — Same: preview toggle, Export PDF button, DSW import picker.
+- `services/svend/web/templates/report_print.html` — **NEW.** Print template for CAPA/8D PDF export. WeasyPrint A4 layout with title page, markdown-rendered sections, embedded SVG charts.
+- `services/svend/web/templates/a3_print.html` — **NEW.** Print template for A3 PDF export.
+
+**Dependencies added:** `plotly` 6.5.2, `kaleido` 0.2.1 (bundled Chromium, no system browser needed).
+
+**What this enables:** DSW analysis results (charts, statistical narrative, summaries) can now be imported into CAPA/8D reports and A3 reports with full fidelity — rendered charts embedded as SVG, full statistical detail, granular control over what gets imported. Reports and A3s have a rendered preview mode (markdown → HTML) and can be exported as PDF. This completes the report builder: OOC point → RCA → CAPA/A3 → rendered PDF report with embedded analysis charts.
+
+**Verification:** Run DSW analysis with `save_result=True` → verify plots in DSWResult.data. Import DSW result into CAPA section → verify narrative + charts in section. Toggle Preview → verify rendered markdown. Export PDF → verify formatted PDF with embedded charts.
+
+---
+
+### 2026-03-01 — RCA Import: NCR, CAPA, A3 accept existing RCA sessions
+
+**Files changed:**
+- `services/svend/web/agents_api/iso_views.py` — NCR create/update accept `rca_session_id` to link existing RCA. `_get_study_context()` now pulls full causal chain from linked RCA sessions (not just evidence summary) for CAPA pre-fill.
+- `services/svend/web/agents_api/report_views.py` — `create_report()` accepts `rca_session_id`, auto-imports RCA content into root_cause_analysis section, tracks import reference.
+- `services/svend/web/agents_api/a3_views.py` — `create_a3_report()` accepts `rca_session_id`, auto-populates root_cause field, links RCA session FK to A3.
+
+**What this enables:** RCA sessions created from DSW SPC inspect panel ("Investigate" button) can now flow into NCR → CAPA → A3 → the full QMS closure loop. A single click on an OOC point can cascade through SPC → RCA → NCR → CAPA → Audit → Document Control → Training → FMEA.
+
+**Verification:** Create RCA from SPC inspect → create NCR with `rca_session_id` → verify link. Create CAPA with `rca_session_id` → verify root_cause_analysis pre-filled. Create A3 with `rca_session_id` → verify root_cause populated and RCA.a3_report FK set.
+
+---
+
+### 2026-03-01 — ISO Document Creator (Full QMS Feature + Free Tool)
+
+**Summary:** Added a Django-backed ISO document authoring tool to the QMS module (Team tier+). Users select from 7 document types (Quality Manual, Procedure, Work Instruction, Policy, Specification, Plan, Form), get pre-structured templates with default sections, then fill in content — text, photos, tables, definitions, checklists, signature blocks, and whiteboard PNG/SVG embeds. Documents export to Word (.docx) and PDF, and can optionally be published into the existing Document Control system. A gated free tool version (5 documents, then signup prompt) provides SEO surface.
+
+**Architecture decisions:**
+- `ISODocument` is separate from `ControlledDocument` — authoring tool vs register. "Publish to Document Control" bridges them optionally.
+- `ISODocument → ISOSection` FK pattern (like FMEA→FMEARow) — not JSONField sections — for Phase 2 knowledge graph FK-traversal.
+- Document type registry (`iso_document_types.py`) follows `report_types.py` pattern — zero migrations to add types.
+- Whiteboard PNG export via `cairosvg` (cairo already on system via weasyprint).
+
+**New files:**
+- `agents_api/iso_document_types.py` — 7 document type definitions with default sections
+- `agents_api/iso_doc_views.py` — All CRUD, export (PDF/docx), embed whiteboard, publish to doc control
+- `agents_api/iso_doc_urls.py` — URL patterns for `/api/iso-docs/`
+- `agents_api/migrations/0046_iso_document_creator.py` — Creates `iso_authored_documents` + `iso_authored_sections`
+- `templates/iso_doc.html` — Full authenticated editor (extends base_app.html)
+- `templates/iso_document_print.html` — Print template for PDF generation via weasyprint
+- `templates/tools/iso_document_creator.html` — Free tool (localStorage, 5-doc gate)
+
+**Modified files:**
+- `agents_api/models.py` — Added `ISODocument` + `ISOSection` models
+- `agents_api/whiteboard_views.py` — Extracted `_generate_svg()` helper, added `export_png` view
+- `agents_api/whiteboard_urls.py` — Added PNG export endpoint
+- `svend/urls.py` — Added API, app, and free tool routes + sitemap entry
+- `templates/tools/index.html` — Added ISO Document Creator tool card + hasPart structured data
+- `templates/tool_base.html` — Added footer link
+
+**Dependencies added:** `python-docx`, `cairosvg`
+
+**API endpoints:**
+- `GET /api/iso-docs/types/` — Document type registry
+- `GET/POST /api/iso-docs/` — List/create documents
+- `GET/PUT/DELETE /api/iso-docs/<id>/` — Document detail
+- `POST /api/iso-docs/<id>/sections/` — Create section
+- `PUT/DELETE /api/iso-docs/<id>/sections/<sec_id>/` — Section detail
+- `POST /api/iso-docs/<id>/sections/reorder/` — Reorder sections
+- `POST /api/iso-docs/<id>/sections/<sec_id>/embed-whiteboard/` — Embed whiteboard SVG/PNG
+- `GET /api/iso-docs/<id>/export/pdf/` — PDF export
+- `GET /api/iso-docs/<id>/export/docx/` — Word export
+- `POST /api/iso-docs/<id>/publish/` — Publish to Document Control
+- `GET /api/whiteboard/boards/<code>/png/` — Whiteboard PNG export
+
+**Verification:**
+- `curl -H "X-Forwarded-Proto: https" http://localhost:8000/tools/iso-document-creator/` → 200
+- `curl -H "X-Forwarded-Proto: https" http://localhost:8000/app/iso-docs/` → 200
+- `curl -H "X-Forwarded-Proto: https" http://localhost:8000/tools/` → 200
+- `curl -H "X-Forwarded-Proto: https" http://localhost:8000/api/iso-docs/types/` → 401 (auth required)
+
+---
+
+### 2026-03-01 — Plant Simulator: Mission Mode (Flight Simulator Grade Wargaming Engine)
+
+**Summary:** Added a Mission Mode overlay to the plant simulator that transforms it from configure-run-review into a real-time wargaming platform. Scripted events fire mid-simulation — breakdowns, quality excursions, demand spikes, operator walkouts — and students must triage and respond through a command panel while the factory deteriorates around them. Scored with composite after-action review. All 28 existing sandbox scenarios remain untouched.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — ~1150 lines added (7284 → 8430 lines, braces balanced: {2270/}2270, (3636/)3636, [688/]688):
+  - **CSS:** Alert bar (severity colors, pulse animation), command panel (320px fixed right), mission briefing overlay (centered modal), AAR timeline and score bar styles
+  - **HTML:** `#alert-bar` in canvas wrap, `#command-panel` with Situation/Threats/Actions/Decision Log sections, `#mission-briefing` overlay with objectives, AAR tab button + `#tab-aar` content div
+  - **Engine (PlantDES):** `missionMode`, `missionTimeline`, `missionAlerts`, `decisionLog`, `paused` state; timeline event scheduling in `_buildFromLayout()`; `_handleMissionEvent()` with `_applyTimelineEffect()` (7 effect types: breakdown, param_change, operator_quit, demand_spike, utility_failure, quality_excursion, supplier_disruption); auto-pause on critical severity; `runAnimated()` pause/resume logic; `_manualStop` flag in `_tryStartProcessing()`; 10 intervention methods (reassign operator, quarantine station, authorize OT, change dispatch rule, request maint priority, force repair, adjust param, scrap suspect WIP, stop/start machine); `_logDecision()` with state snapshots
+  - **UI functions:** `renderAlertBar()`, `updateCommandPanel()`, `renderCommandActions()` (context-sensitive buttons), `renderDecisionLog()`, command handlers (`cmdForceRepair`, `cmdMaintPriority`, `cmdStopMachine`, `cmdStartMachine`, `cmdToggleOT`), `resumeMission()`, dialog functions (`showReassignDialog`, `showDispatchDialog`, `showScrapDialog`), `loadMission()`, `startMission()`, `exitMission()`, `closeBriefing()`, `showAfterActionReview()` (composite scoring with grade A-F, unified timeline, debrief notes, localStorage persistence)
+  - **Integration hooks:** `toggleSimulation()` handles mission pause/resume + alert/command updates in frame callback; `switchMetricsTab()` handles AAR tab; `renderScenarioLauncher()` detects `mode:'mission'` on cards, shows MISSION badge + grade, routes to `loadMission()`; `showResults()` triggers AAR for mission mode; `categoryLabels` includes `missions`
+  - **First mission scenario:** "Cascade Failure" (d3, 12 min) — 4-machine serial line with 5 scripted events (spindle bearing failure, quality excursion, customer expedite, operator walkout, furnace failure), 4 scored objectives, 5 debrief topics with optimal actions
+
+**Architecture:**
+- Mission mode is a pure overlay — no existing sandbox code was changed structurally
+- Both modes share the same PlantDES engine; missions add timeline events to the MinHeap
+- Auto-pause on critical events gives students time to think without the sim running away
+- Timeline effects include auto-revert scheduling (demand_spike, quality_excursion, supplier_disruption revert after duration)
+- Scoring: weighted composite of throughput/yield/response_time/cost → letter grade (A/B/C/D/F)
+- Decision log captures every intervention with timestamp + state snapshot for AAR replay
+
+**Verify:**
+1. Open simulator → works exactly as before, no mission UI visible
+2. Click Scenarios → see existing 28 scenarios + new Missions category with "Cascade Failure"
+3. Click any sandbox scenario → teaching panel works as before
+4. Click Cascade Failure → briefing overlay shows with 4 objectives
+5. Begin Mission → command panel opens, sim auto-starts, events fire at scripted times
+6. Critical events auto-pause sim, player responds via command buttons
+7. Mission completes → AAR tab shows grade, score breakdown, timeline, debrief
+8. Grade saved to localStorage, shown on scenario card in launcher
+9. All 6 themes render new UI correctly
+
+---
+
+### 2026-03-01 — DSW Phase C: Cross-Linked Explanations
+**Files changed:**
+- `templates/workbench_new.html` — C1: "Create Hypothesis" button in explain result + "Create New" in hypothesis linker. C2: "Investigate" button in SPC inspect panel → RCA session. C3: `showCampaignTimeline()` Plotly P(H) evolution chart + "View Trail" button. C4: `appendUpdateFMEAPrompt()` — SPC OOC → FMEA Occurrence update flow. C5: `appendBuildA3Prompt()` — one-click A3 auto-population from analysis trail. CSS for Phase C buttons.
+- `agents_api/dsw_views.py` — `hypothesis_timeline` GET endpoint returning enriched probability_history with evidence summaries.
+- `agents_api/dsw_urls.py` — Route for `hypothesis-timeline/`.
+- `agents_api/fmea_views.py` — `spc_update_occurrence` POST endpoint mapping OOC rate to AIAG occurrence scale (1-10).
+- `agents_api/fmea_urls.py` — Route for `spc-update/`.
+- `agents_api/models.py` — Added `spc_measurement` CharField to FMEARow.
+- `agents_api/a3_views.py` — Extended `auto_populate_a3()` context to include DSW results + RCA sessions.
+- `agents_api/migrations/0047_add_spc_measurement_to_fmearow.py` — Migration for new field.
+
+**Design decisions:**
+- All cross-linking is user-initiated (one-click, not zero-click) per DSW vision inviolable constraints.
+- C1 offers "Create Hypothesis" after pattern explanation AND "Create New" / "+ New" in the hypothesis link dropdown.
+- C2 "Investigate" only appears on OOC points (when Nelson rules triggered). Pre-populates RCA event with observation index, value, and rules violated.
+- C3 timeline uses GET endpoint (read-only). Annotations limited to 8 to avoid clutter. Confirmation/rejection thresholds shown as dashed lines.
+- C4 uses AIAG occurrence mapping: ooc_rate → 1-10 scale. User selects which FMEA/row to update via cascading pickers.
+- C5 extends A3 auto-populate context (not the template). LLM now sees DSW results + RCA sessions when generating section content.
+
+**Verify:**
+1. Run regression → lasso → Explain → "Create Hypothesis" appears and works.
+2. Run I-MR with OOC → click OOC point → "Investigate" opens pre-populated RCA.
+3. Link hypothesis → "View Trail" shows Plotly P(H) timeline.
+4. SPC result with OOC + project linked → "Update FMEA" flow works.
+5. Project linked + analysis → "Build A3 Report" creates and auto-populates.
+6. No regressions: analyses without project/workbench show no Phase C UI.
+
+---
+
+### 2026-03-01 — DSW Phase B: Visualization Cross-Linking
+
+**Summary:** Charts now coordinate across panels. Regression diagnostic plots support linked brushing (lasso-select in one plot highlights the same observations in all 4 sibling plots). SPC charts (I-MR, CUSUM, EWMA, MEWMA) have range sliders for time-window investigation. Selection toolbar appears after lasso with "Explain" (Claude-powered pattern detection) and "Exclude & Compare" (re-run regression without selected points, show R² delta).
+
+**Files changed:**
+- `services/svend/web/templates/workbench_new.html` — Added `DSWChartRegistry` object (chart registry + event bus with circular-loop guard), `showSelectionToolbar()`/`hideSelectionToolbar()`, `explainSelection()`, `excludeAndCompare()`. Modified `renderPlotlyChart()` to register charts and handle range slider y-axis auto-rescale. Modified `attachRegressionInspect()` to add `plotly_selected`/`plotly_deselect` handlers with lasso dragmode. Modified `closeTab()` to unregister charts. Added `lastDataId`/`lastAnalysisConfig` state tracking. Added CSS for `.dsw-selection-toolbar`, `.dsw-explanation`, `.dsw-delta-display`.
+- `services/svend/web/agents_api/dsw/spc.py` — Added `rangeslider` to I-Chart (line 247), MR-Chart (line 262), CUSUM (line 1071), EWMA (line 1124), MEWMA (line 1955). Increased chart heights by 40px to accommodate slider.
+- `services/svend/web/agents_api/dsw/stats.py` — Added `exclude_indices` support in regression (drops specified rows before fitting). Added `regression_metrics` dict (r_squared, adj_r_squared, f_stat, rmse) to result for delta display.
+- `services/svend/web/agents_api/dsw_views.py` — Added `_load_dataset()` helper and `explain_selection()` endpoint (PRO+ only, calls LLMManager.chat() with selected vs remaining data summaries).
+- `services/svend/web/agents_api/dsw_urls.py` — Added route for `explain-selection/`.
+
+**Design decisions:**
+- Registry groups charts by output block ID (`output-N`), maps observation indices via `customdata[0]` for cross-plot linking
+- `_brushing` flag prevents circular `plotly_selected` → `Plotly.restyle` → `plotly_selected` loops
+- Range slider y-axis fix: `plotly_relayout` handler recomputes y-range for visible x-window
+- Explain endpoint is rate-limited via `@gated_paid` (PRO+ tier) — no free-tier LLM calls
+- Exclude-and-compare re-runs the full regression via the normal `/api/dsw/analysis/` endpoint with `exclude_indices` in config
+
+**Verification:** Run regression → lasso-select points in Residuals vs Fitted → verify highlighting across Q-Q, Scale-Location, Leverage plots. Run I-MR chart → verify range slider appears, y-axis rescales on zoom. Click "Explain" → verify LLM returns pattern description. Click "Exclude & Compare" → verify R² delta display.
+
+---
+
+### 2026-03-01 — DSW Phase A: Bayesian Insurance + Evidence Grade
+
+**Summary:** Every frequentist hypothesis test now automatically includes a Bayesian shadow (BF + credible interval) and an Evidence Grade badge. The shadow appears as a collapsible panel below diagnostics. The grade synthesizes p-value, Bayes Factor, effect size, and cross-validation agreement into a one-line verdict.
+
+**Files changed:**
+- `services/svend/web/agents_api/dsw/common.py` — Added `_bayesian_shadow()` (~170 lines, 7 shadow types: ttest_1samp, ttest_2samp, ttest_paired, anova, correlation, proportion, chi2) and `_evidence_grade()` (~55 lines, scoring: p-value + BF + effect + cross-val → Strong/Moderate/Weak/Inconclusive)
+- `services/svend/web/agents_api/dsw/stats.py` — Wired shadow + grade into 7 frequentist tests (ttest1, ttest2, paired_t, anova, correlation, prop_1sample, chi2). Cross-validation return values captured for grade input.
+- `services/svend/web/templates/workbench_new.html` — Added CSS for `.dsw-evidence-grade` (4 grade variants) and `.dsw-bayesian-shadow` (collapsible panel). Added rendering in `renderStatsOutput()` after narrative (grade) and after diagnostics (shadow).
+
+**Design decisions:**
+- Shadow computes BFs directly from pre-extracted arrays (JZS integrand, BIC approximation, Fisher z), NOT via `run_bayesian_analysis()` — handles both 2-column and factor input formats
+- Inline (not async) — conjugate priors complete in <50ms
+- Additive only — analyses without shadow keys render identically to before
+
+**Verification:** Run any of the 7 tests → evidence grade badge below narrative → collapsible Bayesian Insurance panel below diagnostics. Run any other analysis → no grade/shadow, no errors.
+
+---
+
+### 2026-03-01 — Plant Simulator: 8 Kaizen Method Scenarios
+
+**Summary:** Added 8 new scenarios that each demand a specific kaizen methodology. Students can't pass these by random tinkering — they must apply the named method correctly.
+
+**New Scenarios:**
+
+1. **Line Balance: Find the Rhythm** (Foundations, Difficulty 1) — 3-machine line with wildly different cycle times (10s/45s/25s). Students must equalize cycle times and understand takt time. One station 2s over takt → WIP accumulates forever.
+
+2. **Standard Work: Tame the Variability** (Foundations, Difficulty 2) — Two machines with identical average cycle times but CV=0.8. Students reduce CV (standard work) and watch lead time collapse without changing average throughput. Kingman's formula in action.
+
+3. **SMED: Cut the Changeover** (Variability, Difficulty 2) — Press with 10-minute changeover, 2 product types. Students apply Shingo's 3 stages: separate internal/external (600→180s), convert/streamline (→60s), then discover the real prize — freedom to run smaller batches.
+
+4. **Poka-Yoke: Error-Proof the Process** (Quality, Difficulty 2) — 10% scrap, 50% detection rate. Students first add detection poka-yoke (gauges, sensors → 95%), then prevention poka-yoke (asymmetric fixtures, torque control → 2% scrap). Teaches 1-10-100 rule.
+
+5. **TPM: Own Your Machine** (Variability, Difficulty 3) — 2 machines with random failures (Weibull β=1), micro-stoppages, single maintenance crew. 3-step TPM: autonomous maintenance (reduce micro-stops), planned maintenance (β=1→3, predictable wear-out), cross-training (faster MTTR).
+
+6. **Jidoka: Stop and Fix** (Quality, Difficulty 3) — Process with drift rate 0.008, no SPC. Students enable SPC auto-stop (jidoka), accept short-term throughput loss, watch customer returns plummet and net revenue improve. The andon cord trade-off.
+
+7. **Heijunka: Level the Load** (Systems, Difficulty 3) — 3-machine line with batch arrivals (batches of 5, batch_sequence mode). Students level volume (batch→1), level mix (batch_sequence→fixed_mix), reduce changeovers. WIP oscillation disappears.
+
+8. **The Kaizen Blitz** (Systems, Difficulty 4) — 4-machine line with multiple problems (variability, breakdowns, scrap, drift, changeovers, micro-stops). Students must do PDCA: measure baseline → identify constraint → fix biggest loss → re-measure → iterate. 3 operators with Indian names (Ravi, Meera, Suresh). Three simultaneous targets.
+
+**Also added:**
+- **Value Stream: See the Waste** (Systems, Difficulty 3) — 4-machine line with oversized buffers (30 each), transport delays, batch arrivals. Students calculate value-add ratio (65s processing vs 600s+ lead time), then systematically eliminate transport, inventory, and overproduction waste. Teaches Ohno's river analogy and Rother's current-state/future-state mapping.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — ~575 lines added: 8 new scenario definitions with layouts, teaching steps, and challenges. Total scenarios now: 19.
+
+**Brace balance:** `{1940 / }1940`, `(3046 / )3046`, `[627 / ]627` — all balanced. 7284 lines total.
+
+**Verification:** Open scenario launcher, verify 19 scenarios across all tiers. Load "SMED: Cut the Changeover" — verify 2-product-type layout with 600s changeover. Load "The Kaizen Blitz" — verify 4-machine line with Ravi, Meera, Suresh operators. All challenge evaluations reference existing result fields.
+
+---
+
+### 2026-03-01 — ISO Landing Page Surface Area: Playbook + Audit Checklist + Resources
+
+**Files changed:**
+- `templates/iso_9001_internal_audit_playbook.html` — NEW: 7-section guide (audit planning, preparation, conducting, finding classification, writing findings, CAPA workflow, management review). Article + FAQPage structured data. Pricing-aware CTA.
+- `templates/tools/iso_9001_audit_checklist.html` — NEW: Interactive free tool. 32-clause selector with section toggles. 110+ hardcoded evidence-based audit questions. Printable output with `@media print` styles.
+- `templates/iso_9001_qms.html` — Added "Resources & Free Tools" section (7-card grid: playbook, checklist, control charts, Pareto, FMEA, Cpk, Gage R&R with clause references)
+- `api/landing_views.py` — Added `iso_audit_playbook_view` with pricing context
+- `svend/urls.py` — 2 new routes, import, sitemap entries
+- `templates/tool_base.html` — 2 footer links (Audit Playbook, Audit Checklist)
+- `templates/tools/index.html` — Tool card + hasPart structured data entry
+**Verification:** Both pages return 200. `curl -s https://svend.ai/tools/iso-9001-audit-checklist/ -o /dev/null -w "%{http_code}"` → 200
+
+---
+
+### 2026-03-01 — ISO Landing Page: Field-Level Audit Trail Messaging
+
+**Files changed:**
+- `services/svend/web/templates/iso_9001_qms.html` — Updated 11 spots to reflect field-level change history across all QMS modules:
+  - NCR FAQ: updated audit trail description to include field edits
+  - Audit FAQ: added field edit logging mention
+  - Training FAQ: added inline edit and recertification capabilities
+  - Document control FAQ: specified field-level audit trail
+  - Supplier FAQ: added change history mention
+  - Audit trail FAQ: expanded from "state changes" to "status transitions + field edits" across all 5 modules
+  - Structured data FAQs: mirrored all above changes in schema.org FAQPage
+  - Added new structured data FAQ entry for audit trail compliance
+  - SoftwareApplication featureList: added "Field-level change history" and "Training record editing with recertification workflow"
+**Verification:** `curl -s https://svend.ai/iso-9001-qms-software/ | grep "field edit"` — should return matches in FAQ and workflow sections
+
+---
+
+### 2026-03-01 — Plant Simulator: Guided Scenarios Teaching System
+
+**Summary:** Added an optional guided scenarios system that turns the simulator into a dual-use tool — full wargaming sandbox AND structured learning platform for engineering students.
+
+**Design:**
+- **Zero impact on default experience** — simulator opens and works exactly as before. Small "Scenarios" button in sidebar header provides opt-in access.
+- **Scenario launcher overlay** — card grid grouped by tier (Foundations, Variability), showing difficulty, estimated time, completion status.
+- **Right-side teaching panel** (300px, fixed position) — appears only when a scenario is active. Shows step-by-step instructions, manufacturing context ("Why this matters"), progress dots, and metric-based challenge checklist.
+- **Challenge evaluation** — runs automatically on simulation completion, checks results against scenario targets, marks completion in localStorage.
+- **No feature gating** — all 25+ features remain fully accessible at all times.
+
+**6 Initial Scenarios:**
+1. **The Single Machine** (Foundations) — Cycle time, throughput, Kingman's formula, Little's Law
+2. **The Bottleneck** (Foundations) — Goldratt's Theory of Constraints, 5 Focusing Steps
+3. **Buffers and Flow** (Foundations) — Buffer sizing, blocking/starving, lean buffer minimization
+4. **Breakdowns and Reliability** (Variability) — MTBF/MTTR, Weibull shapes, preventive maintenance tradeoffs
+5. **Changeovers and Product Mix** (Variability) — SMED, batch size tradeoffs, one-piece flow ideal
+6. **Workforce Constraints** (Variability) — Cross-training as insurance, calloff resilience, floater operators
+
+Each scenario includes a pre-built factory layout, 3-4 teaching steps with real manufacturing context (references Goldratt, Shingo, TPM, Fort Dearborn), and 2 metric-based challenges.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — ~750 lines added: CSS (scenario launcher, teaching panel, highlights, challenges), HTML (overlay, teaching panel, sidebar button), JS (scenario state/localStorage, launcher, loading, teaching panel rendering, step navigation, challenge evaluation, 6 scenario definitions with layouts and teaching content). Integration hooks into showResults() and loadSimulation().
+
+**Verification:** Open simulator, click "Scenarios", load "The Single Machine", follow steps, run sim, verify challenges evaluate. Exit scenario — normal mode restored. Load a saved sim — scenario exits cleanly.
+
+---
+
+### 2026-03-01 — Plant Simulator Round 6: Resource Contention & Production Disruptions
+
+**Summary:** Added 4 features targeting shared-resource bottlenecks and production disruptions that force students to think about the system, not just individual machines. Also added 5 new teaching scenarios (Tiers 3-5: Quality, Systems, Mastery).
+
+**New Features:**
+
+1. **Shared tooling/fixtures** — Finite shared resources (jigs, fixtures, molds) that multiple machines compete for. When a tool isn't available, the machine starves until it's released. Tool queue tracks contention. Configurable per-tool: name, quantity, and which machines require it. Forces students to identify the real constraint — is it the machine or the fixture?
+
+2. **Engineering Change Orders (ECOs)** — Random mid-production spec changes at configurable rate. When an ECO fires, it picks a random product type and scraps all queued WIP of that type across every machine in the system. Tracks ECO count and total scrapped WIP. The cost of design instability that manufacturing absorbs silently.
+
+3. **Batch processing (oven/furnace mode)** — Machines can operate in batch mode: accumulate N parts before processing, then process all at once with a fixed batch time. Simulates heat treatment, curing ovens, wash stations. Machine starves while waiting for a full batch, then releases all parts simultaneously downstream. Creates lumpy flow that challenges downstream buffers.
+
+4. **Inspector bottleneck** — Quality inspection as a finite shared resource (inspector pool). When active, machines release immediately after processing and jobs queue for inspection. Inspector determines scrap/rework/pass. Creates a hidden bottleneck that only manifests when quality rates are non-trivial and inspection capacity is limited. Tracks queue depth and utilization.
+
+**New Teaching Scenarios (Tiers 3-5):**
+
+5. **"The Cost of Quality"** (Quality tier) — Scrap and rework as a death spiral. Students see how a 5% scrap rate doesn't cost 5% — it steals capacity, creates WIP, and starves downstream. Teaches Deming's quality philosophy and the 1-10-100 rule.
+
+6. **"SPC: False Alarms vs Escapes"** (Quality tier) — Western Electric rules with measurement lag. Tight limits catch defects fast but create false alarms that halt production. Wide limits miss real shifts. Students learn containment scope and why measurement delay matters.
+
+7. **"When Everything Breaks at Once"** (Systems tier) — Multiple machines with different failure modes competing for a single maintenance crew. Students learn why TPM and PM scheduling exist — reactive maintenance creates cascading failures.
+
+8. **"Management by Panic"** (Systems tier) — Management oscillation at maximum reactivity. Students watch well-intentioned interventions (slash batch sizes, tighten SPC, rush orders) create instability worse than the original problem. Teaches Deming's point about tampering.
+
+9. **"The Full Factory Challenge"** (Mastery capstone) — 5-machine line with everything enabled: breakdowns, changeovers, SPC, shifts, operators, customers. Four simultaneous targets (throughput, yield, OTD, customer satisfaction). Uses Indian operator names (Arun, Priya, Dev) reflecting the training programs. If students can pass all four challenges, they understand manufacturing systems.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — ~700 lines added: 4 new DES features (shared tooling, ECOs, batch processing, inspector pool) with full sidebar config, save/load, metrics export, results integration. 5 new scenario definitions with layouts, teaching steps, and challenges.
+
+**Verification:** Load "The Full Factory Challenge" scenario, verify 5-machine layout populates with all features enabled. Run simulation, verify inspector queue appears in metrics, ECOs fire and scrap WIP, batch machines wait for full batches. All 11 scenarios visible in launcher. Exit scenario — clean return to normal mode.
+
+**Brace balance:** `{1738 / }1738`, `(2907 / )2907`, `[493 / ]493` — all balanced. 6711 lines total.
+
+---
+
+### 2026-03-01 — Plant Simulator Round 5: The Frustrating Realism Layer
+
+**Summary:** Added 6 features targeting the hidden, human, and systemic dysfunctions that commercial simulators ignore:
+
+1. **Tribal knowledge loss** — Operators accumulate process tweaks (~2000 jobs to master a station, up to 10% cycle time reduction + 30% scrap reduction). When an operator quits, their undocumented knowledge leaves with them. Logged in workforce events.
+
+2. **Management policy oscillation** — Reactive management AI with 4 levels (off/calm/nervous/panicking). Reviews metrics at intervals and overreacts: slashes batch sizes when WIP rises, tightens SPC when yield drops, rushes everything when OTD tanks, then whiplashes batch sizes up when WIP falls. Creates self-inflicted instability worse than the original problems.
+
+3. **Micro-stoppages (the hidden factory)** — Configurable per-machine probability of brief jams/sensor trips that inflate processing time without triggering a breakdown state. The 6 big losses in OEE that nobody tracks because they're "too small to record."
+
+4. **Contamination / cross-contamination** — Residual contamination risk during changeovers. Quick changeovers leave residue that creates hidden defects passing inspection but failing at customer. Thorough cleans multiply changeover time. Creates a speed-vs-quality tension in changeover decisions.
+
+5. **Measurement lag / information delay** — Configurable delay before quality measurements appear on SPC charts. Simulates lab turnaround, CMM queue, third-party testing. Parts keep flowing while waiting for data. Tracks containment scope (parts produced between defect start and detection). The reason recalls happen.
+
+6. **Customer behavior and revenue impact** — Customer satisfaction (0-100%) tracks returns and late deliveries. Below 50% satisfaction, orders start being lost (customers go elsewhere). Returns cost 3× revenue (warranty + shipping + goodwill). Net revenue = revenue - return costs - operating costs. The P&L consequence of every upstream decision.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — All 6 features across PlantDES class, sidebar config, metric cards, live display, comparison table, save/load.
+
+**Verification:** Configure revenue/unit > 0, enable SPC with measurement delay, set management reactivity to "panicking", add micro-stoppages and contamination risk, run simulation and watch customer satisfaction decay as systemic problems compound.
+
+---
+
+### 2026-03-01 — DSW Chart Interactivity: Click-to-inspect + enhanced hover
+
+**Files changed:**
+- `web/templates/workbench_new.html` — Added `.dsw-inspect-panel` CSS, `attachChartInteractivity()` dispatcher hooked into `renderPlotlyChart()`, `showInspectPanel()` utility, 4 click handlers: `attachSPCInspect` (Nelson rules + data row), `attachCorrelationClick` (click cell → inline scatter), `attachRegressionInspect` (obs + Cook's D + data row), `attachClusterInspect` (cluster + features)
+- `web/agents_api/dsw/spc.py` — New `_spc_build_point_rules()` helper builds per-point Nelson rule annotations. `_spc_add_ooc_markers()` now accepts optional `point_rules` param and adds `customdata`/`hovertemplate` to OOC markers. Wired at 8 Nelson-rule call sites (imr, xbar_r, xbar_s, np_chart, c_chart). CUSUM signal traces get `customdata`/`hovertemplate`. All 13 SPC charts get `"interactive": {"type": "spc_inspect"}` flag.
+- `web/agents_api/dsw/stats.py` — Correlation heatmap: p-value `customdata` matrix + `hovertemplate` showing r and p-value, `interactive` flag with columns for click-to-scatter. Regression diagnostics: all 4 plots get `customdata` (obs index + Cook's D) + `hovertemplate`, `interactive` flags for click-to-inspect.
+- `web/agents_api/dsw/ml.py` — Clustering scatter: `customdata` (cluster ID + obs index) + `hovertemplate`, `interactive` flag with features list for click-to-inspect.
+- `web/agents_api/dsw/reliability.py` — KM censored marks: `customdata` with at-risk count + `hovertemplate`. Number-at-risk annotation row below x-axis at ~6 evenly spaced time points. Bottom margin increased to 60px to accommodate.
+
+**Verification:** Run I-MR on numeric column → hover OOC diamond shows "Obs #N, Value, Rule 1: Beyond 3σ", click shows data row. Run correlation → hover heatmap shows p-value, click off-diagonal cell shows scatter. Run regression → click diagnostic point shows obs + Cook's D. Run clustering → click point shows cluster + features. Run KM → hover censored cross shows at-risk count, number-at-risk row visible.
+
+---
+
+### 2026-03-01 — Plant Simulator Round 4: Systems-Level Chaos
+
+**Summary:** Added 6 more features creating systems-level complexity:
+
+1. **WIP aging / material expiry** — Shelf life configurable per product type. Expired parts auto-scrapped when a machine tries to process them. Makes large buffers dangerous. Tracks expired WIP count.
+
+2. **Assembly / merge stations** — Machine mode requiring multiple input part types before processing. Parts collect in an assembly buffer; composite job enters queue when all inputs met. Creates synchronization starvation.
+
+3. **Inline SPC with process stops** — Western Electric rules (4 rules) against simulated quality measurements influenced by drift, fatigue, material. Out-of-control signal stops machine for investigation. Tracks signals vs false alarms.
+
+4. **Rework routing to separate cells** — Configurable rework destination per machine (self or any other station). Creates dedicated rework cell bottleneck death spiral.
+
+5. **AGV / material handling fleet** — Finite transport vehicle pool. Parts queue when all AGVs busy. Tracks queue depth, wait time, trips completed.
+
+6. **Overtime authorization** — Auto-triggers when WIP exceeds threshold. Fatigue carries over, morale hit, quit rate amplified 1.5×. Tracks OT shifts and hours.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — All 6 features across PlantDES class, sidebar UI, metric cards, save/load.
+
+**Verification:** Configure each feature and run simulation.
+
+---
+
+### 2026-03-01 — Plant Simulator Round 3: Beyond-Simul8 features
+
+**Summary:** Added 5 advanced DES features to the plant simulator that go beyond commercial tools (Simul8/Arena/FlexSim):
+
+1. **Configurable dispatch rules per machine** — FIFO (default), SPT (shortest processing time), EDD (earliest due date), CR (critical ratio), WSPT (weighted shortest processing time). Rules sort within priority tiers (rush/hot still dominate). Dropdown in machine properties panel.
+
+2. **Shared maintenance crew** — Finite pool of technicians. When crew size > 0, breakdowns and PMs queue for an available tech. Unplanned breakdowns prioritized over PMs. Tracks wait time, queue length, repairs completed. Configurable in sidebar.
+
+3. **Dynamic rerouting on machine failure** — When a machine breaks down, queued jobs automatically reroute to sibling machines (other machines sharing the same upstream). Picks shortest-queue sibling. Only reroutes if sibling has shorter queue than the failed machine.
+
+4. **Skill forgetting curves** — Operator skills now decay when not practiced. Exponential decay: ~0.5% loss per 8hr shift of non-practice, accelerating with longer disuse. Floor at 5% (muscle memory). Operators stamp `lastWorkedAt` per station. Creates cross-training maintenance burden.
+
+5. **Dependent failures via shared utility systems** — Configurable utility infrastructure (compressed air, chilled water, power, steam, etc.) with MTBF/MTTR. When a utility fails, ALL connected machines go down simultaneously. Sidebar UI with checkboxes to assign machines to utilities. Live status display during simulation.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — All 5 features implemented across PlantDES class (dispatch sort, maintenance crew, rerouting, forgetting, utility systems), sidebar UI, metrics, save/load persistence.
+
+**Verification:** Load simulator, configure dispatch rules on machines, set maintenance crew > 0, add utility systems with machine assignments, run simulation and observe maintenance queue contention, utility outages, skill decay in operator tooltips.
+
+---
+
+### 2026-03-01 — QMS field-level change history across all modules
+
+**Summary:** Added field-level change logging to NCR, Audit, Document Control, and Supplier Management modules. Every field edit is now tracked with old/new values, user attribution, and timestamp.
+
+**Files changed:**
+- `agents_api/models.py` — Added `QMSFieldChange` model (generic field-level change log with `record_type` + `record_id`). Updated `to_dict()` on NonconformanceRecord, InternalAudit, ControlledDocument, SupplierRecord to include `field_changes` list.
+- `agents_api/iso_views.py` — Added `_log_field_changes()` shared helper. Added field change logging to `ncr_detail`, `audit_detail`, `document_detail`, `supplier_detail` PUT handlers.
+- `templates/iso.html` — Merged field changes into existing status timelines for NCR, Document, Supplier (unified "Change History" showing both status transitions and field edits chronologically). Added new Change History timeline to Audit detail (which had no change tracking before).
+- `agents_api/migrations/0045_qmsfieldchange.py` — New migration.
+
+**Verification:** All 133 ISO tests pass. Migration applied. Gunicorn reloaded.
+
+---
+
+### 2026-03-01 — Training Matrix: edit records, change logging, recertification
+
+**Summary:** Added ability to edit training records (employee name, email, status, notes), log all field-level changes with user attribution, and recertify expired/complete training with auto-calculated new expiry dates.
+
+**Files changed:**
+- `agents_api/models.py` — Added `TrainingRecordChange` model (field-level change log). Updated `TrainingRecord.to_dict()` to include changes list.
+- `agents_api/iso_views.py` — Extended `training_record_update` with change logging, `employee_email` edits, and `action: "recertify"`. Added prefetch for changes.
+- `templates/iso.html` — Inline edit row, Recertify button, collapsed Change History timeline.
+- `agents_api/migrations/0044_trainingrecordchange.py` — New migration.
+
+**Verification:** All 10 TrainingMatrixTest tests pass. Migration applied. Gunicorn reloaded.
+
+---
+
+### 2026-03-01 — ISO 9001 QMS landing page retooled for full value positioning
+
+**Summary:** Retooled iso_9001_qms.html to sell the full value of the QMS system. Code review revealed Quality Economics (Taguchi, CoQ, Bayesian SPC decisions, lot sentencing), closed-loop integration (audit→NCR→study→evidence→CAPA), and workflow state machines were completely absent from or undersold on the landing page.
+
+**Files changed:**
+- `templates/iso_9001_qms.html` — Added 5 new content sections: closed-loop integration diagram, quality economics showcase (4 cards), workflow engine callout (state machines, audit trail, AI RCA), competitive pricing comparison table, and 5 new FAQ entries. Updated hero text, meta description, OG tags, FAQ structured data. Upgraded module cards from 6→8 (added Quality Economics + Closed-Loop Evidence). Strengthened existing module card descriptions with state machine details and auto-cascade language. Module grid changed from 3-col to 4-col.
+
+**Verification:** `curl -s https://svend.ai/iso-9001-qms-software/ | grep -c "Taguchi"` returns 6. Page returns 200.
+
+---
+
+### 2026-03-01 — Comprehensive DSW config key mismatch audit and fix
+
+**Summary:** Systematic audit of all ~200 DSW analysis handlers across 7 modules. Found and fixed 8 bugs where the frontend sends different config keys than the backend reads, causing silent failures or crashes.
+
+Backend config key fixes (6):
+- `stats.py` `correlation`: frontend sends `variables`, backend read `vars` → accept both
+- `stats.py` `mixture_model`: frontend sends `max_k`, backend read `max_components` → accept both
+- `spc.py` `degradation_capability`: frontend sends `var`, backend read `measurement`/`column` → accept `var`
+- `bayesian.py` `bayes_anova`: frontend sends `variable`/`group`, backend read `response`/`factor` → accept both
+- `bayesian.py` `bayes_proportion`: frontend sends `{successes, n, prior_a, prior_b}` (manual entry), backend expected column name → support both modes
+- `ml.py` `clustering`: frontend sends `k`, backend read `n_clusters` → accept both
+
+Frontend routing fix (5 ML analyses):
+- `hyperparameter_tune`, `shap_explain`, `xgboost`, `lightgbm`, `model_compare` posted to non-existent `/api/dsw/run/` and called undefined `renderAnalysisOutput()` → converted to use `runStatsAnalysis('ml', ...)` which posts to correct `/api/dsw/analysis/` endpoint
+
+**Files changed:**
+- `agents_api/dsw/stats.py` — correlation, mixture_model config keys
+- `agents_api/dsw/spc.py` — degradation_capability config key
+- `agents_api/dsw/bayesian.py` — bayes_anova, bayes_proportion config keys
+- `agents_api/dsw/ml.py` — clustering config key
+- `templates/workbench_new.html` — 5 ML dialogs now use runStatsAnalysis
+
+**Verification:** Test each fixed analysis from the workbench UI. Correlation should respect variable selection. Mixture should respect max_k. Degradation capability, Bayes ANOVA, Bayes proportion, clustering should all work. XGBoost/LightGBM/Compare/Tune/SHAP should no longer 404.
+
+---
+
+### 2026-03-01 — Plant Simulator: 4 more realism features (shift handover, supplier, warmup, costs)
+
+**Summary:** Second wave of realism features for the Plant DES:
+
+5. **Shift Handover Loss** — Configurable probability that shift change causes a repeated setup (crew forgot what was running). `lastProductType` is cleared, forcing unnecessary changeover on next job. Handover events tracked.
+
+6. **Supplier Variability** — Sources have supplier reliability (% on-time delivery), late delivery penalty (extra seconds), and incoming material quality rate. Bad material batches carry hidden penalties: 10-30% slower processing and doubled scrap risk at every downstream station. Material cost per unit configurable.
+
+7. **Machine Warmup / First-Article Penalty** — Configurable warmup time after idle (counts as setup). First N parts after restart have elevated scrap rate (first-article penalty). Creates tension: letting machines idle costs quality on restart, but running them just to stay warm wastes capacity. Idle-since tracking for degradation.
+
+8. **Cost Accounting** — Full financial tracking: labor cost ($/hr per active operator), overtime premium (1.5× default), WIP holding cost ($/unit/hour), material cost (from source), scrap waste (material $ lost). Live Total Cost and Cost/Unit metric cards with hover breakdown. Comparison table includes cost/unit. Cost config saved/loaded with simulation.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — DES engine, UI sidebar, metrics, properties panels
+
+**Verification:** Configure a line with 80% supplier reliability, 20% handover loss, 60s warmup, 15% first-article penalty, $25/hr labor, $5/unit material. Run and observe cost accumulation and shift boundary disruptions.
+
+---
+
+### 2026-03-01 — Plant Simulator: 4 frustrating realism features
+
+**Summary:** Added four interlocking systems to the Plant DES simulator for realistic manufacturing frustration:
+
+1. **Rush Orders + Due Dates + Expediting Spiral** — Jobs get due dates, rush orders jump queues with 50% tighter deadlines, late orders are auto-promoted to rush (creating cascading changeovers → more late orders → more rush promotions).
+
+2. **Machine Degradation (Weibull) + Preventive Maintenance** — Replaced exponential MTBF with Weibull distribution (configurable β shape: 1=random, >1=wear-out, <1=infant mortality). Added PM scheduling that resets degradation. Breakdowns now interrupt processing (job goes back to queue).
+
+3. **Operator Fatigue + Morale** — Fatigue accumulates over shift (faster with low morale), adding 5-20% cycle time penalty and increasing scrap/rework. Morale affected by peer quits, overtime, machine breakdowns. Low morale amplifies call-off and quit rates (the attrition death spiral).
+
+4. **Escaped Defects + Process Drift** — Defect detection probability per station (imperfect inspection). Undetected defects flow downstream, may be caught later or reach customer. Process drift increases scrap rate over time between calibrations. Auto-calibration interval configurable.
+
+**Files changed:**
+- `services/svend/web/templates/simulator.html` — DES engine (PlantDES class), UI metrics, properties panels, canvas rendering
+
+**Verification:** Load simulator, configure a multi-station line with rush orders (10%, 300s due date), Weibull β=2, 80% detection, 1% drift rate. Run and observe cascading failures in metrics dashboard.
+
+---
+
+### 2026-03-01 — Fix _read_csv_safe encoding fallback + Bayesian t-test _narrative crash
+
+**Summary:** Two bugs fixed:
+1. `_read_csv_safe` — latin-1 fallback was failing because pandas C parser ignores the `encoding` param on Django `UploadedFile` streams. Fix: read raw bytes into `BytesIO` first, then pass clean byte stream to pandas. Fixed in all 6 copies across autopilot_views, triage_views, dsw_views, dsw/dispatch, dsw/endpoints_data, dsw/endpoints_ml.
+2. `bayesian.py` — Bayesian t-test (and all analyses before line 673) crashed with `UnboundLocalError: local variable '_narrative' referenced before assignment`. Cause: redundant `from .common import _narrative` at line 673 inside `run_bayesian_analysis` made Python treat `_narrative` as local in the entire function scope, shadowing the module-level import. Fix: removed the redundant local import.
+
+**Files changed:**
+- `agents_api/autopilot_views.py` — `_read_csv_safe` reads raw bytes into BytesIO
+- `agents_api/triage_views.py` — same
+- `agents_api/dsw_views.py` — same
+- `agents_api/dsw/dispatch.py` — same
+- `agents_api/dsw/endpoints_data.py` — same
+- `agents_api/dsw/endpoints_ml.py` — same
+- `agents_api/dsw/bayesian.py` — removed redundant local import of `_narrative` at line 673
+
+**Verification:** Upload a non-UTF-8 CSV (e.g. with £ symbol) to Full Pipeline — should parse. Run Bayesian t-test — should return narrative.
+
+---
+
+### 2026-03-01 — Registration funnel tracking
+
+**Summary:** Register and login pages were tracking blind spots — no duration data, no form interaction visibility. Added sendBeacon duration tracking to both pages, plus a new public `/api/funnel-event/` endpoint that records form interactions (email focus, password focus, submit attempt, submit error, submit success) as SiteVisit records with `#_action` path convention. Registration funnel widget added to internal dashboard under Site Analytics tab. Funnel events excluded from regular page view counts.
+
+**Files changed:**
+- `services/svend/web/templates/register.html` — added sendBeacon duration tracking + funnel event JS (email_focus, password_focus, submit_attempt, submit_error, submit_success)
+- `services/svend/web/templates/login.html` — added sendBeacon duration tracking
+- `services/svend/web/api/views.py` — new `funnel_event()` endpoint (public, no auth, writes SiteVisit with `#_` path convention)
+- `services/svend/web/api/urls.py` — added `funnel-event/` route
+- `services/svend/web/api/internal_views.py` — site analytics excludes `#_` paths from page views, returns `registration_funnel` data
+- `services/svend/web/templates/internal_dashboard.html` — registration funnel bar chart + recent errors widget
+
+**Verification:** Visit `/register/`, focus fields, submit — check `/api/internal/site-analytics/` response includes `registration_funnel` object with counts. Dashboard shows funnel bars.
+
+---
+
+### 2026-02-28 — Registration friction reduction + INR pricing continuity
+
+**Summary:** Reduced registration friction for India (and all regions). Users clicking "Start Free" or a paid plan CTA now land on a 2-field form (email + password) instead of 3 (removed username). Username is auto-generated from the email prefix. Register page now receives pricing context from Cloudflare geo-detection so it shows localized prices (e.g. "Free plan — 5 analyses/day, upgrade anytime starting at ₹1,499/mo" for Indian visitors). Free signups now redirect straight to /app/ instead of the 4-step onboarding survey.
+
+**Files changed:**
+- `services/svend/web/api/views.py` — register() now auto-generates username from email prefix when not provided; email is required
+- `services/svend/web/templates/register.html` — removed username field, added plan-context banner with localized pricing, redirect to /app/ instead of /app/onboarding/
+- `services/svend/web/api/landing_views.py` — added register_view() that passes pricing context to register template
+- `services/svend/web/svend/urls.py` — register route now uses register_view instead of TemplateView
+
+**Verification:** Visit /register/?region=in — should show 2 fields (email, password), plan context in INR. Register with email only — username auto-generated.
+
+---
+
+### 2026-02-28 — Plant Simulator (Discrete-Event Simulation)
+
+**Summary:** New `/app/simulator/` page with a full client-side discrete-event simulation engine for factory/plant layouts. Users drag Sources, Machines, and Sinks onto an SVG canvas, connect them, configure parameters (cycle time, variability, changeover, MTBF/MTTR), and run simulations to see throughput, WIP, lead time, bottleneck detection, and Little's Law verification. Includes animated and fast-forward run modes, server-side persistence, VSM import, and a scenario comparison view (run A vs run B with delta table, per-station utilization diff, and overlaid lead time histograms).
+
+**Files changed:**
+- `agents_api/models.py` — Added `PlantSimulation` model (UUID PK, JSONFields for stations/connections/sources/sinks/work_centers/config/results/snapshots, canvas state, FKs to User/Project/VSM)
+- `agents_api/migrations/0043_add_plant_simulation.py` — Migration for plant_simulation table
+- `agents_api/plantsim_views.py` — New file, 8 API endpoints (list, create, get, update, delete, save_results, import_from_vsm, export_to_project)
+- `agents_api/plantsim_urls.py` — New file, 8 URL patterns
+- `svend/urls.py` — Added template routes (`app/simulator/`, `app/simulator/<uuid>/`) and API include (`api/plantsim/`)
+- `templates/simulator.html` — New file, full template with DES engine (MinHeap priority queue, PlantDES engine with blocking/starvation/breakdowns/changeover/work centers/warmup), SVG canvas with drag-and-drop palette, properties panel, Plotly.js charts (queue lengths, utilization stacked bars, lead time histogram), and scenario comparison view
+
+**Verification:**
+1. `python3 manage.py migrate` — plant_simulation table created
+2. Navigate to `/app/simulator/` — empty canvas with sidebar
+3. Drag Source + Machines + Sink, connect them, set cycle times
+4. Click Fast Forward — results render with metrics and charts
+5. Modify layout, run again — Compare Runs tab shows side-by-side delta table and overlaid lead time histograms
+6. Save → reload → layout and saved runs persist
+
+---
+
+### 2026-02-28 — Two New Free SEO Tools: FMEA RPN Calculator & FPY/RTY Calculator
+
+**Summary:** Added two new free public tools for SEO. (1) FMEA RPN Calculator — single & multi failure mode, S/O/D sliders, AIAG-VDA Action Priority classification, color-coded risk levels, rating reference table. (2) First Pass Yield & RTY Calculator — multi-step process entry, FPY per step, Rolled Throughput Yield, DPMO, sigma level, hidden factory gap, visual yield bars. Both follow existing tool_base.html pattern with full Schema.org structured data (WebApplication, FAQPage, BreadcrumbList), Open Graph tags, domain-specific FAQ sections, and CTA funneling to paid features (FMEA tool, VSM/SPC).
+
+**Files changed:**
+- `services/svend/web/templates/tools/fmea_rpn_calculator.html` — NEW — FMEA RPN calculator
+- `services/svend/web/templates/tools/fpy_rty_calculator.html` — NEW — FPY/RTY calculator
+- `services/svend/web/templates/tools/index.html` — Added cards + structured data for both tools
+- `services/svend/web/templates/tool_base.html` — Added footer links for both tools
+- `services/svend/web/svend/urls.py` — Registered URL paths + sitemap entries
+
+**Verification:** All 3 pages return 200 with correct content. Tools at 12 total.
+
+---
+
+### 2026-02-28 — QMS/ISO 9001 Comprehensive Test Suite (133 tests)
+
+**Summary:** Wrote `agents_api/iso_tests.py` covering all 28 QMS endpoints. Tests cover tier gating, NCR CRUD + full 5-step workflow + evidence hooks + auto-Study + launch-RCA + stats, internal audit CRUD + findings + auto-NCR cascade for NC findings + workflow enforcement, audit checklists, training matrix with records + completion tracking + expiry, management review with auto-snapshot, document control with version management + revision snapshots + workflow, supplier management with workflow + evaluation score auto-rating, all 5 Study Actions (raise-capa, schedule-audit, request-doc-update, flag-training-gap, flag-fmea-update), dashboard KPIs, user isolation across all 8 record types, and a full ISO loop closure end-to-end test (audit finding → NCR → RCA → CAPA → verification audit → document update → closure).
+
+**Files changed:**
+- `services/svend/web/agents_api/iso_tests.py` — NEW — 133 tests across 21 test classes
+
+**Verification:** `python3 manage.py test agents_api.iso_tests agents_api.hoshin_tests agents_api.hoshin_deep_tests agents_api.vsm_tests` → 311 tests, all green
+
+---
+
+### 2026-02-27 — DSW Overhaul: JMP-Class UX + Bayesian Moat
+
+**Summary:** Major DSW overhaul making the system competitive with JMP's UX philosophy. Charts-first output with narrative interpretation, reorganized Statistics ribbon with ~18 direct-access buttons, new general-purpose distribution fitting (9 distributions, AIC/BIC ranking), Bayesian capability prediction with sample size forecasting, and Monte Carlo narrative enhancement.
+
+**Files changed:**
+- `web/templates/workbench_new.html` — Charts-first output rendering (narrative → charts → collapsible stats details), new CSS (.dsw-narrative, .dsw-details), reorganized Statistics ribbon (5 groups: Hypothesis Tests, Comparison, Modeling, Diagnostics, Survival), 7 new dialog functions (openDirectTest, openNormalityDialog, openEquivalenceDialog, openProportionDialog, openCorrelationDialog, openCoxPHDialog, openBayesCpkPredictDialog), simplified dropdown configs
+- `web/agents_api/dsw/common.py` — Added `_narrative()` helper for HTML narrative blocks
+- `web/agents_api/dsw/stats.py` — Added narratives to 10 analyses (t-tests, ANOVA, regression, correlation, chi-square, normality, Mann-Whitney, multi-vari), fixed empty guide_observation on normality test, new `distribution_fit` analysis (9 distributions, AIC/BIC, probability plots, PDF overlays)
+- `web/agents_api/dsw/simulation.py` — Added narrative to Monte Carlo simulation (already had tornado chart + percentiles)
+- `web/agents_api/dsw/bayesian.py` — New `bayes_capability_prediction` analysis (posterior predictive Cpk, credible intervals, P(Cpk > target), sample size forecast)
+**Verification:** Load CSV → run t-test → narrative appears above chart above collapsible stats. Statistics tab shows 18+ buttons. Distribution Fit fits 9 dists with AIC ranking. Bayesian Cpk Prediction shows posterior + forecast.
+
+---
+
+### 2026-02-27 — Interactive tutorial revamp: tool-integrated learning workflows
+
+**Summary:** Revamped the learning module to include interactive tutorials that use the actual Svend toolset (Synara, Forge, Experimenter, RCA, FMEA, A3, Guide). Students now execute real tool operations during lessons instead of just reading descriptive steps. DSW integration deferred (under overhaul).
+
+**Files changed:**
+- `web/agents_api/models.py` — Added `LearnSession` model (UUID PK, user FK, module/section IDs, JSON state + steps_completed, project FK for sandbox)
+- `web/agents_api/learn_views.py` — Added `start_session`, `execute_step`, `reset_session` endpoints + tool dispatch table (synara/experimenter/forge/rca/fmea/a3/vsm/guide handlers). Modified `get_section` to return tool_steps + active session. Modified `mark_section_complete` to enforce workflow completion.
+- `web/agents_api/learn_urls.py` — Added 3 URL routes (session/start, session/step/execute, session/reset)
+- `web/templates/learn.html` — Added tool workflow CSS (~250 lines), step tracker UI, step execution JS, result renderers (hypothesis cards, data tables, RCA chains, FMEA rows, A3 summaries, evidence chain sidebar)
+- `web/agents_api/learn_content/foundations.py` — Added tool_steps to `bayesian-thinking` (3 Synara steps) and `hypothesis-driven` (6 steps: Synara + Forge)
+- `web/agents_api/learn_content/experimental_design.py` — Added tool_steps to `randomization-controls` (4 steps: Forge + Synara) and `power-analysis` (3 steps: Experimenter + Forge)
+- `web/agents_api/learn_content/case_studies.py` — Added tool_steps to `case-ab-test` (4 steps: Forge + Synara) and `case-manufacturing` (6 steps: Forge + RCA + Synara + FMEA + A3)
+- `web/agents_api/learn_content/capstone.py` — Added tool_steps to `capstone-project` (6 steps: Forge + Synara + FMEA + A3 + Guide)
+
+**Migration:** `0042_add_learn_session` — `learn_session` table
+
+**Sections revamped:** 8 sections across 4 modules (32 total tool steps)
+**Sections unchanged:** All other 50+ sections render identically (backward compatible — tool_steps is optional)
+
+**Verification:**
+1. `python manage.py migrate` — learn_session table created
+2. Navigate to any revamped section → "Start Session" → step tracker appears
+3. Execute steps sequentially → results render per tool type
+4. Verify unchanged sections still render normally
+
+---
+
+### 2026-02-28 — Close 3 integration gaps: site_id required, cross-tenant VSM check tightened (370 total)
+**Gaps closed:**
+- `web/agents_api/hoshin_views.py` — `create_hoshin_project`: `site_id` was optional, creating orphaned projects invisible to list/calendar/dashboard (all filter by `site__in=accessible_sites`). Fixed: `site_id` is now required, returns 400 if missing.
+- `web/agents_api/hoshin_views.py` — `create_from_proposals`: Same `site_id` gap. Fixed: required, returns 400 if missing.
+- `web/agents_api/hoshin_views.py` — `create_from_proposals`: Cross-tenant VSM check skipped when `vsm.project=None`. Cleaned up condition — now only checks tenant match when VSM has a project with a tenant; VSMs without project link are allowed (same user owns them).
+**Tests added:**
+- `test_create_without_site_rejected` — verifies `create_hoshin_project` returns 400 without site_id
+- `test_proposals_without_site_rejected` — verifies `create_from_proposals` returns 400 without site_id
+- `test_vsm_without_project_still_allowed` — VSM with no project link is accepted (user owns it)
+**Verification:** `python manage.py test api.tests core.tests agents_api.integration_tests agents_api.vsm_tests agents_api.hoshin_tests agents_api.hoshin_deep_tests -v2` — 370/370 pass.
+
+---
+
+### 2026-02-28 — Calendar, Monte Carlo, VSM→Hoshin site integration tests (80 deep tests, 368 total)
+**Files changed:**
+- `web/agents_api/hoshin_deep_tests.py` — Added 20 tests across 4 new test classes: HoshinCalendarTest (12 tests: basic structure, monthly target from annual, actual from savings, pct calculation, site-level aggregation, ytd totals, aborted exclusion, fiscal year filter, site filter, project metadata, multi-site grouping, empty FY), MonteCarloSavingsTest (8 tests: deterministic baseline match, CI brackets median, mean < deterministic from realization risk, high p_positive for large improvement, low p_positive for zero improvement, headcount auto-detect, uptime scaling, end-to-end through proposals), VSMToCalendarIntegrationTest (4 tests: proposals→calendar, source VSM link preserved, savings flow to calendar, site=None invisible), CalendarSiteAccessTest (6 tests: owner sees all, member sees only their site, viewer reads calendar, outsider blocked, filter bypass blocked, dashboard matches), CrossTenantIsolationTest (4 tests: can't create in other tenant site, can't see other tenant calendar, cross-tenant VSM silently dropped, calendar isolation), VSMHoshinSitePipelineTest (1 test: VSM→proposals→two sites→savings→calendar→dashboard).
+**Verification:** `python manage.py test api.tests core.tests agents_api.integration_tests agents_api.vsm_tests agents_api.hoshin_tests agents_api.hoshin_deep_tests -v2` — 368/368 pass.
+
+---
+
+### 2026-02-28 — Deep Hoshin tests (45 tests, 333 total) + formula variance bug fix
+**Bug fixed:**
+- `web/agents_api/hoshin_views.py` — `test_formula` endpoint: auto-variance computation was dead code. `variables = data.get("variables", {})` returned a reference, so the defaults step (`"variance": 0`) mutated the original dict, making the subsequent `"variance" not in data.get("variables", {})` check always False. Fixed: copy user variables before applying defaults.
+**Files changed:**
+- `web/agents_api/hoshin_views.py` — Fixed `test_formula` to copy `user_variables` before defaults
+- `web/agents_api/hoshin_deep_tests.py` — New 45-test suite: Kaizen charter (full 23-field round-trip, update, empty default, plan fields), Custom formula engine (test_formula endpoint, math functions, auto-variance, empty/div-by-zero errors, monthly calculation with custom formula, custom_vars round-trip), Calculation methods catalog (all 9 methods), Savings aggregation (summary structure with YTD/trend/months, cumulative trend), Baseline data (set/retrieve, baseline on create), Strategic objectives CRUD (create/list/filter-by-FY/update/delete/validation), Annual objectives CRUD (create with strategic link/list-by-FY/update/delete), KPI CRUD (catalog auto-fill/manual/derived-from-project/list/update/delete/validation), X-matrix correlations (create/delete-by-null/update-strength/invalid-pair-type/invalid-strength/missing-fields), X-matrix data (four quadrants/correlations/rollup/metric catalog/correlation cleanup on delete), Full X-matrix lifecycle (strategy→annual→projects→KPIs→correlations→savings→verify).
+**Verification:** `python manage.py test api.tests core.tests agents_api.integration_tests agents_api.vsm_tests agents_api.hoshin_tests agents_api.hoshin_deep_tests -v2` — 333/333 pass.
+
+---
+
+### 2026-02-28 — Hoshin Kanri + VSM promotion tests (49 tests, 288 total) + 3 bug fixes
+**Bugs fixed:**
+- `web/agents_api/hoshin_views.py` — `create_hoshin_project` and `create_from_proposals` set both `user` and `tenant` on `Project.objects.create()`, violating `project_has_single_owner` check constraint. Fixed: Hoshin projects are tenant-owned (enterprise), removed `user=request.user`.
+- `web/agents_api/hoshin_views.py` — `create_hoshin_project` passed `goal_baseline=None` and `goal_target=None` to core.Project, but these are `CharField(blank=True)` (NOT NULL in DB). Fixed: default to empty string.
+- `web/agents_api/hoshin_views.py` — `create_action_item` and `update_action_item` stored date strings as raw strings on DateField, causing `to_dict()` to call `.isoformat()` on a string. Fixed: parse with `date.fromisoformat()`.
+**Files changed:**
+- `web/agents_api/hoshin_tests.py` — New 49-test suite: Site CRUD (create/list/get/update/delete/validation), Site access control (viewer read-only, member read-write, revoke access), Hoshin project CRUD (atomic create core.Project + HoshinProject, list with filters, detail with savings summary, update, delete), Monthly savings tracking (time_reduction, waste_pct, headcount, direct methods with verified calculations, YTD accumulation, savings_pct, month validation), Action items (create with due_date, list, progress update, task dependencies, delete), VSM→Hoshin batch proposal creation (source_vsm/burst_id linkage, unapproved skipped), VSM promotion (future→current, old→archived, metric snapshot carryforward, savings writeback to kaizen bursts, error cases), Dashboard (totals, by-site breakdown, monthly trend, status counts), Tier gating (PRO/FREE blocked, enterprise-without-tenant 400), Full pipeline integration (VSM→proposals→hoshin→savings→promote→writeback→dashboard).
+**Verification:** `python manage.py test api.tests core.tests agents_api.integration_tests agents_api.vsm_tests agents_api.hoshin_tests -v2` — 288/288 pass.
+
+---
+
+### 2026-02-27 — VSM integration test suite (47 tests, 239 total)
+**Files changed:**
+- `web/agents_api/vsm_tests.py` — New 47-test suite covering the full VSM surface: CRUD lifecycle (create/list/get/update/delete), process step metrics (cycle time accumulation), inventory and lead time calculation, PCE, bottleneck detection (standalone + work center parallel machines), takt time flags, kaizen bursts (add + auto-dedup), future state cloning/pairing, current↔future comparison with improvement deltas, project linking and hub visibility, user isolation (CRUD cross-user), metric snapshot history tracking, tier gating (@gated_paid for FREE vs PRO), generate proposals (enterprise-only Hoshin integration with Monte Carlo confidence intervals), full lifecycle integration test (current→steps→inventory→future→improve→compare→proposals).
+**Verification:** `python manage.py test api.tests core.tests agents_api.integration_tests agents_api.vsm_tests -v2` — 239/239 pass.
+
+---
+
+### 2026-02-27 — Bug fix: evidence_list POST missing project FK + full test suites (192 tests)
+**Files changed:**
+- `web/core/views.py` — Fixed `evidence_list` POST: added `project=project` to `serializer.save()` call. Evidence created via the API was not associated with its project, causing `link_evidence` to 404 when querying `project__in=user_projects`.
+- `web/api/tests.py` — 79-test auth/admin/billing suite: registration, login, logout, profile, password change, email verification, tier feature gating, permission decorators (`@rate_limited`, `@gated_paid`), internal staff access, billing status, query limits, middleware (no-cache, site visits), auth→org integration.
+- `web/agents_api/integration_tests.py` — 43-test cross-module integration suite: Project→Hypothesis→Evidence Bayesian pipeline, Evidence from Code (Coder→Core), Evidence from Analysis (DSW→Core), Knowledge Graph CRUD + isolation, File uploads (security + isolation), FMEA→Hypothesis evidence linking, Project Hub aggregation, Tenant project isolation, Datasets, Experiment Designs.
+**Verification:** `python manage.py test api.tests core.tests agents_api.integration_tests -v2` — 192/192 pass.
+
+---
+
 ### 2026-02-27 — Organization creation for Team/Enterprise users + test suite
 **Files changed:**
 - `web/core/views.py` — Added `org_create` endpoint (POST, `@require_team` gated). Creates Tenant + owner Membership. Validates slug format/uniqueness, prevents duplicate orgs. Updated `org_info` to return `can_create_org` flag for users without an org.

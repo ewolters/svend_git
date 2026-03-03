@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ report.title }} — A3 Report</title>
+<style>
+@page {
+    size: A4;
+    margin: 2.5cm 2cm;
+    @top-right { content: "A3 Report"; font-size: 9pt; color: #666; }
+    @bottom-center { content: "Page " counter(page) " of " counter(pages); font-size: 9pt; color: #666; }
+}
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #222;
+    margin: 0;
+    padding: 0;
+}
+
+/* Title page */
+.title-page {
+    text-align: center;
+    padding-top: 8cm;
+    page-break-after: always;
+}
+.title-page h1 {
+    font-size: 24pt;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 1cm;
+}
+.meta-table {
+    margin: 2cm auto 0;
+    border-collapse: collapse;
+    text-align: left;
+}
+.meta-table td {
+    padding: 6px 16px;
+    font-size: 10pt;
+    border-bottom: 1px solid #e0e0e0;
+}
+.meta-table td:first-child {
+    font-weight: 600;
+    color: #555;
+    width: 140px;
+}
+
+/* Sections */
+.section-block {
+    margin-bottom: 1cm;
+}
+.section-block h2 {
+    font-size: 14pt;
+    font-weight: 600;
+    color: #1a1a1a;
+    border-bottom: 2px solid #4a9f6e;
+    padding-bottom: 4px;
+    margin-top: 1.5cm;
+    margin-bottom: 0.5cm;
+    page-break-after: avoid;
+}
+
+/* Markdown content */
+.section-content p {
+    margin: 0 0 0.5cm 0;
+    text-align: justify;
+}
+.section-content strong {
+    color: #1a1a1a;
+}
+.section-content ul, .section-content ol {
+    margin: 0.3cm 0;
+    padding-left: 1.5em;
+}
+.section-content li {
+    margin: 2px 0;
+}
+.section-content hr {
+    border: none;
+    border-top: 1px solid #ccc;
+    margin: 0.5cm 0;
+}
+.section-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.5cm 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+}
+.section-content th, .section-content td {
+    border: 1px solid #ccc;
+    padding: 6px 10px;
+    text-align: left;
+}
+.section-content th {
+    background: #f0f0f0;
+    font-weight: 600;
+}
+.section-content code {
+    background: #f5f5f5;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 10pt;
+}
+
+/* Charts and diagrams */
+.chart-container {
+    text-align: center;
+    margin: 0.5cm 0;
+    page-break-inside: avoid;
+}
+.chart-container svg {
+    max-width: 100%;
+    height: auto;
+}
+.chart-caption {
+    font-size: 9pt;
+    color: #666;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+.empty-section {
+    color: #999;
+    font-style: italic;
+}
+</style>
+</head>
+<body>
+
+<!-- Title Page -->
+<div class="title-page">
+    <h1>{{ report.title }}</h1>
+    <table class="meta-table">
+        <tr><td>Type</td><td>A3 Report</td></tr>
+        <tr><td>Status</td><td>{{ status_display }}</td></tr>
+        {% if project_title %}<tr><td>Study</td><td>{{ project_title }}</td></tr>{% endif %}
+        <tr><td>Date</td><td>{{ report.updated_at|date:"Y-m-d" }}</td></tr>
+    </table>
+</div>
+
+<!-- Sections -->
+{% for section in rendered_sections %}
+<div class="section-block">
+    <h2>{{ section.label }}</h2>
+    <div class="section-content">{{ section.html|safe }}</div>
+
+    {% for diagram in section.diagrams %}
+    <div class="chart-container">
+        {{ diagram.svg|safe }}
+        {% if diagram.title %}<div class="chart-caption">{{ diagram.title }}</div>{% endif %}
+        {% if diagram.board_name %}<div class="chart-caption">Source: {{ diagram.board_name }}</div>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}
+
+</body>
+</html>

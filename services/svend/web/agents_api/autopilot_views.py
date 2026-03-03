@@ -36,6 +36,25 @@ from .models import DSWResult, SavedModel
 logger = logging.getLogger(__name__)
 
 
+def _read_csv_safe(file_or_path):
+    """Read CSV with encoding fallback: UTF-8 → latin-1.
+
+    Reads raw bytes first to avoid Django UploadedFile encoding issues
+    where the C parser ignores the encoding param on wrapped streams.
+    """
+    import io
+    if hasattr(file_or_path, "read"):
+        raw = file_or_path.read()
+        try:
+            return pd.read_csv(io.BytesIO(raw), encoding="utf-8")
+        except UnicodeDecodeError:
+            return pd.read_csv(io.BytesIO(raw), encoding="latin-1")
+    try:
+        return pd.read_csv(file_or_path, encoding="utf-8")
+    except UnicodeDecodeError:
+        return pd.read_csv(file_or_path, encoding="latin-1")
+
+
 class _NumpySafeEncoder(json.JSONEncoder):
     """JSON encoder that handles numpy/pandas types and NaN/Infinity."""
 
@@ -419,7 +438,7 @@ def autopilot_clean_train(request):
 
     try:
         start = time.time()
-        df = pd.read_csv(request.FILES["file"])
+        df = _read_csv_safe(request.FILES["file"])
 
         if target not in df.columns:
             return JsonResponse({"error": f'Target column "{target}" not found'}, status=400)
@@ -632,7 +651,7 @@ def autopilot_full_pipeline(request):
 
     try:
         start = time.time()
-        df = pd.read_csv(request.FILES["file"])
+        df = _read_csv_safe(request.FILES["file"])
 
         if target not in df.columns:
             return JsonResponse({"error": f'Target column "{target}" not found'}, status=400)
@@ -1129,7 +1148,7 @@ def autopilot_augment_train(request):
 
     try:
         start = time.time()
-        df = pd.read_csv(request.FILES["file"])
+        df = _read_csv_safe(request.FILES["file"])
 
         if target not in df.columns:
             return JsonResponse({"error": f'Target column "{target}" not found'}, status=400)
@@ -1332,13 +1351,13 @@ def retrain_model(request, model_id):
 
         # Load data — from upload or from stored path
         if "file" in request.FILES:
-            df = pd.read_csv(request.FILES["file"])
+            df = _read_csv_safe(request.FILES["file"])
             data_source = request.FILES["file"].name
         elif saved.data_lineage and saved.data_lineage.get("data_path"):
             data_path = Path(saved.data_lineage["data_path"])
             if not data_path.exists():
                 return JsonResponse({"error": "Original training data no longer available. Upload new data."}, status=400)
-            df = pd.read_csv(data_path)
+            df = _read_csv_safe(data_path)
             data_source = str(data_path)
         else:
             return JsonResponse({"error": "No data available. Upload a CSV file."}, status=400)

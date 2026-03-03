@@ -1,0 +1,535 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Free ISO Document Creator — Quality Manual, SOP, Work Instruction Templates{% endblock %}
+{% block meta_description %}Create ISO 9001 documents for free. Quality manuals, procedures, work instructions, policies, and forms with proper structure. Export to print. No signup required.{% endblock %}
+{% block meta_keywords %}ISO document creator, ISO 9001 template, quality manual template, SOP template, work instruction template, ISO procedure generator, free ISO tools, QMS document{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/iso-document-creator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/iso-document-creator/">
+<meta property="og:title" content="Free ISO Document Creator | Svend">
+<meta property="og:description" content="Create structured ISO 9001 documents with proper sections. Quality manuals, SOPs, work instructions, policies, and forms.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "ISO Document Creator",
+    "url": "https://svend.ai/tools/iso-document-creator/",
+    "description": "Free online tool to create structured ISO 9001 documents. Quality manuals, procedures, work instructions, policies, specifications, plans, and forms.",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "All",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What ISO document types can I create?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Quality Manuals, Procedures (SOPs), Work Instructions, Policies, Specifications, Plans, and Forms/Record Templates. Each type comes with pre-structured sections based on ISO 9001:2015 requirements." }
+        },
+        {
+            "@type": "Question",
+            "name": "Is this ISO document creator really free?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. You can create up to 5 documents for free with no signup. Documents are saved in your browser's local storage. For unlimited documents, image upload, Word/PDF export, whiteboard integration, and Document Control publishing, upgrade to Svend QMS." }
+        },
+        {
+            "@type": "Question",
+            "name": "Can I export my ISO documents?",
+            "acceptedAnswer": { "@type": "Answer", "text": "The free version supports browser printing (Ctrl+P). Svend QMS adds Word (.docx) and PDF export with professional formatting, headers, footers, and revision tables." }
+        },
+        {
+            "@type": "Question",
+            "name": "What sections are included in each document type?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Each document type follows ISO 9001:2015 structure. For example, Procedures include Purpose, Scope, References, Definitions, Responsibilities, Procedure Steps, Records, and Revision History. Quality Manuals cover all clauses 4-10. Work Instructions include Safety/PPE, Equipment, Steps, and Acceptance Criteria." }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "ISO Document Creator", "item": "https://svend.ai/tools/iso-document-creator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.idoc-hero { margin-bottom: 1.5rem; }
+.idoc-hero h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+.idoc-hero p { color: var(--text-secondary); font-size: 0.95rem; }
+
+.idoc-type-picker {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.idoc-type-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1.1rem; cursor: pointer; transition: border-color 0.2s, transform 0.15s;
+}
+.idoc-type-card:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
+.idoc-type-card.selected { border-color: var(--accent-primary); background: rgba(74,159,110,0.06); }
+.idoc-type-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; }
+.idoc-type-card p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
+.idoc-type-card .sec-count { font-size: 0.7rem; color: var(--accent-primary); margin-top: 0.4rem; font-weight: 600; }
+
+.idoc-editor { display: none; }
+.idoc-editor.active { display: block; }
+
+.idoc-toolbar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;
+    padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; flex-wrap: wrap;
+}
+.idoc-btn {
+    padding: 7px 14px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 13px;
+    transition: all 0.15s;
+}
+.idoc-btn:hover { background: var(--accent-primary); border-color: var(--accent-primary); color: white; }
+.idoc-btn.primary { background: var(--accent-primary); border-color: var(--accent-primary); color: white; }
+
+.idoc-title-input {
+    font-size: 1.3rem; font-weight: 600; background: transparent; border: none;
+    border-bottom: 1px solid transparent; color: var(--text-primary); width: 100%;
+    padding: 6px 0; margin-bottom: 1rem; outline: none;
+}
+.idoc-title-input:focus { border-bottom-color: var(--accent-primary); }
+
+.idoc-sections { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; }
+.idoc-section {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.idoc-section-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: rgba(var(--text-secondary-rgb, 150,150,150), 0.05);
+    border-bottom: 1px solid var(--border);
+}
+.idoc-section-num { font-size: 0.78rem; font-weight: 600; color: var(--accent-primary); }
+.idoc-section-title-input {
+    flex: 1; background: transparent; border: none; color: var(--text-primary);
+    font-size: 0.9rem; font-weight: 600; outline: none;
+}
+.idoc-section-type-badge {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 2px 8px; border-radius: 4px;
+    background: rgba(var(--text-secondary-rgb, 150,150,150), 0.1);
+    color: var(--text-secondary); font-weight: 600;
+}
+.idoc-section-del {
+    background: none; border: none; color: var(--text-secondary); cursor: pointer;
+    font-size: 16px; opacity: 0; transition: opacity 0.2s;
+}
+.idoc-section:hover .idoc-section-del { opacity: 1; }
+.idoc-section-del:hover { color: var(--error, #e55); }
+
+.idoc-section-body { padding: 14px; }
+.idoc-section-help { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 10px; font-style: italic; }
+.idoc-textarea {
+    width: 100%; min-height: 80px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); padding: 10px; font-family: inherit;
+    font-size: 0.9rem; resize: vertical; line-height: 1.6;
+}
+.idoc-textarea:focus { outline: none; border-color: var(--accent-primary); }
+
+/* Table editor */
+.idoc-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.idoc-table th, .idoc-table td { border: 1px solid var(--border); padding: 6px 10px; }
+.idoc-table th { background: rgba(var(--text-secondary-rgb, 150,150,150), 0.08); font-weight: 600; font-size: 0.8rem; }
+.idoc-table td input {
+    width: 100%; background: transparent; border: none; color: var(--text-primary);
+    font-size: 0.85rem; outline: none;
+}
+.idoc-table-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Checklist */
+.idoc-check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.idoc-check-row input[type="checkbox"] { accent-color: var(--accent-primary); width: 16px; height: 16px; }
+.idoc-check-row input[type="text"] {
+    flex: 1; padding: 6px 10px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); font-size: 0.85rem;
+}
+
+/* Add section */
+.idoc-add-bar {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px; border: 2px dashed var(--border); border-radius: 10px; flex-wrap: wrap;
+}
+.idoc-add-btn {
+    padding: 6px 14px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 0.8rem;
+    transition: all 0.15s;
+}
+.idoc-add-btn:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+/* Gate modal */
+.idoc-gate-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 1000;
+}
+.idoc-gate-bg.active { display: flex; }
+.idoc-gate-modal {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 2rem; width: 440px; max-width: 95vw; text-align: center;
+}
+.idoc-gate-modal h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+.idoc-gate-modal p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+/* Saved docs list */
+.idoc-saved-list { margin-bottom: 1.5rem; }
+.idoc-saved-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.2s;
+}
+.idoc-saved-card:hover { border-color: var(--accent-primary); }
+.idoc-saved-card h4 { font-size: 0.9rem; flex: 1; }
+.idoc-saved-card .meta { font-size: 0.75rem; color: var(--text-secondary); }
+
+@media print {
+    .tool-header, .idoc-toolbar, .idoc-add-bar, .idoc-section-del,
+    .idoc-type-picker, .idoc-saved-list, .idoc-gate-bg,
+    nav, footer, .tool-cta-section, .tool-faq { display: none !important; }
+    .idoc-section { border: none !important; break-inside: avoid; }
+    .idoc-section-header { background: none !important; border-bottom: 1px solid #ccc !important; }
+    .idoc-textarea { border: none !important; background: none !important; }
+    body { background: white !important; color: black !important; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1>ISO Document <strong>Creator</strong></h1>
+    <p>Create structured ISO 9001 documents with proper sections. Quality manuals, procedures, work instructions, policies, and forms. Free &mdash; no signup required.</p>
+</div>
+
+<!-- Saved documents -->
+<div id="saved-docs" class="idoc-saved-list"></div>
+
+<!-- Type picker -->
+<div id="type-picker" class="idoc-type-picker"></div>
+
+<!-- Editor -->
+<div id="editor" class="idoc-editor">
+    <div class="idoc-toolbar">
+        <button class="idoc-btn" onclick="backToList()">&larr; Back</button>
+        <span style="flex:1;"></span>
+        <button class="idoc-btn" onclick="window.print()">Print / Save PDF</button>
+    </div>
+
+    <input type="text" id="doc-title" class="idoc-title-input" placeholder="Document Title" oninput="saveLocal()">
+
+    <div id="sections" class="idoc-sections"></div>
+
+    <div class="idoc-add-bar">
+        <button class="idoc-add-btn" onclick="addSection('paragraph')">+ Paragraph</button>
+        <button class="idoc-add-btn" onclick="addSection('table')">+ Table</button>
+        <button class="idoc-add-btn" onclick="addSection('checklist')">+ Checklist</button>
+    </div>
+</div>
+
+<!-- Gate modal -->
+<div id="gate-modal" class="idoc-gate-bg" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="idoc-gate-modal">
+        <h2>You've reached the free limit</h2>
+        <p>The free version supports up to 5 documents. Sign up for a free 14-day trial to get unlimited documents, Word/PDF export, image upload, whiteboard integration, and Document Control publishing.</p>
+        <a href="/register/" class="idoc-btn primary" style="display:inline-block;padding:12px 28px;font-size:1rem;text-decoration:none;">Start Free Trial</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Need more than a template?</h3>
+    <p>Svend QMS gives you unlimited ISO documents with Word &amp; PDF export, image upload, whiteboard integration, and direct publishing to Document Control &mdash; full audit trail, revision history, and approval workflows.</p>
+    <a href="/register/" class="nav-btn">Start Free Trial</a>
+</div>
+{% endblock %}
+
+{% block faq %}
+<details><summary>What ISO document types can I create?</summary>
+<p>Quality Manuals, Procedures (SOPs), Work Instructions, Policies, Specifications, Plans, and Forms/Record Templates. Each type comes with pre-structured sections based on ISO 9001:2015 requirements.</p>
+</details>
+<details><summary>Is this really free?</summary>
+<p>Yes. You can create up to 5 documents with no signup. Documents are saved in your browser's local storage. For unlimited documents, Word/PDF export, and QMS integration, start a free trial of Svend.</p>
+</details>
+<details><summary>Can I export my documents?</summary>
+<p>The free version supports browser printing (Ctrl+P / Cmd+P). Svend QMS adds professional Word (.docx) and PDF export with headers, footers, document numbers, and revision tables.</p>
+</details>
+<details><summary>What sections are included in each document type?</summary>
+<p>Each type follows ISO 9001:2015 structure. Procedures include Purpose, Scope, References, Definitions, Responsibilities, Procedure Steps, Records, and Revision History. Quality Manuals cover clauses 4&ndash;10. Work Instructions include Safety/PPE, Equipment, Steps, and Acceptance Criteria.</p>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DOC_TYPES = {
+    quality_manual: {
+        name: "Quality Manual", desc: "Top-level QMS document covering clauses 4-10.",
+        sections: [
+            {key:"scope",title:"Scope",type:"paragraph",help:"Define the scope of the QMS."},
+            {key:"normative_references",title:"Normative References",type:"paragraph",help:"List applicable standards and regulations."},
+            {key:"terms_definitions",title:"Terms and Definitions",type:"paragraph",help:"Define key terms."},
+            {key:"context",title:"Context of the Organization",type:"paragraph",help:"Clause 4: Organization context, interested parties, QMS scope."},
+            {key:"leadership",title:"Leadership",type:"paragraph",help:"Clause 5: Management commitment, quality policy, roles."},
+            {key:"planning",title:"Planning",type:"paragraph",help:"Clause 6: Risk-based thinking, quality objectives."},
+            {key:"support",title:"Support",type:"paragraph",help:"Clause 7: Resources, competence, documented information."},
+            {key:"operation",title:"Operation",type:"paragraph",help:"Clause 8: Operational planning, production, release."},
+            {key:"performance_evaluation",title:"Performance Evaluation",type:"paragraph",help:"Clause 9: Monitoring, audit, management review."},
+            {key:"improvement",title:"Improvement",type:"paragraph",help:"Clause 10: Nonconformity, corrective action, improvement."},
+        ]
+    },
+    procedure: {
+        name: "Procedure (SOP)", desc: "Standard operating procedure: who, what, when, how.",
+        sections: [
+            {key:"purpose",title:"Purpose",type:"paragraph",help:"State the purpose of this procedure."},
+            {key:"scope",title:"Scope",type:"paragraph",help:"Define what this procedure covers."},
+            {key:"definitions",title:"Definitions",type:"paragraph",help:"Define terms specific to this procedure."},
+            {key:"responsibilities",title:"Responsibilities",type:"table",help:"Define roles and responsibilities.",data:{columns:["Role","Responsibility"],rows:[]}},
+            {key:"procedure_steps",title:"Procedure",type:"paragraph",help:"Step-by-step instructions."},
+            {key:"records",title:"Records",type:"table",help:"Records generated.",data:{columns:["Record","Location","Retention"],rows:[]}},
+            {key:"revision_history",title:"Revision History",type:"table",help:"Document revisions.",data:{columns:["Version","Date","Author","Changes"],rows:[]}},
+        ]
+    },
+    work_instruction: {
+        name: "Work Instruction", desc: "Detailed step-by-step task instructions.",
+        sections: [
+            {key:"scope",title:"Scope",type:"paragraph",help:"What task does this cover?"},
+            {key:"safety_ppe",title:"Safety & PPE",type:"checklist",help:"Required PPE and safety precautions.",data:{items:[]}},
+            {key:"equipment",title:"Equipment & Materials",type:"table",help:"Required tools and materials.",data:{columns:["Item","Specification","Qty"],rows:[]}},
+            {key:"steps",title:"Steps",type:"paragraph",help:"Detailed step-by-step instructions."},
+            {key:"acceptance",title:"Acceptance Criteria",type:"checklist",help:"How to verify the work.",data:{items:[]}},
+        ]
+    },
+    policy: {
+        name: "Policy", desc: "Policy statement with scope and objectives.",
+        sections: [
+            {key:"statement",title:"Policy Statement",type:"paragraph",help:"The formal policy statement."},
+            {key:"scope",title:"Scope",type:"paragraph",help:"Who and what this applies to."},
+            {key:"objectives",title:"Objectives",type:"checklist",help:"Measurable objectives.",data:{items:[]}},
+            {key:"responsibilities",title:"Responsibilities",type:"table",help:"Implementation responsibilities.",data:{columns:["Role","Responsibility"],rows:[]}},
+            {key:"review",title:"Review Cycle",type:"paragraph",help:"Review frequency and ownership."},
+        ]
+    },
+    form: {
+        name: "Form / Record", desc: "Blank form or record template.",
+        sections: [
+            {key:"header",title:"Header",type:"table",help:"Form header fields.",data:{columns:["Field","Value"],rows:[["Document No.",""],["Date",""],["Revision",""]]}},
+            {key:"data_table",title:"Data Table",type:"table",help:"Data collection table.",data:{columns:["Column 1","Column 2","Column 3"],rows:[]}},
+            {key:"checks",title:"Checkboxes",type:"checklist",help:"Checkbox items.",data:{items:[]}},
+        ]
+    },
+};
+
+const STORAGE_KEY = 'svend_iso_docs';
+const MAX_FREE = 5;
+
+let allDocs = [];
+let currentDoc = null;
+let currentIdx = -1;
+
+function loadStorage() {
+    try { allDocs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { allDocs = []; }
+}
+function saveStorage() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(allDocs)); } catch {}
+}
+
+function init() {
+    loadStorage();
+    renderSavedDocs();
+    renderTypePicker();
+}
+
+function renderTypePicker() {
+    const el = document.getElementById('type-picker');
+    el.innerHTML = Object.entries(DOC_TYPES).map(([key, t]) =>
+        `<div class="idoc-type-card" onclick="createDoc('${key}')">
+            <h3>${t.name}</h3>
+            <p>${t.desc}</p>
+            <div class="sec-count">${t.sections.length} sections</div>
+        </div>`
+    ).join('');
+}
+
+function renderSavedDocs() {
+    const el = document.getElementById('saved-docs');
+    if (!allDocs.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<h3 style="font-size:0.9rem;margin-bottom:0.5rem;color:var(--text-secondary);">Your Documents (' + allDocs.length + '/' + MAX_FREE + ')</h3>' +
+        allDocs.map((d, i) =>
+            `<div class="idoc-saved-card" onclick="openDoc(${i})">
+                <h4>${esc(d.title || 'Untitled')}</h4>
+                <span class="meta">${DOC_TYPES[d.type]?.name || d.type}</span>
+                <button onclick="event.stopPropagation();deleteDoc(${i})" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:14px;" title="Delete">&times;</button>
+            </div>`
+        ).join('');
+}
+
+function createDoc(type) {
+    if (allDocs.length >= MAX_FREE) {
+        document.getElementById('gate-modal').classList.add('active');
+        return;
+    }
+    const typeDef = DOC_TYPES[type];
+    const doc = {
+        id: Date.now().toString(36),
+        type: type,
+        title: `New ${typeDef.name}`,
+        sections: typeDef.sections.map((s, i) => ({
+            id: `s${i}`,
+            key: s.key,
+            title: s.title,
+            type: s.type,
+            help: s.help,
+            content: '',
+            data: s.data ? JSON.parse(JSON.stringify(s.data)) : {},
+        })),
+    };
+    allDocs.push(doc);
+    saveStorage();
+    openDoc(allDocs.length - 1);
+}
+
+function openDoc(idx) {
+    currentIdx = idx;
+    currentDoc = allDocs[idx];
+    document.getElementById('type-picker').style.display = 'none';
+    document.getElementById('saved-docs').style.display = 'none';
+    document.getElementById('editor').classList.add('active');
+    document.getElementById('doc-title').value = currentDoc.title;
+    renderSections();
+}
+
+function backToList() {
+    saveLocal();
+    currentDoc = null;
+    currentIdx = -1;
+    document.getElementById('type-picker').style.display = '';
+    document.getElementById('saved-docs').style.display = '';
+    document.getElementById('editor').classList.remove('active');
+    renderSavedDocs();
+}
+
+function deleteDoc(idx) {
+    if (!confirm('Delete this document?')) return;
+    allDocs.splice(idx, 1);
+    saveStorage();
+    renderSavedDocs();
+}
+
+function renderSections() {
+    const el = document.getElementById('sections');
+    el.innerHTML = currentDoc.sections.map((sec, i) => {
+        let body = '';
+        if (sec.type === 'paragraph') {
+            body = `<textarea class="idoc-textarea" oninput="currentDoc.sections[${i}].content=this.value;saveLocal()" placeholder="Enter content...">${esc(sec.content || '')}</textarea>`;
+        } else if (sec.type === 'table') {
+            body = renderTable(sec, i);
+        } else if (sec.type === 'checklist') {
+            body = renderChecklist(sec, i);
+        }
+        return `<div class="idoc-section">
+            <div class="idoc-section-header">
+                <span class="idoc-section-num">${i+1}</span>
+                <input class="idoc-section-title-input" value="${esc(sec.title)}"
+                    oninput="currentDoc.sections[${i}].title=this.value;saveLocal()">
+                <span class="idoc-section-type-badge">${sec.type}</span>
+                <button class="idoc-section-del" onclick="removeSection(${i})">&times;</button>
+            </div>
+            <div class="idoc-section-body">
+                ${sec.help ? `<div class="idoc-section-help">${esc(sec.help)}</div>` : ''}
+                ${body}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderTable(sec, secIdx) {
+    const d = sec.data || {};
+    const cols = d.columns || ['Column 1'];
+    const rows = d.rows || [];
+    let html = `<div style="overflow-x:auto;"><table class="idoc-table">
+        <thead><tr>${cols.map((c, j) =>
+            `<th><input value="${esc(c)}" oninput="currentDoc.sections[${secIdx}].data.columns[${j}]=this.value;saveLocal()" style="width:100%;background:transparent;border:none;color:inherit;font-weight:600;font-size:0.8rem;"></th>`
+        ).join('')}</tr></thead>
+        <tbody>${rows.map((row, i) =>
+            `<tr>${cols.map((_, j) =>
+                `<td><input value="${esc((row[j]||'').toString())}" oninput="currentDoc.sections[${secIdx}].data.rows[${i}][${j}]=this.value;saveLocal()"></td>`
+            ).join('')}</tr>`
+        ).join('')}</tbody>
+    </table></div>`;
+    html += `<div class="idoc-table-actions">
+        <button class="idoc-add-btn" onclick="addRow(${secIdx})">+ Row</button>
+        <button class="idoc-add-btn" onclick="addCol(${secIdx})">+ Column</button>
+    </div>`;
+    return html;
+}
+function addRow(secIdx) {
+    const d = currentDoc.sections[secIdx].data;
+    d.rows = d.rows || [];
+    d.rows.push((d.columns||[]).map(()=>''));
+    saveLocal(); renderSections();
+}
+function addCol(secIdx) {
+    const d = currentDoc.sections[secIdx].data;
+    d.columns = d.columns || [];
+    d.columns.push(`Col ${d.columns.length+1}`);
+    (d.rows||[]).forEach(r => r.push(''));
+    saveLocal(); renderSections();
+}
+
+function renderChecklist(sec, secIdx) {
+    const items = (sec.data || {}).items || [];
+    let html = items.map((item, i) =>
+        `<div class="idoc-check-row">
+            <input type="checkbox" ${item.checked?'checked':''} onchange="currentDoc.sections[${secIdx}].data.items[${i}].checked=this.checked;saveLocal()">
+            <input type="text" value="${esc(item.text||'')}" oninput="currentDoc.sections[${secIdx}].data.items[${i}].text=this.value;saveLocal()" placeholder="Item">
+            <button style="background:none;border:none;color:var(--text-secondary);cursor:pointer;" onclick="currentDoc.sections[${secIdx}].data.items.splice(${i},1);saveLocal();renderSections()">&times;</button>
+        </div>`
+    ).join('');
+    html += `<button class="idoc-add-btn" onclick="currentDoc.sections[${secIdx}].data.items.push({text:'',checked:false});saveLocal();renderSections();" style="margin-top:8px;">+ Add Item</button>`;
+    return html;
+}
+
+function addSection(type) {
+    const newSec = { id: 's'+Date.now(), key: '', title: '', type: type, help: '', content: '', data: {} };
+    if (type === 'table') newSec.data = { columns: ['Column 1', 'Column 2'], rows: [] };
+    if (type === 'checklist') newSec.data = { items: [] };
+    currentDoc.sections.push(newSec);
+    saveLocal(); renderSections();
+}
+function removeSection(idx) {
+    if (!confirm('Remove this section?')) return;
+    currentDoc.sections.splice(idx, 1);
+    saveLocal(); renderSections();
+}
+
+function saveLocal() {
+    if (currentDoc && currentIdx >= 0) {
+        currentDoc.title = document.getElementById('doc-title').value;
+        allDocs[currentIdx] = currentDoc;
+        saveStorage();
+    }
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+init();
+</script>
+{% endblock %}

@@ -3,6 +3,7 @@
 import json
 from datetime import timedelta
 
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -355,7 +356,7 @@ def add_vote(request, room_code):
             return JsonResponse({"error": "Vote limit reached"}, status=400)
         try:
             BoardVote.objects.create(board=board, guest_invite=invite, element_id=element_id)
-        except Exception:
+        except IntegrityError:
             return JsonResponse({"error": "Already voted on this element"}, status=400)
     else:
         user_vote_count = board.votes.filter(user=request.user).count()
@@ -363,7 +364,7 @@ def add_vote(request, room_code):
             return JsonResponse({"error": "Vote limit reached"}, status=400)
         try:
             BoardVote.objects.create(board=board, user=request.user, element_id=element_id)
-        except Exception:
+        except IntegrityError:
             return JsonResponse({"error": "Already voted on this element"}, status=400)
 
     vote_count = board.votes.filter(element_id=element_id).count()
@@ -520,12 +521,13 @@ def export_hypotheses(request, room_code):
             continue
 
         # Create new hypothesis
+        prior = rel.get("prior_probability", 0.5)
         hypothesis = Hypothesis.objects.create(
             project=board.project,
             statement=statement,
-            mechanism=f"Condition: {rel.get('condition', '')}\nEffect: {rel.get('effect', '')}",
-            prior_probability=rel.get("prior_probability", 0.5),
-            current_probability=rel.get("prior_probability", 0.5),
+            because_clause=f"Condition: {rel.get('condition', '')}\nEffect: {rel.get('effect', '')}",
+            prior_probability=prior,
+            current_probability=prior,
         )
 
         created_hypotheses.append({
@@ -680,28 +682,17 @@ def _render_connection_svg(conn, elements, offset_x=0, offset_y=0):
         return f'''<line x1="{from_x}" y1="{from_y}" x2="{to_x}" y2="{to_y}" stroke="#4a9f6e" stroke-width="1.5" marker-end="url(#arrowhead)"/>'''
 
 
-@allow_guest
-@require_http_methods(["GET"])
-def export_svg(request, room_code):
-    """Export whiteboard as SVG for embedding in A3 reports.
+def _generate_svg(board, theme="dark"):
+    """Generate SVG string from a Board's elements and connections.
 
-    Query params:
-    - width: max width (default 600)
-    - height: max height (default 400)
-    - theme: 'dark' (default) or 'light'
+    Returns (svg_content, width, height) or (None, 0, 0) if empty.
+    Used by export_svg view, A3 embed, Report embed, and ISO Doc embed.
     """
-    board = get_object_or_404(Board, room_code=room_code.upper())
-
     elements = board.elements or []
     connections = board.connections or []
 
     if not elements:
-        return JsonResponse({
-            "svg": f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><text x="200" y="100" text-anchor="middle" fill="#666">Empty whiteboard</text></svg>',
-            "width": 400,
-            "height": 200,
-            "element_count": 0,
-        })
+        return None, 0, 0
 
     # Calculate bounding box
     min_x = min(el.get('x', 0) for el in elements)
@@ -718,10 +709,7 @@ def export_svg(request, room_code):
     offset_x = min_x - padding
     offset_y = min_y - padding
 
-    # Get theme
-    theme = request.GET.get('theme', 'dark')
     bg_color = '#1a1a1a' if theme == 'dark' else '#ffffff'
-    text_color = '#e8efe8' if theme == 'dark' else '#333333'
 
     # Build SVG
     svg_parts = [
@@ -729,17 +717,41 @@ def export_svg(request, room_code):
         f'<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#4a9f6e"/></marker></defs>',
     ]
 
-    # Render connections first (behind elements)
     for conn in connections:
         svg_parts.append(_render_connection_svg(conn, elements, offset_x, offset_y))
 
-    # Render elements
     for el in elements:
         svg_parts.append(_render_element_svg(el, offset_x, offset_y))
 
     svg_parts.append('</svg>')
+    return '\n'.join(svg_parts), width, height
 
-    svg_content = '\n'.join(svg_parts)
+
+@allow_guest
+@require_http_methods(["GET"])
+def export_svg(request, room_code):
+    """Export whiteboard as SVG for embedding in A3 reports.
+
+    Query params:
+    - width: max width (default 600)
+    - height: max height (default 400)
+    - theme: 'dark' (default) or 'light'
+    """
+    board = get_object_or_404(Board, room_code=room_code.upper())
+    theme = request.GET.get('theme', 'dark')
+
+    svg_content, width, height = _generate_svg(board, theme=theme)
+
+    if svg_content is None:
+        return JsonResponse({
+            "svg": f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><text x="200" y="100" text-anchor="middle" fill="#666">Empty whiteboard</text></svg>',
+            "width": 400,
+            "height": 200,
+            "element_count": 0,
+        })
+
+    elements = board.elements or []
+    connections = board.connections or []
 
     return JsonResponse({
         "svg": svg_content,
@@ -747,6 +759,40 @@ def export_svg(request, room_code):
         "height": height,
         "element_count": len(elements),
         "connection_count": len(connections),
+        "board_name": board.name,
+    })
+
+
+@allow_guest
+@require_http_methods(["GET"])
+def export_png(request, room_code):
+    """Export whiteboard as PNG.
+
+    Query params:
+    - theme: 'dark' (default) or 'light'
+    - width: output width in pixels (default: actual, max 2400)
+    """
+    import base64
+    import cairosvg
+
+    board = get_object_or_404(Board, room_code=room_code.upper())
+    theme = request.GET.get('theme', 'light')
+
+    svg_content, width, height = _generate_svg(board, theme=theme)
+
+    if svg_content is None:
+        return JsonResponse({"error": "Whiteboard is empty"}, status=400)
+
+    output_width = min(int(request.GET.get('width', width)), 2400)
+    png_bytes = cairosvg.svg2png(
+        bytestring=svg_content.encode('utf-8'),
+        output_width=output_width,
+    )
+
+    return JsonResponse({
+        "png": base64.b64encode(png_bytes).decode('utf-8'),
+        "width": output_width,
+        "height": height,
         "board_name": board.name,
     })
 

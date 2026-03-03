@@ -1,0 +1,624 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Value Stream Mapping Methodology — Current State, Future State, Simulation{% endblock %}
+{% block meta_description %}Complete VSM playbook: current-state mapping, constraint identification, future-state design, kaizen burst targeting, simulation before commitment, connecting VSM to hoshin. {{ price_team }}/mo.{% endblock %}
+{% block meta_keywords %}value stream mapping, VSM, current state map, future state map, lean value stream, process mapping, kaizen burst, constraint identification, VSM software, lead time reduction, process time, value stream analysis, takt time{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/value-stream-mapping-methodology/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://svend.ai/value-stream-mapping-methodology/">
+<meta property="og:title" content="Value Stream Mapping Methodology Playbook | Svend">
+<meta property="og:description" content="VSM is the diagnostic that feeds strategy. Current state, future state, constraint identification, kaizen burst targeting, simulation, hoshin promotion. Written for CI practitioners.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Value Stream Mapping Methodology Playbook",
+    "url": "https://svend.ai/value-stream-mapping-methodology/",
+    "description": "Complete VSM playbook: current-state mapping, constraint identification, future-state design, kaizen burst targeting, simulation, connecting VSM to hoshin kanri strategy deployment.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "about": [
+        { "@type": "Thing", "name": "Value Stream Mapping" },
+        { "@type": "Thing", "name": "Lean Manufacturing" },
+        { "@type": "Thing", "name": "Process Improvement" },
+        { "@type": "Thing", "name": "Continuous Improvement" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is value stream mapping?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Value stream mapping (VSM) is a diagnostic tool that visualizes the flow of materials and information through a production process. It maps every step from raw material to finished product, capturing cycle time, changeover time, uptime, WIP, and operator count at each step. The map reveals where flow breaks, where constraints exist, and where improvement will have the most impact."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between current state and future state VSM?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The current-state map shows what actually happens today — measured, not estimated. The future-state map shows what you want the process to look like after improvement, with kaizen bursts marking where changes will occur. The gap between the two states defines the improvement portfolio. Future state is not a wish — it is a plan with specific targets, timelines, and owners."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does VSM connect to hoshin kanri?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "VSM is the diagnostic that feeds hoshin. Current-state maps reveal constraints. Kaizen bursts on the future-state map become candidate hoshin projects. Bursts that align to strategic objectives promote to the X-matrix with calculation methods and savings targets. Realized savings from hoshin projects write back to the VSM for closed-loop tracking."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How long does a value stream mapping exercise take?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Current-state mapping: 1-2 days of walking the process and collecting data. Do not map from a conference room — walk every step, time every operation, count every piece of WIP. Future-state design: 1 day with the team. Total: 2-3 days for a focused value stream. Larger or more complex value streams may take longer, but resist the urge to over-analyze — map enough to identify constraints and act."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Should I simulate before committing resources?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Point estimates of savings create false precision. Monte Carlo simulation models uncertainty in volume, cost, and improvement realization to produce confidence intervals. A project with $120K deterministic savings but 30% probability of positive return is a different decision than one with $80K and 92% probability. Simulation prevents over-commitment to uncertain outcomes."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Continuous Improvement Software", "item": "https://svend.ai/continuous-improvement-software/" },
+        { "@type": "ListItem", "position": 3, "name": "Value Stream Mapping", "item": "https://svend.ai/value-stream-mapping-methodology/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .tool-container { max-width: 1000px; }
+
+    .playbook-hero { text-align: center; margin-bottom: 2.5rem; padding-top: 1rem; }
+    .playbook-badge {
+        display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3);
+        margin-bottom: 0.75rem;
+    }
+    .playbook-hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .playbook-hero h1 strong { color: #60a5fa; }
+    .playbook-hero .hero-sub {
+        color: var(--text-secondary); font-size: 1rem; max-width: 680px; margin: 0 auto; line-height: 1.7;
+    }
+
+    .playbook-toc {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+    }
+    .playbook-toc h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .playbook-toc ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.3rem; }
+    .playbook-toc a { color: var(--accent-primary); text-decoration: none; font-size: 0.88rem; line-height: 1.6; }
+    .playbook-toc a:hover { text-decoration: underline; }
+    .playbook-toc .toc-num { color: var(--text-dim); font-weight: 600; margin-right: 0.3rem; }
+
+    .pb-section {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .pb-section-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .pb-num {
+        background: #60a5fa; color: #000; width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .pb-section h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .pb-section p, .pb-section li { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+    .pb-section ul, .pb-section ol { padding-left: 1.5rem; margin: 0.75rem 0; }
+    .pb-section li { margin-bottom: 0.4rem; }
+    .pb-section h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+
+    .svend-callout {
+        background: rgba(74,159,110,0.06); border: 1px solid rgba(74,159,110,0.2); border-radius: 8px;
+        padding: 0.85rem 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+    }
+    .svend-callout strong { color: var(--accent-primary); }
+    .svend-callout a { color: var(--accent-primary); text-decoration: none; }
+    .svend-callout a:hover { text-decoration: underline; }
+
+    /* VSM Flow Diagram */
+    .vsm-flow {
+        display: flex; align-items: flex-start; gap: 0; margin: 1.5rem 0;
+        overflow-x: auto; padding-bottom: 0.5rem;
+    }
+    .vsm-step {
+        min-width: 130px; flex-shrink: 0;
+    }
+    .vsm-process {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+        padding: 0.75rem; text-align: center;
+    }
+    .vsm-process strong { display: block; font-size: 0.82rem; margin-bottom: 0.3rem; }
+    .vsm-data-box {
+        margin-top: 0.4rem; font-size: 0.7rem; color: var(--text-dim); line-height: 1.5;
+        text-align: left; padding: 0.4rem 0.5rem;
+        background: var(--bg-tertiary); border-radius: 4px;
+    }
+    .vsm-data-box .vd-label { color: var(--text-dim); }
+    .vsm-data-box .vd-val { color: var(--text-secondary); font-weight: 600; }
+    .vsm-burst {
+        display: inline-block; margin-top: 0.4rem;
+        background: rgba(232,197,71,0.15); color: #e8c547;
+        padding: 2px 8px; border-radius: 3px; font-size: 0.65rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .vsm-arrow-col {
+        display: flex; align-items: center; min-width: 30px; justify-content: center;
+        color: var(--text-dim); font-size: 1rem; padding-top: 0.75rem;
+    }
+    .vsm-supplier, .vsm-customer {
+        min-width: 80px; display: flex; align-items: center; justify-content: center;
+        font-size: 0.78rem; color: var(--text-dim); font-weight: 500;
+        padding-top: 0.75rem;
+    }
+    .vsm-timeline {
+        display: flex; margin-top: 0.75rem; padding: 0.75rem;
+        background: var(--bg-tertiary); border-radius: 6px;
+        font-size: 0.78rem; gap: 1.5rem; justify-content: center;
+    }
+    .vsm-timeline .vt-item { text-align: center; }
+    .vsm-timeline .vt-label { color: var(--text-dim); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .vsm-timeline .vt-val { color: var(--text-primary); font-weight: 700; font-size: 1rem; }
+
+    /* Constraint cards */
+    .constraint-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem; margin: 1rem 0;
+    }
+    .constraint-card {
+        padding: 0.85rem; border-radius: 8px; border-left: 3px solid #60a5fa;
+        background: var(--bg-tertiary);
+    }
+    .constraint-card strong { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; color: var(--text-primary); }
+    .constraint-card span { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
+
+    /* Promotion flow */
+    .promo-flow {
+        display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+        gap: 0.4rem; margin: 1.5rem 0; padding: 1.25rem;
+        background: var(--bg-tertiary); border-radius: 8px;
+    }
+    .promo-step {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+        padding: 0.7rem 1rem; text-align: center; min-width: 130px;
+    }
+    .promo-step strong { display: block; font-size: 0.82rem; color: var(--text-primary); }
+    .promo-step span { font-size: 0.7rem; color: var(--text-dim); }
+    .promo-arrow { color: #60a5fa; font-size: 1rem; }
+
+    /* Related playbooks */
+    .related-playbooks {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem; margin: 1.5rem 0;
+    }
+    .related-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.1rem; text-decoration: none; color: inherit; transition: border-color 0.2s;
+    }
+    .related-card:hover { border-color: var(--accent-primary); }
+    .related-phase {
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.3rem;
+    }
+    .related-phase.strategy { color: #f59e0b; }
+    .related-phase.execute { color: #3a7f8f; }
+    .related-phase.backbone { color: #a78bfa; }
+    .related-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .related-desc { color: var(--text-secondary); font-size: 0.78rem; line-height: 1.5; }
+
+    .playbook-cta {
+        text-align: center; margin: 2.5rem 0 1.5rem; padding: 2.5rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .playbook-cta h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .playbook-cta p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .playbook-cta .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .cta-primary {
+        background: var(--accent-primary); color: #fff; padding: 0.7rem 2rem; border-radius: 6px;
+        text-decoration: none; font-weight: 600; font-size: 0.95rem;
+    }
+    .cta-primary:hover { background: #3a8a5a; }
+    .cta-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.7rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.95rem;
+    }
+    .cta-secondary:hover { border-color: var(--accent-primary-border); }
+
+    .pb-faq { margin-top: 2rem; }
+    .pb-faq h2 { font-size: 1.25rem; margin-bottom: 1rem; text-align: center; }
+
+    @media (max-width: 768px) {
+        .vsm-flow { flex-direction: column; align-items: center; }
+        .vsm-arrow-col { transform: rotate(90deg); min-width: auto; padding-top: 0; }
+        .promo-flow { flex-direction: column; }
+        .promo-arrow { transform: rotate(90deg); }
+        .related-playbooks { grid-template-columns: 1fr; }
+        .constraint-grid { grid-template-columns: 1fr; }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="playbook-hero">
+    <div class="playbook-badge">Diagnostic</div>
+    <h1>Value Stream <strong>Mapping</strong></h1>
+    <p class="hero-sub">VSM is the diagnostic that feeds everything else. Map the current state with real data. Identify where flow breaks. Design the future state with kaizen bursts. Simulate before committing resources. Promote to hoshin and track savings. This is not a wall poster exercise.</p>
+</div>
+
+<div class="playbook-toc">
+    <h3>In This Playbook</h3>
+    <ol>
+        <li><a href="#s1"><span class="toc-num">1.</span> VSM as Diagnostic</a></li>
+        <li><a href="#s2"><span class="toc-num">2.</span> Current-State Mapping</a></li>
+        <li><a href="#s3"><span class="toc-num">3.</span> Identifying Constraints</a></li>
+        <li><a href="#s4"><span class="toc-num">4.</span> Future-State Design</a></li>
+        <li><a href="#s5"><span class="toc-num">5.</span> Simulation Before Commitment</a></li>
+        <li><a href="#s6"><span class="toc-num">6.</span> Connecting VSM to Hoshin</a></li>
+        <li><a href="#s7"><span class="toc-num">7.</span> VSM in the Campaign Cycle</a></li>
+    </ol>
+</div>
+
+<!-- Section 1 -->
+<div class="pb-section" id="s1">
+    <div class="pb-section-head">
+        <div class="pb-num">1</div>
+        <h2>VSM as Diagnostic</h2>
+    </div>
+    <p>Value stream mapping is a diagnostic tool. It shows you where the problems are. It does not fix them &mdash; that is kaizen&rsquo;s job. But without a clear diagnosis, kaizen is guessing.</p>
+    <p>A value stream map captures the flow of materials and information from supplier to customer, including every process step, every delay, every handoff. At each step, you record data: cycle time, changeover time, uptime, operators, WIP. The map reveals the gap between processing time (actual value-added work) and lead time (total time from order to delivery). In most operations, processing time is 1-5% of lead time. The rest is waiting.</p>
+
+    <h3>What VSM is not</h3>
+    <ul>
+        <li><strong>Not a process map.</strong> Process maps show steps. VSM shows steps plus data plus material flow plus information flow plus timeline. The data is what makes VSM a diagnostic instead of a picture.</li>
+        <li><strong>Not a one-time exercise.</strong> The current-state map is a snapshot. The future-state map is a plan. When the plan executes and the process changes, the current state must be remapped to capture the new reality. VSM is iterative.</li>
+        <li><strong>Not done from a conference room.</strong> Walk the value stream. Time the operations. Count the WIP. Talk to the operators. A VSM created from estimates and assumptions is fiction. A VSM created from observed data is a diagnostic.</li>
+    </ul>
+</div>
+
+<!-- Section 2 -->
+<div class="pb-section" id="s2">
+    <div class="pb-section-head">
+        <div class="pb-num">2</div>
+        <h2>Current-State Mapping</h2>
+    </div>
+    <p>The current-state map answers one question: what is actually happening right now? Not what the process document says. Not what the manager believes. What is physically happening on the floor, measured and recorded.</p>
+
+    <div class="vsm-flow">
+        <div class="vsm-supplier">Supplier</div>
+        <div class="vsm-arrow-col">&rarr;</div>
+        <div class="vsm-step">
+            <div class="vsm-process">
+                <strong>Cutting</strong>
+            </div>
+            <div class="vsm-data-box">
+                <div><span class="vd-label">C/T:</span> <span class="vd-val">45s</span></div>
+                <div><span class="vd-label">C/O:</span> <span class="vd-val">12 min</span></div>
+                <div><span class="vd-label">Uptime:</span> <span class="vd-val">92%</span></div>
+                <div><span class="vd-label">Operators:</span> <span class="vd-val">1</span></div>
+            </div>
+        </div>
+        <div class="vsm-arrow-col">&rarr;</div>
+        <div class="vsm-step">
+            <div class="vsm-process">
+                <strong>Press</strong>
+            </div>
+            <div class="vsm-data-box">
+                <div><span class="vd-label">C/T:</span> <span class="vd-val">62s</span></div>
+                <div><span class="vd-label">C/O:</span> <span class="vd-val">28 min</span></div>
+                <div><span class="vd-label">Uptime:</span> <span class="vd-val">74%</span></div>
+                <div><span class="vd-label">OEE:</span> <span class="vd-val">62%</span></div>
+            </div>
+            <div class="vsm-burst">SMED target</div>
+            <div class="vsm-burst">OEE kaizen</div>
+        </div>
+        <div class="vsm-arrow-col">&rarr;</div>
+        <div class="vsm-step">
+            <div class="vsm-process">
+                <strong>Finishing</strong>
+            </div>
+            <div class="vsm-data-box">
+                <div><span class="vd-label">C/T:</span> <span class="vd-val">38s</span></div>
+                <div><span class="vd-label">C/O:</span> <span class="vd-val">5 min</span></div>
+                <div><span class="vd-label">Uptime:</span> <span class="vd-val">95%</span></div>
+                <div><span class="vd-label">Operators:</span> <span class="vd-val">2</span></div>
+            </div>
+        </div>
+        <div class="vsm-arrow-col">&rarr;</div>
+        <div class="vsm-customer">Customer</div>
+    </div>
+
+    <div class="vsm-timeline">
+        <div class="vt-item">
+            <div class="vt-label">Processing Time</div>
+            <div class="vt-val">4.2 hrs</div>
+        </div>
+        <div class="vt-item">
+            <div class="vt-label">Lead Time</div>
+            <div class="vt-val">11.4 days</div>
+        </div>
+        <div class="vt-item">
+            <div class="vt-label">Value-Added %</div>
+            <div class="vt-val">1.5%</div>
+        </div>
+        <div class="vt-item">
+            <div class="vt-label">Total WIP</div>
+            <div class="vt-val">3,200 pcs</div>
+        </div>
+    </div>
+
+    <h3>Data collection rules</h3>
+    <ul>
+        <li><strong>Walk the process.</strong> Physically follow the material from receiving to shipping. Record what you see, not what you are told.</li>
+        <li><strong>Time the operations.</strong> Use a stopwatch or video. Get at least 5-10 observations for each cycle time. Record the range, not just the average &mdash; the variation tells you about process stability.</li>
+        <li><strong>Count the WIP.</strong> Every triangle of inventory between process steps. Count it or estimate it, but get the number. WIP is where lead time hides.</li>
+        <li><strong>Record the data boxes.</strong> At each process step: cycle time (C/T), changeover time (C/O), uptime, number of operators, batch size if applicable. The data boxes are the diagnostic power of VSM.</li>
+        <li><strong>Map the information flow.</strong> How does the production schedule reach the floor? How do orders flow from customer to planning to production? Information flow reveals scheduling inefficiencies and communication gaps.</li>
+    </ul>
+</div>
+
+<!-- Section 3 -->
+<div class="pb-section" id="s3">
+    <div class="pb-section-head">
+        <div class="pb-num">3</div>
+        <h2>Identifying Constraints</h2>
+    </div>
+    <p>The current-state map is data. The next step is diagnosis: where does flow break? Where is the constraint? Not every red indicator on the map is a constraint. The constraint is the step that limits the entire value stream&rsquo;s throughput.</p>
+
+    <div class="constraint-grid">
+        <div class="constraint-card">
+            <strong>Bottleneck</strong>
+            <span>The process step with the longest cycle time or lowest capacity. Everything upstream waits for it. Everything downstream starves.</span>
+        </div>
+        <div class="constraint-card">
+            <strong>Changeover Constraint</strong>
+            <span>A process step where changeover time dominates. 28-minute changeovers on a 62-second cycle time mean the machine spends more time changing over than producing on short runs.</span>
+        </div>
+        <div class="constraint-card">
+            <strong>Quality Constraint</strong>
+            <span>A process step that generates defects requiring rework or scrap. The effective capacity is actual capacity minus rework. High scrap = hidden capacity loss.</span>
+        </div>
+        <div class="constraint-card">
+            <strong>WIP Accumulation</strong>
+            <span>Large triangles of inventory between steps indicate flow imbalance. Upstream is producing faster than downstream can consume. The WIP is safety stock masking the problem.</span>
+        </div>
+    </div>
+
+    <h3>The timeline reveals the truth</h3>
+    <p>Processing time: 4.2 hours. Lead time: 11.4 days. Value-added percentage: 1.5%. That means 98.5% of the time, the material is sitting &mdash; waiting in a queue, sitting in WIP inventory, or being processed through non-value-added steps. The gap between processing time and lead time is your improvement opportunity. Closing that gap is what the future state targets.</p>
+
+    <h3>Constraint vs. non-constraint improvement</h3>
+    <p>Improving a non-constraint step does not improve the value stream. If the press is the bottleneck at 62-second cycle time and you kaizen the finishing step from 38 to 30 seconds, the value stream throughput does not change &mdash; the press is still the limiting factor. Improving a non-constraint is waste. Focus improvement on the constraint.</p>
+</div>
+
+<!-- Section 4 -->
+<div class="pb-section" id="s4">
+    <div class="pb-section-head">
+        <div class="pb-num">4</div>
+        <h2>Future-State Design</h2>
+    </div>
+    <p>The future-state map shows what you want the value stream to look like after improvement. It is not a wish &mdash; it is a plan with specific targets, kaizen bursts at specific steps, and a timeline for execution.</p>
+
+    <h3>Designing the future state</h3>
+    <ol>
+        <li><strong>Start with takt time.</strong> Customer demand / available production time = takt time. Every process step must be capable of producing at takt. If a step&rsquo;s cycle time exceeds takt, you need to either reduce the cycle time or add capacity.</li>
+        <li><strong>Identify kaizen bursts.</strong> At each step where the current state does not meet the future-state requirement, place a kaizen burst. The burst specifies: what needs to change, what the target is, and what type of improvement (SMED, TPM, cell redesign, quality improvement).</li>
+        <li><strong>Design flow.</strong> Eliminate WIP between steps where possible. Pull systems instead of push. FIFO lanes instead of batched queues. The future state should show less WIP, shorter lead time, and higher flow efficiency.</li>
+        <li><strong>Plan the information flow.</strong> How will scheduling change? Can you move from MRP push to pull signals? Can you reduce the number of scheduling points? Simpler information flow enables simpler material flow.</li>
+    </ol>
+
+    <h3>Kaizen bursts are not vague</h3>
+    <p>A kaizen burst that says &ldquo;improve changeover&rdquo; is useless. A kaizen burst that says &ldquo;reduce Press 4 changeover from 28 min to 12 min using SMED methodology, estimated annual savings $84K (time reduction method)&rdquo; is a plan. Each burst should specify:</p>
+    <ul>
+        <li>Current performance (measured, not estimated)</li>
+        <li>Target performance (specific number)</li>
+        <li>Improvement method (SMED, TPM, cell redesign, quality)</li>
+        <li>Estimated savings and calculation method</li>
+        <li>Owner and timeline</li>
+    </ul>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> The VSM builder supports current-state and future-state maps with data boxes (cycle time, changeover, uptime, OEE, operators) at each process step. Kaizen bursts attach to specific steps with proposals that include improvement type, target metrics, and estimated savings. The delta estimation engine auto-detects the best savings method and generates estimated annual savings.
+    </div>
+</div>
+
+<!-- Section 5 -->
+<div class="pb-section" id="s5">
+    <div class="pb-section-head">
+        <div class="pb-num">5</div>
+        <h2>Simulation Before Commitment</h2>
+    </div>
+    <p>Before committing resources to a future-state improvement project, test the assumptions. Point estimates of savings are seductive but misleading. &ldquo;$84K annual savings&rdquo; sounds precise. But it assumes stable volume, constant cost, and 100% improvement realization. None of these are certain.</p>
+
+    <h3>Monte Carlo simulation</h3>
+    <p>Run 1,000 simulations with three sources of uncertainty:</p>
+    <ul>
+        <li><strong>Volume volatility (&plusmn;15% std):</strong> Customer demand fluctuates. A savings estimate based on average volume does not account for months where demand drops 20% or spikes 30%.</li>
+        <li><strong>Cost variation (&plusmn;10% std):</strong> Material and labor costs change. The savings estimate should reflect this uncertainty.</li>
+        <li><strong>Improvement realization risk (Beta(4,2), mean ~67%):</strong> Not every kaizen delivers 100% of its target. A SMED project that targets 12-minute changeover might achieve 16 minutes. The realization rate accounts for this gap.</li>
+    </ul>
+
+    <h3>What simulation tells you</h3>
+    <ul>
+        <li><strong>Median savings:</strong> The 50th percentile outcome. More reliable than the deterministic point estimate.</li>
+        <li><strong>Confidence bands:</strong> P5 and P95 give you the range. &ldquo;Savings likely between $42K and $118K&rdquo; is more honest than &ldquo;$84K.&rdquo;</li>
+        <li><strong>Probability of positive return:</strong> What is the chance this project saves money at all? A project with 92% probability of positive return is a different commitment than one with 55%.</li>
+    </ul>
+    <p>Use simulation to prioritize the kaizen burst portfolio. When you have five bursts on the future-state map and resources for three, simulation tells you which three have the highest expected value adjusted for risk.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> The plant simulator runs Monte Carlo with 1,000 iterations. Output includes median, mean, standard deviation, P5/P25/P75/P95 confidence bands, and probability of positive savings. Each VSM kaizen burst proposal can be simulated individually before promotion to hoshin. The deterministic estimate and the risk-adjusted confidence interval are both available for comparison.
+    </div>
+</div>
+
+<!-- Section 6 -->
+<div class="pb-section" id="s6">
+    <div class="pb-section-head">
+        <div class="pb-num">6</div>
+        <h2>Connecting VSM to Hoshin</h2>
+    </div>
+    <p>VSM is the diagnostic. <a href="/hoshin-kanri-strategy-deployment/">Hoshin kanri</a> is the execution structure. The connection between them is the kaizen burst promotion pipeline.</p>
+
+    <div class="promo-flow">
+        <div class="promo-step">
+            <strong>VSM Current State</strong>
+            <span>Map &amp; measure<br>Identify constraints</span>
+        </div>
+        <span class="promo-arrow">&rarr;</span>
+        <div class="promo-step">
+            <strong>Kaizen Burst</strong>
+            <span>Target the constraint<br>Estimate savings</span>
+        </div>
+        <span class="promo-arrow">&rarr;</span>
+        <div class="promo-step">
+            <strong>Simulation</strong>
+            <span>Risk-adjust estimate<br>Confidence bands</span>
+        </div>
+        <span class="promo-arrow">&rarr;</span>
+        <div class="promo-step">
+            <strong>Hoshin Project</strong>
+            <span>Monthly tracking<br>Dollar rollup</span>
+        </div>
+        <span class="promo-arrow">&rarr;</span>
+        <div class="promo-step">
+            <strong>Realized Savings</strong>
+            <span>Write back to VSM<br>Closed-loop</span>
+        </div>
+    </div>
+
+    <h3>The promotion criteria</h3>
+    <p>Not every kaizen burst belongs on the X-matrix. Promote when:</p>
+    <ul>
+        <li>The burst aligns to a strategic or annual objective</li>
+        <li>Expected savings exceed the hoshin threshold (typically $25K+)</li>
+        <li>The improvement requires cross-functional resources</li>
+        <li>Monthly savings tracking is needed for accountability</li>
+    </ul>
+    <p>Bursts that do not meet these criteria execute through <a href="/managing-for-daily-improvement/">MDI</a> as local improvements. Important, but not hoshin-level.</p>
+
+    <h3>Closed-loop tracking</h3>
+    <p>The lifecycle is not complete until realized savings write back to the VSM. When a hoshin project executes and generates monthly savings, those savings update the kaizen burst on the map. The VSM becomes a living document: constraint identified &rarr; project executed &rarr; savings realized &rarr; map updated &rarr; next constraint identified. Without the write-back, the VSM is a one-time artifact. With the write-back, it is a management tool.</p>
+
+    <h3>Future-state promotion</h3>
+    <p>When all kaizen bursts on a future-state map are completed and verified, the future state becomes the new current state. The old current state is archived. Metric snapshots carry forward. The cycle restarts with a new current-state map that reflects the improved process. This is continuous improvement at the value stream level.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> VSM kaizen burst proposals promote directly to hoshin projects via batch creation in a single atomic transaction. Calculation methods and savings targets pre-populate from the burst proposal. As hoshin projects generate monthly savings, realized savings write back to the kaizen burst metadata with savings percentage and project status. Future-state maps promote to current state with the old current state archived automatically.
+    </div>
+</div>
+
+<!-- Section 7 -->
+<div class="pb-section" id="s7">
+    <div class="pb-section-head">
+        <div class="pb-num">7</div>
+        <h2>VSM in the Campaign Cycle</h2>
+    </div>
+    <p>In the <a href="/continuous-improvement-software/">Campaign Framework</a>, VSM serves as the diagnostic that informs both the Shape and Execute phases. It tells you where to shape (which areas need 5S and visual management preparation) and where to execute (which constraints to target with kaizen).</p>
+
+    <h3>VSM and shaping</h3>
+    <p>The areas identified as constraints on the VSM are the areas that need shaping first. If the press is the bottleneck, the press area gets <a href="/5s-operational-excellence/">5S attention</a> before the SMED event starts. Shadow boards fabricated. Tool locations standardized. Changeover procedures documented. The shaping enables the execution.</p>
+
+    <h3>VSM and execution</h3>
+    <p>The kaizen bursts on the future-state map define the execution portfolio. Each burst is a <a href="/kaizen-execution-guide/">PDSA experiment</a> &mdash; try the improvement, measure the result, study what happened, decide whether to standardize or iterate. The VSM provides the context: why this improvement, at this step, with this target.</p>
+
+    <h3>VSM and consolidation</h3>
+    <p>After kaizen execution, the VSM provides the verification framework. Did the constraint move? Did lead time decrease? Did the WIP reduction hold? Remap the value stream (or update the map with actual post-improvement data) to verify that the future state was achieved. If it was not, understand why and iterate.</p>
+
+    <h3>When to remap</h3>
+    <ul>
+        <li><strong>After major kaizen events:</strong> Update the map with actual post-improvement data to verify results</li>
+        <li><strong>Annually:</strong> Full remap to capture cumulative changes and identify new constraints</li>
+        <li><strong>After significant changes:</strong> New product introduction, equipment change, volume shift, supplier change</li>
+        <li><strong>When the constraint moves:</strong> If the bottleneck was the press and SMED kaizen resolved it, the constraint has moved. Remap to find the new constraint.</li>
+    </ul>
+</div>
+
+<!-- Related Playbooks -->
+<div style="margin: 2.5rem 0 1rem;">
+    <h2 style="font-size: 1.15rem; text-align: center; margin-bottom: 1rem;">Related Playbooks</h2>
+    <div class="related-playbooks">
+        <a href="/hoshin-kanri-strategy-deployment/" class="related-card">
+            <div class="related-phase strategy">Strategy</div>
+            <div class="related-title">Hoshin Kanri &amp; Strategy Deployment</div>
+            <div class="related-desc">VSM kaizen bursts promote to hoshin projects. Monthly savings tracking, X-matrix alignment, dollar rollup.</div>
+        </a>
+        <a href="/kaizen-execution-guide/" class="related-card">
+            <div class="related-phase execute">Execute</div>
+            <div class="related-title">Kaizen Execution</div>
+            <div class="related-desc">VSM identifies where to kaizen. Kaizen executes the improvement. PDSA cycles, A3 thinking, rapid experimentation.</div>
+        </a>
+        <a href="/managing-for-daily-improvement/" class="related-card">
+            <div class="related-phase backbone">Backbone</div>
+            <div class="related-title">Managing for Daily Improvement</div>
+            <div class="related-desc">Local improvements from VSM that do not promote to hoshin execute through the MDI newspaper system.</div>
+        </a>
+    </div>
+</div>
+
+<!-- CTA -->
+<div class="playbook-cta">
+    <h3>Diagnose, Then Execute</h3>
+    <p>VSM builder with simulation, kaizen burst targeting, hoshin promotion pipeline, realized savings write-back. Team plan: {{ price_team }}/seat/mo.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="/continuous-improvement-software/" class="cta-secondary">Back to CI Hub</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}
+
+{% block faq %}
+<div class="pb-faq">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">What is value stream mapping?</div>
+        <div class="faq-a">A diagnostic tool that visualizes material and information flow through a production process. Each step is mapped with data: cycle time, changeover, uptime, WIP, operators. The map reveals where flow breaks, where constraints exist, and where improvement will have the most impact. Walk the process &mdash; do not map from a conference room.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between current state and future state?</div>
+        <div class="faq-a">Current state shows what actually happens today, measured and recorded. Future state shows the target condition after improvement, with kaizen bursts marking where changes will occur. The gap between the two defines the improvement portfolio. Future state is not a wish &mdash; it is a plan with specific targets, owners, and timelines.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does VSM connect to hoshin kanri?</div>
+        <div class="faq-a">VSM is the diagnostic that feeds hoshin. Kaizen bursts on the future-state map become hoshin projects when they align to strategic objectives and exceed the savings threshold. Calculation methods and targets pre-populate from the burst proposal. Realized savings write back to the VSM for closed-loop tracking.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Why simulate before committing resources?</div>
+        <div class="faq-a">Point estimates create false precision. Monte Carlo simulation models uncertainty in volume, cost, and improvement realization to produce confidence intervals. A project with 92% probability of positive return is a different decision than one with 55%. Simulation prevents over-commitment to uncertain outcomes and helps prioritize the improvement portfolio.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How long does value stream mapping take?</div>
+        <div class="faq-a">Current-state mapping: 1-2 days of walking the process and collecting data. Future-state design: 1 day with the team. Total: 2-3 days for a focused value stream. Do not over-analyze &mdash; map enough to identify constraints, then act. The map is a diagnostic tool, not a six-week analysis project.</div>
+    </div>
+</div>
+{% endblock %}

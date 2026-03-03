@@ -96,7 +96,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "orientation": "h",
                     "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}
                 }],
-                "layout": {"template": "plotly_dark", "height": max(200, len(features) * 25)}
+                "layout": {"height": max(200, len(features) * 25)}
             })
 
         from collections import Counter
@@ -129,7 +129,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "texttemplate": "%{text}",
                 "hovertemplate": "Predicted: %{x}<br>Actual: %{y}<br>Count: %{z}<extra></extra>"
             }],
-            "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Actual", "autorange": "reversed"}}
+            "layout": {"height": 300, "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Actual", "autorange": "reversed"}}
         })
 
         # ROC curve (binary or one-vs-rest for multiclass)
@@ -147,7 +147,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                             {"type": "scatter", "x": fpr.tolist(), "y": tpr.tolist(), "mode": "lines", "line": {"color": "#4a9f6e", "width": 2}, "name": f"ROC (AUC={roc_auc:.3f})"},
                             {"type": "scatter", "x": [0, 1], "y": [0, 1], "mode": "lines", "line": {"color": "#d94a4a", "dash": "dash"}, "name": "Random"}
                         ],
-                        "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": "False Positive Rate"}, "yaxis": {"title": "True Positive Rate"}}
+                        "layout": {"height": 300, "xaxis": {"title": "False Positive Rate"}, "yaxis": {"title": "True Positive Rate"}}
                     })
         except Exception:
             pass
@@ -199,7 +199,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "marker": {"color": "rgba(74, 159, 110, 0.6)", "line": {"color": "#4a9f6e", "width": 1}},
                         "name": "Set Size",
                     }],
-                    "layout": {"template": "plotly_dark", "height": 250,
+                    "layout": {"height": 250,
                                "xaxis": {"title": "Number of Classes in Set", "dtick": 1},
                                "yaxis": {"title": "Count"}},
                 })
@@ -260,7 +260,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 {"type": "scatter", "x": y_test.tolist(), "y": y_pred.tolist(), "mode": "markers", "marker": {"color": "#6c5ce7", "size": 5}},
                 {"type": "scatter", "x": [y_test.min(), y_test.max()], "y": [y_test.min(), y_test.max()], "mode": "lines", "line": {"color": "#ff7675", "dash": "dash"}}
             ],
-            "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"}}
+            "layout": {"height": 300, "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"}}
         })
 
         # Feature importance
@@ -276,7 +276,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "orientation": "h",
                     "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}
                 }],
-                "layout": {"template": "plotly_dark", "height": max(200, len(features) * 25)}
+                "layout": {"height": max(200, len(features) * 25)}
             })
 
         # Residual plot
@@ -287,7 +287,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 {"type": "scatter", "x": y_pred.tolist(), "y": residuals, "mode": "markers", "marker": {"color": "rgba(74, 144, 217, 0.5)", "size": 5, "line": {"color": "#4a90d9", "width": 1}}, "name": "Residuals"},
                 {"type": "scatter", "x": [float(y_pred.min()), float(y_pred.max())], "y": [0, 0], "mode": "lines", "line": {"color": "#d94a4a", "dash": "dash"}, "name": "Zero"}
             ],
-            "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Residual"}}
+            "layout": {"height": 300, "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Residual"}}
         })
 
         # Conformal prediction intervals
@@ -327,7 +327,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     {"type": "scatter", "x": [i for i, v in enumerate(inside) if v], "y": [y_test_s[i] for i, v in enumerate(inside) if v], "mode": "markers", "marker": {"color": "#2ecc71", "size": 5}, "name": "Inside"},
                     {"type": "scatter", "x": [i for i, v in enumerate(inside) if not v], "y": [y_test_s[i] for i, v in enumerate(inside) if not v], "mode": "markers", "marker": {"color": "#e74c3c", "size": 7, "symbol": "x"}, "name": "Outside"},
                 ],
-                "layout": {"template": "plotly_dark", "height": 300, "xaxis": {"title": "Observation (sorted by prediction)"}, "yaxis": {"title": target}},
+                "layout": {"height": 300, "xaxis": {"title": "Observation (sorted by prediction)"}, "yaxis": {"title": target}},
             })
 
             result["statistics"] = result.get("statistics", {})
@@ -584,7 +584,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 },
             }],
             "layout": {
-                "template": "plotly_dark", "height": 300,
+                "height": 300,
                 "yaxis": {"title": primary_metric.upper()},
                 "xaxis": {"title": "Model"},
             }
@@ -623,7 +623,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "hovertemplate": "%{y}: %{z:.4f}<br>%{x}<extra></extra>",
                 }],
                 "layout": {
-                    "template": "plotly_dark", "height": max(200, len(metric_keys) * 50 + 80),
+                    "height": max(200, len(metric_keys) * 50 + 80),
                     "xaxis": {"title": ""},
                     "yaxis": {"autorange": "reversed"},
                 },
@@ -640,7 +640,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "marker": {"color": "rgba(232,149,71,0.6)", "line": {"color": "#e89547", "width": 1}},
                     "text": [f"{t:.1f}s" for t in fit_times], "textposition": "auto",
                 }],
-                "layout": {"template": "plotly_dark", "height": 250, "yaxis": {"title": "Seconds"}},
+                "layout": {"height": 250, "yaxis": {"title": "Seconds"}},
             })
 
         # ROC curves (classification, binary)
@@ -670,7 +670,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "title": "ROC Curves",
                     "data": roc_traces,
                     "layout": {
-                        "template": "plotly_dark", "height": 350,
+                        "height": 350,
                         "xaxis": {"title": "False Positive Rate"},
                         "yaxis": {"title": "True Positive Rate"},
                     }
@@ -702,7 +702,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "title": "Actual vs Predicted (Top Models)",
                     "data": avp_traces,
                     "layout": {
-                        "template": "plotly_dark", "height": 350,
+                        "height": 350,
                         "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"},
                     }
                 })
@@ -1112,7 +1112,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "y": [feature_names_explain[i] for i in sorted_idx],
                 "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
             }],
-            "layout": {"template": "plotly_dark", "height": max(250, len(feature_names_explain) * 25), "xaxis": {"title": "mean |SHAP value|"}},
+            "layout": {"height": max(250, len(feature_names_explain) * 25), "xaxis": {"title": "mean |SHAP value|"}},
         })
 
         # Beeswarm plot (scatter of SHAP values per feature)
@@ -1140,7 +1140,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "title": "SHAP Beeswarm (Top 10 Features)",
                 "data": beeswarm_traces,
                 "layout": {
-                    "template": "plotly_dark", "height": 350,
+                    "height": 350,
                     "xaxis": {"title": "SHAP value (impact on prediction)", "zeroline": True, "zerolinecolor": "#555"},
                     "yaxis": {"tickvals": list(range(len(tick_labels))), "ticktext": tick_labels},
                     "showlegend": False,
@@ -1167,7 +1167,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "marker": {"color": wf_colors},
                 }],
                 "layout": {
-                    "template": "plotly_dark", "height": max(200, len(wf_names) * 25),
+                    "height": max(200, len(wf_names) * 25),
                     "xaxis": {"title": "SHAP value"},
                     "annotations": [{"x": 0, "y": -0.15, "xref": "paper", "yref": "paper",
                                      "text": f"Base value: {base_val:.3f}", "showarrow": False,
@@ -1187,7 +1187,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "marker": {"color": "rgba(74,159,110,0.5)", "size": 4},
             }],
             "layout": {
-                "template": "plotly_dark", "height": 300,
+                "height": 300,
                 "xaxis": {"title": feature_names_explain[top_feat_idx]},
                 "yaxis": {"title": "SHAP value"},
             },
@@ -1337,7 +1337,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                  "line": {"color": "#4a9f6e", "width": 2}, "name": "Best So Far"},
             ],
             "layout": {
-                "template": "plotly_dark", "height": 300,
+                "height": 300,
                 "xaxis": {"title": "Trial"}, "yaxis": {"title": "Score"},
             },
         })
@@ -1355,7 +1355,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "x": p_vals, "y": p_names,
                         "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
                     }],
-                    "layout": {"template": "plotly_dark", "height": max(200, len(p_names) * 30)},
+                    "layout": {"height": max(200, len(p_names) * 30)},
                 })
             except Exception:
                 pass
@@ -1414,7 +1414,7 @@ def run_ml_analysis(df, analysis_id, config, user):
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
-        n_clusters = int(config.get("n_clusters", 3))
+        n_clusters = int(config.get("k") or config.get("n_clusters") or 3)
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         clusters = kmeans.fit_predict(X_scaled)
 
@@ -1463,6 +1463,7 @@ def run_ml_analysis(df, analysis_id, config, user):
 
         # Scatter plot of first two features colored by cluster
         if len(features) >= 2:
+            _cluster_cd = [[int(clusters[i]), i] for i in range(len(clusters))]
             result["plots"].append({
                 "title": f"Clusters ({features[0]} vs {features[1]})",
                 "data": [{
@@ -1470,9 +1471,12 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "x": X[features[0]].tolist(),
                     "y": X[features[1]].tolist(),
                     "mode": "markers",
-                    "marker": {"color": clusters.tolist(), "colorscale": "Viridis", "size": 6}
+                    "marker": {"color": clusters.tolist(), "colorscale": "Viridis", "size": 6},
+                    "customdata": _cluster_cd,
+                    "hovertemplate": f"{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<br>Cluster: %{{customdata[0]}}<br>Obs #%{{customdata[1]}}<extra></extra>"
                 }],
-                "layout": {"template": "plotly_dark", "height": 300}
+                "layout": {"height": 300},
+                "interactive": {"type": "cluster_inspect", "features": features}
             })
 
         # Elbow plot with silhouette scores
@@ -1496,7 +1500,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     {"type": "scatter", "x": [best_k], "y": [max(silhouettes)], "mode": "markers", "marker": {"color": "#d94a4a", "size": 12, "symbol": "star"}, "name": f"Best k={best_k}", "yaxis": "y2"}
                 ],
                 "layout": {
-                    "template": "plotly_dark", "height": 300,
+                    "height": 300,
                     "xaxis": {"title": "Number of Clusters (k)"},
                     "yaxis": {"title": "Inertia", "side": "left"},
                     "yaxis2": {"title": "Silhouette Score", "side": "right", "overlaying": "y"},
@@ -1566,7 +1570,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "title": "PCA Biplot",
                 "data": [scatter_data],
                 "layout": {
-                    "template": "plotly_dark",
+                    
                     "height": 400,
                     "xaxis": {"title": f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)"},
                     "yaxis": {"title": f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)"}
@@ -1583,7 +1587,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}
             }],
             "layout": {
-                "template": "plotly_dark",
+                
                 "height": 250,
                 "yaxis": {"title": "Variance Explained (%)"}
             }
@@ -1640,7 +1644,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}
             }],
             "layout": {
-                "template": "plotly_dark",
+                
                 "height": max(250, len(features) * 25),
                 "xaxis": {"title": "Importance"},
                 "margin": {"l": 150}
@@ -2689,7 +2693,6 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "height": 280, "xaxis": {"title": "Fitted"}, "yaxis": {"title": "Residual"},
                 "shapes": [{"type": "line", "x0": float(y_pred.min()), "x1": float(y_pred.max()),
                             "y0": 0, "y1": 0, "line": {"color": "#e89547", "dash": "dash"}}],
-                "template": "plotly_white"
             }
         })
 
@@ -2769,7 +2772,6 @@ def run_ml_analysis(df, analysis_id, config, user):
                 "title": f"{model_name} — Confusion Matrix",
                 "xaxis": {"title": "Predicted"},
                 "yaxis": {"title": "Actual", "autorange": "reversed"},
-                "template": "plotly_white"
             }
         })
 
@@ -2795,7 +2797,6 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "title": "LDA — Discriminant Space Projection",
                         "xaxis": {"title": "LD1"},
                         "yaxis": {"title": "LD2"},
-                        "template": "plotly_white"
                     }
                 })
             else:
@@ -2818,7 +2819,6 @@ def run_ml_analysis(df, analysis_id, config, user):
                         "xaxis": {"title": "LD1 Score"},
                         "yaxis": {"title": "Count"},
                         "barmode": "overlay",
-                        "template": "plotly_white"
                     }
                 })
 
@@ -2959,7 +2959,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                      "mode": "lines", "name": "Kaiser Criterion",
                      "line": {"color": "#d94a4a", "dash": "dash"}}
                 ],
-                "layout": {"height": 280, "xaxis": {"title": "Factor Number"}, "yaxis": {"title": "Eigenvalue"}, "template": "plotly_white"}
+                "layout": {"height": 280, "xaxis": {"title": "Factor Number"}, "yaxis": {"title": "Eigenvalue"}}
             })
 
             # Loading heatmap
@@ -2975,7 +2975,7 @@ def run_ml_analysis(df, analysis_id, config, user):
                     "texttemplate": "%{text}",
                     "showscale": True
                 }],
-                "layout": {"height": max(250, p * 25), "template": "plotly_white"}
+                "layout": {"height": max(250, p * 25)}
             })
 
             result["statistics"] = {

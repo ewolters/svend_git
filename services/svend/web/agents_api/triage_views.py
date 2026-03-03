@@ -17,6 +17,22 @@ from .models import TriageResult, AgentLog
 logger = logging.getLogger(__name__)
 
 
+def _read_csv_safe(file_or_path):
+    """Read CSV with encoding fallback: UTF-8 → latin-1."""
+    import io
+    import pandas as pd
+    if hasattr(file_or_path, "read"):
+        raw = file_or_path.read()
+        try:
+            return pd.read_csv(io.BytesIO(raw), encoding="utf-8")
+        except UnicodeDecodeError:
+            return pd.read_csv(io.BytesIO(raw), encoding="latin-1")
+    try:
+        return pd.read_csv(file_or_path, encoding="utf-8")
+    except UnicodeDecodeError:
+        return pd.read_csv(file_or_path, encoding="latin-1")
+
+
 def log_agent_action(user, agent, action, latency_ms=None, success=True, error_message="", metadata=None):
     """Log an agent action to the database."""
     try:
@@ -65,7 +81,7 @@ def triage_clean(request):
         from scrub import DataCleaner, CleaningConfig
 
         # Read CSV
-        df = pd.read_csv(uploaded_file)
+        df = _read_csv_safe(uploaded_file)
 
         # Build config
         config = CleaningConfig(
@@ -199,7 +215,7 @@ def triage_preview(request):
         from scrub.outliers import OutlierMethod
 
         # Read CSV
-        df = pd.read_csv(uploaded_file)
+        df = _read_csv_safe(uploaded_file)
 
         # Analyze without modifying
         issues = {

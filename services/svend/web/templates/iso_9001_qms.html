@@ -1,15 +1,15 @@
 {% extends "tool_base.html" %}
 
-{% block title %}ISO 9001:2015 QMS Software — Compliance Built Into Your CI Platform{% endblock %}
-{% block meta_description %}ISO 9001 QMS software with NCR tracking, internal audits, training matrix, management review, document control, and supplier management. Covers all 32 clauses from 4.1 through 10.3. No separate QMS needed — built into Svend's CI platform. Starting at {{ price_team }}/mo.{% endblock %}
-{% block meta_keywords %}ISO 9001 QMS software, ISO 9001 compliance software, ISO 9001 nonconformance tracking software, ISO 9001 internal audit software, ISO 9001 training matrix software, ISO 9001 management review software, ISO 9001 document control software, quality management system software, ISO 9001 CAPA software{% endblock %}
+{% block title %}ISO 9001 Compliance Software — Audit-Ready QMS with NCR, CAPA, Document Control{% endblock %}
+{% block meta_description %}ISO 9001 compliance software covering all 32 auditable clauses. NCR tracking, CAPA workflows, internal audit management, document control, training records, management review, supplier qualification. Closed-loop: audit findings auto-create NCRs, NCRs auto-create corrective actions with statistical evidence. Audit-ready at all times. {{ price_team }}/mo.{% endblock %}
+{% block meta_keywords %}ISO 9001 QMS software, ISO 9001 compliance software, ISO 9001 nonconformance tracking software, ISO 9001 internal audit software, ISO 9001 training matrix software, ISO 9001 management review software, ISO 9001 document control software, quality management system software, ISO 9001 CAPA software, Taguchi loss function, cost of quality software, quality economics, closed-loop QMS{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://svend.ai/iso-9001-qms-software/">{% endblock %}
 
 {% block og_tags %}
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://svend.ai/iso-9001-qms-software/">
-<meta property="og:title" content="ISO 9001:2015 QMS Software — Built Into Your CI Platform">
-<meta property="og:description" content="NCR tracking, internal audits, training matrix, management review, document control, and supplier management. All 32 ISO 9001 clauses. Starting at {{ price_team }}/mo.">
+<meta property="og:title" content="ISO 9001 Compliance Software — Audit-Ready QMS | Svend">
+<meta property="og:description" content="ISO 9001 compliance software covering all 32 auditable clauses. NCR tracking, CAPA workflows, internal audit management, document control, training records, supplier qualification. Closed-loop corrective action with statistical evidence. Audit-ready at all times.">
 <meta property="og:image" content="https://svend.ai/static/og-image.png">
 <meta property="og:site_name" content="Svend">
 <meta name="twitter:card" content="summary_large_image">
@@ -20,9 +20,47 @@
 {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "ISO 9001:2015 QMS Software — Built Into Your CI Platform",
+    "name": "ISO 9001 Compliance Software — Audit-Ready QMS with NCR, CAPA, Document Control",
     "url": "https://svend.ai/iso-9001-qms-software/",
-    "description": "ISO 9001 quality management system software with NCR tracking, internal audits, training matrix, management review, document control, and supplier management. Covers all 32 clauses.",
+    "description": "ISO 9001 compliance software covering all 32 auditable clauses. NCR tracking, CAPA workflows, internal audit management, document control with revision history, training and competence records, management review dashboards, supplier qualification. Closed-loop corrective action with statistical evidence. Audit-ready at all times.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Svend ISO 9001 QMS",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "url": "https://svend.ai/iso-9001-qms-software/",
+    "description": "ISO 9001:2015 quality management system with closed-loop NCR tracking, internal audits, training matrix, document control, supplier management, quality economics, and 200+ statistical analyses.",
+    "offers": {
+        "@type": "Offer",
+        "price": "99",
+        "priceCurrency": "USD",
+        "description": "Team plan — full QMS + statistical platform. 14-day free trial.",
+        "url": "https://svend.ai/register/?plan=team"
+    },
+    "featureList": [
+        "NCR tracking with 6-state CAPA workflow",
+        "Internal audit scheduling with auto-NCR cascade",
+        "Training matrix with competence tracking",
+        "Management review with auto-captured QMS snapshot",
+        "Document control with approval workflow",
+        "Supplier management with quality ratings",
+        "Taguchi loss function analysis",
+        "Cost of Quality (PAF model)",
+        "Bayesian SPC decisions",
+        "Lot sentencing with OC curves",
+        "200+ statistical analyses",
+        "SPC control charts",
+        "Design of experiments",
+        "AI root cause analysis challenge",
+        "Field-level change history across all QMS records",
+        "Training record editing with recertification workflow",
+        "All 32 ISO 9001:2015 clauses"
+    ],
     "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
 }
 </script>
@@ -54,7 +92,7 @@
             "name": "Do I need separate QMS software if I use Svend?",
             "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "No. Svend's QMS module is built into the same platform you use for SPC, DOE, capability analysis, and root cause analysis. NCR tracking, internal audits, training records, management review, and document control are all native features on Team and Enterprise plans."
+                "text": "No. Svend replaces both standalone QMS software (typically $500-2,000+/mo) and standalone statistical software ($110-700/mo). NCR tracking, internal audits, training matrix, management review, document control, supplier management, quality economics, SPC, DOE, and 200+ statistical analyses are all in one closed-loop platform."
             }
         },
         {
@@ -62,7 +100,7 @@
             "name": "How does Svend handle nonconformance tracking for ISO 9001?",
             "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Full CAPA workflow per clause 10.2. Log NCRs with severity classification and ISO clause reference. Record containment actions, conduct root cause analysis (5 Whys, fishbone diagram), define corrective actions with owners and due dates, verify effectiveness, and close."
+                "text": "Full CAPA workflow per clause 10.2 with a validated 6-state workflow: open, investigation, containment, CAPA, verification, closed. Each transition is enforced. Log NCRs with severity classification and ISO clause reference. AI reviews root cause analysis and flags blame framing or premature stops. NCRs auto-create statistical studies for data-driven investigation. Full audit trail — every status transition and field edit logged with timestamp, user, old value, and new value."
             }
         },
         {
@@ -70,7 +108,7 @@
             "name": "Can Svend schedule and track ISO 9001 internal audits?",
             "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes, per clause 9.2. Create audit programs with lead auditors, department scoping, and ISO clause mapping. Record findings as observations, minor nonconformities, major nonconformities, or opportunities for improvement. Each finding generates corrective actions tracked to closure."
+                "text": "Yes, per clause 9.2. Create audit programs with lead auditors, department scoping, and ISO clause mapping. Record findings as observations, minor nonconformities, major nonconformities, or opportunities for improvement. Findings auto-cascade into NCRs with severity and clause reference carried over. Corrective actions tracked to closure with verification. Every field edit logged with timestamp, user, old value, and new value."
             }
         },
         {
@@ -78,7 +116,7 @@
             "name": "Does Svend include a training matrix for ISO 9001 competence requirements?",
             "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes, per clause 7.2. Define competence requirements by role, track employee training records with completion dates and expiry dates, monitor compliance rates per ISO clause, and receive alerts before certifications expire."
+                "text": "Yes, per clause 7.2. Define competence requirements by role, track employee training records with completion dates and expiry dates, monitor compliance rates per ISO clause, and receive alerts before certifications expire. Edit records inline with field-level change history. One-click recertification for recurring training."
             }
         },
         {
@@ -86,7 +124,7 @@
             "name": "How does Svend handle document control for ISO 9001?",
             "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Per clause 7.5. Controlled document register with document numbers, categories, version tracking, and approval workflows. Schedule reviews, track revisions with change summaries, and maintain a full audit trail. Supports quality manuals, SOPs, work instructions, and forms."
+                "text": "Per clause 7.5. Controlled document register with document numbers, categories, version tracking, and approval workflows. Schedule reviews, track revisions with change summaries, and maintain a full audit trail — every field edit and status transition logged with timestamp, user, old value, and new value. Supports quality manuals, SOPs, work instructions, and forms."
             }
         },
         {
@@ -103,6 +141,38 @@
             "acceptedAnswer": {
                 "@type": "Answer",
                 "text": "QMS features are included in Team and Enterprise plans with no additional per-module charge. Both include a 14-day free trial — no charge until day 15. Purchasing power pricing is available for Southeast Asia, India, Latin America, Africa, and other emerging markets."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is quality economics in Svend?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend includes four quality economics analyses: Taguchi loss function (quantifies the cost of deviation from target), Cost of Quality (Prevention-Appraisal-Failure model), Bayesian SPC decisions (statistically optimal stop/adjust/continue recommendations), and acceptance sampling with OC curves for lot sentencing. These connect quality events to financial impact."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does closed-loop QMS mean?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend's QMS modules are not standalone — they form a closed feedback loop. Audit findings auto-create NCRs. NCRs auto-create statistical studies for root cause investigation. Study results route back as QMS actions. Every QMS event feeds into the Bayesian evidence system as quantified evidence. No manual data transfer between tools."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does Svend compare to standalone QMS software?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Standalone QMS platforms (Qualio, MasterControl, ETQ) typically cost $500-2,000+/mo and cover compliance workflows only — you still need separate statistical software like Minitab ($200+/mo) for SPC, capability analysis, and DOE. Svend combines both in one platform with closed-loop integration, starting at $99/mo."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Does Svend maintain audit trails for ISO 9001 compliance?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Every status transition and every field edit across all QMS records — NCRs, audits, documents, suppliers, and training records — is logged with timestamp, user, old value, and new value. Your external auditor can trace exactly who changed what field, when, and what it was before."
             }
         }
     ]
@@ -230,7 +300,7 @@
     .mock-rating.low { color: #f87171; }
 
     /* Module cards */
-    .module-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2.5rem 0; }
+    .module-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2.5rem 0; }
     .module-card {
         background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
         padding: 1.5rem; transition: border-color 0.2s;
@@ -306,11 +376,135 @@
         text-align: center; margin-top: 1.5rem; color: var(--text-dim); font-size: 0.85rem;
     }
 
+    /* Closed-loop integration */
+    .closed-loop {
+        margin: 3rem 0 2.5rem; padding: 2rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .closed-loop h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .closed-loop .loop-subtitle {
+        color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6;
+        max-width: 640px; margin-bottom: 1.75rem;
+    }
+    .loop-diagram {
+        display: flex; align-items: center; justify-content: center;
+        gap: 0.75rem 0; flex-wrap: wrap; margin: 0 auto; max-width: 820px;
+        padding: 1.25rem 0;
+    }
+    .loop-node {
+        background: #0d120d; border: 1px solid rgba(74,159,110,0.3); border-radius: 8px;
+        padding: 1.25rem 1.1rem; text-align: center; min-width: 140px;
+    }
+    .loop-node-label {
+        font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;
+        font-weight: 600; color: var(--accent-primary); margin-bottom: 0.3rem;
+    }
+    .loop-node-desc { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; }
+    .loop-arrow {
+        color: var(--accent-primary); font-size: 1.2rem; padding: 0 0.6rem;
+        font-weight: 300; opacity: 0.6;
+    }
+    .loop-return {
+        width: 100%; text-align: center; margin-top: 0.75rem;
+        font-size: 0.75rem; color: var(--text-dim); font-style: italic;
+    }
+    .loop-return span { color: var(--accent-primary); font-style: normal; }
+
+    /* Quality economics */
+    .qe-section { margin: 2.5rem 0; }
+    .qe-section h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .qe-subtitle {
+        color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6;
+        max-width: 640px; margin-bottom: 1.5rem;
+    }
+    .qe-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+    .qe-card {
+        background: #0d120d; border: 1px solid rgba(74,159,110,0.2); border-radius: 10px;
+        padding: 1.25rem; transition: border-color 0.2s;
+    }
+    .qe-card:hover { border-color: rgba(74,159,110,0.4); }
+    .qe-card-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.4rem; }
+    .qe-card-desc { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+    .qe-card-tag {
+        display: inline-block; margin-top: 0.6rem; padding: 2px 8px; border-radius: 10px;
+        font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .qe-card-tag.financial { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .qe-card-tag.decision { background: rgba(250,204,21,0.15); color: #facc15; }
+
+    /* Workflow callout */
+    .workflow-callout {
+        margin: 2.5rem 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;
+    }
+    .wf-item {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem; text-align: center;
+    }
+    .wf-item-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.35rem; }
+    .wf-item-desc { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+    .wf-states {
+        display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;
+        margin-top: 0.6rem;
+    }
+    .wf-state {
+        display: inline-block; padding: 2px 6px; border-radius: 3px;
+        font-size: 0.55rem; font-weight: 600; font-family: 'JetBrains Mono', monospace;
+        background: rgba(74,159,110,0.1); color: var(--accent-primary);
+    }
+
+    /* Competitive framing */
+    .competitive-frame {
+        margin: 2.5rem 0; padding: 2rem; text-align: center;
+        background: rgba(74,159,110,0.04); border: 1px solid rgba(74,159,110,0.15); border-radius: 12px;
+    }
+    .competitive-frame h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .comp-table { width: 100%; max-width: 600px; margin: 0 auto; border-collapse: collapse; font-size: 0.85rem; }
+    .comp-table th {
+        text-align: left; padding: 8px 14px; font-size: 0.7rem; text-transform: uppercase;
+        letter-spacing: 0.5px; font-weight: 600; color: var(--text-dim);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .comp-table td {
+        padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: var(--text-secondary);
+    }
+    .comp-table tr:last-child td { border-bottom: none; }
+    .comp-table .comp-highlight {
+        color: var(--accent-primary); font-weight: 600;
+    }
+    .comp-table .comp-price { font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+    .comp-includes { color: var(--text-dim); font-size: 0.78rem; }
+
+    /* Resources section */
+    .resources-section { margin: 2.5rem 0; }
+    .resources-section h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .resources-subtitle { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6; max-width: 640px; margin-bottom: 1.5rem; }
+    .resources-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+    .resource-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem; text-decoration: none; color: inherit;
+        transition: border-color 0.2s, transform 0.15s;
+        display: flex; flex-direction: column; gap: 0.4rem;
+    }
+    .resource-card:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
+    .resource-card-title { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
+    .resource-card-desc { color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5; }
+    .resource-card-tag {
+        display: inline-block; margin-top: auto; padding: 2px 8px; border-radius: 10px;
+        font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; width: fit-content;
+    }
+    .resource-card-tag.guide { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .resource-card-tag.tool { background: rgba(74,159,110,0.15); color: var(--accent-primary); }
+
     @media (max-width: 768px) {
         .showcase { grid-template-columns: 1fr; }
-        .module-cards { grid-template-columns: 1fr; }
+        .module-cards { grid-template-columns: repeat(2, 1fr); }
         .iso-hero h1 { font-size: 1.6rem; }
         .iso-hero .hero-diff { font-size: 0.95rem; }
+        .qe-grid { grid-template-columns: 1fr; }
+        .workflow-callout { grid-template-columns: 1fr; }
+        .loop-diagram { flex-direction: column; gap: 0; }
+        .loop-arrow { transform: rotate(90deg); padding: 0.3rem 0; }
     }
 
     /* Sticky CTA — shown on all devices after scrolling past hero */
@@ -333,15 +527,32 @@
         display: block;
         transform: translateY(0);
     }
+    .sticky-cta-links {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+    }
     .sticky-cta a {
         display: inline-block;
-        background: var(--accent-primary);
-        color: #fff;
         padding: 0.65rem 1.5rem;
         border-radius: 6px;
         text-decoration: none;
         font-weight: 600;
         font-size: 0.95rem;
+    }
+    .sticky-cta a.sticky-primary {
+        background: var(--accent-primary);
+        color: #fff;
+    }
+    .sticky-cta a.sticky-free {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+    }
+    .sticky-cta a.sticky-free:hover {
+        border-color: var(--accent-primary);
     }
     .sticky-cta .sticky-sub {
         font-size: 0.75rem;
@@ -354,9 +565,9 @@
 {% block content %}
 <!-- Hero -->
 <div class="iso-hero">
-    <h1>ISO 9001:2015 <strong>QMS Software</strong></h1>
-    <p class="hero-diff">The only QMS with an AI that challenges your root cause analysis — so you never close an NCR with "human error" again.</p>
-    <p class="hero-body">NCR tracking, internal audits, training matrix, management review, document control, and supplier management — built into the same platform you use for SPC, DOE, and 200+ statistical analyses. One system. No duplicate data entry.</p>
+    <h1>ISO 9001:2015 <strong>Compliance Software</strong></h1>
+    <p class="hero-diff">Maintain continuous compliance across all 32 auditable clauses. Audit findings auto-create NCRs. NCRs auto-create corrective actions with statistical evidence. An AI challenges your root cause analysis before you close it. Zero gaps at surveillance.</p>
+    <p class="hero-body">Nonconformance tracking, internal audit management, training &amp; competence records, document control with revision history, management review dashboards, supplier qualification, CAPA workflows, and compliance status by clause &mdash; in a closed-loop system backed by SPC, DOE, and 200+ statistical analyses. One platform. Audit-ready at all times. No duplicate data entry.</p>
     <span class="hero-pricing">14-day free trial — then {{ price_team }}/mo with purchasing power pricing</span>
     <div class="cta-buttons" style="margin-top: 1.5rem;">
         <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
@@ -366,7 +577,7 @@
 
 <!-- Real product screenshot -->
 <div style="max-width: 900px; margin: 0 auto 2rem; border: 1px solid rgba(74,159,110,0.2); border-radius: 8px; overflow: hidden;">
-    <img src="/static/screenshots/sv3.png" alt="Bayesian SPC — Belief Chart, Evidence Accumulation, and E-Detector" style="width: 100%; display: block;" loading="lazy">
+    <img src="/static/screenshots/sv3.png" alt="Svend ISO 9001 QMS platform — Bayesian SPC belief chart with evidence accumulation, built into the same system as NCR tracking and quality management" style="width: 100%; display: block;" loading="lazy">
     <div style="padding: 0.75rem 1rem; background: rgba(13,18,13,0.8); font-size: 0.8rem; color: var(--text-secondary);">
         Process Belief System — Bayesian SPC with belief chart, evidence accumulation (E-value: 10,000:1 DECISIVE), and distribution-free changepoint detection. Built into the same platform as your QMS.
     </div>
@@ -553,43 +764,220 @@
     </div>
 </div>
 
+<!-- Closed-loop integration -->
+<div class="closed-loop">
+    <h2>Closed-Loop QMS — Not Just "Same Platform"</h2>
+    <div class="loop-subtitle">Every QMS module feeds into the next. Audit findings auto-create NCRs. NCRs auto-create statistical studies. Study results route back as QMS actions. Every event becomes quantified evidence in your Bayesian hypothesis system. No manual export. No copy-paste between tools.</div>
+    <div class="loop-diagram">
+        <div class="loop-node">
+            <div class="loop-node-label">Internal Audit</div>
+            <div class="loop-node-desc">Finding recorded against ISO clause</div>
+        </div>
+        <div class="loop-arrow">&rarr;</div>
+        <div class="loop-node">
+            <div class="loop-node-label">NCR Auto-Created</div>
+            <div class="loop-node-desc">Severity, containment, ISO clause linked</div>
+        </div>
+        <div class="loop-arrow">&rarr;</div>
+        <div class="loop-node">
+            <div class="loop-node-label">Statistical Study</div>
+            <div class="loop-node-desc">Root cause investigation with data</div>
+        </div>
+        <div class="loop-arrow">&rarr;</div>
+        <div class="loop-node">
+            <div class="loop-node-label">Evidence System</div>
+            <div class="loop-node-desc">Bayesian update to hypothesis</div>
+        </div>
+        <div class="loop-arrow">&rarr;</div>
+        <div class="loop-node">
+            <div class="loop-node-label">CAPA Verified</div>
+            <div class="loop-node-desc">Effectiveness confirmed, NCR closed</div>
+        </div>
+    </div>
+    <div class="loop-return"><span>&larr;</span> Study results route back as QMS actions — create NCR, schedule audit, update training requirement <span>&rarr;</span></div>
+</div>
+
+<!-- Quality Economics -->
+<div class="qe-section">
+    <h2>Quality Economics — Connect Quality Events to Financial Impact</h2>
+    <div class="qe-subtitle">Four analyses that translate quality data into money. Built in — not a separate module, not an add-on.</div>
+    <div class="qe-grid">
+        <div class="qe-card">
+            <div class="qe-card-title">Taguchi Loss Function</div>
+            <div class="qe-card-desc">Quantify the cost of deviation from target — not just the cost of being out of spec. Shows the financial impact of process variation that traditional tolerance-based thinking misses. Per-unit and total production loss.</div>
+            <span class="qe-card-tag financial">Financial</span>
+        </div>
+        <div class="qe-card">
+            <div class="qe-card-title">Cost of Quality (PAF Model)</div>
+            <div class="qe-card-desc">Prevention, Appraisal, and Failure costs broken out with ratios and trends. See where your quality spend actually goes and where prevention investment would reduce failure cost.</div>
+            <span class="qe-card-tag financial">Financial</span>
+        </div>
+        <div class="qe-card">
+            <div class="qe-card-title">Bayesian SPC Decisions</div>
+            <div class="qe-card-desc">Statistically optimal stop/adjust/continue recommendations based on posterior probabilities — not arbitrary Western Electric rules. Tells you what to do, not just that something changed.</div>
+            <span class="qe-card-tag decision">Decision</span>
+        </div>
+        <div class="qe-card">
+            <div class="qe-card-title">Lot Sentencing</div>
+            <div class="qe-card-desc">Accept/reject/inspect decisions with operating characteristic curves. Sample size optimization that balances producer and consumer risk with actual lot history.</div>
+            <span class="qe-card-tag decision">Decision</span>
+        </div>
+    </div>
+</div>
+
+<!-- Workflow engine callout -->
+<div class="workflow-callout">
+    <div class="wf-item">
+        <div class="wf-item-title">Validated State Machines</div>
+        <div class="wf-item-desc">Every NCR, document, and supplier follows enforced state transitions. No skipping containment. No closing without verification.</div>
+        <div class="wf-states">
+            <span class="wf-state">Open</span>
+            <span class="wf-state">&rarr; Investigation</span>
+            <span class="wf-state">&rarr; Containment</span>
+            <span class="wf-state">&rarr; CAPA</span>
+            <span class="wf-state">&rarr; Verification</span>
+            <span class="wf-state">&rarr; Closed</span>
+        </div>
+    </div>
+    <div class="wf-item">
+        <div class="wf-item-title">Full Audit Trail</div>
+        <div class="wf-item-desc">Every status transition and every field edit logged with timestamp, user, old value, and new value — across NCRs, audits, documents, suppliers, and training records. Your external auditor sees exactly who changed what and when.</div>
+    </div>
+    <div class="wf-item">
+        <div class="wf-item-title">AI Root Cause Challenge</div>
+        <div class="wf-item-desc">Synara reviews your 5 Whys and flags blame framing, circular logic, and premature stops. You never close an NCR with "human error" as root cause.</div>
+    </div>
+</div>
+
+<!-- Competitive framing -->
+<div class="competitive-frame">
+    <h3>One Platform Replaces Two</h3>
+    <table class="comp-table">
+        <thead>
+            <tr><th>Option</th><th>What You Get</th><th>Typical Cost</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Standalone QMS<br><span class="comp-includes">Qualio, MasterControl, ETQ, Greenlight Guru</span></td>
+                <td>Compliance workflows only — no statistical analysis</td>
+                <td class="comp-price">$500 &ndash; $2,000+/mo</td>
+            </tr>
+            <tr>
+                <td>Statistical Software<br><span class="comp-includes">Minitab, JMP</span></td>
+                <td>SPC, DOE, capability — no QMS</td>
+                <td class="comp-price">$110 &ndash; $700/mo</td>
+            </tr>
+            <tr>
+                <td>Both combined</td>
+                <td>Still no integration between them</td>
+                <td class="comp-price">$610 &ndash; $2,700+/mo</td>
+            </tr>
+            <tr>
+                <td class="comp-highlight">Svend Team</td>
+                <td class="comp-highlight">QMS + 200 analyses + SPC + DOE + quality economics — closed-loop</td>
+                <td class="comp-price comp-highlight">{{ price_team }}/mo</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
 <!-- Module cards -->
 <div class="module-cards">
     <div class="module-card">
         <div class="module-clause">Clause 10.2</div>
         <div class="module-title">NCR Tracking & CAPA</div>
-        <div class="module-desc">Full nonconformance workflow: severity classification, containment actions, root cause analysis (5 Whys, fishbone), corrective action, effectiveness verification, and closure. Every NCR links to its ISO clause.</div>
+        <div class="module-desc">6-state workflow with validated transitions: open &rarr; investigation &rarr; containment &rarr; CAPA &rarr; verification &rarr; closed. Severity classification, ISO clause reference, AI-challenged root cause analysis, and full audit trail. NCRs auto-create statistical studies for data-driven investigation.</div>
         <div class="module-status active">Active</div>
     </div>
     <div class="module-card">
         <div class="module-clause">Clause 9.2</div>
         <div class="module-title">Internal Audits</div>
-        <div class="module-desc">Schedule audits by department and ISO clause. Assign lead auditors, record findings (observation, NC minor, NC major, opportunity), and track corrective actions to closure.</div>
+        <div class="module-desc">Schedule audits by department and ISO clause. Assign lead auditors, record findings (observation, NC minor, NC major, opportunity). Findings auto-cascade into NCRs with full linkage. Corrective actions tracked to closure with verification.</div>
         <div class="module-status active">Active</div>
     </div>
     <div class="module-card">
         <div class="module-clause">Clause 7.2</div>
         <div class="module-title">Training Matrix</div>
-        <div class="module-desc">Competence requirements per role, employee training records, completion dates, expiry alerts, and compliance rates per ISO clause. Auto-flags gaps before audits.</div>
+        <div class="module-desc">Competence requirements per role, employee training records, completion dates, expiry alerts, and compliance rates per ISO clause. Auto-flags gaps before audits. Integrates with learning module for course delivery and assessment.</div>
         <div class="module-status active">Active</div>
     </div>
     <div class="module-card">
         <div class="module-clause">Clause 9.3</div>
         <div class="module-title">Management Review</div>
-        <div class="module-desc">Auto-captured QMS data snapshot: NCR stats, audit completion, training compliance, supplier performance. Attendee tracking, structured agenda, minutes, and action items.</div>
+        <div class="module-desc">Auto-captured QMS data snapshot: NCR stats, audit completion, training compliance, supplier performance. Attendee tracking, structured agenda, minutes, and action items. No manual data gathering — the system compiles it.</div>
         <div class="module-status active">Active</div>
     </div>
     <div class="module-card">
         <div class="module-clause">Clause 7.5</div>
         <div class="module-title">Document Control</div>
-        <div class="module-desc">Controlled document register with document numbers, categories, version tracking, approval workflows, and review scheduling.</div>
+        <div class="module-desc">Controlled document register with 4-state approval workflow (draft &rarr; review &rarr; approved &rarr; obsolete). Version tracking, revision history with change summaries, review scheduling, and full audit trail on every status change.</div>
         <div class="module-status active">Active</div>
     </div>
     <div class="module-card">
         <div class="module-clause">Clause 8.4</div>
         <div class="module-title">Supplier Management</div>
-        <div class="module-desc">Supplier register with approval status, quality ratings, evaluation scheduling, and product/service records.</div>
+        <div class="module-desc">Supplier register with 5-state lifecycle (pending &rarr; approved &rarr; conditional &rarr; suspended &rarr; blacklisted). Quality ratings, evaluation scheduling, product/service records. Links to incoming inspection NCRs.</div>
         <div class="module-status active">Active</div>
+    </div>
+    <div class="module-card">
+        <div class="module-clause">Economics</div>
+        <div class="module-title">Quality Economics</div>
+        <div class="module-desc">Taguchi loss function, Cost of Quality (PAF model), Bayesian SPC decisions (stop/adjust/continue), and lot sentencing with OC curves. Connects quality events directly to financial impact. No other QMS includes this.</div>
+        <div class="module-status active">Active</div>
+    </div>
+    <div class="module-card">
+        <div class="module-clause">Integration</div>
+        <div class="module-title">Closed-Loop Evidence</div>
+        <div class="module-desc">Every NCR root cause, corrective action verification, and audit finding feeds into the Bayesian evidence system as quantified evidence. Study results route back as QMS actions. The system learns from its own quality data.</div>
+        <div class="module-status active">Active</div>
+    </div>
+</div>
+
+<!-- Resources & Free Tools -->
+<div class="resources-section">
+    <h2>Resources & Free Tools</h2>
+    <div class="resources-subtitle">Guides, generators, and calculators to support your ISO 9001 quality management system. Free to use, no signup required.</div>
+    <div class="resources-grid">
+        <a href="/iso-9001-internal-audit-playbook/" class="resource-card">
+            <div class="resource-card-title">ISO 9001 Internal Audit Playbook</div>
+            <div class="resource-card-desc">Complete guide to planning, conducting, and reporting internal audits. Covers audit programs, finding classification, CAPA workflow, and management review integration.</div>
+            <span class="resource-card-tag guide">Guide</span>
+        </a>
+        <a href="/tools/iso-9001-audit-checklist/" class="resource-card">
+            <div class="resource-card-title">Audit Checklist Generator</div>
+            <div class="resource-card-desc">Select ISO 9001 clauses and generate a printable audit checklist with evidence-based questions, checkboxes, and space for notes.</div>
+            <span class="resource-card-tag tool">Free Tool</span>
+        </a>
+        <a href="/tools/control-chart-generator/" class="resource-card">
+            <div class="resource-card-title">Control Chart Generator</div>
+            <div class="resource-card-desc">Create Shewhart I-MR and X&#x0304;-R charts from your data. Nelson rules, capability indices, and PNG export for clause 9.1 monitoring.</div>
+            <span class="resource-card-tag tool">Free Tool</span>
+        </a>
+        <a href="/tools/pareto-chart-generator/" class="resource-card">
+            <div class="resource-card-title">Pareto Chart Generator</div>
+            <div class="resource-card-desc">80/20 analysis for defect categorization, nonconformance trending, and root cause prioritization.</div>
+            <span class="resource-card-tag tool">Free Tool</span>
+        </a>
+        <a href="/tools/fmea-rpn-calculator/" class="resource-card">
+            <div class="resource-card-title">FMEA RPN Calculator</div>
+            <div class="resource-card-desc">Calculate Risk Priority Number from S/O/D ratings with AIAG-VDA Action Priority classification for clause 6.1 risk-based thinking.</div>
+            <span class="resource-card-tag tool">Free Tool</span>
+        </a>
+        <a href="/tools/cpk-calculator/" class="resource-card">
+            <div class="resource-card-title">Cpk / Ppk Calculator</div>
+            <div class="resource-card-desc">Process capability analysis with Cp, Cpk, Pp, Ppk, sigma level, and PPM for clause 8.6 release decisions.</div>
+            <span class="resource-card-tag tool">Free Tool</span>
+        </a>
+        <a href="/tools/gage-rr-calculator/" class="resource-card">
+            <div class="resource-card-title">Gage R&amp;R Calculator</div>
+            <div class="resource-card-desc">Measurement system analysis with ANOVA variance decomposition, %GRR, and NDC for clause 7.1.5 monitoring resources.</div>
+            <span class="resource-card-tag tool">Free Tool</span>
+        </a>
+        <a href="/tools/iso-document-creator/" class="resource-card">
+            <div class="resource-card-title">ISO Document Creator</div>
+            <div class="resource-card-desc">Create structured ISO documents — Quality Manuals, Procedures, Work Instructions, Policies, and Forms. Pre-built templates with section editors for clause 7.5 documented information.</div>
+            <span class="resource-card-tag tool">Free Tool</span>
+        </a>
     </div>
 </div>
 
@@ -602,11 +990,19 @@
 
 <!-- CTA -->
 <div class="iso-cta">
-    <h3>Start your ISO 9001 QMS</h3>
-    <p>Team ({{ price_team }}/mo) and Enterprise ({{ price_enterprise }}/mo) include full QMS access. 14-day free trial, no charge until day 15. Purchasing power pricing for Southeast Asia, India, Latin America, and Africa.</p>
+    <h3>Full QMS + Statistical Platform — One Subscription</h3>
+    <p>Team ({{ price_team }}/mo) and Enterprise ({{ price_enterprise }}/mo) include the complete QMS, quality economics, 200+ statistical analyses, SPC, and DOE. 14-day free trial, no charge until day 15. Purchasing power pricing for Southeast Asia, India, Latin America, and Africa.</p>
     <div class="cta-buttons">
         <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
         <a href="/#pricing" class="cta-secondary">See Pricing</a>
+    </div>
+</div>
+
+<div class="iso-cta" style="background: var(--bg-secondary); border: 1px solid var(--border);">
+    <h3>Not ready for QMS? Start with the stats.</h3>
+    <p>Create a free account and get access to 200+ statistical analyses, SPC control charts, DOE, capability studies, and quality tools — up to 12 analyses per day. No credit card, no trial expiry. Upgrade to a paid plan when you need the full QMS.</p>
+    <div class="cta-buttons">
+        <a href="/register/" class="cta-secondary">Create Free Account</a>
     </div>
 </div>
 
@@ -636,7 +1032,7 @@
         <tr><td class="clause-num">7.2</td><td>Competence</td><td>Training matrix with requirement tracking, employee records, completion dates, expiry alerts, and compliance rates per ISO clause</td><td class="status-active">Active</td></tr>
         <tr><td class="clause-num">7.3</td><td>Awareness</td><td>Learning module with courses, assessments, progress tracking, and certification; training requirements link to ISO clauses</td><td class="status-active">Active</td></tr>
         <tr><td class="clause-num">7.4</td><td>Communication</td><td>Collaborative whiteboards with real-time updates; team dashboards; project-scoped conversation threads</td><td class="status-active">Active</td></tr>
-        <tr><td class="clause-num">7.5</td><td>Documented information</td><td>Controlled document register with document numbers, categories, version tracking, approval workflow, and review scheduling</td><td class="status-active">Active</td></tr>
+        <tr><td class="clause-num">7.5</td><td>Documented information</td><td>Controlled document register with document numbers, categories, version tracking, approval workflow, review scheduling, and field-level change history with user attribution across all QMS records</td><td class="status-active">Active</td></tr>
         <tr><td class="clause-num">8.1</td><td>Operational planning and control</td><td>Project management with hypothesis-driven workflow; VSM for process planning; Kanban card generation</td><td class="status-active">Active</td></tr>
         <tr><td class="clause-num">8.2</td><td>Requirements for products/services</td><td>A3 reports capture requirements; FMEA links requirements to failure modes; evidence chains maintain traceability</td><td class="status-active">Active</td></tr>
         <tr><td class="clause-num">8.3</td><td>Design and development</td><td>DOE for design optimization; sequential testing; experiment tracking with statistical verification</td><td class="status-active">Active</td></tr>
@@ -669,44 +1065,67 @@
 
     <div class="faq-item">
         <div class="faq-q">Do I need separate QMS software if I use Svend?</div>
-        <div class="faq-a">No. Svend's QMS module is built into the same platform you use for SPC, DOE, capability analysis, and root cause analysis. NCR tracking, internal audits, training records, management review, and document control are all native features on Team and Enterprise plans. No duplicate data entry or third-party integrations required.</div>
+        <div class="faq-a">No. Svend replaces both standalone QMS software (Qualio, MasterControl, ETQ — typically $500-2,000+/mo) and standalone statistical software (Minitab, JMP — $110-700/mo). NCR tracking, internal audits, training records, management review, document control, supplier management, quality economics, SPC, DOE, and 200+ statistical analyses are all in one platform. No duplicate data entry, no manual export between tools.</div>
     </div>
 
     <div class="faq-item">
         <div class="faq-q">How does Svend handle nonconformance tracking for ISO 9001?</div>
-        <div class="faq-a">Full CAPA workflow per clause 10.2. Log NCRs with severity classification (minor, major, critical) and ISO clause reference. Record containment actions, conduct root cause analysis using 5 Whys or fishbone diagrams, define corrective actions with owners and due dates, verify effectiveness, and close. Every NCR traces to its root cause analysis and any linked FMEA failure mode.</div>
+        <div class="faq-a">Full CAPA workflow per clause 10.2 with a 6-state workflow engine: open &rarr; investigation &rarr; containment &rarr; CAPA &rarr; verification &rarr; closed. Each transition is validated — you cannot skip containment or close without verification. Log NCRs with severity classification (minor, major, critical) and ISO clause reference. Conduct root cause analysis using 5 Whys or fishbone diagrams — Synara AI reviews your analysis and flags blame framing, circular logic, or premature stops. NCRs auto-create statistical studies for data-driven investigation. Full audit trail — every status transition and every field edit logged with timestamp, user, old value, and new value.</div>
     </div>
 
     <div class="faq-item">
         <div class="faq-q">Can Svend schedule and track ISO 9001 internal audits?</div>
-        <div class="faq-a">Yes, per clause 9.2. Create audit programs with lead auditors, department scoping, and ISO clause mapping. Record findings as observations, minor nonconformities, major nonconformities, or opportunities for improvement. Each finding generates corrective actions tracked to closure with verification.</div>
+        <div class="faq-a">Yes, per clause 9.2. Create audit programs with lead auditors, department scoping, and ISO clause mapping. Record findings as observations, minor nonconformities, major nonconformities, or opportunities for improvement. Findings auto-cascade into NCRs — when an auditor records a nonconformity, the system creates a linked NCR automatically with severity and clause reference carried over. Each finding generates corrective actions tracked to closure with verification. Every field edit on audit records is logged with timestamp, user, old value, and new value.</div>
     </div>
 
     <div class="faq-item">
         <div class="faq-q">Does Svend include a training matrix for ISO 9001 competence requirements?</div>
-        <div class="faq-a">Yes, per clause 7.2. Define competence requirements by role, track employee training records with completion dates and expiry dates, monitor compliance rates per ISO clause, and receive alerts before certifications expire. The training matrix integrates with the learning module for course delivery and assessment.</div>
+        <div class="faq-a">Yes, per clause 7.2. Define competence requirements by role, track employee training records with completion dates and expiry dates, monitor compliance rates per ISO clause, and receive alerts before certifications expire. Edit employee details and training records inline with full field-level change history. One-click recertification resets completion and expiry dates for recurring training without losing the original record. The training matrix integrates with the learning module for course delivery and assessment.</div>
     </div>
 
     <div class="faq-item">
         <div class="faq-q">How does Svend handle document control for ISO 9001?</div>
-        <div class="faq-a">Per clause 7.5. Controlled document register with document numbers, categories, version tracking, and approval workflows. Schedule reviews, track revisions with change summaries, and maintain a full audit trail. Obsolete versions are automatically archived. Supports quality manuals, SOPs, work instructions, and forms.</div>
+        <div class="faq-a">Per clause 7.5. Controlled document register with document numbers, categories, version tracking, and approval workflows. Schedule reviews, track revisions with change summaries, and maintain a full audit trail — every field edit and status transition logged with timestamp, user, old value, and new value. Obsolete versions are automatically archived. Supports quality manuals, SOPs, work instructions, and forms.</div>
     </div>
 
     <div class="faq-item">
         <div class="faq-q">Can Svend manage supplier quality for ISO 9001 clause 8.4?</div>
-        <div class="faq-a">Yes. Supplier register with approval status, quality ratings, evaluation scheduling, and product/service records. Track approved supplier lists, schedule periodic re-evaluations, and link supplier performance data to incoming inspection NCRs. Integrates with the NCR tracker for externally provided product nonconformances.</div>
+        <div class="faq-a">Yes. Supplier register with approval status, quality ratings, evaluation scheduling, and product/service records. Track approved supplier lists, schedule periodic re-evaluations, and link supplier performance data to incoming inspection NCRs. Every field edit and status transition logged with full change history. Integrates with the NCR tracker for externally provided product nonconformances.</div>
     </div>
 
     <div class="faq-item">
         <div class="faq-q">How much does Svend's ISO 9001 QMS cost?</div>
-        <div class="faq-a">QMS features are included in Team ({{ price_team }}/mo) and Enterprise ({{ price_enterprise }}/mo) plans. Both include a 14-day free trial — no charge until day 15. Cancel anytime during the trial and you won't be billed. No additional per-module charge. Purchasing power pricing is available for Southeast Asia, India, Latin America, Africa, and other emerging markets. The same plans include SPC, DOE, 200+ statistical analyses, FMEA, A3 reports, value stream mapping, and hoshin kanri.</div>
+        <div class="faq-a">QMS features are included in Team ({{ price_team }}/mo) and Enterprise ({{ price_enterprise }}/mo) plans. Both include a 14-day free trial — no charge until day 15. Cancel anytime during the trial and you won't be billed. No additional per-module charge. For context, standalone QMS software typically costs $500-2,000+/mo and still requires separate statistical tools. Svend includes both. Purchasing power pricing is available for Southeast Asia, India, Latin America, Africa, and other emerging markets.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is quality economics in Svend?</div>
+        <div class="faq-a">Quality economics connects quality events to financial impact through four analyses: Taguchi loss function (quantifies the cost of deviation from target — not just out-of-spec), Cost of Quality using the Prevention-Appraisal-Failure model (shows where your quality spend actually goes), Bayesian SPC decisions (statistically optimal stop/adjust/continue recommendations), and lot sentencing with operating characteristic curves (accept/reject/inspect decisions that balance producer and consumer risk). These are built into the platform — not a separate module or add-on.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What does "closed-loop QMS" mean?</div>
+        <div class="faq-a">Most QMS tools are standalone — they track compliance workflows but don't connect to the statistical tools you use for actual analysis. In Svend, the modules form a closed feedback loop: audit findings auto-create NCRs, NCRs auto-create statistical studies for root cause investigation, study results route back as QMS actions (create an NCR, schedule an audit, update a training requirement). Every QMS event feeds into the Bayesian evidence system as quantified evidence. There is no manual data transfer between tools because there are no separate tools.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does Svend compare to standalone QMS software like Qualio or MasterControl?</div>
+        <div class="faq-a">Standalone QMS platforms cover compliance workflows — NCR tracking, document control, audits. But they don't include statistical analysis, so you still need Minitab or JMP for SPC, capability studies, DOE, and hypothesis testing. That means two separate subscriptions, no integration, and manual data transfer. Svend combines both in one platform with closed-loop integration between QMS and statistical modules, plus quality economics that neither standalone QMS nor standalone statistical software offers. Team plan starts at {{ price_team }}/mo.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Does Svend maintain audit trails for ISO 9001 compliance?</div>
+        <div class="faq-a">Yes. Every status transition and every field edit across all QMS records — NCRs, audits, documents, suppliers, and training records — is logged with timestamp, user, old value, and new value. NCR workflows enforce validated state transitions (you cannot skip containment or close without verification). Document approval workflows track every revision with change summaries. Your external auditor can trace exactly who changed what field, when, and what it was before — not just status transitions but every individual field modification.</div>
     </div>
 </div>
 
 <!-- Sticky CTA — appears after scrolling past hero -->
 <div class="sticky-cta" id="stickyCta">
-    <a href="/register/?plan=team&region={{ region }}">Try QMS Free for 14 Days</a>
-    <div class="sticky-sub">Full access — {{ price_team }}/mo after trial</div>
+    <div class="sticky-cta-links">
+        <a href="/register/?plan=team&region={{ region }}" class="sticky-primary">Try QMS Free for 14 Days</a>
+        <a href="/register/" class="sticky-free">Free Individual Account</a>
+    </div>
+    <div class="sticky-sub">QMS: {{ price_team }}/mo after trial · Individual: 200+ stats, SPC, DOE — free forever</div>
 </div>
 
 <script>

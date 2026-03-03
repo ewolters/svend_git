@@ -1,0 +1,875 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Hoshin Kanri Strategy Deployment — X-Matrix, Catchball, Annual Planning{% endblock %}
+{% block meta_description %}Complete hoshin kanri playbook: X-matrix explained, catchball as mechanism, annual planning cycle, monthly savings tracking, VSM integration, MDI connection. Strategy deployment for manufacturing CI. {{ price_enterprise }}/mo.{% endblock %}
+{% block meta_keywords %}hoshin kanri, strategy deployment, X-matrix, hoshin planning, catchball, policy deployment, hoshin kanri software, lean strategy, continuous improvement strategy, annual planning cycle, hoshin X-matrix, PDSA strategy, manufacturing strategy deployment{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/hoshin-kanri-strategy-deployment/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://svend.ai/hoshin-kanri-strategy-deployment/">
+<meta property="og:title" content="Hoshin Kanri Strategy Deployment Playbook | Svend">
+<meta property="og:description" content="Hoshin kanri is the strategy. X-matrix, catchball, annual planning, monthly tracking, VSM integration. Written for CI practitioners, not consultants.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Hoshin Kanri Strategy Deployment Playbook",
+    "url": "https://svend.ai/hoshin-kanri-strategy-deployment/",
+    "description": "Complete hoshin kanri playbook: X-matrix construction, catchball mechanism, annual planning cycle, monthly savings tracking, VSM-to-hoshin pipeline, and MDI integration.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "about": [
+        { "@type": "Thing", "name": "Hoshin Kanri" },
+        { "@type": "Thing", "name": "Strategy Deployment" },
+        { "@type": "Thing", "name": "X-Matrix" },
+        { "@type": "Thing", "name": "Continuous Improvement" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is hoshin kanri?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Hoshin kanri (policy deployment) is the mechanism that connects multi-year strategic objectives to annual targets, improvement projects, and measurable KPIs. It is not strategic planning in the Western sense — it is the system for deploying strategy through an organization so that daily work aligns to breakthrough goals. The X-matrix is its primary artifact."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the X-matrix in hoshin kanri?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The X-matrix is a single-page visual that maps four quadrants: strategic objectives (3-5 year, south), annual objectives (west), improvement projects (north), and KPIs (east). Correlation dots at the intersections show how each project supports each objective and which KPIs measure progress. It forces alignment — every project must link to strategy, every KPI must link to a project."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is catchball in hoshin kanri?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Catchball is the bidirectional negotiation between levels. Leadership proposes objectives, the next level responds with what they can realistically achieve given resources. The objective gets refined through this back-and-forth until both sides commit. It is a mechanism for surfacing resource constraints before they become excuses. It is not consensus-building or democratic voting."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does hoshin kanri connect to MDI?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Hoshin sets the strategic direction. MDI (Managing for Daily Improvement) is how you allocate resources daily to achieve that strategy. Newspaper items that exceed local authority escalate to hoshin projects. KPI actuals from tier meetings feed the X-matrix. Leadership standard work verifies strategic intent reaches the gemba. They are two halves of the same system."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How often should the X-matrix be reviewed?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Monthly at minimum. Strategic objectives (3-5 year) change rarely. Annual objectives get reviewed quarterly for on-track/at-risk status. Project savings actuals are entered monthly. KPIs update monthly or quarterly depending on the metric. The X-matrix is a living document, not an annual planning artifact that sits in a drawer."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between hoshin kanri and strategic planning?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Strategic planning produces goals. Hoshin kanri deploys those goals through an organization with measurable targets, assigned projects, tracked KPIs, and monthly accountability. The difference is execution mechanism. Most companies plan well and deploy poorly. Hoshin kanri is the deployment system — it closes the gap between intent and action through catchball, correlation mapping, and monthly dollar tracking."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does hoshin kanri connect to value stream mapping?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "VSM is the diagnostic that feeds hoshin. A current-state map reveals constraints. Kaizen bursts on the future-state map become improvement projects on the X-matrix. In Svend, VSM kaizen proposals promote directly to hoshin projects with calculation methods and savings targets pre-populated. Realized savings write back to the VSM for closed-loop tracking."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Continuous Improvement Software", "item": "https://svend.ai/continuous-improvement-software/" },
+        { "@type": "ListItem", "position": 3, "name": "Hoshin Kanri Strategy Deployment", "item": "https://svend.ai/hoshin-kanri-strategy-deployment/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .tool-container { max-width: 1000px; }
+
+    .playbook-hero { text-align: center; margin-bottom: 2.5rem; padding-top: 1rem; }
+    .playbook-badge {
+        display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3);
+        margin-bottom: 0.75rem;
+    }
+    .playbook-hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .playbook-hero h1 strong { color: #f59e0b; }
+    .playbook-hero .hero-sub {
+        color: var(--text-secondary); font-size: 1rem; max-width: 680px; margin: 0 auto; line-height: 1.7;
+    }
+    .playbook-hero .hero-pricing {
+        display: inline-block; margin-top: 1.25rem;
+        background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+        border-radius: 6px; padding: 0.5rem 1.25rem; font-size: 0.85rem;
+        color: #f59e0b; font-weight: 500;
+    }
+
+    .playbook-toc {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+    }
+    .playbook-toc h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .playbook-toc ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.3rem; }
+    .playbook-toc a { color: var(--accent-primary); text-decoration: none; font-size: 0.88rem; line-height: 1.6; }
+    .playbook-toc a:hover { text-decoration: underline; }
+    .playbook-toc .toc-num { color: var(--text-dim); font-weight: 600; margin-right: 0.3rem; }
+
+    .pb-section {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .pb-section-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .pb-num {
+        background: #f59e0b; color: #000; width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .pb-section h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .pb-section p, .pb-section li { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+    .pb-section ul, .pb-section ol { padding-left: 1.5rem; margin: 0.75rem 0; }
+    .pb-section li { margin-bottom: 0.4rem; }
+    .pb-section h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+
+    .svend-callout {
+        background: rgba(74,159,110,0.06); border: 1px solid rgba(74,159,110,0.2); border-radius: 8px;
+        padding: 0.85rem 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+    }
+    .svend-callout strong { color: var(--accent-primary); }
+    .svend-callout a { color: var(--accent-primary); text-decoration: none; }
+    .svend-callout a:hover { text-decoration: underline; }
+
+    /* X-Matrix diagram */
+    .xmatrix-diagram {
+        margin: 1.5rem 0; position: relative;
+        display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto;
+        gap: 0; max-width: 680px; margin-left: auto; margin-right: auto;
+    }
+    .xmatrix-quad {
+        padding: 1rem; border: 1px solid var(--border); min-height: 120px;
+    }
+    .xmatrix-quad.q-south {
+        grid-column: 1 / 3; background: rgba(245,158,11,0.05);
+        border-color: rgba(245,158,11,0.2); text-align: center;
+    }
+    .xmatrix-quad.q-west {
+        background: rgba(74,159,110,0.05); border-color: rgba(74,159,110,0.2);
+        border-top: none;
+    }
+    .xmatrix-quad.q-east {
+        background: rgba(96,165,250,0.05); border-color: rgba(96,165,250,0.2);
+        border-top: none; border-left: none;
+    }
+    .xmatrix-quad.q-north {
+        grid-column: 1 / 3; background: rgba(167,139,250,0.05);
+        border-color: rgba(167,139,250,0.2); border-top: none; text-align: center;
+    }
+    .xmatrix-quad-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; margin-bottom: 0.5rem;
+    }
+    .q-south .xmatrix-quad-label { color: #f59e0b; }
+    .q-west .xmatrix-quad-label { color: var(--accent-primary); }
+    .q-east .xmatrix-quad-label { color: #60a5fa; }
+    .q-north .xmatrix-quad-label { color: #a78bfa; }
+    .xmatrix-quad-items { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; }
+    .xmatrix-quad-items div { padding: 2px 0; }
+    .xmatrix-center {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: var(--bg-card); border: 2px solid var(--border); border-radius: 50%;
+        width: 70px; height: 70px; display: flex; align-items: center; justify-content: center;
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        color: var(--text-dim); text-align: center; line-height: 1.2; z-index: 2;
+    }
+
+    /* Correlation dots */
+    .corr-grid {
+        margin: 1.25rem 0; overflow-x: auto;
+    }
+    .corr-grid table {
+        border-collapse: collapse; font-size: 0.75rem; width: 100%;
+    }
+    .corr-grid th {
+        padding: 6px 10px; text-align: left; font-weight: 600; font-size: 0.72rem;
+        color: var(--text-dim); border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+    .corr-grid td {
+        padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: var(--text-secondary);
+    }
+    .corr-grid .dot {
+        display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+        margin: 0 auto; vertical-align: middle;
+    }
+    .corr-grid .dot.strong { background: var(--accent-primary); }
+    .corr-grid .dot.moderate { background: rgba(74,159,110,0.4); }
+    .corr-grid .dot.none { background: transparent; border: 1px solid rgba(255,255,255,0.1); }
+    .corr-grid .dot-cell { text-align: center; }
+
+    /* Catchball flow */
+    .catchball-flow {
+        display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+        gap: 0.5rem; margin: 1.25rem 0; padding: 1.25rem;
+        background: var(--bg-tertiary); border-radius: 8px;
+    }
+    .catchball-step {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+        padding: 0.7rem 1rem; text-align: center; min-width: 130px;
+    }
+    .catchball-step strong { display: block; font-size: 0.82rem; color: var(--text-primary); }
+    .catchball-step span { font-size: 0.72rem; color: var(--text-dim); }
+    .catchball-arrow { color: #f59e0b; font-size: 1.1rem; padding: 0 0.2rem; }
+
+    /* Planning cycle */
+    .cycle-timeline {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;
+        margin: 1.25rem 0;
+    }
+    .cycle-phase {
+        background: var(--bg-tertiary); border-radius: 8px; padding: 1rem;
+        border-top: 3px solid var(--border); position: relative;
+    }
+    .cycle-phase.q1 { border-top-color: #4a9f6e; }
+    .cycle-phase.q2 { border-top-color: #3a7f8f; }
+    .cycle-phase.q3 { border-top-color: #f59e0b; }
+    .cycle-phase.q4 { border-top-color: #a78bfa; }
+    .cycle-phase-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; margin-bottom: 0.4rem;
+    }
+    .cycle-phase.q1 .cycle-phase-label { color: #4a9f6e; }
+    .cycle-phase.q2 .cycle-phase-label { color: #3a7f8f; }
+    .cycle-phase.q3 .cycle-phase-label { color: #f59e0b; }
+    .cycle-phase.q4 .cycle-phase-label { color: #a78bfa; }
+    .cycle-phase strong { display: block; font-size: 0.85rem; margin-bottom: 0.3rem; }
+    .cycle-phase p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+
+    /* Savings table */
+    .savings-example {
+        margin: 1.25rem 0; overflow-x: auto;
+    }
+    .savings-example table {
+        width: 100%; border-collapse: collapse; font-size: 0.8rem;
+    }
+    .savings-example th {
+        padding: 8px 10px; text-align: left; font-weight: 600; font-size: 0.75rem;
+        color: var(--text-dim); border-bottom: 2px solid var(--border);
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .savings-example td {
+        padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: var(--text-secondary);
+    }
+    .savings-example .positive { color: var(--accent-primary); font-weight: 600; }
+    .savings-example .negative { color: #e85747; font-weight: 600; }
+    .savings-example .total-row { border-top: 2px solid var(--border); font-weight: 600; }
+    .savings-example .total-row td { color: var(--text-primary); }
+
+    /* Failure mode cards */
+    .failure-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 0.75rem; margin: 1rem 0;
+    }
+    .failure-card {
+        padding: 1rem; border-radius: 8px; border-left: 3px solid #e85747;
+        background: var(--bg-tertiary);
+    }
+    .failure-card strong { display: block; font-size: 0.88rem; margin-bottom: 0.3rem; color: var(--text-primary); }
+    .failure-card p { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+
+    /* Related playbooks */
+    .related-playbooks {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem; margin: 1.5rem 0;
+    }
+    .related-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.1rem; text-decoration: none; color: inherit; transition: border-color 0.2s;
+    }
+    .related-card:hover { border-color: var(--accent-primary); }
+    .related-phase {
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.3rem;
+    }
+    .related-phase.backbone { color: #a78bfa; }
+    .related-phase.execute { color: #3a7f8f; }
+    .related-phase.diagnostic { color: #60a5fa; }
+    .related-phase.consolidate { color: #e8c547; }
+    .related-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .related-desc { color: var(--text-secondary); font-size: 0.78rem; line-height: 1.5; }
+
+    /* CTA */
+    .playbook-cta {
+        text-align: center; margin: 2.5rem 0 1.5rem; padding: 2.5rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .playbook-cta h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .playbook-cta p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .playbook-cta .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .cta-primary {
+        background: var(--accent-primary); color: #fff; padding: 0.7rem 2rem; border-radius: 6px;
+        text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;
+    }
+    .cta-primary:hover { background: #3a8a5a; }
+    .cta-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.7rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 500;
+        font-size: 0.95rem; transition: all 0.2s;
+    }
+    .cta-secondary:hover { border-color: var(--accent-primary-border); }
+
+    /* FAQ */
+    .pb-faq { margin-top: 2rem; }
+    .pb-faq h2 { font-size: 1.25rem; margin-bottom: 1rem; text-align: center; }
+
+    @media (max-width: 768px) {
+        .xmatrix-diagram { grid-template-columns: 1fr; }
+        .xmatrix-quad.q-south, .xmatrix-quad.q-north { grid-column: 1; }
+        .xmatrix-quad.q-east { border-left: 1px solid rgba(96,165,250,0.2); border-top: none; }
+        .xmatrix-center { display: none; }
+        .catchball-flow { flex-direction: column; }
+        .catchball-arrow { transform: rotate(90deg); }
+        .cycle-timeline { grid-template-columns: 1fr 1fr; }
+        .failure-grid { grid-template-columns: 1fr; }
+        .related-playbooks { grid-template-columns: 1fr; }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="playbook-hero">
+    <div class="playbook-badge">Strategy Deployment</div>
+    <h1>Hoshin Kanri <strong>Strategy Deployment</strong></h1>
+    <p class="hero-sub">Hoshin kanri IS the strategy. Not the planning exercise that produces a binder. The deployment system that connects 3-5 year breakthroughs to daily work through catchball, the X-matrix, and monthly dollar tracking. Written for people who run plants, not people who advise them.</p>
+    <div class="hero-pricing">Enterprise plan: {{ price_enterprise }}/seat/mo &mdash; includes X-matrix, multi-site, Monte Carlo</div>
+</div>
+
+<div class="playbook-toc">
+    <h3>In This Playbook</h3>
+    <ol>
+        <li><a href="#s1"><span class="toc-num">1.</span> What Hoshin Actually Is</a></li>
+        <li><a href="#s2"><span class="toc-num">2.</span> The X-Matrix Explained</a></li>
+        <li><a href="#s3"><span class="toc-num">3.</span> Catchball &mdash; The Mechanism</a></li>
+        <li><a href="#s4"><span class="toc-num">4.</span> Annual Planning Cycle</a></li>
+        <li><a href="#s5"><span class="toc-num">5.</span> Monthly Tracking &amp; Savings</a></li>
+        <li><a href="#s6"><span class="toc-num">6.</span> How Hoshin Connects to VSM</a></li>
+        <li><a href="#s7"><span class="toc-num">7.</span> How Hoshin Connects to MDI</a></li>
+        <li><a href="#s8"><span class="toc-num">8.</span> Common Failure Modes</a></li>
+    </ol>
+</div>
+
+<!-- Section 1 -->
+<div class="pb-section" id="s1">
+    <div class="pb-section-head">
+        <div class="pb-num">1</div>
+        <h2>What Hoshin Actually Is</h2>
+    </div>
+    <p>Hoshin kanri translates roughly as &ldquo;compass management&rdquo; or &ldquo;policy deployment.&rdquo; Neither translation captures it. Here is what it actually does:</p>
+    <p>It takes a small number of breakthrough objectives &mdash; three to five things that must change over the next three to five years &mdash; and deploys them through an organization so that every level knows what it is working on, why it matters, and how progress is measured. Not through memos. Through a structured negotiation process (catchball) that creates genuine commitment.</p>
+
+    <h3>What it is not</h3>
+    <ul>
+        <li><strong>It is not strategic planning.</strong> Strategic planning produces goals. Hoshin kanri deploys them. Most companies plan well and deploy poorly. This is the deployment system.</li>
+        <li><strong>It is not MBO (Management by Objectives).</strong> MBO cascades objectives downward without negotiation. Hoshin kanri negotiates upward and downward through catchball. The difference is commitment vs. compliance.</li>
+        <li><strong>It is not a balanced scorecard.</strong> A balanced scorecard measures. Hoshin kanri connects measurement to projects to objectives and tracks dollar savings monthly. Measurement without action is decoration.</li>
+        <li><strong>It is not annual.</strong> The planning cycle is annual. The tracking is monthly. The alignment check is daily (via MDI). If you only look at your X-matrix once a year, you do not have hoshin kanri &mdash; you have a poster.</li>
+    </ul>
+
+    <h3>The operating logic</h3>
+    <p>A manufacturing plant has hundreds of things it could improve. Hoshin kanri forces you to pick the three to five that matter most, assign projects to each, measure results monthly, and resolve conflicts between them explicitly. Everything else is daily management (MDI). The discipline is saying no to everything except the breakthroughs &mdash; and then executing those breakthroughs with resources, timelines, and accountability.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Hoshin kanri is an enterprise-tier feature that includes the full X-matrix, multi-site support, eight savings calculation methods, Monte Carlo forecasting, and auto-suggested correlations. It connects directly to VSM kaizen bursts and MDI action items.
+    </div>
+</div>
+
+<!-- Section 2 -->
+<div class="pb-section" id="s2">
+    <div class="pb-section-head">
+        <div class="pb-num">2</div>
+        <h2>The X-Matrix Explained</h2>
+    </div>
+    <p>The X-matrix is the single-page artifact that makes hoshin kanri visible. Four quadrants. Correlation dots at the intersections. One page forces discipline &mdash; if it does not fit on one page, you have too many objectives.</p>
+
+    <div class="xmatrix-diagram">
+        <div class="xmatrix-quad q-south">
+            <div class="xmatrix-quad-label">South &mdash; Strategic Objectives (3-5 Year)</div>
+            <div class="xmatrix-quad-items">
+                <div>Reduce manufacturing cost 30%</div>
+                <div>Zero-defect capability on Line 4</div>
+                <div>Single-piece flow in Assembly</div>
+            </div>
+        </div>
+        <div class="xmatrix-quad q-west">
+            <div class="xmatrix-quad-label">West &mdash; Annual Objectives</div>
+            <div class="xmatrix-quad-items">
+                <div>OEE &gt; 85% all presses</div>
+                <div>Scrap &lt; 1.2% YTD</div>
+                <div>C/O &lt; 12 min avg</div>
+                <div>Training 100% current</div>
+            </div>
+        </div>
+        <div class="xmatrix-quad q-east">
+            <div class="xmatrix-quad-label">East &mdash; KPIs</div>
+            <div class="xmatrix-quad-items">
+                <div>OEE % (monthly)</div>
+                <div>Scrap rate (weekly)</div>
+                <div>Changeover time (per event)</div>
+                <div>Dollar savings YTD</div>
+            </div>
+        </div>
+        <div class="xmatrix-quad q-north">
+            <div class="xmatrix-quad-label">North &mdash; Improvement Projects</div>
+            <div class="xmatrix-quad-items">
+                <div>SMED study &mdash; Press 4 changeover</div>
+                <div>Scrap reduction &mdash; substrate waste</div>
+                <div>TPM pilot &mdash; Line 2 planned maintenance</div>
+            </div>
+        </div>
+        <div class="xmatrix-center">Correlation<br>Dots</div>
+    </div>
+
+    <h3>How to read the correlations</h3>
+    <p>At each intersection between quadrants, you mark the strength of the relationship:</p>
+    <ul>
+        <li><strong>Strong correlation</strong> &mdash; this project directly drives this objective, or this KPI directly measures this project&rsquo;s output</li>
+        <li><strong>Moderate correlation</strong> &mdash; indirect relationship, supporting but not primary</li>
+        <li><strong>No dot</strong> &mdash; no meaningful connection</li>
+    </ul>
+    <p>The correlations reveal problems. A project with no dots connecting it to any annual objective is an orphan &mdash; why are you doing it? An annual objective with no projects supporting it is aspirational &mdash; how will you achieve it? A KPI with no project connection is measuring something nobody is actively improving.</p>
+
+    <div class="corr-grid">
+        <table>
+            <tr>
+                <th></th>
+                <th>OEE &gt; 85%</th>
+                <th>Scrap &lt; 1.2%</th>
+                <th>C/O &lt; 12 min</th>
+                <th>Training 100%</th>
+            </tr>
+            <tr>
+                <td><strong>SMED &mdash; Press 4</strong></td>
+                <td class="dot-cell"><span class="dot strong"></span></td>
+                <td class="dot-cell"><span class="dot moderate"></span></td>
+                <td class="dot-cell"><span class="dot strong"></span></td>
+                <td class="dot-cell"><span class="dot moderate"></span></td>
+            </tr>
+            <tr>
+                <td><strong>Scrap reduction</strong></td>
+                <td class="dot-cell"><span class="dot moderate"></span></td>
+                <td class="dot-cell"><span class="dot strong"></span></td>
+                <td class="dot-cell"><span class="dot none"></span></td>
+                <td class="dot-cell"><span class="dot none"></span></td>
+            </tr>
+            <tr>
+                <td><strong>TPM pilot</strong></td>
+                <td class="dot-cell"><span class="dot strong"></span></td>
+                <td class="dot-cell"><span class="dot none"></span></td>
+                <td class="dot-cell"><span class="dot none"></span></td>
+                <td class="dot-cell"><span class="dot strong"></span></td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Four quadrants, four questions</h3>
+    <ul>
+        <li><strong>South:</strong> Where are we going? (3-5 year breakthroughs)</li>
+        <li><strong>West:</strong> What must we achieve this year to get there?</li>
+        <li><strong>North:</strong> What projects will drive those annual targets?</li>
+        <li><strong>East:</strong> How will we know we are succeeding?</li>
+    </ul>
+    <p>Every project must connect to at least one annual objective. Every annual objective must connect to at least one strategic objective. Every KPI must connect to at least one project. If a quadrant has orphans, the X-matrix is telling you something is disconnected.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> The X-matrix auto-suggests correlations based on site, fiscal year, metric type, and calculation method. Strong links (FK relationships, derived KPIs) are distinguished from moderate links (same site/year/metric group). You can accept, reject, or override any suggestion. Unlinked projects and objectives are flagged automatically.
+    </div>
+</div>
+
+<!-- Section 3 -->
+<div class="pb-section" id="s3">
+    <div class="pb-section-head">
+        <div class="pb-num">3</div>
+        <h2>Catchball &mdash; The Mechanism, Not the Metaphor</h2>
+    </div>
+    <p>Most descriptions of catchball make it sound like &ldquo;getting everyone&rsquo;s input.&rdquo; It is not. Catchball is a structured negotiation between levels of the organization where each level commits to what it can realistically deliver given the resources available.</p>
+
+    <div class="catchball-flow">
+        <div class="catchball-step">
+            <strong>Leadership</strong>
+            <span>Proposes objectives<br>&amp; stretch targets</span>
+        </div>
+        <span class="catchball-arrow">&rarr;</span>
+        <div class="catchball-step">
+            <strong>Middle Management</strong>
+            <span>Responds with capacity,<br>resources needed</span>
+        </div>
+        <span class="catchball-arrow">&rarr;</span>
+        <div class="catchball-step">
+            <strong>Frontline Leaders</strong>
+            <span>Responds with reality,<br>constraints, timing</span>
+        </div>
+        <span class="catchball-arrow">&rarr;</span>
+        <div class="catchball-step">
+            <strong>Commitment</strong>
+            <span>Agreed targets,<br>assigned resources</span>
+        </div>
+    </div>
+
+    <h3>What makes catchball work</h3>
+    <p>The ball goes back and forth, not just down. Leadership says: &ldquo;We need OEE above 85% by year-end.&rdquo; Area managers respond: &ldquo;We can get to 80% with current staffing. 85% requires a SMED project on Press 4 and backfill for the changeover team during the kaizen.&rdquo; Frontline leads respond: &ldquo;SMED is achievable in Q2 if we get the shadow boards fabricated by March. Press 4 operators need two days of training.&rdquo;</p>
+    <p>Now leadership has a choice: fund the resources and hold people to 85%, or accept 80% without the investment. The commitment is bilateral. If leadership agrees to fund the SMED project and provide backfill, then 85% is a real commitment. If leadership does not fund it, 85% is a fantasy target that will produce resentment instead of results.</p>
+
+    <h3>Common catchball failures</h3>
+    <ul>
+        <li><strong>Top-down only:</strong> Leadership sets targets and &ldquo;deploys&rdquo; them without negotiation. This is MBO, not hoshin. People comply but do not commit.</li>
+        <li><strong>Consensus-seeking:</strong> Trying to get everyone to agree. Catchball is not democratic. Leadership still decides. But they decide with information about what is actually achievable.</li>
+        <li><strong>Skipping levels:</strong> Plant manager talks to team leads directly, bypassing area managers. Each level has a different view of constraints. Skip a level and you miss critical resource information.</li>
+        <li><strong>No resource conversation:</strong> Agreeing on targets without discussing what resources are needed to achieve them. Every target requires a &ldquo;with what?&rdquo; conversation.</li>
+    </ul>
+
+    <h3>Catchball produces newspapers</h3>
+    <p>The output of catchball is not a memo. It is a set of commitments: I will do X by Y date, given Z resources. These commitments become <a href="/managing-for-daily-improvement/">newspaper items</a> &mdash; bilateral contracts tracked through the MDI system. If the resources do not arrive, the commitment is void. If the resources arrive and the work is not done, that is a different conversation.</p>
+</div>
+
+<!-- Section 4 -->
+<div class="pb-section" id="s4">
+    <div class="pb-section-head">
+        <div class="pb-num">4</div>
+        <h2>Annual Planning Cycle</h2>
+    </div>
+    <p>Hoshin planning is annual but the execution is continuous. The planning cycle has a rhythm that repeats each fiscal year. If you do not follow the rhythm, hoshin degrades into a planning exercise that nobody references after January.</p>
+
+    <div class="cycle-timeline">
+        <div class="cycle-phase q4">
+            <div class="cycle-phase-label">Q4 Prior Year</div>
+            <strong>Reflect &amp; Set</strong>
+            <p>Review prior-year results. Which strategic objectives progressed? Which stalled? Update 3-5 year objectives. Draft annual objectives for the new fiscal year. Begin catchball.</p>
+        </div>
+        <div class="cycle-phase q1">
+            <div class="cycle-phase-label">Q1 New Year</div>
+            <strong>Deploy &amp; Staff</strong>
+            <p>Finalize the X-matrix. Assign project owners. Budget resources. Complete catchball with frontline. First monthly actuals due by month 2. Identify carryover projects from prior year.</p>
+        </div>
+        <div class="cycle-phase q2">
+            <div class="cycle-phase-label">Q2-Q3</div>
+            <strong>Execute &amp; Track</strong>
+            <p>Monthly savings reviews. Project status updates. Midyear X-matrix review: are correlations still valid? Any unplanned projects consuming resources? Quarterly strategic objective check.</p>
+        </div>
+        <div class="cycle-phase q3">
+            <div class="cycle-phase-label">Q4</div>
+            <strong>Verify &amp; Rollover</strong>
+            <p>Final savings validation. Year-end dollar rollup. Identify carryovers vs. completions. Prepare for next-year catchball. Fiscal year rollover: clone annual objectives, reset actuals.</p>
+        </div>
+    </div>
+
+    <h3>Project classification matters</h3>
+    <p>Not every project on the X-matrix is the same. Classify them correctly because your savings rollup depends on it:</p>
+    <ul>
+        <li><strong>Budgeted new:</strong> Planned in the annual cycle. Targets set during catchball. These are your primary hoshin projects.</li>
+        <li><strong>Carryover:</strong> Continued from the prior fiscal year. Savings may be partially realized. Baseline and actuals carry forward.</li>
+        <li><strong>Contingency:</strong> Identified but not yet funded. If a budgeted project finishes early, contingency projects absorb the freed resources.</li>
+        <li><strong>Unplanned/reactive:</strong> Emerged during the year in response to events (equipment failure, customer issue, regulatory change). Track them on the X-matrix so they do not consume resources invisibly.</li>
+    </ul>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Fiscal year rollover clones annual objectives to the new FY with actuals reset, clones KPIs with status reset, and re-establishes strategic-to-annual correlations. Carryover projects maintain their baseline data. An idempotency check prevents duplicate rollovers.
+    </div>
+</div>
+
+<!-- Section 5 -->
+<div class="pb-section" id="s5">
+    <div class="pb-section-head">
+        <div class="pb-num">5</div>
+        <h2>Monthly Tracking &amp; Savings</h2>
+    </div>
+    <p>Hoshin kanri without monthly dollar tracking is a wish list. Every project on the X-matrix must have a savings calculation method, a baseline, and monthly actuals. The monthly review is where hoshin becomes real &mdash; you see whether the projects are delivering the dollars that justify their existence.</p>
+
+    <h3>Savings calculation methods</h3>
+    <p>Different types of improvement produce different types of savings. Using the wrong calculation method produces numbers nobody trusts. Match the method to the improvement:</p>
+    <ul>
+        <li><strong>Waste percentage:</strong> (Baseline% &minus; Actual%) &times; Volume &times; Cost/Unit. For scrap reduction, yield improvement, first-pass quality.</li>
+        <li><strong>Time reduction:</strong> (Baseline seconds &minus; Actual seconds) / 3600 &times; Volume &times; Labor rate. For changeover reduction, cycle time improvement.</li>
+        <li><strong>Headcount reduction:</strong> (Baseline HC &minus; Actual HC) &times; Cost per employee. For automation, cell redesign, workflow elimination.</li>
+        <li><strong>Claims/quality returns:</strong> (Baseline% &minus; Actual%) &times; Sales dollars. For customer quality improvement.</li>
+        <li><strong>Energy reduction:</strong> (Baseline usage &minus; Actual usage) &times; Cost per unit. For utility optimization, compressed air leak repair.</li>
+        <li><strong>Direct cost:</strong> Baseline cost &minus; Actual cost. For material substitution, supplier negotiation, freight consolidation.</li>
+        <li><strong>Layout/width optimization:</strong> Width reduction &times; Volume &times; Cost per unit. For printing, packaging, material utilization.</li>
+        <li><strong>Custom formula:</strong> User-defined with variable substitution. For anything that does not fit the standard methods.</li>
+    </ul>
+
+    <h3>Example: Monthly tracking table</h3>
+    <div class="savings-example">
+        <table>
+            <tr>
+                <th>Project</th>
+                <th>Method</th>
+                <th>Target</th>
+                <th>Jan</th>
+                <th>Feb</th>
+                <th>Mar</th>
+                <th>YTD</th>
+                <th>Var</th>
+            </tr>
+            <tr>
+                <td>SMED &mdash; Press 4</td>
+                <td>Time reduction</td>
+                <td>$84,000</td>
+                <td>$0</td>
+                <td>$6,200</td>
+                <td>$8,400</td>
+                <td>$14,600</td>
+                <td class="negative">&minus;$6,400</td>
+            </tr>
+            <tr>
+                <td>Scrap reduction</td>
+                <td>Waste %</td>
+                <td>$120,000</td>
+                <td>$8,900</td>
+                <td>$11,200</td>
+                <td>$10,400</td>
+                <td>$30,500</td>
+                <td class="positive">+$500</td>
+            </tr>
+            <tr>
+                <td>TPM pilot</td>
+                <td>Direct cost</td>
+                <td>$45,000</td>
+                <td>$3,100</td>
+                <td>$3,800</td>
+                <td>$4,200</td>
+                <td>$11,100</td>
+                <td class="negative">&minus;$150</td>
+            </tr>
+            <tr class="total-row">
+                <td>Portfolio total</td>
+                <td></td>
+                <td>$249,000</td>
+                <td>$12,000</td>
+                <td>$21,200</td>
+                <td>$23,000</td>
+                <td>$56,200</td>
+                <td class="negative">&minus;$6,050</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Dollar rollup</h3>
+    <p>Savings roll up through the X-matrix: projects &rarr; annual objectives &rarr; strategic objectives. The rollup is not simple addition &mdash; different metric types aggregate differently:</p>
+    <ul>
+        <li><strong>Dollar savings</strong> (sum): Add across all linked projects. Waste reduction + time reduction + headcount = total dollar impact on the annual objective.</li>
+        <li><strong>Rate metrics</strong> (volume-weighted average): OEE, scrap rate, first-pass yield. You cannot add percentages across projects. The formula is &Sigma;(actual &times; volume) / &Sigma;(volume).</li>
+        <li><strong>Point-in-time metrics</strong> (latest): Cpk, Ppk, gage R&amp;R. Use the most recent value, not an average.</li>
+    </ul>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Monthly actuals are entered per project with baseline, actual, volume, and cost-per-unit. Savings auto-calculate based on the assigned method. The dashboard shows total portfolio metrics, by-site breakdown, by-project-type breakdown, monthly trend lines, and variance to target. Eight calculation methods plus custom formula with safe AST evaluation.
+    </div>
+</div>
+
+<!-- Section 6 -->
+<div class="pb-section" id="s6">
+    <div class="pb-section-head">
+        <div class="pb-num">6</div>
+        <h2>How Hoshin Connects to VSM</h2>
+    </div>
+    <p>Value stream mapping is the diagnostic that feeds hoshin. A current-state VSM reveals where the constraints are. The future-state map identifies what must change. The kaizen bursts on the future-state map are the candidate hoshin projects.</p>
+
+    <h3>The pipeline: VSM &rarr; Hoshin</h3>
+    <ol>
+        <li><strong>Map the current state.</strong> Cycle times, changeover times, uptime, WIP, operator count, data boxes on every process step. This is not a value stream &ldquo;walk&rdquo; &mdash; it is data collection.</li>
+        <li><strong>Identify constraints.</strong> Where does flow break? Where is the bottleneck? Where is the highest WIP? Where is the longest changeover?</li>
+        <li><strong>Design the future state.</strong> Place kaizen bursts on the future-state map where improvement is needed. Each burst is a candidate project with a specific target (reduce changeover from 28 min to 12 min, improve OEE from 62% to 85%).</li>
+        <li><strong>Promote to hoshin.</strong> The kaizen bursts that align to strategic objectives become hoshin projects. They get a calculation method, a savings target, an owner, and a timeline. The burst that does not align to strategy stays in MDI as a local improvement.</li>
+        <li><strong>Track realized savings.</strong> As the hoshin project executes and generates monthly savings, those savings write back to the kaizen burst on the VSM. The VSM becomes a closed-loop diagnostic &mdash; not a wall poster that never gets updated.</li>
+    </ol>
+
+    <h3>Estimation before commitment</h3>
+    <p>Before committing resources to a hoshin project sourced from VSM, you need a savings estimate. But point estimates are dangerous &mdash; they create false precision. A &ldquo;$120,000 savings target&rdquo; sounds authoritative but hides uncertainty in volume, cost, and improvement realization.</p>
+    <p>Monte Carlo simulation addresses this. Run 1,000 simulations with three uncertainty sources:</p>
+    <ul>
+        <li><strong>Volume volatility</strong> (&plusmn;15% std) &mdash; customer demand is not constant</li>
+        <li><strong>Cost variation</strong> (&plusmn;10% std) &mdash; material and labor costs fluctuate</li>
+        <li><strong>Improvement realization risk</strong> (Beta(4,2), mean ~67%) &mdash; not every kaizen delivers 100% of the target</li>
+    </ul>
+    <p>The output is a confidence interval: median savings, probability of positive return, 5th and 95th percentile bounds. A project with $120K deterministic savings but 30% probability of positive return is a different decision than one with $80K deterministic savings and 92% probability of positive return.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> VSM kaizen burst proposals promote directly to hoshin projects via batch creation. Calculation methods and targets pre-populate from the proposal. The VSM delta estimation engine auto-detects the best savings method (time reduction vs. headcount) and generates estimated annual savings with improvement percentages. Monte Carlo returns median, mean, P5/P25/P75/P95 confidence bands, and probability of positive savings.
+    </div>
+</div>
+
+<!-- Section 7 -->
+<div class="pb-section" id="s7">
+    <div class="pb-section-head">
+        <div class="pb-num">7</div>
+        <h2>How Hoshin Connects to MDI</h2>
+    </div>
+    <p>Hoshin and MDI are two halves of the same system. Hoshin is the strategy. MDI is the daily execution mechanism. Separate them and both fail: hoshin becomes a planning exercise nobody references, MDI becomes activity without direction.</p>
+
+    <h3>The connection points</h3>
+    <ul>
+        <li><strong>Newspapers feed hoshin.</strong> Daily MDI newspaper items that exceed local authority &mdash; that require cross-functional resources, budget, or management decision &mdash; escalate to hoshin projects. A newspaper item that says &ldquo;need $15K for shadow boards and tooling for SMED&rdquo; is too big for the area manager&rsquo;s authority. It becomes a hoshin project with a kaizen charter, owner, and savings target.</li>
+        <li><strong>KPIs flow from tier meetings.</strong> The metrics on the X-matrix east quadrant (OEE, scrap rate, changeover time) are the same metrics discussed in daily tier meetings. Actuals from Tier 1 and Tier 2 boards flow up to the hoshin KPI dashboard. The X-matrix does not have its own separate data source &mdash; it reads from the same production data that MDI tracks daily.</li>
+        <li><strong>Leadership standard work verifies alignment.</strong> The plant manager&rsquo;s LSW includes a weekly check: are the hoshin projects progressing? Are the MDI boards showing the right KPIs? Is the gap between strategic intent and gemba reality narrowing? LSW is the mechanism that prevents hoshin from floating above the operation.</li>
+        <li><strong>Action items cross both systems.</strong> A hoshin project generates action items with owners, due dates, and dependency chains. Those action items appear in the relevant team&rsquo;s MDI newspaper. The action item lives in one place but is visible in both systems.</li>
+    </ul>
+
+    <h3>Why most hoshin implementations fail</h3>
+    <p>They fail because hoshin operates at the strategic level and MDI operates at the tactical level, and nobody builds the bridge between them. The bridge is:</p>
+    <ol>
+        <li>Hoshin projects generate action items that appear in MDI newspapers</li>
+        <li>MDI newspapers that exceed local authority escalate to hoshin</li>
+        <li>KPIs are shared &mdash; one data source, two views</li>
+        <li>LSW includes hoshin verification as a structured daily/weekly task</li>
+    </ol>
+    <p>Without this bridge, you get two separate systems: a binder with an X-matrix that gets reviewed quarterly and a set of MDI boards that track daily activity without strategic direction. Both look correct. Neither produces breakthrough results.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Action items created within hoshin projects are linked by source (source_type=&ldquo;hoshin&rdquo;). The same action items surface in project views and can be tracked alongside A3, RCA, and FMEA action items. KPIs support four aggregation modes (sum, weighted average, latest, manual) with a 23-metric catalog that includes SPC-derived metrics (Cpk, Ppk, gage R&amp;R) pulled automatically from DSW results.
+    </div>
+</div>
+
+<!-- Section 8 -->
+<div class="pb-section" id="s8">
+    <div class="pb-section-head">
+        <div class="pb-num">8</div>
+        <h2>Common Failure Modes</h2>
+    </div>
+    <p>Hoshin kanri fails in predictable ways. Recognizing the pattern early lets you intervene before the system collapses into theater.</p>
+
+    <div class="failure-grid">
+        <div class="failure-card">
+            <strong>Too many objectives</strong>
+            <p>If you have more than five strategic objectives, you do not have a strategy &mdash; you have a wish list. Hoshin forces focus. Three is better than five. Five is the maximum. Ten means you have not made the hard choices about what matters most.</p>
+        </div>
+        <div class="failure-card">
+            <strong>No dollar tracking</strong>
+            <p>Projects without monthly savings tracking become activity without accountability. &ldquo;We&rsquo;re working on it&rdquo; is not a status. $14,600 YTD against a $21,000 Q1 target is a status. If you cannot put a dollar value on it, question whether it belongs on the X-matrix.</p>
+        </div>
+        <div class="failure-card">
+            <strong>Orphan projects</strong>
+            <p>Projects that exist on the X-matrix but connect to no annual objective. Why are you doing them? Either they support a strategic goal (add the correlation) or they are pet projects consuming resources (remove them or move them to MDI).</p>
+        </div>
+        <div class="failure-card">
+            <strong>Fake catchball</strong>
+            <p>Leadership sets targets and asks &ldquo;does everyone agree?&rdquo; in a meeting where disagreement is not actually welcome. This produces compliance, not commitment. Real catchball includes the resource conversation: &ldquo;what do you need to hit this target?&rdquo;</p>
+        </div>
+        <div class="failure-card">
+            <strong>Annual review only</strong>
+            <p>Hoshin degrades if the X-matrix is only reviewed once per year. Monthly savings reviews keep it alive. Quarterly correlation reviews catch drift. Daily MDI alignment checks prevent disconnection from the gemba.</p>
+        </div>
+        <div class="failure-card">
+            <strong>Disconnected from MDI</strong>
+            <p>Hoshin at the strategic level, MDI at the tactical level, no bridge between them. The result: two parallel systems that both look correct but produce no breakthrough results. The bridge is action items, shared KPIs, and LSW verification.</p>
+        </div>
+    </div>
+
+    <h3>How to diagnose a failing hoshin system</h3>
+    <ul>
+        <li>Ask a frontline team lead: &ldquo;What are the plant&rsquo;s hoshin objectives this year?&rdquo; If they cannot name them, hoshin is not deployed &mdash; it is filed.</li>
+        <li>Check the X-matrix for orphan projects and unsupported objectives. If more than 20% of entries are disconnected, catchball failed.</li>
+        <li>Look at monthly actuals. If three or more months are blank, nobody is tracking. The X-matrix is decoration.</li>
+        <li>Check whether MDI newspapers reference hoshin projects. If they do not, the two systems are not connected.</li>
+    </ul>
+</div>
+
+<!-- Related Playbooks -->
+<div style="margin: 2.5rem 0 1rem;">
+    <h2 style="font-size: 1.15rem; text-align: center; margin-bottom: 1rem;">Related Playbooks</h2>
+    <div class="related-playbooks">
+        <a href="/managing-for-daily-improvement/" class="related-card">
+            <div class="related-phase backbone">Backbone</div>
+            <div class="related-title">Managing for Daily Improvement</div>
+            <div class="related-desc">Tier structure, newspapers as bilateral contracts, visual management. The daily execution system that makes hoshin real.</div>
+        </a>
+        <a href="/value-stream-mapping-methodology/" class="related-card">
+            <div class="related-phase diagnostic">Diagnostic</div>
+            <div class="related-title">Value Stream Mapping</div>
+            <div class="related-desc">The diagnostic that feeds hoshin. Current/future state, constraint identification, kaizen burst promotion.</div>
+        </a>
+        <a href="/leadership-standard-work/" class="related-card">
+            <div class="related-phase consolidate">Consolidate</div>
+            <div class="related-title">Leadership Standard Work</div>
+            <div class="related-desc">The verification mechanism. Structured daily tasks that confirm hoshin intent is reaching the gemba.</div>
+        </a>
+    </div>
+</div>
+
+<!-- CTA -->
+<div class="playbook-cta">
+    <h3>Deploy Strategy, Not Binders</h3>
+    <p>X-matrix with auto-suggested correlations, eight savings methods, Monte Carlo forecasting, multi-site rollup, and MDI integration. Enterprise plan: {{ price_enterprise }}/seat/mo.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=enterprise&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="/continuous-improvement-software/" class="cta-secondary">Back to CI Hub</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}
+
+{% block faq %}
+<div class="pb-faq">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">What is hoshin kanri?</div>
+        <div class="faq-a">Hoshin kanri (policy deployment) is the mechanism that connects multi-year strategic objectives to annual targets, improvement projects, and measurable KPIs. It is not strategic planning in the Western sense &mdash; it is the system for deploying strategy through an organization so that daily work aligns to breakthrough goals. The X-matrix is its primary artifact.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is the X-matrix?</div>
+        <div class="faq-a">A single-page visual mapping four quadrants: strategic objectives (3-5 year, south), annual objectives (west), improvement projects (north), and KPIs (east). Correlation dots at the intersections show alignment. It forces every project to connect to strategy, every strategy to have projects, and every project to have measurable KPIs. Orphans are immediately visible.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is catchball?</div>
+        <div class="faq-a">The bidirectional negotiation between organizational levels during hoshin planning. Leadership proposes objectives, the next level responds with capacity and resource needs, and the process iterates until both sides commit. It is not consensus-building or democratic voting. It is a mechanism for surfacing constraints before they become excuses.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does hoshin connect to daily management?</div>
+        <div class="faq-a">Hoshin sets the strategy. MDI (Managing for Daily Improvement) is daily resource allocation to achieve it. Newspapers that exceed local authority escalate to hoshin. KPIs from tier meetings feed the X-matrix. Leadership standard work verifies strategic intent reaches the gemba. They are two halves of the same system &mdash; separate them and both fail.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How often should the X-matrix be reviewed?</div>
+        <div class="faq-a">Monthly at minimum. Monthly for project savings actuals. Quarterly for annual objective status and correlation validity. Annually for strategic objective review and fiscal year rollover. If the X-matrix only gets reviewed annually, it is not hoshin kanri &mdash; it is a poster.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does VSM feed hoshin?</div>
+        <div class="faq-a">Current-state value stream maps reveal constraints. Future-state kaizen bursts identify candidate projects. Bursts that align to strategic objectives promote to the X-matrix with calculation methods and savings targets. Realized savings write back to the VSM for closed-loop tracking. VSM is the diagnostic; hoshin is the execution structure.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What does hoshin kanri cost in Svend?</div>
+        <div class="faq-a">Hoshin kanri is included in the Enterprise plan at {{ price_enterprise }}/seat/mo. It includes the full X-matrix, multi-site management, eight savings calculation methods, Monte Carlo forecasting, auto-suggested correlations, fiscal year rollover, and integration with VSM and MDI action items. 14-day free trial included.</div>
+    </div>
+</div>
+{% endblock %}

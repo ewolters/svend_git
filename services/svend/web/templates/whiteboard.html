@@ -282,6 +282,61 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
     transform-origin: 0 0;
 }
 
+/* Empty board guidance */
+.wb-empty-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.6;
+}
+.wb-empty-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--wb-text);
+    margin-bottom: 12px;
+}
+.wb-empty-hints {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--wb-text-dim, #888);
+}
+.wb-empty-hints kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    background: rgba(74, 159, 110, 0.15);
+    border: 1px solid rgba(74, 159, 110, 0.3);
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--wb-accent);
+    margin-right: 4px;
+}
+.wb-empty-sub {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--wb-text-dim, #666);
+}
+
+/* Presentation mode */
+.wb-presentation {
+    height: 100vh;
+}
+.wb-presentation .wb-toolbar,
+.wb-presentation .wb-sidebar,
+.wb-presentation .wb-properties-panel,
+.wb-presentation .wb-empty-guide {
+    display: none !important;
+}
+.wb-presentation .wb-canvas-container {
+    border-radius: 0;
+}
+
 /* SVG for connections - inside canvas, transforms with it */
 .wb-connections {
     position: absolute;
@@ -1459,6 +1514,16 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
             </a>
         </div>
 
+        <div class="wb-toolbar-group">
+            <button class="wb-tool-btn" id="present-btn" onclick="togglePresentation()" title="Presentation Mode (F5)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2"/>
+                    <line x1="8" y1="21" x2="16" y2="21"/>
+                    <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+            </button>
+        </div>
+
         <div class="wb-toolbar-group" id="share-group">
             <button class="wb-tool-btn" onclick="shareBoard()" title="Share / Create Room">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1566,19 +1631,6 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                             <div class="desc">Document workflow steps</div>
                         </div>
                     </div>
-                    <a href="/app/vsm/" class="wb-template-item" style="text-decoration:none;color:inherit;">
-                        <div class="icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 4h4v6H4zM10 4h4v6h-4zM16 4h4v6h-4z"/>
-                                <path d="M6 10v4M12 10v4M18 10v4"/>
-                                <path d="M2 18h20"/>
-                            </svg>
-                        </div>
-                        <div class="info">
-                            <div class="name">Value Stream Map</div>
-                            <div class="desc">Open dedicated VSM tool</div>
-                        </div>
-                    </a>
                     <div class="wb-template-item" onclick="loadTemplate('fishbone')">
                         <div class="icon">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1657,6 +1709,21 @@ body > main > .container { max-width: none !important; padding: 0 !important; }
                         </marker>
                     </defs>
                 </svg>
+                <!-- Empty board guidance -->
+                <div class="wb-empty-guide" id="empty-guide">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;margin-bottom:12px;">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                    </svg>
+                    <div class="wb-empty-title">Start building</div>
+                    <div class="wb-empty-hints">
+                        <span><kbd>P</kbd> Post-it</span>
+                        <span><kbd>T</kbd> Text</span>
+                        <span><kbd>C</kbd> Connect</span>
+                        <span><kbd>I</kbd> If-Then</span>
+                    </div>
+                    <div class="wb-empty-sub">or drag a template from the sidebar</div>
+                </div>
                 <!-- Elements will be created here -->
             </div>
 
@@ -2035,6 +2102,10 @@ function createElement(type, x, y, options = {}, skipHistory = false) {
 
     canvas.appendChild(el);
     elements.push(elementData);
+
+    // Hide empty board guidance
+    const guide = document.getElementById('empty-guide');
+    if (guide) guide.style.display = 'none';
 
     return el;
 }
@@ -2784,6 +2855,7 @@ function deleteSelected() {
     selectedElement = null;
     renderConnections();
     document.getElementById('properties-panel').classList.remove('active');
+    checkEmptyGuide();
 }
 
 // ============================================================================
@@ -3157,6 +3229,7 @@ function clearCanvas(resetHistory = false) {
         history = [];
         historyIndex = -1;
     }
+    checkEmptyGuide();
 }
 
 function loadTemplate(template) {
@@ -3317,6 +3390,10 @@ document.addEventListener('keydown', (e) => {
         case 'y':
             if (mod) { e.preventDefault(); redo(); }
             break;
+        case 'f5':
+            e.preventDefault();
+            togglePresentation();
+            break;
         case 'escape':
             if (isConnecting) {
                 cancelConnection();
@@ -3338,6 +3415,47 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     if (e.code === 'Space') {
         canvasContainer.style.cursor = currentTool === 'pan' ? 'grab' : 'default';
+    }
+});
+
+// ============================================================================
+// Empty Board Guidance
+// ============================================================================
+
+function checkEmptyGuide() {
+    const guide = document.getElementById('empty-guide');
+    if (!guide) return;
+    guide.style.display = elements.length === 0 ? '' : 'none';
+}
+
+// ============================================================================
+// Presentation Mode
+// ============================================================================
+
+let isPresentationMode = false;
+
+function togglePresentation() {
+    const container = document.querySelector('.wb-container');
+    if (!isPresentationMode) {
+        isPresentationMode = true;
+        container.classList.add('wb-presentation');
+        if (container.requestFullscreen) container.requestFullscreen();
+    } else {
+        isPresentationMode = false;
+        container.classList.remove('wb-presentation');
+        if (document.fullscreenElement) document.exitFullscreen();
+    }
+    const btn = document.getElementById('present-btn');
+    if (btn) btn.classList.toggle('active', isPresentationMode);
+}
+
+// Exit presentation mode when user exits fullscreen via browser UI / Escape
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && isPresentationMode) {
+        isPresentationMode = false;
+        document.querySelector('.wb-container').classList.remove('wb-presentation');
+        const btn = document.getElementById('present-btn');
+        if (btn) btn.classList.remove('active');
     }
 });
 

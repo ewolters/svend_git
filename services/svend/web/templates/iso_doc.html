@@ -1,0 +1,1324 @@
+{% extends "base_app.html" %}
+{% block title %}ISO Document Creator - SVEND{% endblock %}
+
+{% block extra_head %}
+<style>
+.idoc-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* ---- Toolbar ---- */
+.idoc-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+.idoc-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.idoc-toolbar-group:not(:last-child) {
+    padding-right: 10px;
+    border-right: 1px solid var(--border);
+}
+.idoc-btn {
+    padding: 7px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+}
+.idoc-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
+.idoc-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.idoc-btn.primary:hover { filter: brightness(1.1); }
+.idoc-btn.danger { color: var(--error); }
+.idoc-btn.danger:hover { background: var(--error); border-color: var(--error); color: white; }
+.idoc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.idoc-status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.idoc-status-badge.draft { background: rgba(var(--text-secondary-rgb, 150,150,150), 0.15); color: var(--text-secondary); }
+.idoc-status-badge.in_progress { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.idoc-status-badge.review { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.idoc-status-badge.final { background: rgba(74,159,110,0.15); color: var(--accent); }
+
+/* ---- List view ---- */
+.idoc-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+.idoc-list-header h1 { font-size: 1.4rem; font-weight: 600; }
+.idoc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+.idoc-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+}
+.idoc-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.idoc-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; }
+.idoc-card-meta { font-size: 0.8rem; color: var(--text-secondary); display: flex; gap: 12px; flex-wrap: wrap; }
+.idoc-card-type { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+
+.idoc-empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+.idoc-empty h2 { margin-bottom: 0.5rem; }
+
+/* ---- Type picker modal ---- */
+.idoc-modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000;
+}
+.idoc-modal-bg.active { display: flex; }
+.idoc-modal {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    width: 640px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.idoc-modal h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+.idoc-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.idoc-type-option {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.idoc-type-option:hover { border-color: var(--accent); }
+.idoc-type-option.selected { border-color: var(--accent); background: rgba(74,159,110,0.08); }
+.idoc-type-option h4 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+.idoc-type-option p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
+
+.idoc-modal-actions {
+    display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;
+    padding-top: 1rem; border-top: 1px solid var(--border);
+}
+
+/* ---- Editor: title area ---- */
+.idoc-title-input {
+    font-size: 1.4rem;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--text-primary);
+    width: 100%;
+    padding: 6px 0;
+    margin-bottom: 1rem;
+    outline: none;
+}
+.idoc-title-input:focus { border-bottom-color: var(--accent); }
+
+.idoc-meta-row {
+    display: flex; gap: 12px; margin-bottom: 1.25rem; flex-wrap: wrap;
+}
+.idoc-meta-field {
+    display: flex; flex-direction: column; gap: 3px;
+}
+.idoc-meta-field label {
+    font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase;
+    letter-spacing: 0.04em; font-weight: 600;
+}
+.idoc-meta-field input, .idoc-meta-field select {
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+/* ---- Section cards ---- */
+.idoc-sections { display: flex; flex-direction: column; gap: 1rem; }
+.idoc-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.idoc-section:focus-within { border-color: var(--accent); }
+.idoc-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    cursor: grab;
+}
+.idoc-section-header:active { cursor: grabbing; }
+.idoc-drag-handle { color: var(--text-secondary); cursor: grab; font-size: 14px; }
+.idoc-section-num {
+    font-size: 0.78rem; font-weight: 600; color: var(--accent);
+    min-width: 32px;
+}
+.idoc-section-title-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    outline: none;
+}
+.idoc-section-type-badge {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 2px 8px; border-radius: 4px;
+    background: rgba(var(--text-secondary-rgb, 150,150,150), 0.1);
+    color: var(--text-secondary); font-weight: 600;
+}
+.idoc-section-delete {
+    background: none; border: none; color: var(--text-secondary);
+    cursor: pointer; padding: 4px; font-size: 16px;
+    opacity: 0; transition: opacity 0.2s;
+}
+.idoc-section:hover .idoc-section-delete { opacity: 1; }
+.idoc-section-delete:hover { color: var(--error); }
+
+.idoc-section-body { padding: 14px; }
+.idoc-section-help {
+    font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 10px;
+    font-style: italic;
+}
+
+/* Section type: paragraph */
+.idoc-textarea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    padding: 10px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    line-height: 1.6;
+}
+.idoc-textarea:focus { outline: none; border-color: var(--accent); }
+
+/* Section type: table */
+.idoc-table-wrap { overflow-x: auto; }
+.idoc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.idoc-table th, .idoc-table td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+}
+.idoc-table th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+.idoc-table td input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    padding: 2px 0;
+    outline: none;
+}
+.idoc-table-actions {
+    display: flex; gap: 8px; margin-top: 8px;
+}
+
+/* Section type: definition */
+.idoc-def-row {
+    display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start;
+}
+.idoc-def-term {
+    width: 180px; min-width: 120px;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.idoc-def-value {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+.idoc-def-del { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 6px; }
+.idoc-def-del:hover { color: var(--error); }
+
+/* Section type: checklist */
+.idoc-check-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.idoc-check-row input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 16px; height: 16px;
+}
+.idoc-check-row input[type="text"] {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+/* Section type: signature_block */
+.idoc-sig-row {
+    display: flex; gap: 10px; margin-bottom: 8px; align-items: center;
+}
+.idoc-sig-field {
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+/* Section type: image */
+.idoc-image-preview {
+    max-width: 100%; max-height: 400px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+.idoc-image-caption {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+/* Whiteboard embed */
+.idoc-wb-preview {
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 8px;
+    text-align: center;
+}
+.idoc-wb-preview img, .idoc-wb-preview svg { max-width: 100%; height: auto; }
+.idoc-wb-label { font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; }
+
+/* Add section bar */
+.idoc-add-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+.idoc-add-btn {
+    padding: 6px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.15s;
+}
+.idoc-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Dropdown */
+.idoc-dropdown {
+    position: relative;
+    display: inline-block;
+}
+.idoc-dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0; top: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 0;
+    min-width: 180px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.idoc-dropdown-content.show { display: block; }
+.idoc-dropdown-item {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--text-primary);
+    display: block;
+    text-decoration: none;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+}
+.idoc-dropdown-item:hover { background: var(--bg-secondary); }
+
+/* Save indicator */
+.idoc-save-status {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+}
+.idoc-save-status.saving { color: #fbbf24; }
+.idoc-save-status.saved { color: var(--accent); }
+.idoc-save-status.error { color: var(--error); }
+
+/* Toast */
+.idoc-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    z-index: 1100;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+}
+.idoc-toast.show { opacity: 1; transform: translateY(0); }
+.idoc-toast.error { border-color: var(--error); }
+
+@media (max-width: 768px) {
+    .idoc-type-grid { grid-template-columns: 1fr; }
+    .idoc-meta-row { flex-direction: column; }
+    .idoc-toolbar { gap: 6px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="idoc-container">
+    <!-- List View -->
+    <div id="list-view">
+        <div class="idoc-list-header">
+            <h1>ISO Documents</h1>
+            <button class="idoc-btn primary" onclick="showTypeModal()">+ New Document</button>
+        </div>
+        <div id="doc-list" class="idoc-cards"></div>
+    </div>
+
+    <!-- Editor View -->
+    <div id="editor-view" style="display:none;">
+        <!-- Toolbar -->
+        <div class="idoc-toolbar">
+            <div class="idoc-toolbar-group">
+                <button class="idoc-btn" onclick="backToList()">&larr; Back</button>
+            </div>
+            <div class="idoc-toolbar-group">
+                <select id="status-select" class="idoc-btn" onchange="updateDocField('status', this.value)">
+                    <option value="draft">Draft</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">Under Review</option>
+                    <option value="final">Final</option>
+                </select>
+            </div>
+            <div class="idoc-toolbar-group" style="margin-left:auto;">
+                <span id="save-status" class="idoc-save-status"></span>
+                <button class="idoc-btn" onclick="saveDoc()">Save</button>
+                <div class="idoc-dropdown">
+                    <button class="idoc-btn" onclick="toggleDropdown('export-dd')">Export &darr;</button>
+                    <div id="export-dd" class="idoc-dropdown-content">
+                        <button class="idoc-dropdown-item" onclick="exportDoc('pdf')">Download PDF</button>
+                        <button class="idoc-dropdown-item" onclick="exportDoc('docx')">Download Word (.docx)</button>
+                    </div>
+                </div>
+                <button class="idoc-btn primary" onclick="publishDoc()">Publish to Doc Control</button>
+            </div>
+        </div>
+
+        <!-- Title + meta -->
+        <input type="text" id="doc-title" class="idoc-title-input" placeholder="Document Title" oninput="markDirty()">
+        <div class="idoc-meta-row">
+            <div class="idoc-meta-field">
+                <label>Document No.</label>
+                <input type="text" id="doc-number" placeholder="e.g. QMS-SOP-001" oninput="markDirty()">
+            </div>
+            <div class="idoc-meta-field">
+                <label>Version</label>
+                <input type="text" id="doc-version" placeholder="1.0" oninput="markDirty()">
+            </div>
+            <div class="idoc-meta-field">
+                <label>ISO Clause</label>
+                <input type="text" id="doc-clause" placeholder="e.g. 7.5" oninput="markDirty()">
+            </div>
+        </div>
+
+        <!-- Sections -->
+        <div id="sections-container" class="idoc-sections"></div>
+
+        <!-- Add section bar -->
+        <div class="idoc-add-bar">
+            <button class="idoc-add-btn" onclick="addSection('paragraph')">+ Paragraph</button>
+            <button class="idoc-add-btn" onclick="addSection('heading')">+ Heading</button>
+            <button class="idoc-add-btn" onclick="addSection('table')">+ Table</button>
+            <button class="idoc-add-btn" onclick="addSection('definition')">+ Definition</button>
+            <button class="idoc-add-btn" onclick="addSection('checklist')">+ Checklist</button>
+            <button class="idoc-add-btn" onclick="addSection('image')">+ Image</button>
+            <button class="idoc-add-btn" onclick="addSection('signature_block')">+ Signatures</button>
+            <button class="idoc-add-btn" onclick="addSection('reference')">+ References</button>
+        </div>
+    </div>
+</div>
+
+<!-- New Document Modal -->
+<div id="type-modal" class="idoc-modal-bg" onclick="if(event.target===this)closeTypeModal()">
+    <div class="idoc-modal">
+        <h2>Create New ISO Document</h2>
+        <div id="type-grid" class="idoc-type-grid"></div>
+        <div style="margin-top:1rem;">
+            <label style="font-size:0.8rem;color:var(--text-secondary);">Document Title</label>
+            <input type="text" id="new-doc-title" style="width:100%;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:0.9rem;margin-top:4px;" placeholder="Enter document title...">
+        </div>
+        <div class="idoc-modal-actions">
+            <button class="idoc-btn" onclick="closeTypeModal()">Cancel</button>
+            <button class="idoc-btn primary" onclick="createDoc()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Whiteboard Embed Modal -->
+<div id="wb-modal" class="idoc-modal-bg" onclick="if(event.target===this)closeWbModal()">
+    <div class="idoc-modal" style="width:400px;">
+        <h2>Embed Whiteboard</h2>
+        <div class="idoc-meta-field" style="margin-bottom:1rem;">
+            <label>Room Code</label>
+            <input type="text" id="wb-room-code" placeholder="e.g. ABC123" style="text-transform:uppercase;">
+        </div>
+        <div class="idoc-meta-field" style="margin-bottom:1rem;">
+            <label>Format</label>
+            <select id="wb-format" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);">
+                <option value="png">PNG (recommended for Word/PDF export)</option>
+                <option value="svg">SVG (vector, larger)</option>
+            </select>
+        </div>
+        <div class="idoc-modal-actions">
+            <button class="idoc-btn" onclick="closeWbModal()">Cancel</button>
+            <button class="idoc-btn primary" onclick="embedWhiteboard()">Embed</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="idoc-toast"></div>
+
+<script>
+let currentDoc = null;
+let docTypes = {};
+let selectedType = '';
+let dirty = false;
+let saveTimer = null;
+let wbTargetSectionId = null;
+
+// ---- Init ----
+
+async function init() {
+    const docId = getDocIdFromUrl();
+    if (docId) {
+        await loadDoc(docId);
+    } else {
+        await loadList();
+    }
+    await loadTypes();
+}
+
+function getDocIdFromUrl() {
+    const m = location.pathname.match(/iso-docs\/([0-9a-f-]{36})/);
+    return m ? m[1] : null;
+}
+
+// ---- Types ----
+
+async function loadTypes() {
+    try {
+        const resp = await fetch('/api/iso-docs/types/', { credentials: 'include' });
+        const data = await resp.json();
+        docTypes = data.types || {};
+    } catch (e) {
+        console.error('Failed to load types', e);
+    }
+}
+
+// ---- List View ----
+
+async function loadList() {
+    document.getElementById('list-view').style.display = '';
+    document.getElementById('editor-view').style.display = 'none';
+
+    try {
+        const resp = await fetch('/api/iso-docs/', { credentials: 'include' });
+        const data = await resp.json();
+        renderList(data.documents || []);
+    } catch (e) {
+        document.getElementById('doc-list').innerHTML = '<div class="idoc-empty"><h2>Could not load documents</h2></div>';
+    }
+}
+
+function renderList(docs) {
+    const el = document.getElementById('doc-list');
+    if (!docs.length) {
+        el.innerHTML = `<div class="idoc-empty" style="grid-column:1/-1;">
+            <h2>No documents yet</h2>
+            <p>Create your first ISO document to get started.</p>
+        </div>`;
+        return;
+    }
+    el.innerHTML = docs.map(d => {
+        const typeName = (docTypes[d.document_type] || {}).name || d.document_type;
+        const updated = new Date(d.updated_at).toLocaleDateString();
+        return `<div class="idoc-card" onclick="openDoc('${d.id}')">
+            <div class="idoc-card-type">${typeName}</div>
+            <h3>${esc(d.title)}</h3>
+            <div class="idoc-card-meta">
+                <span class="idoc-status-badge ${d.status}">${d.status.replace('_',' ')}</span>
+                ${d.document_number ? `<span>${esc(d.document_number)}</span>` : ''}
+                <span>${d.section_count} sections</span>
+                <span>Updated ${updated}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openDoc(id) {
+    history.pushState(null, '', `/app/iso-docs/${id}/`);
+    loadDoc(id);
+}
+
+function backToList() {
+    if (dirty && !confirm('You have unsaved changes. Discard?')) return;
+    currentDoc = null;
+    dirty = false;
+    history.pushState(null, '', '/app/iso-docs/');
+    loadList();
+}
+
+// ---- Editor ----
+
+async function loadDoc(id) {
+    document.getElementById('list-view').style.display = 'none';
+    document.getElementById('editor-view').style.display = '';
+
+    try {
+        const resp = await fetch(`/api/iso-docs/${id}/`, { credentials: 'include' });
+        if (!resp.ok) throw new Error('Not found');
+        currentDoc = await resp.json();
+        renderEditor();
+    } catch (e) {
+        toast('Failed to load document', true);
+        backToList();
+    }
+}
+
+function renderEditor() {
+    const d = currentDoc;
+    document.getElementById('doc-title').value = d.title;
+    document.getElementById('doc-number').value = d.document_number || '';
+    document.getElementById('doc-version').value = d.version || '1.0';
+    document.getElementById('doc-clause').value = d.iso_clause || '';
+    document.getElementById('status-select').value = d.status;
+    renderSections(d.sections || []);
+    dirty = false;
+    setSaveStatus('');
+}
+
+function renderSections(sections) {
+    const container = document.getElementById('sections-container');
+    const typeDef = docTypes[currentDoc.document_type] || {};
+    const defaultSections = (typeDef.sections || []).reduce((m, s) => { m[s.key] = s; return m; }, {});
+
+    container.innerHTML = sections.map((sec, i) => {
+        const helpText = defaultSections[sec.section_key]?.help || '';
+        return `<div class="idoc-section" data-id="${sec.id}" draggable="true"
+                    ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="drop(event)" ondragend="dragEnd(event)">
+            <div class="idoc-section-header">
+                <span class="idoc-drag-handle">&#x2630;</span>
+                <span class="idoc-section-num">${sec.numbering || (i+1)}</span>
+                <input class="idoc-section-title-input" value="${esc(sec.title)}"
+                    onchange="updateSection('${sec.id}', {title: this.value})" placeholder="Section title">
+                <span class="idoc-section-type-badge">${sec.section_type.replace('_',' ')}</span>
+                <button class="idoc-section-delete" onclick="deleteSection('${sec.id}')" title="Delete section">&times;</button>
+            </div>
+            <div class="idoc-section-body">
+                ${helpText ? `<div class="idoc-section-help">${esc(helpText)}</div>` : ''}
+                ${renderSectionBody(sec)}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderSectionBody(sec) {
+    const sd = sec.structured_data || {};
+    switch (sec.section_type) {
+        case 'paragraph':
+        case 'heading':
+            return `<textarea class="idoc-textarea" onchange="updateSection('${sec.id}', {content: this.value})"
+                placeholder="Enter content...">${esc(sec.content || '')}</textarea>` + renderEmbeddedMedia(sec);
+
+        case 'definition':
+            const items = sd.items || [];
+            return `<div id="defs-${sec.id}">` +
+                items.map((item, i) => `<div class="idoc-def-row">
+                    <input class="idoc-def-term" value="${esc(item.term || '')}" placeholder="Term"
+                        onchange="updateDefItem('${sec.id}', ${i}, 'term', this.value)">
+                    <input class="idoc-def-value" value="${esc(item.definition || '')}" placeholder="Definition"
+                        onchange="updateDefItem('${sec.id}', ${i}, 'definition', this.value)">
+                    <button class="idoc-def-del" onclick="removeDefItem('${sec.id}', ${i})">&times;</button>
+                </div>`).join('') +
+                `</div><button class="idoc-add-btn" onclick="addDefItem('${sec.id}')" style="margin-top:8px;">+ Add Definition</button>`;
+
+        case 'table':
+            return renderTableEditor(sec);
+
+        case 'checklist':
+            const checks = sd.items || [];
+            return `<div id="checks-${sec.id}">` +
+                checks.map((item, i) => `<div class="idoc-check-row">
+                    <input type="checkbox" ${item.checked ? 'checked' : ''}
+                        onchange="updateCheckItem('${sec.id}', ${i}, 'checked', this.checked)">
+                    <input type="text" value="${esc(item.text || '')}" placeholder="Item text"
+                        onchange="updateCheckItem('${sec.id}', ${i}, 'text', this.value)">
+                    <button class="idoc-def-del" onclick="removeCheckItem('${sec.id}', ${i})">&times;</button>
+                </div>`).join('') +
+                `</div><button class="idoc-add-btn" onclick="addCheckItem('${sec.id}')" style="margin-top:8px;">+ Add Item</button>`;
+
+        case 'signature_block':
+            const signers = sd.signers || [];
+            return `<div id="sigs-${sec.id}">` +
+                signers.map((s, i) => `<div class="idoc-sig-row">
+                    <input class="idoc-sig-field" value="${esc(s.role || '')}" placeholder="Role" style="width:140px;"
+                        onchange="updateSigner('${sec.id}', ${i}, 'role', this.value)">
+                    <input class="idoc-sig-field" value="${esc(s.name || '')}" placeholder="Name" style="flex:1;"
+                        onchange="updateSigner('${sec.id}', ${i}, 'name', this.value)">
+                    <input class="idoc-sig-field" value="${esc(s.date || '')}" placeholder="Date" type="date" style="width:140px;"
+                        onchange="updateSigner('${sec.id}', ${i}, 'date', this.value)">
+                    <button class="idoc-def-del" onclick="removeSigner('${sec.id}', ${i})">&times;</button>
+                </div>`).join('') +
+                `</div><button class="idoc-add-btn" onclick="addSigner('${sec.id}')" style="margin-top:8px;">+ Add Signer</button>`;
+
+        case 'image':
+            let imgHtml = '';
+            if (sec.image_url) {
+                imgHtml = `<img class="idoc-image-preview" src="${sec.image_url}">`;
+            }
+            imgHtml += `<div style="display:flex;gap:8px;margin-bottom:8px;">
+                <input type="file" accept="image/*" onchange="uploadImage('${sec.id}', this.files[0])" style="font-size:0.8rem;">
+                <button class="idoc-add-btn" onclick="showWbModal('${sec.id}')">Embed Whiteboard</button>
+            </div>`;
+            imgHtml += `<input class="idoc-image-caption" value="${esc(sec.image_caption || '')}" placeholder="Caption"
+                onchange="updateSection('${sec.id}', {image_caption: this.value})">`;
+            return imgHtml + renderEmbeddedMedia(sec);
+
+        case 'reference':
+            const refs = (sd.refs || []);
+            return `<div id="refs-${sec.id}">` +
+                refs.map((r, i) => `<div class="idoc-def-row">
+                    <input class="idoc-def-term" value="${esc(r.document_number || '')}" placeholder="Doc Number" style="width:120px;"
+                        onchange="updateRefItem('${sec.id}', ${i}, 'document_number', this.value)">
+                    <input class="idoc-def-value" value="${esc(r.title || '')}" placeholder="Title"
+                        onchange="updateRefItem('${sec.id}', ${i}, 'title', this.value)">
+                    <input class="idoc-sig-field" value="${esc(r.clause || '')}" placeholder="Clause" style="width:80px;"
+                        onchange="updateRefItem('${sec.id}', ${i}, 'clause', this.value)">
+                    <button class="idoc-def-del" onclick="removeRefItem('${sec.id}', ${i})">&times;</button>
+                </div>`).join('') +
+                `</div><button class="idoc-add-btn" onclick="addRefItem('${sec.id}')" style="margin-top:8px;">+ Add Reference</button>` +
+                `<textarea class="idoc-textarea" style="margin-top:10px;min-height:60px;" placeholder="Additional notes..."
+                    onchange="updateSection('${sec.id}', {content: this.value})">${esc(sec.content || '')}</textarea>`;
+
+        default:
+            return `<textarea class="idoc-textarea" onchange="updateSection('${sec.id}', {content: this.value})"
+                placeholder="Content...">${esc(sec.content || '')}</textarea>`;
+    }
+}
+
+function renderTableEditor(sec) {
+    const sd = sec.structured_data || {};
+    const cols = sd.columns || ['Column 1'];
+    const rows = sd.rows || [];
+    let html = `<div class="idoc-table-wrap"><table class="idoc-table">
+        <thead><tr>${cols.map((c, j) =>
+            `<th><input value="${esc(c)}" onchange="updateTableCol('${sec.id}', ${j}, this.value)" style="width:100%;background:transparent;border:none;color:var(--text-primary);font-weight:600;font-size:0.8rem;"></th>`
+        ).join('')}</tr></thead>
+        <tbody>${rows.map((row, i) =>
+            `<tr>${cols.map((_, j) =>
+                `<td><input value="${esc((row[j] != null ? row[j] : '').toString())}" onchange="updateTableCell('${sec.id}', ${i}, ${j}, this.value)"></td>`
+            ).join('')}</tr>`
+        ).join('')}</tbody>
+    </table></div>`;
+    html += `<div class="idoc-table-actions">
+        <button class="idoc-add-btn" onclick="addTableRow('${sec.id}')">+ Row</button>
+        <button class="idoc-add-btn" onclick="addTableCol('${sec.id}')">+ Column</button>
+        <button class="idoc-add-btn" onclick="removeTableRow('${sec.id}')" style="color:var(--error);">&minus; Row</button>
+    </div>`;
+    html += `<button class="idoc-add-btn" onclick="showWbModal('${sec.id}')" style="margin-top:8px;">Embed Whiteboard</button>`;
+    return html + renderEmbeddedMedia(sec);
+}
+
+function renderEmbeddedMedia(sec) {
+    const media = sec.embedded_media || [];
+    if (!media.length) return '';
+    return media.map(m => {
+        if (m.format === 'png' && m.data) {
+            return `<div class="idoc-wb-preview">
+                <img src="data:image/png;base64,${m.data}" alt="${esc(m.board_name || '')}">
+                <div class="idoc-wb-label">${esc(m.board_name || '')} (${m.room_code || ''})</div>
+            </div>`;
+        } else if (m.format === 'svg' && m.data) {
+            return `<div class="idoc-wb-preview">${m.data}
+                <div class="idoc-wb-label">${esc(m.board_name || '')} (${m.room_code || ''})</div>
+            </div>`;
+        }
+        return '';
+    }).join('');
+}
+
+// ---- API Calls ----
+
+async function updateSection(secId, fields) {
+    markDirty();
+    // Update local state
+    const sec = currentDoc.sections.find(s => s.id === secId);
+    if (sec) Object.assign(sec, fields);
+
+    // Debounced save
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveSectionToServer(secId, fields), 800);
+}
+
+async function saveSectionToServer(secId, fields) {
+    setSaveStatus('Saving...');
+    try {
+        const resp = await fetch(`/api/iso-docs/${currentDoc.id}/sections/${secId}/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(fields),
+        });
+        if (!resp.ok) throw new Error();
+        setSaveStatus('Saved');
+        dirty = false;
+    } catch (e) {
+        setSaveStatus('Save failed', true);
+    }
+}
+
+async function updateDocField(field, value) {
+    if (!currentDoc) return;
+    currentDoc[field] = value;
+    try {
+        await fetch(`/api/iso-docs/${currentDoc.id}/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ [field]: value }),
+        });
+        setSaveStatus('Saved');
+    } catch (e) {
+        setSaveStatus('Save failed', true);
+    }
+}
+
+async function saveDoc() {
+    if (!currentDoc) return;
+    setSaveStatus('Saving...');
+    try {
+        const resp = await fetch(`/api/iso-docs/${currentDoc.id}/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                title: document.getElementById('doc-title').value,
+                document_number: document.getElementById('doc-number').value,
+                version: document.getElementById('doc-version').value,
+                iso_clause: document.getElementById('doc-clause').value,
+                status: document.getElementById('status-select').value,
+            }),
+        });
+        if (!resp.ok) throw new Error();
+        currentDoc = await resp.json();
+        setSaveStatus('Saved');
+        dirty = false;
+    } catch (e) {
+        setSaveStatus('Save failed', true);
+    }
+}
+
+async function addSection(type) {
+    if (!currentDoc) return;
+    try {
+        const resp = await fetch(`/api/iso-docs/${currentDoc.id}/sections/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ section_type: type, title: '' }),
+        });
+        if (!resp.ok) throw new Error();
+        const sec = await resp.json();
+        currentDoc.sections.push(sec);
+        renderSections(currentDoc.sections);
+        toast('Section added');
+    } catch (e) {
+        toast('Failed to add section', true);
+    }
+}
+
+async function deleteSection(secId) {
+    if (!confirm('Delete this section?')) return;
+    try {
+        await fetch(`/api/iso-docs/${currentDoc.id}/sections/${secId}/`, {
+            method: 'DELETE', credentials: 'include',
+        });
+        currentDoc.sections = currentDoc.sections.filter(s => s.id !== secId);
+        renderSections(currentDoc.sections);
+    } catch (e) {
+        toast('Failed to delete section', true);
+    }
+}
+
+// ---- Structured data helpers ----
+
+function getSection(secId) {
+    return currentDoc.sections.find(s => s.id === secId);
+}
+
+function updateDefItem(secId, idx, field, value) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.items = sd.items || [];
+    if (sd.items[idx]) sd.items[idx][field] = value;
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+}
+function addDefItem(secId) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.items = sd.items || [];
+    sd.items.push({ term: '', definition: '' });
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+function removeDefItem(secId, idx) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.items = (sd.items || []).filter((_, i) => i !== idx);
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+
+function updateCheckItem(secId, idx, field, value) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.items = sd.items || [];
+    if (sd.items[idx]) sd.items[idx][field] = value;
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+}
+function addCheckItem(secId) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.items = sd.items || [];
+    sd.items.push({ text: '', checked: false });
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+function removeCheckItem(secId, idx) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.items = (sd.items || []).filter((_, i) => i !== idx);
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+
+function updateSigner(secId, idx, field, value) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.signers = sd.signers || [];
+    if (sd.signers[idx]) sd.signers[idx][field] = value;
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+}
+function addSigner(secId) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.signers = sd.signers || [];
+    sd.signers.push({ role: '', name: '', date: '', signed: false });
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+function removeSigner(secId, idx) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.signers = (sd.signers || []).filter((_, i) => i !== idx);
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+
+function updateRefItem(secId, idx, field, value) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.refs = sd.refs || [];
+    if (sd.refs[idx]) sd.refs[idx][field] = value;
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+}
+function addRefItem(secId) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.refs = sd.refs || [];
+    sd.refs.push({ document_number: '', title: '', clause: '' });
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+function removeRefItem(secId, idx) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.refs = (sd.refs || []).filter((_, i) => i !== idx);
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+
+// ---- Table helpers ----
+
+function updateTableCol(secId, colIdx, value) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.columns[colIdx] = value;
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+}
+function updateTableCell(secId, rowIdx, colIdx, value) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    if (sd.rows[rowIdx]) sd.rows[rowIdx][colIdx] = value;
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+}
+function addTableRow(secId) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    const cols = sd.columns || [];
+    sd.rows = sd.rows || [];
+    sd.rows.push(cols.map(() => ''));
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+function addTableCol(secId) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    sd.columns = sd.columns || [];
+    sd.columns.push(`Column ${sd.columns.length + 1}`);
+    sd.rows = (sd.rows || []).map(r => [...r, '']);
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+function removeTableRow(secId) {
+    const sec = getSection(secId);
+    if (!sec) return;
+    const sd = sec.structured_data || {};
+    if (sd.rows && sd.rows.length) sd.rows.pop();
+    sec.structured_data = sd;
+    updateSection(secId, { structured_data: sd });
+    renderSections(currentDoc.sections);
+}
+
+// ---- Image upload ----
+
+async function uploadImage(secId, file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'iso-docs');
+
+    try {
+        const resp = await fetch('/api/files/upload', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+        });
+        if (!resp.ok) throw new Error();
+        const data = await resp.json();
+        await saveSectionToServer(secId, { image_id: data.file.id });
+        // Reload doc to get updated image_url
+        await loadDoc(currentDoc.id);
+        toast('Image uploaded');
+    } catch (e) {
+        toast('Image upload failed', true);
+    }
+}
+
+// ---- Whiteboard embed ----
+
+function showWbModal(secId) {
+    wbTargetSectionId = secId;
+    document.getElementById('wb-room-code').value = '';
+    document.getElementById('wb-modal').classList.add('active');
+}
+function closeWbModal() {
+    document.getElementById('wb-modal').classList.remove('active');
+    wbTargetSectionId = null;
+}
+async function embedWhiteboard() {
+    const roomCode = document.getElementById('wb-room-code').value.trim();
+    const format = document.getElementById('wb-format').value;
+    if (!roomCode || !wbTargetSectionId) return;
+
+    try {
+        const resp = await fetch(`/api/iso-docs/${currentDoc.id}/sections/${wbTargetSectionId}/embed-whiteboard/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ room_code: roomCode, format }),
+        });
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.error || 'Failed');
+        }
+        closeWbModal();
+        await loadDoc(currentDoc.id);
+        toast('Whiteboard embedded');
+    } catch (e) {
+        toast(e.message || 'Embed failed', true);
+    }
+}
+
+// ---- Export ----
+
+function exportDoc(format) {
+    if (!currentDoc) return;
+    window.open(`/api/iso-docs/${currentDoc.id}/export/${format}/`, '_blank');
+    closeDropdowns();
+}
+
+// ---- Publish ----
+
+async function publishDoc() {
+    if (!currentDoc) return;
+    if (currentDoc.status !== 'final') {
+        toast('Set status to "Final" before publishing', true);
+        return;
+    }
+    if (!confirm(currentDoc.controlled_document_id
+        ? 'Re-publish to Document Control? This will create a new revision.'
+        : 'Publish to Document Control? This will create a new controlled document.')) return;
+
+    try {
+        const resp = await fetch(`/api/iso-docs/${currentDoc.id}/publish/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.error || 'Failed');
+        }
+        const data = await resp.json();
+        currentDoc.controlled_document_id = data.controlled_document.id;
+        toast('Published to Document Control');
+    } catch (e) {
+        toast(e.message || 'Publish failed', true);
+    }
+}
+
+// ---- Create document ----
+
+function showTypeModal() {
+    const grid = document.getElementById('type-grid');
+    grid.innerHTML = Object.entries(docTypes).map(([key, t]) =>
+        `<div class="idoc-type-option ${selectedType === key ? 'selected' : ''}" onclick="selectType('${key}')">
+            <h4>${esc(t.name)}</h4>
+            <p>${esc(t.description)}</p>
+            <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:6px;">${t.section_count} sections</div>
+        </div>`
+    ).join('');
+    document.getElementById('new-doc-title').value = '';
+    document.getElementById('type-modal').classList.add('active');
+}
+function closeTypeModal() {
+    document.getElementById('type-modal').classList.remove('active');
+    selectedType = '';
+}
+function selectType(key) {
+    selectedType = key;
+    document.querySelectorAll('.idoc-type-option').forEach(el => el.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+}
+async function createDoc() {
+    if (!selectedType) { toast('Select a document type', true); return; }
+    const title = document.getElementById('new-doc-title').value.trim();
+    try {
+        const resp = await fetch('/api/iso-docs/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ document_type: selectedType, title: title || undefined }),
+        });
+        if (!resp.ok) throw new Error();
+        const doc = await resp.json();
+        closeTypeModal();
+        openDoc(doc.id);
+    } catch (e) {
+        toast('Failed to create document', true);
+    }
+}
+
+// ---- Drag and drop reorder ----
+
+let draggedEl = null;
+function dragStart(e) {
+    draggedEl = e.currentTarget;
+    draggedEl.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+}
+function dragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.currentTarget;
+    if (target !== draggedEl && target.classList.contains('idoc-section')) {
+        target.style.borderTop = '2px solid var(--accent)';
+    }
+}
+function drop(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    target.style.borderTop = '';
+    if (!draggedEl || target === draggedEl) return;
+
+    const container = document.getElementById('sections-container');
+    const children = [...container.children];
+    const fromIdx = children.indexOf(draggedEl);
+    const toIdx = children.indexOf(target);
+
+    // Reorder in local state
+    const [moved] = currentDoc.sections.splice(fromIdx, 1);
+    currentDoc.sections.splice(toIdx, 0, moved);
+
+    renderSections(currentDoc.sections);
+
+    // Save reorder to server
+    const order = currentDoc.sections.map(s => s.id);
+    fetch(`/api/iso-docs/${currentDoc.id}/sections/reorder/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ order }),
+    });
+}
+function dragEnd(e) {
+    if (draggedEl) draggedEl.style.opacity = '';
+    draggedEl = null;
+    document.querySelectorAll('.idoc-section').forEach(el => el.style.borderTop = '');
+}
+
+// ---- Helpers ----
+
+function markDirty() { dirty = true; setSaveStatus('Unsaved changes'); }
+function setSaveStatus(text, isError) {
+    const el = document.getElementById('save-status');
+    el.textContent = text;
+    el.className = 'idoc-save-status' + (isError ? ' error' : text === 'Saving...' ? ' saving' : text === 'Saved' ? ' saved' : '');
+}
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function toast(msg, isError) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'idoc-toast show' + (isError ? ' error' : '');
+    setTimeout(() => el.className = 'idoc-toast', 3000);
+}
+function toggleDropdown(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('show');
+}
+function closeDropdowns() {
+    document.querySelectorAll('.idoc-dropdown-content').forEach(el => el.classList.remove('show'));
+}
+document.addEventListener('click', e => {
+    if (!e.target.closest('.idoc-dropdown')) closeDropdowns();
+});
+
+// Handle browser back/forward
+window.addEventListener('popstate', () => {
+    const docId = getDocIdFromUrl();
+    if (docId) loadDoc(docId);
+    else loadList();
+});
+
+init();
+</script>
+{% endblock %}

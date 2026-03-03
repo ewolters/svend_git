@@ -419,7 +419,7 @@ def evidence_list(request, project_id):
     elif request.method == "POST":
         serializer = EvidenceSerializer(data=request.data)
         if serializer.is_valid():
-            evidence = serializer.save(created_by=request.user)
+            evidence = serializer.save(created_by=request.user, project=project)
 
             # Link to hypotheses if provided
             hypothesis_ids = request.data.get("hypothesis_ids", [])
@@ -845,7 +845,11 @@ def dataset_list(request, project_id):
                 import io
 
                 if data_type == Dataset.DataType.CSV:
-                    df = pd.read_csv(io.BytesIO(file.read()))
+                    raw = file.read()
+                    try:
+                        df = pd.read_csv(io.BytesIO(raw), encoding="utf-8")
+                    except UnicodeDecodeError:
+                        df = pd.read_csv(io.BytesIO(raw), encoding="latin-1")
                 elif data_type == Dataset.DataType.EXCEL:
                     df = pd.read_excel(io.BytesIO(file.read()))
                 else:
@@ -916,7 +920,10 @@ def dataset_data(request, project_id, dataset_id):
             import pandas as pd
 
             if dataset.data_type == Dataset.DataType.CSV:
-                df = pd.read_csv(dataset.file.path)
+                try:
+                    df = pd.read_csv(dataset.file.path, encoding="utf-8")
+                except UnicodeDecodeError:
+                    df = pd.read_csv(dataset.file.path, encoding="latin-1")
             elif dataset.data_type == Dataset.DataType.EXCEL:
                 df = pd.read_excel(dataset.file.path)
             else:
@@ -1021,7 +1028,10 @@ def review_design_execution(request, project_id, design_id):
             try:
                 import pandas as pd
                 if dataset.data_type == Dataset.DataType.CSV:
-                    df = pd.read_csv(dataset.file.path)
+                    try:
+                        df = pd.read_csv(dataset.file.path, encoding="utf-8")
+                    except UnicodeDecodeError:
+                        df = pd.read_csv(dataset.file.path, encoding="latin-1")
                 else:
                     df = pd.read_excel(dataset.file.path)
                 actual_data = df.to_dict(orient="records")

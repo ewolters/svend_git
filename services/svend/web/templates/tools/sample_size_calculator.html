@@ -65,11 +65,24 @@
 
 {% block extra_css %}
 .mode-help { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.25rem; font-style: italic; }
+
+/* Guide section */
+.tool-guide { margin-top: 2.5rem; }
+.tool-guide h2 {
+    font-size: 1.3rem; color: var(--text-primary); margin-bottom: 1rem; font-weight: 600;
+}
+.tool-guide h3 {
+    font-size: 1rem; color: var(--accent-primary); margin: 1.5rem 0 0.5rem; font-weight: 600;
+}
+.tool-guide p, .tool-guide li {
+    color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;
+}
+.tool-guide ul { padding-left: 1.25rem; margin: 0.5rem 0; }
 {% endblock %}
 
 {% block content %}
 <div class="tool-header">
-    <h1>Sample Size <strong>Calculator</strong></h1>
+    <h1><strong>Sample Size</strong> Calculator</h1>
     <p>Determine the sample size you need for your experiment. Supports t-tests, proportions, and ANOVA.</p>
 </div>
 
@@ -252,6 +265,42 @@
     </div>
 </div>
 {% endblock %}
+
+<!-- Guide content for SEO -->
+<div class="tool-guide">
+    <h2>What Is Sample Size Determination?</h2>
+    <p>Sample size determination answers the question: "How many observations do I need to detect a meaningful difference?" Too few samples and you miss real effects (Type II error). Too many and you waste time, money, and material. Power analysis balances these risks by computing the minimum n that achieves your desired detection probability.</p>
+
+    <h3>The Four Inputs</h3>
+    <ul>
+        <li><strong>Effect size</strong> — The smallest difference you care about detecting. For t-tests, this is Cohen's d (mean difference divided by standard deviation). For ANOVA, it's Cohen's f. Smaller effects require larger samples.</li>
+        <li><strong>Alpha (&alpha;)</strong> — The probability of a false positive (Type I error). Typically 0.05 (5%). Lower alpha (0.01) means you need more samples but are more confident when you reject the null hypothesis.</li>
+        <li><strong>Power (1 &minus; &beta;)</strong> — The probability of detecting a real effect. 0.80 (80%) is standard; 0.90 is recommended for critical decisions. Higher power requires larger samples.</li>
+        <li><strong>Test type</strong> — The statistical test you plan to use. Two-sample t-tests need more observations than one-sample tests. ANOVA sample sizes depend on the number of groups.</li>
+    </ul>
+
+    <h3>Effect Size Guidelines</h3>
+    <p>Jacob Cohen's conventions provide starting points when domain knowledge is unavailable:</p>
+    <ul>
+        <li><strong>Cohen's d</strong> (t-tests): 0.2 = small, 0.5 = medium, 0.8 = large</li>
+        <li><strong>Cohen's f</strong> (ANOVA): 0.10 = small, 0.25 = medium, 0.40 = large</li>
+        <li><strong>Proportion difference</strong>: depends on baseline rate — a 5% improvement from 50% is easier to detect than from 95%</li>
+    </ul>
+    <p>Whenever possible, use your domain knowledge or pilot data to estimate effect size rather than defaulting to conventions. A "medium" effect in psychology may be negligible in manufacturing.</p>
+
+    <h3>Common Mistakes</h3>
+    <ul>
+        <li><strong>Running power analysis after the study</strong> — Post-hoc power is meaningless. Calculate sample size before collecting data.</li>
+        <li><strong>Ignoring practical significance</strong> — Statistical significance (p &lt; 0.05) doesn't mean the effect matters. Choose effect sizes that represent meaningful real-world differences.</li>
+        <li><strong>Not accounting for attrition</strong> — If you expect dropouts, inflate your sample size by 10–20% beyond the calculated minimum.</li>
+        <li><strong>One-sided vs two-sided</strong> — Use two-sided tests by default. One-sided tests require strong prior justification and reduce sample size at the cost of missing effects in the "wrong" direction.</li>
+    </ul>
+
+    <h3>Sample Size for DOE</h3>
+    <p>Designed experiments have different sample size requirements. A 2^k factorial with k factors needs 2^k runs per replicate — replication determines power. Svend's <a href="/app/dsw/" style="color: var(--accent-primary);">Decision Science Workbench</a> includes DOE power analysis for factorial, response surface, and screening designs. For more on DOE, see the <a href="/tools/sigma-calculator/" style="color: var(--accent-primary);">sigma level calculator</a> for defect-rate context, or use the <a href="/tools/cpk-calculator/" style="color: var(--accent-primary);">Cpk calculator</a> to check if your process is capable enough before running experiments.</p>
+
+    <p>For Bayesian alternatives to classical power analysis, Svend's <a href="/app/spc/" style="color: var(--accent-primary);">SPC platform</a> supports anytime-valid sequential testing (e-values) that lets you analyze data as it arrives — no fixed sample size required. Learn more about the <a href="/classical-vs-bayesian-spc/" style="color: var(--accent-primary);">classical vs Bayesian approach</a>.</p>
+</div>
 
 {% block faq %}
 <div class="tool-faq">

@@ -1,0 +1,671 @@
+{% extends "tool_base.html" %}
+
+{% block title %}ISO 9001 Audit Checklist Generator — Free Clause-Based Checklist{% endblock %}
+{% block meta_description %}Free ISO 9001 audit checklist generator. Select clauses 4-10, get evidence-based audit questions per clause. Printable checklist with checkboxes and notes. No signup.{% endblock %}
+{% block meta_keywords %}ISO 9001 audit checklist, ISO 9001 checklist generator, internal audit checklist ISO 9001, audit questions ISO 9001, ISO 9001 2015 audit checklist, free audit checklist, clause audit questions{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/iso-9001-audit-checklist/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/iso-9001-audit-checklist/">
+<meta property="og:title" content="Free ISO 9001 Audit Checklist Generator | Svend">
+<meta property="og:description" content="Generate clause-specific ISO 9001:2015 audit checklists with evidence-based questions. Select clauses, print or save as PDF. No signup required.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "ISO 9001 Audit Checklist Generator",
+    "url": "https://svend.ai/tools/iso-9001-audit-checklist/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free ISO 9001:2015 audit checklist generator. Select clauses, get evidence-based audit questions. Printable with checkboxes and notes.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What should an ISO 9001 audit checklist include?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "An ISO 9001 audit checklist should include evidence-based questions for each clause in scope, space for recording objective evidence found, a conformity/nonconformity classification for each item, and space for auditor notes. Questions should ask for documented evidence rather than yes/no compliance."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How many questions per clause in an ISO 9001 audit?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Typically 3-5 questions per clause, depending on scope and complexity. Critical clauses like 8.5 (Production), 10.2 (Nonconformity/CAPA), and 7.5 (Documented Information) may warrant more. This generator provides 3-5 evidence-based questions per clause covering the key requirements."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between an audit checklist and an audit plan?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "An audit plan defines the scope, objectives, schedule, and resources for the audit program. An audit checklist is a working document used during the audit itself — it lists specific questions to ask and evidence to verify for each clause. The plan is strategic; the checklist is tactical."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I classify audit findings?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "ISO 9001 audit findings are classified as: Major Nonconformity (systematic failure or complete absence of a required element), Minor Nonconformity (isolated lapse where the system intent is evident), Observation (conforming but could be improved), or Opportunity for Improvement (exceeds requirements, suggests enhancement)."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "ISO 9001 Audit Checklist", "item": "https://svend.ai/tools/iso-9001-audit-checklist/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .clause-selector { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .select-controls { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; }
+    .select-controls button {
+        background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-secondary);
+        padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;
+    }
+    .select-controls button:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+    .select-controls .count { margin-left: auto; color: var(--text-dim); font-size: 0.8rem; }
+
+    .section-group { margin-bottom: 1rem; }
+    .section-header {
+        display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0; cursor: pointer;
+        border-bottom: 1px solid rgba(255,255,255,0.04); user-select: none;
+    }
+    .section-header:hover { color: var(--accent-primary); }
+    .section-header input[type="checkbox"] { accent-color: var(--accent-primary); width: 16px; height: 16px; cursor: pointer; }
+    .section-header label { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); cursor: pointer; }
+    .section-header .section-desc { color: var(--text-dim); font-size: 0.75rem; margin-left: auto; }
+
+    .clause-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 0.4rem; padding: 0.6rem 0 0.6rem 1.5rem;
+    }
+    .clause-cb { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0; }
+    .clause-cb input[type="checkbox"] { accent-color: var(--accent-primary); width: 14px; height: 14px; cursor: pointer; }
+    .clause-cb label { color: var(--text-secondary); font-size: 0.82rem; cursor: pointer; }
+    .clause-cb label .clause-num { color: var(--accent-primary); font-weight: 600; }
+
+    .btn-generate {
+        background: var(--accent-primary); color: #fff; border: none; padding: 0.7rem 2rem;
+        border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+        transition: opacity 0.2s; display: block; margin: 1.5rem auto 0;
+    }
+    .btn-generate:hover { opacity: 0.9; }
+    .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Checklist output */
+    .checklist-output { display: none; margin-top: 2rem; }
+    .checklist-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;
+    }
+    .checklist-header h2 { font-size: 1.15rem; font-weight: 600; }
+    .btn-print {
+        background: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary);
+        padding: 0.45rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 500;
+        transition: all 0.2s;
+    }
+    .btn-print:hover { background: var(--accent-primary); color: #fff; }
+
+    .clause-group {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        margin-bottom: 1rem; overflow: hidden;
+    }
+    .clause-group-header {
+        padding: 0.75rem 1rem; background: rgba(74,159,110,0.08);
+        border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.6rem;
+    }
+    .clause-group-num {
+        background: var(--accent-primary); color: #fff; padding: 2px 8px; border-radius: 4px;
+        font-size: 0.75rem; font-weight: 700;
+    }
+    .clause-group-name { font-weight: 600; font-size: 0.9rem; }
+
+    .question-row {
+        display: grid; grid-template-columns: 28px 1fr; gap: 0.6rem;
+        padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03);
+        align-items: start;
+    }
+    .question-row:last-child { border-bottom: none; }
+    .question-row input[type="checkbox"] { accent-color: var(--accent-primary); width: 16px; height: 16px; margin-top: 2px; }
+    .question-text { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; }
+    .question-notes {
+        width: 100%; margin-top: 0.4rem; background: var(--bg-tertiary); border: 1px solid var(--border);
+        color: var(--text-primary); padding: 0.4rem 0.6rem; border-radius: 4px; font-size: 0.78rem;
+        font-family: inherit; resize: vertical; min-height: 32px;
+    }
+    .question-notes::placeholder { color: var(--text-dim); }
+
+    .checklist-meta {
+        text-align: center; color: var(--text-dim); font-size: 0.75rem; margin-top: 1.5rem;
+        padding-top: 1rem; border-top: 1px solid var(--border);
+    }
+
+    /* Print styles */
+    @media print {
+        .nav, .tool-footer, .tool-cta, .tool-faq, .clause-selector, .select-controls,
+        .btn-generate, .btn-print, .checklist-header .btn-print,
+        #sv-toast-container, body > div[style*="position:fixed"] { display: none !important; }
+        body { background: #fff !important; color: #000 !important; font-size: 11pt; }
+        .tool-container { max-width: 100%; padding: 0; }
+        .checklist-output { display: block !important; border: none; }
+        .clause-group { border: 1px solid #ccc; break-inside: avoid; page-break-inside: avoid; }
+        .clause-group-header { background: #f0f0f0 !important; border-bottom: 1px solid #ccc; }
+        .clause-group-num { background: #333 !important; color: #fff !important; }
+        .clause-group-name { color: #000 !important; }
+        .question-row { border-bottom: 1px solid #eee; }
+        .question-text { color: #333 !important; }
+        .question-notes { border: 1px solid #ccc; background: #fff !important; color: #000 !important; min-height: 50px; }
+        .checklist-meta { color: #999 !important; border-top: 1px solid #ccc; }
+        .checklist-header h2 { color: #000 !important; }
+    }
+
+    /* Guide section */
+    .tool-guide { margin-top: 2.5rem; }
+    .tool-guide h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; }
+    .tool-guide h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+    .tool-guide p, .tool-guide li { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+    .tool-guide ul { padding-left: 1.5rem; }
+    .tool-guide li { margin-bottom: 0.3rem; }
+
+    .finding-types {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem; margin: 1rem 0;
+    }
+    .finding-type {
+        padding: 0.75rem; border-radius: 8px; border-left: 3px solid;
+        background: var(--bg-card);
+    }
+    .finding-type.nc-major { border-color: #e85747; }
+    .finding-type.nc-minor { border-color: #e89547; }
+    .finding-type.observation { border-color: #47a5e8; }
+    .finding-type.ofi { border-color: var(--accent-primary); }
+    .finding-type strong { display: block; font-size: 0.82rem; margin-bottom: 0.2rem; }
+    .finding-type span { font-size: 0.78rem; color: var(--text-secondary); }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1>ISO 9001 Audit <strong>Checklist Generator</strong></h1>
+    <p>Select which ISO 9001:2015 clauses to audit. Get practical, evidence-based questions for each clause. Print or save as PDF. No signup required.</p>
+</div>
+
+<div class="clause-selector">
+    <div class="select-controls">
+        <button onclick="selectAll()">Select All</button>
+        <button onclick="clearAll()">Clear All</button>
+        <span class="count" id="clauseCount">0 clauses selected</span>
+    </div>
+
+    <div class="section-group" id="section-4">
+        <div class="section-header" onclick="toggleSection(4)">
+            <input type="checkbox" id="sec4" onchange="toggleSection(4)" onclick="event.stopPropagation()">
+            <label for="sec4">Section 4 &mdash; Context of the Organization</label>
+            <span class="section-desc">4 clauses</span>
+        </div>
+        <div class="clause-grid">
+            <div class="clause-cb"><input type="checkbox" id="c4.1" data-section="4" onchange="updateCounts()"><label for="c4.1"><span class="clause-num">4.1</span> Context of the organization</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c4.2" data-section="4" onchange="updateCounts()"><label for="c4.2"><span class="clause-num">4.2</span> Interested parties</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c4.3" data-section="4" onchange="updateCounts()"><label for="c4.3"><span class="clause-num">4.3</span> Scope of the QMS</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c4.4" data-section="4" onchange="updateCounts()"><label for="c4.4"><span class="clause-num">4.4</span> QMS and its processes</label></div>
+        </div>
+    </div>
+
+    <div class="section-group" id="section-5">
+        <div class="section-header" onclick="toggleSection(5)">
+            <input type="checkbox" id="sec5" onchange="toggleSection(5)" onclick="event.stopPropagation()">
+            <label for="sec5">Section 5 &mdash; Leadership</label>
+            <span class="section-desc">3 clauses</span>
+        </div>
+        <div class="clause-grid">
+            <div class="clause-cb"><input type="checkbox" id="c5.1" data-section="5" onchange="updateCounts()"><label for="c5.1"><span class="clause-num">5.1</span> Leadership and commitment</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c5.2" data-section="5" onchange="updateCounts()"><label for="c5.2"><span class="clause-num">5.2</span> Quality policy</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c5.3" data-section="5" onchange="updateCounts()"><label for="c5.3"><span class="clause-num">5.3</span> Organizational roles</label></div>
+        </div>
+    </div>
+
+    <div class="section-group" id="section-6">
+        <div class="section-header" onclick="toggleSection(6)">
+            <input type="checkbox" id="sec6" onchange="toggleSection(6)" onclick="event.stopPropagation()">
+            <label for="sec6">Section 6 &mdash; Planning</label>
+            <span class="section-desc">3 clauses</span>
+        </div>
+        <div class="clause-grid">
+            <div class="clause-cb"><input type="checkbox" id="c6.1" data-section="6" onchange="updateCounts()"><label for="c6.1"><span class="clause-num">6.1</span> Actions to address risks and opportunities</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c6.2" data-section="6" onchange="updateCounts()"><label for="c6.2"><span class="clause-num">6.2</span> Quality objectives and planning</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c6.3" data-section="6" onchange="updateCounts()"><label for="c6.3"><span class="clause-num">6.3</span> Planning of changes</label></div>
+        </div>
+    </div>
+
+    <div class="section-group" id="section-7">
+        <div class="section-header" onclick="toggleSection(7)">
+            <input type="checkbox" id="sec7" onchange="toggleSection(7)" onclick="event.stopPropagation()">
+            <label for="sec7">Section 7 &mdash; Support</label>
+            <span class="section-desc">8 clauses</span>
+        </div>
+        <div class="clause-grid">
+            <div class="clause-cb"><input type="checkbox" id="c7.1" data-section="7" onchange="updateCounts()"><label for="c7.1"><span class="clause-num">7.1</span> Resources</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c7.1.5" data-section="7" onchange="updateCounts()"><label for="c7.1.5"><span class="clause-num">7.1.5</span> Monitoring and measuring resources</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c7.1.6" data-section="7" onchange="updateCounts()"><label for="c7.1.6"><span class="clause-num">7.1.6</span> Organizational knowledge</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c7.2" data-section="7" onchange="updateCounts()"><label for="c7.2"><span class="clause-num">7.2</span> Competence</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c7.3" data-section="7" onchange="updateCounts()"><label for="c7.3"><span class="clause-num">7.3</span> Awareness</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c7.4" data-section="7" onchange="updateCounts()"><label for="c7.4"><span class="clause-num">7.4</span> Communication</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c7.5" data-section="7" onchange="updateCounts()"><label for="c7.5"><span class="clause-num">7.5</span> Documented information</label></div>
+        </div>
+    </div>
+
+    <div class="section-group" id="section-8">
+        <div class="section-header" onclick="toggleSection(8)">
+            <input type="checkbox" id="sec8" onchange="toggleSection(8)" onclick="event.stopPropagation()">
+            <label for="sec8">Section 8 &mdash; Operation</label>
+            <span class="section-desc">9 clauses</span>
+        </div>
+        <div class="clause-grid">
+            <div class="clause-cb"><input type="checkbox" id="c8.1" data-section="8" onchange="updateCounts()"><label for="c8.1"><span class="clause-num">8.1</span> Operational planning and control</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c8.2" data-section="8" onchange="updateCounts()"><label for="c8.2"><span class="clause-num">8.2</span> Requirements for products and services</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c8.3" data-section="8" onchange="updateCounts()"><label for="c8.3"><span class="clause-num">8.3</span> Design and development</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c8.4" data-section="8" onchange="updateCounts()"><label for="c8.4"><span class="clause-num">8.4</span> Control of externally provided processes</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c8.5" data-section="8" onchange="updateCounts()"><label for="c8.5"><span class="clause-num">8.5</span> Production and service provision</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c8.5.2" data-section="8" onchange="updateCounts()"><label for="c8.5.2"><span class="clause-num">8.5.2</span> Identification and traceability</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c8.6" data-section="8" onchange="updateCounts()"><label for="c8.6"><span class="clause-num">8.6</span> Release of products and services</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c8.7" data-section="8" onchange="updateCounts()"><label for="c8.7"><span class="clause-num">8.7</span> Control of nonconforming outputs</label></div>
+        </div>
+    </div>
+
+    <div class="section-group" id="section-9">
+        <div class="section-header" onclick="toggleSection(9)">
+            <input type="checkbox" id="sec9" onchange="toggleSection(9)" onclick="event.stopPropagation()">
+            <label for="sec9">Section 9 &mdash; Performance Evaluation</label>
+            <span class="section-desc">5 clauses</span>
+        </div>
+        <div class="clause-grid">
+            <div class="clause-cb"><input type="checkbox" id="c9.1" data-section="9" onchange="updateCounts()"><label for="c9.1"><span class="clause-num">9.1</span> Monitoring, measurement, analysis and evaluation</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c9.1.3" data-section="9" onchange="updateCounts()"><label for="c9.1.3"><span class="clause-num">9.1.3</span> Analysis and evaluation</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c9.2" data-section="9" onchange="updateCounts()"><label for="c9.2"><span class="clause-num">9.2</span> Internal audit</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c9.3" data-section="9" onchange="updateCounts()"><label for="c9.3"><span class="clause-num">9.3</span> Management review</label></div>
+        </div>
+    </div>
+
+    <div class="section-group" id="section-10">
+        <div class="section-header" onclick="toggleSection(10)">
+            <input type="checkbox" id="sec10" onchange="toggleSection(10)" onclick="event.stopPropagation()">
+            <label for="sec10">Section 10 &mdash; Improvement</label>
+            <span class="section-desc">3 clauses</span>
+        </div>
+        <div class="clause-grid">
+            <div class="clause-cb"><input type="checkbox" id="c10.1" data-section="10" onchange="updateCounts()"><label for="c10.1"><span class="clause-num">10.1</span> Improvement &mdash; general</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c10.2" data-section="10" onchange="updateCounts()"><label for="c10.2"><span class="clause-num">10.2</span> Nonconformity and corrective action</label></div>
+            <div class="clause-cb"><input type="checkbox" id="c10.3" data-section="10" onchange="updateCounts()"><label for="c10.3"><span class="clause-num">10.3</span> Continual improvement</label></div>
+        </div>
+    </div>
+
+    <button class="btn-generate" id="btnGenerate" onclick="generateChecklist()" disabled>Generate Checklist</button>
+</div>
+
+<div class="checklist-output" id="checklistOutput">
+    <div class="checklist-header">
+        <h2>ISO 9001:2015 Audit Checklist</h2>
+        <button class="btn-print" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+    <div id="checklistBody"></div>
+    <div class="checklist-meta" id="checklistMeta"></div>
+</div>
+
+<div class="tool-guide">
+    <h2>How to Use This Checklist</h2>
+    <p>This generator creates a working audit checklist based on the ISO 9001:2015 standard. Each question is designed to elicit objective evidence &mdash; not yes/no answers.</p>
+
+    <h3>During the Audit</h3>
+    <ul>
+        <li>Check off each item as you gather evidence</li>
+        <li>Use the notes field to record what you observed, who you spoke to, and what documents you reviewed</li>
+        <li>If evidence is missing or inadequate, note the gap &mdash; this becomes a potential finding</li>
+    </ul>
+
+    <h3>Classifying Findings</h3>
+    <div class="finding-types">
+        <div class="finding-type nc-major">
+            <strong>Major NC</strong>
+            <span>Systematic failure or absence of a required element. Affects the QMS's ability to achieve intended outcomes.</span>
+        </div>
+        <div class="finding-type nc-minor">
+            <strong>Minor NC</strong>
+            <span>Isolated lapse. The system intent is evident but execution failed in a specific instance.</span>
+        </div>
+        <div class="finding-type observation">
+            <strong>Observation</strong>
+            <span>Conforming, but a weakness that could become a nonconformity if not addressed.</span>
+        </div>
+        <div class="finding-type ofi">
+            <strong>Opportunity</strong>
+            <span>Beyond compliance. A suggestion for improvement that goes beyond what the standard requires.</span>
+        </div>
+    </div>
+
+    <h3>After the Audit</h3>
+    <p>Findings should be communicated in the closing meeting, documented in an audit report, and tracked through the CAPA process. Major nonconformities require root cause analysis and verified corrective action before the finding can be closed.</p>
+    <p>For a complete guide to the internal audit process, see the <a href="/iso-9001-internal-audit-playbook/" style="color: var(--accent-primary);">ISO 9001 Internal Audit Playbook</a>.</p>
+</div>
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Automate your ISO 9001 audit program</h3>
+    <p>Schedule audits, record findings, auto-create NCRs, track CAPA to closure, and generate management review data &mdash; all 32 clauses covered.</p>
+    <a href="/register/" class="nav-btn">Start Free</a>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What should an ISO 9001 audit checklist include?</div>
+        <div class="faq-a">An ISO 9001 audit checklist should include evidence-based questions for each clause in scope, space for recording objective evidence found, a conformity/nonconformity classification for each item, and space for auditor notes. Questions should ask for documented evidence rather than yes/no compliance.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How many questions per clause in an ISO 9001 audit?</div>
+        <div class="faq-a">Typically 3-5 questions per clause, depending on scope and complexity. Critical clauses like 8.5 (Production), 10.2 (Nonconformity/CAPA), and 7.5 (Documented Information) may warrant more. This generator provides 3-5 evidence-based questions per clause covering the key requirements.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between an audit checklist and an audit plan?</div>
+        <div class="faq-a">An audit plan defines the scope, objectives, schedule, and resources for the audit program. An audit checklist is a working document used during the audit itself &mdash; it lists specific questions to ask and evidence to verify for each clause. The plan is strategic; the checklist is tactical.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do I classify audit findings?</div>
+        <div class="faq-a">ISO 9001 audit findings are classified as: Major Nonconformity (systematic failure or complete absence of a required element), Minor Nonconformity (isolated lapse where the system intent is evident), Observation (conforming but could be improved), or Opportunity for Improvement (exceeds requirements, suggests enhancement).</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var CLAUSE_QUESTIONS = {
+    "4.1": { name: "Context of the organization", section: 4, questions: [
+        "Show me documented evidence of how internal and external issues relevant to the QMS have been determined.",
+        "How do you monitor and review changes to internal and external issues that affect your quality objectives?",
+        "Walk me through how the organization's strategic direction is connected to QMS planning decisions."
+    ]},
+    "4.2": { name: "Interested parties", section: 4, questions: [
+        "Show me the documented list of interested parties relevant to your QMS and their requirements.",
+        "How do you determine which requirements of interested parties are applicable to the QMS?",
+        "How often are the needs and expectations of interested parties reviewed and updated?"
+    ]},
+    "4.3": { name: "Scope of the QMS", section: 4, questions: [
+        "Show me the documented scope of the QMS, including boundaries and applicability.",
+        "Are there any clauses you have determined to be not applicable? Show me the justification.",
+        "How is the QMS scope communicated to relevant interested parties?"
+    ]},
+    "4.4": { name: "QMS and its processes", section: 4, questions: [
+        "Show me how the processes needed for the QMS have been identified, including their sequence and interaction.",
+        "What criteria and methods are used to ensure effective operation and control of these processes?",
+        "How are resources, responsibilities, and authorities assigned to each process?",
+        "What process performance indicators are monitored, and show me the most recent results."
+    ]},
+    "5.1": { name: "Leadership and commitment", section: 5, questions: [
+        "What evidence demonstrates top management's active involvement in the QMS, beyond signing the quality policy?",
+        "How does top management ensure that the quality policy and objectives are compatible with the strategic direction?",
+        "Show me evidence that customer focus is promoted throughout the organization."
+    ]},
+    "5.2": { name: "Quality policy", section: 5, questions: [
+        "Show me the current quality policy. When was it last reviewed?",
+        "How is the quality policy communicated to all personnel? Show me the communication records.",
+        "How does the quality policy provide a framework for setting quality objectives?"
+    ]},
+    "5.3": { name: "Organizational roles", section: 5, questions: [
+        "Show me the documented roles, responsibilities, and authorities relevant to the QMS.",
+        "Who has been assigned responsibility for ensuring the QMS conforms to ISO 9001 requirements?",
+        "How are changes in roles and responsibilities communicated?"
+    ]},
+    "6.1": { name: "Actions to address risks and opportunities", section: 6, questions: [
+        "Show me the process for identifying risks and opportunities related to the QMS.",
+        "What specific actions have been taken to address identified risks? Show me the evidence.",
+        "How do you evaluate the effectiveness of actions taken to address risks?",
+        "Show me your risk register, FMEA, or equivalent risk assessment documentation."
+    ]},
+    "6.2": { name: "Quality objectives and planning", section: 6, questions: [
+        "Show me the current quality objectives. Are they measurable and consistent with the quality policy?",
+        "For each objective, show me the plan: what will be done, resources needed, responsible person, and completion date.",
+        "How are quality objectives monitored and communicated? Show me the latest performance data."
+    ]},
+    "6.3": { name: "Planning of changes", section: 6, questions: [
+        "Show me an example of a planned change to the QMS. How was the impact assessed before implementation?",
+        "How do you ensure that QMS integrity is maintained during and after changes?",
+        "What resources were allocated and what responsibilities reassigned for the change?"
+    ]},
+    "7.1": { name: "Resources", section: 7, questions: [
+        "How does the organization determine the resources needed for the QMS?",
+        "Show me evidence that adequate infrastructure is provided and maintained for conforming products and services.",
+        "How is the work environment monitored and controlled to ensure it is suitable for operations?"
+    ]},
+    "7.1.5": { name: "Monitoring and measuring resources", section: 7, questions: [
+        "Show me the list of monitoring and measuring equipment used for product verification.",
+        "Show me the calibration records for three measurement instruments. Are they traceable to international standards?",
+        "What action is taken when measuring equipment is found to be out of calibration?",
+        "How is the validity of previous measurement results assessed when equipment is found out of calibration?"
+    ]},
+    "7.1.6": { name: "Organizational knowledge", section: 7, questions: [
+        "How has the organization determined what knowledge is necessary for the operation of its processes?",
+        "How is organizational knowledge maintained and made available to the people who need it?",
+        "When addressing changing needs and trends, how do you acquire or access additional necessary knowledge?"
+    ]},
+    "7.2": { name: "Competence", section: 7, questions: [
+        "Show me how competence requirements are determined for personnel doing work that affects quality performance.",
+        "Show me training records for three employees. Do they demonstrate the required competence?",
+        "How do you evaluate the effectiveness of training or other actions taken to achieve competence?",
+        "When competence gaps are identified, what actions are taken and how are they documented?"
+    ]},
+    "7.3": { name: "Awareness", section: 7, questions: [
+        "How do you ensure personnel are aware of the quality policy and relevant quality objectives?",
+        "How are employees made aware of their contribution to QMS effectiveness?",
+        "How are employees made aware of the implications of not conforming to QMS requirements?"
+    ]},
+    "7.4": { name: "Communication", section: 7, questions: [
+        "Show me the plan for internal and external communications relevant to the QMS: what, when, who, how.",
+        "How are quality-related communications with customers documented and tracked?",
+        "Show me an example of how quality information was communicated across departments."
+    ]},
+    "7.5": { name: "Documented information", section: 7, questions: [
+        "Show me the document control procedure. How are documents approved, reviewed, and updated?",
+        "Pick three controlled documents and show me the version history, approval signatures, and distribution records.",
+        "How do you control documents of external origin that are needed for QMS operation?",
+        "How are obsolete documents prevented from unintended use?"
+    ]},
+    "8.1": { name: "Operational planning and control", section: 8, questions: [
+        "Show me how operational processes are planned, including acceptance criteria for products and services.",
+        "How do you determine resource requirements for specific orders or projects?",
+        "How are outsourced processes controlled to ensure they meet specified requirements?"
+    ]},
+    "8.2": { name: "Requirements for products and services", section: 8, questions: [
+        "Show me the process for determining customer requirements, including statutory and regulatory requirements.",
+        "How do you review customer requirements before committing to supply? Show me a recent contract review.",
+        "When requirements change after an order is accepted, how are amendments communicated and documented?"
+    ]},
+    "8.3": { name: "Design and development", section: 8, questions: [
+        "Show me the design and development planning for a recent project, including stages, reviews, and responsibilities.",
+        "How are design inputs determined and documented? Show me the input requirements for a recent design.",
+        "Show me the verification and validation records for a completed design. How was design output checked against input?",
+        "How are design changes controlled, reviewed, and authorized?"
+    ]},
+    "8.4": { name: "Control of externally provided processes", section: 8, questions: [
+        "Show me the criteria for evaluating, selecting, and re-evaluating external providers.",
+        "Show me the approved supplier list and the most recent supplier evaluation results.",
+        "How do you communicate requirements to external providers and verify that supplied products meet specifications?",
+        "Show me incoming inspection records for a recent delivery from an external provider."
+    ]},
+    "8.5": { name: "Production and service provision", section: 8, questions: [
+        "Show me the controlled conditions under which production is carried out, including work instructions and monitoring.",
+        "How do you validate processes where the output cannot be verified by subsequent monitoring or measurement?",
+        "What measures are in place to preserve product during internal processing and delivery?"
+    ]},
+    "8.5.2": { name: "Identification and traceability", section: 8, questions: [
+        "How are products identified throughout the production process? Show me the identification method.",
+        "Show me how you can trace a finished product back to its raw materials, process records, and inspection results.",
+        "When traceability is a requirement, how are unique identification records maintained?"
+    ]},
+    "8.6": { name: "Release of products and services", section: 8, questions: [
+        "Show me the criteria used to determine whether products are released to the customer.",
+        "Show me the inspection and test records for a recently released product. Who authorized the release?",
+        "What happens when a product does not meet release criteria? Show me a recent example."
+    ]},
+    "8.7": { name: "Control of nonconforming outputs", section: 8, questions: [
+        "Show me the procedure for identifying and controlling nonconforming outputs.",
+        "Show me a recent example of nonconforming product. How was it identified, segregated, and dispositioned?",
+        "What records are maintained for nonconforming outputs, including the nature of the nonconformity and subsequent actions?"
+    ]},
+    "9.1": { name: "Monitoring, measurement, analysis and evaluation", section: 9, questions: [
+        "What has been determined as needing to be monitored and measured for QMS effectiveness?",
+        "Show me how customer satisfaction is monitored. What methods are used and what do the latest results show?",
+        "How is data analyzed to evaluate the performance and effectiveness of the QMS?",
+        "Show me the most recent trend analysis or statistical summary of quality performance data."
+    ]},
+    "9.1.3": { name: "Analysis and evaluation", section: 9, questions: [
+        "Show me the results of analysis and evaluation of quality data. What conclusions were drawn?",
+        "How is analysis data used to identify trends, improvement opportunities, and the need for corrective action?",
+        "Show me evidence that analysis results are reported to management for review."
+    ]},
+    "9.2": { name: "Internal audit", section: 9, questions: [
+        "Show me the internal audit program. How is it planned to ensure all areas are covered?",
+        "How is auditor independence ensured? Show me the auditor assignments for the most recent audit.",
+        "Show me the most recent audit report including findings, nonconformities, and corrective actions.",
+        "How is follow-up conducted to verify that corrective actions from audit findings have been implemented and are effective?"
+    ]},
+    "9.3": { name: "Management review", section: 9, questions: [
+        "Show me the most recent management review records. Were all required inputs addressed?",
+        "What input data was reviewed: audit results, customer feedback, process performance, nonconformity status, corrective actions?",
+        "What decisions and actions resulted from the management review? Show me the output records.",
+        "How are management review actions tracked to completion?"
+    ]},
+    "10.1": { name: "Improvement \u2014 general", section: 10, questions: [
+        "How does the organization determine and select opportunities for improvement?",
+        "Show me examples of improvement projects or initiatives undertaken in the last 12 months.",
+        "How are improvement results measured and verified?"
+    ]},
+    "10.2": { name: "Nonconformity and corrective action", section: 10, questions: [
+        "Show me the procedure for responding to nonconformities, including containment and corrective action.",
+        "Pick a recent NCR and walk me through the root cause analysis. What method was used?",
+        "Show me evidence that the corrective action was implemented and its effectiveness was verified.",
+        "How do you determine whether a nonconformity could occur elsewhere, and what action is taken to prevent recurrence?"
+    ]},
+    "10.3": { name: "Continual improvement", section: 10, questions: [
+        "Show me evidence of continual improvement of QMS suitability, adequacy, and effectiveness.",
+        "How are the results of analysis, evaluation, and management review used to drive improvement?",
+        "What systematic methodology is used for continual improvement (e.g., PDCA, Kaizen, A3)?"
+    ]}
+};
+
+function getSelectedClauses() {
+    var selected = [];
+    document.querySelectorAll('.clause-cb input[type="checkbox"]').forEach(function(cb) {
+        if (cb.checked) selected.push(cb.id.replace('c', ''));
+    });
+    return selected;
+}
+
+function updateCounts() {
+    var selected = getSelectedClauses();
+    var countEl = document.getElementById('clauseCount');
+    countEl.textContent = selected.length + ' clause' + (selected.length !== 1 ? 's' : '') + ' selected';
+    document.getElementById('btnGenerate').disabled = selected.length === 0;
+    // Update section checkboxes
+    [4,5,6,7,8,9,10].forEach(function(sec) {
+        var boxes = document.querySelectorAll('.clause-cb input[data-section="' + sec + '"]');
+        var checked = 0;
+        boxes.forEach(function(b) { if (b.checked) checked++; });
+        var secCb = document.getElementById('sec' + sec);
+        secCb.checked = checked === boxes.length && boxes.length > 0;
+        secCb.indeterminate = checked > 0 && checked < boxes.length;
+    });
+}
+
+function toggleSection(sec) {
+    var secCb = document.getElementById('sec' + sec);
+    var boxes = document.querySelectorAll('.clause-cb input[data-section="' + sec + '"]');
+    var allChecked = true;
+    boxes.forEach(function(b) { if (!b.checked) allChecked = false; });
+    var newState = !allChecked;
+    boxes.forEach(function(b) { b.checked = newState; });
+    secCb.checked = newState;
+    secCb.indeterminate = false;
+    updateCounts();
+}
+
+function selectAll() {
+    document.querySelectorAll('.clause-cb input[type="checkbox"]').forEach(function(cb) { cb.checked = true; });
+    updateCounts();
+}
+
+function clearAll() {
+    document.querySelectorAll('.clause-cb input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+    updateCounts();
+}
+
+function generateChecklist() {
+    var selected = getSelectedClauses();
+    if (selected.length === 0) return;
+
+    var body = document.getElementById('checklistBody');
+    var html = '';
+
+    selected.forEach(function(clauseNum) {
+        var clause = CLAUSE_QUESTIONS[clauseNum];
+        if (!clause) return;
+        html += '<div class="clause-group">';
+        html += '<div class="clause-group-header">';
+        html += '<span class="clause-group-num">' + clauseNum + '</span>';
+        html += '<span class="clause-group-name">' + clause.name + '</span>';
+        html += '</div>';
+        clause.questions.forEach(function(q, i) {
+            html += '<div class="question-row">';
+            html += '<input type="checkbox" id="q-' + clauseNum.replace(/\./g, '-') + '-' + i + '">';
+            html += '<div>';
+            html += '<label for="q-' + clauseNum.replace(/\./g, '-') + '-' + i + '" class="question-text">' + q + '</label>';
+            html += '<textarea class="question-notes" placeholder="Evidence / notes..." rows="1"></textarea>';
+            html += '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+    });
+
+    body.innerHTML = html;
+
+    var totalQ = 0;
+    selected.forEach(function(c) { if (CLAUSE_QUESTIONS[c]) totalQ += CLAUSE_QUESTIONS[c].questions.length; });
+    var now = new Date();
+    var dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('checklistMeta').textContent =
+        selected.length + ' clauses \u00b7 ' + totalQ + ' questions \u00b7 Generated ' + dateStr +
+        ' using Svend ISO 9001 Audit Checklist Generator (svend.ai)';
+
+    var output = document.getElementById('checklistOutput');
+    output.style.display = 'block';
+    output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+{% endblock %}

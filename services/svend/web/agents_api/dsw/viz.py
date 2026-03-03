@@ -51,8 +51,9 @@ def run_visualization(df, analysis_id, config):
 
     result = {"plots": [], "summary": ""}
 
-    # SVEND theme colors
-    theme_colors = ['#4a9f6e', '#4a9f6e', '#e89547', '#9f4a4a', '#e8c547', '#7a6a9a']
+    # SVEND theme colors (canonical palette from common.py)
+    from .common import SVEND_COLORS, COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_REFERENCE, COLOR_GOLD, _rgba
+    theme_colors = SVEND_COLORS
 
     if analysis_id == "histogram":
         var = config.get("var")
@@ -115,15 +116,8 @@ def run_visualization(df, analysis_id, config):
         color_var = config.get("color")
         trendline = config.get("trendline", False)
 
-        # Distinct colors for groups (fill, border) - semi-transparent fill with solid border
-        group_colors = [
-            ('rgba(74, 159, 110, 0.5)', '#4a9f6e'),   # Green
-            ('rgba(232, 149, 71, 0.5)', '#e89547'),   # Orange
-            ('rgba(159, 74, 74, 0.5)', '#9f4a4a'),    # Red
-            ('rgba(71, 165, 232, 0.5)', '#47a5e8'),   # Blue
-            ('rgba(232, 197, 71, 0.5)', '#e8c547'),   # Yellow
-            ('rgba(122, 106, 154, 0.5)', '#7a6a9a'), # Purple
-        ]
+        # Distinct colors for groups (fill, border) — derived from SVEND theme
+        group_colors = [(_rgba(c, 0.5), c) for c in SVEND_COLORS[:6]]
 
         data = []
 
@@ -201,7 +195,7 @@ def run_visualization(df, analysis_id, config):
         result["plots"].append({
             "title": "Correlation Heatmap",
             "data": [{"type": "heatmap", "z": corr.values.tolist(), "x": numeric_cols, "y": numeric_cols, "colorscale": "RdBu", "zmid": 0}],
-            "layout": {"template": "plotly_dark", "height": 400}
+            "layout": {"height": 400}
         })
 
     elif analysis_id == "pareto":
@@ -224,7 +218,7 @@ def run_visualization(df, analysis_id, config):
                 {"type": "scatter", "x": [str(x) for x in counts.index.tolist()], "y": cumulative.values.tolist(), "name": "Cumulative %", "yaxis": "y2", "line": {"color": "#fdcb6e"}}
             ],
             "layout": {
-                "template": "plotly_dark",
+                
                 "height": 350,
                 "yaxis2": {"overlaying": "y", "side": "right", "range": [0, 100], "title": "Cumulative %"}
             }
@@ -281,7 +275,7 @@ def run_visualization(df, analysis_id, config):
 
         # Build layout with subplots
         layout = {
-            "template": "plotly_dark",
+            
             "height": 100 + n_vars * 120,
             "showlegend": False,
         }
@@ -335,7 +329,7 @@ def run_visualization(df, analysis_id, config):
             "title": f"Time Series: {', '.join(y_cols)}",
             "data": traces,
             "layout": {
-                "template": "plotly_dark",
+                
                 "height": 350,
                 "xaxis": {"title": x_col},
                 "yaxis": {"title": "Value"},
@@ -402,7 +396,7 @@ def run_visualization(df, analysis_id, config):
                 }
             ],
             "layout": {
-                "template": "plotly_dark",
+                
                 "height": 350,
                 "xaxis": {"title": f"Theoretical Quantiles ({dist_name})"},
                 "yaxis": {"title": var}
@@ -840,7 +834,7 @@ def run_visualization(df, analysis_id, config):
             [[0, "rgba(232,197,71,0.1)"], [1, "rgba(232,197,71,0.6)"]],
             [[0, "rgba(122,106,154,0.1)"], [1, "rgba(122,106,154,0.6)"]],
         ]
-        line_colors = ["#4a9f6e", "#4a90d9", "#d94a4a", "#e8c547", "#7a6a9a"]
+        line_colors = SVEND_COLORS[:5]
 
         overlay_traces = []
         summary_lines = []
@@ -1669,7 +1663,7 @@ def run_visualization(df, analysis_id, config):
 
         # Plot 4: Per-regime Cpk posteriors (when specs provided)
         if regime_cpk_samples:
-            regime_colors = ['#4a9f6e', '#e89547', '#9f4a4a', '#4a7a9f', '#7a6a9a', '#e8c547']
+            regime_colors = SVEND_COLORS[:6]
             cpk_traces = []
             for idx in sorted(regime_cpk_samples.keys()):
                 seg = segments[idx]

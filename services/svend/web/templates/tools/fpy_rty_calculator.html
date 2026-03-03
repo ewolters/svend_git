@@ -1,0 +1,486 @@
+{% extends "tool_base.html" %}
+
+{% block title %}First Pass Yield & RTY Calculator — Free Rolled Throughput Yield Calculator{% endblock %}
+{% block meta_description %}Free first pass yield and rolled throughput yield calculator. Enter defects per process step to calculate FPY, RTY, DPMO, and sigma level. Visualize yield loss across your process. No signup required.{% endblock %}
+{% block meta_keywords %}first pass yield calculator, rolled throughput yield, RTY calculator, FPY, DPMO, sigma level, process yield, Six Sigma yield, manufacturing yield, throughput yield, hidden factory{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/fpy-rty-calculator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/fpy-rty-calculator/">
+<meta property="og:title" content="Free First Pass Yield & RTY Calculator">
+<meta property="og:description" content="Calculate First Pass Yield and Rolled Throughput Yield per process step. Find hidden factory waste and sigma level.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "First Pass Yield & RTY Calculator",
+    "url": "https://svend.ai/tools/fpy-rty-calculator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free first pass yield (FPY) and rolled throughput yield (RTY) calculator. Calculate yield per process step, DPMO, sigma level, and hidden factory cost.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is First Pass Yield (FPY)?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "First Pass Yield is the percentage of units that pass through a process step correctly the first time, without rework or scrap. FPY = (Units In - Defects) / Units In. For example, if 100 units enter and 3 are defective, FPY = 97%. FPY exposes the hidden factory — rework that inflates final yield."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is Rolled Throughput Yield (RTY)?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Rolled Throughput Yield is the probability that a unit passes through ALL process steps without any defect. RTY = FPY1 x FPY2 x FPY3 x ... For example, a 3-step process with 97%, 95%, and 98% FPY has RTY = 0.97 x 0.95 x 0.98 = 90.3%. RTY is always lower than the final yield because it accounts for rework at each step."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Why is RTY lower than final yield?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Final yield only measures what ships — it counts reworked units as good. RTY measures right-first-time quality and reveals the hidden factory: rework, reinspection, and touch-up that add cost but not value. A process with 99% final yield can have an RTY of 85% if multiple rework loops exist. The gap between final yield and RTY is the hidden factory cost."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I calculate DPMO from yield?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "DPMO (Defects Per Million Opportunities) = (1 - Yield) x 1,000,000. For example, 97% yield = 30,000 DPMO. To get sigma level, use the inverse normal distribution: a 6-sigma process has 3.4 DPMO (with 1.5 sigma shift). 3-sigma = 66,807 DPMO, 4-sigma = 6,210 DPMO, 5-sigma = 233 DPMO."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is a good RTY?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "World-class RTY is above 95%. A competitive RTY is 85-95%. Below 85% indicates significant hidden factory waste. The target depends on your industry: semiconductor manufacturing targets >99%, while complex assembly may accept 90%+. Improving RTY by even a few percent often yields significant cost savings by eliminating rework."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "FPY/RTY Calculator", "item": "https://svend.ai/tools/fpy-rty-calculator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.step-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+.step-table th {
+    text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--border);
+    color: var(--text-secondary); font-weight: 600; font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+.step-table td {
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle;
+}
+.step-table tr:last-child td { border-bottom: none; }
+.step-table input[type="text"], .step-table input[type="number"] {
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.35rem 0.5rem; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem; outline: none; transition: border-color 0.2s;
+}
+.step-table input:focus { border-color: var(--accent-primary); }
+.step-table .fpy-val {
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.9rem;
+}
+.fpy-good { color: var(--success); }
+.fpy-ok { color: var(--accent-primary); }
+.fpy-warn { color: var(--warning); }
+.fpy-bad { color: var(--danger); }
+
+.btn-add-step {
+    background: var(--bg-secondary); border: 1px dashed var(--border); color: var(--text-secondary);
+    padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+    margin-top: 0.75rem; transition: border-color 0.2s;
+}
+.btn-add-step:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+.btn-remove {
+    background: none; border: none; color: var(--text-dim); cursor: pointer;
+    font-size: 1rem; padding: 0.25rem 0.5rem; border-radius: 4px;
+}
+.btn-remove:hover { color: var(--danger); background: rgba(192,57,43,0.1); }
+
+.yield-bar-container { margin-top: 1.5rem; }
+.yield-bar-row {
+    display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;
+}
+.yield-bar-label {
+    min-width: 100px; font-size: 0.8rem; color: var(--text-secondary); text-align: right;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.yield-bar-track {
+    flex: 1; height: 24px; background: var(--bg-secondary); border-radius: 4px;
+    overflow: hidden; position: relative;
+}
+.yield-bar-fill {
+    height: 100%; border-radius: 4px; transition: width 0.5s ease;
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 0.5rem;
+    font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: #fff;
+    min-width: 40px;
+}
+
+.rty-display {
+    text-align: center; padding: 2rem; margin: 1.5rem 0;
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;
+}
+.rty-number {
+    font-size: 3.5rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+}
+.rty-sub { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1>First Pass <strong>Yield</strong> &amp; RTY Calculator</h1>
+    <p>Enter your process steps and defect counts to calculate First Pass Yield per step, Rolled Throughput Yield, DPMO, and sigma level. Find your hidden factory.</p>
+</div>
+
+<div class="tool-card">
+    <h2>Process Steps</h2>
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem">Enter the number of units inspected and defects found at each step. Defects include rework, scrap, and any unit requiring correction.</p>
+    <table class="step-table" id="stepTable">
+        <thead>
+            <tr>
+                <th style="width:30px">#</th>
+                <th>Step Name</th>
+                <th style="width:100px;text-align:center">Units In</th>
+                <th style="width:100px;text-align:center">Defects</th>
+                <th style="width:90px;text-align:center">FPY</th>
+                <th style="width:40px"></th>
+            </tr>
+        </thead>
+        <tbody id="stepBody">
+        </tbody>
+    </table>
+    <button class="btn-add-step" onclick="addStep()">+ Add Process Step</button>
+</div>
+
+<div class="rty-display">
+    <div class="rty-number" id="rtyValue">—</div>
+    <div class="rty-sub">Rolled Throughput Yield (FPY<sub>1</sub> &times; FPY<sub>2</sub> &times; &hellip; &times; FPY<sub>n</sub>)</div>
+</div>
+
+<div class="results-grid" id="summaryGrid" style="display:none">
+    <div class="result-item result-neutral">
+        <div class="label">Process Steps</div>
+        <div class="value" id="rSteps">0</div>
+    </div>
+    <div class="result-item" id="rRTY">
+        <div class="label">RTY</div>
+        <div class="value" id="rRTYVal">—</div>
+        <div class="sub">Right first time</div>
+    </div>
+    <div class="result-item" id="rDPMO">
+        <div class="label">DPMO</div>
+        <div class="value" id="rDPMOVal">—</div>
+        <div class="sub">Defects per million</div>
+    </div>
+    <div class="result-item" id="rSigma">
+        <div class="label">Sigma Level</div>
+        <div class="value" id="rSigmaVal">—</div>
+        <div class="sub">With 1.5&sigma; shift</div>
+    </div>
+    <div class="result-item" id="rHidden">
+        <div class="label">Hidden Factory</div>
+        <div class="value" id="rHiddenVal">—</div>
+        <div class="sub">RTY gap vs final yield</div>
+    </div>
+    <div class="result-item result-neutral">
+        <div class="label">Worst Step</div>
+        <div class="value" id="rWorst">—</div>
+        <div class="sub" id="rWorstName"></div>
+    </div>
+</div>
+
+<div class="tool-card" id="yieldChart" style="display:none;margin-top:1.5rem">
+    <h2>Yield by Step</h2>
+    <div class="yield-bar-container" id="yieldBars"></div>
+</div>
+
+<div id="interpretation" class="interpretation" style="display:none;margin-top:1rem"></div>
+
+<!-- Reference table -->
+<div class="tool-card" style="margin-top:1.5rem">
+    <h2>Yield &amp; Sigma Reference</h2>
+    <table class="ref-table">
+        <thead><tr><th>Sigma</th><th>Yield</th><th>DPMO</th><th>Class</th></tr></thead>
+        <tbody>
+            <tr><td>2&sigma;</td><td>69.15%</td><td>308,538</td><td>Non-competitive</td></tr>
+            <tr><td>3&sigma;</td><td>93.32%</td><td>66,807</td><td>Average</td></tr>
+            <tr><td>4&sigma;</td><td>99.379%</td><td>6,210</td><td>Competitive</td></tr>
+            <tr><td>5&sigma;</td><td>99.977%</td><td>233</td><td>World-class</td></tr>
+            <tr><td>6&sigma;</td><td>99.99966%</td><td>3.4</td><td>Best-in-class</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is First Pass Yield (FPY)?</h2>
+    <p><strong>First Pass Yield</strong> measures the percentage of units that pass through a process step correctly the first time — without rework, repair, or scrap. Unlike final yield, which counts reworked units as good, FPY reveals the <strong>true cost of quality</strong> by exposing every touch-up, reinspection, and sorting operation hidden inside your process. FPY = (Units In &minus; Defects) / Units In.</p>
+    <p>FPY is a foundational metric in <strong>Six Sigma</strong> and <strong>lean manufacturing</strong>. It directly connects to process capability — a process with a <a href="/tools/cpk-calculator/" style="color:var(--accent-primary);">Cpk of 1.33</a> (4&sigma;) produces ~63 PPM defective and an FPY of ~99.99%. When FPY drops below 95% at any step, that step is a prime target for root cause analysis and improvement.</p>
+
+    <h3>Rolled Throughput Yield and the Hidden Factory</h3>
+    <p><strong>Rolled Throughput Yield (RTY)</strong> is the probability that a unit passes through <em>all</em> process steps without any defect. It is calculated by multiplying the FPY of each step: RTY = FPY<sub>1</sub> &times; FPY<sub>2</sub> &times; &hellip; &times; FPY<sub>n</sub>. Because probabilities multiply, RTY drops faster than most engineers expect — a 5-step process with 97% FPY at each step has an RTY of only 85.9%.</p>
+    <p>The gap between final yield and RTY is the <strong>hidden factory</strong> — all the rework, reinspection, and correction that adds cost but not value. A process shipping 99% good product might have an RTY of 80% if rework loops exist at multiple steps. The hidden factory is invisible to traditional yield metrics but directly impacts <strong>cost of poor quality (COPQ)</strong>, cycle time, and capacity. Use <a href="/app/vsm/" style="color:var(--accent-primary);">value stream mapping</a> to visualize where yield loss occurs and quantify the waste.</p>
+
+    <h3>How to Improve RTY</h3>
+    <p>Start with the worst step — the one with the lowest FPY. Small improvements at the bottleneck have the largest RTY impact. Use these tools in sequence:</p>
+    <ul style="color:var(--text-secondary); line-height:1.8; padding-left:1.5rem;">
+        <li><strong>Identify</strong> — use <a href="/tools/pareto-chart-generator/" style="color:var(--accent-primary);">Pareto analysis</a> to find the top defect types at the worst step</li>
+        <li><strong>Analyze</strong> — apply root cause analysis (5 Why, fishbone diagram) to find systematic causes</li>
+        <li><strong>Control</strong> — implement <a href="/tools/control-chart-generator/" style="color:var(--accent-primary);">SPC control charts</a> to detect process shifts before they produce defects</li>
+        <li><strong>Prevent</strong> — add mistake-proofing (poka-yoke), standard work, and design changes to eliminate the root cause</li>
+        <li><strong>Verify</strong> — re-measure FPY after each improvement cycle to confirm RTY gains</li>
+    </ul>
+
+    <h3>Yield Benchmarks by Industry</h3>
+    <p>Target RTY varies by process complexity and industry requirements:</p>
+    <ul style="color:var(--text-secondary); line-height:1.8; padding-left:1.5rem;">
+        <li><strong>RTY &ge; 99%</strong> — semiconductor fabrication, pharmaceutical manufacturing</li>
+        <li><strong>RTY &ge; 95%</strong> — world-class discrete manufacturing, automotive assembly</li>
+        <li><strong>RTY 85&ndash;95%</strong> — competitive general manufacturing, electronics assembly</li>
+        <li><strong>RTY &lt; 85%</strong> — significant hidden factory waste; systematic improvement needed</li>
+    </ul>
+    <p>Even a 2&ndash;3% RTY improvement often delivers significant cost savings by eliminating rework labor, reducing cycle time, and freeing capacity. Track yield trends over time with <a href="/app/spc/" style="color:var(--accent-primary);">SPC dashboards</a> to ensure gains are sustained.</p>
+</div>
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Track yield across your value stream</h3>
+    <p>Map your entire process with value stream mapping, SPC control charts, and root cause analysis. Find where yield drops and fix it with data.</p>
+    <a href="/register/" class="nav-btn">Start Free</a>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is First Pass Yield (FPY)?</div>
+        <div class="faq-a">FPY is the percentage of units that pass through a process step without any defect, rework, or scrap. FPY = (Units In &minus; Defects) / Units In. It measures right-first-time quality and exposes the hidden factory.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is Rolled Throughput Yield (RTY)?</div>
+        <div class="faq-a">RTY is the probability of a unit passing through all process steps defect-free. Multiply all FPY values: RTY = FPY<sub>1</sub> &times; FPY<sub>2</sub> &times; &hellip;. RTY is always less than or equal to the lowest individual FPY.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the hidden factory?</div>
+        <div class="faq-a">The hidden factory is the gap between final yield (which counts reworked units as good) and RTY (which only counts right-first-time). A process shipping 99% good product might have 85% RTY &mdash; the 14% gap is rework, reinspection, and sorting that adds cost without adding value.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do I improve RTY?</div>
+        <div class="faq-a">Start with the worst step (lowest FPY). Use Pareto analysis to find the top defect types, then root cause analysis (5 Why, fishbone) to find systematic causes. Implement mistake-proofing (poka-yoke), standard work, and SPC. Small FPY improvements at the worst step have the largest RTY impact.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do I convert RTY to sigma level?</div>
+        <div class="faq-a">DPMO = (1 &minus; RTY) &times; 1,000,000. Then use the inverse normal distribution with a 1.5&sigma; shift: Sigma = &Phi;<sup>-1</sup>(RTY) + 1.5. For example, 93.3% RTY = 66,807 DPMO = 3&sigma;. This calculator computes it automatically.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+    var stepId = 0;
+    var defaultSteps = [
+        {name: 'Incoming Inspection', units: 1000, defects: 12},
+        {name: 'Assembly', units: 988, defects: 25},
+        {name: 'Testing', units: 963, defects: 8},
+        {name: 'Final Inspection', units: 955, defects: 5},
+    ];
+
+    // Inverse normal approximation (Abramowitz & Stegun)
+    function normInv(p) {
+        if (p <= 0) return -4;
+        if (p >= 1) return 4;
+        var t = Math.sqrt(-2 * Math.log(p < 0.5 ? p : 1 - p));
+        var c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
+        var d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+        var x = t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t);
+        return p < 0.5 ? -x : x;
+    }
+
+    function yieldToSigma(y) {
+        if (y >= 1) return 6;
+        if (y <= 0) return 0;
+        return normInv(y) + 1.5;
+    }
+
+    function fpyColor(fpy) {
+        if (fpy >= 0.99) return 'fpy-good';
+        if (fpy >= 0.95) return 'fpy-ok';
+        if (fpy >= 0.90) return 'fpy-warn';
+        return 'fpy-bad';
+    }
+    function barColor(fpy) {
+        if (fpy >= 0.99) return 'var(--success)';
+        if (fpy >= 0.95) return 'var(--accent-primary)';
+        if (fpy >= 0.90) return 'var(--warning)';
+        return 'var(--danger)';
+    }
+
+    window.addStep = function(name, units, defects) {
+        var id = ++stepId;
+        var tr = document.createElement('tr');
+        tr.id = 'step-' + id;
+        tr.innerHTML =
+            '<td style="color:var(--text-dim);font-family:JetBrains Mono,monospace;font-size:0.8rem;text-align:center">' + id + '</td>' +
+            '<td><input type="text" value="' + (name || '') + '" placeholder="e.g. Assembly" style="width:100%" onchange="calc()"></td>' +
+            '<td><input type="number" min="1" value="' + (units || 1000) + '" style="width:80px;text-align:center" onchange="calc()"></td>' +
+            '<td><input type="number" min="0" value="' + (defects || 0) + '" style="width:80px;text-align:center" onchange="calc()"></td>' +
+            '<td style="text-align:center"><span class="fpy-val">—</span></td>' +
+            '<td style="text-align:center"><button class="btn-remove" onclick="removeStep(' + id + ')">&times;</button></td>';
+        document.getElementById('stepBody').appendChild(tr);
+        calc();
+    };
+
+    window.removeStep = function(id) {
+        var el = document.getElementById('step-' + id);
+        if (el) el.remove();
+        // Renumber
+        var rows = document.getElementById('stepBody').querySelectorAll('tr');
+        rows.forEach(function(r, i) {
+            r.querySelector('td').textContent = i + 1;
+        });
+        calc();
+    };
+
+    window.calc = function() {
+        var rows = document.getElementById('stepBody').querySelectorAll('tr');
+        if (rows.length === 0) {
+            document.getElementById('rtyValue').textContent = '—';
+            document.getElementById('summaryGrid').style.display = 'none';
+            document.getElementById('yieldChart').style.display = 'none';
+            document.getElementById('interpretation').style.display = 'none';
+            return;
+        }
+
+        var rty = 1;
+        var steps = [];
+        var worstFPY = 1, worstName = '';
+
+        rows.forEach(function(tr) {
+            var inputs = tr.querySelectorAll('input');
+            var name = inputs[0].value || ('Step ' + (steps.length + 1));
+            var units = Math.max(1, +(inputs[1].value) || 1);
+            var defects = Math.max(0, +(inputs[2].value) || 0);
+            var fpy = Math.max(0, (units - defects) / units);
+
+            var fpyEl = tr.querySelector('.fpy-val');
+            fpyEl.textContent = (fpy * 100).toFixed(2) + '%';
+            fpyEl.className = 'fpy-val ' + fpyColor(fpy);
+
+            rty *= fpy;
+            steps.push({name: name, fpy: fpy, units: units, defects: defects});
+            if (fpy < worstFPY) { worstFPY = fpy; worstName = name; }
+        });
+
+        // Calculate final yield (just last step output / first step input)
+        var firstUnits = steps[0].units;
+        var lastOut = steps[steps.length - 1].units - steps[steps.length - 1].defects;
+        var finalYield = lastOut / firstUnits;
+        var hiddenGap = finalYield - rty;
+
+        var dpmo = Math.round((1 - rty) * 1000000);
+        var sigma = yieldToSigma(rty);
+
+        // RTY display
+        var rtyEl = document.getElementById('rtyValue');
+        rtyEl.textContent = (rty * 100).toFixed(2) + '%';
+        rtyEl.className = 'rty-number ' + fpyColor(rty);
+
+        // Summary grid
+        document.getElementById('summaryGrid').style.display = '';
+        document.getElementById('rSteps').textContent = steps.length;
+        document.getElementById('rRTYVal').textContent = (rty * 100).toFixed(2) + '%';
+        document.getElementById('rRTY').className = 'result-item ' + (rty >= 0.95 ? 'result-good' : rty >= 0.85 ? 'result-warn' : 'result-bad');
+        document.getElementById('rDPMOVal').textContent = dpmo.toLocaleString();
+        document.getElementById('rDPMO').className = 'result-item ' + (dpmo <= 6210 ? 'result-good' : dpmo <= 66807 ? 'result-warn' : 'result-bad');
+        document.getElementById('rSigmaVal').textContent = sigma.toFixed(2) + 'σ';
+        document.getElementById('rSigma').className = 'result-item ' + (sigma >= 4 ? 'result-good' : sigma >= 3 ? 'result-warn' : 'result-bad');
+        document.getElementById('rHiddenVal').textContent = (hiddenGap * 100).toFixed(1) + '%';
+        document.getElementById('rHidden').className = 'result-item ' + (hiddenGap > 0.05 ? 'result-bad' : hiddenGap > 0.02 ? 'result-warn' : 'result-good');
+        document.getElementById('rWorst').textContent = (worstFPY * 100).toFixed(1) + '%';
+        document.getElementById('rWorstName').textContent = worstName;
+
+        // Yield bars
+        document.getElementById('yieldChart').style.display = '';
+        var barsHtml = '';
+        steps.forEach(function(s) {
+            var pct = (s.fpy * 100).toFixed(1);
+            barsHtml +=
+                '<div class="yield-bar-row">' +
+                '<div class="yield-bar-label">' + s.name + '</div>' +
+                '<div class="yield-bar-track">' +
+                '<div class="yield-bar-fill" style="width:' + pct + '%;background:' + barColor(s.fpy) + '">' + pct + '%</div>' +
+                '</div></div>';
+        });
+        // RTY bar
+        var rtyPct = (rty * 100).toFixed(1);
+        barsHtml +=
+            '<div class="yield-bar-row" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border)">' +
+            '<div class="yield-bar-label" style="font-weight:700;color:var(--text-primary)">RTY</div>' +
+            '<div class="yield-bar-track">' +
+            '<div class="yield-bar-fill" style="width:' + rtyPct + '%;background:' + barColor(rty) + '">' + rtyPct + '%</div>' +
+            '</div></div>';
+        document.getElementById('yieldBars').innerHTML = barsHtml;
+
+        // Interpretation
+        var interp = document.getElementById('interpretation');
+        interp.style.display = '';
+        var parts = [];
+
+        if (rty >= 0.95) parts.push('<strong>Excellent RTY</strong> (' + (rty*100).toFixed(1) + '%) — world-class right-first-time quality.');
+        else if (rty >= 0.85) parts.push('<strong>Good RTY</strong> (' + (rty*100).toFixed(1) + '%) — competitive, but room for improvement.');
+        else if (rty >= 0.70) parts.push('<strong>Below target RTY</strong> (' + (rty*100).toFixed(1) + '%) — significant hidden factory waste. Focus improvement on the worst step.');
+        else parts.push('<strong>Poor RTY</strong> (' + (rty*100).toFixed(1) + '%) — major quality issues across the process. Systematic improvement needed.');
+
+        parts.push('Worst step: <strong>' + worstName + '</strong> at ' + (worstFPY*100).toFixed(1) + '% FPY — start your improvement here.');
+
+        if (hiddenGap > 0.05) {
+            parts.push('Hidden factory gap: <strong>' + (hiddenGap*100).toFixed(1) + '%</strong> — this is the difference between what ships and what was right the first time. This gap represents rework cost.');
+        }
+
+        parts.push('Process sigma: <strong>' + sigma.toFixed(2) + 'σ</strong> (' + dpmo.toLocaleString() + ' DPMO).');
+        interp.innerHTML = parts.join('<br>');
+    };
+
+    // Initialize with example data
+    defaultSteps.forEach(function(s) { addStep(s.name, s.units, s.defects); });
+})();
+</script>
+{% endblock %}

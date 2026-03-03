@@ -1,0 +1,554 @@
+{% extends "tool_base.html" %}
+
+{% block title %}FMEA RPN Calculator — Free Risk Priority Number Calculator{% endblock %}
+{% block meta_description %}Free FMEA RPN calculator. Enter Severity, Occurrence, and Detection ratings to calculate Risk Priority Number. Includes AIAG-VDA Action Priority, risk matrix, and color-coded risk levels. No signup required.{% endblock %}
+{% block meta_keywords %}FMEA RPN calculator, risk priority number, FMEA, failure mode effects analysis, severity occurrence detection, AIAG, VDA, action priority, risk assessment, Six Sigma, quality engineering{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/tools/fmea-rpn-calculator/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/tools/fmea-rpn-calculator/">
+<meta property="og:title" content="Free FMEA RPN Calculator — Risk Priority Number">
+<meta property="og:description" content="Calculate Risk Priority Number from Severity, Occurrence, and Detection. AIAG-VDA Action Priority levels with color-coded risk matrix.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "FMEA RPN Calculator",
+    "url": "https://svend.ai/tools/fmea-rpn-calculator/",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "description": "Free FMEA Risk Priority Number calculator. Calculate RPN from Severity, Occurrence, and Detection ratings with AIAG-VDA Action Priority classification.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is RPN in FMEA?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "RPN (Risk Priority Number) is a numerical ranking of risk in FMEA. It is calculated as Severity x Occurrence x Detection, where each factor is rated 1-10. RPN ranges from 1 (lowest risk) to 1,000 (highest risk). It helps prioritize which failure modes need corrective action first."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is a good RPN threshold?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Traditional FMEA uses RPN > 100 or > 125 as a threshold for required action. However, the AIAG-VDA FMEA Handbook (2019) replaced fixed RPN thresholds with Action Priority (AP) levels: High (H), Medium (M), and Low (L), based on the specific combination of S, O, and D rather than their product. This prevents masking — for example, S=10 O=1 D=1 gives RPN=10 but still demands action due to the severity."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between RPN and Action Priority?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "RPN is the simple product S x O x D and can mask high-severity risks when O or D are low. Action Priority (AP), introduced in AIAG-VDA 2019, uses a lookup table that weighs Severity more heavily. For example, any failure mode with Severity 9-10 and Occurrence >= 4 gets High priority regardless of Detection rating. AP is the modern standard for automotive and manufacturing FMEA."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I reduce a high RPN?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Focus on reducing Occurrence (prevent the cause) or Detection (improve controls), since Severity is usually fixed by design. Recommended actions: add mistake-proofing (poka-yoke) to reduce O, add automated inspection or SPC to reduce D. After implementing actions, re-score and verify the RPN decreased. Track RPN before and after to demonstrate improvement."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What do Severity, Occurrence, and Detection mean?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Severity (S) rates the impact of the failure effect on the customer (1=no effect, 10=safety/regulatory). Occurrence (O) rates how frequently the cause happens (1=extremely unlikely, 10=almost certain). Detection (D) rates how well current controls can catch the failure before it reaches the customer (1=almost certain detection, 10=no detection). Note: Detection is inverse — lower is better."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Free Tools", "item": "https://svend.ai/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "FMEA RPN Calculator", "item": "https://svend.ai/tools/fmea-rpn-calculator/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.rpn-display {
+    text-align: center; padding: 2rem; margin: 1.5rem 0;
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;
+}
+.rpn-number {
+    font-size: 4rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+}
+.rpn-label { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+.rpn-low { color: var(--success); }
+.rpn-med { color: var(--warning); }
+.rpn-high { color: var(--danger); }
+
+.ap-badge {
+    display: inline-block; padding: 0.4rem 1.2rem; border-radius: 6px;
+    font-weight: 700; font-size: 0.9rem; letter-spacing: 0.05em; margin-top: 0.75rem;
+}
+.ap-low { background: rgba(39,174,96,0.15); color: var(--success); border: 1px solid rgba(39,174,96,0.3); }
+.ap-med { background: rgba(232,197,71,0.15); color: var(--warning); border: 1px solid rgba(232,197,71,0.3); }
+.ap-high { background: rgba(192,57,43,0.15); color: var(--danger); border: 1px solid rgba(192,57,43,0.3); }
+
+.slider-group { margin-bottom: 1.25rem; }
+.slider-header {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.35rem;
+}
+.slider-header label { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.slider-value {
+    font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700;
+    color: var(--accent-primary); min-width: 2ch; text-align: right;
+}
+.slider-desc { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px;
+    background: var(--border); outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent-primary); cursor: pointer; border: 2px solid var(--bg-primary);
+}
+input[type="range"]::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent-primary); cursor: pointer; border: 2px solid var(--bg-primary);
+}
+
+.rows-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem; }
+.rows-table th {
+    text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--border);
+    color: var(--text-secondary); font-weight: 600; font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+.rows-table td {
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+}
+.rows-table tr:last-child td { border-bottom: none; }
+.rows-table .row-actions { text-align: center; }
+.rows-table .btn-remove {
+    background: none; border: none; color: var(--text-dim); cursor: pointer;
+    font-size: 1rem; padding: 0.25rem 0.5rem; border-radius: 4px;
+}
+.rows-table .btn-remove:hover { color: var(--danger); background: rgba(192,57,43,0.1); }
+.btn-add-row {
+    background: var(--bg-secondary); border: 1px dashed var(--border); color: var(--text-secondary);
+    padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+    margin-top: 0.75rem; transition: border-color 0.2s;
+}
+.btn-add-row:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+.mode-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; }
+.mode-tab {
+    flex: 1; text-align: center; padding: 0.6rem; cursor: pointer;
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;
+    transition: all 0.2s;
+}
+.mode-tab:first-child { border-radius: 6px 0 0 6px; }
+.mode-tab:last-child { border-radius: 0 6px 6px 0; }
+.mode-tab.active {
+    background: var(--accent-primary-dim); border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+.tool-guide { color: var(--text-secondary); line-height: 1.75; }
+.tool-guide h2 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 0.75rem; }
+.tool-guide h3 { color: var(--text-primary); font-size: 1.15rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+.tool-guide p { margin-bottom: 0.75rem; }
+.tool-guide strong { color: var(--text-primary); }
+{% endblock %}
+
+{% block content %}
+<div class="tool-header">
+    <h1><strong>FMEA RPN</strong> Calculator</h1>
+    <p>Calculate Risk Priority Number from Severity, Occurrence, and Detection ratings. Includes AIAG-VDA Action Priority classification.</p>
+</div>
+
+<!-- Mode selector -->
+<div class="mode-tabs">
+    <div class="mode-tab active" onclick="setMode('single')">Single Failure Mode</div>
+    <div class="mode-tab" onclick="setMode('multi')">Multiple Failure Modes</div>
+</div>
+
+<!-- Single mode -->
+<div id="singleMode">
+<div class="tool-card">
+    <h2>Risk Ratings</h2>
+
+    <div class="slider-group">
+        <div class="slider-header">
+            <label>Severity (S)</label>
+            <span class="slider-value" id="sevVal">5</span>
+        </div>
+        <div class="slider-desc" id="sevDesc">Moderate — customer dissatisfied</div>
+        <input type="range" id="severity" min="1" max="10" value="5" oninput="calculate()">
+    </div>
+
+    <div class="slider-group">
+        <div class="slider-header">
+            <label>Occurrence (O)</label>
+            <span class="slider-value" id="occVal">5</span>
+        </div>
+        <div class="slider-desc" id="occDesc">Moderate — occasional failures</div>
+        <input type="range" id="occurrence" min="1" max="10" value="5" oninput="calculate()">
+    </div>
+
+    <div class="slider-group">
+        <div class="slider-header">
+            <label>Detection (D)</label>
+            <span class="slider-value" id="detVal">5</span>
+        </div>
+        <div class="slider-desc" id="detDesc">Moderate — controls may detect</div>
+        <input type="range" id="detection" min="1" max="10" value="5" oninput="calculate()">
+    </div>
+</div>
+
+<div class="rpn-display">
+    <div class="rpn-number" id="rpnValue">125</div>
+    <div class="rpn-label">Risk Priority Number (S &times; O &times; D)</div>
+    <div class="ap-badge ap-med" id="apBadge">MEDIUM PRIORITY</div>
+</div>
+
+<div class="results-grid" style="margin-bottom:1rem">
+    <div class="result-item result-neutral">
+        <div class="label">Severity</div>
+        <div class="value" id="rSev">5</div>
+        <div class="sub" id="rSevText">Moderate</div>
+    </div>
+    <div class="result-item result-neutral">
+        <div class="label">Occurrence</div>
+        <div class="value" id="rOcc">5</div>
+        <div class="sub" id="rOccText">Moderate</div>
+    </div>
+    <div class="result-item result-neutral">
+        <div class="label">Detection</div>
+        <div class="value" id="rDet">5</div>
+        <div class="sub" id="rDetText">Moderate</div>
+    </div>
+    <div class="result-item" id="rCrit">
+        <div class="label">Criticality (S&times;O)</div>
+        <div class="value" id="rCritVal">25</div>
+        <div class="sub">Severity &times; Occurrence</div>
+    </div>
+</div>
+
+<div id="interpretation" class="interpretation"></div>
+</div>
+
+<!-- Multi mode -->
+<div id="multiMode" style="display:none">
+<div class="tool-card">
+    <h2>Failure Mode Table</h2>
+    <table class="rows-table" id="fmeaTable">
+        <thead>
+            <tr>
+                <th>Failure Mode</th>
+                <th style="width:60px;text-align:center">S</th>
+                <th style="width:60px;text-align:center">O</th>
+                <th style="width:60px;text-align:center">D</th>
+                <th style="width:80px;text-align:center">RPN</th>
+                <th style="width:70px;text-align:center">AP</th>
+                <th style="width:40px"></th>
+            </tr>
+        </thead>
+        <tbody id="fmeaBody">
+        </tbody>
+    </table>
+    <button class="btn-add-row" onclick="addRow()">+ Add Failure Mode</button>
+</div>
+
+<div class="tool-card" id="multiSummary" style="display:none">
+    <h2>Summary</h2>
+    <div class="results-grid" id="multiResults"></div>
+    <div id="multiInterpretation" class="interpretation" style="margin-top:1rem"></div>
+</div>
+</div>
+
+<!-- Reference table -->
+<div class="tool-card" style="margin-top:1.5rem">
+    <h2>Rating Reference</h2>
+    <table class="ref-table">
+        <thead><tr><th>Rating</th><th>Severity</th><th>Occurrence</th><th>Detection</th></tr></thead>
+        <tbody>
+            <tr><td>1</td><td>No effect</td><td>Failure eliminated</td><td>Almost certain detection</td></tr>
+            <tr><td>2-3</td><td>Minor — slight inconvenience</td><td>Remote — rare failures</td><td>High — likely detected</td></tr>
+            <tr><td>4-6</td><td>Moderate — customer dissatisfied</td><td>Moderate — occasional</td><td>Moderate — may detect</td></tr>
+            <tr><td>7-8</td><td>High — significant impact</td><td>High — repeated failures</td><td>Low — unlikely detected</td></tr>
+            <tr><td>9-10</td><td>Very high — safety/regulatory</td><td>Very high — near certain</td><td>Very low — no detection</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="tool-guide" style="margin-top:3rem;">
+    <h2>What Is RPN (Risk Priority Number)?</h2>
+    <p><strong>Risk Priority Number</strong> is the core metric of <strong>Failure Mode and Effects Analysis (FMEA)</strong>. It quantifies the risk of each potential failure mode by multiplying three factors: <strong>Severity</strong> (impact on the customer), <strong>Occurrence</strong> (how often the cause happens), and <strong>Detection</strong> (how well current controls catch it before it reaches the customer). RPN = S &times; O &times; D, producing a score from 1 to 1,000.</p>
+    <p>FMEA originated in the U.S. military (MIL-P-1629, 1949) and was adopted by the automotive industry through AIAG. Today it is required by <strong>IATF 16949</strong>, AS9100 (aerospace), and ISO 14971 (medical devices). RPN provides a repeatable, team-based method for prioritizing corrective actions on the failure modes that matter most.</p>
+
+    <h3>RPN vs. Action Priority (AIAG-VDA)</h3>
+    <p>Traditional RPN has a well-known weakness: it treats S, O, and D as interchangeable. A failure with <strong>S=10, O=1, D=1</strong> (catastrophic but rare, easily detected) gets RPN=10 — the same as <strong>S=1, O=2, D=5</strong> (trivial). The 2019 <strong>AIAG-VDA FMEA Handbook</strong> addressed this by introducing <strong>Action Priority (AP)</strong>, a lookup-based classification that weighs Severity more heavily. Any failure with S &ge; 9 and O &ge; 4 is automatically High priority regardless of Detection. This calculator shows both RPN and AP so you can compare the traditional and modern approaches.</p>
+
+    <h3>How to Reduce a High RPN</h3>
+    <p>Severity is usually fixed by the product design, so focus on the two factors you can control:</p>
+    <ul style="color:var(--text-secondary); line-height:1.8; padding-left:1.5rem;">
+        <li><strong>Reduce Occurrence</strong> — eliminate the root cause with design changes, poka-yoke (mistake-proofing), or process parameter optimization. Use <a href="/tools/pareto-chart-generator/" style="color:var(--accent-primary);">Pareto analysis</a> to identify which causes drive the most failures.</li>
+        <li><strong>Reduce Detection</strong> — improve your ability to catch failures before they reach the customer. Add in-process SPC, automated inspection, or 100% functional testing. A <a href="/tools/control-chart-generator/" style="color:var(--accent-primary);">control chart</a> can detect process shifts before they produce defects.</li>
+        <li><strong>Track before and after</strong> — re-score each failure mode after implementing actions. The RPN delta demonstrates improvement to auditors and management.</li>
+    </ul>
+
+    <h3>FMEA in Practice</h3>
+    <p>Effective FMEA is a living document, not a one-time exercise. Update it when designs change, new failure modes are discovered, or corrective actions are implemented. For persistent FMEA tracking with Bayesian evidence linking, automatic RPN recalculation, and PDF export, use the <a href="/app/fmea/" style="color:var(--accent-primary);">full FMEA tool</a> in Svend.</p>
+    <ul style="color:var(--text-secondary); line-height:1.8; padding-left:1.5rem;">
+        <li><strong>Automotive (IATF 16949)</strong> — Design FMEA (DFMEA) and Process FMEA (PFMEA) required for PPAP submission</li>
+        <li><strong>Aerospace (AS9100)</strong> — FMEA required for critical and safety characteristics</li>
+        <li><strong>Medical devices (ISO 14971)</strong> — Risk analysis using FMEA methodology for hazard identification</li>
+        <li><strong>General manufacturing</strong> — FMEA drives preventive action and continuous improvement per ISO 9001 clause 6.1</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Need a full FMEA?</h3>
+    <p>Build persistent FMEAs with S/O/D scoring, RPN tracking, Bayesian evidence linking, and automatic risk recalculation. Export to PDF.</p>
+    <a href="/register/" class="nav-btn">Start Free</a>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">What is RPN in FMEA?</div>
+        <div class="faq-a">RPN (Risk Priority Number) is calculated as Severity &times; Occurrence &times; Detection, where each factor is rated 1&ndash;10. It ranges from 1 (lowest risk) to 1,000 (highest risk) and helps prioritize which failure modes need corrective action first.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is a good RPN threshold?</div>
+        <div class="faq-a">Traditional FMEA uses RPN &gt; 100 or &gt; 125 as a threshold for required action. However, the AIAG-VDA FMEA Handbook (2019) recommends Action Priority (AP) levels instead, which weight Severity more heavily and prevent masking of high-severity, low-occurrence risks.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is Action Priority (AP)?</div>
+        <div class="faq-a">Action Priority is the modern replacement for fixed RPN thresholds. It classifies each failure mode as High (H), Medium (M), or Low (L) based on the specific combination of S, O, and D values rather than their product. This prevents a high-severity failure from being hidden by low occurrence or detection scores.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do I reduce a high RPN?</div>
+        <div class="faq-a">Focus on reducing Occurrence (prevent the cause with poka-yoke, design changes) or Detection (improve inspection, add SPC, automated testing). Severity is usually fixed by the design. After implementing actions, re-score to verify the RPN decreased.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">Why is Detection scored in reverse?</div>
+        <div class="faq-a">Detection rates how well your controls can catch a failure <em>before</em> it reaches the customer. A score of 1 means almost certain detection (best), while 10 means no detection capability (worst). This is inverse because better detection reduces risk.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+    var SEV_DESC = {
+        1: 'No effect', 2: 'Very minor — barely noticeable', 3: 'Minor — slight inconvenience',
+        4: 'Low — some customer dissatisfaction', 5: 'Moderate — customer dissatisfied',
+        6: 'Significant — degraded performance', 7: 'High — inoperable, customer angry',
+        8: 'Very high — product fails primary function', 9: 'Hazardous with warning — safety risk',
+        10: 'Hazardous without warning — safety/regulatory'
+    };
+    var OCC_DESC = {
+        1: 'Failure eliminated — near impossible', 2: 'Remote — only isolated failures',
+        3: 'Very low — few failures', 4: 'Low — relatively few failures',
+        5: 'Moderate — occasional failures', 6: 'Moderately high — frequent failures',
+        7: 'High — repeated failures', 8: 'Very high — highly probable',
+        9: 'Extremely high — failure is almost inevitable', 10: 'Certain — failure will occur'
+    };
+    var DET_DESC = {
+        1: 'Almost certain — controls will detect', 2: 'Very high — very likely detected',
+        3: 'High — good chance of detection', 4: 'Moderately high — fairly good detection',
+        5: 'Moderate — controls may detect', 6: 'Low — controls have poor chance',
+        7: 'Very low — unlikely to detect', 8: 'Remote — very unlikely to detect',
+        9: 'Very remote — almost no detection', 10: 'No detection — no controls exist'
+    };
+
+    function getAP(s, o, d) {
+        // Simplified AIAG-VDA Action Priority logic
+        if (s >= 9 && o >= 4) return 'H';
+        if (s >= 9 && o >= 2 && d >= 5) return 'H';
+        if (s >= 9) return 'M';
+        if (s >= 7 && o >= 5 && d >= 5) return 'H';
+        if (s >= 7 && o >= 4) return 'M';
+        if (s >= 5 && o >= 7 && d >= 5) return 'H';
+        var rpn = s * o * d;
+        if (rpn >= 200) return 'H';
+        if (rpn >= 80) return 'M';
+        return 'L';
+    }
+
+    function apLabel(ap) {
+        return {H: 'HIGH PRIORITY', M: 'MEDIUM PRIORITY', L: 'LOW PRIORITY'}[ap];
+    }
+    function apClass(ap) {
+        return {H: 'ap-high', M: 'ap-med', L: 'ap-low'}[ap];
+    }
+
+    function rpnClass(rpn) {
+        if (rpn >= 200) return 'rpn-high';
+        if (rpn >= 80) return 'rpn-med';
+        return 'rpn-low';
+    }
+
+    function critClass(c) {
+        if (c >= 40) return 'result-bad';
+        if (c >= 15) return 'result-warn';
+        return 'result-good';
+    }
+
+    window.calculate = function() {
+        var s = +document.getElementById('severity').value;
+        var o = +document.getElementById('occurrence').value;
+        var d = +document.getElementById('detection').value;
+        var rpn = s * o * d;
+        var crit = s * o;
+        var ap = getAP(s, o, d);
+
+        document.getElementById('sevVal').textContent = s;
+        document.getElementById('occVal').textContent = o;
+        document.getElementById('detVal').textContent = d;
+        document.getElementById('sevDesc').textContent = SEV_DESC[s];
+        document.getElementById('occDesc').textContent = OCC_DESC[o];
+        document.getElementById('detDesc').textContent = DET_DESC[d];
+
+        var el = document.getElementById('rpnValue');
+        el.textContent = rpn;
+        el.className = 'rpn-number ' + rpnClass(rpn);
+
+        var badge = document.getElementById('apBadge');
+        badge.textContent = apLabel(ap);
+        badge.className = 'ap-badge ' + apClass(ap);
+
+        document.getElementById('rSev').textContent = s;
+        document.getElementById('rSevText').textContent = s <= 3 ? 'Low' : s <= 6 ? 'Moderate' : s <= 8 ? 'High' : 'Critical';
+        document.getElementById('rOcc').textContent = o;
+        document.getElementById('rOccText').textContent = o <= 3 ? 'Low' : o <= 6 ? 'Moderate' : o <= 8 ? 'High' : 'Very High';
+        document.getElementById('rDet').textContent = d;
+        document.getElementById('rDetText').textContent = d <= 3 ? 'Good' : d <= 6 ? 'Moderate' : d <= 8 ? 'Poor' : 'None';
+        document.getElementById('rCritVal').textContent = crit;
+        document.getElementById('rCrit').className = 'result-item ' + critClass(crit);
+
+        // Interpretation
+        var parts = [];
+        if (ap === 'H') parts.push('<strong>High priority</strong> — immediate action required. Implement corrective actions to reduce risk.');
+        else if (ap === 'M') parts.push('<strong>Medium priority</strong> — action recommended. Review and improve controls where feasible.');
+        else parts.push('<strong>Low priority</strong> — acceptable risk. Monitor and review during next FMEA cycle.');
+
+        if (s >= 9) parts.push('Severity is critical (safety/regulatory impact). Even if occurrence is low, consider design changes.');
+        if (o >= 7 && s >= 5) parts.push('High occurrence combined with significant severity — prioritize prevention (poka-yoke, design changes).');
+        if (d >= 8) parts.push('Detection capability is poor. Consider adding inspection, SPC, or automated checks.');
+        if (rpn >= 200 && ap !== 'H') parts.push('RPN exceeds 200 — traditional threshold for required action.');
+
+        document.getElementById('interpretation').innerHTML = parts.join('<br>');
+    };
+
+    // Multi-mode
+    var rows = [];
+    var rowId = 0;
+
+    window.setMode = function(mode) {
+        document.querySelectorAll('.mode-tab').forEach(function(t, i) {
+            t.classList.toggle('active', (mode === 'single' && i === 0) || (mode === 'multi' && i === 1));
+        });
+        document.getElementById('singleMode').style.display = mode === 'single' ? '' : 'none';
+        document.getElementById('multiMode').style.display = mode === 'multi' ? '' : 'none';
+        if (mode === 'multi' && rows.length === 0) {
+            addRow(); addRow(); addRow();
+        }
+    };
+
+    window.addRow = function() {
+        var id = ++rowId;
+        rows.push(id);
+        var tr = document.createElement('tr');
+        tr.id = 'row-' + id;
+        tr.innerHTML =
+            '<td><input type="text" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:0.3rem 0.5rem;color:var(--text-primary);font-size:0.85rem;width:100%" placeholder="e.g. Seal failure" data-field="name"></td>' +
+            '<td><input type="number" min="1" max="10" value="5" style="width:50px;text-align:center;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:0.3rem;color:var(--text-primary);font-family:JetBrains Mono,monospace;font-size:0.85rem" data-field="s" onchange="calcMulti()"></td>' +
+            '<td><input type="number" min="1" max="10" value="5" style="width:50px;text-align:center;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:0.3rem;color:var(--text-primary);font-family:JetBrains Mono,monospace;font-size:0.85rem" data-field="o" onchange="calcMulti()"></td>' +
+            '<td><input type="number" min="1" max="10" value="5" style="width:50px;text-align:center;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:0.3rem;color:var(--text-primary);font-family:JetBrains Mono,monospace;font-size:0.85rem" data-field="d" onchange="calcMulti()"></td>' +
+            '<td style="text-align:center;font-weight:700" class="rpn-cell">125</td>' +
+            '<td style="text-align:center"><span class="ap-badge ap-med" style="padding:0.2rem 0.5rem;font-size:0.75rem">M</span></td>' +
+            '<td class="row-actions"><button class="btn-remove" onclick="removeRow(' + id + ')">&times;</button></td>';
+        document.getElementById('fmeaBody').appendChild(tr);
+        calcMulti();
+    };
+
+    window.removeRow = function(id) {
+        var el = document.getElementById('row-' + id);
+        if (el) el.remove();
+        rows = rows.filter(function(r) { return r !== id; });
+        calcMulti();
+    };
+
+    window.calcMulti = function() {
+        var tbody = document.getElementById('fmeaBody');
+        var trs = tbody.querySelectorAll('tr');
+        var maxRPN = 0, totalRPN = 0, highCount = 0, medCount = 0, count = 0;
+
+        trs.forEach(function(tr) {
+            var s = Math.min(10, Math.max(1, +(tr.querySelector('[data-field="s"]').value) || 1));
+            var o = Math.min(10, Math.max(1, +(tr.querySelector('[data-field="o"]').value) || 1));
+            var d = Math.min(10, Math.max(1, +(tr.querySelector('[data-field="d"]').value) || 1));
+            var rpn = s * o * d;
+            var ap = getAP(s, o, d);
+
+            tr.querySelector('.rpn-cell').textContent = rpn;
+            tr.querySelector('.rpn-cell').className = 'rpn-cell ' + rpnClass(rpn);
+            var badge = tr.querySelectorAll('.ap-badge')[0];
+            badge.textContent = ap;
+            badge.className = 'ap-badge ' + apClass(ap);
+
+            totalRPN += rpn;
+            if (rpn > maxRPN) maxRPN = rpn;
+            if (ap === 'H') highCount++;
+            else if (ap === 'M') medCount++;
+            count++;
+        });
+
+        var summary = document.getElementById('multiSummary');
+        if (count === 0) { summary.style.display = 'none'; return; }
+        summary.style.display = '';
+
+        var avgRPN = Math.round(totalRPN / count);
+        document.getElementById('multiResults').innerHTML =
+            '<div class="result-item result-neutral"><div class="label">Failure Modes</div><div class="value">' + count + '</div></div>' +
+            '<div class="result-item ' + (maxRPN >= 200 ? 'result-bad' : maxRPN >= 80 ? 'result-warn' : 'result-good') + '"><div class="label">Max RPN</div><div class="value">' + maxRPN + '</div></div>' +
+            '<div class="result-item result-neutral"><div class="label">Avg RPN</div><div class="value">' + avgRPN + '</div></div>' +
+            '<div class="result-item ' + (highCount > 0 ? 'result-bad' : 'result-good') + '"><div class="label">High Priority</div><div class="value">' + highCount + '</div></div>';
+
+        var interp = [];
+        if (highCount > 0) interp.push('<strong>' + highCount + ' failure mode(s)</strong> require immediate action (High AP).');
+        if (medCount > 0) interp.push(medCount + ' failure mode(s) at Medium priority — review and improve controls.');
+        if (highCount === 0 && medCount === 0) interp.push('All failure modes are Low priority. Continue monitoring in next FMEA cycle.');
+        document.getElementById('multiInterpretation').innerHTML = interp.join('<br>');
+    };
+
+    // Init
+    calculate();
+})();
+</script>
+{% endblock %}

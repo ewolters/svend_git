@@ -1,0 +1,554 @@
+{% extends "tool_base.html" %}
+
+{% block title %}ISO 9001 Internal Audit Playbook — Plan, Execute, Report{% endblock %}
+{% block meta_description %}Complete guide to ISO 9001 internal audits. Plan audit scope, prepare checklists, classify findings, write CAPA reports, and feed results into management review.{% endblock %}
+{% block meta_keywords %}ISO 9001 internal audit, how to audit ISO 9001, internal audit checklist, ISO 9001 audit program, audit findings classification, CAPA workflow, ISO 9001 management review, audit best practices{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/iso-9001-internal-audit-playbook/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://svend.ai/iso-9001-internal-audit-playbook/">
+<meta property="og:title" content="ISO 9001 Internal Audit Playbook — Plan, Execute, Report | Svend">
+<meta property="og:description" content="Complete guide to planning, conducting, and reporting ISO 9001 internal audits with CAPA integration and management review.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "ISO 9001 Internal Audit Playbook: Plan, Execute, Report",
+    "url": "https://svend.ai/iso-9001-internal-audit-playbook/",
+    "description": "Complete guide to planning, conducting, and reporting ISO 9001:2015 internal audits. Covers audit programs, finding classification, CAPA workflow, and management review integration.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "about": [
+        { "@type": "Thing", "name": "ISO 9001" },
+        { "@type": "Thing", "name": "Internal Audit" },
+        { "@type": "Thing", "name": "Quality Management System" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "How often should I conduct ISO 9001 internal audits?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "ISO 9001 requires audits at planned intervals (clause 9.2) but does not specify frequency. Most organizations audit annually with higher-risk processes audited more often. Risk-based scheduling means processes with recent nonconformities, customer complaints, or significant changes get audited first."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Who can perform an ISO 9001 internal audit?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Anyone with auditor competence and independence from the area being audited. Clause 9.2 requires auditors to be objective and impartial — you cannot audit your own work. Competence typically means training in ISO 9001 requirements, audit techniques, and the processes being audited."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between a minor and major nonconformity?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A major nonconformity is a systematic failure or complete absence of a required QMS element — it affects the system's ability to achieve intended outcomes. A minor nonconformity is an isolated lapse where the system intent is evident but execution failed in a specific instance. Multiple minor NCs in the same area may indicate a systemic issue (major)."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do I write an ISO 9001 audit finding?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A well-written finding has three parts: (1) Statement of the requirement — cite the specific clause or procedure, (2) Objective evidence — describe exactly what you observed, reviewed, or were told, (3) Classification — major NC, minor NC, observation, or opportunity for improvement. Findings should be factual and evidence-based, never opinions."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the CAPA process for audit findings?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "CAPA (Corrective and Preventive Action) for audit findings follows: (1) Containment — immediate action to address the nonconformity, (2) Root cause analysis — determine why it happened using 5 Whys, fishbone, or similar methods, (3) Corrective action — implement changes to eliminate the root cause, (4) Effectiveness verification — confirm the corrective action worked and the nonconformity has not recurred."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do audit results feed into management review?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Clause 9.3.2 requires audit results as a mandatory input to management review. This includes: audit completion rates, nonconformity trends by clause and department, open corrective actions, repeat findings, and auditor observations about systemic issues. Management review outputs should include decisions about resource allocation, QMS scope changes, and improvement priorities based on audit data."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What should an ISO 9001 audit checklist include?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "An effective audit checklist includes evidence-based questions for each clause in scope, references to applicable procedures and work instructions, space for recording objective evidence, conformity/nonconformity classification, and notes. Questions should elicit evidence ('Show me the record for...') rather than yes/no answers."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "ISO 9001 QMS", "item": "https://svend.ai/iso-9001-qms-software/" },
+        { "@type": "ListItem", "position": 3, "name": "Internal Audit Playbook", "item": "https://svend.ai/iso-9001-internal-audit-playbook/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .tool-container { max-width: 1000px; }
+
+    .playbook-hero { text-align: center; margin-bottom: 2.5rem; padding-top: 1rem; }
+    .playbook-badge {
+        display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        background: rgba(74,159,110,0.15); color: var(--accent-primary); border: 1px solid rgba(74,159,110,0.3);
+        margin-bottom: 0.75rem;
+    }
+    .playbook-hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .playbook-hero h1 strong { color: var(--accent-primary); }
+    .playbook-hero .hero-sub {
+        color: var(--text-secondary); font-size: 1rem; max-width: 640px; margin: 0 auto; line-height: 1.6;
+    }
+
+    .playbook-toc {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+    }
+    .playbook-toc h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .playbook-toc ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.3rem; }
+    .playbook-toc a { color: var(--accent-primary); text-decoration: none; font-size: 0.88rem; line-height: 1.6; }
+    .playbook-toc a:hover { text-decoration: underline; }
+    .playbook-toc .toc-num { color: var(--text-dim); font-weight: 600; margin-right: 0.3rem; }
+
+    .pb-section {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .pb-section-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .pb-num {
+        background: var(--accent-primary); color: #fff; width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .pb-section h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .pb-clause-ref { color: var(--text-dim); font-size: 0.75rem; margin-left: auto; }
+    .pb-section p, .pb-section li { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+    .pb-section ul, .pb-section ol { padding-left: 1.5rem; margin: 0.75rem 0; }
+    .pb-section li { margin-bottom: 0.4rem; }
+    .pb-section h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+
+    .svend-callout {
+        background: rgba(74,159,110,0.06); border: 1px solid rgba(74,159,110,0.2); border-radius: 8px;
+        padding: 0.85rem 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+    }
+    .svend-callout strong { color: var(--accent-primary); }
+    .svend-callout a { color: var(--accent-primary); text-decoration: none; }
+    .svend-callout a:hover { text-decoration: underline; }
+
+    .finding-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem; margin: 1rem 0;
+    }
+    .finding-card {
+        padding: 0.85rem; border-radius: 8px; border-left: 3px solid;
+        background: var(--bg-tertiary);
+    }
+    .finding-card.nc-major { border-color: #e85747; }
+    .finding-card.nc-minor { border-color: #e89547; }
+    .finding-card.obs { border-color: #47a5e8; }
+    .finding-card.ofi { border-color: var(--accent-primary); }
+    .finding-card strong { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
+    .finding-card span { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
+
+    .capa-flow {
+        display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+        gap: 0.3rem; margin: 1.25rem 0; padding: 1rem;
+        background: var(--bg-tertiary); border-radius: 8px;
+    }
+    .capa-step {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+        padding: 0.6rem 1rem; text-align: center; min-width: 120px;
+    }
+    .capa-step strong { display: block; font-size: 0.82rem; color: var(--text-primary); }
+    .capa-step span { font-size: 0.72rem; color: var(--text-dim); }
+    .capa-arrow { color: var(--accent-primary); font-size: 1.1rem; padding: 0 0.3rem; }
+
+    .finding-example {
+        background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;
+        padding: 1rem; margin: 1rem 0; font-size: 0.85rem;
+    }
+    .finding-example .fe-label { color: var(--text-dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem; }
+    .finding-example .fe-text { color: var(--text-secondary); line-height: 1.5; margin-bottom: 0.6rem; }
+    .finding-example .fe-text:last-child { margin-bottom: 0; }
+
+    .review-inputs {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.6rem; margin: 1rem 0;
+    }
+    .review-input-item {
+        background: var(--bg-tertiary); border-radius: 6px; padding: 0.6rem 0.8rem;
+        font-size: 0.82rem; color: var(--text-secondary);
+    }
+    .review-input-item strong { color: var(--text-primary); font-weight: 600; display: block; font-size: 0.78rem; margin-bottom: 0.15rem; }
+
+    @media (max-width: 768px) {
+        .capa-flow { flex-direction: column; }
+        .capa-arrow { transform: rotate(90deg); }
+        .playbook-toc ol { grid-template-columns: 1fr; }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="playbook-hero">
+    <div class="playbook-badge">Internal Audit Guide</div>
+    <h1>ISO 9001 Internal Audit <strong>Playbook</strong></h1>
+    <p class="hero-sub">How to plan, execute, and report ISO 9001:2015 internal audits &mdash; from audit program design through CAPA closure and management review. Written for auditors, quality managers, and MRs.</p>
+</div>
+
+<div class="playbook-toc">
+    <h3>In This Guide</h3>
+    <ol>
+        <li><a href="#s1"><span class="toc-num">1.</span> Planning Your Audit Program</a></li>
+        <li><a href="#s2"><span class="toc-num">2.</span> Audit Preparation</a></li>
+        <li><a href="#s3"><span class="toc-num">3.</span> Conducting the Audit</a></li>
+        <li><a href="#s4"><span class="toc-num">4.</span> Finding Classification</a></li>
+        <li><a href="#s5"><span class="toc-num">5.</span> Writing Findings</a></li>
+        <li><a href="#s6"><span class="toc-num">6.</span> CAPA Workflow</a></li>
+        <li><a href="#s7"><span class="toc-num">7.</span> Management Review Integration</a></li>
+    </ol>
+</div>
+
+<!-- Section 1 -->
+<div class="pb-section" id="s1">
+    <div class="pb-section-head">
+        <div class="pb-num">1</div>
+        <h2>Planning Your Audit Program</h2>
+        <span class="pb-clause-ref">Clause 9.2</span>
+    </div>
+    <p>An audit program is not a single audit &mdash; it is the plan for all audits over a defined period. Clause 9.2 requires you to plan, establish, implement, and maintain an audit program that considers the importance of processes, changes affecting the organization, and results of previous audits.</p>
+
+    <h3>Frequency</h3>
+    <p>ISO 9001 does not prescribe a specific frequency. Most organizations default to annual coverage of all clauses, but a risk-based approach is more effective:</p>
+    <ul>
+        <li><strong>Higher frequency</strong> for processes with recent nonconformities, customer complaints, regulatory changes, or high-risk operations</li>
+        <li><strong>Standard frequency</strong> (annual) for stable, low-risk processes with no recent issues</li>
+        <li><strong>Reduced frequency</strong> is defensible for processes with consistently strong performance &mdash; but never skip a clause entirely</li>
+    </ul>
+
+    <h3>Scope</h3>
+    <p>Each audit in the program should define what is being audited:</p>
+    <ul>
+        <li><strong>Process-based:</strong> Audit a complete process (e.g., purchasing, production) across all applicable clauses</li>
+        <li><strong>Clause-based:</strong> Audit specific clauses (e.g., 7.5 + 7.2) across all departments</li>
+        <li><strong>Department-based:</strong> Audit a specific department against all applicable requirements</li>
+    </ul>
+    <p>Process-based auditing is generally more effective because it follows the work flow and reveals interaction issues between processes.</p>
+
+    <h3>Sampling</h3>
+    <p>You cannot audit every record and every transaction. Define your sampling approach: how many purchase orders to review, how many training records to check, how many work instructions to verify. A common approach is the square root of the population &mdash; if there are 100 purchase orders, review 10.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> The audit scheduler lets you create audit programs with ISO clause mapping and department scoping. Schedule audits by date, assign lead auditors, and track completion rates across the program.
+    </div>
+</div>
+
+<!-- Section 2 -->
+<div class="pb-section" id="s2">
+    <div class="pb-section-head">
+        <div class="pb-num">2</div>
+        <h2>Audit Preparation</h2>
+    </div>
+    <p>Preparation determines whether your audit produces meaningful findings or becomes a checkbox exercise.</p>
+
+    <h3>Review Background Information</h3>
+    <ul>
+        <li>Previous audit reports and open corrective actions for the area</li>
+        <li>Relevant procedures, work instructions, and process maps</li>
+        <li>Recent nonconformity reports, customer complaints, and performance data</li>
+        <li>Any changes to processes, personnel, or equipment since the last audit</li>
+    </ul>
+
+    <h3>Prepare Your Checklist</h3>
+    <p>A good checklist is a working tool, not a script. It should contain evidence-based questions that prompt the auditee to show you records, walk you through processes, and demonstrate conformity. Questions like &ldquo;Show me the calibration records for this instrument&rdquo; are more effective than &ldquo;Do you calibrate your instruments?&rdquo;</p>
+
+    <h3>Auditor Independence</h3>
+    <p>Clause 9.2 requires auditors to be objective and impartial. You cannot audit your own work. In small organizations where everyone wears multiple hats, this may mean cross-department auditing or using external auditors for specific areas.</p>
+
+    <div class="svend-callout">
+        <strong>Free tool:</strong> Use the <a href="/tools/iso-9001-audit-checklist/">ISO 9001 Audit Checklist Generator</a> to build clause-specific checklists with evidence-based questions. Select the clauses in scope and print your working checklist.
+    </div>
+</div>
+
+<!-- Section 3 -->
+<div class="pb-section" id="s3">
+    <div class="pb-section-head">
+        <div class="pb-num">3</div>
+        <h2>Conducting the Audit</h2>
+    </div>
+
+    <h3>Opening Meeting</h3>
+    <p>Brief &mdash; 5 to 10 minutes. Confirm the scope, explain the process, set expectations. Make it clear that the audit is evaluating the system, not the people. The goal is to identify improvement opportunities, not to assign blame.</p>
+
+    <h3>Evidence Gathering</h3>
+    <p>Three sources of audit evidence:</p>
+    <ul>
+        <li><strong>Document review:</strong> Procedures, work instructions, records, forms, logs. Do they exist? Are they current? Are they being followed?</li>
+        <li><strong>Observation:</strong> Watch processes being performed. Does actual practice match documented procedure?</li>
+        <li><strong>Interviews:</strong> Talk to the people doing the work. Are they aware of the quality policy? Do they know their procedures? Can they explain what to do when something goes wrong?</li>
+    </ul>
+
+    <h3>Interview Techniques</h3>
+    <ul>
+        <li>Use open questions: &ldquo;Walk me through how you handle a nonconforming product.&rdquo;</li>
+        <li>Follow the audit trail: start with a record and trace it backward to its origin, or forward to its completion</li>
+        <li>Avoid leading questions: &ldquo;You do calibrate these instruments, don&rsquo;t you?&rdquo; tells the auditee what answer you expect</li>
+        <li>Ask &ldquo;show me&rdquo; rather than &ldquo;tell me&rdquo; &mdash; always verify with objective evidence</li>
+    </ul>
+
+    <h3>Closing Meeting</h3>
+    <p>Present preliminary findings. Be specific about what you observed, what requirement it relates to, and whether it is a nonconformity. Give the auditee an opportunity to provide additional evidence or clarification before the finding is formalized.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Every QMS record has a full audit trail &mdash; every field edit and status transition logged with timestamp, user, old value, and new value. Auditors can trace exactly who changed what and when across NCRs, documents, suppliers, training records, and audit records.
+    </div>
+</div>
+
+<!-- Section 4 -->
+<div class="pb-section" id="s4">
+    <div class="pb-section-head">
+        <div class="pb-num">4</div>
+        <h2>Finding Classification</h2>
+    </div>
+    <p>Every finding must be classified based on severity and systemic impact. Getting this right matters &mdash; it determines the corrective action urgency and resource allocation.</p>
+
+    <div class="finding-grid">
+        <div class="finding-card nc-major">
+            <strong>Major Nonconformity</strong>
+            <span>Systematic failure or complete absence of a required QMS element. Affects the system&rsquo;s ability to achieve intended outcomes. Requires immediate containment and root cause analysis.</span>
+        </div>
+        <div class="finding-card nc-minor">
+            <strong>Minor Nonconformity</strong>
+            <span>Isolated lapse where the system intent is evident but execution failed in a specific instance. Still requires corrective action, but with less urgency than a major.</span>
+        </div>
+        <div class="finding-card obs">
+            <strong>Observation</strong>
+            <span>Conforming, but a weakness that could become a nonconformity if not addressed. Documented for awareness &mdash; corrective action is recommended but not mandatory.</span>
+        </div>
+        <div class="finding-card ofi">
+            <strong>Opportunity for Improvement</strong>
+            <span>Beyond compliance. A suggestion for enhancement that goes beyond what the standard requires. Positive feedback that encourages continual improvement.</span>
+        </div>
+    </div>
+
+    <h3>Classification Decision Factors</h3>
+    <ul>
+        <li><strong>Frequency:</strong> Is this an isolated instance or a pattern? Multiple minor NCs in the same clause area may indicate a systemic issue (major).</li>
+        <li><strong>Impact:</strong> Could this nonconformity result in nonconforming product reaching the customer?</li>
+        <li><strong>Intent:</strong> Does the system demonstrate intent to meet the requirement, even if execution was imperfect? (Minor) Or is the requirement completely unaddressed? (Major)</li>
+        <li><strong>Previous findings:</strong> Has this same issue been raised in previous audits? Repeat findings escalate in severity.</li>
+    </ul>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Audit findings are recorded as observation, NC minor, NC major, or opportunity for improvement. Major and minor nonconformities auto-cascade into NCR records with severity classification and ISO clause reference carried over &mdash; no manual re-entry.
+    </div>
+</div>
+
+<!-- Section 5 -->
+<div class="pb-section" id="s5">
+    <div class="pb-section-head">
+        <div class="pb-num">5</div>
+        <h2>Writing Findings</h2>
+    </div>
+    <p>A well-written finding is objective, evidence-based, and traceable. It should contain three elements:</p>
+
+    <div class="finding-example">
+        <div class="fe-label">1. Requirement</div>
+        <div class="fe-text">Cite the specific clause, procedure, or work instruction that establishes the requirement.</div>
+        <div class="fe-label">2. Objective Evidence</div>
+        <div class="fe-text">Describe exactly what you observed, reviewed, or were told. Include specifics: document numbers, dates, names, quantities.</div>
+        <div class="fe-label">3. Classification</div>
+        <div class="fe-text">State whether this is a major NC, minor NC, observation, or OFI, and briefly explain why.</div>
+    </div>
+
+    <h3>Example Finding</h3>
+    <div class="finding-example">
+        <div class="fe-label">Requirement</div>
+        <div class="fe-text">Clause 7.1.5 requires monitoring and measuring resources to be calibrated or verified at specified intervals. Procedure QP-CAL-001 requires annual calibration of all torque wrenches.</div>
+        <div class="fe-label">Objective Evidence</div>
+        <div class="fe-text">Torque wrench TW-042 (S/N 28491) was found in the production area with a calibration due date of 2025-09-15. No calibration has been performed since that date. The instrument was actively in use at station 4 during the audit.</div>
+        <div class="fe-label">Classification</div>
+        <div class="fe-text">Minor Nonconformity &mdash; isolated instance. Two other torque wrenches at the same station were within calibration. System intent is evident (calibration schedule exists, labels applied), but this specific instrument was missed.</div>
+    </div>
+
+    <h3>Common Mistakes</h3>
+    <ul>
+        <li><strong>Vague findings:</strong> &ldquo;Training is not adequate&rdquo; &mdash; compared to what requirement? What specific evidence?</li>
+        <li><strong>Blame language:</strong> &ldquo;Operator failed to follow procedure&rdquo; &mdash; the audit evaluates the system, not the person</li>
+        <li><strong>Recommendations disguised as findings:</strong> &ldquo;Should implement a barcode system&rdquo; &mdash; auditors report facts, not solutions</li>
+        <li><strong>Missing requirement linkage:</strong> Every finding must trace to a clause, procedure, or documented requirement</li>
+    </ul>
+</div>
+
+<!-- Section 6 -->
+<div class="pb-section" id="s6">
+    <div class="pb-section-head">
+        <div class="pb-num">6</div>
+        <h2>CAPA Workflow</h2>
+        <span class="pb-clause-ref">Clause 10.2</span>
+    </div>
+    <p>Nonconformity findings from audits require corrective action per clause 10.2. The CAPA process ensures that root causes are identified and eliminated, not just symptoms.</p>
+
+    <div class="capa-flow">
+        <div class="capa-step">
+            <strong>Containment</strong>
+            <span>Immediate action</span>
+        </div>
+        <span class="capa-arrow">&rarr;</span>
+        <div class="capa-step">
+            <strong>Root Cause</strong>
+            <span>5 Whys / Fishbone</span>
+        </div>
+        <span class="capa-arrow">&rarr;</span>
+        <div class="capa-step">
+            <strong>Corrective Action</strong>
+            <span>Eliminate root cause</span>
+        </div>
+        <span class="capa-arrow">&rarr;</span>
+        <div class="capa-step">
+            <strong>Implementation</strong>
+            <span>Execute the change</span>
+        </div>
+        <span class="capa-arrow">&rarr;</span>
+        <div class="capa-step">
+            <strong>Verification</strong>
+            <span>Confirm effectiveness</span>
+        </div>
+    </div>
+
+    <h3>Containment</h3>
+    <p>The immediate response to stop the nonconformity from continuing or getting worse. For the torque wrench example: remove the out-of-calibration instrument from service, quarantine any product verified with it, and check other instruments at the same station.</p>
+
+    <h3>Root Cause Analysis</h3>
+    <p>Determine why the nonconformity occurred, not just what happened. Common methods: 5 Whys (for simple, single-cause issues), fishbone/Ishikawa diagram (for multi-factor issues), or fault tree analysis (for complex failure chains). The root cause should be specific and actionable &mdash; &ldquo;human error&rdquo; is never an acceptable root cause.</p>
+
+    <h3>Corrective Action</h3>
+    <p>Address the root cause, not the symptom. If the root cause is &ldquo;no automated reminder for calibration due dates,&rdquo; the corrective action is implementing automated alerts &mdash; not &ldquo;recalibrate the wrench.&rdquo;</p>
+
+    <h3>Effectiveness Verification</h3>
+    <p>Verify that the corrective action actually worked. This means checking, after a reasonable period, that the nonconformity has not recurred. Verification is not &ldquo;the corrective action was implemented&rdquo; &mdash; it is &ldquo;the corrective action prevented recurrence.&rdquo;</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> NCRs follow a validated 6-state workflow: open &rarr; investigation &rarr; containment &rarr; CAPA &rarr; verification &rarr; closed. You cannot skip containment or close without verification. Synara AI reviews your root cause analysis and flags blame framing, circular logic, and premature stops.
+    </div>
+</div>
+
+<!-- Section 7 -->
+<div class="pb-section" id="s7">
+    <div class="pb-section-head">
+        <div class="pb-num">7</div>
+        <h2>Management Review Integration</h2>
+        <span class="pb-clause-ref">Clause 9.3</span>
+    </div>
+    <p>Clause 9.3.2 requires audit results as a mandatory input to management review. This is where audit findings drive strategic decisions about the QMS.</p>
+
+    <h3>What Audit Data to Present</h3>
+    <div class="review-inputs">
+        <div class="review-input-item">
+            <strong>Audit Completion</strong>
+            How many planned audits were completed vs. scheduled? Any deferred or cancelled?
+        </div>
+        <div class="review-input-item">
+            <strong>Findings Summary</strong>
+            Total findings by type: major NCs, minor NCs, observations, OFIs. Comparison to prior period.
+        </div>
+        <div class="review-input-item">
+            <strong>Clause Hotspots</strong>
+            Which clauses have the most findings? Are certain areas repeatedly problematic?
+        </div>
+        <div class="review-input-item">
+            <strong>CAPA Status</strong>
+            Open corrective actions, overdue items, average time to closure, effectiveness verification rates.
+        </div>
+        <div class="review-input-item">
+            <strong>Repeat Findings</strong>
+            Issues raised in previous audits that have recurred. These indicate corrective action failures.
+        </div>
+        <div class="review-input-item">
+            <strong>Systemic Observations</strong>
+            Patterns the auditor noticed that may not be individual findings but suggest system-level trends.
+        </div>
+    </div>
+
+    <h3>Management Review Outputs</h3>
+    <p>Based on audit data, management review should produce decisions about:</p>
+    <ul>
+        <li>Resource allocation for areas with persistent quality issues</li>
+        <li>QMS scope changes if processes are being added, removed, or restructured</li>
+        <li>Improvement priorities based on the risk profile revealed by audit findings</li>
+        <li>Training needs identified through competence-related findings</li>
+        <li>Supplier management actions for externally-provided process findings</li>
+    </ul>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Management review auto-captures a QMS snapshot &mdash; NCR statistics, audit completion rates, training compliance, and supplier performance data are compiled automatically. No manual data gathering. Action items from the review are tracked to completion.
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}
+<div class="tool-cta">
+    <h3>Automate Your ISO 9001 Audit Program</h3>
+    <p>Audit scheduling, finding classification, auto-NCR cascade, CAPA tracking, and management review snapshots. Team plan starting at {{ price_team }}/mo. 14-day free trial.</p>
+    <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+        <a href="/register/?plan=team&region={{ region }}" class="nav-btn">Start 14-Day Free Trial</a>
+        <a href="/tools/iso-9001-audit-checklist/" class="nav-btn" style="background:transparent; color:var(--accent-primary); border:1px solid rgba(74,159,110,0.3);">Free Checklist Generator</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block faq %}
+<div class="tool-faq">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item">
+        <div class="faq-q">How often should I conduct ISO 9001 internal audits?</div>
+        <div class="faq-a">ISO 9001 requires audits at planned intervals (clause 9.2) but does not specify frequency. Most organizations audit annually with higher-risk processes audited more often. Risk-based scheduling means processes with recent nonconformities, customer complaints, or significant changes get audited first.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">Who can perform an ISO 9001 internal audit?</div>
+        <div class="faq-a">Anyone with auditor competence and independence from the area being audited. Clause 9.2 requires auditors to be objective and impartial &mdash; you cannot audit your own work. Competence typically means training in ISO 9001 requirements, audit techniques, and the processes being audited.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between a minor and major nonconformity?</div>
+        <div class="faq-a">A major nonconformity is a systematic failure or complete absence of a required QMS element &mdash; it affects the system&rsquo;s ability to achieve intended outcomes. A minor nonconformity is an isolated lapse where the system intent is evident but execution failed in a specific instance. Multiple minor NCs in the same area may indicate a systemic issue (major).</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do I write an ISO 9001 audit finding?</div>
+        <div class="faq-a">A well-written finding has three parts: (1) Statement of the requirement &mdash; cite the specific clause or procedure, (2) Objective evidence &mdash; describe exactly what you observed, reviewed, or were told, (3) Classification &mdash; major NC, minor NC, observation, or opportunity for improvement. Findings should be factual and evidence-based, never opinions.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What is the CAPA process for audit findings?</div>
+        <div class="faq-a">CAPA (Corrective and Preventive Action) for audit findings follows: (1) Containment &mdash; immediate action to address the nonconformity, (2) Root cause analysis &mdash; determine why it happened using 5 Whys, fishbone, or similar methods, (3) Corrective action &mdash; implement changes to eliminate the root cause, (4) Effectiveness verification &mdash; confirm the corrective action worked and the nonconformity has not recurred.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">How do audit results feed into management review?</div>
+        <div class="faq-a">Clause 9.3.2 requires audit results as a mandatory input to management review. This includes: audit completion rates, nonconformity trends by clause and department, open corrective actions, repeat findings, and auditor observations about systemic issues. Management review outputs should include decisions about resource allocation, QMS scope changes, and improvement priorities based on audit data.</div>
+    </div>
+    <div class="faq-item">
+        <div class="faq-q">What should an ISO 9001 audit checklist include?</div>
+        <div class="faq-a">An effective audit checklist includes evidence-based questions for each clause in scope, references to applicable procedures and work instructions, space for recording objective evidence, conformity/nonconformity classification, and notes. Questions should elicit evidence (&ldquo;Show me the record for...&rdquo;) rather than yes/no answers. Try our <a href="/tools/iso-9001-audit-checklist/" style="color:var(--accent-primary)">free audit checklist generator</a>.</div>
+    </div>
+</div>
+{% endblock %}

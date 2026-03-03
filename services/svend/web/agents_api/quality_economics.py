@@ -645,6 +645,18 @@ def _run_taguchi(df, config):
         f"Total loss = ${total_loss:.0f} over {len(y)} units."
     )
 
+    result["what_if_data"] = {
+        "type": "taguchi",
+        "loss_type": loss_type,
+        "target": float(target),
+        "k": float(loss_fn.k) if hasattr(loss_fn, "k") else float(cost_at_limit / max(delta0 ** 2, 1e-15)),
+        "mu": float(mu),
+        "sigma": float(sigma),
+        "expected_loss": float(expected),
+        "n": len(y),
+        "delta0": float(delta0),
+    }
+
     return result
 
 

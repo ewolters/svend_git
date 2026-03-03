@@ -509,7 +509,11 @@ def eda_agent(request):
     problem_id = request.data.get("problem_id")
 
     try:
-        df = pd.read_csv(file)
+        try:
+            df = pd.read_csv(file, encoding="utf-8")
+        except UnicodeDecodeError:
+            file.seek(0)
+            df = pd.read_csv(file, encoding="latin-1")
     except Exception as e:
         return Response({"error": f"Failed to read CSV: {e}"}, status=status.HTTP_400_BAD_REQUEST)
 

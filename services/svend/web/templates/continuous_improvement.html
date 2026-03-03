@@ -1,0 +1,710 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Continuous Improvement Software — The Campaign Framework for CI Execution{% endblock %}
+{% block meta_description %}Continuous improvement software built on The Campaign Framework: Shape, Execute, Consolidate. MDI, hoshin kanri, kaizen, A3, VSM, SPC, and FMEA in one platform. Strategy deployment through daily management. 200+ statistical analyses. {{ price_team }}/mo.{% endblock %}
+{% block meta_keywords %}continuous improvement software, CI software, kaizen software, managing for daily improvement, MDI software, hoshin kanri software, strategy deployment, PDSA, lean manufacturing software, leadership standard work, 5S software, value stream mapping software, A3 report software, gemba management, daily management system, visual management, Toyota Production System, TPS software{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/continuous-improvement-software/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/continuous-improvement-software/">
+<meta property="og:title" content="Continuous Improvement Software — The Campaign Framework | Svend">
+<meta property="og:description" content="Shape, Execute, Consolidate. CI software built on the operational doctrine that drove a world-record press run. MDI, hoshin, kaizen, A3, VSM, SPC — one platform.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Continuous Improvement Software — The Campaign Framework",
+    "url": "https://svend.ai/continuous-improvement-software/",
+    "description": "Continuous improvement software built on The Campaign Framework. Strategy deployment through daily management with MDI, hoshin kanri, kaizen execution, A3, VSM, SPC, and 200+ statistical analyses.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "about": [
+        { "@type": "Thing", "name": "Continuous Improvement" },
+        { "@type": "Thing", "name": "Toyota Production System" },
+        { "@type": "Thing", "name": "Lean Manufacturing" },
+        { "@type": "Thing", "name": "Hoshin Kanri" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is The Campaign Framework for continuous improvement?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The Campaign Framework maps three phases of operational execution — Shape, Execute, Consolidate — onto PDSA. Shape prepares the area for success (5S, visual systems, communication). Execute runs rapid improvement (kaizen, A3, PDSA cycles). Consolidate locks in gains (audits, forced failure testing, standard work validation). Consolidation blends into shaping for the next campaign. This is PDSA applied at every level of an organization."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between PDSA and PDCA?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "PDCA uses 'Check' — which implies pass/fail. PDSA uses 'Study' — which implies learning. The difference matters operationally: PDCA encourages 'did it work? yes or no.' PDSA encourages 'what did we learn?' Deming himself preferred PDSA because the Study phase is where insight lives. A failed experiment studied properly produces more value than a successful experiment checked off and forgotten."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is Managing for Daily Improvement (MDI)?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "MDI is the backbone of continuous improvement execution. It is the system of visual management, daily accountability, and leadership standard work that connects strategic direction (hoshin kanri) to daily work on the shop floor. MDI operates through a tier structure: Tier 1 (team leads and operators, daily), Tier 2 (area managers, daily), Tier 3 (plant leadership, weekly). Information flows up as escalation and down as resource deployment."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does hoshin kanri connect to daily CI execution?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Hoshin kanri IS the strategy. MDI is how you allocate resources daily to achieve that strategy. The X-matrix connects 3-5 year strategic objectives to annual targets, improvement projects, and KPIs. MDI newspapers (action registers) that exceed local authority escalate to hoshin projects. KPI actuals from tier meetings feed the X-matrix. Leadership standard work verifies that strategic intent is reaching the gemba."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does continuous improvement software cost?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Quality teams typically spend $3,000-$10,000+ per seat per year across separate tools for statistics, DOE, project management, and risk analysis. Svend consolidates all CI tools — from SPC and DOE to hoshin kanri, VSM, A3, FMEA, and a full ISO 9001 QMS — into one platform. The Team plan starts at $99/mo per seat with a 14-day free trial."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the role of 5S in continuous improvement?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "5S is not a lean tool or a standalone improvement event. It is operational shaping — the continuous maintenance of work area conditions that enable improvement execution. In Campaign terms, 5S is the Shape phase: you prepare the area so that kaizen can succeed. Without 5S, improvements degrade. 5S prevents culmination of your force — it maintains the operational foundation so people can focus on improvement instead of fighting clutter and disorganization."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does 'respect for people' actually mean in TPS?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Respect for people is not about being nice. It means preventing culmination of your force — the Clausewitzian concept where an attacking force exhausts itself beyond recovery. In operations: if you push improvement without maintaining the base, people burn out, standards decay, and gains erode. Respect for people means building systems (MDI, visual management, standard work) that sustain improvement without destroying the people doing it."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Continuous Improvement Software", "item": "https://svend.ai/continuous-improvement-software/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .tool-container { max-width: 1000px; }
+
+    .ci-hero { text-align: center; margin-bottom: 2.5rem; padding-top: 1rem; }
+    .ci-badge {
+        display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        background: rgba(74,159,110,0.15); color: var(--accent-primary); border: 1px solid rgba(74,159,110,0.3);
+        margin-bottom: 0.75rem;
+    }
+    .ci-hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .ci-hero h1 strong { color: var(--accent-primary); }
+    .ci-hero .hero-sub {
+        color: var(--text-secondary); font-size: 1rem; max-width: 700px; margin: 0 auto; line-height: 1.7;
+    }
+    .ci-hero .hero-pricing {
+        display: inline-block; margin-top: 1.25rem;
+        background: var(--accent-primary-dim); border: 1px solid var(--accent-primary-border);
+        border-radius: 6px; padding: 0.5rem 1.25rem; font-size: 0.85rem;
+        color: var(--accent-primary); font-weight: 500;
+    }
+    .ci-hero .hero-cta {
+        display: flex; gap: 1rem; justify-content: center; margin-top: 1.25rem; flex-wrap: wrap;
+    }
+    .cta-primary {
+        background: var(--accent-primary); color: #fff; padding: 0.7rem 2rem; border-radius: 6px;
+        text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;
+    }
+    .cta-primary:hover { background: #3a8a5a; }
+    .cta-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.7rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 500;
+        font-size: 0.95rem; transition: all 0.2s;
+    }
+    .cta-secondary:hover { border-color: var(--accent-primary-border); }
+
+    /* Section titles */
+    .ci-section { margin: 3rem 0 2rem; }
+    .ci-section-title { font-size: 1.35rem; font-weight: 700; text-align: center; margin-bottom: 0.4rem; }
+    .ci-section-sub {
+        color: var(--text-secondary); font-size: 0.95rem; text-align: center;
+        max-width: 700px; margin: 0 auto 2rem; line-height: 1.6;
+    }
+
+    /* Campaign Cycle Diagram */
+    .campaign-cycle {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;
+        margin: 2rem 0;
+    }
+    .campaign-phase {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; border-top: 4px solid; position: relative;
+    }
+    .campaign-phase.shape { border-top-color: #4a9f6e; }
+    .campaign-phase.execute { border-top-color: #3a7f8f; }
+    .campaign-phase.consolidate { border-top-color: #e8c547; }
+    .phase-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+        margin-bottom: 0.5rem;
+    }
+    .phase-label.shape { color: #4a9f6e; }
+    .phase-label.execute { color: #3a7f8f; }
+    .phase-label.consolidate { color: #e8c547; }
+    .phase-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .phase-desc { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; margin-bottom: 0.75rem; }
+    .phase-tools { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .phase-chip {
+        font-size: 0.7rem; padding: 3px 10px; border-radius: 12px;
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+        color: var(--text-secondary); font-weight: 500;
+    }
+
+    /* Campaign arrows */
+    .campaign-arrow-row {
+        display: flex; justify-content: center; align-items: center; gap: 1rem;
+        margin: -0.25rem 0 1rem; color: var(--text-dim); font-size: 0.85rem;
+    }
+    .campaign-arrow-row .arr { color: var(--accent-primary); font-size: 1.2rem; }
+
+    /* Campaign note */
+    .campaign-note {
+        text-align: center; color: var(--text-secondary); font-size: 0.9rem;
+        max-width: 700px; margin: 0 auto 2.5rem; line-height: 1.6;
+        padding: 1rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    }
+
+    /* Tools-to-campaign mapping */
+    .tools-map {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;
+        margin: 2rem 0;
+    }
+    .tools-map-col { }
+    .tools-map-col h3 {
+        font-size: 0.85rem; font-weight: 600; margin-bottom: 0.75rem;
+        padding-bottom: 0.4rem; border-bottom: 2px solid;
+    }
+    .tools-map-col.shape h3 { border-color: #4a9f6e; color: #4a9f6e; }
+    .tools-map-col.execute h3 { border-color: #3a7f8f; color: #3a7f8f; }
+    .tools-map-col.consolidate h3 { border-color: #e8c547; color: #e8c547; }
+    .tools-map-item {
+        padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+        font-size: 0.85rem;
+    }
+    .tools-map-item strong { color: var(--text-primary); display: block; font-size: 0.85rem; margin-bottom: 0.15rem; }
+    .tools-map-item span { color: var(--text-secondary); font-size: 0.8rem; }
+
+    /* MDI Tier Diagram */
+    .mdi-tier-diagram {
+        display: flex; flex-direction: column; align-items: center; gap: 0;
+        margin: 2rem auto; max-width: 650px;
+    }
+    .mdi-tier {
+        padding: 0.85rem 1.25rem; border-radius: 8px; text-align: center;
+        border: 1px solid var(--border); position: relative;
+    }
+    .mdi-tier.t3 {
+        width: 50%; background: rgba(232,197,71,0.08); border-color: rgba(232,197,71,0.25);
+    }
+    .mdi-tier.t2 {
+        width: 75%; background: rgba(58,127,143,0.08); border-color: rgba(58,127,143,0.25);
+    }
+    .mdi-tier.t1 {
+        width: 100%; background: rgba(74,159,110,0.08); border-color: rgba(74,159,110,0.25);
+    }
+    .mdi-tier-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.15rem;
+    }
+    .mdi-tier.t3 .mdi-tier-label { color: #e8c547; }
+    .mdi-tier.t2 .mdi-tier-label { color: #3a7f8f; }
+    .mdi-tier.t1 .mdi-tier-label { color: #4a9f6e; }
+    .mdi-tier-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.15rem; }
+    .mdi-tier-cadence { font-size: 0.75rem; color: var(--text-secondary); }
+    .mdi-tier-arrow {
+        width: 2px; height: 18px; background: var(--border); position: relative;
+    }
+    .mdi-tier-arrow::after {
+        content: ''; position: absolute; bottom: -4px; left: -4px;
+        width: 0; height: 0; border-left: 5px solid transparent;
+        border-right: 5px solid transparent; border-top: 6px solid var(--border);
+    }
+    .mdi-tier-flow-label {
+        display: flex; justify-content: space-between; width: 100%; max-width: 650px;
+        font-size: 0.7rem; color: var(--text-dim); margin-top: 0.5rem;
+    }
+
+    /* Doctrine points */
+    .doctrine-grid {
+        display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;
+        margin: 2rem 0;
+    }
+    .doctrine-item {
+        padding: 1.1rem; background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 8px; border-left: 3px solid var(--accent-primary);
+    }
+    .doctrine-item h4 {
+        font-size: 0.9rem; font-weight: 600; margin-bottom: 0.35rem;
+        color: var(--text-primary);
+    }
+    .doctrine-item p {
+        color: var(--text-secondary); font-size: 0.82rem; line-height: 1.55; margin: 0;
+    }
+
+    /* Spoke navigation */
+    .spoke-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem;
+        margin: 2rem 0;
+    }
+    .spoke-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem; text-decoration: none; color: inherit;
+        transition: border-color 0.2s, transform 0.15s;
+        display: flex; flex-direction: column; gap: 0.4rem;
+    }
+    .spoke-card:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
+    .spoke-phase {
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .spoke-phase.shape { color: #4a9f6e; }
+    .spoke-phase.execute { color: #3a7f8f; }
+    .spoke-phase.consolidate { color: #e8c547; }
+    .spoke-phase.backbone { color: #a78bfa; }
+    .spoke-phase.strategy { color: #f59e0b; }
+    .spoke-phase.diagnostic { color: #60a5fa; }
+    .spoke-title { font-size: 0.95rem; font-weight: 600; }
+    .spoke-desc { color: var(--text-secondary); font-size: 0.8rem; line-height: 1.5; flex: 1; }
+    .spoke-arrow { color: var(--accent-primary); font-size: 0.8rem; margin-top: auto; }
+
+    /* Product showcase */
+    .showcase-panels {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;
+        margin: 2rem 0;
+    }
+    .showcase-panel {
+        background: #0d120d; border: 1px solid rgba(74,159,110,0.2); border-radius: 10px;
+        overflow: hidden; transition: border-color 0.2s;
+    }
+    .showcase-panel:hover { border-color: rgba(74,159,110,0.4); }
+    .showcase-label {
+        padding: 10px 14px 8px; font-size: 0.7rem; text-transform: uppercase;
+        letter-spacing: 0.5px; font-weight: 600; color: #9aaa9a;
+        border-bottom: 1px solid rgba(74,159,110,0.15);
+    }
+    .showcase-body {
+        padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+        color: var(--text-secondary); line-height: 1.5;
+    }
+    .showcase-body .sc-head { color: var(--accent-primary); font-weight: 600; margin-bottom: 4px; }
+    .showcase-body .sc-row { padding: 2px 0; }
+    .showcase-body .sc-dim { color: var(--text-dim); }
+    .showcase-body .sc-val { color: var(--text-primary); }
+    .showcase-body .sc-burst {
+        display: inline-block; background: rgba(232,197,71,0.15); color: #e8c547;
+        padding: 1px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600;
+    }
+    .showcase-body .sc-green {
+        display: inline-block; background: rgba(74,159,110,0.15); color: var(--accent-primary);
+        padding: 1px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600;
+    }
+
+    /* Founder */
+    .founder-section {
+        text-align: center; margin: 3rem 0 2rem; padding: 2rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .founder-section p {
+        color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65;
+        max-width: 700px; margin: 0 auto;
+    }
+    .founder-name {
+        font-weight: 600; margin-top: 1rem; font-size: 0.9rem;
+    }
+    .founder-lineage {
+        color: var(--text-dim); font-size: 0.78rem; margin-top: 0.3rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* CTA */
+    .ci-cta {
+        text-align: center; margin: 2.5rem 0 2rem; padding: 2.5rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .ci-cta h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .ci-cta p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; }
+    .ci-cta .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+    /* FAQ */
+    .ci-faq { margin-top: 2.5rem; }
+    .ci-faq h2 { font-size: 1.25rem; margin-bottom: 1rem; text-align: center; }
+
+    @media (max-width: 768px) {
+        .campaign-cycle { grid-template-columns: 1fr; }
+        .tools-map { grid-template-columns: 1fr; }
+        .doctrine-grid { grid-template-columns: 1fr; }
+        .spoke-grid { grid-template-columns: 1fr; }
+        .showcase-panels { grid-template-columns: 1fr; }
+        .mdi-tier.t3 { width: 70%; }
+        .mdi-tier.t2 { width: 85%; }
+    }
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="ci-hero">
+    <div class="ci-badge">The Campaign Framework</div>
+    <h1>Continuous Improvement Software Built on <strong>Shape, Execute, Consolidate</strong></h1>
+    <p class="hero-sub">The cycle that drove a Heidelberg Speedmaster XL 106 to 82 million impressions and double the industry average OEE &mdash; encoded in software. Strategy deployment through daily management. Not another dashboard. A management operating system.</p>
+    <div class="hero-pricing">Team plan: {{ price_team }}/seat/mo &mdash; 14-day free trial</div>
+    <div class="hero-cta">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start Free Trial</a>
+        <a href="#campaign" class="cta-secondary">See the Framework</a>
+    </div>
+</div>
+
+<!-- Campaign Cycle -->
+<div class="ci-section" id="campaign">
+    <h2 class="ci-section-title">The Campaign Framework</h2>
+    <p class="ci-section-sub">Three phases of operational execution mapped onto PDSA. Not a methodology poster. The actual operating rhythm of a plant running continuous improvement.</p>
+</div>
+
+<div class="campaign-cycle">
+    <div class="campaign-phase shape">
+        <div class="phase-label shape">Phase 1 &mdash; Shape</div>
+        <div class="phase-title">Prepare the Area for Execution</div>
+        <div class="phase-desc">5S is not a lean tool &mdash; it is operations. Shaping means building the visual systems, communication patterns, and work area conditions that enable rapid improvement. You do not shape once and move on. Shaping is continuous.</div>
+        <div class="phase-tools">
+            <span class="phase-chip">5S</span>
+            <span class="phase-chip">Visual Management</span>
+            <span class="phase-chip">MDI Infrastructure</span>
+            <span class="phase-chip">Operator Communication</span>
+        </div>
+    </div>
+    <div class="campaign-phase execute">
+        <div class="phase-label execute">Phase 2 &mdash; Execute</div>
+        <div class="phase-title">Rapid Improvement in the Gemba</div>
+        <div class="phase-desc">Kaizen is not a week-long workshop. It is fluid execution: PDSA cycles, A3 thinking, direct experimentation at the point of work. Run a trial today, study the result, decide tomorrow. Speed matters more than polish.</div>
+        <div class="phase-tools">
+            <span class="phase-chip">Kaizen</span>
+            <span class="phase-chip">PDSA Cycles</span>
+            <span class="phase-chip">A3 Reports</span>
+            <span class="phase-chip">Root Cause Analysis</span>
+        </div>
+    </div>
+    <div class="campaign-phase consolidate">
+        <div class="phase-label consolidate">Phase 3 &mdash; Consolidate</div>
+        <div class="phase-title">Lock In Gains, Prevent Regression</div>
+        <div class="phase-desc">Without consolidation, every improvement decays. Audits verify the new standard holds. Forced failure testing proves the system works under stress. Standard work documentation captures what changed and why. Consolidation blends into shaping for the next campaign.</div>
+        <div class="phase-tools">
+            <span class="phase-chip">Audits</span>
+            <span class="phase-chip">Standard Work</span>
+            <span class="phase-chip">Forced Failure Testing</span>
+            <span class="phase-chip">SPC Monitoring</span>
+        </div>
+    </div>
+</div>
+
+<div class="campaign-arrow-row">
+    Shape <span class="arr">&rarr;</span> Execute <span class="arr">&rarr;</span> Consolidate <span class="arr">&rarr;</span> Shape&hellip;
+</div>
+
+<div class="campaign-note">
+    This is not DMAIC. There is no &ldquo;define&rdquo; phase that takes six weeks. Shape is ongoing operations. Execute is rapid. Consolidate prevents regression. The cycle repeats at every level &mdash; from a single workstation to an entire value stream. This is PDSA up and down an organization, from the perspective of someone who has done it for real.
+</div>
+
+<!-- How tools map to the Campaign -->
+<div class="ci-section">
+    <h2 class="ci-section-title">How Svend Maps to the Campaign</h2>
+    <p class="ci-section-sub">Every tool in the platform serves a specific phase. Nothing exists because it looks good on a feature list. Each tool exists because a practitioner needed it at that point in the cycle.</p>
+</div>
+
+<div class="tools-map">
+    <div class="tools-map-col shape">
+        <h3>Shape</h3>
+        <div class="tools-map-item">
+            <strong>MDI Boards &amp; Newspapers</strong>
+            <span>Action registers with bilateral accountability. Not task lists &mdash; contracts.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>Leadership Standard Work</strong>
+            <span>Structured daily/weekly tasks. Gemba walk verification. Tier meeting schedules.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>5S Audit Tracking</strong>
+            <span>Score each S, identify the weakest, improve that one. Trend analysis over time.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>Training Matrix</strong>
+            <span>Competence requirements, expiry tracking, gap analysis. Clause 7.2 compliance.</span>
+        </div>
+    </div>
+    <div class="tools-map-col execute">
+        <h3>Execute</h3>
+        <div class="tools-map-item">
+            <strong>A3 Reports</strong>
+            <span>Structured problem solving. Background, current condition, root cause, countermeasures &mdash; one page.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>VSM with Kaizen Bursts</strong>
+            <span>Map the value stream, identify constraints, target kaizen. Current/future state pairing.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>Root Cause Analysis</strong>
+            <span>5 Whys, fishbone, AI challenge that pushes back on premature conclusions.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>200+ Statistical Analyses</strong>
+            <span>ANOVA, regression, DOE, reliability. Run the experiment, analyze today, decide tomorrow.</span>
+        </div>
+    </div>
+    <div class="tools-map-col consolidate">
+        <h3>Consolidate</h3>
+        <div class="tools-map-item">
+            <strong>Hoshin X-Matrix</strong>
+            <span>Strategy verification. Dollar rollup from projects to strategic objectives. Auto-suggested correlations.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>SPC &amp; Bayesian Monitoring</strong>
+            <span>Confirm the process is stable after improvement. Adaptive control limits, changepoint detection.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>FMEA &amp; Risk Assessment</strong>
+            <span>Update risk scores with real evidence post-improvement. Not opinions &mdash; data.</span>
+        </div>
+        <div class="tools-map-item">
+            <strong>ISO 9001 QMS</strong>
+            <span>NCR tracking, audit scheduling, document control. The compliance backbone of consolidation.</span>
+        </div>
+    </div>
+</div>
+
+<!-- MDI Tier Structure -->
+<div class="ci-section" id="mdi">
+    <h2 class="ci-section-title">MDI: The Backbone</h2>
+    <p class="ci-section-sub">Managing for Daily Improvement is the operating system that connects hoshin strategy to daily work. Three tiers. Information flows up as escalation and down as resource deployment. Both directions matter equally.</p>
+</div>
+
+<div class="mdi-tier-diagram">
+    <div class="mdi-tier t3">
+        <div class="mdi-tier-label">Tier 3</div>
+        <div class="mdi-tier-title">Plant Leadership</div>
+        <div class="mdi-tier-cadence">Weekly &middot; 30-45 min &middot; Strategic alignment, system-level barriers</div>
+    </div>
+    <div class="mdi-tier-arrow"></div>
+    <div class="mdi-tier t2">
+        <div class="mdi-tier-label">Tier 2</div>
+        <div class="mdi-tier-title">Area / Department Managers</div>
+        <div class="mdi-tier-cadence">Daily &middot; 15-20 min &middot; Cross-functional escalation, resource allocation</div>
+    </div>
+    <div class="mdi-tier-arrow"></div>
+    <div class="mdi-tier t1">
+        <div class="mdi-tier-label">Tier 1</div>
+        <div class="mdi-tier-title">Team Leads + Operators</div>
+        <div class="mdi-tier-cadence">Daily &middot; 10-15 min &middot; Safety/Quality/Delivery/Cost, hourly boards, immediate response</div>
+    </div>
+    <div class="mdi-tier-flow-label">
+        <span>&uarr; Escalation flows up</span>
+        <span>Resources flow down &darr;</span>
+    </div>
+</div>
+
+<!-- Doctrine Points -->
+<div class="ci-section">
+    <h2 class="ci-section-title">What Makes This Different</h2>
+    <p class="ci-section-sub">This framework does not come from a consulting deck. It comes from running four shifts, putting up hour-by-hour boards, and driving a press to a world record.</p>
+</div>
+
+<div class="doctrine-grid">
+    <div class="doctrine-item">
+        <h4>Newspapers are bilateral contracts</h4>
+        <p>A newspaper item is not a task assignment. It is: &ldquo;I agree to do X by this date on condition I get Y resources and get my 9:30 commitment covered.&rdquo; Two-way accountability. If the leader does not deliver the resources, the leader failed &mdash; not the operator.</p>
+    </div>
+    <div class="doctrine-item">
+        <h4>5S is operations, not a lean tool</h4>
+        <p>5S is not an improvement event you run once. It is the continuous maintenance of work area conditions that enable improvement. In Campaign terms: shaping. You do not &ldquo;do 5S&rdquo; &mdash; you maintain 5S as the baseline operating condition. Without it, kaizen degrades.</p>
+    </div>
+    <div class="doctrine-item">
+        <h4>Respect for people = preventing culmination</h4>
+        <p>Clausewitz described culmination as the point where an attacking force exhausts itself. In operations: if you push improvement without maintaining the base, people burn out, standards decay, gains erode. Respect for people means building systems that sustain improvement without destroying the people doing it.</p>
+    </div>
+    <div class="doctrine-item">
+        <h4>PDSA, not PDCA &mdash; the Study matters</h4>
+        <p>PDCA uses &ldquo;Check&rdquo; &mdash; pass/fail. PDSA uses &ldquo;Study&rdquo; &mdash; learning. A failed experiment studied properly produces more value than a successful experiment checked off and forgotten. Deming preferred PDSA for this reason. The insight lives in the Study.</p>
+    </div>
+</div>
+
+<!-- Playbook Spokes -->
+<div class="ci-section" id="playbooks">
+    <h2 class="ci-section-title">Playbooks</h2>
+    <p class="ci-section-sub">Deep operational guides for each element of the CI system. Not the sanitized version. Written for practitioners who have done this or are about to.</p>
+</div>
+
+<div class="spoke-grid">
+    <a href="/managing-for-daily-improvement/" class="spoke-card">
+        <span class="spoke-phase backbone">Backbone</span>
+        <span class="spoke-title">Managing for Daily Improvement</span>
+        <span class="spoke-desc">Tier structure, visual management, newspapers as bilateral contracts, tier meeting guides, culture and accountability.</span>
+        <span class="spoke-arrow">Read playbook &rarr;</span>
+    </a>
+    <a href="/hoshin-kanri-strategy-deployment/" class="spoke-card">
+        <span class="spoke-phase strategy">Strategy</span>
+        <span class="spoke-title">Hoshin Kanri &amp; Strategy Deployment</span>
+        <span class="spoke-desc">X-matrix explained, catchball as mechanism, annual planning, monthly tracking, dollar rollup, VSM connection.</span>
+        <span class="spoke-arrow">Read playbook &rarr;</span>
+    </a>
+    <a href="/kaizen-execution-guide/" class="spoke-card">
+        <span class="spoke-phase execute">Execute</span>
+        <span class="spoke-title">Kaizen Execution</span>
+        <span class="spoke-desc">Kaizen is not an event. PDSA not PDCA, A3 thinking, rapid gemba experimentation, connecting kaizen to strategy.</span>
+        <span class="spoke-arrow">Read playbook &rarr;</span>
+    </a>
+    <a href="/5s-operational-excellence/" class="spoke-card">
+        <span class="spoke-phase shape">Shape</span>
+        <span class="spoke-title">5S as Operational Shaping</span>
+        <span class="spoke-desc">5S is not a lean tool. Communication with operators, preventing culmination, visual systems that enable execution.</span>
+        <span class="spoke-arrow">Read playbook &rarr;</span>
+    </a>
+    <a href="/leadership-standard-work/" class="spoke-card">
+        <span class="spoke-phase consolidate">Consolidate</span>
+        <span class="spoke-title">Leadership Standard Work</span>
+        <span class="spoke-desc">The vehicle that drives accountability. Gemba walks, tier meetings, hoshin verification, objective execution measurement.</span>
+        <span class="spoke-arrow">Read playbook &rarr;</span>
+    </a>
+    <a href="/value-stream-mapping-methodology/" class="spoke-card">
+        <span class="spoke-phase diagnostic">Diagnostic</span>
+        <span class="spoke-title">Value Stream Mapping</span>
+        <span class="spoke-desc">VSM as diagnostic tool. Current/future state, constraint identification, hoshin project promotion, simulation.</span>
+        <span class="spoke-arrow">Read playbook &rarr;</span>
+    </a>
+</div>
+
+<!-- Product Showcase -->
+<div class="ci-section">
+    <h2 class="ci-section-title">What It Looks Like in Practice</h2>
+    <p class="ci-section-sub">Three of the tools that connect strategy to daily execution. The full platform includes 200+ statistical analyses, SPC, DOE, FMEA, ISO 9001 QMS, and more.</p>
+</div>
+
+<div class="showcase-panels">
+    <div class="showcase-panel">
+        <div class="showcase-label">Hoshin X-Matrix</div>
+        <div class="showcase-body">
+            <div class="sc-head">Strategic Objectives (3-5yr)</div>
+            <div class="sc-row"><span class="sc-val">Reduce mfg cost 30%</span></div>
+            <div class="sc-row"><span class="sc-val">Zero-defect Line 4</span></div>
+            <div class="sc-row" style="margin-top:8px;"><span class="sc-head">Annual Objectives</span></div>
+            <div class="sc-row"><span class="sc-val">OEE &gt; 85% all presses</span></div>
+            <div class="sc-row"><span class="sc-val">Scrap &lt; 1.2% YTD</span></div>
+            <div class="sc-row" style="margin-top:8px;"><span class="sc-head">Correlations</span></div>
+            <div class="sc-row"><span class="sc-green">auto-suggested</span> <span class="sc-dim">from project data</span></div>
+            <div class="sc-row"><span class="sc-dim">Unlinked projects flagged</span></div>
+        </div>
+    </div>
+    <div class="showcase-panel">
+        <div class="showcase-label">VSM + Kaizen Bursts</div>
+        <div class="showcase-body">
+            <div class="sc-row"><span class="sc-dim">Supplier</span> &rarr; <span class="sc-val">Cutting</span> &rarr; <span class="sc-val">Press</span> &rarr; <span class="sc-val">Finish</span> &rarr; <span class="sc-dim">Customer</span></div>
+            <div class="sc-row" style="margin-top:6px;"><span class="sc-dim">C/T:</span> <span class="sc-val">45s</span> &middot; <span class="sc-dim">C/O:</span> <span class="sc-val">28min</span> <span class="sc-burst">SMED target</span></div>
+            <div class="sc-row"><span class="sc-dim">OEE:</span> <span class="sc-val">62%</span> <span class="sc-burst">kaizen burst</span></div>
+            <div class="sc-row"><span class="sc-dim">WIP:</span> <span class="sc-val">3,200 pcs</span></div>
+            <div class="sc-row" style="margin-top:8px;"><span class="sc-dim">Processing: 4.2 hrs</span></div>
+            <div class="sc-row"><span class="sc-dim">Lead time: 11.4 days</span></div>
+            <div class="sc-row" style="margin-top:6px;"><span class="sc-green">Simulate</span> <span class="sc-dim">before committing resources</span></div>
+        </div>
+    </div>
+    <div class="showcase-panel">
+        <div class="showcase-label">A3 Report Structure</div>
+        <div class="showcase-body">
+            <div class="sc-head">Press 4 — OEE Below Target</div>
+            <div class="sc-row" style="margin-top:6px;"><span class="sc-dim">Background</span></div>
+            <div class="sc-row"><span class="sc-val">OEE dropped to 62% in Q3...</span></div>
+            <div class="sc-row" style="margin-top:4px;"><span class="sc-dim">Current Condition</span></div>
+            <div class="sc-row"><span class="sc-val">28 min avg changeover, 3 major stops/wk</span></div>
+            <div class="sc-row" style="margin-top:4px;"><span class="sc-dim">Root Cause</span></div>
+            <div class="sc-row"><span class="sc-val">No standard C/O procedure, tooling staged incorrectly</span></div>
+            <div class="sc-row" style="margin-top:4px;"><span class="sc-dim">Countermeasures</span></div>
+            <div class="sc-row"><span class="sc-val">SMED study &rarr; external C/O &rarr; shadow board</span></div>
+            <div class="sc-row" style="margin-top:4px;"><span class="sc-green">linked</span> <span class="sc-dim">to hoshin project</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- Founder -->
+<div class="founder-section">
+    <p>This framework was not designed in a conference room. It comes from applying Charles Protzman Sr.&rsquo;s integrated framework (TIPS/WFA/SMED) at Fort Dearborn&rsquo;s Fort Worth plant under GM Bob Zeisler &mdash; where it drove a Heidelberg Speedmaster XL 106 to a world record of 82 million impressions and more than double the industry average OEE. 16-hour days across four shifts. Hour-by-hour boards. That doctrine is what Svend encodes in software.</p>
+    <div class="founder-name">Eric, Founder</div>
+    <div class="founder-lineage">CCS 1948 &rarr; Protzman &rarr; Shingo/Ohno &rarr; Charlie Protzman &rarr; Eric &rarr; SVEND</div>
+</div>
+
+<!-- CTA -->
+<div class="ci-cta">
+    <h3>Deploy the Campaign Framework</h3>
+    <p>Hoshin kanri, MDI, A3 reports, VSM with simulation, SPC, DOE, FMEA, ISO 9001 QMS &mdash; one platform. Team plan: {{ price_team }}/seat/mo. Enterprise: {{ price_enterprise }}/seat/mo. 14-day free trial, no charge until day 15.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="/#pricing" class="cta-secondary">See Pricing</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}
+
+{% block faq %}
+<div class="ci-faq">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">What is The Campaign Framework?</div>
+        <div class="faq-a">Three phases of operational execution mapped onto PDSA: Shape (5S, communication, visual systems), Execute (kaizen, A3, rapid PDSA experimentation), and Consolidate (audits, forced failure testing, standard work validation). Consolidation blends into shaping for the next campaign. This is not a one-time methodology &mdash; it is the continuous operating rhythm of a plant running improvement.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between PDSA and PDCA?</div>
+        <div class="faq-a">PDCA uses &ldquo;Check&rdquo; which implies pass/fail. PDSA uses &ldquo;Study&rdquo; which implies learning. Deming preferred PDSA because the Study phase is where operational insight lives. A failed experiment studied properly produces more value than a successful one checked off and forgotten.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is Managing for Daily Improvement (MDI)?</div>
+        <div class="faq-a">MDI is the backbone of CI execution: visual management systems, daily accountability, and leadership standard work. It operates through a tier structure &mdash; Tier 1 (team leads and operators, daily), Tier 2 (area managers, daily), Tier 3 (plant leadership, weekly). Hoshin kanri sets the strategic direction; MDI is how you allocate resources daily to achieve it.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does hoshin kanri connect to daily execution?</div>
+        <div class="faq-a">Hoshin IS the strategy. The X-matrix connects 3-5 year objectives to annual targets, improvement projects, and KPIs. MDI newspapers that exceed local authority escalate to hoshin projects. KPI actuals from tier meetings feed the X-matrix. Leadership standard work verifies strategic intent is reaching the gemba. They are two halves of the same system.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What does &ldquo;respect for people&rdquo; actually mean?</div>
+        <div class="faq-a">It means preventing culmination of your force. In military planning, culmination is the point where an attacking force exhausts itself beyond recovery. In operations: if you push improvement without maintaining the base (5S, standard work, communication), people burn out, standards decay, and gains erode. Respect means building systems that sustain improvement without destroying the people doing it.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How much does Svend cost compared to separate CI tools?</div>
+        <div class="faq-a">Quality teams typically spend $3,000-$10,000+ per seat per year across separate subscriptions for statistics, DOE, project management, and risk analysis. Svend consolidates all of it &mdash; from SPC and DOE to hoshin kanri, VSM, A3, FMEA, and a full ISO 9001 QMS &mdash; into one platform. The Team plan starts at {{ price_team }}/seat/mo with a 14-day free trial.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Do I need separate tools for strategy and daily management?</div>
+        <div class="faq-a">No. That is exactly the problem Svend solves. Hoshin kanri (strategy) and MDI (daily execution) must be connected in the same system. When they live in separate tools &mdash; spreadsheets for hoshin, whiteboards for daily management &mdash; the connection between strategy and execution breaks. In Svend, newspaper items promote to hoshin projects, KPIs pull from project data, and leadership standard work verifies the connection daily.</div>
+    </div>
+</div>
+{% endblock %}
