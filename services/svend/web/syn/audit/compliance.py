@@ -120,9 +120,12 @@ def check_security_config():
 def check_dependency_vuln():
     """Scan installed packages for known vulnerabilities using pip-audit."""
     try:
+        import sys
+        env = dict(__import__("os").environ)
+        env["PIPAPI_PYTHON_LOCATION"] = sys.executable
         result = subprocess.run(
             ["pip-audit", "--format=json", "--progress-spinner=off"],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, timeout=120, env=env,
         )
         data = json.loads(result.stdout) if result.stdout else {}
         vulns = data.get("dependencies", [])
@@ -222,6 +225,7 @@ def check_permission_coverage():
     public_allowed = {
         "health", "email_track_open", "email_track_click", "email_unsubscribe",
         "site_duration", "funnel_event", "compliance", "compliance_data",
+        "whiteboard_guest_name",  # Guest whiteboard access (token-authenticated)
     }
 
     try:
@@ -229,33 +233,30 @@ def check_permission_coverage():
 
         unprotected = []
 
-        # Known auth decorator wrapper names
-        AUTH_WRAPPERS = {"wrapper", "wrapped_view"}
-        AUTH_DECORATOR_NAMES = {
-            "require_auth", "rate_limited", "gated", "gated_paid",
-            "require_enterprise", "login_required", "staff_only",
+        # Files known to contain auth-enforcing decorators
+        AUTH_MODULES = {
+            "accounts/permissions.py", "accounts\\permissions.py",
+            "django/contrib/auth/decorators.py",
+            "rest_framework/decorators.py",
         }
 
         def _has_auth_decorator(cb):
-            """Walk the __wrapped__ chain looking for auth decorators."""
+            """Walk the __wrapped__ chain checking code origin for auth decorators."""
             # Check DRF views
             if hasattr(cb, "cls") or hasattr(cb, "initkwargs"):
                 return True
-            # Check qualname for known auth wrapper patterns
-            qualname = getattr(cb, "__qualname__", "")
-            for name in AUTH_DECORATOR_NAMES:
-                if name in qualname:
-                    return True
-            # Walk __wrapped__ chain (functools.wraps sets this)
+            # Walk the wrapper chain; @wraps copies metadata but __code__
+            # retains the original file where the wrapper was defined.
             fn = cb
             for _ in range(10):  # max depth
+                code = getattr(fn, "__code__", None)
+                if code:
+                    filename = getattr(code, "co_filename", "")
+                    if any(m in filename for m in AUTH_MODULES):
+                        return True
                 inner = getattr(fn, "__wrapped__", None)
                 if inner is None:
                     break
-                inner_qualname = getattr(inner, "__qualname__", "")
-                for name in AUTH_DECORATOR_NAMES:
-                    if name in inner_qualname:
-                        return True
                 fn = inner
             return False
 
@@ -352,8 +353,8 @@ def check_backup_freshness():
             if backups:
                 backup_found = True
                 mtime = backups[0].stat().st_mtime
-                from datetime import datetime
-                latest_backup = datetime.fromtimestamp(mtime, tz=timezone.utc)
+                from datetime import datetime, timezone as dt_tz
+                latest_backup = datetime.fromtimestamp(mtime, tz=dt_tz.utc)
                 break
 
     if not backup_found:
@@ -680,9 +681,26 @@ def run_check(check_name):
 
 
 def run_daily_checks():
-    """Run today's rotating checks: critical + weekday rotation."""
+    """Run today's rotating checks: critical + weekday rotation + unscheduled.
+
+    Any check in ALL_CHECKS not listed in DAILY_CRITICAL or WEEKDAY_ROTATION
+    is automatically added to Wednesday's rotation, so new checks run without
+    manual scheduling.
+    """
     today = date.today().weekday()
-    checks_to_run = list(DAILY_CRITICAL) + WEEKDAY_ROTATION.get(today, [])
+
+    # Find checks not explicitly scheduled anywhere
+    scheduled = set(DAILY_CRITICAL)
+    for day_checks in WEEKDAY_ROTATION.values():
+        scheduled.update(day_checks)
+    unscheduled = [name for name in ALL_CHECKS if name not in scheduled]
+
+    # Unscheduled checks run on Wednesday (weekday 2) alongside other rotations
+    rotation = list(WEEKDAY_ROTATION.get(today, []))
+    if today == 2:
+        rotation.extend(unscheduled)
+
+    checks_to_run = list(DAILY_CRITICAL) + rotation
     # Deduplicate while preserving order
     seen = set()
     unique = []
