@@ -620,3 +620,77 @@ class DriftViolation(SynaraImmutableLog):
             "SYS-200 INV-008 violation: audit records must be immutable. "
             "Use resolved_at and resolution_notes to close violations."
         )
+
+
+class ComplianceCheck(models.Model):
+    """
+    Result of an automated compliance check.
+
+    Each check verifies a specific security/compliance control and stores
+    the result with details. Checks run on a rotating daily schedule.
+
+    Compliance: SOC 2 CC4.1 (COSO Principle 16: Monitoring Activities)
+    """
+
+    STATUS_CHOICES = [
+        ("pass", "Pass"),
+        ("fail", "Fail"),
+        ("warning", "Warning"),
+        ("error", "Error"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    check_name = models.CharField(max_length=100, db_index=True)
+    category = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    details = models.JSONField(default=dict)
+    soc2_controls = models.JSONField(default=list)
+    duration_ms = models.FloatField(default=0)
+    run_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    tenant_id = models.UUIDField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        db_table = "syn_audit_compliance_check"
+        ordering = ["-run_at"]
+        indexes = [
+            models.Index(fields=["check_name", "-run_at"], name="compliance_check_name_time"),
+            models.Index(fields=["status", "-run_at"], name="compliance_status_time"),
+        ]
+
+    def __str__(self):
+        return f"[{self.run_at}] {self.check_name}: {self.status}"
+
+
+class ComplianceReport(models.Model):
+    """
+    Monthly aggregate compliance report.
+
+    Generated on the 1st of each month from the previous month's checks.
+    Contains both a full internal report and a redacted public version.
+
+    Compliance: SOC 2 CC4.1, CC2.1 (Communication and Information)
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    generated_at = models.DateTimeField(auto_now_add=True)
+    total_checks = models.IntegerField(default=0)
+    passed = models.IntegerField(default=0)
+    failed = models.IntegerField(default=0)
+    warnings = models.IntegerField(default=0)
+    pass_rate = models.FloatField(default=0)
+    summary = models.JSONField(default=dict)
+    full_report = models.JSONField(default=dict)
+    public_report = models.JSONField(default=dict)
+    is_published = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "syn_audit_compliance_report"
+        ordering = ["-period_start"]
+        indexes = [
+            models.Index(fields=["-period_start"], name="compliance_report_period"),
+        ]
+
+    def __str__(self):
+        return f"Compliance Report {self.period_start} - {self.period_end} ({self.pass_rate:.0f}%)"

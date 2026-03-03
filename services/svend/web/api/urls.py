@@ -131,6 +131,10 @@ urlpatterns = [
     path("internal/infra/", internal_views.api_infra, name="internal_infra"),
     path("internal/audit-entries/", internal_views.api_audit_entries, name="internal_audit_entries"),
 
+    # Compliance (staff-only)
+    path("internal/compliance/", internal_views.api_compliance, name="internal_compliance"),
+    path("internal/compliance/publish/<uuid:report_id>/", internal_views.api_compliance_publish, name="internal_compliance_publish"),
+
     # Site duration beacon (public — fired by sendBeacon, no auth)
     path("site-duration/", views.site_duration, name="site_duration"),
 

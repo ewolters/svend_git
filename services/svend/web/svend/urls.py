@@ -11,9 +11,10 @@ from django.views.generic import TemplateView
 
 from api.blog_views import blog_list, blog_detail
 from api.internal_views import dashboard_view
+from api.views import compliance_page, compliance_data
 from api.landing_views import (
     landing_view, register_view, iso_qms_view, iso_audit_playbook_view,
-    svend_vs_minitab_view, svend_vs_jmp_view, education_view,
+    svend_vs_minitab_view, svend_vs_jmp_view, education_view, partnerships_view,
     ci_hub_view, mdi_playbook_view, hoshin_playbook_view,
     kaizen_playbook_view, five_s_playbook_view, lsw_playbook_view,
     vsm_playbook_view,
@@ -175,6 +176,7 @@ urlpatterns = [
     path("classical-vs-bayesian-spc/", TemplateView.as_view(template_name="classical_vs_bayesian_spc.html"), name="classical_vs_bayesian_spc"),
     path("iso-9001-qms-software/", iso_qms_view, name="iso_9001_qms"),
     path("iso-9001-internal-audit-playbook/", iso_audit_playbook_view, name="iso_audit_playbook"),
+    path("partnerships/", partnerships_view, name="partnerships"),
     path("for-education/", education_view, name="education_partnerships"),
 
     # Continuous Improvement landing pages (public, no auth — SEO)
@@ -185,6 +187,10 @@ urlpatterns = [
     path("5s-operational-excellence/", five_s_playbook_view, name="five_s_playbook"),
     path("leadership-standard-work/", lsw_playbook_view, name="lsw_playbook"),
     path("value-stream-mapping-methodology/", vsm_playbook_view, name="vsm_playbook"),
+
+    # Compliance (public, no auth — trust signal for prospects)
+    path("compliance/", compliance_page, name="compliance"),
+    path("compliance/data/", compliance_data, name="compliance_data"),
 
     # Blog (public, no auth)
     path("blog/", blog_list, name="blog_list"),

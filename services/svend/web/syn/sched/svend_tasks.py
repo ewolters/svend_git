@@ -110,6 +110,39 @@ def register_svend_tasks():
         max_attempts=2,
     )
 
+    # ---- Compliance checks (syn.audit) ----
+
+    def compliance_daily_handler(task):
+        from syn.audit.compliance import run_daily_checks
+        results = run_daily_checks()
+        return {
+            "checks_run": len(results),
+            "passed": sum(1 for r in results if r.status == "pass"),
+        }
+
+    def compliance_monthly_report_handler(task):
+        from syn.audit.compliance import generate_monthly_report
+        report = generate_monthly_report()
+        return {"report_id": str(report.id), "pass_rate": report.pass_rate}
+
+    TaskRegistry.register(
+        task_name="audit.compliance_daily",
+        handler=compliance_daily_handler,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.NORMAL,
+        timeout_seconds=300,
+        max_attempts=2,
+    )
+
+    TaskRegistry.register(
+        task_name="audit.compliance_monthly_report",
+        handler=compliance_monthly_report_handler,
+        queue=QueueType.BATCH,
+        priority=TaskPriority.LOW,
+        timeout_seconds=600,
+        max_attempts=2,
+    )
+
     logger.info("[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers))
 
 
@@ -150,5 +183,19 @@ SVEND_SCHEDULES = [
         "cron": "0 20 * * 0",
         "priority": TaskPriority.LOW,
         "queue": "core",
+    },
+    {
+        "schedule_id": "compliance-daily",
+        "task_name": "audit.compliance_daily",
+        "cron": "0 2 * * *",
+        "priority": TaskPriority.NORMAL,
+        "queue": "batch",
+    },
+    {
+        "schedule_id": "compliance-monthly-report",
+        "task_name": "audit.compliance_monthly_report",
+        "cron": "0 4 1 * *",
+        "priority": TaskPriority.LOW,
+        "queue": "batch",
     },
 ]

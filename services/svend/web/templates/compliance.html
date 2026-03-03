@@ -1,0 +1,279 @@
+{% extends "base_guest.html" %}
+
+{% block title %}Security & Compliance - SVEND{% endblock %}
+
+{% block extra_head %}
+<meta name="description" content="SVEND's security and compliance posture. Automated daily checks, SOC 2 control coverage, and monthly compliance reports.">
+<style>
+    .compliance-container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 3rem 1.5rem;
+    }
+    .compliance-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    .compliance-header h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+    .compliance-header p {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        max-width: 640px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+    .pass-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 3px solid var(--accent-primary);
+        margin: 1.5rem auto;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent-primary);
+    }
+    .category-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 12px;
+        margin: 2rem 0;
+    }
+    .category-card {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+    }
+    .category-card h3 {
+        font-size: 0.82rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        text-transform: capitalize;
+    }
+    .category-card .rate {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    .category-card .label {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+    .status-passing { color: var(--accent-primary); }
+    .status-needs_attention { color: var(--warning, #f59e0b); }
+    .framework-badges {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+    .framework-badge {
+        padding: 6px 16px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        background: var(--bg-tertiary);
+    }
+    .reports-section {
+        margin-top: 2.5rem;
+    }
+    .reports-section h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+    .report-table th {
+        text-align: left;
+        padding: 8px 12px;
+        color: var(--text-dim);
+        border-bottom: 1px solid var(--border);
+        font-weight: 500;
+    }
+    .report-table td {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+    }
+    .checks-section {
+        margin-top: 2.5rem;
+    }
+    .checks-section h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    .check-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 8px;
+    }
+    .check-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.8rem;
+    }
+    .check-status {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #fff;
+    }
+    .soc2-coverage {
+        text-align: center;
+        margin: 2rem 0;
+        padding: 1.5rem;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+    }
+    .soc2-coverage .number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent-primary);
+    }
+    .last-updated {
+        text-align: center;
+        margin-top: 2rem;
+        font-size: 0.75rem;
+        color: var(--text-dim);
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-dim);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="compliance-container">
+    <div class="compliance-header">
+        <h1>Security & Compliance</h1>
+        <p>
+            SVEND runs automated compliance checks daily across security, availability,
+            confidentiality, and data integrity controls. Results are aggregated into
+            monthly reports with independent verification.
+        </p>
+    </div>
+
+    {% if report %}
+    <div style="text-align:center;">
+        <div class="pass-badge">{{ report.pass_rate|floatformat:0 }}%</div>
+        <div style="color:var(--text-dim);font-size:0.82rem;">
+            Overall Pass Rate · {{ report.period_start|date:"M Y" }}
+        </div>
+    </div>
+
+    <!-- SOC 2 Coverage -->
+    <div class="soc2-coverage">
+        <div class="number">{{ report.public_report.soc2_controls_covered|default:"—" }}</div>
+        <div style="color:var(--text-dim);font-size:0.85rem;">SOC 2 controls verified by automated checks</div>
+    </div>
+
+    <!-- Categories -->
+    {% if report.public_report.categories %}
+    <div class="category-grid" id="category-grid">
+        {% for cat_name, cat_data in report.public_report.categories.items %}
+        <div class="category-card">
+            <h3>{{ cat_name }}</h3>
+            <div class="rate status-{{ cat_data.status }}">{{ cat_data.pass_rate }}%</div>
+            <div class="label">{{ cat_data.status|title }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Checks -->
+    {% if report.public_report.checks %}
+    <div class="checks-section">
+        <h2>Automated Checks</h2>
+        <div class="check-grid">
+            {% for check_name, check_data in report.public_report.checks.items %}
+            <div class="check-item">
+                <span style="text-transform:capitalize;">{{ check_name }}</span>
+                <span class="check-status" style="background:{% if check_data.status == 'passing' %}#22c55e{% else %}#f59e0b{% endif %};">
+                    {{ check_data.pass_rate }}%
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <p>Compliance monitoring is active. The first published report will appear here.</p>
+    </div>
+    {% endif %}
+
+    <!-- Framework Badges -->
+    <div class="framework-badges">
+        <span class="framework-badge">SOC 2 Type II (in progress)</span>
+        <span class="framework-badge">ISO 27001 (planned)</span>
+        <span class="framework-badge">NIST SP 800-53</span>
+    </div>
+
+    <!-- Reports Table -->
+    <div class="reports-section" id="reports-section"></div>
+
+    <div class="last-updated">
+        {% if report %}
+        Last report: {{ report.generated_at|date:"M d, Y" }}
+        {% else %}
+        Automated compliance checks run daily at 02:00 UTC
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load published reports dynamically for the table
+fetch('/compliance/data/')
+    .then(r => r.json())
+    .then(data => {
+        const reports = data.reports || [];
+        if (reports.length === 0) return;
+
+        const section = document.getElementById('reports-section');
+        let html = '<h2>Monthly Reports</h2><table class="report-table"><thead><tr>';
+        html += '<th>Period</th><th>Pass Rate</th><th>Checks Run</th>';
+        html += '</tr></thead><tbody>';
+
+        reports.forEach(r => {
+            const rate = r.pass_rate.toFixed(1);
+            const color = r.pass_rate >= 90 ? 'var(--accent-primary)' : 'var(--warning, #f59e0b)';
+            html += `<tr>
+                <td>${r.period_start} — ${r.period_end}</td>
+                <td style="font-weight:600;color:${color};">${rate}%</td>
+                <td>${r.total_checks}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        section.innerHTML = html;
+    })
+    .catch(e => console.error('Failed to load reports:', e));
+</script>
+{% endblock %}

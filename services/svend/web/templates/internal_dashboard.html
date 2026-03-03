@@ -1375,6 +1375,56 @@
     </div>
 </div>
 
+<!-- Tab: Compliance -->
+<div class="tab-content" id="tab-compliance">
+    <!-- KPI Cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="compliance-pass-rate">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Overall Pass Rate</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="compliance-today">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Checks Today</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="compliance-total">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Total Checks</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="compliance-soc2">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">SOC 2 Controls</div>
+        </div>
+    </div>
+
+    <!-- Check Status Grid -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Check Status</h3>
+    <div id="compliance-check-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:1.5rem;"></div>
+
+    <!-- Pass Rate Trend -->
+    <div class="chart-card" style="margin-bottom:1.5rem;">
+        <h3 style="margin:0 0 8px 0;font-size:0.95rem;">Pass Rate Trend (30d)</h3>
+        <canvas id="compliance-trend-chart" height="160"></canvas>
+    </div>
+
+    <!-- Reports -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Monthly Reports</h3>
+    <div class="chart-card">
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+            <thead>
+                <tr style="text-align:left;color:var(--text-dim);border-bottom:1px solid var(--border);">
+                    <th style="padding:6px 8px;">Period</th>
+                    <th style="padding:6px 8px;">Pass Rate</th>
+                    <th style="padding:6px 8px;">Checks</th>
+                    <th style="padding:6px 8px;">Generated</th>
+                    <th style="padding:6px 8px;">Published</th>
+                </tr>
+            </thead>
+            <tbody id="compliance-reports-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
 <!-- Tab: Infra -->
 <div class="tab-content" id="tab-infra">
     <!-- Scheduler Section -->
@@ -2099,6 +2149,122 @@ function formatMarkdown(text) {
 }
 
 // =========================================================================
+// Compliance Tab
+// =========================================================================
+let complianceTrendChart = null;
+
+async function loadCompliance() {
+    try {
+        const d = await apiFetch('compliance');
+        const stats = d.stats || {};
+
+        // KPIs
+        const rate = stats.overall_pass_rate || 0;
+        document.getElementById('compliance-pass-rate').textContent = rate + '%';
+        document.getElementById('compliance-pass-rate').style.color =
+            rate >= 90 ? 'var(--accent-primary)' : rate >= 70 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+        document.getElementById('compliance-today').textContent = stats.checks_today || 0;
+        document.getElementById('compliance-total').textContent = stats.total_checks_run || 0;
+        document.getElementById('compliance-soc2').textContent = stats.soc2_controls_covered || 0;
+
+        // Check status grid
+        const grid = document.getElementById('compliance-check-grid');
+        grid.innerHTML = '';
+        (d.checks || []).forEach(c => {
+            const colors = {pass: '#22c55e', fail: '#ef4444', warning: '#f59e0b', error: '#ef4444', pending: '#6b7280'};
+            const labels = {pass: 'PASS', fail: 'FAIL', warning: 'WARN', error: 'ERR', pending: '—'};
+            const card = document.createElement('div');
+            card.className = 'chart-card';
+            card.style.cssText = 'padding:12px;display:flex;justify-content:space-between;align-items:center;';
+            const age = c.run_at ? timeAgo(c.run_at) : 'never';
+            card.innerHTML = `
+                <div>
+                    <div style="font-weight:600;font-size:0.82rem;">${c.check_name.replace(/_/g,' ')}</div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);">${c.category} · ${age}</div>
+                </div>
+                <span style="background:${colors[c.status] || '#6b7280'};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;">${labels[c.status] || c.status}</span>
+            `;
+            grid.appendChild(card);
+        });
+
+        // Trend chart
+        const trend = d.trend || [];
+        if (trend.length > 0) {
+            const ctx = document.getElementById('compliance-trend-chart').getContext('2d');
+            if (complianceTrendChart) complianceTrendChart.destroy();
+            complianceTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trend.map(t => t.date.slice(5)),
+                    datasets: [{
+                        label: 'Pass Rate %',
+                        data: trend.map(t => t.pass_rate),
+                        borderColor: 'rgba(34,197,94,0.8)',
+                        backgroundColor: 'rgba(34,197,94,0.1)',
+                        fill: true, tension: 0.3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { min: 0, max: 100, ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                              x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } } },
+                    plugins: { legend: { display: false } },
+                }
+            });
+        }
+
+        // Reports table
+        const tbody = document.getElementById('compliance-reports-tbody');
+        tbody.innerHTML = '';
+        (d.reports || []).forEach(r => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            tr.innerHTML = `
+                <td style="padding:6px 8px;">${r.period_start} — ${r.period_end}</td>
+                <td style="padding:6px 8px;font-weight:600;color:${r.pass_rate >= 90 ? 'var(--accent-primary)' : 'var(--warning,#f59e0b)'};">${r.pass_rate.toFixed(1)}%</td>
+                <td style="padding:6px 8px;">${r.total_checks}</td>
+                <td style="padding:6px 8px;font-size:0.75rem;color:var(--text-dim);">${new Date(r.generated_at).toLocaleDateString()}</td>
+                <td style="padding:6px 8px;">
+                    <button onclick="togglePublish('${r.id}', this)" style="padding:2px 10px;border:1px solid var(--border);background:${r.is_published ? 'var(--accent-primary)' : 'var(--bg-secondary)'};color:${r.is_published ? '#fff' : 'var(--text-dim)'};border-radius:10px;cursor:pointer;font-size:0.72rem;">
+                        ${r.is_published ? 'Published' : 'Publish'}
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        if (!d.reports || d.reports.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:12px;color:var(--text-dim);text-align:center;">No reports yet. Run: manage.py run_compliance --report</td></tr>';
+        }
+    } catch(e) {
+        console.error('Compliance load failed:', e);
+    }
+}
+
+function timeAgo(iso) {
+    const ms = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(ms / 60000);
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
+}
+
+async function togglePublish(reportId, btn) {
+    try {
+        const resp = await fetch('/api/internal/compliance/publish/' + reportId + '/', {
+            method: 'POST',
+            headers: {'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''},
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            btn.textContent = data.is_published ? 'Published' : 'Publish';
+            btn.style.background = data.is_published ? 'var(--accent-primary)' : 'var(--bg-secondary)';
+            btn.style.color = data.is_published ? '#fff' : 'var(--text-dim)';
+        }
+    } catch(e) { console.error('Publish toggle failed:', e); }
+}
+
+// =========================================================================
 // Infrastructure Tab
 // =========================================================================
 async function loadInfra() {
@@ -2330,20 +2496,21 @@ const loaders = {
     automation: loadAutomation,
     crm: loadCRM,
     site: loadSite,
+    compliance: loadCompliance,
     infra: loadInfra,
 };
 
 const groups = {
     product:  ['users', 'usage', 'performance', 'activity'],
     growth:   ['business', 'onboarding', 'email', 'content', 'crm', 'site'],
-    ops:      ['automation', 'insights', 'infra'],
+    ops:      ['automation', 'insights', 'compliance', 'infra'],
 };
 
 const tabLabels = {
     users: 'Users', usage: 'Usage', performance: 'Performance',
     activity: 'Activity', business: 'Business', onboarding: 'Onboarding',
     email: 'Email', content: 'Content', crm: 'CRM', site: 'Site',
-    automation: 'Automation', insights: 'AI Insights', infra: 'Infra',
+    automation: 'Automation', insights: 'AI Insights', compliance: 'Compliance', infra: 'Infra',
 };
 
 let activeGroup = 'product';

@@ -1660,3 +1660,38 @@ def onboarding_complete(request):
         "learning_path": survey.learning_path,
         "message": "Welcome aboard! Check your email for your personalized getting started guide.",
     })
+
+
+# =============================================================================
+# Public Compliance
+# =============================================================================
+
+
+def compliance_page(request):
+    """Public compliance landing page showing redacted report data."""
+    from django.shortcuts import render
+    from syn.audit.models import ComplianceReport
+
+    latest = ComplianceReport.objects.filter(is_published=True).first()
+    return render(request, "compliance.html", {"report": latest})
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def compliance_data(request):
+    """Public API returning published compliance reports (redacted data only)."""
+    from syn.audit.models import ComplianceReport
+
+    reports = ComplianceReport.objects.filter(is_published=True).order_by("-period_start")[:6]
+    data = []
+    for r in reports:
+        data.append({
+            "period_start": r.period_start.isoformat(),
+            "period_end": r.period_end.isoformat(),
+            "pass_rate": r.pass_rate,
+            "total_checks": r.total_checks,
+            "public_report": r.public_report,
+        })
+
+    return Response({"reports": data})

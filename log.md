@@ -15,6 +15,23 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-03-03 — Automated compliance system: daily checks, monthly reports, public landing page
+**Files changed:**
+- `syn/audit/models.py` — Added ComplianceCheck + ComplianceReport models
+- `syn/audit/compliance.py` — **New** 10 check implementations (audit_integrity, security_config, dependency_vuln, encryption_status, permission_coverage, access_logging, backup_freshness, password_policy, data_retention, ssl_tls) with rotating daily schedule + monthly report generator with redacted public output
+- `syn/audit/management/commands/run_compliance.py` — **New** management command (--all, --check, --report)
+- `syn/sched/svend_tasks.py` — Added compliance_daily + compliance_monthly_report handlers (10 total), 2 new schedules
+- `api/internal_views.py` — Added api_compliance + api_compliance_publish endpoints
+- `api/urls.py` — Added compliance internal routes
+- `templates/internal_dashboard.html` — Added Compliance tab to Operations group with KPI cards, check status grid, trend chart, reports table with publish toggle
+- `templates/compliance.html` — **New** public compliance landing page (extends base_guest.html)
+- `api/views.py` — Added compliance_page + compliance_data public views
+- `svend/urls.py` — Added /compliance/ + /compliance/data/ routes
+- `syn/audit/migrations/0002_compliancecheck_compliancereport.py` — Migration
+**Verification:** `manage.py run_compliance --all` runs 10 checks (5 pass, 1 fail, 4 warn). `manage.py run_compliance --report` generates report. Dashboard Ops→Compliance tab loads. /compliance/ shows redacted data. No IPs/paths in public_report.
+
+---
+
 ### 2026-03-03 — Codebase reorganization: dead code removal, folder structure, legacy cleanup
 **Debt items:** Root core/ misplaced (RESOLVED), services/scrub/ duplicate (RESOLVED), Root-level file clutter (RESOLVED), Dead test imports (RESOLVED), Legacy references (RESOLVED)
 **Files changed:**

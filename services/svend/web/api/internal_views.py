@@ -3414,3 +3414,121 @@ def api_audit_entries(request):
     except Exception as e:
         logger.warning("Audit entries query failed: %s", e)
         return Response({"entries": [], "total": 0, "event_names": [], "error": str(e)})
+
+
+# =============================================================================
+# Compliance
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_compliance(request):
+    """Return compliance check results and report data for dashboard."""
+    try:
+        from syn.audit.models import ComplianceCheck, ComplianceReport
+        from syn.audit.compliance import ALL_CHECKS
+
+        now = timezone.now()
+
+        # Latest result per check
+        latest_checks = []
+        for name in ALL_CHECKS:
+            latest = ComplianceCheck.objects.filter(check_name=name).order_by("-run_at").first()
+            if latest:
+                latest_checks.append({
+                    "check_name": latest.check_name,
+                    "category": latest.category,
+                    "status": latest.status,
+                    "duration_ms": latest.duration_ms,
+                    "run_at": latest.run_at.isoformat(),
+                    "soc2_controls": latest.soc2_controls,
+                })
+            else:
+                _, cat = ALL_CHECKS[name]
+                latest_checks.append({
+                    "check_name": name,
+                    "category": cat,
+                    "status": "pending",
+                    "duration_ms": 0,
+                    "run_at": None,
+                    "soc2_controls": [],
+                })
+
+        # Pass rate trend (last 30 days)
+        thirty_days_ago = now - timedelta(days=30)
+        trend_qs = (
+            ComplianceCheck.objects
+            .filter(run_at__gte=thirty_days_ago)
+            .annotate(day=TruncDate("run_at"))
+            .values("day")
+            .annotate(
+                total=Count("id"),
+                passed=Count("id", filter=Q(status="pass")),
+            )
+            .order_by("day")
+        )
+        trend = [
+            {
+                "date": row["day"].isoformat(),
+                "total": row["total"],
+                "passed": row["passed"],
+                "pass_rate": round(row["passed"] / row["total"] * 100, 1) if row["total"] > 0 else 0,
+            }
+            for row in trend_qs
+        ]
+
+        # Aggregate stats
+        total_checks = ComplianceCheck.objects.count()
+        today_checks = ComplianceCheck.objects.filter(run_at__date=now.date()).count()
+        overall_passed = ComplianceCheck.objects.filter(status="pass").count()
+        overall_rate = round(overall_passed / total_checks * 100, 1) if total_checks > 0 else 0
+
+        # SOC 2 coverage
+        all_controls = set()
+        for c in latest_checks:
+            all_controls.update(c.get("soc2_controls", []))
+
+        # Reports
+        reports = list(
+            ComplianceReport.objects
+            .order_by("-period_start")[:10]
+            .values("id", "period_start", "period_end", "pass_rate",
+                    "total_checks", "is_published", "generated_at")
+        )
+        for r in reports:
+            r["id"] = str(r["id"])
+            r["period_start"] = r["period_start"].isoformat()
+            r["period_end"] = r["period_end"].isoformat()
+            r["generated_at"] = r["generated_at"].isoformat()
+
+        return Response({
+            "checks": latest_checks,
+            "trend": trend,
+            "stats": {
+                "total_checks_run": total_checks,
+                "checks_today": today_checks,
+                "overall_pass_rate": overall_rate,
+                "soc2_controls_covered": len(all_controls),
+            },
+            "reports": reports,
+        })
+    except Exception as e:
+        logger.warning("Compliance data query failed: %s", e)
+        return Response({"checks": [], "trend": [], "stats": {}, "reports": [], "error": str(e)})
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_compliance_publish(request, report_id):
+    """Toggle publish state of a compliance report."""
+    try:
+        from syn.audit.models import ComplianceReport
+        report = ComplianceReport.objects.get(id=report_id)
+        report.is_published = not report.is_published
+        report.save()
+        return Response({"ok": True, "is_published": report.is_published})
+    except ComplianceReport.DoesNotExist:
+        return Response({"ok": False, "error": "Report not found"}, status=404)
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=500)
