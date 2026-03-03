@@ -20,8 +20,6 @@ Usage:
 __version__ = "1.0.0"
 __standard__ = "AUD-001"
 
-default_app_config = "syn.audit.apps.AuditConfig"
-
 _model_names = {"SysLogEntry", "IntegrityViolation", "DriftViolation"}
 _util_names = {"generate_entry", "verify_chain_integrity", "record_integrity_violation", "get_audit_trail"}
 _event_names = {
