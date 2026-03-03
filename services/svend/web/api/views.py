@@ -1641,9 +1641,9 @@ def onboarding_complete(request):
             defaults={"scheduled_for": scheduled_for},
         )
 
-    # Fire welcome email immediately via Tempora
+    # Fire welcome email immediately via syn.sched
     try:
-        from tempora.scheduler import schedule_task
+        from syn.sched.scheduler import schedule_task
         schedule_task(
             name=f"onboarding_welcome_{user.id}",
             func="api.send_onboarding_email",

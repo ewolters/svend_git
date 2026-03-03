@@ -1,8 +1,8 @@
 """
-Forge Tasks (Tempora-enabled)
+Forge Tasks (syn.sched)
 
 Task handlers for data generation.
-Tasks are registered with Tempora for async execution.
+Tasks are registered with syn.sched for async execution.
 """
 
 import json
@@ -13,10 +13,6 @@ from typing import Any, Dict, Optional
 from django.utils import timezone
 from django.conf import settings
 
-# Tempora integration
-from tempora.core import task, TaskRegistry
-from tempora.types import TaskPriority, QueueType, RetryStrategy
-
 logger = logging.getLogger(__name__)
 
 # Result storage path
@@ -25,22 +21,14 @@ RESULTS_DIR.mkdir(exist_ok=True)
 
 
 # =============================================================================
-# Tempora Task Handler Registration
+# Task Handlers
 # =============================================================================
 
-@task(
-    "forge.tasks.generate_data_task",
-    queue=QueueType.BATCH,
-    priority=TaskPriority.NORMAL,
-    timeout_seconds=600,
-    retry_strategy=RetryStrategy.EXPONENTIAL,
-    max_attempts=3,
-)
 def generate_data_task_async(payload: Dict[str, Any], context: Any = None) -> dict:
     """
-    Tempora-registered handler for async data generation.
+    Handler for async data generation.
 
-    Called by Tempora workers when processing queued jobs.
+    Called by syn.sched workers when processing queued jobs.
     """
     job_id = payload.get("job_id")
     if not job_id:

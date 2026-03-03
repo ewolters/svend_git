@@ -1,23 +1,13 @@
-"""Tempora tasks for the API app."""
+"""Scheduled tasks for the API app (syn.sched)."""
 
 import logging
 from datetime import timedelta
 
 from django.utils import timezone
 
-from tempora.core import task
-from tempora.types import QueueType, TaskPriority
-
 logger = logging.getLogger(__name__)
 
 
-@task(
-    "api.publish_scheduled_posts",
-    queue=QueueType.CORE,
-    priority=TaskPriority.LOW,
-    timeout_seconds=30,
-    max_attempts=1,
-)
 def publish_scheduled_posts(payload, context):
     """Publish blog posts whose scheduled_at time has passed."""
     from api.models import BlogPost
@@ -250,13 +240,6 @@ EMAIL_BUILDERS = {
 }
 
 
-@task(
-    "api.send_onboarding_email",
-    queue=QueueType.CORE,
-    priority=TaskPriority.NORMAL,
-    timeout_seconds=30,
-    max_attempts=3,
-)
 def send_onboarding_email(payload, context):
     """Send a single onboarding drip email."""
     from django.core.mail import send_mail
@@ -330,13 +313,6 @@ def send_onboarding_email(payload, context):
         return {"error": str(e)}
 
 
-@task(
-    "api.process_onboarding_drip",
-    queue=QueueType.CORE,
-    priority=TaskPriority.LOW,
-    timeout_seconds=60,
-    max_attempts=1,
-)
 def process_onboarding_drip(payload, context):
     """Process pending onboarding drip emails that are due."""
     from api.models import OnboardingEmail
@@ -350,7 +326,7 @@ def process_onboarding_drip(payload, context):
     count = 0
     for email in due[:50]:  # batch cap
         try:
-            from tempora.scheduler import schedule_task
+            from syn.sched.scheduler import schedule_task
             schedule_task(
                 name=f"onboarding_{email.email_key}_{email.user_id}",
                 func="api.send_onboarding_email",
@@ -594,13 +570,6 @@ def _send_lifecycle_email(user, template_key, **kwargs):
         return False
 
 
-@task(
-    "api.process_automations",
-    queue=QueueType.CORE,
-    priority=TaskPriority.NORMAL,
-    timeout_seconds=120,
-    max_attempts=1,
-)
 def process_automations(payload, context):
     """Evaluate all active automation rules and fire matching actions."""
     from accounts.constants import TIER_LIMITS
@@ -752,13 +721,6 @@ def process_automations(payload, context):
     return {"rules_checked": rules.count(), "actions_fired": fired}
 
 
-@task(
-    "api.evaluate_experiments",
-    queue=QueueType.CORE,
-    priority=TaskPriority.LOW,
-    timeout_seconds=60,
-    max_attempts=1,
-)
 def evaluate_experiments(payload, context):
     """Evaluate all running experiments for significance."""
     from api.experiments import evaluate_experiment
@@ -778,13 +740,6 @@ def evaluate_experiments(payload, context):
     return {"evaluated": evaluated, "concluded": concluded}
 
 
-@task(
-    "api.claude_growth_review",
-    queue=QueueType.CORE,
-    priority=TaskPriority.LOW,
-    timeout_seconds=300,
-    max_attempts=1,
-)
 def claude_growth_review(payload, context):
     """Weekly Claude-powered growth review. Generates insights and recommendations."""
     import json
@@ -935,13 +890,6 @@ For rule_tweak recommendations: {"rule_name": "...", "change": "..."}"""
 # ---------------------------------------------------------------------------
 
 
-@task(
-    "api.crm_send_one_email",
-    queue=QueueType.CORE,
-    priority=TaskPriority.NORMAL,
-    timeout_seconds=30,
-    max_attempts=2,
-)
 def crm_send_one_email(payload, context):
     """Send a single outreach email to a CRM lead. Scheduled by bulk-send."""
     import re

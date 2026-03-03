@@ -234,8 +234,8 @@ def generate(request):
 
         return Response(response_data, status=status.HTTP_201_CREATED)
 
-    # Queue larger jobs with Tempora
-    from tempora import schedule_task
+    # Queue larger jobs with syn.sched
+    from syn.sched.scheduler import schedule_task
     task_id = schedule_task(
         name=f"forge.generate.{job.job_id}",
         func="forge.tasks.generate_data_task",

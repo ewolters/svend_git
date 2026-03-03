@@ -332,27 +332,22 @@ class ForgeAPITest(TestCase):
         self.assertIn('tier', data)
 
 
-class TemporaIntegrationTest(TestCase):
-    """Test Tempora task integration."""
+class SchedIntegrationTest(TestCase):
+    """Test syn.sched task integration."""
 
     def test_task_registered(self):
-        """Forge task should be registered with Tempora."""
-        from tempora.core import TaskRegistry
-
-        # Import forge.tasks to trigger registration
-        import forge.tasks
+        """Forge task should be registered with syn.sched."""
+        from syn.sched.core import TaskRegistry
 
         handlers = TaskRegistry.list_handlers()
-        self.assertIn('forge.tasks.generate_data_task', handlers)
+        self.assertIn('forge.tasks.generate_data_task_async', handlers)
 
     def test_task_metadata(self):
         """Task should have correct metadata."""
-        from tempora.core import TaskRegistry
-        from tempora.types import QueueType, TaskPriority
+        from syn.sched.core import TaskRegistry
+        from syn.sched.types import QueueType, TaskPriority
 
-        import forge.tasks
-
-        metadata = TaskRegistry.get_metadata('forge.tasks.generate_data_task')
+        metadata = TaskRegistry.get_metadata('forge.tasks.generate_data_task_async')
         self.assertEqual(metadata['queue'], QueueType.BATCH)
         self.assertEqual(metadata['priority'], TaskPriority.NORMAL)
         self.assertEqual(metadata['timeout_seconds'], 600)

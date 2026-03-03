@@ -29,7 +29,6 @@ INSTALLED_APPS = [
     # Third-party
     "rest_framework",
     "corsheaders",
-    "tempora",
     # Local apps
     "core",  # Foundation: tenants, projects, hypotheses, knowledge graph
     "accounts",

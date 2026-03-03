@@ -2140,7 +2140,7 @@ def api_autopilot_approve(request, report_id):
 @permission_classes([IsInternalUser])
 def api_autopilot_run(request):
     """Manually trigger a Claude growth review."""
-    from tempora.scheduler import schedule_task
+    from syn.sched.scheduler import schedule_task
 
     schedule_task(
         name="manual_growth_review",
@@ -3157,7 +3157,7 @@ def api_crm_bulk_send(request):
         })
 
     # --- Actual send ---
-    from tempora.scheduler import schedule_task
+    from syn.sched.scheduler import schedule_task
 
     campaign = EmailCampaign.objects.create(
         subject=f"[CRM Bulk] {subject_a[:80]}",

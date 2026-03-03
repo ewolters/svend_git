@@ -8,64 +8,6 @@ class ApiConfig(AppConfig):
     name = "api"
 
     def ready(self):
-        # Register Tempora task handlers
-        import api.tasks  # noqa: F401
-
-        # Schedule recurring tasks (idempotent — skips if already exists)
-        try:
-            from tempora.models import Schedule
-            from tempora.scheduler import schedule_task
-
-            if not Schedule.objects.filter(schedule_id="publish_scheduled_posts").exists():
-                schedule_task(
-                    name="publish_scheduled_posts",
-                    func="api.publish_scheduled_posts",
-                    cron="*/15 * * * *",
-                    priority=1,
-                    queue="core",
-                )
-
-            if not Schedule.objects.filter(schedule_id="process_onboarding_drip").exists():
-                schedule_task(
-                    name="process_onboarding_drip",
-                    func="api.process_onboarding_drip",
-                    cron="*/10 * * * *",
-                    priority=2,
-                    queue="core",
-                )
-
-            # Automation engine: every 30 min
-            if not Schedule.objects.filter(schedule_id="process_automations").exists():
-                schedule_task(
-                    name="process_automations",
-                    func="api.process_automations",
-                    cron="*/30 * * * *",
-                    priority=2,
-                    queue="core",
-                )
-
-            # Experiment evaluation: daily at 06:00 UTC
-            if not Schedule.objects.filter(schedule_id="evaluate_experiments").exists():
-                schedule_task(
-                    name="evaluate_experiments",
-                    func="api.evaluate_experiments",
-                    cron="0 6 * * *",
-                    priority=1,
-                    queue="core",
-                )
-
-            # Claude growth review: weekly Sunday 20:00 UTC
-            if not Schedule.objects.filter(schedule_id="claude_growth_review").exists():
-                schedule_task(
-                    name="claude_growth_review",
-                    func="api.claude_growth_review",
-                    cron="0 20 * * 0",
-                    priority=1,
-                    queue="core",
-                )
-        except Exception:
-            pass  # Tempora tables may not exist yet during migrations
-
         # Seed default automation rules (idempotent)
         self._seed_automation_rules()
 

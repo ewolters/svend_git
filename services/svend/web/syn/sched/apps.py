@@ -34,4 +34,9 @@ class SchedConfig(AppConfig):
 
         Registers task handlers and event listeners.
         """
-        pass
+        try:
+            from syn.sched.svend_tasks import register_svend_tasks
+            register_svend_tasks()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to register task handlers: {e}")
