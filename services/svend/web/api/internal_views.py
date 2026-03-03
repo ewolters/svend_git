@@ -3502,6 +3502,24 @@ def api_compliance(request):
             r["period_end"] = r["period_end"].isoformat()
             r["generated_at"] = r["generated_at"].isoformat()
 
+        # Standards coverage — from latest standards_compliance check
+        standards_data = {}
+        std_check = ComplianceCheck.objects.filter(
+            check_name="standards_compliance"
+        ).order_by("-run_at").first()
+        if std_check and std_check.details:
+            details = std_check.details
+            by_standard = details.get("by_standard", {})
+            standards_data = {
+                "total_assertions": details.get("total_assertions", 0),
+                "passed": details.get("passed", 0),
+                "failed": details.get("failed", 0),
+                "warnings": details.get("warnings", 0),
+                "run_at": std_check.run_at.isoformat(),
+                "by_standard": by_standard,
+                "failures": details.get("failures", []),
+            }
+
         return Response({
             "checks": latest_checks,
             "trend": trend,
@@ -3512,6 +3530,7 @@ def api_compliance(request):
                 "soc2_controls_covered": len(all_controls),
             },
             "reports": reports,
+            "standards": standards_data,
         })
     except Exception as e:
         logger.warning("Compliance data query failed: %s", e)

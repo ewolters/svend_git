@@ -15,6 +15,19 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-03-03 — Standards-driven compliance testing: parser, self-documenting standard, dashboard coverage
+**Files changed:**
+- `syn/audit/standards.py` — **New** Standards parser + assertion executors (parse_standard, parse_all_standards, verify_impl_exists via AST, verify_code_pattern with fuzzy token matching, verify_code_absent, verify_assertion, run_standards_checks)
+- `syn/audit/compliance.py` — Added check_standards_compliance registered check, added to DAILY_CRITICAL
+- `syn/audit/management/commands/run_compliance.py` — Added --standards flag for verbose per-assertion output
+- `api/internal_views.py` — Added standards coverage data to api_compliance endpoint
+- `templates/internal_dashboard.html` — Added Standards Coverage section to Compliance tab (per-standard progress bars, assertion KPIs, failure details)
+- `docs/standards/AUD-001.md` — Fixed impl tag: compute_current_hash → _compute_current_hash
+- `docs/standards/CMP-001.md` — **New** Compliance automation standard (self-documenting, 12 assertions that test the compliance system itself)
+**Verification:** `manage.py run_compliance --standards` shows 134 assertions (118 pass, 10 fail, 6 warn) across 8 standards. All 12 CMP-001 self-referential assertions pass. Dashboard Ops→Compliance→Standards Coverage shows per-standard breakdown.
+
+---
+
 ### 2026-03-03 — Automated compliance system: daily checks, monthly reports, public landing page
 **Files changed:**
 - `syn/audit/models.py` — Added ComplianceCheck + ComplianceReport models

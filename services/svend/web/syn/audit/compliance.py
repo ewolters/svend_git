@@ -36,7 +36,7 @@ def register(name, category):
 
 
 # Critical checks run every day; others rotate by weekday (0=Mon)
-DAILY_CRITICAL = ["audit_integrity", "access_logging", "security_config"]
+DAILY_CRITICAL = ["audit_integrity", "access_logging", "security_config", "standards_compliance"]
 WEEKDAY_ROTATION = {
     0: ["dependency_vuln", "ssl_tls"],
     1: ["encryption_status", "password_policy"],
@@ -461,6 +461,62 @@ def check_ssl_tls():
             "csp_enabled": any("ContentSecurityPolicy" in m for m in middleware),
         },
         "soc2_controls": ["CC6.7"],
+    }
+
+
+@register("standards_compliance", "processing_integrity")
+def check_standards_compliance():
+    """Parse docs/standards/*.md and verify all assertions against implementations."""
+    from syn.audit.standards import parse_all_standards, verify_assertion
+
+    assertions = parse_all_standards()
+    if not assertions:
+        return {
+            "status": "warning",
+            "details": {"message": "No standards found to parse"},
+            "soc2_controls": [],
+        }
+
+    results = [verify_assertion(a) for a in assertions]
+    passed = sum(1 for r in results if r["status"] == "pass")
+    failed = sum(1 for r in results if r["status"] == "fail")
+    warnings = sum(1 for r in results if r["status"] == "warning")
+
+    # Group by standard
+    by_standard = {}
+    for a, r in zip(assertions, results):
+        std = a.standard
+        if std not in by_standard:
+            by_standard[std] = {"total": 0, "passed": 0, "failed": 0}
+        by_standard[std]["total"] += 1
+        if r["status"] == "pass":
+            by_standard[std]["passed"] += 1
+        elif r["status"] == "fail":
+            by_standard[std]["failed"] += 1
+
+    # Collect all SOC 2 controls
+    all_controls = set()
+    for a in assertions:
+        if "soc2" in a.controls:
+            all_controls.add(a.controls["soc2"])
+
+    failures = [
+        {"check_id": r["check_id"], "assertion": r["assertion"][:120],
+         "standard": r["standard"], "section": r["section"]}
+        for r in results if r["status"] == "fail"
+    ]
+
+    return {
+        "status": "pass" if failed == 0 else "fail",
+        "details": {
+            "total_assertions": len(results),
+            "passed": passed,
+            "failed": failed,
+            "warnings": warnings,
+            "by_standard": by_standard,
+            "failures": failures,
+        },
+        "soc2_controls": sorted(all_controls),
     }
 
 

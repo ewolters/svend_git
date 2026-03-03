@@ -1401,6 +1401,34 @@
     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Check Status</h3>
     <div id="compliance-check-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:1.5rem;"></div>
 
+    <!-- Standards Coverage -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Standards Coverage</h3>
+    <div id="compliance-standards-section" style="margin-bottom:1.5rem;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;" id="std-total">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Assertions</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;color:var(--accent-primary);" id="std-passed">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Passed</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;color:var(--danger,#ef4444);" id="std-failed">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Failed</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:1.6rem;font-weight:700;color:var(--warning,#f59e0b);" id="std-warnings">—</div>
+                <div style="font-size:0.7rem;color:var(--text-dim);">Warnings</div>
+            </div>
+        </div>
+        <div id="std-by-standard" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:12px;"></div>
+        <div id="std-failures" class="chart-card" style="display:none;padding:12px;">
+            <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;color:var(--danger,#ef4444);">Failures</div>
+            <div id="std-failures-list" style="font-size:0.78rem;"></div>
+        </div>
+    </div>
+
     <!-- Pass Rate Trend -->
     <div class="chart-card" style="margin-bottom:1.5rem;">
         <h3 style="margin:0 0 8px 0;font-size:0.95rem;">Pass Rate Trend (30d)</h3>
@@ -2186,6 +2214,49 @@ async function loadCompliance() {
             `;
             grid.appendChild(card);
         });
+
+        // Standards coverage
+        const std = d.standards || {};
+        if (std.total_assertions) {
+            document.getElementById('std-total').textContent = std.total_assertions;
+            document.getElementById('std-passed').textContent = std.passed || 0;
+            document.getElementById('std-failed').textContent = std.failed || 0;
+            document.getElementById('std-warnings').textContent = std.warnings || 0;
+
+            const byStd = document.getElementById('std-by-standard');
+            byStd.innerHTML = '';
+            Object.entries(std.by_standard || {}).forEach(([name, info]) => {
+                const pct = info.total > 0 ? Math.round(info.passed / info.total * 100) : 0;
+                const color = pct === 100 ? 'var(--accent-primary)' : pct >= 80 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+                const card = document.createElement('div');
+                card.className = 'chart-card';
+                card.style.cssText = 'padding:10px;';
+                card.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-weight:600;font-size:0.82rem;">${name}</span>
+                        <span style="font-size:0.75rem;font-weight:600;color:${color};">${pct}%</span>
+                    </div>
+                    <div style="height:4px;background:var(--bg-secondary);border-radius:2px;overflow:hidden;">
+                        <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div>
+                    </div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">${info.passed}/${info.total} passed</div>
+                `;
+                byStd.appendChild(card);
+            });
+
+            // Failures
+            const failures = std.failures || [];
+            const failDiv = document.getElementById('std-failures');
+            const failList = document.getElementById('std-failures-list');
+            if (failures.length > 0) {
+                failDiv.style.display = 'block';
+                failList.innerHTML = failures.map(f =>
+                    `<div style="padding:4px 0;border-bottom:1px solid var(--border);"><code>${f.check_id}</code> — ${f.assertion.substring(0, 80)}</div>`
+                ).join('');
+            } else {
+                failDiv.style.display = 'none';
+            }
+        }
 
         // Trend chart
         const trend = d.trend || [];
