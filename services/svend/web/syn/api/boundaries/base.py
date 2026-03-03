@@ -644,12 +644,11 @@ class SerializerBoundary:
 
             # Create audit entry
             SysLogEntry.objects.create(
-                tenant_id=str(self.context.tenant_id),
+                tenant_id=str(self.context.tenant_id) if self.context.tenant_id else None,
                 correlation_id=self.context.correlation_id,
                 event_name=f"io.boundary.{self.operation}",
                 actor=str(self.context.user_id) if self.context.user_id else "system",
-                action=f"Boundary {self.operation} on {self.model_name}",
-                payload=payload,
+                payload={**payload, "boundary_action": f"Boundary {self.operation} on {self.model_name}"},
             )
 
             logger.debug(f"[BOUNDARY] Wrote audit log for {self.operation}")

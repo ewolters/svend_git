@@ -394,15 +394,10 @@ class AuditLoggingMiddleware:
 
             # Get tenant
             tenant_id = None
-            if hasattr(request, "tenant_id"):
+            if hasattr(request, "tenant_id") and request.tenant_id is not None:
                 tenant_id = str(request.tenant_id)
-            elif hasattr(request, "user") and hasattr(request.user, "tenant_id"):
+            elif hasattr(request, "user") and hasattr(request.user, "tenant_id") and request.user.tenant_id is not None:
                 tenant_id = str(request.user.tenant_id)
-
-            if not tenant_id:
-                # Use None for non-tenant requests (tenant_id is nullable UUID field)
-                logger.debug(f"[LOG MIDDLEWARE] No tenant_id on request to {request.path}, using None fallback")
-                tenant_id = None
 
             # Build event name
             event_name = f"api.{request.method.lower()}.{self._path_to_event(request.path)}"
