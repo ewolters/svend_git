@@ -293,30 +293,30 @@ class CognitiveTask(SynaraEntity):
     )
 
     class Meta(SynaraEntity.Meta):
-        db_table = "sched_cognitive_task"
+        db_table = "syn_sched_cognitive_task"
         verbose_name = "Cognitive Task"
         verbose_name_plural = "Cognitive Tasks"
         ordering = ["-priority_score", "created_at"]
         indexes = [
             models.Index(
                 fields=["tenant_id", "state", "priority_score"],
-                name="idx_task_tenant_state_prio",
+                name="syn_idx_task_tnt_state_prio",
             ),
             models.Index(
                 fields=["tenant_id", "queue", "state"],
-                name="idx_task_tenant_queue_state",
+                name="syn_idx_task_tnt_q_state",
             ),
             models.Index(
                 fields=["state", "next_retry_at"],
-                name="idx_task_retry_pending",
+                name="syn_idx_task_retry_pend",
             ),
             models.Index(
                 fields=["correlation_id"],
-                name="idx_task_correlation",
+                name="syn_idx_task_correlation",
             ),
             models.Index(
                 fields=["root_correlation_id"],
-                name="idx_task_root_correlation",
+                name="syn_idx_task_root_corr",
             ),
         ]
 
@@ -634,14 +634,14 @@ class TaskExecution(SynaraEntity):
     )
 
     class Meta(SynaraEntity.Meta):
-        db_table = "sched_task_execution"
+        db_table = "syn_sched_task_execution"
         verbose_name = "Task Execution"
         verbose_name_plural = "Task Executions"
         ordering = ["-started_at"]
         indexes = [
             models.Index(
                 fields=["task", "attempt_number"],
-                name="idx_execution_task_attempt",
+                name="syn_idx_exec_task_attempt",
             ),
         ]
         unique_together = [["task", "attempt_number"]]
@@ -799,14 +799,14 @@ class Schedule(SynaraEntity):
     )
 
     class Meta(SynaraEntity.Meta):
-        db_table = "sched_schedule"
+        db_table = "syn_sched_schedule"
         verbose_name = "Schedule"
         verbose_name_plural = "Schedules"
         ordering = ["next_run_at"]
         indexes = [
             models.Index(
                 fields=["tenant_id", "enabled", "next_run_at"],
-                name="idx_schedule_tenant_enabled",
+                name="syn_idx_sched_tnt_enabled",
             ),
         ]
         unique_together = [["tenant_id", "schedule_id"]]
@@ -1039,14 +1039,14 @@ class DeadLetterEntry(SynaraEntity):
     )
 
     class Meta(SynaraEntity.Meta):
-        db_table = "sched_dead_letter"
+        db_table = "syn_sched_dead_letter"
         verbose_name = "Dead Letter Entry"
         verbose_name_plural = "Dead Letter Entries"
         ordering = ["-created_at"]
         indexes = [
             models.Index(
                 fields=["tenant_id", "status"],
-                name="idx_dlq_tenant_status",
+                name="syn_idx_dlq_tnt_status",
             ),
         ]
 
@@ -1229,7 +1229,7 @@ class CircuitBreakerState(SynaraEntity):
     )
 
     class Meta(SynaraEntity.Meta):
-        db_table = "sched_circuit_breaker"
+        db_table = "syn_sched_circuit_breaker"
         verbose_name = "Circuit Breaker State"
         verbose_name_plural = "Circuit Breaker States"
 

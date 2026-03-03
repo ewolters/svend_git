@@ -39,6 +39,13 @@ INSTALLED_APPS = [
     "files",
     "agents_api.apps.AgentsApiConfig",
     "workbench",
+    # ---- Synara Infrastructure (OS layer) ----
+    "syn.core.apps.CoreConfig",    # label="syn_core"
+    "syn.audit.apps.AuditConfig",  # label="audit"
+    "syn.log.apps.LogConfig",      # label="syn_log"
+    "syn.sched.apps.SchedConfig",  # label="sched"
+    # NOTE: syn.api and syn.synara are NOT registered (no models).
+    # syn.err is pure Python, not a Django app.
 ]
 
 MIDDLEWARE = [
@@ -175,6 +182,31 @@ TEMPORA_SETTINGS = {
     "heartbeat_interval": 50,
 }
 
+# ---- Synara Infrastructure Settings ----
+# Audit trail: which paths/methods to log
+AUDIT_PATHS = ["/api/"]
+AUDIT_METHODS = ["POST", "PUT", "PATCH", "DELETE"]
+
+# Content Security Policy (allow unsafe-inline — Svend uses inline JS/CSS)
+CONTENT_SECURITY_POLICY = {
+    "default-src": "'self'",
+    "script-src": "'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net",
+    "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+    "font-src": "'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+    "img-src": "'self' data: https:",
+    "connect-src": "'self' https://api.stripe.com",
+    "frame-src": "https://js.stripe.com https://hooks.stripe.com",
+}
+
+# Tenant isolation (disabled — Svend has individual + optional enterprise tenants)
+TENANT_ISOLATION_ENABLED = False
+
+# Cognitive scheduler (syn.sched)
+SCHEDULER_WORKER_COUNT = 2
+SCHEDULER_DEFAULT_TIMEOUT = 300  # seconds
+SCHEDULER_MAX_RETRIES = 3
+SCHEDULER_DEAD_LETTER_RETENTION_DAYS = 30
+
 # Logging
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
@@ -227,6 +259,20 @@ LOGGING = {
             "level": "INFO",
         },
         "forge": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+        # Synara infrastructure loggers
+        "syn": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        },
+        "syn.audit": {
+            "handlers": ["console", "security"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "syn.sched": {
             "handlers": ["console", "file"],
             "level": "INFO",
         },

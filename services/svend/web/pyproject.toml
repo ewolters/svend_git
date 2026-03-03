@@ -20,6 +20,10 @@ dependencies = [
     "tiktoken>=0.5",
     "tempora-scheduler",  # Distributed task scheduling (github.com/ewolters/tempora)
     "cryptography>=41.0",
+    # Synara infrastructure dependencies
+    "PyJWT>=2.8",               # JWT validation (tenant middleware)
+    "structlog>=24.2",          # Structured logging
+    "python-json-logger>=2.0",  # JSON log formatting
 ]
 
 [project.optional-dependencies]

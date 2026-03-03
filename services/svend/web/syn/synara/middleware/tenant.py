@@ -140,7 +140,12 @@ class TenantIsolationMiddleware(MiddlewareMixin):
         from django.conf import settings
 
         import jwt
-        from syn.synara.models import Tenant
+        try:
+            from syn.synara.models import Tenant
+        except ImportError:
+            # Svend integration: syn.synara.models not available
+            # Session B will rewrite this for Svend's core.Tenant
+            from core.models import Tenant
 
         # Try JWT token first (API clients)
         auth_header = request.headers.get("Authorization", "")

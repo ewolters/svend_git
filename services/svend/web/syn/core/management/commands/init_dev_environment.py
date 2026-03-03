@@ -204,7 +204,10 @@ class Command(BaseCommand):
         """Create default tenant if none exists."""
         self.stdout.write("\n[3/7] Ensuring tenant exists...")
 
-        from syn.synara.models import Tenant
+        try:
+            from syn.synara.models import Tenant
+        except ImportError:
+            from core.models import Tenant
 
         existing = Tenant.objects.first()
         if existing:

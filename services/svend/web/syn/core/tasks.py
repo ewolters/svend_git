@@ -11,7 +11,18 @@ import logging
 
 from django.utils import timezone
 
-from syn.synara.celery_compat import shared_task  # SCH-001: Celery removed
+try:
+    from syn.synara.celery_compat import shared_task
+except ImportError:
+    # Celery compat layer not available in Svend — provide no-op decorator
+    def shared_task(*args, **kwargs):
+        def decorator(func):
+            func.delay = lambda *a, **kw: None
+            func.apply_async = lambda *a, **kw: None
+            return func
+        if args and callable(args[0]):
+            return decorator(args[0])
+        return decorator
 
 from syn.core.secrets import SecretStore, rotate_secret
 
