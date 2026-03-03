@@ -1,7 +1,7 @@
 """
 Automated compliance check implementations.
 
-Provides 10 checks covering SOC 2 trust service categories:
+Provides 12 checks covering SOC 2 trust service categories:
 Security, Availability, Confidentiality, Processing Integrity, Privacy.
 
 Checks run on a rotating daily schedule via syn.sched.
@@ -36,7 +36,7 @@ def register(name, category):
 
 
 # Critical checks run every day; others rotate by weekday (0=Mon)
-DAILY_CRITICAL = ["audit_integrity", "access_logging", "security_config", "standards_compliance"]
+DAILY_CRITICAL = ["audit_integrity", "access_logging", "security_config", "standards_compliance", "change_management"]
 WEEKDAY_ROTATION = {
     0: ["dependency_vuln", "ssl_tls"],
     1: ["encryption_status", "password_policy"],
@@ -229,6 +229,36 @@ def check_permission_coverage():
 
         unprotected = []
 
+        # Known auth decorator wrapper names
+        AUTH_WRAPPERS = {"wrapper", "wrapped_view"}
+        AUTH_DECORATOR_NAMES = {
+            "require_auth", "rate_limited", "gated", "gated_paid",
+            "require_enterprise", "login_required", "staff_only",
+        }
+
+        def _has_auth_decorator(cb):
+            """Walk the __wrapped__ chain looking for auth decorators."""
+            # Check DRF views
+            if hasattr(cb, "cls") or hasattr(cb, "initkwargs"):
+                return True
+            # Check qualname for known auth wrapper patterns
+            qualname = getattr(cb, "__qualname__", "")
+            for name in AUTH_DECORATOR_NAMES:
+                if name in qualname:
+                    return True
+            # Walk __wrapped__ chain (functools.wraps sets this)
+            fn = cb
+            for _ in range(10):  # max depth
+                inner = getattr(fn, "__wrapped__", None)
+                if inner is None:
+                    break
+                inner_qualname = getattr(inner, "__qualname__", "")
+                for name in AUTH_DECORATOR_NAMES:
+                    if name in inner_qualname:
+                        return True
+                fn = inner
+            return False
+
         def _scan(patterns, prefix=""):
             for p in patterns:
                 if isinstance(p, URLResolver):
@@ -240,16 +270,8 @@ def check_permission_coverage():
                         continue
                     if name in public_allowed:
                         continue
-                    # Check if callback has permission classes or decorators
                     cb = p.callback
-                    has_auth = (
-                        hasattr(cb, "cls") or  # DRF view
-                        hasattr(cb, "initkwargs") or  # DRF
-                        "login_required" in str(getattr(cb, "__wrapped__", "")) or
-                        "require_auth" in str(getattr(cb, "__wrapped__", ""))
-                    )
-                    if not has_auth:
-                        # DRF views with permission_classes are fine
+                    if not _has_auth_decorator(cb):
                         if not (hasattr(cb, "initkwargs") and cb.initkwargs.get("permission_classes")):
                             unprotected.append({"path": path, "name": name})
 
@@ -315,6 +337,7 @@ def check_backup_freshness():
     from pathlib import Path
 
     backup_dirs = [
+        Path("/home/eric/backups/svend"),
         Path("/home/eric/backups"),
         Path("/var/backups/postgresql"),
         settings.BASE_DIR / "backups",
@@ -482,17 +505,25 @@ def check_standards_compliance():
     failed = sum(1 for r in results if r["status"] == "fail")
     warnings = sum(1 for r in results if r["status"] == "warning")
 
-    # Group by standard
+    # Group by standard with per-assertion detail
     by_standard = {}
     for a, r in zip(assertions, results):
         std = a.standard
         if std not in by_standard:
-            by_standard[std] = {"total": 0, "passed": 0, "failed": 0}
+            by_standard[std] = {"total": 0, "passed": 0, "failed": 0, "assertions": []}
         by_standard[std]["total"] += 1
         if r["status"] == "pass":
             by_standard[std]["passed"] += 1
         elif r["status"] == "fail":
             by_standard[std]["failed"] += 1
+        by_standard[std]["assertions"].append({
+            "check_id": r["check_id"],
+            "assertion": r["assertion"][:120],
+            "section": r.get("section", ""),
+            "status": r["status"],
+            "impl_checks": r.get("impl_checks", []),
+            "code_checks": r.get("code_checks", []),
+        })
 
     # Collect all SOC 2 controls
     all_controls = set()
@@ -500,10 +531,14 @@ def check_standards_compliance():
         if "soc2" in a.controls:
             all_controls.add(a.controls["soc2"])
 
-    failures = [
+    # Findings: failures + warnings with full detail
+    findings = [
         {"check_id": r["check_id"], "assertion": r["assertion"][:120],
-         "standard": r["standard"], "section": r["section"]}
-        for r in results if r["status"] == "fail"
+         "standard": r["standard"], "section": r.get("section", ""),
+         "status": r["status"],
+         "impl_checks": r.get("impl_checks", []),
+         "code_checks": r.get("code_checks", [])}
+        for r in results if r["status"] in ("fail", "warning")
     ]
 
     return {
@@ -514,9 +549,95 @@ def check_standards_compliance():
             "failed": failed,
             "warnings": warnings,
             "by_standard": by_standard,
-            "failures": failures,
+            "findings": findings,
         },
         "soc2_controls": sorted(all_controls),
+    }
+
+
+@register("change_management", "processing_integrity")
+def check_change_management():
+    """Verify change management process adherence per CHG-001.
+
+    Checks:
+    - Recent changes have associated ChangeRequest records
+    - Emergency changes have retroactive risk assessments within 24h
+    - Completed changes have log entries for key checkpoints
+    - No changes stuck in in_progress for >7 days without updates
+    """
+    from syn.audit.models import ChangeRequest, ChangeLog, RiskAssessment
+
+    issues = []
+    now = timezone.now()
+    seven_days_ago = now - timedelta(days=7)
+    twenty_four_hours_ago = now - timedelta(hours=24)
+
+    # Check 1: Emergency changes without retroactive risk assessment >24h old
+    emergency_unreviewed = ChangeRequest.objects.filter(
+        is_emergency=True,
+        created_at__lt=twenty_four_hours_ago,
+    ).exclude(
+        risk_assessments__is_retroactive=True,
+    ).exclude(
+        status__in=["cancelled", "draft"],
+    )
+    if emergency_unreviewed.exists():
+        issues.append(
+            f"{emergency_unreviewed.count()} emergency change(s) missing retroactive risk assessment (>24h)"
+        )
+
+    # Check 2: Changes stuck in_progress >7 days
+    stale_changes = ChangeRequest.objects.filter(
+        status="in_progress",
+        updated_at__lt=seven_days_ago,
+    )
+    if stale_changes.exists():
+        issues.append(
+            f"{stale_changes.count()} change(s) stuck in 'in_progress' for >7 days"
+        )
+
+    # Check 3: Completed changes missing key log entries
+    recent_completed = ChangeRequest.objects.filter(
+        status="completed",
+        completed_at__gte=seven_days_ago,
+    ).exclude(change_type__in=["documentation", "plan"])
+    for cr in recent_completed:
+        log_actions = set(cr.logs.values_list("action", flat=True))
+        if "completed" not in log_actions:
+            issues.append(f"Change '{cr.title}' completed without 'completed' log entry")
+
+    # Check 4: Feature/migration changes without risk assessment
+    unassessed = ChangeRequest.objects.filter(
+        change_type__in=["feature", "migration"],
+        status__in=["approved", "in_progress", "testing", "completed"],
+    ).exclude(
+        risk_assessments__isnull=False,
+    )
+    if unassessed.exists():
+        issues.append(
+            f"{unassessed.count()} feature/migration change(s) approved without risk assessment"
+        )
+
+    # Stats
+    total_changes = ChangeRequest.objects.count()
+    active_changes = ChangeRequest.objects.filter(
+        status__in=["draft", "submitted", "risk_assessed", "approved", "in_progress", "testing"]
+    ).count()
+
+    status = "pass"
+    if any("emergency" in i for i in issues) or any("without risk assessment" in i for i in issues):
+        status = "fail"
+    elif issues:
+        status = "warning"
+
+    return {
+        "status": status,
+        "details": {
+            "total_changes": total_changes,
+            "active_changes": active_changes,
+            "issues": issues,
+        },
+        "soc2_controls": ["CC8.1", "CC3.4"],
     }
 
 

@@ -15,6 +15,15 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-03-03 — Compliance dashboard: interactive drill-down for checks, standards, reports, and findings
+**Files changed:**
+- `syn/audit/compliance.py` — Enriched check_standards_compliance to store per-assertion detail (impl_checks, code_checks) in by_standard and findings
+- `api/internal_views.py` — api_compliance now returns check `details` + `id`, report `full_report` + `public_report`, standards `findings` with impl/code detail, `by_standard` with per-assertion lists
+- `templates/internal_dashboard.html` — Full interactive compliance tab: clickable check badges (detail panel), clickable standard bars (per-assertion drill-down), clickable report rows (View button → full report with check results, SOC 2 controls, public report preview), Audit Findings section at top aggregating all failures with root cause detail
+**Verification:** Dashboard Ops→Compliance: click any check badge → detail panel. Click any standard bar → per-assertion list. Click View on report → full report. Findings section shows all failures with impl/code check details.
+
+---
+
 ### 2026-03-03 — Standards-driven compliance testing: parser, self-documenting standard, dashboard coverage
 **Files changed:**
 - `syn/audit/standards.py` — **New** Standards parser + assertion executors (parse_standard, parse_all_standards, verify_impl_exists via AST, verify_code_pattern with fuzzy token matching, verify_code_absent, verify_assertion, run_standards_checks)

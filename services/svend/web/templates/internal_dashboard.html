@@ -1397,6 +1397,21 @@
         </div>
     </div>
 
+    <!-- Audit Findings (aggregate failures from all checks) -->
+    <div id="compliance-findings-section" class="chart-card" style="display:none;margin-bottom:1.5rem;padding:1rem;">
+        <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--danger,#ef4444);">Audit Findings</h3>
+        <div id="compliance-findings-list" style="font-size:0.8rem;"></div>
+    </div>
+
+    <!-- Check Detail Panel (hidden until clicked) -->
+    <div id="compliance-check-detail" class="chart-card" style="display:none;margin-bottom:1.5rem;padding:1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:0.95rem;" id="check-detail-title">Check Detail</h3>
+            <button onclick="document.getElementById('compliance-check-detail').style.display='none'" style="padding:4px 12px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-dim);border-radius:4px;cursor:pointer;font-size:0.75rem;">Close</button>
+        </div>
+        <div id="check-detail-content" style="font-size:0.8rem;"></div>
+    </div>
+
     <!-- Check Status Grid -->
     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Check Status</h3>
     <div id="compliance-check-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:1.5rem;"></div>
@@ -1423,9 +1438,13 @@
             </div>
         </div>
         <div id="std-by-standard" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:12px;"></div>
-        <div id="std-failures" class="chart-card" style="display:none;padding:12px;">
-            <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;color:var(--danger,#ef4444);">Failures</div>
-            <div id="std-failures-list" style="font-size:0.78rem;"></div>
+        <!-- Per-standard assertion detail (shown when clicking a standard bar) -->
+        <div id="std-assertion-detail" class="chart-card" style="display:none;padding:12px;margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-weight:600;font-size:0.85rem;" id="std-detail-title"></span>
+                <button onclick="document.getElementById('std-assertion-detail').style.display='none'" style="padding:3px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-dim);border-radius:4px;cursor:pointer;font-size:0.72rem;">Close</button>
+            </div>
+            <div id="std-detail-assertions" style="font-size:0.78rem;"></div>
         </div>
     </div>
 
@@ -1437,20 +1456,146 @@
 
     <!-- Reports -->
     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Monthly Reports</h3>
-    <div class="chart-card">
+    <div class="chart-card" style="margin-bottom:1rem;">
         <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
             <thead>
                 <tr style="text-align:left;color:var(--text-dim);border-bottom:1px solid var(--border);">
                     <th style="padding:6px 8px;">Period</th>
                     <th style="padding:6px 8px;">Pass Rate</th>
-                    <th style="padding:6px 8px;">Checks</th>
+                    <th style="padding:6px 8px;">Passed / Failed / Warn</th>
                     <th style="padding:6px 8px;">Generated</th>
                     <th style="padding:6px 8px;">Published</th>
+                    <th style="padding:6px 8px;"></th>
                 </tr>
             </thead>
             <tbody id="compliance-reports-tbody"></tbody>
         </table>
     </div>
+    <!-- Report Detail Panel (shown when clicking View) -->
+    <div id="compliance-report-detail" class="chart-card" style="display:none;padding:1.5rem;margin-bottom:1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:0.95rem;" id="report-detail-title">Report Detail</h3>
+            <button onclick="document.getElementById('compliance-report-detail').style.display='none'" style="padding:4px 12px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-dim);border-radius:4px;cursor:pointer;font-size:0.75rem;">Close</button>
+        </div>
+        <div id="report-detail-content" style="font-size:0.8rem;"></div>
+    </div>
+</div>
+
+<!-- Tab: Changes (CHG-001) -->
+<div class="tab-content" id="tab-changes">
+    <!-- KPI Cards -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="chg-active">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Active Changes</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--accent-primary);" id="chg-completed-30d">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Completed (30d)</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--danger,#ef4444);" id="chg-failed-30d">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Failed (30d)</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--warning,#f59e0b);" id="chg-emergency-30d">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Emergency (30d)</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="chg-total">—</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">Total Changes</div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;">
+        <select id="chg-filter-type" onchange="loadChanges()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.8rem;">
+            <option value="">All Types</option>
+            <option value="feature">Feature</option>
+            <option value="enhancement">Enhancement</option>
+            <option value="bugfix">Bug Fix</option>
+            <option value="hotfix">Hotfix</option>
+            <option value="security">Security</option>
+            <option value="infrastructure">Infrastructure</option>
+            <option value="migration">Migration</option>
+            <option value="documentation">Documentation</option>
+            <option value="plan">Plan</option>
+            <option value="debt">Debt Closure</option>
+        </select>
+        <select id="chg-filter-status" onchange="loadChanges()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.8rem;">
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="submitted">Submitted</option>
+            <option value="risk_assessed">Risk Assessed</option>
+            <option value="approved">Approved</option>
+            <option value="in_progress">In Progress</option>
+            <option value="testing">Testing</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+            <option value="rolled_back">Rolled Back</option>
+        </select>
+        <select id="chg-filter-risk" onchange="loadChanges()" style="padding:6px 10px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;font-size:0.8rem;">
+            <option value="">All Risk Levels</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+        </select>
+    </div>
+
+    <!-- Changes Table -->
+    <div class="chart-card" style="margin-bottom:1.5rem;">
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                <thead>
+                    <tr style="text-align:left;color:var(--text-dim);border-bottom:1px solid var(--border);">
+                        <th style="padding:6px 8px;">Type</th>
+                        <th style="padding:6px 8px;">Title</th>
+                        <th style="padding:6px 8px;">Risk</th>
+                        <th style="padding:6px 8px;">Status</th>
+                        <th style="padding:6px 8px;">Author</th>
+                        <th style="padding:6px 8px;">Created</th>
+                        <th style="padding:6px 8px;">Logs</th>
+                        <th style="padding:6px 8px;">Risk Score</th>
+                    </tr>
+                </thead>
+                <tbody id="chg-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Change Detail Panel (hidden by default) -->
+    <div id="chg-detail-panel" class="chart-card" style="display:none;margin-bottom:1.5rem;padding:1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3 style="margin:0;font-size:1rem;" id="chg-detail-title">—</h3>
+            <button onclick="document.getElementById('chg-detail-panel').style.display='none'" style="padding:4px 12px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-dim);border-radius:4px;cursor:pointer;font-size:0.75rem;">Close</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;">
+            <div><span style="font-size:0.7rem;color:var(--text-dim);">Type</span><div id="chg-detail-type" style="font-weight:600;font-size:0.85rem;">—</div></div>
+            <div><span style="font-size:0.7rem;color:var(--text-dim);">Risk Level</span><div id="chg-detail-risk" style="font-weight:600;font-size:0.85rem;">—</div></div>
+            <div><span style="font-size:0.7rem;color:var(--text-dim);">Status</span><div id="chg-detail-status" style="font-weight:600;font-size:0.85rem;">—</div></div>
+            <div><span style="font-size:0.7rem;color:var(--text-dim);">Author</span><div id="chg-detail-author" style="font-weight:600;font-size:0.85rem;">—</div></div>
+        </div>
+        <div style="margin-bottom:1rem;">
+            <span style="font-size:0.7rem;color:var(--text-dim);">Description</span>
+            <div id="chg-detail-desc" style="font-size:0.82rem;margin-top:4px;white-space:pre-wrap;max-height:120px;overflow-y:auto;">—</div>
+        </div>
+
+        <!-- Risk Assessment -->
+        <div id="chg-detail-risk-section" style="display:none;margin-bottom:1rem;">
+            <h4 style="font-size:0.85rem;margin:0 0 8px 0;color:var(--text-primary);">Risk Assessment</h4>
+            <div id="chg-detail-risk-scores" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px;"></div>
+            <div id="chg-detail-votes" style="font-size:0.78rem;"></div>
+        </div>
+
+        <!-- Change Log Chain -->
+        <h4 style="font-size:0.85rem;margin:0 0 8px 0;color:var(--text-primary);">Change Log</h4>
+        <div id="chg-detail-logs" style="font-size:0.78rem;max-height:300px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- By Type Distribution -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Changes by Type (30d)</h3>
+    <div id="chg-by-type" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:1.5rem;"></div>
 </div>
 
 <!-- Tab: Infra -->
@@ -2181,9 +2326,12 @@ function formatMarkdown(text) {
 // =========================================================================
 let complianceTrendChart = null;
 
+let _complianceData = null;  // cache for drill-down
+
 async function loadCompliance() {
     try {
         const d = await apiFetch('compliance');
+        _complianceData = d;
         const stats = d.stats || {};
 
         // KPIs
@@ -2195,7 +2343,61 @@ async function loadCompliance() {
         document.getElementById('compliance-total').textContent = stats.total_checks_run || 0;
         document.getElementById('compliance-soc2').textContent = stats.soc2_controls_covered || 0;
 
-        // Check status grid
+        // Audit Findings — aggregate all failures across checks + standards
+        const findingsSection = document.getElementById('compliance-findings-section');
+        const findingsList = document.getElementById('compliance-findings-list');
+        const allFindings = [];
+
+        // Infrastructure check failures
+        (d.checks || []).forEach(c => {
+            if (c.status === 'fail' || c.status === 'error') {
+                allFindings.push({type: 'check', name: c.check_name, category: c.category, details: c.details, run_at: c.run_at});
+            }
+        });
+        // Standards findings
+        const stdFindings = (d.standards || {}).findings || [];
+        stdFindings.forEach(f => {
+            allFindings.push({type: 'standard', name: f.check_id, standard: f.standard, status: f.status, assertion: f.assertion, impl_checks: f.impl_checks, code_checks: f.code_checks});
+        });
+
+        if (allFindings.length > 0) {
+            findingsSection.style.display = 'block';
+            findingsList.innerHTML = allFindings.map(f => {
+                if (f.type === 'check') {
+                    const det = f.details || {};
+                    let detailHtml = '';
+                    if (det.message) detailHtml = `<div style="color:var(--text-dim);margin-top:2px;">${det.message}</div>`;
+                    else if (det.issues) detailHtml = (det.issues || []).map(i => `<div style="color:var(--text-dim);margin-top:2px;">- ${typeof i === 'string' ? i : JSON.stringify(i)}</div>`).join('');
+                    return `<div style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="showCheckDetail('${f.name}')">
+                        <span style="color:var(--danger,#ef4444);font-weight:600;">FAIL</span>
+                        <code style="margin:0 6px;">${f.name}</code>
+                        <span style="color:var(--text-dim);font-size:0.75rem;">${f.category}</span>
+                        ${detailHtml}
+                    </div>`;
+                } else {
+                    const statusColor = f.status === 'fail' ? 'var(--danger,#ef4444)' : 'var(--warning,#f59e0b)';
+                    const statusLabel = f.status === 'fail' ? 'FAIL' : 'WARN';
+                    let detail = '';
+                    (f.impl_checks || []).filter(ic => !ic.ok).forEach(ic => {
+                        detail += `<div style="color:var(--text-dim);margin-top:2px;">impl: ${ic.message || ic.impl}</div>`;
+                    });
+                    (f.code_checks || []).filter(cc => !cc.ok).forEach(cc => {
+                        detail += `<div style="color:var(--text-dim);margin-top:2px;">code:${cc.type}: ${(cc.message || '').substring(0, 80)}</div>`;
+                    });
+                    return `<div style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="showStandardDetail('${f.standard}')">
+                        <span style="color:${statusColor};font-weight:600;">${statusLabel}</span>
+                        <code style="margin:0 6px;">${f.name}</code>
+                        <span style="color:var(--text-dim);font-size:0.75rem;">${f.standard}</span>
+                        <div style="color:var(--text-dim);margin-top:2px;">${f.assertion}</div>
+                        ${detail}
+                    </div>`;
+                }
+            }).join('');
+        } else {
+            findingsSection.style.display = 'none';
+        }
+
+        // Check status grid (clickable)
         const grid = document.getElementById('compliance-check-grid');
         grid.innerHTML = '';
         (d.checks || []).forEach(c => {
@@ -2203,7 +2405,8 @@ async function loadCompliance() {
             const labels = {pass: 'PASS', fail: 'FAIL', warning: 'WARN', error: 'ERR', pending: '—'};
             const card = document.createElement('div');
             card.className = 'chart-card';
-            card.style.cssText = 'padding:12px;display:flex;justify-content:space-between;align-items:center;';
+            card.style.cssText = 'padding:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;';
+            card.onclick = () => showCheckDetail(c.check_name);
             const age = c.run_at ? timeAgo(c.run_at) : 'never';
             card.innerHTML = `
                 <div>
@@ -2215,7 +2418,7 @@ async function loadCompliance() {
             grid.appendChild(card);
         });
 
-        // Standards coverage
+        // Standards coverage (clickable bars)
         const std = d.standards || {};
         if (std.total_assertions) {
             document.getElementById('std-total').textContent = std.total_assertions;
@@ -2230,7 +2433,8 @@ async function loadCompliance() {
                 const color = pct === 100 ? 'var(--accent-primary)' : pct >= 80 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
                 const card = document.createElement('div');
                 card.className = 'chart-card';
-                card.style.cssText = 'padding:10px;';
+                card.style.cssText = 'padding:10px;cursor:pointer;';
+                card.onclick = () => showStandardDetail(name);
                 card.innerHTML = `
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                         <span style="font-weight:600;font-size:0.82rem;">${name}</span>
@@ -2239,23 +2443,10 @@ async function loadCompliance() {
                     <div style="height:4px;background:var(--bg-secondary);border-radius:2px;overflow:hidden;">
                         <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div>
                     </div>
-                    <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">${info.passed}/${info.total} passed</div>
+                    <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">${info.passed}/${info.total} passed${info.failed > 0 ? ', ' + info.failed + ' failed' : ''}</div>
                 `;
                 byStd.appendChild(card);
             });
-
-            // Failures
-            const failures = std.failures || [];
-            const failDiv = document.getElementById('std-failures');
-            const failList = document.getElementById('std-failures-list');
-            if (failures.length > 0) {
-                failDiv.style.display = 'block';
-                failList.innerHTML = failures.map(f =>
-                    `<div style="padding:4px 0;border-bottom:1px solid var(--border);"><code>${f.check_id}</code> — ${f.assertion.substring(0, 80)}</div>`
-                ).join('');
-            } else {
-                failDiv.style.display = 'none';
-            }
         }
 
         // Trend chart
@@ -2284,31 +2475,202 @@ async function loadCompliance() {
             });
         }
 
-        // Reports table
+        // Reports table (clickable rows + View button)
         const tbody = document.getElementById('compliance-reports-tbody');
         tbody.innerHTML = '';
-        (d.reports || []).forEach(r => {
+        (d.reports || []).forEach((r, idx) => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border)';
             tr.innerHTML = `
                 <td style="padding:6px 8px;">${r.period_start} — ${r.period_end}</td>
                 <td style="padding:6px 8px;font-weight:600;color:${r.pass_rate >= 90 ? 'var(--accent-primary)' : 'var(--warning,#f59e0b)'};">${r.pass_rate.toFixed(1)}%</td>
-                <td style="padding:6px 8px;">${r.total_checks}</td>
+                <td style="padding:6px 8px;">${r.passed || 0} / ${r.failed || 0} / ${r.warnings || 0}</td>
                 <td style="padding:6px 8px;font-size:0.75rem;color:var(--text-dim);">${new Date(r.generated_at).toLocaleDateString()}</td>
                 <td style="padding:6px 8px;">
-                    <button onclick="togglePublish('${r.id}', this)" style="padding:2px 10px;border:1px solid var(--border);background:${r.is_published ? 'var(--accent-primary)' : 'var(--bg-secondary)'};color:${r.is_published ? '#fff' : 'var(--text-dim)'};border-radius:10px;cursor:pointer;font-size:0.72rem;">
+                    <button onclick="event.stopPropagation();togglePublish('${r.id}', this)" style="padding:2px 10px;border:1px solid var(--border);background:${r.is_published ? 'var(--accent-primary)' : 'var(--bg-secondary)'};color:${r.is_published ? '#fff' : 'var(--text-dim)'};border-radius:10px;cursor:pointer;font-size:0.72rem;">
                         ${r.is_published ? 'Published' : 'Publish'}
                     </button>
+                </td>
+                <td style="padding:6px 8px;">
+                    <button onclick="event.stopPropagation();showReportDetail(${idx})" style="padding:2px 10px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);border-radius:4px;cursor:pointer;font-size:0.72rem;">View</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
         if (!d.reports || d.reports.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="padding:12px;color:var(--text-dim);text-align:center;">No reports yet. Run: manage.py run_compliance --report</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="padding:12px;color:var(--text-dim);text-align:center;">No reports yet. Run: manage.py run_compliance --report</td></tr>';
         }
     } catch(e) {
         console.error('Compliance load failed:', e);
     }
+}
+
+function showCheckDetail(checkName) {
+    if (!_complianceData) return;
+    const check = (_complianceData.checks || []).find(c => c.check_name === checkName);
+    if (!check) return;
+
+    const panel = document.getElementById('compliance-check-detail');
+    const title = document.getElementById('check-detail-title');
+    const content = document.getElementById('check-detail-content');
+
+    const colors = {pass: '#22c55e', fail: '#ef4444', warning: '#f59e0b', error: '#ef4444'};
+    title.innerHTML = `<span style="color:${colors[check.status] || '#888'};">[${check.status.toUpperCase()}]</span> ${check.check_name.replace(/_/g, ' ')}`;
+
+    let html = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+        <div><span style="color:var(--text-dim);">Category:</span> ${check.category}</div>
+        <div><span style="color:var(--text-dim);">Duration:</span> ${check.duration_ms?.toFixed(0) || 0}ms</div>
+        <div><span style="color:var(--text-dim);">Last run:</span> ${check.run_at ? timeAgo(check.run_at) : 'never'}</div>
+        <div><span style="color:var(--text-dim);">SOC 2:</span> ${(check.soc2_controls || []).join(', ') || 'none'}</div>
+    </div>`;
+
+    const det = check.details || {};
+    if (Object.keys(det).length > 0) {
+        html += '<div style="margin-top:8px;"><strong>Details</strong></div>';
+
+        // Render details based on structure
+        if (det.total_assertions !== undefined) {
+            // Standards compliance check
+            html += `<div style="margin:8px 0;">Assertions: ${det.total_assertions} total, ${det.passed} passed, ${det.failed} failed, ${det.warnings} warnings</div>`;
+            if (det.by_standard) {
+                html += '<table style="width:100%;border-collapse:collapse;margin:8px 0;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:4px 8px;text-align:left;">Standard</th><th style="padding:4px 8px;">Total</th><th style="padding:4px 8px;">Passed</th><th style="padding:4px 8px;">Failed</th></tr></thead><tbody>';
+                Object.entries(det.by_standard).forEach(([name, info]) => {
+                    html += `<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="showStandardDetail('${name}')"><td style="padding:4px 8px;color:var(--accent-primary);">${name}</td><td style="padding:4px 8px;text-align:center;">${info.total}</td><td style="padding:4px 8px;text-align:center;color:#22c55e;">${info.passed}</td><td style="padding:4px 8px;text-align:center;color:${info.failed > 0 ? '#ef4444' : '#22c55e'};">${info.failed}</td></tr>`;
+                });
+                html += '</tbody></table>';
+            }
+            if (det.findings && det.findings.length > 0) {
+                html += '<div style="margin-top:8px;"><strong>Findings</strong></div>';
+                det.findings.forEach(f => {
+                    const sc = f.status === 'fail' ? '#ef4444' : '#f59e0b';
+                    html += `<div style="padding:6px 0;border-bottom:1px solid var(--border);"><span style="color:${sc};font-weight:600;">${f.status.toUpperCase()}</span> <code>${f.check_id}</code> <span style="color:var(--text-dim);">${f.standard} ${f.section}</span><div style="margin-top:2px;">${f.assertion}</div>`;
+                    (f.impl_checks || []).filter(ic => !ic.ok).forEach(ic => { html += `<div style="color:var(--text-dim);margin-left:12px;">impl: ${ic.message || ic.impl}</div>`; });
+                    (f.code_checks || []).filter(cc => !cc.ok).forEach(cc => { html += `<div style="color:var(--text-dim);margin-left:12px;">code:${cc.type}: ${(cc.message || '').substring(0, 100)}</div>`; });
+                    html += '</div>';
+                });
+            }
+        } else if (det.issues) {
+            // Change management or other issue-based checks
+            (det.issues || []).forEach(i => {
+                html += `<div style="padding:4px 0;border-bottom:1px solid var(--border);">- ${typeof i === 'string' ? i : JSON.stringify(i)}</div>`;
+            });
+        } else {
+            // Generic details — render as key-value pairs
+            Object.entries(det).forEach(([k, v]) => {
+                const val = typeof v === 'object' ? JSON.stringify(v, null, 2) : v;
+                html += `<div style="padding:4px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-dim);">${k}:</span> ${typeof v === 'object' ? '<pre style="margin:4px 0;font-size:0.75rem;overflow-x:auto;">' + JSON.stringify(v, null, 2) + '</pre>' : val}</div>`;
+            });
+        }
+    }
+
+    content.innerHTML = html;
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function showStandardDetail(standardName) {
+    if (!_complianceData) return;
+    const std = (_complianceData.standards || {}).by_standard || {};
+    const info = std[standardName];
+    if (!info || !info.assertions) return;
+
+    const panel = document.getElementById('std-assertion-detail');
+    const title = document.getElementById('std-detail-title');
+    const content = document.getElementById('std-detail-assertions');
+
+    title.textContent = `${standardName} — ${info.passed}/${info.total} passed`;
+
+    const colors = {pass: '#22c55e', fail: '#ef4444', warning: '#f59e0b'};
+    const labels = {pass: 'PASS', fail: 'FAIL', warning: 'WARN'};
+
+    let html = '';
+    info.assertions.forEach(a => {
+        const sc = colors[a.status] || '#888';
+        html += `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            <span style="color:${sc};font-weight:600;font-size:0.75rem;display:inline-block;width:40px;">${labels[a.status] || a.status}</span>
+            <code>${a.check_id}</code>
+            <span style="color:var(--text-dim);font-size:0.72rem;">${a.section}</span>
+            <div style="color:var(--text-dim);margin-top:2px;">${a.assertion}</div>`;
+        // Show failed impl/code checks
+        (a.impl_checks || []).forEach(ic => {
+            const mark = ic.ok ? '<span style="color:#22c55e;">ok</span>' : '<span style="color:#ef4444;">FAIL</span>';
+            html += `<div style="margin-left:12px;margin-top:2px;">impl: [${mark}] ${ic.impl || ''} ${ic.message ? '— ' + ic.message : ''}</div>`;
+        });
+        (a.code_checks || []).forEach(cc => {
+            const mark = cc.ok ? '<span style="color:#22c55e;">ok</span>' : '<span style="color:#ef4444;">FAIL</span>';
+            html += `<div style="margin-left:12px;margin-top:2px;">code:${cc.type}: [${mark}] ${(cc.message || '').substring(0, 90)}</div>`;
+        });
+        html += '</div>';
+    });
+
+    content.innerHTML = html;
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function showReportDetail(reportIdx) {
+    if (!_complianceData || !_complianceData.reports) return;
+    const r = _complianceData.reports[reportIdx];
+    if (!r) return;
+
+    const panel = document.getElementById('compliance-report-detail');
+    const title = document.getElementById('report-detail-title');
+    const content = document.getElementById('report-detail-content');
+
+    title.textContent = `Report: ${r.period_start} — ${r.period_end}`;
+
+    let html = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+        <div class="chart-card" style="text-align:center;padding:10px;">
+            <div style="font-size:1.4rem;font-weight:700;color:${r.pass_rate >= 90 ? 'var(--accent-primary)' : 'var(--warning,#f59e0b)'};">${r.pass_rate.toFixed(1)}%</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">Pass Rate</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:10px;">
+            <div style="font-size:1.4rem;font-weight:700;color:#22c55e;">${r.passed || 0}</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">Passed</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:10px;">
+            <div style="font-size:1.4rem;font-weight:700;color:#ef4444;">${r.failed || 0}</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">Failed</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:10px;">
+            <div style="font-size:1.4rem;font-weight:700;color:#f59e0b;">${r.warnings || 0}</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">Warnings</div>
+        </div>
+    </div>`;
+
+    // Full report details
+    const full = r.full_report || {};
+    if (full.checks) {
+        html += '<div style="margin-bottom:12px;"><strong>Check Results</strong></div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:0.78rem;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:4px 8px;text-align:left;">Check</th><th style="padding:4px 8px;">Category</th><th style="padding:4px 8px;">Status</th><th style="padding:4px 8px;">Runs</th><th style="padding:4px 8px;">Pass Rate</th></tr></thead><tbody>';
+        Object.entries(full.checks).forEach(([name, info]) => {
+            const pr = info.total > 0 ? Math.round(info.passed / info.total * 100) : 0;
+            const sc = pr === 100 ? '#22c55e' : pr >= 80 ? '#f59e0b' : '#ef4444';
+            html += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:4px 8px;">${name}</td><td style="padding:4px 8px;">${info.category || ''}</td><td style="padding:4px 8px;color:${sc};">${info.latest_status || ''}</td><td style="padding:4px 8px;text-align:center;">${info.total || 0}</td><td style="padding:4px 8px;text-align:center;color:${sc};">${pr}%</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+
+    // SOC 2 controls
+    if (full.soc2_controls) {
+        html += '<div style="margin:12px 0 8px;"><strong>SOC 2 Controls</strong></div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        Object.entries(full.soc2_controls).forEach(([ctrl, checks]) => {
+            html += `<span style="padding:3px 8px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;font-size:0.72rem;">${ctrl} <span style="color:var(--text-dim);">(${Array.isArray(checks) ? checks.length : 0})</span></span>`;
+        });
+        html += '</div>';
+    }
+
+    // Public report preview
+    const pub = r.public_report || {};
+    if (Object.keys(pub).length > 0) {
+        html += '<div style="margin:16px 0 8px;"><strong>Public Report Preview</strong> <span style="font-size:0.72rem;color:var(--text-dim);">(what external viewers see)</span></div>';
+        html += `<pre style="background:var(--bg-secondary);padding:12px;border-radius:4px;font-size:0.72rem;overflow-x:auto;max-height:300px;overflow-y:auto;">${JSON.stringify(pub, null, 2)}</pre>`;
+    }
+
+    content.innerHTML = html;
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
 function timeAgo(iso) {
@@ -2333,6 +2695,200 @@ async function togglePublish(reportId, btn) {
             btn.style.color = data.is_published ? '#fff' : 'var(--text-dim)';
         }
     } catch(e) { console.error('Publish toggle failed:', e); }
+}
+
+// =========================================================================
+// Change Management Tab (CHG-001)
+// =========================================================================
+
+async function loadChanges() {
+    try {
+        const typeFilter = document.getElementById('chg-filter-type')?.value || '';
+        const statusFilter = document.getElementById('chg-filter-status')?.value || '';
+        const riskFilter = document.getElementById('chg-filter-risk')?.value || '';
+        let url = 'changes';
+        const params = [];
+        if (typeFilter) params.push('type=' + typeFilter);
+        if (statusFilter) params.push('status=' + statusFilter);
+        if (riskFilter) params.push('risk=' + riskFilter);
+        if (params.length) url += '?' + params.join('&');
+
+        const resp = await fetch('/api/internal/' + url + (url.includes('?') ? '' : ''), {
+            headers: {'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''},
+        });
+        const d = await resp.json();
+        const stats = d.stats || {};
+
+        // KPIs
+        document.getElementById('chg-active').textContent = stats.active_changes || 0;
+        document.getElementById('chg-completed-30d').textContent = stats.completed_30d || 0;
+        document.getElementById('chg-failed-30d').textContent = stats.failed_30d || 0;
+        document.getElementById('chg-emergency-30d').textContent = stats.emergency_30d || 0;
+        document.getElementById('chg-total').textContent = stats.total_changes || 0;
+
+        // Changes table
+        const tbody = document.getElementById('chg-tbody');
+        tbody.innerHTML = '';
+        const statusColors = {
+            draft: '#6b7280', submitted: '#3b82f6', risk_assessed: '#8b5cf6',
+            approved: '#22c55e', rejected: '#ef4444', in_progress: '#f59e0b',
+            testing: '#06b6d4', completed: '#22c55e', failed: '#ef4444',
+            rolled_back: '#ef4444', cancelled: '#6b7280'
+        };
+        const typeIcons = {
+            feature: '+', enhancement: '^', bugfix: '!', hotfix: '!!',
+            security: '@', infrastructure: '#', migration: '~',
+            documentation: 'D', plan: 'P', debt: '$'
+        };
+        const riskColors = {critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#22c55e'};
+
+        (d.changes || []).forEach(c => {
+            const tr = document.createElement('tr');
+            tr.style.cssText = 'border-bottom:1px solid var(--border);cursor:pointer;';
+            tr.onclick = () => showChangeDetail(c.id);
+            tr.innerHTML = `
+                <td style="padding:6px 8px;">
+                    <span style="display:inline-block;width:24px;height:24px;text-align:center;line-height:24px;background:var(--bg-secondary);border-radius:4px;font-weight:700;font-size:0.75rem;" title="${c.change_type}">${typeIcons[c.change_type] || '?'}</span>
+                </td>
+                <td style="padding:6px 8px;font-weight:500;">
+                    ${c.title}
+                    ${c.is_emergency ? '<span style="background:#ef4444;color:#fff;padding:1px 5px;border-radius:8px;font-size:0.65rem;margin-left:4px;">EMERGENCY</span>' : ''}
+                </td>
+                <td style="padding:6px 8px;">
+                    <span style="color:${riskColors[c.risk_level] || '#6b7280'};font-weight:600;font-size:0.78rem;text-transform:uppercase;">${c.risk_level}</span>
+                </td>
+                <td style="padding:6px 8px;">
+                    <span style="background:${statusColors[c.status] || '#6b7280'};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;">${c.status.replace(/_/g,' ')}</span>
+                </td>
+                <td style="padding:6px 8px;font-size:0.78rem;color:var(--text-dim);">${c.author}</td>
+                <td style="padding:6px 8px;font-size:0.78rem;color:var(--text-dim);">${c.created_at ? timeAgo(c.created_at) : '—'}</td>
+                <td style="padding:6px 8px;text-align:center;">
+                    <span style="background:var(--bg-secondary);padding:2px 6px;border-radius:8px;font-size:0.72rem;">${c.log_count}</span>
+                </td>
+                <td style="padding:6px 8px;text-align:center;">
+                    ${c.risk_score != null ? `<span style="font-weight:600;color:${c.risk_score >= 4 ? '#ef4444' : c.risk_score >= 3 ? '#f59e0b' : '#22c55e'};">${c.risk_score.toFixed(1)}</span>` : '<span style="color:var(--text-dim);">—</span>'}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        if (!d.changes || d.changes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="padding:12px;color:var(--text-dim);text-align:center;">No change requests found. Create one via the API.</td></tr>';
+        }
+
+        // By type distribution
+        const byType = document.getElementById('chg-by-type');
+        byType.innerHTML = '';
+        Object.entries(stats.by_type || {}).forEach(([type, count]) => {
+            const card = document.createElement('div');
+            card.className = 'chart-card';
+            card.style.cssText = 'padding:10px;text-align:center;';
+            card.innerHTML = `
+                <div style="font-size:1.4rem;font-weight:700;">${count}</div>
+                <div style="font-size:0.72rem;color:var(--text-dim);text-transform:capitalize;">${type.replace(/_/g,' ')}</div>
+            `;
+            byType.appendChild(card);
+        });
+    } catch(e) {
+        console.error('Changes load failed:', e);
+    }
+}
+
+async function showChangeDetail(changeId) {
+    try {
+        const resp = await fetch('/api/internal/changes/' + changeId + '/', {
+            headers: {'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''},
+        });
+        const d = await resp.json();
+        const c = d.change;
+
+        document.getElementById('chg-detail-panel').style.display = 'block';
+        document.getElementById('chg-detail-title').textContent = c.title;
+        document.getElementById('chg-detail-type').textContent = c.change_type;
+        document.getElementById('chg-detail-risk').textContent = c.risk_level;
+        document.getElementById('chg-detail-status').textContent = c.status.replace(/_/g, ' ');
+        document.getElementById('chg-detail-author').textContent = c.author;
+        document.getElementById('chg-detail-desc').textContent = c.description || '(no description)';
+
+        // Risk assessments
+        const riskSection = document.getElementById('chg-detail-risk-section');
+        const assessments = d.risk_assessments || [];
+        if (assessments.length > 0) {
+            riskSection.style.display = 'block';
+            const ra = assessments[0]; // Latest assessment
+            const scoresDiv = document.getElementById('chg-detail-risk-scores');
+            scoresDiv.innerHTML = '';
+            const dims = [
+                {key: 'security_score', label: 'Security'},
+                {key: 'availability_score', label: 'Availability'},
+                {key: 'integrity_score', label: 'Integrity'},
+                {key: 'confidentiality_score', label: 'Confidentiality'},
+                {key: 'privacy_score', label: 'Privacy'},
+            ];
+            dims.forEach(dim => {
+                const score = ra[dim.key] || 0;
+                const color = score >= 4 ? '#ef4444' : score >= 3 ? '#f59e0b' : '#22c55e';
+                const card = document.createElement('div');
+                card.style.cssText = 'text-align:center;padding:6px;background:var(--bg-secondary);border-radius:4px;';
+                card.innerHTML = `<div style="font-size:1.2rem;font-weight:700;color:${color};">${score.toFixed(1)}</div><div style="font-size:0.65rem;color:var(--text-dim);">${dim.label}</div>`;
+                scoresDiv.appendChild(card);
+            });
+
+            // Votes
+            const votesDiv = document.getElementById('chg-detail-votes');
+            votesDiv.innerHTML = '';
+            (ra.votes || []).forEach(v => {
+                const recColors = {approve: '#22c55e', approve_with_conditions: '#f59e0b', reject: '#ef4444'};
+                votesDiv.innerHTML += `
+                    <div style="padding:6px 0;border-bottom:1px solid var(--border);">
+                        <span style="font-weight:600;text-transform:capitalize;">${v.agent_role.replace(/_/g,' ')}</span>
+                        <span style="float:right;background:${recColors[v.recommendation] || '#6b7280'};color:#fff;padding:1px 8px;border-radius:8px;font-size:0.7rem;">${v.recommendation.replace(/_/g,' ')}</span>
+                        <div style="color:var(--text-dim);margin-top:2px;font-size:0.75rem;">${v.rationale.substring(0, 200)}${v.rationale.length > 200 ? '...' : ''}</div>
+                    </div>
+                `;
+            });
+        } else {
+            riskSection.style.display = 'none';
+        }
+
+        // Log chain
+        const logsDiv = document.getElementById('chg-detail-logs');
+        logsDiv.innerHTML = '';
+        const actionColors = {
+            plan_created: '#6b7280', submitted: '#3b82f6', risk_assessed: '#8b5cf6',
+            approved: '#22c55e', rejected: '#ef4444', implementation_started: '#f59e0b',
+            testing_completed: '#06b6d4', completed: '#22c55e', failed: '#ef4444',
+            rolled_back: '#ef4444', cancelled: '#6b7280', comment: '#6b7280',
+            linked: '#3b82f6', retroactive_review: '#8b5cf6'
+        };
+        (d.logs || []).forEach(log => {
+            const details = log.details || {};
+            let links = '';
+            if (details.commit_sha) links += `<a href="#" style="color:var(--accent-primary);font-size:0.7rem;margin-right:8px;" title="Commit">SHA: ${details.commit_sha.substring(0,8)}</a>`;
+            if (details.issue_url) links += `<a href="${details.issue_url}" target="_blank" style="color:var(--accent-primary);font-size:0.7rem;margin-right:8px;">Issue</a>`;
+            if (details.log_md_ref) links += `<span style="font-size:0.7rem;color:var(--text-dim);">log.md: ${details.log_md_ref}</span>`;
+
+            logsDiv.innerHTML += `
+                <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;">
+                    <div style="min-width:3px;background:${actionColors[log.action] || '#6b7280'};border-radius:2px;"></div>
+                    <div style="flex:1;">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span style="font-weight:600;text-transform:capitalize;">${log.action.replace(/_/g,' ')}</span>
+                            <span style="font-size:0.7rem;color:var(--text-dim);">${timeAgo(log.timestamp)} · ${log.actor}</span>
+                        </div>
+                        ${log.from_state && log.to_state ? `<div style="font-size:0.72rem;color:var(--text-dim);">${log.from_state} → ${log.to_state}</div>` : ''}
+                        ${log.message ? `<div style="margin-top:2px;">${log.message}</div>` : ''}
+                        ${links ? `<div style="margin-top:4px;">${links}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        // Scroll detail into view
+        document.getElementById('chg-detail-panel').scrollIntoView({behavior: 'smooth', block: 'start'});
+    } catch(e) {
+        console.error('Change detail load failed:', e);
+    }
 }
 
 // =========================================================================
@@ -2568,20 +3124,21 @@ const loaders = {
     crm: loadCRM,
     site: loadSite,
     compliance: loadCompliance,
+    changes: loadChanges,
     infra: loadInfra,
 };
 
 const groups = {
     product:  ['users', 'usage', 'performance', 'activity'],
     growth:   ['business', 'onboarding', 'email', 'content', 'crm', 'site'],
-    ops:      ['automation', 'insights', 'compliance', 'infra'],
+    ops:      ['automation', 'insights', 'compliance', 'changes', 'infra'],
 };
 
 const tabLabels = {
     users: 'Users', usage: 'Usage', performance: 'Performance',
     activity: 'Activity', business: 'Business', onboarding: 'Onboarding',
     email: 'Email', content: 'Content', crm: 'CRM', site: 'Site',
-    automation: 'Automation', insights: 'AI Insights', compliance: 'Compliance', infra: 'Infra',
+    automation: 'Automation', insights: 'AI Insights', compliance: 'Compliance', changes: 'Changes', infra: 'Infra',
 };
 
 let activeGroup = 'product';

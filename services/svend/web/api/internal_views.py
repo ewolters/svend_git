@@ -3431,28 +3431,32 @@ def api_compliance(request):
 
         now = timezone.now()
 
-        # Latest result per check
+        # Latest result per check (with details for drill-down)
         latest_checks = []
         for name in ALL_CHECKS:
             latest = ComplianceCheck.objects.filter(check_name=name).order_by("-run_at").first()
             if latest:
                 latest_checks.append({
+                    "id": str(latest.id),
                     "check_name": latest.check_name,
                     "category": latest.category,
                     "status": latest.status,
                     "duration_ms": latest.duration_ms,
                     "run_at": latest.run_at.isoformat(),
                     "soc2_controls": latest.soc2_controls,
+                    "details": latest.details or {},
                 })
             else:
                 _, cat = ALL_CHECKS[name]
                 latest_checks.append({
+                    "id": None,
                     "check_name": name,
                     "category": cat,
                     "status": "pending",
                     "duration_ms": 0,
                     "run_at": None,
                     "soc2_controls": [],
+                    "details": {},
                 })
 
         # Pass rate trend (last 30 days)
@@ -3489,18 +3493,24 @@ def api_compliance(request):
         for c in latest_checks:
             all_controls.update(c.get("soc2_controls", []))
 
-        # Reports
-        reports = list(
-            ComplianceReport.objects
-            .order_by("-period_start")[:10]
-            .values("id", "period_start", "period_end", "pass_rate",
-                    "total_checks", "is_published", "generated_at")
-        )
-        for r in reports:
-            r["id"] = str(r["id"])
-            r["period_start"] = r["period_start"].isoformat()
-            r["period_end"] = r["period_end"].isoformat()
-            r["generated_at"] = r["generated_at"].isoformat()
+        # Reports (include full_report for drill-down)
+        report_objs = ComplianceReport.objects.order_by("-period_start")[:10]
+        reports = []
+        for rpt in report_objs:
+            reports.append({
+                "id": str(rpt.id),
+                "period_start": rpt.period_start.isoformat(),
+                "period_end": rpt.period_end.isoformat(),
+                "pass_rate": rpt.pass_rate,
+                "total_checks": rpt.total_checks,
+                "passed": rpt.passed,
+                "failed": rpt.failed,
+                "warnings": rpt.warnings,
+                "is_published": rpt.is_published,
+                "generated_at": rpt.generated_at.isoformat(),
+                "full_report": rpt.full_report or {},
+                "public_report": rpt.public_report or {},
+            })
 
         # Standards coverage — from latest standards_compliance check
         standards_data = {}
@@ -3517,7 +3527,7 @@ def api_compliance(request):
                 "warnings": details.get("warnings", 0),
                 "run_at": std_check.run_at.isoformat(),
                 "by_standard": by_standard,
-                "failures": details.get("failures", []),
+                "findings": details.get("findings", []),
             }
 
         return Response({
@@ -3551,3 +3561,338 @@ def api_compliance_publish(request, report_id):
         return Response({"ok": False, "error": "Report not found"}, status=404)
     except Exception as e:
         return Response({"ok": False, "error": str(e)}, status=500)
+
+
+# =============================================================================
+# Change Management (CHG-001)
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_change_management(request):
+    """Return change management data for dashboard.
+
+    Query params:
+        type: filter by change_type (feature, bugfix, etc.)
+        status: filter by status (draft, in_progress, completed, etc.)
+        risk: filter by risk_level (critical, high, medium, low)
+        limit: max results (default 50)
+    """
+    try:
+        from syn.audit.models import ChangeRequest, ChangeLog, RiskAssessment
+
+        qs = ChangeRequest.objects.all()
+
+        # Filters
+        change_type = request.query_params.get("type")
+        if change_type:
+            qs = qs.filter(change_type=change_type)
+
+        status = request.query_params.get("status")
+        if status:
+            qs = qs.filter(status=status)
+
+        risk = request.query_params.get("risk")
+        if risk:
+            qs = qs.filter(risk_level=risk)
+
+        limit = int(request.query_params.get("limit", 50))
+        total = qs.count()
+
+        changes = []
+        for cr in qs[:limit]:
+            log_count = cr.logs.count()
+            latest_log = cr.logs.order_by("-timestamp").first()
+            risk_assessment = cr.risk_assessments.order_by("-assessed_at").first()
+
+            changes.append({
+                "id": str(cr.id),
+                "title": cr.title,
+                "change_type": cr.change_type,
+                "risk_level": cr.risk_level,
+                "priority": cr.priority,
+                "status": cr.status,
+                "is_emergency": cr.is_emergency,
+                "author": cr.author,
+                "approver": cr.approver,
+                "created_at": cr.created_at.isoformat(),
+                "updated_at": cr.updated_at.isoformat(),
+                "completed_at": cr.completed_at.isoformat() if cr.completed_at else None,
+                "log_count": log_count,
+                "latest_log_action": latest_log.action if latest_log else None,
+                "latest_log_time": latest_log.timestamp.isoformat() if latest_log else None,
+                "risk_score": risk_assessment.overall_score if risk_assessment else None,
+                "risk_recommendation": risk_assessment.overall_recommendation if risk_assessment else None,
+                "issue_url": cr.issue_url,
+                "commit_shas": cr.commit_shas,
+                "correlation_id": str(cr.correlation_id),
+                "compliance_check_ids": cr.compliance_check_ids,
+                "drift_violation_ids": cr.drift_violation_ids,
+                "audit_entry_ids": cr.audit_entry_ids,
+            })
+
+        # Summary stats
+        now = timezone.now()
+        thirty_days = now - timedelta(days=30)
+        recent = ChangeRequest.objects.filter(created_at__gte=thirty_days)
+
+        stats = {
+            "total_changes": total,
+            "active_changes": ChangeRequest.objects.filter(
+                status__in=["draft", "submitted", "risk_assessed", "approved", "in_progress", "testing"]
+            ).count(),
+            "completed_30d": recent.filter(status="completed").count(),
+            "failed_30d": recent.filter(status__in=["failed", "rolled_back"]).count(),
+            "emergency_30d": recent.filter(is_emergency=True).count(),
+            "by_type": dict(
+                recent.values_list("change_type").annotate(count=Count("id")).order_by()
+            ),
+            "by_risk": dict(
+                recent.values_list("risk_level").annotate(count=Count("id")).order_by()
+            ),
+        }
+
+        return Response({
+            "changes": changes,
+            "total": total,
+            "stats": stats,
+        })
+    except Exception as e:
+        logger.warning("Change management query failed: %s", e)
+        return Response({"changes": [], "total": 0, "stats": {}, "error": str(e)})
+
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_change_detail(request, change_id):
+    """Return full detail for a single change request including all logs and risk assessments."""
+    try:
+        from syn.audit.models import ChangeRequest
+
+        cr = ChangeRequest.objects.get(id=change_id)
+
+        # All logs in chronological order
+        logs = [
+            {
+                "id": str(log.id),
+                "timestamp": log.timestamp.isoformat(),
+                "actor": log.actor,
+                "action": log.action,
+                "from_state": log.from_state,
+                "to_state": log.to_state,
+                "message": log.message,
+                "details": log.details,
+            }
+            for log in cr.logs.order_by("timestamp")
+        ]
+
+        # Risk assessments with votes
+        assessments = []
+        for ra in cr.risk_assessments.order_by("-assessed_at"):
+            votes = [
+                {
+                    "agent_role": v.agent_role,
+                    "recommendation": v.recommendation,
+                    "risk_scores": v.risk_scores,
+                    "rationale": v.rationale,
+                    "conditions": v.conditions,
+                    "voted_at": v.voted_at.isoformat(),
+                }
+                for v in ra.votes.order_by("voted_at")
+            ]
+            assessments.append({
+                "id": str(ra.id),
+                "assessment_type": ra.assessment_type,
+                "security_score": ra.security_score,
+                "availability_score": ra.availability_score,
+                "integrity_score": ra.integrity_score,
+                "confidentiality_score": ra.confidentiality_score,
+                "privacy_score": ra.privacy_score,
+                "overall_score": ra.overall_score,
+                "overall_recommendation": ra.overall_recommendation,
+                "conditions": ra.conditions,
+                "summary": ra.summary,
+                "is_retroactive": ra.is_retroactive,
+                "assessed_at": ra.assessed_at.isoformat(),
+                "assessed_by": ra.assessed_by,
+                "votes": votes,
+            })
+
+        # Related changes
+        related = []
+        if cr.related_change_ids:
+            for rid in cr.related_change_ids:
+                try:
+                    rel = ChangeRequest.objects.get(id=rid)
+                    related.append({
+                        "id": str(rel.id),
+                        "title": rel.title,
+                        "status": rel.status,
+                        "change_type": rel.change_type,
+                    })
+                except ChangeRequest.DoesNotExist:
+                    pass
+
+        return Response({
+            "change": {
+                "id": str(cr.id),
+                "title": cr.title,
+                "description": cr.description,
+                "change_type": cr.change_type,
+                "risk_level": cr.risk_level,
+                "priority": cr.priority,
+                "status": cr.status,
+                "is_emergency": cr.is_emergency,
+                "justification": cr.justification,
+                "affected_files": cr.affected_files,
+                "implementation_plan": cr.implementation_plan,
+                "rollback_plan": cr.rollback_plan,
+                "testing_plan": cr.testing_plan,
+                "issue_url": cr.issue_url,
+                "parent_change_id": str(cr.parent_change_id) if cr.parent_change_id else None,
+                "related_change_ids": [str(r) for r in cr.related_change_ids] if cr.related_change_ids else [],
+                "debt_item": cr.debt_item,
+                "commit_shas": cr.commit_shas,
+                "log_md_ref": cr.log_md_ref,
+                "compliance_check_ids": cr.compliance_check_ids,
+                "drift_violation_ids": cr.drift_violation_ids,
+                "audit_entry_ids": cr.audit_entry_ids,
+                "author": cr.author,
+                "approver": cr.approver,
+                "created_at": cr.created_at.isoformat(),
+                "updated_at": cr.updated_at.isoformat(),
+                "submitted_at": cr.submitted_at.isoformat() if cr.submitted_at else None,
+                "approved_at": cr.approved_at.isoformat() if cr.approved_at else None,
+                "started_at": cr.started_at.isoformat() if cr.started_at else None,
+                "completed_at": cr.completed_at.isoformat() if cr.completed_at else None,
+                "correlation_id": str(cr.correlation_id),
+            },
+            "logs": logs,
+            "risk_assessments": assessments,
+            "related_changes": related,
+        })
+    except ChangeRequest.DoesNotExist:
+        return Response({"error": "Change request not found"}, status=404)
+    except Exception as e:
+        logger.warning("Change detail query failed: %s", e)
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_change_create(request):
+    """Create a new change request with initial log entry.
+
+    Body: {title, description, change_type, risk_level, priority, justification,
+           affected_files, implementation_plan, rollback_plan, testing_plan,
+           issue_url, parent_change_id, debt_item, is_emergency}
+    """
+    try:
+        from syn.audit.models import ChangeRequest, ChangeLog
+
+        data = request.data
+        author = request.user.email if request.user.is_authenticated else "system"
+
+        cr = ChangeRequest.objects.create(
+            title=data.get("title", ""),
+            description=data.get("description", ""),
+            change_type=data.get("change_type", "enhancement"),
+            risk_level=data.get("risk_level", "medium"),
+            priority=data.get("priority", "medium"),
+            status="draft",
+            is_emergency=data.get("is_emergency", False),
+            justification=data.get("justification", ""),
+            affected_files=data.get("affected_files", []),
+            implementation_plan=data.get("implementation_plan", {}),
+            rollback_plan=data.get("rollback_plan", {}),
+            testing_plan=data.get("testing_plan", {}),
+            issue_url=data.get("issue_url", ""),
+            parent_change_id=data.get("parent_change_id"),
+            debt_item=data.get("debt_item", ""),
+            author=author,
+        )
+
+        # Create initial log entry
+        ChangeLog.objects.create(
+            change_request=cr,
+            actor=author,
+            action="plan_created",
+            to_state="draft",
+            message=f"Change request created: {cr.title}",
+            details={"change_type": cr.change_type, "risk_level": cr.risk_level},
+        )
+
+        return Response({"ok": True, "id": str(cr.id)}, status=201)
+    except Exception as e:
+        logger.warning("Change create failed: %s", e)
+        return Response({"ok": False, "error": str(e)}, status=400)
+
+
+@api_view(["POST"])
+@permission_classes([IsInternalUser])
+def api_change_transition(request, change_id):
+    """Transition a change request to a new state with a log entry.
+
+    Body: {action, message, details}
+    Valid actions match ChangeLog.ACTION_CHOICES.
+    """
+    try:
+        from syn.audit.models import ChangeRequest, ChangeLog
+
+        cr = ChangeRequest.objects.get(id=change_id)
+        data = request.data
+        action = data.get("action", "")
+        actor = request.user.email if request.user.is_authenticated else "system"
+
+        # Map action to target state
+        ACTION_TO_STATE = {
+            "submitted": "submitted",
+            "risk_assessed": "risk_assessed",
+            "approved": "approved",
+            "rejected": "rejected",
+            "implementation_started": "in_progress",
+            "testing_completed": "testing",
+            "completed": "completed",
+            "failed": "failed",
+            "rolled_back": "rolled_back",
+            "cancelled": "cancelled",
+        }
+
+        from_state = cr.status
+        to_state = ACTION_TO_STATE.get(action, "")
+
+        if to_state:
+            cr.status = to_state
+
+            # Set lifecycle timestamps
+            now = timezone.now()
+            if to_state == "submitted" and not cr.submitted_at:
+                cr.submitted_at = now
+            elif to_state == "approved" and not cr.approved_at:
+                cr.approved_at = now
+                cr.approver = actor
+            elif to_state == "in_progress" and not cr.started_at:
+                cr.started_at = now
+            elif to_state in ("completed", "failed", "rolled_back", "cancelled"):
+                cr.completed_at = now
+
+            cr.save()
+
+        # Always create log entry
+        ChangeLog.objects.create(
+            change_request=cr,
+            actor=actor,
+            action=action,
+            from_state=from_state,
+            to_state=to_state or from_state,
+            message=data.get("message", ""),
+            details=data.get("details", {}),
+        )
+
+        return Response({"ok": True, "status": cr.status})
+    except ChangeRequest.DoesNotExist:
+        return Response({"ok": False, "error": "Change request not found"}, status=404)
+    except Exception as e:
+        logger.warning("Change transition failed: %s", e)
+        return Response({"ok": False, "error": str(e)}, status=400)
