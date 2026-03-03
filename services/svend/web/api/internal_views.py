@@ -3204,3 +3204,161 @@ def api_crm_bulk_send(request):
         "stagger_seconds": 5,
         "total_time_estimate": f"{scheduled * 5}s",
     })
+
+
+# =============================================================================
+# Infrastructure (Synara OS layer)
+# =============================================================================
+
+@api_view(["GET"])
+@permission_classes([IsInternalUser])
+def api_infra(request):
+    """Synara infrastructure overview: scheduler, audit trail, system logs."""
+    now = timezone.now()
+
+    # --- Scheduler ---
+    try:
+        from syn.sched.models import (
+            CognitiveTask, Schedule, DeadLetterEntry, CircuitBreakerState,
+        )
+
+        task_states = dict(
+            CognitiveTask.objects.values_list("state")
+            .annotate(count=Count("id"))
+            .values_list("state", "count")
+        )
+
+        schedules = list(
+            Schedule.objects.order_by("schedule_id").values(
+                "schedule_id", "name", "task_name", "enabled",
+                "last_run_at", "next_run_at", "run_count",
+            )
+        )
+        for s in schedules:
+            s["last_run_at"] = str(s["last_run_at"]) if s["last_run_at"] else None
+            s["next_run_at"] = str(s["next_run_at"]) if s["next_run_at"] else None
+
+        dlq_by_status = dict(
+            DeadLetterEntry.objects.values_list("status")
+            .annotate(count=Count("id"))
+            .values_list("status", "count")
+        )
+
+        circuit_breakers = list(
+            CircuitBreakerState.objects.values(
+                "service_name", "state", "failure_count",
+                "last_failure_at", "opened_at",
+            )
+        )
+        for cb in circuit_breakers:
+            cb["last_failure_at"] = str(cb["last_failure_at"]) if cb["last_failure_at"] else None
+            cb["opened_at"] = str(cb["opened_at"]) if cb["opened_at"] else None
+
+        recent_failures = list(
+            CognitiveTask.objects.filter(state="FAILURE")
+            .order_by("-completed_at")[:10]
+            .values("id", "task_name", "error_type", "error_message", "completed_at")
+        )
+        for f in recent_failures:
+            f["id"] = str(f["id"])
+            f["completed_at"] = str(f["completed_at"]) if f["completed_at"] else None
+
+        scheduler_data = {
+            "task_states": task_states,
+            "schedules": schedules,
+            "dlq": dlq_by_status,
+            "circuit_breakers": circuit_breakers,
+            "recent_failures": recent_failures,
+        }
+    except Exception as e:
+        logger.warning("Infra: scheduler query failed: %s", e)
+        scheduler_data = {"error": str(e)}
+
+    # --- Audit Trail ---
+    try:
+        from syn.audit.models import SysLogEntry, IntegrityViolation, DriftViolation
+
+        audit_total = SysLogEntry.objects.count()
+        latest_entry = SysLogEntry.objects.order_by("-id").first()
+        chain_ok = True
+        chain_length = audit_total
+        if latest_entry and latest_entry.current_hash:
+            chain_ok = bool(latest_entry.current_hash)
+
+        event_distribution = dict(
+            SysLogEntry.objects.values_list("event_name")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+            .values_list("event_name", "count")[:15]
+        )
+
+        integrity_open = IntegrityViolation.objects.filter(is_resolved=False).count()
+        integrity_total = IntegrityViolation.objects.count()
+
+        drift_by_severity = dict(
+            DriftViolation.objects.filter(resolved_at__isnull=True)
+            .values_list("severity")
+            .annotate(count=Count("id"))
+            .values_list("severity", "count")
+        )
+        drift_total_open = sum(drift_by_severity.values())
+        drift_sla_breached = DriftViolation.objects.filter(
+            is_sla_breached=True, resolved_at__isnull=True,
+        ).count()
+
+        audit_data = {
+            "total_entries": audit_total,
+            "chain_length": chain_length,
+            "chain_ok": chain_ok,
+            "event_distribution": event_distribution,
+            "integrity_violations_open": integrity_open,
+            "integrity_violations_total": integrity_total,
+            "drift_by_severity": drift_by_severity,
+            "drift_total_open": drift_total_open,
+            "drift_sla_breached": drift_sla_breached,
+        }
+    except Exception as e:
+        logger.warning("Infra: audit query failed: %s", e)
+        audit_data = {"error": str(e)}
+
+    # --- System Logs ---
+    try:
+        from syn.log.models import LogEntry, LogStream
+
+        log_level_counts = dict(
+            LogEntry.objects.values_list("level")
+            .annotate(count=Count("id"))
+            .values_list("level", "count")
+        )
+        log_total = sum(log_level_counts.values())
+
+        recent_errors = list(
+            LogEntry.objects.filter(level__in=["ERROR", "CRITICAL"])
+            .order_by("-timestamp")[:20]
+            .values("id", "timestamp", "level", "logger", "message")
+        )
+        for entry in recent_errors:
+            entry["id"] = str(entry["id"])
+            entry["timestamp"] = str(entry["timestamp"])
+
+        streams = list(
+            LogStream.objects.values(
+                "name", "is_active", "min_level", "retention_days",
+            )
+        )
+
+        logs_data = {
+            "total": log_total,
+            "by_level": log_level_counts,
+            "recent_errors": recent_errors,
+            "streams": streams,
+        }
+    except Exception as e:
+        logger.warning("Infra: log query failed: %s", e)
+        logs_data = {"error": str(e)}
+
+    return Response({
+        "scheduler": scheduler_data,
+        "audit": audit_data,
+        "logs": logs_data,
+    })

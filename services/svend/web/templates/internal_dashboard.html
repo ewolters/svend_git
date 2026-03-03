@@ -363,6 +363,7 @@
     <button onclick="switchTab('automation')">Automation</button>
     <button onclick="switchTab('crm')">CRM</button>
     <button onclick="switchTab('site')">Site</button>
+    <button onclick="switchTab('infra')">Infra</button>
 </div>
 
 <!-- Tab: Users -->
@@ -1355,6 +1356,151 @@
     </div>
 </div>
 
+<!-- Tab: Infra -->
+<div class="tab-content" id="tab-infra">
+    <!-- Scheduler Section -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Scheduler (syn.sched)</h3>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="infra-sched-pending">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Pending</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="infra-sched-running">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Running</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="infra-sched-success">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Completed</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--danger,#ef4444);" id="infra-sched-failed">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Failed</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--warning,#f59e0b);" id="infra-sched-dlq">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Dead Letter</div>
+        </div>
+    </div>
+
+    <!-- Schedules Table -->
+    <div class="chart-card full-width" style="margin-bottom:1.5rem;">
+        <h3>Cron Schedules</h3>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;font-size:0.8rem;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);text-align:left;">
+                        <th style="padding:6px 8px;">ID</th>
+                        <th style="padding:6px 8px;">Task</th>
+                        <th style="padding:6px 8px;">Enabled</th>
+                        <th style="padding:6px 8px;">Last Run</th>
+                        <th style="padding:6px 8px;">Next Run</th>
+                        <th style="padding:6px 8px;">Runs</th>
+                    </tr>
+                </thead>
+                <tbody id="infra-schedules-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Circuit Breakers -->
+    <div class="chart-card full-width" style="margin-bottom:1.5rem;">
+        <h3>Circuit Breakers</h3>
+        <div id="infra-circuit-breakers" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:0.8rem;color:var(--text-dim);">No circuit breakers registered</span>
+        </div>
+    </div>
+
+    <!-- Recent Task Failures -->
+    <div class="chart-card full-width" style="margin-bottom:2rem;">
+        <h3>Recent Task Failures</h3>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;font-size:0.8rem;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);text-align:left;">
+                        <th style="padding:6px 8px;">Task</th>
+                        <th style="padding:6px 8px;">Error Type</th>
+                        <th style="padding:6px 8px;">Message</th>
+                        <th style="padding:6px 8px;">When</th>
+                    </tr>
+                </thead>
+                <tbody id="infra-failures-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Audit Trail Section -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">Audit Trail (syn.audit)</h3>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="infra-audit-entries">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Total Entries</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="infra-audit-chain">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Chain Status</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--danger,#ef4444);" id="infra-audit-integrity">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Integrity Violations</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--warning,#f59e0b);" id="infra-audit-drift">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Drift Violations</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--danger,#ef4444);" id="infra-audit-sla">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">SLA Breached</div>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-card"><h3>Event Type Distribution</h3><canvas id="chart-infra-events"></canvas></div>
+        <div class="chart-card"><h3>Drift by Severity</h3><canvas id="chart-infra-drift"></canvas></div>
+    </div>
+
+    <!-- System Logs Section -->
+    <h3 style="margin:2rem 0 12px 0;font-size:0.95rem;color:var(--text-primary);">System Logs (syn.log)</h3>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;">
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="infra-log-total">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Total Entries</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--danger,#ef4444);" id="infra-log-errors">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Errors</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;color:var(--warning,#f59e0b);" id="infra-log-warnings">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Warnings</div>
+        </div>
+        <div class="chart-card" style="text-align:center;padding:1rem;">
+            <div style="font-size:2rem;font-weight:700;" id="infra-log-streams">—</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);">Active Streams</div>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-card"><h3>Log Level Distribution</h3><canvas id="chart-infra-levels"></canvas></div>
+        <div class="chart-card full-width">
+            <h3>Recent Errors</h3>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;font-size:0.8rem;border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border);text-align:left;">
+                            <th style="padding:6px 8px;">Time</th>
+                            <th style="padding:6px 8px;">Level</th>
+                            <th style="padding:6px 8px;">Logger</th>
+                            <th style="padding:6px 8px;">Message</th>
+                        </tr>
+                    </thead>
+                    <tbody id="infra-errors-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // =========================================================================
 // Dashboard State
@@ -1907,6 +2053,166 @@ function formatMarkdown(text) {
 }
 
 // =========================================================================
+// Infrastructure Tab
+// =========================================================================
+async function loadInfra() {
+    try {
+        const d = await apiFetch('infra');
+        const sched = d.scheduler || {};
+        const audit = d.audit || {};
+        const logs = d.logs || {};
+
+        // --- Scheduler KPIs ---
+        const ts = sched.task_states || {};
+        document.getElementById('infra-sched-pending').textContent = (ts.PENDING || 0) + (ts.SCHEDULED || 0);
+        document.getElementById('infra-sched-running').textContent = (ts.RUNNING || 0) + (ts.RETRYING || 0);
+        document.getElementById('infra-sched-success').textContent = ts.SUCCESS || 0;
+        document.getElementById('infra-sched-failed').textContent = ts.FAILURE || 0;
+        document.getElementById('infra-sched-dlq').textContent = (sched.dlq || {}).pending || 0;
+
+        // Schedules table
+        const stbody = document.getElementById('infra-schedules-tbody');
+        stbody.innerHTML = '';
+        (sched.schedules || []).forEach(s => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            const fmtTime = t => t && t !== 'None' ? new Date(t).toLocaleString() : '—';
+            tr.innerHTML = `
+                <td style="padding:6px 8px;font-family:monospace;font-size:0.75rem;">${s.schedule_id}</td>
+                <td style="padding:6px 8px;">${s.task_name}</td>
+                <td style="padding:6px 8px;">${s.enabled ? '<span style="color:#4ade80;">active</span>' : '<span style="color:var(--text-dim);">disabled</span>'}</td>
+                <td style="padding:6px 8px;">${fmtTime(s.last_run_at)}</td>
+                <td style="padding:6px 8px;">${fmtTime(s.next_run_at)}</td>
+                <td style="padding:6px 8px;">${s.run_count}</td>
+            `;
+            stbody.appendChild(tr);
+        });
+
+        // Circuit breakers
+        const cbDiv = document.getElementById('infra-circuit-breakers');
+        const cbs = sched.circuit_breakers || [];
+        if (cbs.length) {
+            cbDiv.innerHTML = '';
+            cbs.forEach(cb => {
+                const colors = { CLOSED: '#4ade80', OPEN: '#ef4444', HALF_OPEN: '#f59e0b' };
+                const badge = document.createElement('span');
+                badge.style.cssText = `display:inline-block;padding:4px 10px;border-radius:4px;font-size:0.75rem;font-weight:600;background:${colors[cb.state] || '#888'};color:#000;`;
+                badge.textContent = `${cb.service_name}: ${cb.state}`;
+                cbDiv.appendChild(badge);
+            });
+        }
+
+        // Recent failures table
+        const ftbody = document.getElementById('infra-failures-tbody');
+        ftbody.innerHTML = '';
+        (sched.recent_failures || []).forEach(f => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            tr.innerHTML = `
+                <td style="padding:6px 8px;">${f.task_name || '—'}</td>
+                <td style="padding:6px 8px;font-family:monospace;font-size:0.75rem;">${f.error_type || '—'}</td>
+                <td style="padding:6px 8px;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(f.error_message || '').replace(/"/g, '&quot;')}">${f.error_message || '—'}</td>
+                <td style="padding:6px 8px;">${f.completed_at && f.completed_at !== 'None' ? new Date(f.completed_at).toLocaleString() : '—'}</td>
+            `;
+            ftbody.appendChild(tr);
+        });
+        if (!(sched.recent_failures || []).length) {
+            ftbody.innerHTML = '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--text-dim);">No recent failures</td></tr>';
+        }
+
+        // --- Audit KPIs ---
+        document.getElementById('infra-audit-entries').textContent = audit.total_entries || 0;
+        document.getElementById('infra-audit-chain').textContent = audit.chain_ok ? 'OK' : 'BROKEN';
+        document.getElementById('infra-audit-chain').style.color = audit.chain_ok ? '#4ade80' : '#ef4444';
+        document.getElementById('infra-audit-integrity').textContent = audit.integrity_violations_open || 0;
+        document.getElementById('infra-audit-drift').textContent = audit.drift_total_open || 0;
+        document.getElementById('infra-audit-sla').textContent = audit.drift_sla_breached || 0;
+
+        // Event distribution chart
+        chartDefaults();
+        const evts = audit.event_distribution || {};
+        const evtLabels = Object.keys(evts);
+        if (evtLabels.length) {
+            makeChart('chart-infra-events', {
+                type: 'bar',
+                data: {
+                    labels: evtLabels.map(l => l.length > 30 ? l.substring(0, 27) + '...' : l),
+                    datasets: [{
+                        data: Object.values(evts),
+                        backgroundColor: evtLabels.map((_, i) => cc(i)),
+                    }]
+                },
+                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+
+        // Drift severity chart
+        const drift = audit.drift_by_severity || {};
+        const driftLabels = Object.keys(drift);
+        if (driftLabels.length) {
+            const driftColors = { CRITICAL: '#ef4444', HIGH: '#f59e0b', MEDIUM: '#3b82f6', LOW: '#4ade80' };
+            makeChart('chart-infra-drift', {
+                type: 'doughnut',
+                data: {
+                    labels: driftLabels,
+                    datasets: [{
+                        data: Object.values(drift),
+                        backgroundColor: driftLabels.map(l => driftColors[l] || '#888'),
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // --- Logs KPIs ---
+        const levels = logs.by_level || {};
+        document.getElementById('infra-log-total').textContent = logs.total || 0;
+        document.getElementById('infra-log-errors').textContent = (levels.ERROR || 0) + (levels.CRITICAL || 0);
+        document.getElementById('infra-log-warnings').textContent = levels.WARNING || 0;
+        document.getElementById('infra-log-streams').textContent = (logs.streams || []).filter(s => s.is_active).length;
+
+        // Log level chart
+        const levelLabels = Object.keys(levels);
+        if (levelLabels.length) {
+            const levelColors = { DEBUG: '#6b7280', INFO: '#3b82f6', WARNING: '#f59e0b', ERROR: '#ef4444', CRITICAL: '#dc2626' };
+            makeChart('chart-infra-levels', {
+                type: 'doughnut',
+                data: {
+                    labels: levelLabels,
+                    datasets: [{
+                        data: Object.values(levels),
+                        backgroundColor: levelLabels.map(l => levelColors[l] || '#888'),
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Recent errors table
+        const etbody = document.getElementById('infra-errors-tbody');
+        etbody.innerHTML = '';
+        (logs.recent_errors || []).forEach(e => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            const levelColor = e.level === 'CRITICAL' ? '#dc2626' : '#ef4444';
+            tr.innerHTML = `
+                <td style="padding:6px 8px;white-space:nowrap;">${e.timestamp && e.timestamp !== 'None' ? new Date(e.timestamp).toLocaleString() : '—'}</td>
+                <td style="padding:6px 8px;color:${levelColor};font-weight:600;">${e.level}</td>
+                <td style="padding:6px 8px;font-family:monospace;font-size:0.75rem;">${e.logger || '—'}</td>
+                <td style="padding:6px 8px;max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(e.message || '').replace(/"/g, '&quot;')}">${e.message || '—'}</td>
+            `;
+            etbody.appendChild(tr);
+        });
+        if (!(logs.recent_errors || []).length) {
+            etbody.innerHTML = '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--text-dim);">No recent errors</td></tr>';
+        }
+
+    } catch (e) {
+        console.error('Infra tab failed:', e);
+    }
+}
+
+// =========================================================================
 // Tab & Time Management
 // =========================================================================
 const loaders = {
@@ -1922,6 +2228,7 @@ const loaders = {
     automation: loadAutomation,
     crm: loadCRM,
     site: loadSite,
+    infra: loadInfra,
 };
 
 function switchTab(tab) {
