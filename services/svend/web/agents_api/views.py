@@ -1,6 +1,6 @@
 """Agent API views.
 
-Exposes the multi-agent workbench functionality via REST API.
+Exposes agent functionality (research, writing, DOE) via REST API.
 """
 
 import os

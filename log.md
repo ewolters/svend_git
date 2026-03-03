@@ -15,6 +15,57 @@ All edits to the kjerne codebase are logged here. Each entry records what change
 
 ---
 
+### 2026-03-03 — Codebase reorganization: dead code removal, folder structure, legacy cleanup
+**Debt items:** Root core/ misplaced (RESOLVED), services/scrub/ duplicate (RESOLVED), Root-level file clutter (RESOLVED), Dead test imports (RESOLVED), Legacy references (RESOLVED)
+**Files changed:**
+- Moved `core/` (10 Python modules) → `services/svend/agents/agent_core/` — renamed to avoid shadowing Django's `web/core/` app (both resolve via sys.path). Updated all `from core.X` imports to `from agent_core.X` in 8 agent files + tests + forge/qa.py
+- Removed `services/scrub/` (duplicate of `agents/scrub/`, nothing imported from it)
+- Removed empty `agents/core/` directory
+- Fixed dead test imports in `agents_api/tests.py` (referenced nonexistent agents/core/, agents/editor/)
+- Updated legacy "multi-agent workbench" docstring in `agents_api/views.py`
+- Updated "Neuro-Symbolic Reasoning" docstring in `core/reasoning.py`
+- Moved 12 planning/debt docs from root and scattered locations → `docs/planning/`
+- Moved 3 strategy HTML files from root → `docs/reference/`
+- Moved `DEBT-001.md` from root → `.kjerne/` (with DEBT.md)
+- Moved 4 shell scripts → `services/svend/web/ops/`
+- Moved 6 systemd service/timer files → `services/svend/web/ops/`
+- Moved `fail2ban-svend.conf`, `prod_checklist.yaml` → `services/svend/web/ops/`
+- Moved `tempora.service` from `services/tempora/` → `services/svend/web/ops/`
+- Updated systemd ExecStart paths to reference ops/ subdirectory
+- Updated CLAUDE.md architecture tree (docs/, .kjerne/, agents/core/, web/ops/)
+- Updated DEBT.md with 7 newly resolved items
+
+**What:** Major codebase organization. Removed dead code (empty dirs, duplicate service, broken test imports, legacy references). Moved root core/ into agents/core/ where it belongs. Centralized all ops files. Consolidated all planning docs. Root is now clean: just CLAUDE.md, STANDARD.md, log.md.
+
+---
+
+### 2026-03-03 — Flatten agents/agents/ and fix hardcoded paths
+**Debt item:** agents/agents/ nested directory (RESOLVED), Hardcoded /home/eric/ paths (RESOLVED)
+**Files changed:**
+- `services/svend/agents/*` — moved contents of agents/agents/ up to agents/, removed empty nested dirs
+- `services/svend/agents/__init__.py` — rewritten with correct imports matching actual module exports
+- `services/svend/web/svend/settings.py` — _AGENTS_PATH now points to agents/ (not agents/agents/)
+- `services/svend/web/agents_api/learn_views.py` — imports updated from agents.agents.experimenter to agents.experimenter
+- 11 agent .py files — replaced hardcoded sys.path.insert('/home/eric/Desktop/agents') with portable Path(__file__)-based resolution
+- 4 agent CLI files — replaced dead /home/eric/Desktop/experiments/neuro_symbolic sys.path inserts
+- `services/svend/agents/site/app.py` — removed 7 redundant sys.path inserts (line 20 already has portable path)
+- `services/svend/web/start_prod.sh` — $HOME instead of /home/eric, gunicorn via PATH
+- `services/svend/web/start_tempora.sh` — $HOME instead of /home/eric
+- `services/svend/web/backup_db.sh` — $HOME instead of /home/eric
+- `services/svend/web/run_purge.sh` — SCRIPT_DIR pattern instead of hardcoded cd
+- `services/svend/web/svend.service` — %h (systemd home dir specifier) instead of /home/eric
+- `services/svend/web/svend-purge.service` — %h
+- `services/svend/web/svend-backup.service` — %h
+- `services/tempora/tempora.service` — %h
+- `services/svend/web/Caddyfile` — $SVEND_STATIC_ROOT env var with fallback
+- `.kjerne/config.json` — ~/kjerne instead of /home/eric/kjerne
+- `CLAUDE.md` — architecture tree updated to show flat agents/ structure
+- `core/reasoning.py` — removed hardcoded path from docstring
+
+**What:** Flattened the double-nested agents/agents/ directory to a single agents/ directory. Replaced all hardcoded /home/eric/ paths in executable files with portable alternatives ($HOME, %h, Path(__file__)). Zero hardcoded paths remain in .py, .sh, .service, or .conf files.
+
+---
+
 ### 2026-03-03 — DSW Mobile Optimization + Expand Overlay Fix
 
 **Files changed:**

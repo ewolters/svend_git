@@ -14,7 +14,7 @@
     "min_quality_grade": "C"
   },
   "paths": {
-    "dev": "/home/eric/kjerne",
-    "prod": "/home/eric/prod"
+    "dev": "~/kjerne",
+    "prod": "~/prod"
   }
 }

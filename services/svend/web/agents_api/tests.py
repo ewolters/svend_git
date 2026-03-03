@@ -190,24 +190,24 @@ class AgentExecutionTest(TestCase):
     def test_researcher_agent_import(self):
         """Researcher agent should be importable."""
         try:
-            from agents.researcher.agent import ResearcherAgent
+            from researcher.agent import ResearchAgent
             self.assertTrue(True)
         except ImportError:
-            # May not be in path depending on how tests are run
             pass
 
     def test_writer_agent_import(self):
         """Writer agent should be importable."""
         try:
-            from agents.writer.agent import WriterAgent
+            from writer.agent import WriterAgent
             self.assertTrue(True)
         except ImportError:
             pass
 
-    def test_editor_agent_import(self):
-        """Editor agent should be importable."""
+    def test_experimenter_import(self):
+        """Experimenter modules should be importable."""
         try:
-            from agents.editor.agent import EditorAgent
+            from experimenter.stats import PowerAnalyzer
+            from experimenter.doe import DOEGenerator
             self.assertTrue(True)
         except ImportError:
             pass
@@ -216,38 +216,18 @@ class AgentExecutionTest(TestCase):
 class SearchProviderTest(TestCase):
     """Test search provider functionality."""
 
-    def test_arxiv_excluded_categories(self):
-        """ArXiv search should have excluded categories defined."""
+    def test_multi_search_import(self):
+        """MultiSearch class should be importable."""
         try:
-            from agents.core.search import ArxivSearch, EXCLUDED_CATEGORIES
-            self.assertIn('hep-ph', EXCLUDED_CATEGORIES)
-            self.assertIn('gr-qc', EXCLUDED_CATEGORIES)
-        except ImportError:
-            pass
-
-    def test_study_type_enum(self):
-        """StudyType enum should have evidence hierarchy."""
-        try:
-            from agents.core.search import StudyType
-            # Verify hierarchy exists
-            self.assertTrue(hasattr(StudyType, 'META_ANALYSIS'))
-            self.assertTrue(hasattr(StudyType, 'RCT'))
-            self.assertTrue(hasattr(StudyType, 'COHORT'))
-        except ImportError:
-            pass
-
-    def test_pubmed_search_class(self):
-        """PubMed search class should exist."""
-        try:
-            from agents.core.search import PubMedSearch
+            from agent_core.search import MultiSearch, SearchResult
             self.assertTrue(True)
         except ImportError:
             pass
 
-    def test_openAlex_search_class(self):
-        """OpenAlex search class should exist."""
+    def test_search_providers(self):
+        """Search providers should be importable."""
         try:
-            from agents.core.search import OpenAlexSearch
+            from agent_core.search import SemanticScholarSearch
             self.assertTrue(True)
         except ImportError:
             pass

@@ -51,28 +51,42 @@ ChatGPT helped build Meganeura — an early workflow engine named after a stuffe
 ~/kjerne/                              # Root — production server
 ├── CLAUDE.md                          # This file
 ├── STANDARD.md                        # 5S lab standards (v2.0)
-├── DSW_gaps.md                        # Competitive gap analysis vs Minitab/JMP
 ├── log.md                             # Change log (all edits)
-├── DEBT-001.md                        # Debt closure process
 │
-├── core/                              # Shared utilities
-│   ├── llm.py                         # LLM loading (Qwen)
-│   └── quality.py                     # Quality framework
+├── docs/                              # All documentation
+│   ├── compliance/                    # SOC2 controls, policies, gap analysis
+│   ├── planning/                      # Roadmaps, migration plans, debt tracking
+│   └── reference/                     # Strategy docs, whitepapers, analysis
+│
+├── .kjerne/                           # Meta-tooling
+│   ├── DEBT.md                        # Technical debt tracker
+│   ├── DEBT-001.md                    # Debt closure process
+│   ├── config.json                    # Lab config
+│   └── snapshots/                     # Point-in-time snapshots
 │
 ├── services/svend/                    # The Svend product
 │   ├── reference_docs/                # Architecture docs
 │   │   └── ARCHITECTURE.md            # Unified workbench vision (Jan 2026)
 │   │
-│   ├── agents/agents/                 # Agent implementations
+│   ├── agents/                        # Agent implementations (flat)
+│   │   ├── agent_core/                # Shared utilities (LLM, intent, search, reasoning)
 │   │   ├── experimenter/              # DOE agent (agent.py, doe.py, stats.py)
 │   │   ├── researcher/                # Research agent (enabled)
 │   │   ├── coder/                     # Code execution agent (DISABLED at router)
 │   │   ├── writer/                    # Writing agent
 │   │   ├── reviewer/                  # Review agent
-│   │   └── guide/                     # Interview/decision guide
+│   │   ├── guide/                     # Interview/decision guide
+│   │   ├── analyst/                   # ML training service
+│   │   ├── dsw/                       # Decision Science Workbench pipeline
+│   │   ├── scrub/                     # Data cleaning service
+│   │   ├── docs/                      # Documentation tools (LaTeX, chemistry)
+│   │   ├── tools/                     # Deterministic tools (readability, etc.)
+│   │   ├── workflow/                  # Workflow engine
+│   │   └── site/                      # Flask demo app
 │   │
 │   ├── web/                           # Django web application
 │   │   ├── manage.py
+│   │   ├── ops/                       # Operations (scripts, systemd, configs)
 │   │   ├── svend_web/                 # Django project settings
 │   │   │   ├── settings.py
 │   │   │   └── urls.py                # Root URL config

@@ -7,7 +7,7 @@ Provides EDA stats and quality metrics for synthetic data.
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from core.quality import (
+from agent_core.quality import (
     QualityReport,
     QualityGrade,
     QualityMetric,

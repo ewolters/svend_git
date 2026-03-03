@@ -139,7 +139,7 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Field-level encryption key (loaded from /home/eric/.svend_encryption_key)
+# Field-level encryption key (loaded from ~/.svend_encryption_key)
 FIELD_ENCRYPTION_KEY = config.field_encryption_key
 
 # REST Framework
@@ -244,7 +244,7 @@ INFERENCE_DEVICE = config.device
 # Add agent modules to path (computed from BASE_DIR which is always correct)
 # Note: root core/ is NOT added here — it would shadow Django's core app.
 # Agent code handles its own core.* imports via sys.path in agent processes.
-_AGENTS_PATH = str(BASE_DIR.parent.parent.parent / "services" / "svend" / "agents" / "agents")
+_AGENTS_PATH = str(BASE_DIR.parent.parent.parent / "services" / "svend" / "agents")
 if _AGENTS_PATH not in sys.path:
     sys.path.insert(0, _AGENTS_PATH)
 

@@ -7,7 +7,7 @@ svend.ai, www.svend.ai {
 
     # Serve static files directly
     handle_path /static/* {
-        root * /home/eric/kjerne/services/svend/web/staticfiles
+        root * {$SVEND_STATIC_ROOT:/home/eric/kjerne/services/svend/web/staticfiles}
         file_server
     }
 

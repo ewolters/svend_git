@@ -1891,7 +1891,7 @@ def _execute_experimenter_step(session, step, config, user):
     action = step.get("action", "")
 
     if action == "power_analysis":
-        from agents.agents.experimenter.stats import PowerAnalyzer, interpret_effect_size
+        from agents.experimenter.stats import PowerAnalyzer, interpret_effect_size
 
         analyzer = PowerAnalyzer()
         test_type = config.get("test_type", "ttest_ind")
@@ -1924,7 +1924,7 @@ def _execute_experimenter_step(session, step, config, user):
         }
 
     elif action == "design_experiment":
-        from agents.agents.experimenter.doe import DOEGenerator, Factor
+        from agents.experimenter.doe import DOEGenerator, Factor
 
         factors = []
         for f in config.get("factors", []):
