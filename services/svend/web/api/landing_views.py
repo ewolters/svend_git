@@ -153,16 +153,76 @@ def landing_view(request):
     return render(request, "landing.html", ctx)
 
 
+def register_view(request):
+    """Render register page with localized pricing context."""
+    ctx = get_pricing_context(request)
+    return render(request, "register.html", ctx)
+
+
 def iso_qms_view(request):
     """Render ISO 9001 QMS SEO page with localized pricing."""
     ctx = get_pricing_context(request)
     return render(request, "iso_9001_qms.html", ctx)
 
 
+def iso_audit_playbook_view(request):
+    """Render ISO 9001 internal audit playbook with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "iso_9001_internal_audit_playbook.html", ctx)
+
+
 def svend_vs_minitab_view(request):
     """Render Svend vs Minitab comparison page with localized pricing."""
     ctx = get_pricing_context(request)
     return render(request, "svend_vs_minitab.html", ctx)
+
+
+def svend_vs_jmp_view(request):
+    """Render Svend vs JMP comparison page with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "svend_vs_jmp.html", ctx)
+
+
+def ci_hub_view(request):
+    """Render Continuous Improvement hub page with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "continuous_improvement.html", ctx)
+
+
+def mdi_playbook_view(request):
+    """Render MDI playbook with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "mdi_playbook.html", ctx)
+
+
+def hoshin_playbook_view(request):
+    """Render Hoshin Kanri playbook with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "hoshin_playbook.html", ctx)
+
+
+def kaizen_playbook_view(request):
+    """Render Kaizen execution guide with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "kaizen_playbook.html", ctx)
+
+
+def five_s_playbook_view(request):
+    """Render 5S playbook with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "5s_playbook.html", ctx)
+
+
+def lsw_playbook_view(request):
+    """Render Leadership Standard Work playbook with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "lsw_playbook.html", ctx)
+
+
+def vsm_playbook_view(request):
+    """Render Value Stream Mapping playbook with localized pricing."""
+    ctx = get_pricing_context(request)
+    return render(request, "vsm_playbook.html", ctx)
 
 
 def education_view(request):

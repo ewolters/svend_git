@@ -22,8 +22,9 @@ urlpatterns = [
     # Export to Knowledge
     path("boards/<str:room_code>/export-hypotheses/", whiteboard_views.export_hypotheses, name="whiteboard_export_hypotheses"),
 
-    # SVG Export for A3 embedding
+    # SVG/PNG Export for A3/ISO Doc embedding
     path("boards/<str:room_code>/svg/", whiteboard_views.export_svg, name="whiteboard_svg"),
+    path("boards/<str:room_code>/png/", whiteboard_views.export_png, name="whiteboard_png"),
 
     # Guest invite management (owner endpoints)
     path("boards/<str:room_code>/guests/", whiteboard_views.list_guest_invites, name="whiteboard_guest_list"),

@@ -13,10 +13,26 @@ from django.shortcuts import get_object_or_404
 
 from accounts.permissions import gated_paid
 from .evidence_bridge import create_tool_evidence
-from .models import A3Report, ActionItem, Board, DSWResult
+from .models import A3Report, ActionItem, Board, DSWResult, RCASession
 from core.models import Project, Hypothesis
 
 logger = logging.getLogger(__name__)
+
+
+def _dsw_has_charts(dsw_result):
+    try:
+        d = json.loads(dsw_result.data)
+        return bool(d.get("plots"))
+    except Exception:
+        return False
+
+
+def _dsw_plots_count(dsw_result):
+    try:
+        d = json.loads(dsw_result.data)
+        return len(d.get("plots", []))
+    except Exception:
+        return 0
 
 
 @gated_paid
@@ -63,6 +79,27 @@ def create_a3_report(request):
 
     title = data.get("title", "Untitled A3")
 
+    # Auto-import RCA content if rca_session_id provided
+    root_cause = data.get("root_cause", "")
+    rca_session_id = data.get("rca_session_id")
+    rca_linked = None
+    if rca_session_id:
+        try:
+            rca = RCASession.objects.get(id=rca_session_id, owner=request.user)
+            rca_linked = rca
+            rca_content = f"**Event:** {rca.event}\n\n"
+            if rca.chain:
+                rca_content += "**Causal Chain:**\n"
+                for i, step in enumerate(rca.chain):
+                    rca_content += f"{i+1}. {step.get('claim', '')}\n"
+            if rca.root_cause:
+                rca_content += f"\n**Root Cause:** {rca.root_cause}\n"
+            if rca.countermeasure:
+                rca_content += f"**Countermeasure:** {rca.countermeasure}\n"
+            root_cause = rca_content if not root_cause else root_cause + "\n\n---\n\n" + rca_content
+        except RCASession.DoesNotExist:
+            pass
+
     report = A3Report.objects.create(
         owner=request.user,
         project=project,
@@ -70,11 +107,16 @@ def create_a3_report(request):
         background=data.get("background", ""),
         current_condition=data.get("current_condition", ""),
         goal=data.get("goal", ""),
-        root_cause=data.get("root_cause", ""),
+        root_cause=root_cause,
         countermeasures=data.get("countermeasures", ""),
         implementation_plan=data.get("implementation_plan", ""),
         follow_up=data.get("follow_up", ""),
     )
+
+    # Link RCA session FK to A3
+    if rca_linked:
+        rca_linked.a3_report = report
+        rca_linked.save(update_fields=["a3_report"])
 
     project.log_event("a3_created", f"A3 report: {title}", user=request.user)
     return JsonResponse({
@@ -126,7 +168,8 @@ def get_a3_report(request, report_id):
             ],
             "dsw_results": [
                 {"id": r.id, "title": r.title, "type": r.result_type,
-                 "summary": r.get_summary(), "created": r.created_at.isoformat()}
+                 "summary": r.get_summary(), "created": r.created_at.isoformat(),
+                 "has_charts": _dsw_has_charts(r), "plots_count": _dsw_plots_count(r)}
                 for r in dsw_results
             ],
         },
@@ -276,32 +319,42 @@ def import_to_a3(request, report_id):
         import_ref["summary"] = report.project.title
 
     elif source_type == "dsw":
-        # Import DSW analysis result
         try:
             dsw_result = DSWResult.objects.get(id=source_id, user=request.user)
             import json as json_module
-            data = json_module.loads(dsw_result.data)
+            import re as re_module
+            result_data = json_module.loads(dsw_result.data)
 
-            content = f"**DSW Analysis:** {dsw_result.title}\n\n"
+            include = set(data.get("include", ["narrative", "statistics", "charts"]))
+            content_parts = [f"**DSW Analysis:** {dsw_result.title}"]
 
-            # Add analysis type/ID
-            if data.get("analysis_id"):
-                content += f"**Type:** {data['analysis_id'].replace('_', ' ').title()}\n"
+            if result_data.get("analysis_id"):
+                content_parts.append(f"**Type:** {result_data['analysis_id'].replace('_', ' ').title()}")
 
-            # Add summary
-            summary = data.get("summary", "") or data.get("guide_observation", "")
-            if summary:
-                # Strip color tags
-                import re
-                clean_summary = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary)
-                content += f"\n{clean_summary}\n"
+            if "narrative" in include:
+                summary = result_data.get("summary", "") or result_data.get("guide_observation", "")
+                if summary:
+                    clean = re_module.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary)
+                    content_parts.append(f"\n{clean}")
 
-            # Note about plots
-            plots_count = data.get("plots_count", 0)
-            if plots_count:
-                content += f"\n*{plots_count} visualization(s) available in DSW*\n"
+            if "statistics" in include:
+                stats = result_data.get("statistics", {})
+                if isinstance(stats, dict) and stats:
+                    content_parts.append("\n**Key Statistics:**")
+                    for key, val in stats.items():
+                        if isinstance(val, float):
+                            content_parts.append(f"- {key}: {val:.4f}")
+                        else:
+                            content_parts.append(f"- {key}: {val}")
 
-            import_ref["summary"] = dsw_result.title or f"DSW: {data.get('analysis_id', 'Analysis')}"
+            content = "\n".join(content_parts) + "\n"
+
+            chart_embeds = []
+            if "charts" in include and result_data.get("plots"):
+                from .dsw.chart_render import render_dsw_charts
+                chart_embeds = render_dsw_charts(result_data["plots"])
+
+            import_ref["summary"] = dsw_result.title or f"DSW: {result_data.get('analysis_id', 'Analysis')}"
         except DSWResult.DoesNotExist:
             return JsonResponse({"error": "DSW result not found"}, status=404)
 
@@ -323,6 +376,14 @@ def import_to_a3(request, report_id):
         imports[section] = []
     imports[section].append(import_ref)
     report.imported_from = imports
+
+    # Embed DSW charts if any were rendered
+    if source_type == "dsw" and chart_embeds:
+        diagrams = report.embedded_diagrams or {}
+        if section not in diagrams:
+            diagrams[section] = []
+        diagrams[section].extend(chart_embeds)
+        report.embedded_diagrams = diagrams
 
     report.save()
 
@@ -374,6 +435,26 @@ def auto_populate_a3(request, report_id):
                 text = el.get("text") or el.get("title")
                 if text:
                     context_parts.append(f"- {text}")
+
+    # Phase C: Include DSW analysis results
+    dsw_results = list(DSWResult.objects.filter(project=project).order_by('-created_at')[:10])
+    if dsw_results:
+        context_parts.append("\nAnalysis Results:")
+        for dr in dsw_results:
+            try:
+                d = json.loads(dr.data) if isinstance(dr.data, str) else dr.data
+                obs = d.get('guide_observation', d.get('summary', ''))[:200] if d else str(dr.title)
+                context_parts.append(f"- {dr.title}: {obs}")
+            except Exception:
+                context_parts.append(f"- {dr.title}")
+
+    # Phase C: Include RCA investigations
+    rca_sessions = list(RCASession.objects.filter(project=project).order_by('-created_at')[:5])
+    if rca_sessions:
+        context_parts.append("\nRCA Investigations:")
+        for rca in rca_sessions:
+            root = rca.root_cause or (rca.event[:100] if rca.event else '')
+            context_parts.append(f"- {rca.title}: {root}")
 
     context = "\n".join(context_parts)
 
@@ -589,3 +670,75 @@ def create_a3_action(request, report_id):
         source_id=report.id,
     )
     return JsonResponse({"success": True, "action_item": item.to_dict()}, status=201)
+
+
+A3_SECTIONS = [
+    ("background", "Background"),
+    ("current_condition", "Current Condition"),
+    ("goal", "Goal / Target Condition"),
+    ("root_cause", "Root Cause Analysis"),
+    ("countermeasures", "Countermeasures"),
+    ("implementation_plan", "Implementation Plan"),
+    ("follow_up", "Follow-Up"),
+]
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def export_a3_pdf(request, report_id):
+    """Export A3 report as PDF via WeasyPrint."""
+    import re
+    from io import BytesIO
+
+    report = get_object_or_404(A3Report, id=report_id, owner=request.user)
+    diagrams = report.embedded_diagrams or {}
+
+    try:
+        import markdown
+        md = markdown.Markdown(extensions=["tables", "fenced_code"])
+    except ImportError:
+        md = None
+
+    rendered_sections = []
+    for field, label in A3_SECTIONS:
+        raw_content = getattr(report, field, "") or ""
+        clean_content = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", raw_content)
+
+        if md and clean_content:
+            html = md.convert(clean_content)
+            md.reset()
+        elif clean_content:
+            from django.utils.html import escape
+            html = f"<p>{escape(clean_content)}</p>"
+        else:
+            html = '<p class="empty-section">Not completed</p>'
+
+        rendered_sections.append({
+            "key": field,
+            "label": label,
+            "html": html,
+            "diagrams": diagrams.get(field, []),
+        })
+
+    from django.template.loader import render_to_string
+    html_string = render_to_string("a3_print.html", {
+        "report": report,
+        "status_display": report.get_status_display(),
+        "project_title": report.project.title if report.project else "",
+        "rendered_sections": rendered_sections,
+    })
+
+    try:
+        from weasyprint import HTML
+        pdf_buffer = BytesIO()
+        HTML(string=html_string, base_url="https://svend.ai").write_pdf(pdf_buffer)
+        pdf_buffer.seek(0)
+
+        safe_name = re.sub(r"[^\w\-.]", "_", report.title)[:60] or "a3_report"
+        from django.http import HttpResponse
+        response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{safe_name}.pdf"'
+        return response
+    except Exception as e:
+        logger.exception(f"A3 PDF export failed: {e}")
+        return JsonResponse({"error": "PDF export failed. WeasyPrint may not be available."}, status=500)

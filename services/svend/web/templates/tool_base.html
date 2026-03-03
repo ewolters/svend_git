@@ -89,6 +89,9 @@
         .tool-container {
             max-width: 960px; margin: 0 auto; padding: 2rem;
         }
+        .tool-container a:link { color: #4a9f6e; }
+        .tool-container a:visited { color: #f59e0b; }
+        .tool-container a:hover { color: #ffffff; }
         .tool-header {
             text-align: center; margin-bottom: 2.5rem; padding-top: 1rem;
         }
@@ -233,9 +236,18 @@
         }
         .tool-footer a { color: var(--accent-primary); text-decoration: none; }
         .tool-footer a:hover { text-decoration: underline; }
-        .footer-tools {
-            display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap;
-            margin-bottom: 1rem;
+        .footer-sections {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem 2rem; text-align: left; max-width: 960px; margin: 0 auto 1.5rem;
+        }
+        .footer-group h4 {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+            color: var(--text-dim); margin: 0 0 0.5rem; padding-bottom: 0.35rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .footer-group a { display: block; font-size: 0.78rem; line-height: 1.9; }
+        @media (max-width: 600px) {
+            .footer-sections { grid-template-columns: 1fr 1fr; }
         }
 
         /* Tabs */
@@ -360,21 +372,46 @@
     </main>
 
     <footer class="tool-footer">
-        <div class="footer-tools">
-            <a href="/tools/cpk-calculator/">Cpk Calculator</a>
-            <a href="/tools/sample-size-calculator/">Sample Size Calculator</a>
-            <a href="/tools/oee-calculator/">OEE Calculator</a>
-            <a href="/tools/sigma-calculator/">Sigma Level Calculator</a>
-            <a href="/tools/takt-time-calculator/">Takt Time Calculator</a>
-            <a href="/tools/kanban-card-generator/">Kanban Card Generator</a>
-            <a href="/tools/control-chart-generator/">Control Chart Generator</a>
-            <a href="/tools/gage-rr-calculator/">Gage R&amp;R Calculator</a>
-            <a href="/tools/pareto-chart-generator/">Pareto Chart Generator</a>
-            <a href="/tools/bayesian-cpk-calculator/">Bayesian Cpk Calculator</a>
-            <a href="/classical-vs-bayesian-spc/">Classical vs Bayesian SPC</a>
-            <a href="/svend-vs-minitab/">Svend vs Minitab</a>
-            <a href="/iso-9001-qms-software/">ISO 9001 QMS</a>
-            <a href="/for-education/">Education Partnerships</a>
+        <div class="footer-sections">
+            <div class="footer-group">
+                <h4>Continuous Improvement</h4>
+                <a href="/continuous-improvement-software/">CI Software</a>
+                <a href="/managing-for-daily-improvement/">Managing for Daily Improvement</a>
+                <a href="/hoshin-kanri-strategy-deployment/">Hoshin Kanri</a>
+                <a href="/kaizen-execution-guide/">Kaizen Execution</a>
+                <a href="/5s-operational-excellence/">5S Playbook</a>
+                <a href="/leadership-standard-work/">Leadership Standard Work</a>
+                <a href="/value-stream-mapping-methodology/">Value Stream Mapping</a>
+            </div>
+            <div class="footer-group">
+                <h4>ISO 9001</h4>
+                <a href="/iso-9001-qms-software/">QMS Software</a>
+                <a href="/iso-9001-internal-audit-playbook/">Audit Playbook</a>
+                <a href="/tools/iso-9001-audit-checklist/">Audit Checklist</a>
+                <a href="/tools/iso-document-creator/">Document Creator</a>
+            </div>
+            <div class="footer-group">
+                <h4>Free Tools</h4>
+                <a href="/tools/cpk-calculator/">Cpk Calculator</a>
+                <a href="/tools/bayesian-cpk-calculator/">Bayesian Cpk</a>
+                <a href="/tools/control-chart-generator/">Control Charts</a>
+                <a href="/tools/sample-size-calculator/">Sample Size</a>
+                <a href="/tools/oee-calculator/">OEE Calculator</a>
+                <a href="/tools/gage-rr-calculator/">Gage R&amp;R</a>
+                <a href="/tools/pareto-chart-generator/">Pareto Charts</a>
+                <a href="/tools/sigma-calculator/">Sigma Level</a>
+                <a href="/tools/takt-time-calculator/">Takt Time</a>
+                <a href="/tools/kanban-card-generator/">Kanban Cards</a>
+                <a href="/tools/fmea-rpn-calculator/">FMEA RPN</a>
+                <a href="/tools/fpy-rty-calculator/">FPY / RTY</a>
+            </div>
+            <div class="footer-group">
+                <h4>Compare</h4>
+                <a href="/svend-vs-minitab/">Svend vs Minitab</a>
+                <a href="/svend-vs-jmp/">Svend vs JMP</a>
+                <a href="/classical-vs-bayesian-spc/">Classical vs Bayesian SPC</a>
+                <a href="/for-education/">Education Partnerships</a>
+            </div>
         </div>
         <p>&copy; 2026 <a href="/">Svend</a> &mdash; Professional statistical analysis software. <a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a></p>
     </footer>

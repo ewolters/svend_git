@@ -1,0 +1,802 @@
+{% extends "tool_base.html" %}
+
+{% block title %}5S Operational Excellence — 5S Is Operations, Not a Lean Tool{% endblock %}
+{% block meta_description %}5S is not a lean tool. It is operations — the continuous maintenance of work area conditions that enable improvement. Shaping the area for success. Communication with operators. Preventing culmination. {{ price_team }}/mo.{% endblock %}
+{% block meta_keywords %}5S, 5S methodology, 5S operational excellence, 5S manufacturing, sort set shine standardize sustain, workplace organization, visual workplace, lean 5S, 5S audit, 5S shaping, operational shaping, Toyota 5S{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/5s-operational-excellence/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://svend.ai/5s-operational-excellence/">
+<meta property="og:title" content="5S Operational Excellence Playbook | Svend">
+<meta property="og:description" content="5S is not a lean tool. It is operational shaping — the baseline condition that enables all other improvement. Written for practitioners, not consultants.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "5S Operational Excellence: 5S Is Operations, Not a Lean Tool",
+    "url": "https://svend.ai/5s-operational-excellence/",
+    "description": "5S as operational shaping in the Campaign Framework. Communication with operators, preventing culmination, visual systems that enable execution, 5S audits, connecting 5S to daily management.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "about": [
+        { "@type": "Thing", "name": "5S Methodology" },
+        { "@type": "Thing", "name": "Workplace Organization" },
+        { "@type": "Thing", "name": "Operational Excellence" },
+        { "@type": "Thing", "name": "Lean Manufacturing" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "Is 5S a lean tool?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. 5S is operations. It is the continuous maintenance of work area conditions that enable improvement execution. In Campaign terms, 5S is the Shape phase: you prepare the area so that kaizen can succeed. You do not 'do 5S' as a lean event and move on. You maintain 5S as the baseline operating condition. Without it, every improvement degrades."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does 5S stand for?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sort (Seiri) — remove what is not needed. Set in Order (Seiton) — organize what remains for efficient access. Shine (Seiso) — clean to inspect, not just to be clean. Standardize (Seiketsu) — make the first three S's the default condition. Sustain (Shitsuke) — build the discipline to maintain the standard. Each S builds on the previous one."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Why do 5S programs fail?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "They fail because organizations treat 5S as a project with a start and end date. 5S is not a project — it is a permanent operating condition. A 5S event cleans up an area. Without daily maintenance (Sustain), it degrades within weeks. The most common failure mode: run a 5S blitz, take before/after photos, declare victory, watch it revert. The fix is embedding 5S into daily management through MDI and leadership standard work."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does 5S connect to continuous improvement?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "5S is the Shape phase of the Campaign Framework. Before you can execute rapid improvement (kaizen), you must prepare the area: remove clutter, organize tools, make problems visible. Without 5S, kaizen improvements degrade because the environment reverts to disorder. 5S prevents culmination — it maintains the operational foundation so improvement efforts sustain."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What are the OSHA floor marking color standards?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "OSHA 1910.22 requires marked aisles and passageways. ANSI Z535.1 defines safety colors: Yellow for aisles and walkways, White for production equipment, Red for defects and fire equipment, Orange for inspection and energized equipment, Green for finished goods and safety equipment, Blue for raw materials and WIP, Black/Yellow striped for physical hazards, Red/White striped for fire equipment clearance zones. Use 2-inch tape for most markings and 3-inch for primary traffic aisles and forklift lanes."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How do you audit 5S?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Score each S independently (typically 1-5 scale). Identify the weakest S and focus improvement there. Audit weekly as part of leadership standard work. Trend scores over time — rising scores mean the system is maturing, flat scores mean you are maintaining, declining scores mean the system is degrading. Use the audit to drive action items, not blame."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Continuous Improvement Software", "item": "https://svend.ai/continuous-improvement-software/" },
+        { "@type": "ListItem", "position": 3, "name": "5S Operational Excellence", "item": "https://svend.ai/5s-operational-excellence/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .tool-container { max-width: 1000px; }
+
+    .playbook-hero { text-align: center; margin-bottom: 2.5rem; padding-top: 1rem; }
+    .playbook-badge {
+        display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        background: rgba(74,159,110,0.15); color: var(--accent-primary); border: 1px solid rgba(74,159,110,0.3);
+        margin-bottom: 0.75rem;
+    }
+    .playbook-hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .playbook-hero h1 strong { color: var(--accent-primary); }
+    .playbook-hero .hero-sub {
+        color: var(--text-secondary); font-size: 1rem; max-width: 680px; margin: 0 auto; line-height: 1.7;
+    }
+
+    .playbook-toc {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+    }
+    .playbook-toc h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .playbook-toc ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.3rem; }
+    .playbook-toc a { color: var(--accent-primary); text-decoration: none; font-size: 0.88rem; line-height: 1.6; }
+    .playbook-toc a:hover { text-decoration: underline; }
+    .playbook-toc .toc-num { color: var(--text-dim); font-weight: 600; margin-right: 0.3rem; }
+
+    .pb-section {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .pb-section-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .pb-num {
+        background: var(--accent-primary); color: #fff; width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .pb-section h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .pb-section p, .pb-section li { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+    .pb-section ul, .pb-section ol { padding-left: 1.5rem; margin: 0.75rem 0; }
+    .pb-section li { margin-bottom: 0.4rem; }
+    .pb-section h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+
+    .svend-callout {
+        background: rgba(74,159,110,0.06); border: 1px solid rgba(74,159,110,0.2); border-radius: 8px;
+        padding: 0.85rem 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+    }
+    .svend-callout strong { color: var(--accent-primary); }
+
+    /* Shaping progression diagram */
+    .shaping-progression {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 1.5rem 0;
+    }
+    .shaping-stage {
+        padding: 1.25rem; text-align: center; position: relative;
+        border: 1px solid var(--border);
+    }
+    .shaping-stage:first-child { border-radius: 8px 0 0 8px; background: rgba(232,71,71,0.06); border-color: rgba(232,71,71,0.2); }
+    .shaping-stage:nth-child(2) { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.2); border-left: none; }
+    .shaping-stage:last-child { border-radius: 0 8px 8px 0; background: rgba(74,159,110,0.06); border-color: rgba(74,159,110,0.2); border-left: none; }
+    .shaping-stage-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.4rem;
+    }
+    .shaping-stage:first-child .shaping-stage-label { color: #e85747; }
+    .shaping-stage:nth-child(2) .shaping-stage-label { color: #f59e0b; }
+    .shaping-stage:last-child .shaping-stage-label { color: var(--accent-primary); }
+    .shaping-stage strong { display: block; font-size: 0.9rem; margin-bottom: 0.3rem; }
+    .shaping-stage p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; margin: 0; }
+    .shaping-arrow {
+        position: absolute; right: -12px; top: 50%; transform: translateY(-50%);
+        font-size: 1.2rem; color: var(--text-dim); z-index: 1;
+    }
+
+    /* 5S cards */
+    .five-s-grid {
+        display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem;
+        margin: 1.5rem 0;
+    }
+    .five-s-card {
+        background: var(--bg-tertiary); border-radius: 8px; padding: 1rem;
+        border-top: 3px solid var(--accent-primary); text-align: center;
+    }
+    .five-s-card .s-num { font-size: 1.5rem; font-weight: 800; color: var(--accent-primary); margin-bottom: 0.2rem; }
+    .five-s-card .s-jp { font-size: 0.65rem; color: var(--text-dim); margin-bottom: 0.15rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .five-s-card strong { display: block; font-size: 0.82rem; margin-bottom: 0.3rem; }
+    .five-s-card p { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; margin: 0; }
+
+    /* Audit scorecard */
+    .audit-scorecard {
+        margin: 1.25rem 0; overflow-x: auto;
+    }
+    .audit-scorecard table {
+        width: 100%; border-collapse: collapse; font-size: 0.8rem;
+        border: 1px solid var(--border); background: var(--bg-card);
+    }
+    .audit-scorecard th {
+        padding: 8px 10px; text-align: center; font-weight: 700; font-size: 0.72rem;
+        color: var(--text-dim); border-bottom: 2px solid var(--border);
+        text-transform: uppercase; letter-spacing: 0.5px; background: var(--bg-tertiary);
+    }
+    .audit-scorecard th:first-child { text-align: left; }
+    .audit-scorecard td {
+        padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: var(--text-secondary); text-align: center;
+    }
+    .audit-scorecard td:first-child { text-align: left; font-weight: 500; }
+    .audit-scorecard .score-high { color: var(--accent-primary); font-weight: 700; }
+    .audit-scorecard .score-mid { color: #f59e0b; font-weight: 700; }
+    .audit-scorecard .score-low { color: #e85747; font-weight: 700; }
+    .audit-scorecard .total-row { border-top: 2px solid var(--border); font-weight: 600; }
+    .audit-scorecard .total-row td { color: var(--text-primary); }
+
+    /* Floor marking color chart */
+    .floor-color-chart {
+        margin: 1.25rem 0; overflow-x: auto;
+    }
+    .floor-color-chart table {
+        width: 100%; border-collapse: collapse; font-size: 0.8rem;
+        border: 1px solid var(--border); background: var(--bg-card);
+    }
+    .floor-color-chart th {
+        padding: 8px 10px; text-align: left; font-weight: 700; font-size: 0.72rem;
+        color: var(--text-dim); border-bottom: 2px solid var(--border);
+        text-transform: uppercase; letter-spacing: 0.5px; background: var(--bg-tertiary);
+    }
+    .floor-color-chart td {
+        padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: var(--text-secondary); vertical-align: middle;
+    }
+    .floor-swatch {
+        display: inline-block; width: 22px; height: 22px; border-radius: 4px;
+        vertical-align: middle; margin-right: 8px; border: 1px solid rgba(255,255,255,0.1);
+    }
+    .floor-swatch.striped {
+        background-size: 6px 6px;
+    }
+    .floor-color-chart .color-name { font-weight: 600; color: var(--text-primary); }
+    .floor-color-chart .standard-ref { font-size: 0.72rem; color: var(--text-dim); }
+
+    /* Tape product cards */
+    .tape-products {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem; margin: 1.25rem 0;
+    }
+    .tape-card {
+        background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;
+        padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .tape-card-head { display: flex; justify-content: space-between; align-items: center; }
+    .tape-card-head strong { font-size: 0.9rem; }
+    .tape-card-head .tape-width {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        padding: 2px 8px; border-radius: 10px; background: rgba(74,159,110,0.15); color: var(--accent-primary);
+    }
+    .tape-card p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+    .tape-colors {
+        display: flex; gap: 4px; flex-wrap: wrap; margin: 0.25rem 0;
+    }
+    .tape-color-dot {
+        width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.15);
+    }
+    .tape-link {
+        display: inline-block; font-size: 0.8rem; font-weight: 600; color: var(--accent-primary);
+        text-decoration: none; margin-top: auto; padding-top: 0.25rem;
+    }
+    .tape-link:hover { text-decoration: underline; }
+    .tape-disclaimer {
+        font-size: 0.7rem; color: var(--text-dim); margin-top: 0.5rem; font-style: italic; line-height: 1.5;
+    }
+
+    /* Related playbooks */
+    .related-playbooks {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem; margin: 1.5rem 0;
+    }
+    .related-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.1rem; text-decoration: none; color: inherit; transition: border-color 0.2s;
+    }
+    .related-card:hover { border-color: var(--accent-primary); }
+    .related-phase {
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.3rem;
+    }
+    .related-phase.backbone { color: #a78bfa; }
+    .related-phase.consolidate { color: #e8c547; }
+    .related-phase.execute { color: #3a7f8f; }
+    .related-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .related-desc { color: var(--text-secondary); font-size: 0.78rem; line-height: 1.5; }
+
+    .playbook-cta {
+        text-align: center; margin: 2.5rem 0 1.5rem; padding: 2.5rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .playbook-cta h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .playbook-cta p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .playbook-cta .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .cta-primary {
+        background: var(--accent-primary); color: #fff; padding: 0.7rem 2rem; border-radius: 6px;
+        text-decoration: none; font-weight: 600; font-size: 0.95rem;
+    }
+    .cta-primary:hover { background: #3a8a5a; }
+    .cta-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.7rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.95rem;
+    }
+    .cta-secondary:hover { border-color: var(--accent-primary-border); }
+
+    .pb-faq { margin-top: 2rem; }
+    .pb-faq h2 { font-size: 1.25rem; margin-bottom: 1rem; text-align: center; }
+
+    @media (max-width: 768px) {
+        .five-s-grid { grid-template-columns: repeat(2, 1fr); }
+        .five-s-grid .five-s-card:last-child { grid-column: 1 / -1; }
+        .shaping-progression { grid-template-columns: 1fr; }
+        .shaping-stage { border-radius: 0 !important; border-left: 1px solid !important; }
+        .shaping-stage:first-child { border-radius: 8px 8px 0 0 !important; }
+        .shaping-stage:last-child { border-radius: 0 0 8px 8px !important; border-top: none; }
+        .shaping-stage:nth-child(2) { border-top: none; }
+        .shaping-arrow { display: none; }
+        .related-playbooks { grid-template-columns: 1fr; }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="playbook-hero">
+    <div class="playbook-badge">Shape Phase</div>
+    <h1>5S Is <strong>Operations</strong>, Not a Lean Tool</h1>
+    <p class="hero-sub">5S is not an improvement event you run once. It is the continuous maintenance of work area conditions that enable everything else. In Campaign terms: shaping. Without it, kaizen degrades, MDI boards become decoration, and improvement is episodic instead of permanent.</p>
+</div>
+
+<div class="playbook-toc">
+    <h3>In This Playbook</h3>
+    <ol>
+        <li><a href="#s1"><span class="toc-num">1.</span> 5S Is NOT a Lean Tool</a></li>
+        <li><a href="#s2"><span class="toc-num">2.</span> The Five S&rsquo;s &mdash; Operationally</a></li>
+        <li><a href="#s3"><span class="toc-num">3.</span> Communication with Operators</a></li>
+        <li><a href="#s4"><span class="toc-num">4.</span> Preventing Culmination</a></li>
+        <li><a href="#s5"><span class="toc-num">5.</span> Visual Systems That Enable Execution</a></li>
+        <li><a href="#s6"><span class="toc-num">6.</span> OSHA Floor Marking Color Standards</a></li>
+        <li><a href="#s7"><span class="toc-num">7.</span> 5S Audits</a></li>
+        <li><a href="#s8"><span class="toc-num">8.</span> Connecting 5S to the Campaign</a></li>
+    </ol>
+</div>
+
+<!-- Section 1 -->
+<div class="pb-section" id="s1">
+    <div class="pb-section-head">
+        <div class="pb-num">1</div>
+        <h2>5S Is NOT a Lean Tool</h2>
+    </div>
+    <p>Open any lean textbook and 5S is listed alongside kaizen events, value stream mapping, and kanban as a &ldquo;lean tool.&rdquo; This is wrong. 5S is not an improvement tool. It is operations. It is the baseline condition of a work area that enables all other improvement.</p>
+    <p>The distinction matters because it changes how you implement and sustain 5S:</p>
+    <ul>
+        <li><strong>If 5S is a tool,</strong> you &ldquo;deploy&rdquo; it &mdash; run a 5S event, take before-and-after photos, celebrate, and move on to the next tool. The area reverts within weeks.</li>
+        <li><strong>If 5S is operations,</strong> it is maintained every day, like changing the oil in a machine. You do not celebrate doing it. You notice when it is not done. It is embedded in the daily routine, not layered on top of it.</li>
+    </ul>
+
+    <h3>The shaping concept</h3>
+    <p>In the <a href="/continuous-improvement-software/">Campaign Framework</a>, 5S is the Shape phase. Before you can execute rapid improvement, you must shape the area for success. This means:</p>
+    <ul>
+        <li>Removing obstacles that slow people down (Sort)</li>
+        <li>Organizing tools and materials for efficient access (Set in Order)</li>
+        <li>Making problems visible through cleanliness and visual controls (Shine)</li>
+        <li>Establishing the standard that defines &ldquo;normal&rdquo; (Standardize)</li>
+        <li>Building the discipline to maintain it (Sustain)</li>
+    </ul>
+    <p>If you skip shaping and go straight to kaizen, you are trying to build a house on an unstable foundation. The kaizen results degrade because the environment reverts to disorder. The improvement disappears &mdash; not because it was bad, but because the conditions that supported it were not maintained.</p>
+
+    <div class="shaping-progression">
+        <div class="shaping-stage">
+            <div class="shaping-stage-label">Before Shaping</div>
+            <strong>Cluttered</strong>
+            <p>Tools mixed with scrap. No designated locations. Operators search for what they need. Problems hidden in disorder.</p>
+            <span class="shaping-arrow">&rarr;</span>
+        </div>
+        <div class="shaping-stage">
+            <div class="shaping-stage-label">Initial 5S</div>
+            <strong>Organized</strong>
+            <p>Unnecessary items removed. Tools have homes. Areas are clean. But the standard is new and discipline is fragile.</p>
+            <span class="shaping-arrow">&rarr;</span>
+        </div>
+        <div class="shaping-stage">
+            <div class="shaping-stage-label">Sustained 5S</div>
+            <strong>Visually Managed</strong>
+            <p>Standard condition maintained daily. Abnormalities visible immediately. Problems surface before they compound. Ready for kaizen.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Section 2 -->
+<div class="pb-section" id="s2">
+    <div class="pb-section-head">
+        <div class="pb-num">2</div>
+        <h2>The Five S&rsquo;s &mdash; Operationally</h2>
+    </div>
+    <p>Each S has a specific operational purpose. They are not five independent activities &mdash; they build on each other in sequence. Skipping to Standardize without doing Sort and Set in Order produces standards for a cluttered workplace.</p>
+
+    <div class="five-s-grid">
+        <div class="five-s-card">
+            <div class="s-num">1</div>
+            <div class="s-jp">Seiri</div>
+            <strong>Sort</strong>
+            <p>Remove everything not needed for the current work. If you have not used it in 30 days, it does not belong here. Red-tag what is uncertain.</p>
+        </div>
+        <div class="five-s-card">
+            <div class="s-num">2</div>
+            <div class="s-jp">Seiton</div>
+            <strong>Set in Order</strong>
+            <p>Everything has a designated location. Location is determined by frequency of use. Shadow boards, labeled shelves, floor markings. A place for everything.</p>
+        </div>
+        <div class="five-s-card">
+            <div class="s-num">3</div>
+            <div class="s-jp">Seiso</div>
+            <strong>Shine</strong>
+            <p>Clean to inspect. Not cleaning for appearance &mdash; cleaning as a mechanism to detect abnormalities. Leaks, cracks, loose bolts, missing guards. The clean surface reveals the problem.</p>
+        </div>
+        <div class="five-s-card">
+            <div class="s-num">4</div>
+            <div class="s-jp">Seiketsu</div>
+            <strong>Standardize</strong>
+            <p>Define what &ldquo;normal&rdquo; looks like. Photos, checklists, visual indicators. When the area deviates from standard, it is immediately visible to anyone who looks.</p>
+        </div>
+        <div class="five-s-card">
+            <div class="s-num">5</div>
+            <div class="s-jp">Shitsuke</div>
+            <strong>Sustain</strong>
+            <p>Build the discipline. Daily routines, audit cadence, leadership verification. Sustain is not an event &mdash; it is the operating condition that makes the first four S&rsquo;s permanent.</p>
+        </div>
+    </div>
+
+    <h3>Shine is not cleaning</h3>
+    <p>The most misunderstood S. Shine does not mean &ldquo;make it look nice.&rdquo; Shine means &ldquo;clean to inspect.&rdquo; When you clean a machine surface, you see the oil leak you could not see before. When you sweep the floor, you find the fastener that fell off the conveyor. When you wipe the control panel, you notice the cracked display. Cleaning is the inspection method. A clean work area is a side effect of the inspection, not the goal.</p>
+
+    <h3>Standardize is the hardest</h3>
+    <p>Sort, Set in Order, and Shine produce a clean, organized area. Standardize answers: what does &ldquo;normal&rdquo; look like? Without a standard, there is no way to detect abnormality. The standard might be a photo posted at the workstation showing the correct arrangement. A checklist defining what goes where. Floor markings showing where WIP belongs and how much. The standard must be visual, specific, and maintained at the point of work.</p>
+</div>
+
+<!-- Section 3 -->
+<div class="pb-section" id="s3">
+    <div class="pb-section-head">
+        <div class="pb-num">3</div>
+        <h2>Communication with Operators</h2>
+    </div>
+    <p>5S fails when it is done to operators instead of with them. If management decides where tools go, posts the standard, and audits compliance, operators comply but do not own the result. When management attention moves elsewhere, the area reverts.</p>
+
+    <h3>How to communicate 5S</h3>
+    <ul>
+        <li><strong>Start with the problem, not the solution.</strong> &ldquo;We are doing 5S&rdquo; means nothing to an operator who has been doing this job for 15 years. &ldquo;You spent 22 minutes yesterday looking for the right wrench. Let&rsquo;s fix that&rdquo; means something.</li>
+        <li><strong>Ask operators where things should go.</strong> They know the work better than anyone. The ergonomic arrangement of tools, the optimal location for materials, the staging sequence that reduces motion &mdash; operators already know this. 5S formalizes what they already understand intuitively.</li>
+        <li><strong>Make the benefit tangible.</strong> Time saved looking for tools. Steps eliminated walking to the supply cabinet. Safety hazards removed from the path. Show the numbers when you can. &ldquo;The shadow board means changeover drops from 28 to 14 minutes&rdquo; is more compelling than &ldquo;5S is good practice.&rdquo;</li>
+        <li><strong>Acknowledge that the current state is not the operator&rsquo;s fault.</strong> Work areas get cluttered because nobody invested in organization. Blaming operators for clutter that accumulated over years of management indifference is counterproductive. 5S is a management investment in the work environment.</li>
+    </ul>
+
+    <h3>The ownership test</h3>
+    <p>Wait three weeks after the initial 5S. Walk to the area. Is it still organized? If yes, ownership transferred. If no, it was compliance, not commitment. The fix is not more audits. The fix is going back and asking operators what did not work about the arrangement, what was impractical, what needs to change. Then change it.</p>
+</div>
+
+<!-- Section 4 -->
+<div class="pb-section" id="s4">
+    <div class="pb-section-head">
+        <div class="pb-num">4</div>
+        <h2>Preventing Culmination</h2>
+    </div>
+    <p>This is the Clausewitzian concept that Toyota calls &ldquo;respect for people.&rdquo; Culmination is the point where an attacking force exhausts itself beyond recovery. In military planning, you advance, but you must consolidate your gains before advancing further. Otherwise your supply lines stretch, your force thins, and the advance collapses.</p>
+    <p>In operations, the same principle applies. Push improvement without maintaining the base and people burn out. Standards decay. Gains erode. The area that was 5S&rsquo;d three months ago looks worse than before because nobody maintained it and the team now associates 5S with wasted effort.</p>
+
+    <h3>How 5S prevents culmination</h3>
+    <ul>
+        <li><strong>It maintains the base.</strong> 5S is not about advancing &mdash; it is about holding the ground you have gained. Every improvement kaizen makes is secured by the 5S standard that maintains the work area condition in which the improvement was created.</li>
+        <li><strong>It reduces cognitive load.</strong> An organized work area with tools in known locations, materials staged correctly, and visual controls that show normal vs. abnormal reduces the mental burden on operators. They spend energy on the work, not on searching, sorting, and compensating for disorder.</li>
+        <li><strong>It makes the unsustainable visible.</strong> If maintaining the 5S standard requires 45 minutes per shift, the standard is too complex. The 5S condition must be maintainable within the normal flow of work. If it is not, simplify the standard. The goal is sustainability, not perfection.</li>
+    </ul>
+
+    <h3>Respect for people in practice</h3>
+    <p>Respect for people is not being nice. It is building systems that sustain improvement without destroying the people doing it. 5S is one of those systems. A well-maintained 5S condition means:</p>
+    <ul>
+        <li>Operators are not frustrated by clutter and disorganization</li>
+        <li>New employees can orient quickly because the work area is self-explanatory</li>
+        <li>Safety hazards are visible and addressed, not hidden under piles of material</li>
+        <li>The environment signals that management invests in the place where work happens</li>
+    </ul>
+</div>
+
+<!-- Section 5 -->
+<div class="pb-section" id="s5">
+    <div class="pb-section-head">
+        <div class="pb-num">5</div>
+        <h2>Visual Systems That Enable Execution</h2>
+    </div>
+    <p>5S creates the visual workplace. A visual workplace is one where the state of the operation is visible without asking anyone. You walk into the area and you know: Is production on target? Is the area organized? Are there abnormalities? Are the right materials staged?</p>
+
+    <h3>Types of visual systems</h3>
+    <ul>
+        <li><strong>Shadow boards:</strong> Tool outlines on a board. Missing tool = visible gap. No searching. Instant awareness that something is out of place or missing. Critical for changeover reduction (SMED) where tool availability determines changeover time.</li>
+        <li><strong>Floor markings:</strong> Designated areas for WIP, finished goods, scrap, walkways, safety zones. The floor tells you where things belong. Material outside a marked area is immediately abnormal.</li>
+        <li><strong>Min/max indicators:</strong> Visual signals for material levels. When material drops below minimum, it is time to replenish. When it exceeds maximum, something is wrong upstream. No counting required &mdash; the visual tells you.</li>
+        <li><strong>Status indicators:</strong> Green/red signals on machines, process steps, or work areas. Green = normal. Red = needs attention. Andon lights are the extreme version &mdash; the operator pulls a cord and the line stops until the issue is resolved.</li>
+        <li><strong>Standard condition photos:</strong> A photo showing what the area should look like, posted at the work area. Any deviation from the photo is visible. This is the simplest and most effective 5S Standardize mechanism.</li>
+    </ul>
+
+    <h3>The hierarchy of visual controls</h3>
+    <ol>
+        <li><strong>Share information</strong> &mdash; displays, charts, boards that show status</li>
+        <li><strong>Signal abnormality</strong> &mdash; color coding, min/max markers that indicate deviation</li>
+        <li><strong>Prevent errors</strong> &mdash; physical constraints, poka-yoke, that make errors impossible</li>
+    </ol>
+    <p>5S operates primarily at levels 1 and 2: sharing information and signaling abnormality. Error-proofing (level 3) is a kaizen activity that builds on the visual foundation 5S creates.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> SPC control charts serve as digital visual management &mdash; the statistical equivalent of a green/red indicator. When a process goes out of control (special cause variation), it triggers action items that surface in the team&rsquo;s newspaper. Pareto charts identify the top contributors to defects, directing 5S and kaizen attention to the right areas.
+    </div>
+</div>
+
+<!-- Section 6 -->
+<div class="pb-section" id="s6">
+    <div class="pb-section-head">
+        <div class="pb-num">6</div>
+        <h2>OSHA Floor Marking Color Standards</h2>
+    </div>
+    <p>Floor markings are not decorative. They are the visual language of the factory floor. OSHA 1910.22 requires permanent aisles and passageways to be marked. ANSI/NFPA 170 and ANSI Z535.1 define the color conventions. If you are setting up or reshaping an area, use these colors consistently &mdash; every facility that speaks this language becomes readable to anyone who walks in.</p>
+
+    <div class="floor-color-chart">
+        <table>
+            <tr>
+                <th>Color</th>
+                <th>Meaning</th>
+                <th>Typical Use</th>
+                <th>Standard</th>
+            </tr>
+            <tr>
+                <td><span class="floor-swatch" style="background:#f5c518;"></span> <span class="color-name">Yellow</span></td>
+                <td>Caution / Aisles &amp; Walkways</td>
+                <td>Pedestrian traffic lanes, aisle boundaries, forklift paths. The most common marking on any shop floor.</td>
+                <td class="standard-ref">OSHA 1910.22, ANSI Z535.1</td>
+            </tr>
+            <tr>
+                <td><span class="floor-swatch" style="background:#ffffff;"></span> <span class="color-name">White</span></td>
+                <td>Production Equipment &amp; Fixtures</td>
+                <td>Equipment locations, carts, racks, workstation boundaries. Defines where production assets belong.</td>
+                <td class="standard-ref">ANSI/NFPA 170</td>
+            </tr>
+            <tr>
+                <td><span class="floor-swatch" style="background:#d32f2f;"></span> <span class="color-name">Red</span></td>
+                <td>Defects / Fire / Danger</td>
+                <td>Scrap and defect hold areas, fire extinguisher locations, fire equipment clearance zones. Material in a red zone requires disposition.</td>
+                <td class="standard-ref">OSHA 1910.144, ANSI Z535.1</td>
+            </tr>
+            <tr>
+                <td><span class="floor-swatch" style="background:#ff9800;"></span> <span class="color-name">Orange</span></td>
+                <td>Inspection / Energized Equipment</td>
+                <td>Inspection stations, areas around energized equipment, materials awaiting inspection.</td>
+                <td class="standard-ref">ANSI Z535.1</td>
+            </tr>
+            <tr>
+                <td><span class="floor-swatch" style="background:#4caf50;"></span> <span class="color-name">Green</span></td>
+                <td>Finished Goods / Safety</td>
+                <td>Finished goods staging, first aid stations, safety equipment, emergency exits. Material in a green zone is approved and ready to ship.</td>
+                <td class="standard-ref">OSHA 1910.144, ANSI Z535.1</td>
+            </tr>
+            <tr>
+                <td><span class="floor-swatch" style="background:#1976d2;"></span> <span class="color-name">Blue</span></td>
+                <td>Raw Materials / WIP</td>
+                <td>Raw material staging, work-in-process queues, informational markings. Blue zones track flow position in the value stream.</td>
+                <td class="standard-ref">ANSI/NFPA 170</td>
+            </tr>
+            <tr>
+                <td><span class="floor-swatch striped" style="background:repeating-linear-gradient(45deg,#000,#000 3px,#f5c518 3px,#f5c518 6px);"></span> <span class="color-name">Black &amp; Yellow Striped</span></td>
+                <td>Physical Hazards</td>
+                <td>Pinch points, overhead obstructions, ramp edges, bumpers, dock edges. Anywhere a physical hazard exists that people should be aware of.</td>
+                <td class="standard-ref">OSHA 1910.144(a)(3)</td>
+            </tr>
+            <tr>
+                <td><span class="floor-swatch striped" style="background:repeating-linear-gradient(45deg,#d32f2f,#d32f2f 3px,#fff 3px,#fff 6px);"></span> <span class="color-name">Red &amp; White Striped</span></td>
+                <td>Fire Equipment Clearance</td>
+                <td>Keep-clear zones around fire extinguishers, hose cabinets, sprinkler risers, pull stations. Nothing may be stored or staged here.</td>
+                <td class="standard-ref">OSHA 1910.157, NFPA 1</td>
+            </tr>
+        </table>
+    </div>
+
+    <p><strong>Practical notes:</strong> Use 2&Prime; tape for most aisle boundaries, equipment markings, and zone borders. Use 3&Prime; tape for primary traffic aisles, forklift lanes, and any area where visibility from a distance matters &mdash; wider tape is easier to see from an operator seat or forklift cab. For hazard striping (black/yellow, red/white), 2&Prime; is standard on equipment and bumpers, 3&Prime; on floor lanes.</p>
+
+    <h3>Recommended: Brady ToughStripe Floor Marking Tape</h3>
+    <p>Brady ToughStripe is the industry standard for industrial floor marking &mdash; rated for forklift traffic, chemical exposure, and heavy foot traffic. Available in every OSHA/ANSI color. We recommend ToughStripe Max for high-traffic areas and standard ToughStripe for lighter-duty zones.</p>
+
+    <div class="tape-products">
+        <div class="tape-card">
+            <div class="tape-card-head">
+                <strong>ToughStripe Max &mdash; 2&Prime; &times; 100&prime;</strong>
+                <span class="tape-width">2 inch</span>
+            </div>
+            <p>Heavy-duty floor tape rated for forklift traffic. Beveled edges resist peeling. Best for equipment markings, zone boundaries, and moderate-traffic aisles.</p>
+            <div class="tape-colors">
+                <span class="tape-color-dot" style="background:#f5c518;" title="Yellow"></span>
+                <span class="tape-color-dot" style="background:#4caf50;" title="Green"></span>
+                <span class="tape-color-dot" style="background:#d32f2f;" title="Red"></span>
+                <span class="tape-color-dot" style="background:#1976d2;" title="Blue"></span>
+                <span class="tape-color-dot" style="background:#ffffff;" title="White"></span>
+                <span class="tape-color-dot" style="background:#ff9800;" title="Orange"></span>
+                <span class="tape-color-dot" style="background:repeating-linear-gradient(45deg,#000,#000 3px,#f5c518 3px,#f5c518 6px);" title="Black/Yellow"></span>
+            </div>
+            <a href="https://www.amazon.com/dp/B07JBX46CW?tag=svend-20" class="tape-link" target="_blank" rel="noopener">View on Amazon &rarr;</a>
+        </div>
+        <div class="tape-card">
+            <div class="tape-card-head">
+                <strong>ToughStripe Max &mdash; 3&Prime; &times; 100&prime;</strong>
+                <span class="tape-width">3 inch</span>
+            </div>
+            <p>Same heavy-duty construction in 3&Prime; width. Use for primary traffic aisles, forklift lanes, and high-visibility pedestrian paths. Visible from forklift cabs and across the floor.</p>
+            <div class="tape-colors">
+                <span class="tape-color-dot" style="background:#f5c518;" title="Yellow"></span>
+                <span class="tape-color-dot" style="background:#4caf50;" title="Green"></span>
+                <span class="tape-color-dot" style="background:#d32f2f;" title="Red"></span>
+                <span class="tape-color-dot" style="background:#1976d2;" title="Blue"></span>
+                <span class="tape-color-dot" style="background:#ffffff;" title="White"></span>
+                <span class="tape-color-dot" style="background:#ff9800;" title="Orange"></span>
+                <span class="tape-color-dot" style="background:repeating-linear-gradient(45deg,#000,#000 3px,#f5c518 3px,#f5c518 6px);" title="Black/Yellow"></span>
+            </div>
+            <a href="https://www.amazon.com/dp/B07JBLPF3Y?tag=svend-20" class="tape-link" target="_blank" rel="noopener">View on Amazon &rarr;</a>
+        </div>
+    </div>
+    <p class="tape-disclaimer">Links go to Amazon. As an Amazon Associate, Svend earns from qualifying purchases. Product recommendations are based on practitioner experience &mdash; Brady ToughStripe is what we have used on production floors.</p>
+</div>
+
+<!-- Section 7 -->
+<div class="pb-section" id="s7">
+    <div class="pb-section-head">
+        <div class="pb-num">7</div>
+        <h2>5S Audits</h2>
+    </div>
+    <p>5S audits are not compliance checks. They are a diagnostic tool that tells you which S is weakest and where to focus improvement. Score each S independently. Trend over time. Act on the weakest.</p>
+
+    <h3>Audit scorecard example</h3>
+    <div class="audit-scorecard">
+        <table>
+            <tr>
+                <th>Area</th>
+                <th>Sort</th>
+                <th>Set in Order</th>
+                <th>Shine</th>
+                <th>Standardize</th>
+                <th>Sustain</th>
+                <th>Total</th>
+            </tr>
+            <tr>
+                <td>Press Line 1</td>
+                <td class="score-high">4</td>
+                <td class="score-high">4</td>
+                <td class="score-mid">3</td>
+                <td class="score-mid">3</td>
+                <td class="score-low">2</td>
+                <td><strong>16/25</strong></td>
+            </tr>
+            <tr>
+                <td>Press Line 4</td>
+                <td class="score-high">5</td>
+                <td class="score-high">4</td>
+                <td class="score-high">4</td>
+                <td class="score-high">4</td>
+                <td class="score-mid">3</td>
+                <td><strong>20/25</strong></td>
+            </tr>
+            <tr>
+                <td>Ink Storage</td>
+                <td class="score-mid">3</td>
+                <td class="score-low">2</td>
+                <td class="score-mid">3</td>
+                <td class="score-low">2</td>
+                <td class="score-low">2</td>
+                <td><strong>12/25</strong></td>
+            </tr>
+            <tr>
+                <td>Staging Area</td>
+                <td class="score-high">4</td>
+                <td class="score-mid">3</td>
+                <td class="score-mid">3</td>
+                <td class="score-mid">3</td>
+                <td class="score-mid">3</td>
+                <td><strong>16/25</strong></td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Reading the scorecard</h3>
+    <p>Ink Storage at 12/25 needs the most attention. Set in Order and Standardize are both at 2 &mdash; the area is cleaned occasionally but has no defined locations or standard condition. Press Line 1 is strong on Sort and Set in Order but weak on Sustain &mdash; the system works when fresh but discipline is slipping.</p>
+    <p>The column totals are equally revealing. If Sustain is the lowest column across all areas, the organization has a systemic discipline problem &mdash; not an area-specific one. That requires a management system response (LSW, daily routines), not more 5S events.</p>
+
+    <h3>Audit cadence</h3>
+    <ul>
+        <li><strong>Weekly:</strong> Team lead conducts a quick audit of their area as part of <a href="/leadership-standard-work/">leadership standard work</a>. 10-minute walk with a checklist.</li>
+        <li><strong>Monthly:</strong> Area manager or CI leader audits all areas. Cross-area comparison reveals systemic patterns. Results posted visually.</li>
+        <li><strong>Quarterly:</strong> Plant manager or peer audit from a different area. Fresh eyes catch things that become invisible through familiarity.</li>
+    </ul>
+
+    <h3>Audit etiquette</h3>
+    <p>Audit with the team, not at the team. Walk the area with the team lead. Point to observations, not blame. &ldquo;This shadow board has three tools missing &mdash; are they in use or missing?&rdquo; is a question. &ldquo;Your shadow board is incomplete&rdquo; is an accusation. The audit should produce action items, not defensiveness.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> 5S audit findings can be tracked as action items with specific due dates, owners, and barriers. SPC trend charts can track 5S audit scores over time, applying control chart logic to detect meaningful shifts versus normal variation. A score drop that exceeds control limits signals a real degradation, not random fluctuation.
+    </div>
+</div>
+
+<!-- Section 8 -->
+<div class="pb-section" id="s8">
+    <div class="pb-section-head">
+        <div class="pb-num">8</div>
+        <h2>Connecting 5S to the Campaign</h2>
+    </div>
+    <p>In the Campaign Framework, 5S is the Shape phase. It prepares the area for everything that follows. Without shaping, Execute (kaizen) produces temporary results and Consolidate has nothing stable to lock in.</p>
+
+    <h3>Shape &rarr; Execute &rarr; Consolidate</h3>
+    <ul>
+        <li><strong>Shape (5S):</strong> Organize the area. Establish visual controls. Build the standard condition. Train operators on the standard. Get the area ready for improvement.</li>
+        <li><strong>Execute (Kaizen):</strong> With the area shaped, run improvement: SMED to reduce changeover, TPM to improve uptime, flow kaizen to reduce WIP. The improvements succeed because the environment supports them.</li>
+        <li><strong>Consolidate (Audits, LSW):</strong> Verify the improvements hold. The 5S standard now includes the new conditions created by kaizen. The audit verifies both the original 5S standard and the new process changes. Consolidation updates the standard to reflect reality.</li>
+    </ul>
+
+    <h3>The cycle repeats</h3>
+    <p>Consolidation blends into the next shaping cycle. After a SMED kaizen, the changeover process has changed. Tools are in different locations. The shadow board needs updating. Material staging has moved. The 5S standard must evolve to reflect the new reality. This is not a failure of 5S &mdash; it is proof that the system is working. 5S adapts to the improved process.</p>
+
+    <h3>When 5S does not connect to strategy</h3>
+    <p>5S without strategic direction is cleaning for the sake of cleaning. The areas you shape first should be the areas where <a href="/hoshin-kanri-strategy-deployment/">hoshin projects</a> are active or planned. If the X-matrix shows a SMED project on Press 4, Press 4&rsquo;s work area gets shaped first &mdash; not because Press 4 is the dirtiest, but because that is where execution is about to happen.</p>
+    <p>This strategic sequencing of 5S means some areas will be in excellent shape and others will be acceptable but not exemplary. This is correct. You shape where you are about to execute, not everywhere simultaneously. Trying to 5S the entire plant at once produces mediocre results everywhere and excellent results nowhere.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Action items from 5S audits feed into the <a href="/managing-for-daily-improvement/">MDI newspaper</a> system with bilateral accountability. Items that require capital (shadow boards, floor marking, storage racks) escalate through the tier structure and, if aligned to hoshin objectives, promote to hoshin projects with savings tracking.
+    </div>
+</div>
+
+<!-- Related Playbooks -->
+<div style="margin: 2.5rem 0 1rem;">
+    <h2 style="font-size: 1.15rem; text-align: center; margin-bottom: 1rem;">Related Playbooks</h2>
+    <div class="related-playbooks">
+        <a href="/managing-for-daily-improvement/" class="related-card">
+            <div class="related-phase backbone">Backbone</div>
+            <div class="related-title">Managing for Daily Improvement</div>
+            <div class="related-desc">5S audits feed into the MDI newspaper system. Visual management boards require a 5S-maintained area to function.</div>
+        </a>
+        <a href="/leadership-standard-work/" class="related-card">
+            <div class="related-phase consolidate">Consolidate</div>
+            <div class="related-title">Leadership Standard Work</div>
+            <div class="related-desc">Weekly 5S audits are core LSW tasks. LSW verifies the 5S condition is being sustained.</div>
+        </a>
+        <a href="/kaizen-execution-guide/" class="related-card">
+            <div class="related-phase execute">Execute</div>
+            <div class="related-title">Kaizen Execution</div>
+            <div class="related-desc">5S shapes the area. Kaizen improves it. Without shaping, kaizen results degrade.</div>
+        </a>
+    </div>
+</div>
+
+<!-- CTA -->
+<div class="playbook-cta">
+    <h3>Shape, Then Execute</h3>
+    <p>Action item tracking for 5S audits, SPC for trend analysis, MDI newspaper system for bilateral accountability. Team plan: {{ price_team }}/seat/mo. 14-day free trial.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="/continuous-improvement-software/" class="cta-secondary">Back to CI Hub</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}
+
+{% block faq %}
+<div class="pb-faq">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">Is 5S a lean tool?</div>
+        <div class="faq-a">No. 5S is operations &mdash; the continuous maintenance of work area conditions that enable improvement. In Campaign terms, it is the Shape phase. You do not &ldquo;do 5S&rdquo; as an event. You maintain 5S as the baseline operating condition. Without it, every improvement degrades.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Why do 5S programs fail?</div>
+        <div class="faq-a">Because they are treated as projects with start and end dates. A 5S event cleans up an area. Without daily maintenance (Sustain), it degrades within weeks. The fix is embedding 5S into daily management through MDI routines and leadership standard work &mdash; not running more events.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What does &ldquo;clean to inspect&rdquo; mean?</div>
+        <div class="faq-a">Shine (3rd S) is not about making things look nice. It is using cleaning as an inspection mechanism. When you clean a machine surface, you see the oil leak. When you sweep the floor, you find the dropped fastener. The clean surface reveals the problem. Cleaning is the inspection method &mdash; a clean area is the side effect.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does 5S connect to kaizen?</div>
+        <div class="faq-a">5S is the Shape phase that prepares the area for kaizen execution. Without shaping, kaizen improvements degrade because the environment reverts to disorder. The sequence is: Shape (5S) the area, Execute (kaizen) the improvement, Consolidate (audit + standard update) the gains. The 5S standard evolves to include the improved conditions.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What are the OSHA floor marking color standards?</div>
+        <div class="faq-a">OSHA 1910.22 requires permanent aisles and passageways to be appropriately marked. ANSI Z535.1 defines the safety color code: Yellow for aisles and walkways, White for production equipment locations, Red for defects and fire equipment, Orange for inspection and energized equipment, Green for finished goods and safety equipment, Blue for raw materials and WIP, Black/Yellow striped for physical hazards, and Red/White striped for fire equipment clearance. Use 2&Prime; tape for most zone markings and 3&Prime; for primary traffic aisles and forklift lanes where visibility from a distance matters.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How do you audit 5S effectively?</div>
+        <div class="faq-a">Score each S independently (1-5 scale). Identify the weakest S and focus improvement there. Audit weekly as part of leadership standard work. Walk the area with the team, not at them. Trend scores over time to detect systemic patterns. Rising scores = maturing. Flat = maintaining. Declining = degrading. The audit produces action items, not blame.</div>
+    </div>
+</div>
+{% endblock %}

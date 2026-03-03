@@ -1455,6 +1455,9 @@ class FMEARow(models.Model):
     revised_detection = models.IntegerField(null=True, blank=True)
     revised_rpn = models.IntegerField(null=True, blank=True)
 
+    # SPC bridge — column name monitored by SPC for closed-loop occurrence updates
+    spc_measurement = models.CharField(max_length=255, blank=True, default="")
+
     # Bayesian bridge — optional links to hypothesis/evidence system
     hypothesis_link = models.ForeignKey(
         "core.Hypothesis",
@@ -1930,6 +1933,143 @@ class AssessmentAttempt(models.Model):
     def __str__(self):
         score_str = f"{self.score:.0%}" if self.score is not None else "pending"
         return f"{self.user} — assessment {score_str}"
+
+
+class LearnSession(models.Model):
+    """Active learning session for a tool-integrated tutorial section.
+
+    Tracks a student's progress through multi-step tool workflows,
+    storing intermediate results (hypotheses, evidence, generated data)
+    in the state JSONField keyed by each step's output_key.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="learn_sessions",
+    )
+    module_id = models.CharField(max_length=64)
+    section_id = models.CharField(max_length=64)
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Sandbox project for this learning session",
+    )
+    state = models.JSONField(default=dict)  # {output_key: result_summary, ...}
+    steps_completed = models.JSONField(default=list)  # ["step-1", "step-2", ...]
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "learn_session"
+        ordering = ["-started_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "module_id", "section_id"],
+                name="unique_learn_session",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "module_id"]),
+        ]
+
+    def __str__(self):
+        n = len(self.steps_completed) if self.steps_completed else 0
+        status = "done" if self.completed_at else f"{n} steps"
+        return f"{self.user} — {self.module_id}/{self.section_id} ({status})"
+
+
+# =============================================================================
+# Plant Simulator — Discrete Event Simulation
+# =============================================================================
+
+
+class PlantSimulation(models.Model):
+    """Plant/factory layout for discrete-event simulation.
+
+    Spatial layout of machines, buffers, sources, and sinks with
+    configurable parameters. Client-side DES engine runs the simulation;
+    server stores layout and results for persistence and comparison.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="plant_simulations",
+    )
+    project = models.ForeignKey(
+        "core.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="plant_simulations",
+    )
+    name = models.CharField(max_length=255, default="Untitled Plant")
+    description = models.TextField(blank=True)
+
+    # Layout elements (JSON arrays, same pattern as ValueStreamMap)
+    stations = models.JSONField(default=list)
+    connections = models.JSONField(default=list)
+    sources = models.JSONField(default=list)
+    sinks = models.JSONField(default=list)
+    work_centers = models.JSONField(default=list)
+
+    # Simulation configuration
+    simulation_config = models.JSONField(default=dict)
+    # Results from completed runs (list, capped at 20)
+    simulation_results = models.JSONField(default=list)
+    # Metric snapshots for comparing runs over time
+    metric_snapshots = models.JSONField(default=list)
+
+    # Canvas state
+    zoom = models.FloatField(default=1.0)
+    pan_x = models.FloatField(default=0.0)
+    pan_y = models.FloatField(default=0.0)
+
+    # Import provenance
+    source_vsm = models.ForeignKey(
+        "agents_api.ValueStreamMap",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="derived_simulations",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "plant_simulation"
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Plant: {self.name} ({self.owner.username})"
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id) if self.project_id else None,
+            "name": self.name,
+            "description": self.description,
+            "stations": self.stations,
+            "connections": self.connections,
+            "sources": self.sources,
+            "sinks": self.sinks,
+            "work_centers": self.work_centers,
+            "simulation_config": self.simulation_config,
+            "simulation_results": self.simulation_results,
+            "metric_snapshots": self.metric_snapshots,
+            "source_vsm_id": str(self.source_vsm_id) if self.source_vsm_id else None,
+            "zoom": self.zoom,
+            "pan_x": self.pan_x,
+            "pan_y": self.pan_y,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
 
 
 # =============================================================================
@@ -2991,6 +3131,12 @@ class NonconformanceRecord(models.Model):
             d["status_changes"] = [sc.to_dict() for sc in self.status_changes.order_by("created_at")]
         except Exception:
             pass
+        try:
+            d["field_changes"] = [fc.to_dict() for fc in QMSFieldChange.objects.filter(
+                record_type="ncr", record_id=self.id
+            ).select_related("changed_by")[:50]]
+        except Exception:
+            d["field_changes"] = []
         return d
 
 
@@ -3061,7 +3207,7 @@ class InternalAudit(models.Model):
         return f"Audit: {self.title} ({self.scheduled_date})"
 
     def to_dict(self):
-        return {
+        d = {
             "id": str(self.id),
             "title": self.title,
             "status": self.status,
@@ -3074,7 +3220,15 @@ class InternalAudit(models.Model):
             "summary": self.summary,
             "findings": [f.to_dict() for f in self.findings.all()],
             "created_at": self.created_at.isoformat(),
+            "field_changes": [],
         }
+        try:
+            d["field_changes"] = [fc.to_dict() for fc in QMSFieldChange.objects.filter(
+                record_type="audit", record_id=self.id
+            ).select_related("changed_by")[:50]]
+        except Exception:
+            pass
+        return d
 
 
 class AuditFinding(models.Model):
@@ -3199,7 +3353,7 @@ class TrainingRecord(models.Model):
         return self.expires_at <= timezone.now() + timedelta(days=30)
 
     def to_dict(self):
-        return {
+        d = {
             "id": str(self.id),
             "employee_name": self.employee_name,
             "employee_email": self.employee_email,
@@ -3207,6 +3361,53 @@ class TrainingRecord(models.Model):
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "notes": self.notes,
+            "changes": [],
+        }
+        try:
+            d["changes"] = [c.to_dict() for c in self.changes.order_by("-created_at")]
+        except Exception:
+            pass
+        return d
+
+
+class TrainingRecordChange(models.Model):
+    """Field-level change log for training records."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    record = models.ForeignKey(
+        TrainingRecord, on_delete=models.CASCADE,
+        related_name="changes",
+    )
+    field_name = models.CharField(max_length=50)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_training_record_changes"
+        ordering = ["created_at"]
+
+    def _safe_changed_by(self):
+        if not self.changed_by_id:
+            return None
+        try:
+            u = self.changed_by
+            return u.display_name or u.email
+        except Exception:
+            return str(self.changed_by_id)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "field_name": self.field_name,
+            "old_value": self.old_value,
+            "new_value": self.new_value,
+            "changed_by": self._safe_changed_by(),
+            "created_at": self.created_at.isoformat(),
         }
 
 
@@ -3374,6 +3575,12 @@ class ControlledDocument(models.Model):
             d["revisions"] = [r.to_dict() for r in self.revisions.order_by("-created_at")[:20]]
         except Exception:
             pass
+        try:
+            d["field_changes"] = [fc.to_dict() for fc in QMSFieldChange.objects.filter(
+                record_type="document", record_id=self.id
+            ).select_related("changed_by")[:50]]
+        except Exception:
+            d["field_changes"] = []
         return d
 
 
@@ -3564,6 +3771,12 @@ class SupplierRecord(models.Model):
             d["status_changes"] = [sc.to_dict() for sc in self.status_changes.order_by("created_at")]
         except Exception:
             pass
+        try:
+            d["field_changes"] = [fc.to_dict() for fc in QMSFieldChange.objects.filter(
+                record_type="supplier", record_id=self.id
+            ).select_related("changed_by")[:50]]
+        except Exception:
+            d["field_changes"] = []
         return d
 
 
@@ -3608,6 +3821,49 @@ class SupplierStatusChange(models.Model):
         }
 
 
+class QMSFieldChange(models.Model):
+    """Field-level change log for QMS records (NCR, Audit, Document, Supplier)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    record_type = models.CharField(max_length=20, db_index=True)  # ncr, audit, document, supplier
+    record_id = models.UUIDField(db_index=True)
+    field_name = models.CharField(max_length=50)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "iso_qms_field_changes"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["record_type", "record_id"]),
+        ]
+
+    def _safe_changed_by(self):
+        if not self.changed_by_id:
+            return None
+        try:
+            u = self.changed_by
+            return u.display_name or u.email
+        except Exception:
+            return str(self.changed_by_id)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "type": "field_change",
+            "field_name": self.field_name,
+            "old_value": self.old_value,
+            "new_value": self.new_value,
+            "changed_by": self._safe_changed_by(),
+            "created_at": self.created_at.isoformat(),
+        }
+
+
 class AuditChecklist(models.Model):
     """Reusable audit checklist template."""
 
@@ -3636,3 +3892,180 @@ class AuditChecklist(models.Model):
             "check_items": self.check_items,
             "created_at": self.created_at.isoformat(),
         }
+
+
+# =============================================================================
+# ISO Document Creator (structured authoring)
+# =============================================================================
+
+
+class ISODocument(models.Model):
+    """Structured ISO document authoring tool.
+
+    Separate from ControlledDocument (which is the document control register).
+    Users author structured documents here, then optionally publish to
+    Document Control via the controlled_document link.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        IN_PROGRESS = "in_progress", "In Progress"
+        REVIEW = "review", "Under Review"
+        FINAL = "final", "Final"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="iso_documents",
+    )
+    project = models.ForeignKey(
+        "core.Project", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="iso_documents",
+    )
+    document_type = models.CharField(
+        max_length=30,
+        help_text="Key into ISO_DOCUMENT_TYPES (e.g. 'procedure', 'work_instruction')",
+    )
+    title = models.CharField(max_length=300)
+    document_number = models.CharField(max_length=50, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    version = models.CharField(max_length=20, default="1.0")
+    iso_clause = models.CharField(max_length=20, blank=True)
+    metadata = models.JSONField(
+        default=dict, blank=True,
+        help_text='Flexible metadata: effective_date, prepared_by, review_cycle, etc.',
+    )
+    controlled_document = models.OneToOneField(
+        ControlledDocument, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="source_iso_document",
+    )
+    files = models.ManyToManyField(
+        "files.UserFile", blank=True, related_name="iso_documents",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_authored_documents"
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.document_number} - {self.title}" if self.document_number else self.title
+
+    def to_dict(self):
+        d = {
+            "id": str(self.id),
+            "document_type": self.document_type,
+            "title": self.title,
+            "document_number": self.document_number,
+            "status": self.status,
+            "version": self.version,
+            "iso_clause": self.iso_clause,
+            "metadata": self.metadata,
+            "controlled_document_id": str(self.controlled_document_id) if self.controlled_document_id else None,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+        try:
+            d["section_count"] = self.sections.count()
+        except Exception:
+            d["section_count"] = 0
+        try:
+            d["file_ids"] = [str(f.id) for f in self.files.all()]
+        except Exception:
+            d["file_ids"] = []
+        return d
+
+    def to_dict_full(self):
+        """Full dict including all sections, for detail/editor view."""
+        d = self.to_dict()
+        d["sections"] = [s.to_dict() for s in self.sections.order_by("sort_order")]
+        return d
+
+
+class ISOSection(models.Model):
+    """Section within an ISODocument.
+
+    section_type determines rendering and structured_data shape:
+    - heading: level in structured_data
+    - paragraph: content in content field
+    - definition: term/definition pairs in structured_data
+    - reference: cross-references in structured_data
+    - image: file FK + caption
+    - table: columns/rows in structured_data
+    - checklist: items in structured_data
+    - signature_block: signers in structured_data
+    """
+
+    class SectionType(models.TextChoices):
+        HEADING = "heading", "Heading"
+        PARAGRAPH = "paragraph", "Paragraph"
+        DEFINITION = "definition", "Definition"
+        REFERENCE = "reference", "Reference"
+        IMAGE = "image", "Image"
+        TABLE = "table", "Table"
+        CHECKLIST = "checklist", "Checklist"
+        SIGNATURE_BLOCK = "signature_block", "Signature Block"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(
+        ISODocument, on_delete=models.CASCADE, related_name="sections",
+    )
+    sort_order = models.IntegerField(default=0)
+    section_type = models.CharField(
+        max_length=20, choices=SectionType.choices, default=SectionType.PARAGRAPH,
+    )
+    section_key = models.CharField(max_length=50, blank=True,
+        help_text="Key from document type registry (blank for user-added sections)",
+    )
+    title = models.CharField(max_length=300, blank=True)
+    content = models.TextField(blank=True, help_text="Text content for paragraph/heading sections")
+    structured_data = models.JSONField(
+        default=dict, blank=True,
+        help_text="Type-specific data: table rows, checklist items, definition pairs, etc.",
+    )
+    image = models.ForeignKey(
+        "files.UserFile", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="iso_section_images",
+    )
+    image_caption = models.CharField(max_length=500, blank=True)
+    embedded_media = models.JSONField(
+        default=list, blank=True,
+        help_text='Whiteboard exports: [{"file_id": "...", "board_name": "...", "room_code": "...", "format": "svg"|"png"}]',
+    )
+    numbering = models.CharField(max_length=20, blank=True, help_text="e.g. 4.1, 4.1.2")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "iso_authored_sections"
+        ordering = ["sort_order"]
+
+    def __str__(self):
+        return f"{self.numbering} {self.title}" if self.numbering else self.title or f"Section {self.sort_order}"
+
+    def to_dict(self):
+        d = {
+            "id": str(self.id),
+            "document_id": str(self.document_id),
+            "sort_order": self.sort_order,
+            "section_type": self.section_type,
+            "section_key": self.section_key,
+            "title": self.title,
+            "content": self.content,
+            "structured_data": self.structured_data,
+            "image_id": str(self.image_id) if self.image_id else None,
+            "image_caption": self.image_caption,
+            "embedded_media": self.embedded_media,
+            "numbering": self.numbering,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+        if self.image_id:
+            try:
+                d["image_url"] = self.image.file.url
+            except Exception:
+                d["image_url"] = None
+        else:
+            d["image_url"] = None
+        return d

@@ -287,11 +287,11 @@ def create_hoshin_project(request):
         return JsonResponse({"error": "Project title is required"}, status=400)
 
     site_id = data.get("site_id")
-    site = None
-    if site_id:
-        site = get_object_or_404(Site, id=site_id, tenant=tenant)
-        if not _check_site_write(request.user, site, tenant):
-            return JsonResponse({"error": "Not found"}, status=404)
+    if not site_id:
+        return JsonResponse({"error": "site_id is required"}, status=400)
+    site = get_object_or_404(Site, id=site_id, tenant=tenant)
+    if not _check_site_write(request.user, site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
 
     try:
         savings_target = Decimal(str(data.get("annual_savings_target", 0)))
@@ -299,9 +299,8 @@ def create_hoshin_project(request):
         savings_target = Decimal("0")
 
     with transaction.atomic():
-        # Create the core project
+        # Create the core project (tenant-owned, not user-owned)
         core_project = Project.objects.create(
-            user=request.user,
             tenant=tenant,
             title=title,
             status="ACTIVE",
@@ -309,8 +308,8 @@ def create_hoshin_project(request):
             current_phase="DEFINE",
             domain="manufacturing",
             goal_metric=data.get("goal_metric", ""),
-            goal_baseline=data.get("goal_baseline"),
-            goal_target=data.get("goal_target"),
+            goal_baseline=data.get("goal_baseline", ""),
+            goal_target=data.get("goal_target", ""),
             champion_name=data.get("champion_name", ""),
             leader_name=data.get("leader_name", ""),
             team_members=data.get("team_members", []),
@@ -566,16 +565,18 @@ def create_from_proposals(request):
         vsm = ValueStreamMap.objects.select_related("project").filter(
             id=vsm_id, owner=request.user,
         ).first()
-        # Drop if VSM belongs to a different tenant
-        if vsm and vsm.project and vsm.project.tenant_id and vsm.project.tenant_id != tenant.id:
-            vsm = None
+        # Drop if VSM belongs to a different tenant (or has no project link)
+        if vsm:
+            vsm_tenant = getattr(vsm.project, "tenant_id", None) if vsm.project else None
+            if vsm_tenant and vsm_tenant != tenant.id:
+                vsm = None
 
     site_id = data.get("site_id")
-    site = None
-    if site_id:
-        site = get_object_or_404(Site, id=site_id, tenant=tenant)
-        if not _check_site_write(request.user, site, tenant):
-            return JsonResponse({"error": "Not found"}, status=404)
+    if not site_id:
+        return JsonResponse({"error": "site_id is required"}, status=400)
+    site = get_object_or_404(Site, id=site_id, tenant=tenant)
+    if not _check_site_write(request.user, site, tenant):
+        return JsonResponse({"error": "Not found"}, status=404)
 
     fiscal_year = data.get("fiscal_year", date.today().year)
     created = []
@@ -590,7 +591,6 @@ def create_from_proposals(request):
                 target = Decimal("0")
 
             core_project = Project.objects.create(
-                user=request.user,
                 tenant=tenant,
                 title=title,
                 status="ACTIVE",
@@ -667,15 +667,22 @@ def create_action_item(request, hoshin_id):
     if not title:
         return JsonResponse({"error": "Action item title is required"}, status=400)
 
+    def _parse_date(val):
+        if not val:
+            return None
+        if isinstance(val, str):
+            return date.fromisoformat(val)
+        return val
+
     item = ActionItem.objects.create(
         project=hoshin.project,
         title=title,
         description=data.get("description", ""),
         owner_name=data.get("owner_name", ""),
         status=data.get("status", "not_started"),
-        start_date=data.get("start_date"),
-        end_date=data.get("end_date"),
-        due_date=data.get("due_date"),
+        start_date=_parse_date(data.get("start_date")),
+        end_date=_parse_date(data.get("end_date")),
+        due_date=_parse_date(data.get("due_date")),
         progress=int(data.get("progress", 0)),
         sort_order=int(data.get("sort_order", 0)),
         source_type="hoshin",
@@ -711,10 +718,14 @@ def update_action_item(request, action_id):
         return JsonResponse({"error": "Not found"}, status=404)
 
     data = json.loads(request.body)
+    date_fields = {"start_date", "end_date", "due_date"}
     for field in ["title", "description", "owner_name", "status",
                   "start_date", "end_date", "due_date"]:
         if field in data:
-            setattr(item, field, data[field])
+            val = data[field]
+            if field in date_fields and isinstance(val, str) and val:
+                val = date.fromisoformat(val)
+            setattr(item, field, val)
 
     if "progress" in data:
         item.progress = max(0, min(100, int(data["progress"])))
@@ -1089,7 +1100,8 @@ def test_formula(request):
     # Extract {{field}} names so the frontend knows what inputs to show
     fields = extract_formula_fields(formula)
 
-    variables = data.get("variables", {})
+    user_variables = data.get("variables", {})
+    variables = dict(user_variables)
     # Ensure all provided variables are floats
     for k in list(variables.keys()):
         try:
@@ -1104,7 +1116,7 @@ def test_formula(request):
             variables[k] = v
 
     # Auto-compute variance if not explicitly set
-    if "variance" not in data.get("variables", {}):
+    if "variance" not in user_variables:
         variables["variance"] = variables["baseline"] - variables["actual"]
 
     # Strip {{}} for evaluation

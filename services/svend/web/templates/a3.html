@@ -520,6 +520,29 @@
     align-items: center;
 }
 
+/* Preview mode rendered content */
+.section-rendered {
+    padding: 10px;
+    line-height: 1.7;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    min-height: 120px;
+}
+.section-rendered p { margin: 0 0 0.5em 0; }
+.section-rendered strong { color: var(--accent); }
+.section-rendered ul, .section-rendered ol { margin: 0.3em 0; padding-left: 1.5em; }
+.section-rendered li { margin: 2px 0; }
+.section-rendered hr { border: none; border-top: 1px solid var(--border); margin: 0.5em 0; }
+.section-rendered table { width: 100%; border-collapse: collapse; margin: 0.5em 0; font-size: 0.8rem; }
+.section-rendered th, .section-rendered td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+.section-rendered th { background: var(--bg-tertiary); font-weight: 600; }
+.section-rendered .empty { color: var(--text-dim); font-style: italic; }
+
+/* DSW import picker */
+.dsw-picker label { display: block; margin: 6px 0; cursor: pointer; }
+.dsw-picker label input { margin-right: 8px; }
+.dsw-picker .disabled { opacity: 0.5; }
+
 /* Print styles */
 @media print {
     .a3-toolbar, .a3-section-actions { display: none !important; }
@@ -566,7 +589,8 @@
                 Auto-fill with AI
             </button>
             <button class="a3-btn" onclick="saveReport()">Save</button>
-            <button class="a3-btn primary" onclick="window.print()">Print / PDF</button>
+            <button class="a3-btn" id="preview-toggle" onclick="togglePreview()">Preview</button>
+            <button class="a3-btn primary" onclick="exportPDF()">Export PDF</button>
         </div>
     </div>
 
@@ -750,6 +774,49 @@ function getCookie(name) {
 let availableImports = { hypotheses: [], boards: [] };
 let importTarget = { section: null, type: null };
 let selectedImportId = null;
+let previewMode = false;
+
+const a3SectionFields = ['background', 'current_condition', 'goal', 'root_cause',
+                          'countermeasures', 'implementation_plan', 'follow_up'];
+
+function togglePreview() {
+    previewMode = !previewMode;
+    document.getElementById('preview-toggle').textContent = previewMode ? 'Edit' : 'Preview';
+
+    a3SectionFields.forEach(field => {
+        const textarea = document.getElementById(`section-${field}`);
+        if (!textarea) return;
+        const parent = textarea.parentElement;
+
+        let rendered = parent.querySelector('.section-rendered');
+        if (previewMode) {
+            const content = textarea.value || '';
+            if (!rendered) {
+                rendered = document.createElement('div');
+                rendered.className = 'section-rendered';
+                parent.appendChild(rendered);
+            }
+            rendered.innerHTML = content
+                ? (typeof marked !== 'undefined' ? marked.parse(content) : content.replace(/\n/g, '<br>'))
+                : '<span class="empty">Not completed</span>';
+            textarea.style.display = 'none';
+            rendered.style.display = 'block';
+        } else {
+            textarea.style.display = '';
+            if (rendered) rendered.style.display = 'none';
+        }
+    });
+
+    // Toggle action buttons visibility
+    document.querySelectorAll('.a3-section-actions').forEach(el => {
+        el.style.display = previewMode ? 'none' : '';
+    });
+}
+
+function exportPDF() {
+    if (!currentReportId) return;
+    window.open(`/api/a3/${currentReportId}/export/pdf/`, '_blank');
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1109,22 +1176,75 @@ async function doImport() {
         return;
     }
 
+    // DSW: show granular picker instead of immediate import
+    if (importTarget.type === 'dsw') {
+        showDswImportPicker();
+        return;
+    }
+
+    await executeA3Import();
+}
+
+function showDswImportPicker() {
+    const item = (availableImports.dsw_results || []).find(d => d.id === selectedImportId);
+    const hasCharts = item && item.has_charts;
+    const plotsCount = item ? (item.plots_count || 0) : 0;
+    const container = document.getElementById('import-items');
+
+    container.innerHTML = `
+        <div class="dsw-picker" style="padding:10px;">
+            <h4 style="margin:0 0 12px;">${item ? (item.title || item.type) : 'DSW Analysis'}</h4>
+            <label><input type="checkbox" id="inc-narrative" checked> Narrative &amp; summary</label>
+            <label><input type="checkbox" id="inc-statistics" checked> Statistical details</label>
+            <label class="${hasCharts ? '' : 'disabled'}">
+                <input type="checkbox" id="inc-charts" ${hasCharts ? 'checked' : 'disabled'}>
+                Charts (${plotsCount} visualization${plotsCount !== 1 ? 's' : ''})
+            </label>
+            <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+                <button class="a3-btn" onclick="openImport('${importTarget.section}', 'dsw')">Back</button>
+                <button class="a3-btn primary" onclick="executeDswA3Import()">Import Selected</button>
+            </div>
+        </div>
+    `;
+}
+
+async function executeDswA3Import() {
+    const include = [];
+    if (document.getElementById('inc-narrative').checked) include.push('narrative');
+    if (document.getElementById('inc-statistics').checked) include.push('statistics');
+    const chartsEl = document.getElementById('inc-charts');
+    if (chartsEl && !chartsEl.disabled && chartsEl.checked) include.push('charts');
+
+    if (include.length === 0) {
+        alert('Select at least one item to import');
+        return;
+    }
+    await executeA3Import(include);
+}
+
+async function executeA3Import(include) {
+    const body = {
+        section: importTarget.section,
+        source_type: importTarget.type,
+        source_id: selectedImportId,
+        append: true
+    };
+    if (include) body.include = include;
+
     try {
         const resp = await fetch(`/api/a3/${currentReportId}/import/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                section: importTarget.section,
-                source_type: importTarget.type,
-                source_id: selectedImportId,
-                append: true
-            })
+            body: JSON.stringify(body)
         });
 
         const data = await resp.json();
         if (data.success) {
-            // Update the section content
             document.getElementById(`section-${importTarget.section}`).value = data.content;
+            // Re-render diagrams if charts were imported
+            if (data.report && data.report.embedded_diagrams) {
+                renderAllDiagrams(data.report.embedded_diagrams);
+            }
         } else {
             alert(data.error || 'Import failed');
         }

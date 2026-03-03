@@ -1052,6 +1052,14 @@
         </table>
     </div>
 
+    <!-- Registration Funnel -->
+    <div class="chart-card" style="margin-top:16px;">
+        <h3>Registration Funnel</h3>
+        <div id="reg-funnel-content" style="margin-top:8px;">
+            <div style="color:var(--text-dim);font-size:0.8rem;">Loading…</div>
+        </div>
+    </div>
+
     <!-- Visit Log -->
     <div class="chart-card" style="margin-top:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -4176,6 +4184,45 @@ async function loadSite() {
 
         // Live feed
         renderSiteLiveFeed(data.recent || []);
+
+        // Registration funnel
+        var rf = data.registration_funnel || {};
+        var funnelEl = document.getElementById('reg-funnel-content');
+        var steps = [
+            ['Page Views', rf.page_views],
+            ['Email Focus', rf.email_focus],
+            ['Password Focus', rf.password_focus],
+            ['Submit Attempt', rf.submit_attempt],
+            ['Submit Error', rf.submit_error],
+            ['Submit Success', rf.submit_success],
+        ];
+        var maxVal = Math.max(rf.page_views || 1, 1);
+        var html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+        steps.forEach(function(s) {
+            var pct = Math.round((s[1] || 0) / maxVal * 100);
+            var isErr = s[0] === 'Submit Error';
+            var barColor = isErr ? '#ef4444' : '#4a9f6e';
+            html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.8rem;">' +
+                '<span style="width:110px;color:var(--text-secondary);text-align:right;">' + s[0] + '</span>' +
+                '<div style="flex:1;background:var(--bg-primary);border-radius:4px;height:20px;overflow:hidden;">' +
+                    '<div style="width:' + pct + '%;min-width:' + (s[1] ? '2px' : '0') + ';height:100%;background:' + barColor + ';border-radius:4px;"></div>' +
+                '</div>' +
+                '<span style="width:40px;text-align:right;font-weight:600;">' + (s[1] || 0) + '</span>' +
+            '</div>';
+        });
+        html += '</div>';
+        if (rf.recent_errors && rf.recent_errors.length) {
+            html += '<div style="margin-top:10px;font-size:0.75rem;color:var(--text-dim);">';
+            html += '<strong>Recent errors:</strong>';
+            rf.recent_errors.forEach(function(e) {
+                html += '<div style="margin-top:2px;">' + countryFlag(e.country) + ' ' + (e.error || '—') + ' <span style="color:var(--text-dim);">(' + e.at.slice(0,16) + ')</span></div>';
+            });
+            html += '</div>';
+        }
+        if (!rf.page_views && !rf.submit_attempt) {
+            html = '<div style="color:var(--text-dim);font-size:0.8rem;">No registration funnel data yet. Tracking is now active.</div>';
+        }
+        funnelEl.innerHTML = html;
 
     } catch (e) {
         console.error('Failed to load site analytics:', e);

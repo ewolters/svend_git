@@ -613,6 +613,66 @@ def rpn_summary(request, fmea_id):
 
 
 # =============================================================================
+# SPC ↔ FMEA Closed Loop (Phase C: C4)
+# =============================================================================
+
+@gated_paid
+@require_http_methods(["POST"])
+def spc_update_occurrence(request, fmea_id, row_id):
+    """Update FMEA Occurrence score based on SPC OOC results.
+
+    Request body: { "ooc_count": 3, "total_points": 100 }
+    """
+    fmea = get_object_or_404(FMEA, id=fmea_id, owner=request.user)
+    row = get_object_or_404(FMEARow, id=row_id, fmea=fmea)
+
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    ooc_count = body.get("ooc_count", 0)
+    total = body.get("total_points", 1)
+    ooc_rate = ooc_count / max(total, 1)
+
+    # Map OOC rate to AIAG occurrence scale (1-10)
+    if ooc_rate == 0:
+        new_occ = 1
+    elif ooc_rate < 0.01:
+        new_occ = 2
+    elif ooc_rate < 0.02:
+        new_occ = 3
+    elif ooc_rate < 0.05:
+        new_occ = 4
+    elif ooc_rate < 0.10:
+        new_occ = 5
+    elif ooc_rate < 0.15:
+        new_occ = 6
+    elif ooc_rate < 0.20:
+        new_occ = 7
+    elif ooc_rate < 0.30:
+        new_occ = 8
+    elif ooc_rate < 0.50:
+        new_occ = 9
+    else:
+        new_occ = 10
+
+    old_occ = row.occurrence
+    old_rpn = row.rpn
+    row.occurrence = new_occ
+    row.save()  # save() auto-computes rpn
+
+    return JsonResponse({
+        "success": True,
+        "old_occurrence": old_occ,
+        "new_occurrence": new_occ,
+        "old_rpn": old_rpn,
+        "new_rpn": row.rpn,
+        "ooc_rate": round(ooc_rate, 4),
+    })
+
+
+# =============================================================================
 # Helpers
 # =============================================================================
 

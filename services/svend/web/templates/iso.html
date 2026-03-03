@@ -610,16 +610,31 @@ async function loadNCRDetail(id) {
             html += '</div></div>';
         }
 
-        // Status history timeline
-        if (n.status_changes?.length) {
-            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+        // Unified change history timeline (status + field changes)
+        const ncrTimeline = [
+            ...(n.status_changes || []).map(sc => ({ ...sc, type: 'status' })),
+            ...(n.field_changes || []).map(fc => ({ ...fc, type: 'field_change' })),
+        ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        if (ncrTimeline.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Change History</h4>';
             html += '<div class="status-timeline">';
-            n.status_changes.forEach(sc => {
-                html += `<div class="timeline-entry">
-                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
-                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
-                    <div class="time">${fmtDate(sc.created_at)}</div>
-                </div>`;
+            ncrTimeline.forEach(e => {
+                if (e.type === 'status') {
+                    html += `<div class="timeline-entry">
+                        <div class="desc">${badge(e.from_status)} &rarr; ${badge(e.to_status)} ${e.changed_by ? `by ${escHtml(e.changed_by)}` : ''}</div>
+                        ${e.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(e.note)}</div>` : ''}
+                        <div class="time">${fmtDate(e.created_at)}</div>
+                    </div>`;
+                } else {
+                    html += `<div class="timeline-entry">
+                        <div class="desc" style="font-size:12px">
+                            <strong>${escHtml(e.field_name.replace(/_/g, ' '))}</strong>:
+                            "${escHtml(e.old_value || '(empty)')}" &rarr; "${escHtml(e.new_value || '(empty)')}"
+                            ${e.changed_by ? `<span style="color:var(--text-dim)">by ${escHtml(e.changed_by)}</span>` : ''}
+                        </div>
+                        <div class="time">${fmtDate(e.created_at)}</div>
+                    </div>`;
+                }
             });
             html += '</div></div>';
         }
@@ -864,6 +879,23 @@ async function loadAuditDetail(id) {
             <button class="iso-btn primary" onclick="addFinding('${a.id}')">Add Finding</button>
         </div>`;
 
+        // Change history timeline
+        if (a.field_changes?.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Change History</h4>';
+            html += '<div class="status-timeline">';
+            a.field_changes.forEach(e => {
+                html += `<div class="timeline-entry">
+                    <div class="desc" style="font-size:12px">
+                        <strong>${escHtml(e.field_name.replace(/_/g, ' '))}</strong>:
+                        "${escHtml(e.old_value || '(empty)')}" &rarr; "${escHtml(e.new_value || '(empty)')}"
+                        ${e.changed_by ? `<span style="color:var(--text-dim)">by ${escHtml(e.changed_by)}</span>` : ''}
+                    </div>
+                    <div class="time">${fmtDate(e.created_at)}</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+
         html += '</div>';
         el.innerHTML = html;
     } catch (e) { toast(e.message, true); }
@@ -1013,17 +1045,61 @@ function renderTrainingList() {
             html += '<table class="iso-table" style="margin-bottom:8px"><thead><tr><th>Employee</th><th>Status</th><th>Completed</th><th>Expires</th><th></th></tr></thead><tbody>';
             req.records.forEach(r => {
                 html += `<tr>
-                    <td>${escHtml(r.employee_name)}</td>
+                    <td>${escHtml(r.employee_name)}${r.employee_email ? `<div style="font-size:11px;color:var(--text-dim)">${escHtml(r.employee_email)}</div>` : ''}</td>
                     <td>${badge(r.status)}</td>
                     <td style="font-size:12px">${fmtDate(r.completed_at)}</td>
                     <td style="font-size:12px">${fmtDate(r.expires_at)}</td>
-                    <td style="text-align:right">
+                    <td style="text-align:right;white-space:nowrap">
                         ${r.status !== 'complete' ? `<button class="iso-btn small" onclick="completeRecord('${r.id}')">Complete</button>` : ''}
+                        ${r.status === 'expired' || (r.status === 'complete' && r.expires_at) ? `<button class="iso-btn small" onclick="recertifyRecord('${r.id}')">Recertify</button>` : ''}
+                        <button class="iso-btn small" onclick="editRecord('${r.id}')">Edit</button>
                         <button class="iso-btn small danger" onclick="deleteRecord('${r.id}')">Remove</button>
+                    </td>
+                </tr>`;
+                html += `<tr id="edit-row-${r.id}" style="display:none">
+                    <td colspan="5">
+                        <div class="iso-form" style="margin:0;padding:8px">
+                            <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+                                <div><label class="iso-label">Name</label><input class="iso-input" id="edit-name-${r.id}" value="${escHtml(r.employee_name)}" style="width:160px"></div>
+                                <div><label class="iso-label">Email</label><input class="iso-input" id="edit-email-${r.id}" value="${escHtml(r.employee_email || '')}" style="width:180px"></div>
+                                <div><label class="iso-label">Status</label>
+                                    <select class="iso-input" id="edit-status-${r.id}" style="width:130px">
+                                        <option value="not_started" ${r.status==='not_started'?'selected':''}>Not Started</option>
+                                        <option value="in_progress" ${r.status==='in_progress'?'selected':''}>In Progress</option>
+                                        <option value="complete" ${r.status==='complete'?'selected':''}>Complete</option>
+                                        <option value="expired" ${r.status==='expired'?'selected':''}>Expired</option>
+                                    </select>
+                                </div>
+                                <div><label class="iso-label">Notes</label><input class="iso-input" id="edit-notes-${r.id}" value="${escHtml(r.notes || '')}" style="width:200px"></div>
+                                <button class="iso-btn primary small" onclick="saveRecordEdit('${r.id}')">Save</button>
+                                <button class="iso-btn small" onclick="document.getElementById('edit-row-${r.id}').style.display='none'">Cancel</button>
+                            </div>
+                        </div>
                     </td>
                 </tr>`;
             });
             html += '</tbody></table>';
+
+            // Change history
+            const allChanges = req.records.flatMap(r =>
+                (r.changes || []).map(c => ({ ...c, employee_name: r.employee_name }))
+            ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            if (allChanges.length) {
+                html += `<details style="margin:8px 0"><summary style="cursor:pointer;font-size:12px;color:var(--text-secondary)">Change History (${allChanges.length})</summary>`;
+                html += '<div class="status-timeline" style="margin-top:8px">';
+                allChanges.slice(0, 20).forEach(c => {
+                    html += `<div class="timeline-entry">
+                        <div class="desc" style="font-size:12px">
+                            <strong>${escHtml(c.employee_name)}</strong> &mdash;
+                            ${escHtml(c.field_name.replace(/_/g, ' '))}:
+                            "${escHtml(c.old_value || '(empty)')}" &rarr; "${escHtml(c.new_value || '(empty)')}"
+                            ${c.changed_by ? `<span style="color:var(--text-dim)">by ${escHtml(c.changed_by)}</span>` : ''}
+                        </div>
+                        <div class="time">${fmtDate(c.created_at)}</div>
+                    </div>`;
+                });
+                html += '</div></details>';
+            }
         }
 
         // Add employee to this requirement
@@ -1108,6 +1184,35 @@ async function deleteRecord(id) {
     try {
         await apiFetch(`/training/records/${id}/`, { method: 'DELETE' });
         toast('Record removed');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+function editRecord(id) {
+    const row = document.getElementById(`edit-row-${id}`);
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+async function saveRecordEdit(id) {
+    const name = document.getElementById(`edit-name-${id}`).value.trim();
+    if (!name) return toast('Employee name is required', true);
+    try {
+        await apiFetch(`/training/records/${id}/`, { method: 'PUT', body: {
+            employee_name: name,
+            employee_email: document.getElementById(`edit-email-${id}`).value,
+            status: document.getElementById(`edit-status-${id}`).value,
+            notes: document.getElementById(`edit-notes-${id}`).value,
+        }});
+        toast('Record updated');
+        loadTraining();
+    } catch (e) { toast(e.message, true); }
+}
+
+async function recertifyRecord(id) {
+    if (!confirm('Recertify this training record? This will reset completion date and recalculate expiry.')) return;
+    try {
+        await apiFetch(`/training/records/${id}/`, { method: 'PUT', body: { action: 'recertify' } });
+        toast('Record recertified');
         loadTraining();
     } catch (e) { toast(e.message, true); }
 }
@@ -1341,6 +1446,7 @@ function renderDocList(el) {
         onkeyup="if(event.key==='Enter'){docSearch=this.value;loadDocuments()}"
         onblur="if(docSearch!==this.value){docSearch=this.value;loadDocuments()}">`;
     html += '<div class="spacer"></div>';
+    html += '<button class="iso-btn" onclick="window.location.href=\'/app/iso-docs/\'">ISO Document Creator</button> ';
     html += '<button class="iso-btn primary" onclick="showDocForm()">+ New Document</button>';
     html += '</div>';
 
@@ -1530,15 +1636,30 @@ async function loadDocDetail(id) {
         }
 
         // Status history timeline
-        if (d.status_changes?.length) {
-            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+        const docTimeline = [
+            ...(d.status_changes || []).map(sc => ({ ...sc, type: 'status' })),
+            ...(d.field_changes || []).map(fc => ({ ...fc, type: 'field_change' })),
+        ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        if (docTimeline.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Change History</h4>';
             html += '<div class="status-timeline">';
-            d.status_changes.forEach(sc => {
-                html += `<div class="timeline-entry">
-                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
-                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
-                    <div class="time">${fmtDate(sc.created_at)}</div>
-                </div>`;
+            docTimeline.forEach(e => {
+                if (e.type === 'status') {
+                    html += `<div class="timeline-entry">
+                        <div class="desc">${badge(e.from_status)} &rarr; ${badge(e.to_status)} ${e.changed_by ? `by ${escHtml(e.changed_by)}` : ''}</div>
+                        ${e.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(e.note)}</div>` : ''}
+                        <div class="time">${fmtDate(e.created_at)}</div>
+                    </div>`;
+                } else {
+                    html += `<div class="timeline-entry">
+                        <div class="desc" style="font-size:12px">
+                            <strong>${escHtml(e.field_name.replace(/_/g, ' '))}</strong>:
+                            "${escHtml(e.old_value || '(empty)')}" &rarr; "${escHtml(e.new_value || '(empty)')}"
+                            ${e.changed_by ? `<span style="color:var(--text-dim)">by ${escHtml(e.changed_by)}</span>` : ''}
+                        </div>
+                        <div class="time">${fmtDate(e.created_at)}</div>
+                    </div>`;
+                }
             });
             html += '</div></div>';
         }
@@ -1875,15 +1996,30 @@ async function loadSupplierDetail(id) {
         }
 
         // Status history timeline
-        if (s.status_changes?.length) {
-            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Status History</h4>';
+        const supTimeline = [
+            ...(s.status_changes || []).map(sc => ({ ...sc, type: 'status' })),
+            ...(s.field_changes || []).map(fc => ({ ...fc, type: 'field_change' })),
+        ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        if (supTimeline.length) {
+            html += '<div style="margin-top:20px"><h4 style="margin:0 0 8px;font-size:13px;color:var(--text-secondary)">Change History</h4>';
             html += '<div class="status-timeline">';
-            s.status_changes.forEach(sc => {
-                html += `<div class="timeline-entry">
-                    <div class="desc">${badge(sc.from_status)} &rarr; ${badge(sc.to_status)} ${sc.changed_by ? `by ${escHtml(sc.changed_by)}` : ''}</div>
-                    ${sc.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(sc.note)}</div>` : ''}
-                    <div class="time">${fmtDate(sc.created_at)}</div>
-                </div>`;
+            supTimeline.forEach(e => {
+                if (e.type === 'status') {
+                    html += `<div class="timeline-entry">
+                        <div class="desc">${badge(e.from_status)} &rarr; ${badge(e.to_status)} ${e.changed_by ? `by ${escHtml(e.changed_by)}` : ''}</div>
+                        ${e.note ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${escHtml(e.note)}</div>` : ''}
+                        <div class="time">${fmtDate(e.created_at)}</div>
+                    </div>`;
+                } else {
+                    html += `<div class="timeline-entry">
+                        <div class="desc" style="font-size:12px">
+                            <strong>${escHtml(e.field_name.replace(/_/g, ' '))}</strong>:
+                            "${escHtml(e.old_value || '(empty)')}" &rarr; "${escHtml(e.new_value || '(empty)')}"
+                            ${e.changed_by ? `<span style="color:var(--text-dim)">by ${escHtml(e.changed_by)}</span>` : ''}
+                        </div>
+                        <div class="time">${fmtDate(e.created_at)}</div>
+                    </div>`;
+                }
             });
             html += '</div></div>';
         }

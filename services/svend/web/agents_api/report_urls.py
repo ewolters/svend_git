@@ -14,4 +14,5 @@ urlpatterns = [
     path("<uuid:report_id>/auto-populate/", report_views.auto_populate_report, name="report_auto_populate"),
     path("<uuid:report_id>/embed-diagram/", report_views.embed_diagram, name="report_embed_diagram"),
     path("<uuid:report_id>/diagram/<str:diagram_id>/", report_views.remove_diagram, name="report_remove_diagram"),
+    path("<uuid:report_id>/export/pdf/", report_views.export_report_pdf, name="report_export_pdf"),
 ]

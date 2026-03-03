@@ -1,0 +1,581 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Svend vs JMP — Modern Statistical Analysis Alternative{% endblock %}
+{% block meta_description %}Compare Svend and JMP side-by-side. 200+ analyses at {{ price_pro }}/mo vs $1,320–$8,400/yr. Web-native, AI-assisted, with Bayesian SPC and integrated quality tools. No desktop install required.{% endblock %}
+{% block meta_keywords %}jmp alternative, svend vs jmp, jmp competitor, statistical analysis software, jmp replacement, quality engineering software, jmp free alternative, jmp pricing, six sigma software, sas jmp alternative{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/svend-vs-jmp/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://svend.ai/svend-vs-jmp/">
+<meta property="og:title" content="Svend vs JMP — Modern Statistical Analysis Alternative">
+<meta property="og:description" content="200+ analyses at a fraction of JMP's cost. Web-native, AI-assisted, with Bayesian SPC and quality management tools included.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Svend vs JMP — Modern Statistical Analysis Alternative",
+    "url": "https://svend.ai/svend-vs-jmp/",
+    "description": "Side-by-side comparison of Svend and JMP statistical analysis software. Feature parity, pricing, platform capabilities.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" }
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "Is Svend as capable as JMP for statistical analysis?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend offers 200+ statistical analyses covering ANOVA, regression, DOE, SPC, capability analysis, Gage R&R, reliability, and multivariate methods. JMP is strong in interactive visualization and some advanced DOE types (mixture, split-plot). Svend adds 35+ Bayesian capabilities, 21 ML models, and integrated quality tools (FMEA, A3, VSM, Hoshin Kanri) that JMP does not offer."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How much does Svend cost compared to JMP?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend Professional starts at $49/month ($588/year, USD) with purchasing power pricing for emerging markets. JMP costs $1,320/year for the base version and $8,400/year for JMP Pro. Svend includes ML models and all analyses at one price — JMP Pro is required for advanced modeling."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Can I import my JMP data into Svend?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend accepts CSV and Excel files directly. Export your JMP data tables as CSV or XLSX and upload them to Svend's Decision Science Workbench. Column types and headers are detected automatically."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "Does JMP work in a browser?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. JMP is a desktop application for Windows and Mac. JMP Live provides view-only sharing of reports but cannot run analyses. Svend is fully web-native — every analysis runs in the browser on any OS, including Linux, Chromebook, and tablets."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does Svend have that JMP doesn't?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Svend includes 35+ Bayesian SPC capabilities (Bayesian Cpk, adaptive control limits, online changepoint detection, anytime-valid sequential testing), AI-assisted analysis selection, integrated quality management tools (FMEA, A3, VSM, Hoshin Kanri, RCA), real-time collaboration, and a hypothesis tracking system with Bayesian probability updates. All at a fraction of JMP's cost."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What does JMP have that Svend doesn't?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "JMP has stronger interactive drag-and-drop visualization (Graph Builder), mixture designs, split-plot designs, and some advanced platform-specific features like the Profiler and Custom Designer. JMP also has a scripting language (JSL) for automation. These gaps are on Svend's roadmap."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Svend vs JMP", "item": "https://svend.ai/svend-vs-jmp/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+.compare-hero {
+    text-align: center;
+    padding-bottom: 2rem;
+}
+.compare-hero h1 {
+    font-size: 2rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+.compare-hero h1 strong { color: var(--accent-primary); }
+.compare-hero p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    max-width: 650px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* Price highlight */
+.price-highlight {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+}
+.price-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    min-width: 200px;
+}
+.price-box.svend { border-color: var(--accent-primary-border); }
+.price-box .price-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+.price-box .price-amount {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.price-box.svend .price-amount { color: var(--accent-primary); }
+.price-box .price-period {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+.price-savings {
+    text-align: center;
+    margin: 1rem 0 2rem;
+    font-size: 1.1rem;
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+/* Comparison table */
+.compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0 2.5rem;
+    font-size: 0.9rem;
+}
+.compare-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border);
+}
+.compare-table th:nth-child(2),
+.compare-table th:nth-child(3) { text-align: center; }
+.compare-table td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+.compare-table td:nth-child(2),
+.compare-table td:nth-child(3) { text-align: center; }
+.compare-table .section-row td {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--accent-primary);
+    font-size: 0.85rem;
+    padding-top: 1rem;
+}
+.compare-table td.check { color: #4a9f6e; font-weight: 700; }
+.compare-table td.cross { color: #c0392b; }
+.compare-table td.extra { color: var(--accent-gold); font-size: 0.8rem; }
+
+/* Advantages section */
+.advantages {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin: 1.5rem 0 2.5rem;
+}
+.advantage-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+}
+.advantage-card h4 {
+    color: var(--accent-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.advantage-card p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+/* Who should switch */
+.switch-section h3 {
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+.switch-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem;
+}
+.switch-list li {
+    padding: 0.5rem 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    padding-left: 1.5rem;
+    position: relative;
+}
+.switch-list li::before {
+    content: "\2713";
+    position: absolute;
+    left: 0;
+    color: var(--accent-primary);
+    font-weight: 700;
+}
+
+/* CTA override */
+.compare-cta {
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid var(--accent-primary-border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    margin: 2rem 0;
+}
+.compare-cta h3 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+.compare-cta p {
+    color: var(--text-secondary);
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+}
+.compare-cta .cta-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.compare-cta .cta-primary {
+    display: inline-block;
+    padding: 0.75rem 2rem;
+    background: var(--accent-primary);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.compare-cta .cta-secondary {
+    display: inline-block;
+    padding: 0.75rem 2rem;
+    background: transparent;
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary-border);
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* Guide section */
+.tool-guide { margin-top: 2.5rem; }
+.tool-guide h2 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+.tool-guide h3 {
+    font-size: 1rem;
+    color: var(--accent-primary);
+    margin: 1.5rem 0 0.5rem;
+    font-weight: 600;
+}
+.tool-guide p, .tool-guide li {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+.tool-guide ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+
+/* FAQ */
+.faq-section { margin-top: 2.5rem; }
+.faq-section h2 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+.faq-item {
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 0;
+}
+.faq-q {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.faq-q::after {
+    content: "+";
+    font-size: 1.2rem;
+    color: var(--accent-primary);
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+.faq-item.open .faq-q::after { content: "\2212"; }
+.faq-a {
+    display: none;
+    padding-top: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+.faq-item.open .faq-a { display: block; }
+
+@media (max-width: 768px) {
+    .compare-hero h1 { font-size: 1.5rem; }
+    .price-highlight { gap: 1rem; }
+    .price-box { min-width: 140px; padding: 1rem 1.25rem; }
+    .compare-table { font-size: 0.8rem; }
+    .compare-table td, .compare-table th { padding: 0.5rem 0.5rem; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="compare-hero">
+    <h1>Svend vs JMP — A <strong>Modern Alternative</strong></h1>
+    <p>200+ statistical analyses, Bayesian SPC, AI-assisted insights, and integrated quality tools — all in your browser at a fraction of JMP's cost.</p>
+</div>
+
+<!-- Pricing comparison -->
+<div class="price-highlight">
+    <div class="price-box svend">
+        <div class="price-label">Svend Professional</div>
+        <div class="price-amount">{{ price_pro_annual }}</div>
+        <div class="price-period">/year ({{ price_pro }}/mo)</div>
+    </div>
+    <div class="price-box">
+        <div class="price-label">JMP (Base)</div>
+        <div class="price-amount">$1,320</div>
+        <div class="price-period">/year per seat</div>
+    </div>
+    <div class="price-box">
+        <div class="price-label">JMP Pro</div>
+        <div class="price-amount">$8,400</div>
+        <div class="price-period">/year per seat</div>
+    </div>
+</div>
+<div class="price-savings">Purchasing power pricing available — <a href="/register/?plan=pro&region={{ region }}" style="color:var(--accent-primary);text-decoration:underline;">see your price</a></div>
+
+<!-- Feature comparison table -->
+<h2 style="font-size: 1.2rem; color: var(--text-primary); font-weight: 600; margin-bottom: 0.5rem;">Feature Comparison</h2>
+
+<table class="compare-table">
+    <thead>
+        <tr>
+            <th>Capability</th>
+            <th>Svend</th>
+            <th>JMP</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="section-row"><td colspan="3">Statistical Analysis</td></tr>
+        <tr><td>ANOVA (one-way, two-way, GLM, nested)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Regression (linear, multiple, stepwise)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Logistic regression (binary, ordinal, nominal)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Nonlinear &amp; Poisson regression</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Nonparametric tests</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Time series &amp; forecasting</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Multivariate (PCA, factor, SEM, correspondence)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Equivalence testing (TOST)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Penalized regression (Ridge, LASSO, Elastic Net)</td><td class="check">&#10003;</td><td class="extra">JMP Pro only</td></tr>
+
+        <tr class="section-row"><td colspan="3">Quality &amp; SPC</td></tr>
+        <tr><td>Control charts (I-MR, X-bar R/S, P, NP, C, U)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>CUSUM, EWMA</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Capability analysis (Cp, Cpk, Pp, Ppk)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Gage R&amp;R (crossed, nested, linearity, attribute)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Acceptance sampling</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+        <tr class="section-row"><td colspan="3">DOE</td></tr>
+        <tr><td>Full &amp; fractional factorial</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Response surface (CCD, Box-Behnken)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Plackett-Burman screening</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Optimal designs (D-optimal, I-optimal)</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Mixture designs</td><td class="cross">Planned</td><td class="check">&#10003;</td></tr>
+        <tr><td>Split-plot designs</td><td class="cross">Planned</td><td class="check">&#10003;</td></tr>
+        <tr><td>Augment designs</td><td class="cross">Planned</td><td class="check">&#10003;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Reliability</td></tr>
+        <tr><td>Distribution ID &amp; Weibull analysis</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Accelerated Life Testing</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+        <tr><td>Warranty prediction &amp; probit</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Bayesian SPC &amp; Process Intelligence</td></tr>
+        <tr><td>Bayesian Cpk — P(Cpk &gt; 1.33) with credible intervals</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Adaptive control limits (posterior-driven)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Online changepoint detection (BOCPD)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Anytime-valid sequential testing (e-values)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Bayesian DOE — P(practical significance)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Bayesian Gage R&amp;R (Gibbs sampler posteriors)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Decision-theoretic alarm thresholds (cost-based)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Sequential DOE with information gain</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Additional Svend Advantages</td></tr>
+        <tr><td>Bayesian hypothesis testing (7 analyses, Bayes Factors)</td><td class="check">&#10003; 7 methods</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Machine learning (21 models included)</td><td class="check">&#10003; Included</td><td class="extra">JMP Pro ($8,400/yr)</td></tr>
+        <tr><td>AI-assisted analysis selection</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Hypothesis tracking (Bayesian updates)</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Real-time collaboration</td><td class="check">&#10003;</td><td class="cross">View-only (JMP Live)</td></tr>
+        <tr><td>FMEA, A3, RCA, VSM, Hoshin Kanri</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Knowledge graph whiteboard</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Granger causality &amp; changepoint detection</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+
+        <tr class="section-row"><td colspan="3">Platform</td></tr>
+        <tr><td>Web-native (any browser, any OS)</td><td class="check">&#10003;</td><td class="cross">Desktop (Win/Mac)</td></tr>
+        <tr><td>Linux &amp; Chromebook support</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+        <tr><td>Zero installation</td><td class="check">&#10003;</td><td class="cross">Desktop install</td></tr>
+        <tr><td>Free tier available</td><td class="check">&#10003;</td><td class="cross">&#10007;</td></tr>
+    </tbody>
+</table>
+<p style="font-size: 0.75rem; color: var(--text-dim);">JMP pricing from JMP.com (2025). JMP Pro required for advanced modeling, penalized regression, and some ML methods.</p>
+
+<!-- Why switch -->
+<h2 style="font-size: 1.2rem; color: var(--text-primary); font-weight: 600; margin: 2rem 0 1rem;">Why Teams Switch to Svend</h2>
+
+<div class="advantages">
+    <div class="advantage-card">
+        <h4>55–93% Cost Savings</h4>
+        <p>{{ price_pro_annual }}/year vs $1,320–$8,400/year per seat. Purchasing power pricing available for emerging markets. ML, Bayesian methods, and all analyses included — no Pro tier upsell.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>Bayesian Process Intelligence</h4>
+        <p>35+ Bayesian capabilities JMP cannot match. Bayesian Cpk gives P(Cpk &gt; 1.33) instead of a point estimate. Adaptive control limits, online changepoint detection, anytime-valid sequential testing, and Bayesian DOE with P(practical significance).</p>
+    </div>
+    <div class="advantage-card">
+        <h4>AI-Assisted Analysis</h4>
+        <p>Describe what you want to analyze in plain language. Svend's AI selects the right test, configures parameters, and interprets results. No memorizing menu paths or JSL scripting.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>Integrated Quality Tools</h4>
+        <p>Statistical analysis, SPC, DOE, FMEA, A3 reports, VSM, root cause analysis, and Hoshin Kanri in one platform. Replace separate tools for quality management and statistical analysis.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>Works Everywhere</h4>
+        <p>Browser-based on any OS — including Linux and Chromebook. No IT tickets, no desktop installs, no license server headaches. JMP requires a desktop installation on Windows or Mac.</p>
+    </div>
+    <div class="advantage-card">
+        <h4>Real-Time Collaboration</h4>
+        <p>Collaborative whiteboards, shared projects, and team-wide knowledge graphs. JMP Live offers view-only sharing — Svend is built for teams to work together.</p>
+    </div>
+</div>
+
+<!-- Who should switch -->
+<div class="switch-section">
+    <h3>Svend is a good fit if you...</h3>
+    <ul class="switch-list">
+        <li>Spend over $1,320/year per seat on JMP licenses</li>
+        <li>Need ML models without upgrading to JMP Pro at $8,400/year</li>
+        <li>Want Bayesian SPC capabilities that JMP doesn't offer at any price</li>
+        <li>Run analyses on Linux, Chromebook, or tablets</li>
+        <li>Need collaboration beyond JMP Live's view-only model</li>
+        <li>Want integrated quality tools (FMEA, A3, VSM) alongside your statistics</li>
+        <li>Want AI to help select and interpret statistical tests</li>
+        <li>Are tired of managing desktop software installs and license servers</li>
+    </ul>
+</div>
+
+<!-- CTA -->
+<div class="compare-cta">
+    <h3>Ready to try a modern alternative?</h3>
+    <p>Start with a free account — no credit card required. Run up to 5 analyses per day with the free tier.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=pro&region={{ region }}" class="cta-primary">Start Free</a>
+        <a href="/tools/" class="cta-secondary">Try Free Tools</a>
+    </div>
+</div>
+
+<!-- Guide content for SEO -->
+<div class="tool-guide">
+    <h2>Switching from JMP to Svend</h2>
+    <p>JMP Statistical Discovery (a SAS company) has been a leading desktop analytics platform since 1989. It's particularly well-regarded for interactive visualization and DOE. But with JMP pricing reaching $1,320–$8,400/year per seat and the product remaining locked to desktop installations, many teams are looking for modern alternatives.</p>
+
+    <h3>What You Keep</h3>
+    <p>Svend covers the core statistical analysis capabilities JMP users rely on: ANOVA, regression (linear, logistic, ordinal, nominal, Poisson, nonlinear), DOE (full factorial, fractional factorial, response surface, screening, optimal designs), SPC (control charts, capability analysis, Gage R&R), reliability (Weibull, ALT, warranty), and multivariate methods (PCA, factor analysis, SEM). The main gaps are mixture designs, split-plot designs, and augment designs — all on the roadmap.</p>
+
+    <h3>What You Gain</h3>
+    <ul>
+        <li><strong>35+ Bayesian capabilities</strong> — Bayesian SPC, Bayesian Cpk, Bayesian DOE, Bayesian Gage R&R, and 7 Bayesian hypothesis tests. JMP offers none of these.</li>
+        <li><strong>Machine learning at no extra cost</strong> — 21 models (Random Forest, Gradient Boosting, SVM, Neural Net, GAM, and more) included in every plan. JMP requires the $8,400/yr Pro edition for comparable ML capabilities.</li>
+        <li><strong>AI-assisted workflows</strong> — Natural language analysis selection, automated diagnostics, and code generation. No need to learn JSL scripting.</li>
+        <li><strong>Quality management tools</strong> — FMEA, A3 reports, root cause analysis, value stream mapping, and Hoshin Kanri built into the same platform.</li>
+        <li><strong>Hypothesis tracking</strong> — Link evidence from analyses to hypotheses with Bayesian probability updates via the Synara belief engine.</li>
+        <li><strong>True collaboration</strong> — Shared projects, collaborative whiteboards, and team dashboards. JMP Live is view-only — Svend supports real-time co-editing.</li>
+    </ul>
+
+    <h3>What JMP Does Better (For Now)</h3>
+    <p>JMP's interactive visualization (Graph Builder, dynamic linking) is best-in-class for desktop data exploration. JMP also supports mixture designs, split-plot designs, and augment designs that Svend has planned but not yet shipped. If you rely heavily on JSL scripting for automation, that ecosystem has no direct equivalent in Svend — though Svend's AI assistant and API can automate most workflows.</p>
+
+    <h3>Data Migration</h3>
+    <p>Svend accepts CSV and Excel files. Export your JMP data tables as CSV or XLSX and upload directly to the <a href="/app/dsw/" style="color: var(--accent-primary);">Decision Science Workbench</a>. Column types and headers are detected automatically. There is no proprietary file format lock-in.</p>
+
+    <p>For teams evaluating alternatives, we also offer <a href="/tools/" style="color: var(--accent-primary);">12 free online tools</a> — including a <a href="/tools/cpk-calculator/" style="color: var(--accent-primary);">Cpk calculator</a>, <a href="/tools/bayesian-cpk-calculator/" style="color: var(--accent-primary);">Bayesian Cpk calculator</a>, <a href="/tools/control-chart-generator/" style="color: var(--accent-primary);">control chart generator</a>, and <a href="/tools/gage-rr-calculator/" style="color: var(--accent-primary);">Gage R&R calculator</a> — that you can try without creating an account.</p>
+</div>
+
+<!-- FAQ -->
+<div class="faq-section">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">Is Svend as capable as JMP for statistical analysis?</div>
+        <div class="faq-a">Svend offers 200+ statistical analyses covering ANOVA, regression, DOE, SPC, capability analysis, Gage R&R, reliability, and multivariate methods. JMP is stronger in interactive visualization and some advanced DOE types (mixture, split-plot). Svend adds 35+ Bayesian capabilities, 21 ML models, and integrated quality tools that JMP does not offer.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How much does Svend cost compared to JMP?</div>
+        <div class="faq-a">Svend Professional costs {{ price_pro }}/month ({{ price_pro_annual }}/year) and includes all analyses, SPC, DOE, ML, reliability, and Bayesian methods. Purchasing power pricing is available for emerging markets. JMP base costs $1,320/year per seat. JMP Pro — required for advanced modeling and ML — costs $8,400/year per seat.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Can I import my JMP data into Svend?</div>
+        <div class="faq-a">Svend accepts CSV and Excel files directly. Export your JMP data tables (File → Export → CSV or Excel) and upload to Svend's Decision Science Workbench. Column types, headers, and data structures are automatically detected.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">Does JMP work in a browser?</div>
+        <div class="faq-a">No. JMP is a desktop application for Windows and Mac. JMP Live provides view-only sharing of reports and dashboards but cannot run analyses. Svend is fully web-native — every analysis runs in the browser on any OS, including Linux, Chromebook, and tablets.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What does Svend have that JMP doesn't?</div>
+        <div class="faq-a">Svend includes 35+ Bayesian SPC capabilities (Bayesian Cpk, adaptive control limits, online changepoint detection, anytime-valid sequential testing), AI-assisted analysis selection, integrated quality management tools (FMEA, A3, VSM, Hoshin Kanri), real-time collaboration, and hypothesis tracking with Bayesian probability updates. All included at every plan level.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What does JMP have that Svend doesn't?</div>
+        <div class="faq-a">JMP has stronger interactive drag-and-drop visualization (Graph Builder with dynamic linking), mixture designs, split-plot designs, and augment designs. JMP also has a scripting language (JSL) for automation and a large ecosystem of add-ins. These DOE gaps are on Svend's roadmap.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}

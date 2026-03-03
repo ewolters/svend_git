@@ -27,6 +27,43 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# SVEND theme colors — canonical palette
+# Matches CSS custom properties in base_app.html. All DSW chart modules
+# should import from here instead of defining their own palettes.
+# ---------------------------------------------------------------------------
+
+# Primary categorical palette (10 colors, for multi-series charts)
+SVEND_COLORS = [
+    '#4a9f6e',  # accent-primary (green)
+    '#4a9faf',  # accent-blue (teal)
+    '#e89547',  # accent-orange
+    '#e8c547',  # accent-gold
+    '#8a7fbf',  # accent-purple
+    '#d66b9f',  # magenta
+    '#4ac9c0',  # cyan
+    '#c97a4a',  # brown
+    '#6b9f4a',  # olive
+    '#5b8bd6',  # blue
+]
+
+# Semantic colors — use for consistent meaning across all charts
+COLOR_GOOD = '#4a9f6e'       # success, in-control, healthy
+COLOR_BAD = '#d06060'        # error, out-of-control, defect
+COLOR_WARNING = '#e89547'    # caution, moderate
+COLOR_INFO = '#4a9faf'       # informational, secondary
+COLOR_NEUTRAL = '#888888'    # noise floor, baseline, inactive
+COLOR_REFERENCE = '#d4a24a'  # reference lines, pooled values
+COLOR_GOLD = '#e8c547'       # tertiary emphasis, threshold
+
+# Alpha variants for fills and bands
+def _rgba(hex_color, alpha=0.15):
+    """Convert '#RRGGBB' to 'rgba(R,G,B,alpha)'."""
+    h = hex_color.lstrip('#')
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha})"
+
+
+# ---------------------------------------------------------------------------
 # JSON-safe serialization (handles numpy NaN/Inf/types)
 # ---------------------------------------------------------------------------
 
@@ -350,7 +387,7 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
             "hovertemplate": "Predicted: %{x}<br>Actual: %{y}<br>Count: %{z}<extra></extra>",
         }],
         "layout": {
-            "template": "plotly_dark", "height": 320,
+            "height": 320,
             "xaxis": {"title": "Predicted", "side": "bottom"},
             "yaxis": {"title": "Actual", "autorange": "reversed"},
             "annotations": annotations,
@@ -381,7 +418,7 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                          "name": f"Optimal (J={j_scores[opt_idx]:.2f})", "showlegend": True},
                     ],
                     "layout": {
-                        "template": "plotly_dark", "height": 320,
+                        "height": 320,
                         "xaxis": {"title": "False Positive Rate", "range": [0, 1]},
                         "yaxis": {"title": "True Positive Rate", "range": [0, 1.05]},
                     },
@@ -409,7 +446,7 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                 plots.append({
                     "title": "ROC Curves (One-vs-Rest)",
                     "data": roc_traces,
-                    "layout": {"template": "plotly_dark", "height": 350, "xaxis": {"title": "FPR"}, "yaxis": {"title": "TPR"}},
+                    "layout": {"height": 350, "xaxis": {"title": "FPR"}, "yaxis": {"title": "TPR"}},
                 })
         except Exception:
             pass
@@ -429,7 +466,7 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                          "fill": "tozeroy", "fillcolor": "rgba(74,159,175,0.1)"},
                     ],
                     "layout": {
-                        "template": "plotly_dark", "height": 320,
+                        "height": 320,
                         "xaxis": {"title": "Recall", "range": [0, 1]},
                         "yaxis": {"title": "Precision", "range": [0, 1.05]},
                     },
@@ -453,7 +490,7 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                 plots.append({
                     "title": "Precision-Recall Curves (Per Class)",
                     "data": pr_traces,
-                    "layout": {"template": "plotly_dark", "height": 350, "xaxis": {"title": "Recall"}, "yaxis": {"title": "Precision"}},
+                    "layout": {"height": 350, "xaxis": {"title": "Recall"}, "yaxis": {"title": "Precision"}},
                 })
         except Exception:
             pass
@@ -470,7 +507,7 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                 "y": [features[i] if i < len(features) else f"feat_{i}" for i in sorted_idx],
                 "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
             }],
-            "layout": {"template": "plotly_dark", "height": max(220, len(features) * 22)},
+            "layout": {"height": max(220, len(features) * 22)},
         })
 
     # 5. Predicted Probability Distribution
@@ -494,7 +531,7 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                     "title": "Predicted Probability Distribution",
                     "data": prob_traces,
                     "layout": {
-                        "template": "plotly_dark", "height": 280, "barmode": "overlay",
+                        "height": 280, "barmode": "overlay",
                         "xaxis": {"title": "Predicted Probability"}, "yaxis": {"title": "Count"},
                     },
                 })
@@ -519,7 +556,7 @@ def _diag_classification(model, X_test, y_test, y_pred, features, label_map, mod
                      "line": {"dash": "dash", "color": "#555"}, "name": "Perfectly Calibrated"},
                 ],
                 "layout": {
-                    "template": "plotly_dark", "height": 300,
+                    "height": 300,
                     "xaxis": {"title": "Mean Predicted Probability", "range": [0, 1]},
                     "yaxis": {"title": "Fraction of Positives", "range": [0, 1]},
                 },
@@ -554,7 +591,7 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
              "mode": "lines", "line": {"color": "#d06060", "dash": "dash", "width": 2}, "name": "Perfect Fit"},
         ],
         "layout": {
-            "template": "plotly_dark", "height": 320,
+            "height": 320,
             "xaxis": {"title": "Actual"}, "yaxis": {"title": "Predicted"},
             "annotations": [{"x": 0.05, "y": 0.95, "xref": "paper", "yref": "paper",
                              "text": f"R² = {r2:.4f}", "showarrow": False,
@@ -578,7 +615,7 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
              "mode": "lines", "line": {"color": "#d06060", "dash": "dash", "width": 1.5}, "name": "Zero"},
         ],
         "layout": {
-            "template": "plotly_dark", "height": 320,
+            "height": 320,
             "xaxis": {"title": "Predicted"}, "yaxis": {"title": "Residual"},
         },
     })
@@ -606,7 +643,7 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
              "mode": "lines", "line": {"color": "#e89547", "width": 2.5}, "name": "Normal Fit"},
         ],
         "layout": {
-            "template": "plotly_dark", "height": 300, "barmode": "overlay",
+            "height": 300, "barmode": "overlay",
             "xaxis": {"title": "Residual"}, "yaxis": {"title": "Frequency"},
         },
     })
@@ -628,7 +665,7 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
              "mode": "lines", "line": {"color": "#d06060", "dash": "dash", "width": 2}, "name": "Reference Line"},
         ],
         "layout": {
-            "template": "plotly_dark", "height": 320,
+            "height": 320,
             "xaxis": {"title": "Theoretical Quantiles"}, "yaxis": {"title": "Sample Quantiles"},
         },
     })
@@ -645,7 +682,7 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
                 "y": [features[i] if i < len(features) else f"feat_{i}" for i in sorted_idx],
                 "marker": {"color": "rgba(74,159,110,0.6)", "line": {"color": "#4a9f6e", "width": 1}},
             }],
-            "layout": {"template": "plotly_dark", "height": max(220, len(features) * 22)},
+            "layout": {"height": max(220, len(features) * 22)},
         })
 
     # 6. Scale-Location Plot (sqrt|standardized residuals| vs fitted)
@@ -658,7 +695,7 @@ def _diag_regression(model, X_test, y_test, y_pred, features, model_name):
              "mode": "markers", "marker": {"color": "rgba(138,127,191,0.5)", "size": 5}, "name": "\u221a|Std. Residual|"},
         ],
         "layout": {
-            "template": "plotly_dark", "height": 300,
+            "height": 300,
             "xaxis": {"title": "Fitted Values"}, "yaxis": {"title": "\u221a|Standardized Residual|"},
         },
     })
@@ -1367,7 +1404,7 @@ def _build_permutation_histogram(real_score, perm_scores, p_value, scoring,
     return {
         "data": traces,
         "layout": {
-            "template": "plotly_dark",
+            
             "height": 220,
             "paper_bgcolor": "transparent",
             "plot_bgcolor": "transparent",
@@ -1781,7 +1818,7 @@ def _bayesian_model_beliefs(metrics, X, y, importances, task, *,
             },
         }],
         "layout": {
-            "template": "plotly_dark", "height": 180,
+            "height": 180,
             "paper_bgcolor": "transparent", "plot_bgcolor": "transparent",
             "margin": {"t": 50, "b": 10, "l": 30, "r": 30},
         },
@@ -1948,6 +1985,122 @@ def _effect_magnitude(value, effect_type):
     return "unknown", False
 
 
+# ---------------------------------------------------------------------------
+# Assumption checking helpers (for automatic diagnostics)
+# ---------------------------------------------------------------------------
+
+def _check_normality(data, label="Data", alpha=0.05):
+    """Check normality of data. Returns a diagnostic dict or None."""
+    from scipy import stats as sp_stats
+    data = np.asarray(data)
+    data = data[~np.isnan(data)]
+    if len(data) < 8:
+        return None  # too few for meaningful test
+    try:
+        if len(data) <= 5000:
+            stat, p = sp_stats.shapiro(data[:5000])
+            test_name = "Shapiro-Wilk"
+        else:
+            stat, p = sp_stats.normaltest(data)
+            test_name = "D'Agostino-Pearson"
+    except Exception:
+        return None
+
+    if p < alpha:
+        return {
+            "level": "warning",
+            "title": f"Normality: {label} departs from normal ({test_name} p = {p:.4f})",
+            "detail": "This test assumes normally distributed data. Results may be unreliable for non-normal data.",
+            "_p": p, "_test": test_name,
+        }
+    return None  # passes — no warning needed
+
+
+def _check_equal_variance(*groups, labels=None, alpha=0.05):
+    """Check equal variances via Levene's test. Returns a diagnostic dict or None."""
+    from scipy import stats as sp_stats
+    groups = [np.asarray(g)[~np.isnan(np.asarray(g))] for g in groups]
+    if any(len(g) < 3 for g in groups):
+        return None
+    try:
+        stat, p = sp_stats.levene(*groups)
+    except Exception:
+        return None
+
+    if p < alpha:
+        labels_str = " vs ".join(labels) if labels else "groups"
+        return {
+            "level": "warning",
+            "title": f"Unequal Variances (Levene p = {p:.4f})",
+            "detail": f"Variances differ between {labels_str}. Using Welch's correction is recommended.",
+            "_p": p,
+        }
+    return None
+
+
+def _check_outliers(data, label="Data", method="iqr"):
+    """Flag outliers via IQR method. Returns diagnostic dict or None."""
+    data = np.asarray(data)
+    data = data[~np.isnan(data)]
+    if len(data) < 10:
+        return None
+    q1, q3 = np.percentile(data, [25, 75])
+    iqr = q3 - q1
+    if iqr == 0:
+        return None
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+    n_outliers = int(np.sum((data < lower) | (data > upper)))
+    pct = n_outliers / len(data) * 100
+    if n_outliers > 0 and pct > 1:
+        return {
+            "level": "warning" if pct < 5 else "error",
+            "title": f"Outliers: {n_outliers} values ({pct:.1f}%) in {label} exceed 1.5\u00d7IQR",
+            "detail": f"Range [{lower:.4f}, {upper:.4f}]. Outliers can inflate variance and distort means.",
+            "_n_outliers": n_outliers, "_pct": pct,
+        }
+    return None
+
+
+def _cross_validate(primary_p, alt_p, primary_name, alt_name, alpha=0.05, normality_failed=False):
+    """Compare two test p-values and return agreement/contradiction diagnostic."""
+    primary_sig = primary_p < alpha
+    alt_sig = alt_p < alpha
+    if primary_sig != alt_sig:
+        explanation = ""
+        if normality_failed:
+            explanation = " Non-normality may be affecting the parametric test."
+        elif abs(primary_p - alpha) < 0.02 or abs(alt_p - alpha) < 0.02:
+            explanation = " One p-value is near the threshold \u2014 borderline result."
+        return {
+            "level": "contradiction",
+            "title": f"Contradiction: {primary_name} and {alt_name} disagree",
+            "detail": (
+                f"{primary_name} p = {primary_p:.4f} ({'significant' if primary_sig else 'not significant'}), "
+                f"{alt_name} p = {alt_p:.4f} ({'significant' if alt_sig else 'not significant'}).{explanation}"
+            ),
+        }
+    else:
+        return {
+            "level": "info",
+            "title": f"Cross-check: {alt_name} agrees (p = {alt_p:.4f})",
+            "detail": f"Both parametric and non-parametric tests reach the same conclusion.",
+        }
+
+
+def _narrative(verdict, body, next_steps=None, chart_guidance=None):
+    """Build HTML narrative block for charts-first output.
+
+    Returns HTML string rendered in the .dsw-narrative div (prose, not monospace).
+    """
+    parts = [f'<div class="dsw-verdict">{verdict}</div>', f'<p>{body}</p>']
+    if chart_guidance:
+        parts.append(f'<p><strong>In the chart:</strong> {chart_guidance}</p>')
+    if next_steps:
+        parts.append(f'<div class="dsw-next"><strong>Next &rarr;</strong> {next_steps}</div>')
+    return "\n".join(parts)
+
+
 def _practical_block(effect_name, effect_val, effect_type, pval, alpha=0.05, context=""):
     """Build practical significance interpretation block for analysis summaries."""
     label, meaningful = _effect_magnitude(effect_val, effect_type)
@@ -1974,6 +2127,315 @@ def _practical_block(effect_name, effect_val, effect_type, pval, alpha=0.05, con
         b += f"<<COLOR:text>>No evidence of a meaningful difference.<</COLOR>>"
 
     return b
+
+
+# ---------------------------------------------------------------------------
+# Bayesian Insurance — shadow computation + evidence grading
+# ---------------------------------------------------------------------------
+
+def _bayesian_shadow(shadow_type, **kwargs):
+    """Compute Bayesian shadow for a frequentist test.
+
+    Returns dict with bf10, bf_label, credible_interval, interpretation, shadow_type.
+    Returns None if computation fails.
+
+    All math extracted from bayesian.py — operates on pre-extracted arrays,
+    not column names, so it works regardless of input format (2-column or factor).
+    """
+    from scipy import stats as sp_stats
+    from scipy.integrate import quad
+
+    try:
+        bf10 = None
+        ci_dict = None
+        interp_parts = []
+
+        if shadow_type in ("ttest_1samp", "ttest_2samp", "ttest_paired"):
+            # JZS Bayes Factor (Rouder et al. 2009)
+            r_scale = 0.707  # √2/2, standard JZS default
+
+            if shadow_type == "ttest_1samp":
+                x = np.asarray(kwargs["x"], dtype=float)
+                x = x[~np.isnan(x)]
+                mu = float(kwargs.get("mu", 0))
+                if len(x) < 3:
+                    return None
+                t_stat, _ = sp_stats.ttest_1samp(x, mu)
+                n_eff = len(x)
+                v = len(x) - 1
+                d = (np.mean(x) - mu) / np.std(x, ddof=1) if np.std(x, ddof=1) > 0 else 0
+                se_d = np.sqrt(1 / len(x) + d ** 2 / (2 * len(x)))
+
+            elif shadow_type == "ttest_2samp":
+                x = np.asarray(kwargs["x"], dtype=float)
+                y = np.asarray(kwargs["y"], dtype=float)
+                x = x[~np.isnan(x)]
+                y = y[~np.isnan(y)]
+                if len(x) < 2 or len(y) < 2:
+                    return None
+                t_stat, _ = sp_stats.ttest_ind(x, y)
+                n1, n2 = len(x), len(y)
+                n_eff = n1 * n2 / (n1 + n2)
+                v = n1 + n2 - 2
+                pooled_std = np.sqrt(((n1 - 1) * np.var(x, ddof=1) + (n2 - 1) * np.var(y, ddof=1)) / v)
+                d = (np.mean(x) - np.mean(y)) / pooled_std if pooled_std > 0 else 0
+                se_d = np.sqrt((n1 + n2) / (n1 * n2) + d ** 2 / (2 * (n1 + n2)))
+
+            else:  # ttest_paired
+                x = np.asarray(kwargs["x"], dtype=float)
+                y = np.asarray(kwargs["y"], dtype=float)
+                mask = ~(np.isnan(x) | np.isnan(y))
+                x, y = x[mask], y[mask]
+                if len(x) < 3:
+                    return None
+                diff = x - y
+                t_stat, _ = sp_stats.ttest_rel(x, y)
+                n_eff = len(diff)
+                v = len(diff) - 1
+                d = np.mean(diff) / np.std(diff, ddof=1) if np.std(diff, ddof=1) > 0 else 0
+                se_d = np.sqrt(1 / len(diff) + d ** 2 / (2 * len(diff)))
+
+            # JZS integrand (Rouder et al. 2009, Eq. 2)
+            def _jzs_integrand(g):
+                nrg = n_eff * r_scale ** 2 * g
+                return (
+                    (1 + nrg) ** (-0.5)
+                    * (1 + t_stat ** 2 / ((1 + nrg) * v)) ** (-(v + 1) / 2)
+                    / (1 + t_stat ** 2 / v) ** (-(v + 1) / 2)
+                    * (2 * np.pi) ** (-0.5)
+                    * g ** (-1.5)
+                    * np.exp(-1 / (2 * g))
+                )
+
+            bf10, _ = quad(_jzs_integrand, 1e-10, np.inf)
+            bf10 = max(bf10, 1e-10)
+
+            # 95% credible interval on Cohen's d
+            z95 = 1.96
+            ci_dict = {
+                "param": "Cohen's d",
+                "estimate": round(float(d), 4),
+                "ci_low": round(float(d - z95 * se_d), 4),
+                "ci_high": round(float(d + z95 * se_d), 4),
+                "level": 0.95,
+            }
+            ci_excludes_zero = (ci_dict["ci_low"] > 0 or ci_dict["ci_high"] < 0)
+            interp_parts.append(
+                f"95% CrI for d: [{ci_dict['ci_low']:.3f}, {ci_dict['ci_high']:.3f}]"
+                + (" (excludes zero)" if ci_excludes_zero else " (includes zero)")
+            )
+
+        elif shadow_type == "anova":
+            # BIC-approximated BF (Wagenmakers 2007)
+            groups = [np.asarray(g, dtype=float) for g in kwargs["groups"]]
+            groups = [g[~np.isnan(g)] for g in groups]
+            if len(groups) < 2 or any(len(g) < 2 for g in groups):
+                return None
+            all_data = np.concatenate(groups)
+            n_total = len(all_data)
+            k = len(groups)
+            grand_mean = np.mean(all_data)
+            ss_between = sum(len(g) * (np.mean(g) - grand_mean) ** 2 for g in groups)
+            ss_within = sum(np.sum((g - np.mean(g)) ** 2) for g in groups)
+            ss_total = ss_between + ss_within
+            if ss_within <= 0 or n_total <= k:
+                return None
+            bic_h0 = n_total * np.log(ss_total / n_total) + 1 * np.log(n_total)
+            bic_h1 = n_total * np.log(ss_within / n_total) + k * np.log(n_total)
+            bf10 = np.exp((bic_h0 - bic_h1) / 2)
+            bf10 = min(float(bf10), 1e10)
+
+        elif shadow_type == "correlation":
+            # BF via integral under uniform prior on ρ (Ly et al. 2016)
+            x = np.asarray(kwargs["x"], dtype=float)
+            y = np.asarray(kwargs["y"], dtype=float)
+            mask = ~(np.isnan(x) | np.isnan(y))
+            x, y = x[mask], y[mask]
+            n = len(x)
+            if n < 4:
+                return None
+            r, _ = sp_stats.pearsonr(x, y)
+
+            def _corr_bf_integrand(rho):
+                if abs(rho) >= 1:
+                    return 0.0
+                log_term = ((n - 2) / 2) * np.log(1 - rho ** 2) - ((n - 1) / 2) * np.log(1 - r * rho)
+                return np.exp(log_term)
+
+            bf_integral, _ = quad(_corr_bf_integrand, -1 + 1e-10, 1 - 1e-10)
+            bf10 = bf_integral / 2.0 if bf_integral > 0 else 1e-10
+
+            # Fisher z CI on r
+            z_r = 0.5 * np.log((1 + r) / (1 - r)) if abs(r) < 1 else 0
+            se_z = 1 / np.sqrt(n - 3)
+            z95 = 1.96
+            r_low = np.tanh(z_r - z95 * se_z)
+            r_high = np.tanh(z_r + z95 * se_z)
+            ci_dict = {
+                "param": "r",
+                "estimate": round(float(r), 4),
+                "ci_low": round(float(r_low), 4),
+                "ci_high": round(float(r_high), 4),
+                "level": 0.95,
+            }
+            interp_parts.append(f"95% CrI for r: [{r_low:.3f}, {r_high:.3f}]")
+
+        elif shadow_type == "proportion":
+            # Savage-Dickey BF under Beta(1,1) prior
+            successes = int(kwargs["x"])
+            n = int(kwargs["n"])
+            p0 = float(kwargs.get("p0", 0.5))
+            if n < 1:
+                return None
+            a_post = 1 + successes
+            b_post = 1 + n - successes
+            posterior_at_p0 = sp_stats.beta.pdf(p0, a_post, b_post)
+            bf10 = 1.0 / posterior_at_p0 if posterior_at_p0 > 0 else 1e10
+            # Beta posterior CI
+            ci_low = float(sp_stats.beta.ppf(0.025, a_post, b_post))
+            ci_high = float(sp_stats.beta.ppf(0.975, a_post, b_post))
+            p_hat = successes / n
+            ci_dict = {
+                "param": "proportion",
+                "estimate": round(p_hat, 4),
+                "ci_low": round(ci_low, 4),
+                "ci_high": round(ci_high, 4),
+                "level": 0.95,
+            }
+            interp_parts.append(f"95% CrI for proportion: [{ci_low:.3f}, {ci_high:.3f}]")
+
+        elif shadow_type == "chi2":
+            # BIC-approximated BF (Wagenmakers 2007)
+            chi2_stat = float(kwargs["chi2_stat"])
+            dof = int(kwargs["dof"])
+            n_obs = int(kwargs["n_obs"])
+            if n_obs < 2 or dof < 1:
+                return None
+            log_bf10 = 0.5 * (chi2_stat - dof * np.log(n_obs))
+            bf10 = float(np.exp(np.clip(log_bf10, -500, 500)))
+
+        else:
+            return None
+
+        if bf10 is None:
+            return None
+
+        bf10 = float(bf10)
+
+        # BF interpretation label
+        if bf10 > 100:
+            bf_label = "extreme"
+        elif bf10 > 30:
+            bf_label = "very strong"
+        elif bf10 > 10:
+            bf_label = "strong"
+        elif bf10 > 3:
+            bf_label = "moderate"
+        elif bf10 > 1:
+            bf_label = "weak"
+        elif bf10 > 1 / 3:
+            bf_label = "weak (for H\u2080)"
+        elif bf10 > 1 / 10:
+            bf_label = "moderate (for H\u2080)"
+        else:
+            bf_label = "strong (for H\u2080)"
+
+        # Build interpretation string
+        if bf10 >= 1:
+            interp = f"BF\u2081\u2080 = {bf10:.1f} \u2014 the data are {bf10:.1f}\u00d7 more likely under H\u2081 than H\u2080 ({bf_label} evidence)."
+        else:
+            bf01 = 1 / bf10 if bf10 > 0 else float("inf")
+            interp = f"BF\u2081\u2080 = {bf10:.2f} (BF\u2080\u2081 = {bf01:.1f}) \u2014 the data favor H\u2080 ({bf_label})."
+        if interp_parts:
+            interp += " " + ". ".join(interp_parts) + "."
+
+        return {
+            "shadow_type": shadow_type,
+            "bf10": round(bf10, 4),
+            "bf_label": bf_label,
+            "credible_interval": ci_dict,
+            "interpretation": interp,
+        }
+
+    except Exception:
+        return None
+
+
+def _evidence_grade(p_value, bf10=None, effect_magnitude=None, cross_val_agrees=None):
+    """Synthesize evidence grade from available metrics.
+
+    Returns dict: {"grade": "Strong", "rationale": "...", "components": [...]}
+    Returns None if p_value is None.
+    """
+    if p_value is None:
+        return None
+    try:
+        score = 0
+        components = []
+
+        # P-value contribution
+        if p_value < 0.001:
+            score += 3
+            components.append("p < 0.001")
+        elif p_value < 0.01:
+            score += 2
+            components.append(f"p = {p_value:.4f}")
+        elif p_value < 0.05:
+            score += 1
+            components.append(f"p = {p_value:.3f}")
+        else:
+            components.append(f"p = {p_value:.3f} (n.s.)")
+
+        # BF contribution
+        if bf10 is not None:
+            if bf10 > 10:
+                score += 3
+                components.append(f"BF\u2081\u2080 = {bf10:.1f}")
+            elif bf10 > 3:
+                score += 2
+                components.append(f"BF\u2081\u2080 = {bf10:.1f}")
+            elif bf10 > 1:
+                score += 1
+                components.append(f"BF\u2081\u2080 = {bf10:.1f}")
+            else:
+                components.append(f"BF\u2081\u2080 = {bf10:.2f}")
+
+        # Effect magnitude contribution
+        if effect_magnitude is not None:
+            if effect_magnitude == "large":
+                score += 2
+                components.append("large effect")
+            elif effect_magnitude == "medium":
+                score += 1
+                components.append("medium effect")
+            else:
+                components.append(f"{effect_magnitude} effect")
+
+        # Cross-validation contribution
+        if cross_val_agrees is True:
+            score += 1
+            components.append("cross-check agrees")
+        elif cross_val_agrees is False:
+            score -= 1
+            components.append("cross-check disagrees")
+
+        # Grade mapping
+        if score >= 8:
+            grade = "Strong"
+        elif score >= 5:
+            grade = "Moderate"
+        elif score >= 2:
+            grade = "Weak"
+        else:
+            grade = "Inconclusive"
+
+        return {
+            "grade": grade,
+            "rationale": ", ".join(components),
+            "components": components,
+        }
+    except Exception:
+        return None
 
 
 def _ml_interpretation(task, metrics, y_test=None, y_pred=None, features=None, target=None, model=None):

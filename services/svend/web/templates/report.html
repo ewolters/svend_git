@@ -336,6 +336,29 @@
     padding: 0 12px;
 }
 
+/* Preview mode rendered content */
+.section-rendered {
+    padding: 0;
+    line-height: 1.7;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+.section-rendered p { margin: 0 0 0.5em 0; }
+.section-rendered strong { color: var(--accent); }
+.section-rendered ul, .section-rendered ol { margin: 0.3em 0; padding-left: 1.5em; }
+.section-rendered li { margin: 2px 0; }
+.section-rendered hr { border: none; border-top: 1px solid var(--border); margin: 0.5em 0; }
+.section-rendered table { width: 100%; border-collapse: collapse; margin: 0.5em 0; font-size: 0.85rem; }
+.section-rendered th, .section-rendered td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.section-rendered th { background: var(--bg-tertiary); font-weight: 600; }
+.section-rendered code { background: var(--bg-tertiary); padding: 1px 4px; border-radius: 3px; font-size: 0.85rem; }
+.section-rendered .empty { color: var(--text-dim); font-style: italic; }
+
+/* DSW import picker */
+.dsw-picker label { display: block; margin: 6px 0; cursor: pointer; }
+.dsw-picker label input { margin-right: 8px; }
+.dsw-picker .disabled { opacity: 0.5; }
+
 @media print {
     .report-toolbar, .report-section-header .actions { display: none; }
     .report-section { break-inside: avoid; }
@@ -379,7 +402,8 @@
             </div>
             <div class="report-toolbar-group">
                 <button class="report-btn" onclick="autoPopulate()">Auto-Fill Empty</button>
-                <button class="report-btn" onclick="window.print()">Print</button>
+                <button class="report-btn" id="preview-toggle" onclick="togglePreview()">Preview</button>
+                <button class="report-btn" onclick="exportPDF()">Export PDF</button>
             </div>
             <span class="autosave-indicator" id="save-indicator"></span>
         </div>
@@ -561,6 +585,19 @@ async function loadReport(id) {
     }
 }
 
+let previewMode = false;
+
+function togglePreview() {
+    previewMode = !previewMode;
+    document.getElementById('preview-toggle').textContent = previewMode ? 'Edit' : 'Preview';
+    renderEditor();
+}
+
+function exportPDF() {
+    if (!currentReport) return;
+    window.open(`/api/reports/${currentReport.id}/export/pdf/`, '_blank');
+}
+
 function renderEditor() {
     // Type badge
     const badge = document.getElementById('type-badge');
@@ -599,26 +636,38 @@ function renderEditor() {
             diagramsHtml = '<div class="embedded-diagrams">' + secDiagrams.map(d => `
                 <div class="embedded-diagram">
                     ${d.svg}
-                    <div class="diagram-label">${d.board_name}</div>
-                    <button class="remove-btn" onclick="removeDiagram('${d.id}')">&times;</button>
+                    <div class="diagram-label">${d.title || d.board_name || ''}</div>
+                    ${!previewMode ? `<button class="remove-btn" onclick="removeDiagram('${d.id}')">&times;</button>` : ''}
                 </div>
             `).join('') + '</div>';
+        }
+
+        let bodyContent;
+        if (previewMode) {
+            const rendered = content
+                ? (typeof marked !== 'undefined' ? marked.parse(content) : content)
+                : '<span class="empty">Not completed</span>';
+            bodyContent = `<div class="section-rendered">${rendered}</div>${diagramsHtml}`;
+        } else {
+            bodyContent = `
+                ${sec.help ? `<div class="section-help">${sec.help}</div>` : ''}
+                <textarea
+                    id="textarea-${sec.key}"
+                    placeholder="Enter ${sec.label.toLowerCase()}..."
+                    oninput="scheduleSave('${sec.key}', this.value)"
+                >${content}</textarea>
+                ${diagramsHtml}
+            `;
         }
 
         return `
             <div class="report-section" id="section-${sec.key}">
                 <div class="report-section-header">
                     <h3>${sec.label}</h3>
-                    <div class="actions">${actionsHtml}</div>
+                    <div class="actions">${previewMode ? '' : actionsHtml}</div>
                 </div>
                 <div class="report-section-body">
-                    ${sec.help ? `<div class="section-help">${sec.help}</div>` : ''}
-                    <textarea
-                        id="textarea-${sec.key}"
-                        placeholder="Enter ${sec.label.toLowerCase()}..."
-                        oninput="scheduleSave('${sec.key}', this.value)"
-                    >${content}</textarea>
-                    ${diagramsHtml}
+                    ${bodyContent}
                 </div>
             </div>
         `;
@@ -788,27 +837,74 @@ function loadImportSource(sourceType) {
     `).join('');
 }
 
-async function doImport(sourceType, sourceId) {
+function doImport(sourceType, sourceId) {
+    if (sourceType === 'dsw') {
+        showDswImportPicker(sourceId);
+        return;
+    }
+    executeImport(sourceType, sourceId);
+}
+
+function showDswImportPicker(sourceId) {
+    const item = (availableImports.dsw_results || []).find(d => d.id === sourceId);
+    const hasCharts = item && item.has_charts;
+    const plotsCount = item ? (item.plots_count || 0) : 0;
+    const container = document.getElementById('import-list');
+
+    container.innerHTML = `
+        <div class="dsw-picker" style="padding:10px;">
+            <h4 style="margin:0 0 12px;">${item ? (item.title || item.type) : 'DSW Analysis'}</h4>
+            <label><input type="checkbox" id="inc-narrative" checked> Narrative &amp; summary</label>
+            <label><input type="checkbox" id="inc-statistics" checked> Statistical details</label>
+            <label class="${hasCharts ? '' : 'disabled'}">
+                <input type="checkbox" id="inc-charts" ${hasCharts ? 'checked' : 'disabled'}>
+                Charts (${plotsCount} visualization${plotsCount !== 1 ? 's' : ''})
+            </label>
+            <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+                <button class="report-btn" onclick="loadImportSource('dsw')">Back</button>
+                <button class="report-btn primary" onclick="executeDswImport('${sourceId}')">Import Selected</button>
+            </div>
+        </div>
+    `;
+}
+
+function executeDswImport(sourceId) {
+    const include = [];
+    if (document.getElementById('inc-narrative').checked) include.push('narrative');
+    if (document.getElementById('inc-statistics').checked) include.push('statistics');
+    const chartsEl = document.getElementById('inc-charts');
+    if (chartsEl && !chartsEl.disabled && chartsEl.checked) include.push('charts');
+
+    if (include.length === 0) {
+        alert('Select at least one item to import');
+        return;
+    }
+    executeImport('dsw', sourceId, include);
+}
+
+async function executeImport(sourceType, sourceId, include) {
     if (!importTargetSection || !currentReport) return;
+
+    const body = {
+        section: importTargetSection,
+        source_type: sourceType,
+        source_id: sourceId,
+        append: true,
+    };
+    if (include) body.include = include;
 
     try {
         const resp = await fetch(`/api/reports/${currentReport.id}/import/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({
-                section: importTargetSection,
-                source_type: sourceType,
-                source_id: sourceId,
-                append: true,
-            }),
+            body: JSON.stringify(body),
         });
 
         const data = await resp.json();
         if (resp.ok) {
             currentReport = data.report;
-            const textarea = document.getElementById(`textarea-${importTargetSection}`);
-            if (textarea) textarea.value = data.content;
+            renderEditor();
             hideImportModal();
         } else {
             alert(data.error || 'Import failed');

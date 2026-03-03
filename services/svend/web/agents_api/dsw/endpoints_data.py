@@ -27,6 +27,22 @@ from .common import log_agent_action, _preload_llm_background
 logger = logging.getLogger(__name__)
 
 
+def _read_csv_safe(file_or_path):
+    """Read CSV with encoding fallback: UTF-8 → latin-1."""
+    import io
+    import pandas as pd
+    if hasattr(file_or_path, "read"):
+        raw = file_or_path.read()
+        try:
+            return pd.read_csv(io.BytesIO(raw), encoding="utf-8")
+        except UnicodeDecodeError:
+            return pd.read_csv(io.BytesIO(raw), encoding="latin-1")
+    try:
+        return pd.read_csv(file_or_path, encoding="utf-8")
+    except UnicodeDecodeError:
+        return pd.read_csv(file_or_path, encoding="latin-1")
+
+
 @require_http_methods(["POST"])
 @require_auth
 def upload_data(request):
@@ -61,7 +77,7 @@ def upload_data(request):
         # Try based on extension first
         if filename.endswith('.csv'):
             try:
-                df = pd.read_csv(file)
+                df = _read_csv_safe(file)
             except Exception as e:
                 parse_errors.append(f"CSV: {e}")
 
@@ -73,7 +89,7 @@ def upload_data(request):
                 # Maybe it's actually a CSV with wrong extension
                 file.seek(0)
                 try:
-                    df = pd.read_csv(file)
+                    df = _read_csv_safe(file)
                     parse_errors.append("(Parsed as CSV)")
                 except:
                     pass
@@ -86,7 +102,7 @@ def upload_data(request):
                 # Maybe it's a CSV or XLSX with wrong extension
                 file.seek(0)
                 try:
-                    df = pd.read_csv(file)
+                    df = _read_csv_safe(file)
                     parse_errors.append("(Parsed as CSV)")
                 except:
                     file.seek(0)
@@ -97,7 +113,7 @@ def upload_data(request):
                         pass
         else:
             # Unknown extension - try all formats
-            for parser, name in [(lambda f: pd.read_csv(f), 'CSV'),
+            for parser, name in [(_read_csv_safe, 'CSV'),
                                   (lambda f: pd.read_excel(f, engine='openpyxl'), 'XLSX'),
                                   (lambda f: pd.read_excel(f, engine='xlrd'), 'XLS')]:
                 try:
@@ -190,14 +206,14 @@ def retrieve_data(request):
         data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
         data_path = data_dir / f"{data_id}.csv"
         if data_path.exists():
-            df = pd.read_csv(data_path)
+            df = _read_csv_safe(data_path)
 
         # Fallback to temp directory
         if df is None:
             data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
             data_path = data_dir / f"{data_id}.csv"
             if data_path.exists():
-                df = pd.read_csv(data_path)
+                df = _read_csv_safe(data_path)
 
         # Fallback to TriageResult
         if df is None:
@@ -281,7 +297,7 @@ def execute_code(request):
             from files.models import UploadedFile
             try:
                 file_record = UploadedFile.objects.get(id=data_id, user=request.user)
-                df = pd.read_csv(file_record.file.path) if file_record.file.path.endswith('.csv') else pd.read_excel(file_record.file.path)
+                df = _read_csv_safe(file_record.file.path) if file_record.file.path.endswith('.csv') else pd.read_excel(file_record.file.path)
             except UploadedFile.DoesNotExist:
                 pass
 
@@ -548,12 +564,12 @@ def analyst_assistant(request):
                     data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                     data_path = data_dir / f"{data_id}.csv"
                     if data_path.exists():
-                        df = pd.read_csv(data_path)
+                        df = _read_csv_safe(data_path)
                     else:
                         data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
                         data_path = data_dir / f"{data_id}.csv"
                         if data_path.exists():
-                            df = pd.read_csv(data_path)
+                            df = _read_csv_safe(data_path)
                 else:
                     from ..models import TriageResult
                     try:
@@ -1310,7 +1326,7 @@ def transform_data(request):
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
-                    df = pd.read_csv(data_path)
+                    df = _read_csv_safe(data_path)
             except Exception:
                 pass
 
@@ -1319,7 +1335,7 @@ def transform_data(request):
                     data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
                     data_path = data_dir / f"{data_id}.csv"
                     if data_path.exists():
-                        df = pd.read_csv(data_path)
+                        df = _read_csv_safe(data_path)
                 except Exception:
                     pass
 
@@ -1565,7 +1581,7 @@ def download_data(request):
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
-                    df = pd.read_csv(data_path)
+                    df = _read_csv_safe(data_path)
             except Exception:
                 pass
 
@@ -1574,7 +1590,7 @@ def download_data(request):
                     data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
                     data_path = data_dir / f"{data_id}.csv"
                     if data_path.exists():
-                        df = pd.read_csv(data_path)
+                        df = _read_csv_safe(data_path)
                 except Exception:
                     pass
 
@@ -1633,7 +1649,7 @@ def triage_data(request):
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
-                    df = pd.read_csv(data_path)
+                    df = _read_csv_safe(data_path)
             except Exception:
                 pass
 
@@ -1642,7 +1658,7 @@ def triage_data(request):
                     data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
                     data_path = data_dir / f"{data_id}.csv"
                     if data_path.exists():
-                        df = pd.read_csv(data_path)
+                        df = _read_csv_safe(data_path)
                 except Exception:
                     pass
 
@@ -1887,7 +1903,7 @@ def triage_scan(request):
                 data_dir = Path(settings.MEDIA_ROOT) / "analysis_data" / str(request.user.id)
                 data_path = data_dir / f"{data_id}.csv"
                 if data_path.exists():
-                    df = pd.read_csv(data_path)
+                    df = _read_csv_safe(data_path)
             except Exception:
                 pass
 
@@ -1896,7 +1912,7 @@ def triage_scan(request):
                     data_dir = Path(tempfile.gettempdir()) / "svend_analysis"
                     data_path = data_dir / f"{data_id}.csv"
                     if data_path.exists():
-                        df = pd.read_csv(data_path)
+                        df = _read_csv_safe(data_path)
                 except Exception:
                     pass
 

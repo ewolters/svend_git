@@ -923,6 +923,356 @@
     margin: 1.5rem 0;
     overflow-x: auto;
 }
+
+/* ========== Tool Workflow ========== */
+.tool-workflow {
+    margin: 1.5rem 0;
+}
+
+.tool-workflow-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.tool-workflow-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.tw-session-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Step tracker bar */
+.tw-step-tracker {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+}
+
+.tw-step-indicator {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    padding: 0.5rem 0.25rem;
+}
+
+.tw-step-indicator::after {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: var(--border-primary);
+    z-index: 0;
+}
+
+.tw-step-indicator:last-child::after {
+    display: none;
+}
+
+.tw-step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border-primary);
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 1;
+    transition: all 0.2s;
+    color: var(--text-dim);
+}
+
+.tw-step-indicator.completed .tw-step-dot {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+}
+
+.tw-step-indicator.current .tw-step-dot {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-primary-dim);
+}
+
+.tw-step-indicator.locked .tw-step-dot {
+    opacity: 0.4;
+}
+
+.tw-step-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 0.35rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tw-step-indicator.current .tw-step-label {
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+/* Step panel */
+.tw-step-panel {
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    background: var(--bg-secondary);
+}
+
+.tw-step-panel.locked {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.tw-step-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tw-step-tool-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    background: var(--accent-primary-dim);
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.tw-step-instruction {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.tw-config-fields {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.tw-config-field label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.tw-config-field input,
+.tw-config-field select,
+.tw-config-field textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.tw-config-field textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+.tw-execute-btn {
+    padding: 0.6rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: opacity 0.2s;
+}
+
+.tw-execute-btn:hover { opacity: 0.85; }
+.tw-execute-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Result panel */
+.tw-result-panel {
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 0.75rem;
+    background: var(--bg-primary);
+}
+
+.tw-result-type {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+}
+
+/* Hypothesis card */
+.tw-hypothesis-card {
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.tw-hypothesis-desc {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.tw-prob-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tw-prob-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-tertiary, var(--border-primary));
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.tw-prob-bar-fill {
+    height: 100%;
+    background: var(--accent-primary);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.tw-prob-value {
+    font-size: 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-primary);
+    min-width: 3rem;
+    text-align: right;
+}
+
+/* Data preview table */
+.tw-data-preview {
+    overflow-x: auto;
+    margin-top: 0.5rem;
+}
+
+.tw-data-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.tw-data-preview th,
+.tw-data-preview td {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border-primary);
+    text-align: left;
+}
+
+.tw-data-preview th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+}
+
+/* Evidence chain sidebar */
+.tw-evidence-chain {
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1rem;
+    background: var(--bg-secondary);
+}
+
+.tw-evidence-chain h4 {
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* RCA chain display */
+.tw-rca-chain {
+    border-left: 2px solid var(--accent-primary);
+    padding-left: 1rem;
+}
+
+.tw-rca-step {
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.tw-rca-step .why-label {
+    font-weight: 600;
+    color: var(--accent-primary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+/* FMEA row display */
+.tw-fmea-row {
+    display: grid;
+    grid-template-columns: 2fr repeat(3, 1fr) 1fr;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.5rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.tw-rpn-badge {
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.tw-rpn-high { background: rgba(220, 50, 50, 0.15); color: #dc3232; }
+.tw-rpn-med  { background: rgba(220, 160, 50, 0.15); color: #dca032; }
+.tw-rpn-low  { background: rgba(50, 180, 80, 0.15); color: #32b450; }
+
+.tw-step-complete-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--accent-primary);
+    font-weight: 600;
+}
 </style>
 {% endblock %}
 
@@ -937,6 +1287,7 @@ let progress = {};
 let assessmentId = null;
 let assessmentQuestions = [];
 let assessmentTimer = null;
+let currentLearnSession = null;  // {id, project_id, steps_completed, state}
 let assessmentTimeLeft = 30 * 60; // 30 minutes in seconds
 
 // Initialize
@@ -1092,47 +1443,53 @@ async function selectSection(moduleId, sectionId) {
 
                 html += `<div class="section-intro markdown-content">${marked.parse(introText)}</div>`;
 
-                // 2. EXERCISE — guided activity with interactive widget (prominent)
-                if (rc.exercise) {
-                    html += `
-                        <div class="exercise-block">
-                            <div class="exercise-header">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polygon points="5 3 19 12 5 21 5 3"/>
-                                </svg>
-                                <strong>${rc.exercise.title || 'Try It'}</strong>
+                // 2. EXERCISE — tool workflow or legacy exercise block
+                if (data.tool_steps && data.tool_steps.length > 0) {
+                    // Tool-integrated interactive tutorial
+                    html += renderToolWorkflow(data);
+                } else {
+                    // Legacy exercise rendering
+                    if (rc.exercise) {
+                        html += `
+                            <div class="exercise-block">
+                                <div class="exercise-header">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="5 3 19 12 5 21 5 3"/>
+                                    </svg>
+                                    <strong>${rc.exercise.title || 'Try It'}</strong>
+                                </div>
+                                ${rc.exercise.steps ? `
+                                    <ol class="exercise-steps">
+                                        ${rc.exercise.steps.map(s => `<li>${s}</li>`).join('')}
+                                    </ol>
+                                ` : ''}
+                                ${rc.exercise.description ? `<p style="color:var(--text-secondary); margin-bottom:1rem;">${rc.exercise.description}</p>` : ''}
                             </div>
-                            ${rc.exercise.steps ? `
-                                <ol class="exercise-steps">
-                                    ${rc.exercise.steps.map(s => `<li>${s}</li>`).join('')}
-                                </ol>
-                            ` : ''}
-                            ${rc.exercise.description ? `<p style="color:var(--text-secondary); margin-bottom:1rem;">${rc.exercise.description}</p>` : ''}
-                        </div>
-                    `;
-                }
+                        `;
+                    }
 
-                // Render interactive widget if available (always prominent)
-                if (rc.interactive) {
-                    html += `<div class="widget-prominent">${renderInteractiveWidget(rc.interactive)}</div>`;
-                }
+                    // Render interactive widget if available (always prominent)
+                    if (rc.interactive) {
+                        html += `<div class="widget-prominent">${renderInteractiveWidget(rc.interactive)}</div>`;
+                    }
 
-                // "Run in DSW" button if section has dsw_type
-                if (rc.exercise && rc.exercise.dsw_type) {
-                    html += `
-                        <div style="margin: 1.5rem 0; display:flex; gap:0.75rem; flex-wrap:wrap;">
-                            <button class="btn btn-primary" onclick="runInDSW('${rc.exercise.dsw_type}')">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:0.25rem;">
-                                    <polygon points="5 3 19 12 5 21 5 3"/>
-                                </svg>
-                                Run in DSW
-                            </button>
-                            <a href="/app/workbench/" class="btn btn-secondary" style="text-decoration:none;">
-                                Open Workbench
-                            </a>
-                        </div>
-                        <div id="dsw-inline-result" style="display:none; margin-bottom:1.5rem;"></div>
-                    `;
+                    // "Run in DSW" button if section has dsw_type
+                    if (rc.exercise && rc.exercise.dsw_type) {
+                        html += `
+                            <div style="margin: 1.5rem 0; display:flex; gap:0.75rem; flex-wrap:wrap;">
+                                <button class="btn btn-primary" onclick="runInDSW('${rc.exercise.dsw_type}')">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:0.25rem;">
+                                        <polygon points="5 3 19 12 5 21 5 3"/>
+                                    </svg>
+                                    Run in DSW
+                                </button>
+                                <a href="/app/workbench/" class="btn btn-secondary" style="text-decoration:none;">
+                                    Open Workbench
+                                </a>
+                            </div>
+                            <div id="dsw-inline-result" style="display:none; margin-bottom:1.5rem;"></div>
+                        `;
+                    }
                 }
 
                 // 3. GO DEEPER — collapsible full content
@@ -1229,10 +1586,15 @@ async function selectSection(moduleId, sectionId) {
             // Update complete button state
             const btn = document.getElementById('complete-section-btn');
             const hasWidget = !!(data.rich_content && data.rich_content.interactive);
+            const hasToolSteps = !!(data.tool_steps && data.tool_steps.length > 0);
             if (data.completed) {
                 btn.textContent = 'Completed';
                 btn.disabled = true;
                 btn.style.opacity = '1';
+            } else if (hasToolSteps) {
+                btn.textContent = 'Complete all steps first';
+                btn.disabled = false;
+                btn.style.opacity = '0.5';
             } else if (hasWidget) {
                 btn.textContent = 'Try the exercise first';
                 btn.disabled = false;
@@ -3949,6 +4311,466 @@ function updateClusterDemo() {
     `;
 }
 
+// =============================================================================
+// Tool Workflow — Interactive Tutorial Sessions
+// =============================================================================
+
+function renderToolWorkflow(sectionData) {
+    const steps = sectionData.tool_steps || [];
+    const session = sectionData.active_session || null;
+    const completed = session ? (session.steps_completed || []) : [];
+
+    let html = '<div class="tool-workflow">';
+
+    // Header with session controls
+    html += `<div class="tool-workflow-header">
+        <h3>Interactive Lab</h3>
+        <div class="tw-session-controls">
+            ${session ? `
+                <button class="btn btn-sm btn-secondary" onclick="resetLearnSession('${session.id}')">Reset</button>
+            ` : `
+                <button class="btn btn-sm btn-primary" onclick="startLearnSession()">Start Session</button>
+            `}
+        </div>
+    </div>`;
+
+    // Step tracker bar
+    html += '<div class="tw-step-tracker">';
+    steps.forEach((step, i) => {
+        const isDone = completed.includes(step.id);
+        const isCurrent = !isDone && (i === 0 || completed.includes(steps[i - 1].id));
+        const isLocked = !isDone && !isCurrent;
+        const cls = isDone ? 'completed' : isCurrent ? 'current' : 'locked';
+
+        html += `<div class="tw-step-indicator ${cls}" onclick="scrollToStep('${step.id}')">
+            <div class="tw-step-dot">${isDone ? '&#10003;' : i + 1}</div>
+            <div class="tw-step-label">${step.title}</div>
+        </div>`;
+    });
+    html += '</div>';
+
+    // Step panels
+    if (!session) {
+        html += '<div style="text-align:center; padding:2rem; color:var(--text-secondary);">Click <strong>Start Session</strong> to begin the interactive lab.</div>';
+    } else {
+        steps.forEach((step, i) => {
+            const isDone = completed.includes(step.id);
+            const isCurrent = !isDone && (i === 0 || completed.includes(steps[i - 1].id));
+            const isLocked = !isDone && !isCurrent;
+
+            html += `<div class="tw-step-panel ${isLocked ? 'locked' : ''}" id="tw-step-${step.id}">`;
+
+            // Step title + tool badge
+            html += `<div class="tw-step-title">
+                ${isDone ? '<span class="tw-step-complete-badge">&#10003; Done</span>' : ''}
+                ${step.title}
+                <span class="tw-step-tool-badge">${step.tool}</span>
+            </div>`;
+
+            // Instruction
+            html += `<div class="tw-step-instruction">${step.instruction || ''}</div>`;
+
+            // Editable config fields
+            if (step.editable_fields && step.editable_fields.length > 0 && !isDone) {
+                html += '<div class="tw-config-fields">';
+                step.editable_fields.forEach(field => {
+                    const fieldName = field.split('.').pop();
+                    const currentValue = _getNestedValue(step.config, field) || '';
+                    const inputType = typeof currentValue === 'number' ? 'number' : 'text';
+                    const isTextArea = step.requires_input && (fieldName === 'description' || fieldName === 'claim' || fieldName === 'event');
+
+                    html += `<div class="tw-config-field">
+                        <label>${fieldName.replace(/_/g, ' ')}</label>
+                        ${isTextArea
+                            ? `<textarea id="tw-edit-${step.id}-${field}" placeholder="Enter ${fieldName.replace(/_/g, ' ')}...">${currentValue}</textarea>`
+                            : `<input type="${inputType}" id="tw-edit-${step.id}-${field}" value="${currentValue}" ${inputType === 'number' ? 'step="0.01"' : ''}/>`
+                        }
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            // Execute button or completed result
+            if (isDone) {
+                const resultData = session.state ? session.state[step.output_key] : null;
+                if (resultData) {
+                    html += renderToolResult(step, resultData);
+                }
+            } else if (isCurrent) {
+                html += `<button class="tw-execute-btn" id="tw-exec-${step.id}" onclick="executeToolStep('${session.id}', '${step.id}')">
+                    Execute
+                </button>`;
+                html += `<div id="tw-result-${step.id}"></div>`;
+            }
+
+            html += '</div>';
+        });
+    }
+
+    // Evidence chain sidebar (if Synara steps present)
+    const hasSynara = steps.some(s => s.tool === 'synara');
+    if (hasSynara && session && session.state) {
+        html += renderEvidenceChain(session.state);
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function renderToolResult(step, result) {
+    if (!result) return '';
+    const type = result.type || step.tool;
+
+    let html = `<div class="tw-result-panel">`;
+    html += `<div class="tw-result-type">${type.replace(/_/g, ' ')}</div>`;
+
+    switch (type) {
+        case 'hypothesis':
+            html += renderHypothesisResult(result);
+            break;
+        case 'evidence_update':
+            html += renderEvidenceUpdateResult(result);
+            break;
+        case 'generated_data':
+            html += renderDataPreview(result);
+            break;
+        case 'power_analysis':
+            html += renderPowerResult(result);
+            break;
+        case 'doe_design':
+            html += renderDOEResult(result);
+            break;
+        case 'rca_session':
+        case 'rca_chain_step':
+        case 'rca_root_cause':
+            html += renderRCAResult(result);
+            break;
+        case 'fmea':
+        case 'fmea_row':
+            html += renderFMEAResult(result);
+            break;
+        case 'a3_report':
+            html += renderA3Result(result);
+            break;
+        case 'guide_response':
+            html += `<div class="markdown-content">${marked.parse(result.response || '')}</div>`;
+            break;
+        default:
+            html += `<pre style="font-size:0.8rem; overflow-x:auto;">${JSON.stringify(result, null, 2)}</pre>`;
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function renderHypothesisResult(result) {
+    let html = '';
+    if (result.all_hypotheses) {
+        result.all_hypotheses.forEach(h => {
+            const pct = Math.round((h.probability || h.prior || 0.5) * 100);
+            html += `<div class="tw-hypothesis-card">
+                <div class="tw-hypothesis-desc">${h.description || 'Unnamed hypothesis'}</div>
+                <div class="tw-prob-bar-wrap">
+                    <div class="tw-prob-bar"><div class="tw-prob-bar-fill" style="width:${pct}%"></div></div>
+                    <div class="tw-prob-value">${pct}%</div>
+                </div>
+            </div>`;
+        });
+    } else {
+        const pct = Math.round((result.prior || 0.5) * 100);
+        html += `<div class="tw-hypothesis-card">
+            <div class="tw-hypothesis-desc">${result.description || ''}</div>
+            <div class="tw-prob-bar-wrap">
+                <div class="tw-prob-bar"><div class="tw-prob-bar-fill" style="width:${pct}%"></div></div>
+                <div class="tw-prob-value">${pct}%</div>
+            </div>
+        </div>`;
+    }
+    return html;
+}
+
+function renderEvidenceUpdateResult(result) {
+    let html = '<div style="margin-bottom:0.5rem; color:var(--text-secondary);">Beliefs updated with new evidence:</div>';
+    if (result.all_hypotheses) {
+        result.all_hypotheses.forEach(h => {
+            const pct = Math.round((h.probability || 0.5) * 100);
+            html += `<div class="tw-hypothesis-card">
+                <div class="tw-hypothesis-desc">${h.description || 'Hypothesis'}</div>
+                <div class="tw-prob-bar-wrap">
+                    <div class="tw-prob-bar"><div class="tw-prob-bar-fill" style="width:${pct}%"></div></div>
+                    <div class="tw-prob-value">${pct}%</div>
+                </div>
+            </div>`;
+        });
+    }
+    if (result.most_supported) {
+        html += `<div style="margin-top:0.5rem; font-size:0.85rem; color:var(--accent-primary);">Most supported: ${result.most_supported}</div>`;
+    }
+    return html;
+}
+
+function renderDataPreview(result) {
+    let html = `<div style="margin-bottom:0.5rem;"><strong>${result.row_count || '?'} rows</strong> generated</div>`;
+    if (result.summary) {
+        html += '<div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:0.5rem;">';
+        Object.entries(result.summary).forEach(([col, stats]) => {
+            if (stats.mean !== null && stats.mean !== undefined) {
+                html += `<div style="font-size:0.8rem;"><strong>${col}:</strong> mean=${stats.mean}, std=${stats.std}</div>`;
+            } else {
+                html += `<div style="font-size:0.8rem;"><strong>${col}:</strong> ${stats.unique} unique values</div>`;
+            }
+        });
+        html += '</div>';
+    }
+    if (result.preview && result.preview.length > 0) {
+        const cols = Object.keys(result.preview[0]);
+        html += '<div class="tw-data-preview"><table>';
+        html += '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+        result.preview.slice(0, 5).forEach(row => {
+            html += '<tr>' + cols.map(c => `<td>${typeof row[c] === 'number' ? row[c].toFixed ? row[c].toFixed(3) : row[c] : row[c]}</td>`).join('') + '</tr>';
+        });
+        html += '</table></div>';
+    }
+    return html;
+}
+
+function renderPowerResult(result) {
+    return `<div>
+        <div style="font-size:1.5rem; font-weight:600; color:var(--accent-primary); font-family:'JetBrains Mono',monospace;">n = ${result.sample_size}</div>
+        ${result.sample_size_per_group ? `<div style="font-size:0.85rem; color:var(--text-secondary);">${result.sample_size_per_group} per group</div>` : ''}
+        <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+            Effect size: ${result.effect_size} | Alpha: ${result.alpha} | Power: ${result.power}
+        </div>
+        ${result.interpretation ? `<div style="margin-top:0.5rem; font-size:0.85rem;">${result.interpretation}</div>` : ''}
+    </div>`;
+}
+
+function renderDOEResult(result) {
+    let html = `<div>
+        <div style="font-size:0.9rem; margin-bottom:0.5rem;"><strong>${result.design_type}</strong> — ${result.num_runs} runs</div>
+    </div>`;
+    if (result.markdown) {
+        html += `<div class="markdown-content" style="font-size:0.85rem;">${marked.parse(result.markdown)}</div>`;
+    }
+    return html;
+}
+
+function renderRCAResult(result) {
+    let html = '';
+    if (result.chain && result.chain.length > 0) {
+        html += '<div class="tw-rca-chain">';
+        result.chain.forEach((step, i) => {
+            html += `<div class="tw-rca-step">
+                <div class="why-label">Why #${i + 1}</div>
+                <div>${step.claim}</div>
+            </div>`;
+        });
+        html += '</div>';
+    }
+    if (result.root_cause) {
+        html += `<div style="margin-top:0.5rem; padding:0.5rem; background:var(--accent-primary-dim); border-radius:4px;">
+            <strong>Root Cause:</strong> ${result.root_cause}
+        </div>`;
+    }
+    return html;
+}
+
+function renderFMEAResult(result) {
+    if (result.type === 'fmea_row') {
+        const rpn = result.rpn || 0;
+        const rpnClass = rpn >= 200 ? 'tw-rpn-high' : rpn >= 100 ? 'tw-rpn-med' : 'tw-rpn-low';
+        return `<div class="tw-fmea-row">
+            <div>${result.failure_mode}</div>
+            <div>S: ${result.severity}</div>
+            <div>O: ${result.occurrence}</div>
+            <div>D: ${result.detection}</div>
+            <div class="tw-rpn-badge ${rpnClass}">RPN: ${rpn}</div>
+        </div>`;
+    }
+    return `<div>FMEA created: ${result.title || ''}</div>`;
+}
+
+function renderA3Result(result) {
+    return `<div>
+        <div style="font-weight:600;">${result.title || 'A3 Report'}</div>
+        <div style="font-size:0.85rem; color:var(--text-secondary);">${result.sections_filled || 0} sections filled</div>
+        ${result.updated_sections ? `<div style="font-size:0.8rem; margin-top:0.25rem;">Updated: ${result.updated_sections.join(', ')}</div>` : ''}
+    </div>`;
+}
+
+function renderEvidenceChain(state) {
+    // Collect all hypotheses from state
+    let hypotheses = [];
+    Object.values(state).forEach(v => {
+        if (v && v.all_hypotheses) {
+            hypotheses = v.all_hypotheses;
+        }
+    });
+    if (hypotheses.length === 0) return '';
+
+    let html = '<div class="tw-evidence-chain"><h4>Belief State</h4>';
+    hypotheses.forEach(h => {
+        const pct = Math.round((h.probability || 0.5) * 100);
+        html += `<div class="tw-hypothesis-card">
+            <div class="tw-hypothesis-desc">${h.description || 'Hypothesis'}</div>
+            <div class="tw-prob-bar-wrap">
+                <div class="tw-prob-bar"><div class="tw-prob-bar-fill" style="width:${pct}%"></div></div>
+                <div class="tw-prob-value">${pct}%</div>
+            </div>
+        </div>`;
+    });
+    html += '</div>';
+    return html;
+}
+
+async function startLearnSession() {
+    if (!currentModule || !currentSection) return;
+
+    try {
+        const resp = await fetch('/api/learn/session/start/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({
+                module_id: currentModule.id,
+                section_id: currentSection.id
+            })
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            currentLearnSession = data;
+            currentSection.active_session = {
+                id: data.session_id,
+                project_id: data.project_id,
+                steps_completed: data.steps_completed,
+                state: data.state
+            };
+            // Re-render section
+            selectSection(currentModule.id, currentSection.id);
+        } else {
+            const err = await resp.json();
+            alert(err.error || 'Failed to start session');
+        }
+    } catch (e) {
+        console.error('Failed to start session:', e);
+    }
+}
+
+async function executeToolStep(sessionId, stepId) {
+    const step = (currentSection.tool_steps || []).find(s => s.id === stepId);
+    if (!step) return;
+
+    // Collect edits from input fields
+    const edits = {};
+    (step.editable_fields || []).forEach(field => {
+        const el = document.getElementById(`tw-edit-${stepId}-${field}`);
+        if (el) {
+            let val = el.value;
+            if (el.type === 'number') val = parseFloat(val);
+            edits[field] = val;
+        }
+    });
+
+    // Disable button, show loading
+    const btn = document.getElementById(`tw-exec-${stepId}`);
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Running...';
+    }
+
+    try {
+        const resp = await fetch(`/api/learn/session/${sessionId}/step/${stepId}/execute/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({edits})
+        });
+
+        const data = await resp.json();
+        const resultContainer = document.getElementById(`tw-result-${stepId}`);
+
+        if (data.status === 'completed') {
+            // Update session state
+            if (currentSection.active_session) {
+                currentSection.active_session.steps_completed = data.steps_completed;
+                currentSection.active_session.state = data.state;
+            }
+
+            // Render result inline
+            if (resultContainer) {
+                resultContainer.innerHTML = renderToolResult(step, data.result);
+            }
+
+            // Mark step as interacted
+            markInteracted();
+
+            // Re-render the full workflow to update step tracker
+            setTimeout(() => selectSection(currentModule.id, currentSection.id), 500);
+        } else {
+            if (resultContainer) {
+                resultContainer.innerHTML = `<div style="color:#dc3232; margin-top:0.5rem; padding:0.5rem; background:rgba(220,50,50,0.1); border-radius:4px;">
+                    ${data.validation ? data.validation.message : 'Step failed'}
+                </div>`;
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Retry';
+            }
+        }
+    } catch (e) {
+        console.error('Step execution failed:', e);
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Retry';
+        }
+    }
+}
+
+async function resetLearnSession(sessionId) {
+    if (!confirm('Reset this lab? All progress will be cleared.')) return;
+
+    try {
+        const resp = await fetch(`/api/learn/session/${sessionId}/reset/`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            if (currentSection.active_session) {
+                currentSection.active_session.steps_completed = [];
+                currentSection.active_session.state = {};
+                currentSection.active_session.id = data.session_id;
+                currentSection.active_session.project_id = data.project_id;
+            }
+            selectSection(currentModule.id, currentSection.id);
+        }
+    } catch (e) {
+        console.error('Failed to reset session:', e);
+    }
+}
+
+function scrollToStep(stepId) {
+    const el = document.getElementById(`tw-step-${stepId}`);
+    if (el) el.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+function _getNestedValue(obj, path) {
+    const parts = path.split('.');
+    let current = obj;
+    for (const part of parts) {
+        if (current === null || current === undefined) return '';
+        if (part.match(/^\d+$/)) {
+            current = current[parseInt(part)];
+        } else {
+            current = current[part];
+        }
+    }
+    return current !== null && current !== undefined ? current : '';
+}
+
+
 // Initialize widgets after they are rendered
 function initializeWidgets() {
     // Check which widgets exist and initialize them
@@ -4023,9 +4845,25 @@ function backToModule() {
 async function completeSection() {
     if (!currentModule || !currentSection) return;
 
+    // Gate on tool steps completion
+    const hasToolSteps = currentSection.tool_steps && currentSection.tool_steps.length > 0;
+    if (hasToolSteps) {
+        const session = currentSection.active_session;
+        const allSteps = currentSection.tool_steps.map(s => s.id);
+        const completed = session ? (session.steps_completed || []) : [];
+        const remaining = allSteps.filter(id => !completed.includes(id));
+        if (remaining.length > 0) {
+            const btn = document.getElementById('complete-section-btn');
+            btn.textContent = `Complete all steps first (${remaining.length} remaining)`;
+            btn.style.animation = 'shake 0.3s';
+            setTimeout(() => btn.style.animation = '', 300);
+            return;
+        }
+    }
+
     // Gate on interaction if section has a widget
     const hasWidget = currentSection.rich_content && currentSection.rich_content.interactive;
-    if (hasWidget && !window.sectionInteracted) {
+    if (!hasToolSteps && hasWidget && !window.sectionInteracted) {
         const btn = document.getElementById('complete-section-btn');
         btn.textContent = 'Try the exercise first';
         btn.style.animation = 'shake 0.3s';

@@ -31,6 +31,8 @@ from .models import (
     AuditChecklist,
     TrainingRequirement,
     TrainingRecord,
+    TrainingRecordChange,
+    QMSFieldChange,
     ManagementReview,
     ControlledDocument,
     DocumentRevision,
@@ -44,6 +46,32 @@ from .models import (
 from .report_types import REPORT_TYPES
 
 logger = logging.getLogger(__name__)
+
+
+def _log_field_changes(record_type, record_id, record, data, fields, user):
+    """Log field-level changes for any QMS record.
+
+    Args:
+        record_type: "ncr", "audit", "document", "supplier"
+        record_id: UUID of the record
+        record: the Django model instance (to read old values)
+        data: the incoming request data dict
+        fields: list of field names to check
+        user: the request.user
+    """
+    for field in fields:
+        if field in data:
+            old_val = getattr(record, field, "")
+            new_val = data[field]
+            if str(old_val or "") != str(new_val or ""):
+                QMSFieldChange.objects.create(
+                    record_type=record_type,
+                    record_id=record_id,
+                    field_name=field,
+                    old_value=str(old_val or ""),
+                    new_value=str(new_val or ""),
+                    changed_by=user,
+                )
 
 
 def _ensure_ncr_project(ncr, user):
@@ -308,6 +336,16 @@ def ncr_list_create(request):
         containment_action=data.get("containment_action", ""),
         capa_due_date=data.get("capa_due_date") or None,
     )
+    # Link existing RCA session if provided
+    rca_session_id = data.get("rca_session_id")
+    if rca_session_id:
+        try:
+            rca = RCASession.objects.get(id=rca_session_id, owner=user)
+            ncr.rca_session = rca
+            ncr.save(update_fields=["rca_session"])
+        except RCASession.DoesNotExist:
+            pass
+
     # Attach files if provided
     file_ids = data.get("file_ids", [])
     if file_ids:
@@ -381,13 +419,24 @@ def ncr_detail(request, ncr_id):
         if new_status == "closed" and not ncr.closed_at:
             ncr.closed_at = timezone.now()
 
-    # Update other fields
-    for field in ["title", "description", "severity", "source",
+    # Update other fields (with change logging)
+    ncr_fields = ["title", "description", "severity", "source",
                    "iso_clause", "containment_action", "root_cause",
-                   "corrective_action", "verification_result"]:
+                   "corrective_action", "verification_result"]
+    _log_field_changes("ncr", ncr.id, ncr, data, ncr_fields, request.user)
+    for field in ncr_fields:
         if field in data:
             setattr(ncr, field, data[field])
     if "capa_due_date" in data:
+        old_due = str(ncr.capa_due_date) if ncr.capa_due_date else ""
+        new_due = str(data["capa_due_date"]) if data["capa_due_date"] else ""
+        if old_due != new_due:
+            QMSFieldChange.objects.create(
+                record_type="ncr", record_id=ncr.id,
+                field_name="capa_due_date",
+                old_value=old_due, new_value=new_due,
+                changed_by=request.user,
+            )
         ncr.capa_due_date = data["capa_due_date"] or None
     # Handle assigned_to/approved_by if not already handled by transition
     if "assigned_to" in data and not new_status:
@@ -406,6 +455,16 @@ def ncr_detail(request, ncr_id):
                 pass
         else:
             ncr.approved_by = None
+    # Link existing RCA session
+    if "rca_session_id" in data:
+        if data["rca_session_id"]:
+            try:
+                rca = RCASession.objects.get(id=data["rca_session_id"], owner=request.user)
+                ncr.rca_session = rca
+            except RCASession.DoesNotExist:
+                pass
+        else:
+            ncr.rca_session = None
     # File attachments
     if "file_ids" in data:
         from files.models import UserFile
@@ -575,11 +634,21 @@ def audit_detail(request, audit_id):
                 status=400,
             )
 
-    for field in ["title", "status", "lead_auditor", "iso_clauses",
-                   "departments", "scope", "summary"]:
+    audit_fields = ["title", "status", "lead_auditor", "iso_clauses",
+                     "departments", "scope", "summary"]
+    _log_field_changes("audit", audit.id, audit, data, audit_fields, request.user)
+    for field in audit_fields:
         if field in data:
             setattr(audit, field, data[field])
     if "scheduled_date" in data:
+        old_sd = str(audit.scheduled_date) if audit.scheduled_date else ""
+        if old_sd != str(data["scheduled_date"]):
+            QMSFieldChange.objects.create(
+                record_type="audit", record_id=audit.id,
+                field_name="scheduled_date", old_value=old_sd,
+                new_value=str(data["scheduled_date"]),
+                changed_by=request.user,
+            )
         audit.scheduled_date = data["scheduled_date"]
     if "completed_date" in data:
         audit.completed_date = data["completed_date"] or None
@@ -697,7 +766,9 @@ def training_list_create(request):
     user = request.user
 
     if request.method == "GET":
-        reqs = TrainingRequirement.objects.filter(owner=user).prefetch_related("records")
+        reqs = TrainingRequirement.objects.filter(owner=user).prefetch_related(
+            "records", "records__changes", "records__changes__changed_by"
+        )
         return JsonResponse([r.to_dict() for r in reqs], safe=False)
 
     data = json.loads(request.body)
@@ -779,17 +850,59 @@ def training_record_update(request, record_id):
         return JsonResponse({"ok": True})
 
     data = json.loads(request.body)
+
+    def log_change(field, old_val, new_val):
+        if str(old_val or "") != str(new_val or ""):
+            TrainingRecordChange.objects.create(
+                record=record,
+                field_name=field,
+                old_value=str(old_val or ""),
+                new_value=str(new_val or ""),
+                changed_by=request.user,
+            )
+
+    # Recertification: reset completion and recalculate expiry
+    if data.get("action") == "recertify":
+        req = record.requirement
+        old_completed = record.completed_at.isoformat() if record.completed_at else ""
+        old_expires = record.expires_at.isoformat() if record.expires_at else ""
+        old_status = record.status
+
+        record.status = "complete"
+        record.completed_at = timezone.now()
+        record.expires_at = (
+            timezone.now() + timedelta(days=req.frequency_months * 30)
+            if req.frequency_months > 0 else None
+        )
+
+        log_change("status", old_status, "complete")
+        log_change("completed_at", old_completed, record.completed_at.isoformat())
+        log_change("expires_at", old_expires,
+                    record.expires_at.isoformat() if record.expires_at else "")
+        record.save()
+        return JsonResponse(record.to_dict())
+
+    # Standard field updates with change logging
+    for field in ["employee_name", "employee_email", "notes"]:
+        if field in data:
+            old_val = getattr(record, field)
+            log_change(field, old_val, data[field])
+            setattr(record, field, data[field])
+
     if "status" in data:
-        record.status = data["status"]
-        if data["status"] == "complete" and not record.completed_at:
+        old_status = record.status
+        new_status = data["status"]
+        log_change("status", old_status, new_status)
+        record.status = new_status
+        if new_status == "complete" and not record.completed_at:
             record.completed_at = timezone.now()
             req = record.requirement
             if req.frequency_months > 0:
                 record.expires_at = timezone.now() + timedelta(days=req.frequency_months * 30)
-    if "employee_name" in data:
-        record.employee_name = data["employee_name"]
-    if "notes" in data:
-        record.notes = data["notes"]
+            log_change("completed_at", "", record.completed_at.isoformat())
+            if record.expires_at:
+                log_change("expires_at", "", record.expires_at.isoformat())
+
     record.save()
     return JsonResponse(record.to_dict())
 
@@ -1016,14 +1129,24 @@ def document_detail(request, doc_id):
             note=data.get("status_note", ""),
         )
 
-    # Update fields (skip status — handled above)
-    for field in ["title", "document_number", "category", "iso_clause",
-                   "current_version", "content"]:
+    # Update fields (skip status — handled above), with change logging
+    doc_fields = ["title", "document_number", "category", "iso_clause",
+                   "current_version", "content"]
+    _log_field_changes("document", doc.id, doc, data, doc_fields, request.user)
+    for field in doc_fields:
         if field in data:
             setattr(doc, field, data[field])
     if "review_due_date" in data:
         doc.review_due_date = data["review_due_date"] or None
     if "retention_years" in data:
+        old_ret = str(doc.retention_years)
+        new_ret = str(data["retention_years"])
+        if old_ret != new_ret:
+            QMSFieldChange.objects.create(
+                record_type="document", record_id=doc.id,
+                field_name="retention_years", old_value=old_ret,
+                new_value=new_ret, changed_by=request.user,
+            )
         doc.retention_years = data["retention_years"]
     if "approved_by_user" in data and not new_status:
         if data["approved_by_user"]:
@@ -1158,13 +1281,15 @@ def supplier_detail(request, supplier_id):
             note=data.get("status_note", ""),
         )
 
-    # Update other fields (skip fields already set during transition)
+    # Update other fields (skip fields already set during transition), with change logging
     transition_fields = {"notes", "quality_rating", "disqualification_reason"} if new_status else set()
-    for field in ["name", "supplier_type", "contact_name", "contact_email",
-                   "contact_phone", "products_services", "quality_rating", "notes",
-                   "disqualification_reason"]:
-        if field in data and field not in transition_fields:
-            setattr(supplier, field, data[field])
+    supplier_fields = ["name", "supplier_type", "contact_name", "contact_email",
+                        "contact_phone", "products_services", "quality_rating", "notes",
+                        "disqualification_reason"]
+    non_transition = {f: data[f] for f in supplier_fields if f in data and f not in transition_fields}
+    _log_field_changes("supplier", supplier.id, supplier, non_transition, list(non_transition.keys()), request.user)
+    for field, val in non_transition.items():
+        setattr(supplier, field, val)
     if "next_evaluation_date" in data:
         supplier.next_evaluation_date = data["next_evaluation_date"] or None
     if "last_evaluation_date" in data:
@@ -1214,14 +1339,26 @@ def _get_study_context(project):
     if whats:
         context["problem"] = "; ".join(whats)
 
-    # Find root cause evidence (from RCA or NCR)
-    rca_evidence = (
-        Evidence.objects.filter(project=project, source_description__contains=":root_cause")
-        .order_by("-created_at")
-        .first()
-    )
-    if rca_evidence:
-        context["root_cause"] = rca_evidence.summary
+    # Pull directly from linked RCA sessions first (richer than evidence summary)
+    rca = RCASession.objects.filter(project=project, root_cause__gt="").order_by("-updated_at").first()
+    if rca:
+        parts = []
+        if rca.chain:
+            chain_str = "\n".join(f"{i+1}. {s.get('claim', '')}" for i, s in enumerate(rca.chain))
+            parts.append(f"**Causal Chain:**\n{chain_str}")
+        parts.append(f"**Root Cause:** {rca.root_cause}")
+        if rca.countermeasure:
+            parts.append(f"**Countermeasure:** {rca.countermeasure}")
+        context["root_cause"] = "\n\n".join(parts)
+    else:
+        # Fall back to evidence-based root cause
+        rca_evidence = (
+            Evidence.objects.filter(project=project, source_description__contains=":root_cause")
+            .order_by("-created_at")
+            .first()
+        )
+        if rca_evidence:
+            context["root_cause"] = rca_evidence.summary
 
     return context
 

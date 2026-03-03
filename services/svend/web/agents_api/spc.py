@@ -1002,7 +1002,10 @@ def parse_uploaded_file(file_path: str, filename: str) -> ParsedDataset:
         if ext in ['.xlsx', '.xls']:
             df = pd.read_excel(file_path, engine='openpyxl')
         elif ext == '.csv':
-            df = pd.read_csv(file_path)
+            try:
+                df = pd.read_csv(file_path, encoding="utf-8")
+            except UnicodeDecodeError:
+                df = pd.read_csv(file_path, encoding="latin-1")
         else:
             raise ValueError(f"Unsupported file type: {ext}")
     except Exception as e:

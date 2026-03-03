@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Svend - Continuous Improvement & DOE Software | Experiment Tracking for Quality Teams</title>
-    <meta name="description" content="Run DOE, SPC, and capability studies. Track hypotheses from signal to verified improvement. Hoshin kanri X-matrix with live project data, auto-suggested correlations, and dollar rollup from strategic objectives to project savings. 200+ analyses, structured problem solving, and CI deployment — one platform. Free tier available.">
-    <meta name="keywords" content="continuous improvement software, DOE software, experiment tracking manufacturing, hypothesis tracking, SPC software, control charts, process capability analysis, Cpk calculator, FMEA software, value stream mapping software, root cause analysis software, A3 report tool, hoshin kanri software, x-matrix software, strategy deployment software, hoshin x-matrix, catchball, design of experiments, quality engineering platform, CI savings tracking, lean management software">
+    <meta name="description" content="Run DOE, SPC, and capability studies. Track hypotheses from signal to verified improvement. ISO 9001 QMS with NCR tracking, audits, training matrix, document authoring, and quality economics. Hoshin kanri X-matrix with live project data and dollar rollup. 200+ analyses, structured problem solving, and CI deployment — one platform. Free tier available.">
+    <meta name="keywords" content="continuous improvement software, DOE software, experiment tracking manufacturing, hypothesis tracking, SPC software, control charts, process capability analysis, Cpk calculator, FMEA software, value stream mapping software, root cause analysis software, A3 report tool, hoshin kanri software, x-matrix software, strategy deployment software, hoshin x-matrix, catchball, design of experiments, quality engineering platform, CI savings tracking, lean management software, ISO 9001 QMS software, NCR tracking software, document control software, ISO document creator, quality economics, Taguchi loss function, cost of quality software, training matrix software, internal audit software">
     <meta name="author" content="Svend">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://svend.ai/">
@@ -77,7 +77,10 @@
             "Bayesian SPC — Adaptive Control Limits, Bayesian Cpk, Online Changepoint Detection",
             "Anytime-Valid Sequential Testing (E-Processes)",
             "Collaborative Whiteboard & Knowledge Graph",
-            "ISO 9001:2015 QMS — NCR Tracker, Internal Audit Scheduler, Training Matrix, Management Review, Document Control, Supplier Management"
+            "ISO 9001:2015 QMS — NCR Tracker, Internal Audit Scheduler, Training Matrix, Management Review, Document Control, Supplier Management",
+            "ISO Document Authoring — Quality Manuals, SOPs, Work Instructions, Policies, Specs, Plans, Forms with Word & PDF Export",
+            "Quality Economics — Taguchi Loss Functions, Cost of Quality (PAF), Bayesian Process Decision, Economic Lot Sentencing",
+            "Field-Level Audit Trail — Every QMS Record Change Tracked with Who, What, When"
         ]
     }
     </script>
@@ -157,7 +160,7 @@
                 "name": "Does Svend support ISO 9001:2015 compliance?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Yes. The Team and Enterprise plans include a full ISO 9001:2015 QMS module covering clauses 4 through 10. This includes NCR tracking with CAPA workflow (clause 10.2), internal audit scheduling with finding management (clause 9.2), a training matrix with competence records and expiry tracking (clause 7.2), management review with auto-captured QMS data snapshots (clause 9.3), controlled document registers (clause 7.5), and supplier evaluation (clause 8.4). The platform's existing statistical tools directly support clauses 8 and 9 for process monitoring, measurement, and analysis."
+                    "text": "Yes. The Team and Enterprise plans include a full ISO 9001:2015 QMS covering all 32 clauses. Core modules: NCR tracking with CAPA workflow (10.2), internal audits with reusable checklists (9.2), training matrix with gap analysis (7.2), management review with auto-captured data snapshots (9.3), document control with approval workflow (7.5), supplier evaluation with multi-dimensional scoring (8.4), and structured document authoring for Quality Manuals, SOPs, and Work Instructions with Word/PDF export. Quality economics tools quantify variation cost in dollars. Field-level audit trail on every QMS record. Closed-loop: audit findings auto-create NCRs, NCR investigations auto-create studies, study results feed corrective actions."
                 }
             },
             {
@@ -250,14 +253,14 @@
         }
 
         .nav-link {
-            color: var(--text-secondary);
+            color: #e8efe8;
             text-decoration: none;
             font-size: 0.9rem;
             transition: color 0.2s;
         }
 
         .nav-link:hover {
-            color: var(--text-primary);
+            color: #ffffff;
         }
 
         .nav-btn {
@@ -1211,11 +1214,11 @@
         .iso-coverage { padding: 5rem 2rem; background: var(--bg-secondary); border-top: 1px solid rgba(255,255,255,0.03); }
         .iso-coverage-inner { max-width: 1100px; margin: 0 auto; }
         .iso-module-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem; }
-        .iso-module-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 1.25rem; text-align: center; transition: border-color 0.2s; }
+        .iso-module-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 1.25rem; text-align: left; transition: border-color 0.2s; }
         .iso-module-card:hover { border-color: rgba(74,159,110,0.3); }
-        .iso-module-clause { font-family: 'JetBrains Mono', monospace; color: var(--accent-primary); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .iso-module-clause { font-family: 'JetBrains Mono', monospace; color: var(--accent-primary); font-size: 0.75rem; font-weight: 600; margin-bottom: 0.4rem; }
         .iso-module-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem; }
-        .iso-module-desc { color: var(--text-secondary); font-size: 0.8rem; line-height: 1.4; }
+        .iso-module-desc { color: var(--text-secondary); font-size: 0.8rem; line-height: 1.5; }
 
         /* Responsive */
         @media (max-width: 1200px) {
@@ -1251,7 +1254,7 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: rgba(10, 15, 10, 0.97);
+                background: rgb(10, 15, 10);
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
@@ -1289,13 +1292,12 @@
         </button>
         <div class="nav-links" id="navLinks">
             <a href="#features" class="nav-link">Features</a>
+            <a href="/continuous-improvement-software/" class="nav-link">CI Playbooks</a>
             <a href="#hoshin" class="nav-link">Strategy</a>
-            <a href="#spine" class="nav-link">How It Works</a>
             <a href="/tools/" class="nav-link">Free Tools</a>
             <a href="/whitepapers/" class="nav-link">Whitepapers</a>
             <a href="/iso-9001-qms-software/" class="nav-link">ISO 9001</a>
             <a href="#pricing" class="nav-link">Pricing</a>
-            <a href="#faq" class="nav-link">FAQ</a>
             <a href="/blog/" class="nav-link">Blog</a>
             <a href="/login/" class="nav-link">Login</a>
             <a href="/register/?region={{ region }}" class="nav-btn">Get Started</a>
@@ -1616,9 +1618,10 @@
                     <li>Everything in Professional</li>
                     <li>Shared projects & dashboards</li>
                     <li>FMEA, A3 & VSM collaboration</li>
-                    <li>ISO 9001 QMS suite</li>
+                    <li>ISO 9001 QMS: NCR, audits, training</li>
+                    <li>Doc control, authoring & export</li>
+                    <li>Quality economics (Taguchi, CoQ)</li>
                     <li>Knowledge graph</li>
-                    <li>Admin controls</li>
                 </ul>
                 <a href="/register/?plan=team&region={{ region }}" class="pricing-btn pricing-btn-secondary">Try Free for 14 Days</a>
             </div>
@@ -1655,45 +1658,65 @@
     <!-- ISO 9001 QMS -->
     <section class="iso-coverage" id="iso">
         <div class="iso-coverage-inner">
-            <h2 class="section-title">ISO 9001:2015 QMS</h2>
-            <p class="section-subtitle">Built-in QMS tools for nonconformance tracking, internal audits, competence records, management review, document control, and supplier evaluation — no separate QMS software required.</p>
+            <h2 class="section-title">ISO 9001:2015 QMS — built in, not bolted on</h2>
+            <p class="section-subtitle">NCRs, audits, training, document control, supplier management, quality economics, and structured document authoring. Every QMS action creates traceable evidence. Findings auto-create NCRs, NCRs auto-launch investigations, investigations feed back as corrective actions. Closed-loop by default.</p>
 
             <div class="iso-module-cards">
                 <div class="iso-module-card">
                     <div class="iso-module-clause">10.2</div>
-                    <div class="iso-module-title">NCR Tracking</div>
-                    <div class="iso-module-desc">Full CAPA workflow from logging to verified closure</div>
+                    <div class="iso-module-title">NCR Tracking & CAPA</div>
+                    <div class="iso-module-desc">Full workflow from detection through containment, root cause, corrective action, and verified closure. Severity classification, overdue CAPA alerts, and auto-linked RCA sessions. Every field change tracked.</div>
                 </div>
                 <div class="iso-module-card">
                     <div class="iso-module-clause">9.2</div>
                     <div class="iso-module-title">Internal Audits</div>
-                    <div class="iso-module-desc">Schedule, record findings, track corrective actions</div>
+                    <div class="iso-module-desc">Schedule audits, assign lead auditors, capture findings by type (major NC, minor NC, observation, opportunity). Findings spawn NCRs with one click. Reusable audit checklists with ISO clause mapping.</div>
                 </div>
                 <div class="iso-module-card">
                     <div class="iso-module-clause">7.2</div>
                     <div class="iso-module-title">Training Matrix</div>
-                    <div class="iso-module-desc">Competence tracking with expiry alerts</div>
+                    <div class="iso-module-desc">Competence requirements with mandatory flags, renewal frequency, and per-employee records. Expiry alerts, compliance rate dashboards, and gap analysis. Studies can flag training gaps directly.</div>
                 </div>
                 <div class="iso-module-card">
                     <div class="iso-module-clause">9.3</div>
                     <div class="iso-module-title">Management Review</div>
-                    <div class="iso-module-desc">Auto-captured QMS snapshot with action outputs</div>
+                    <div class="iso-module-desc">ISO 9001 9.3.2/9.3.3 inputs and outputs. Auto-captured QMS data snapshot at review time — NCR trends, audit results, training compliance, supplier status — so reviews start with facts, not preparation.</div>
                 </div>
                 <div class="iso-module-card">
                     <div class="iso-module-clause">7.5</div>
                     <div class="iso-module-title">Document Control</div>
-                    <div class="iso-module-desc">Version tracking, approval workflow, review scheduling</div>
+                    <div class="iso-module-desc">Controlled document register with version history, approval workflow, review scheduling, and retention periods. Draft &rarr; Review &rarr; Approved &rarr; Obsolete lifecycle with full status audit trail.</div>
                 </div>
                 <div class="iso-module-card">
                     <div class="iso-module-clause">8.4</div>
                     <div class="iso-module-title">Supplier Management</div>
-                    <div class="iso-module-desc">Approval status, quality ratings, evaluation tracking</div>
+                    <div class="iso-module-desc">Supplier approval workflow, multi-dimensional evaluation scoring (quality, delivery, price, communication), conditional/suspended/disqualified tracking with reason capture.</div>
+                </div>
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">7.5</div>
+                    <div class="iso-module-title">Document Authoring</div>
+                    <div class="iso-module-desc">Structured editor for Quality Manuals, Procedures, Work Instructions, Policies, Specifications, Plans, and Forms. Pre-built templates, drag-and-drop sections, photo and whiteboard embeds. Export to Word and PDF. Publish directly to Document Control.</div>
+                </div>
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">8.6 &middot; 10.3</div>
+                    <div class="iso-module-title">Quality Economics</div>
+                    <div class="iso-module-desc">Taguchi loss functions, Cost of Quality (PAF model with prevention optimization), Bayesian process decision theory, and economic lot sentencing. Quantify the cost of variation in dollars, not just sigma.</div>
+                </div>
+                <div class="iso-module-card">
+                    <div class="iso-module-clause">4&ndash;10</div>
+                    <div class="iso-module-title">QMS Dashboard & Audit Trail</div>
+                    <div class="iso-module-desc">Real-time KPI overview: open NCRs by severity, overdue CAPAs, upcoming audits, training compliance, document review status, supplier evaluations. Field-level change history on every record for compliance audits.</div>
                 </div>
             </div>
 
             <p style="text-align:center; margin-top:1.5rem; color:var(--text-secondary); font-size:0.9rem;">
                 Covers all 32 clauses from 4.1 through 10.3. All active.
                 <a href="/iso-9001-qms-software/" style="color: var(--accent-primary); font-weight: 500;">See full clause coverage &rarr;</a>
+            </p>
+            <p style="text-align:center; margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">
+                <a href="/tools/iso-document-creator/" style="color: var(--accent-primary); font-weight: 500;">Try the free ISO Document Creator &rarr;</a>
+                &nbsp;&middot;&nbsp;
+                <a href="/tools/iso-9001-audit-checklist/" style="color: var(--accent-primary); font-weight: 500;">Free Audit Checklist Generator &rarr;</a>
             </p>
             <p style="text-align:center; margin-top:0.75rem; color:var(--text-dim); font-size:0.85rem;">
                 QMS features require Team ({{ price_team }}/mo) or Enterprise ({{ price_enterprise }}/mo) plan. 14-day free trial.
@@ -1751,7 +1774,7 @@
 
             <div class="faq-item">
                 <div class="faq-question">Does Svend support ISO 9001:2015 compliance?</div>
-                <div class="faq-answer">Yes. The Team and Enterprise plans include a full ISO 9001:2015 QMS module covering clauses 4 through 10. This includes NCR tracking with CAPA workflow (clause 10.2), internal audit scheduling with finding management (clause 9.2), a training matrix with competence records and expiry tracking (clause 7.2), management review with auto-captured QMS data snapshots (clause 9.3), controlled document registers (clause 7.5), and supplier evaluation (clause 8.4). The platform's existing statistical tools — SPC, capability analysis, FMEA, root cause analysis, and value stream mapping — directly support clauses 8 and 9 for process monitoring, measurement, and analysis. See the <a href="/iso-9001-qms-software/" style="color: var(--accent-primary);">full clause coverage table</a>.</div>
+                <div class="faq-answer">Yes. The Team and Enterprise plans include a full ISO 9001:2015 QMS covering all 32 clauses from 4.1 through 10.3. Core modules: NCR tracking with CAPA workflow (10.2), internal audit scheduling with reusable checklists and finding management (9.2), training matrix with competence records, expiry tracking, and gap analysis (7.2), management review with auto-captured QMS data snapshots (9.3), document control with version history and approval workflow (7.5), supplier management with multi-dimensional evaluation scoring (8.4), and structured document authoring for Quality Manuals, SOPs, Work Instructions, Policies, and Forms with Word and PDF export. Quality economics tools (Taguchi loss, Cost of Quality) quantify variation in dollars. Every field change is tracked for audit trail compliance. Audit findings auto-create NCRs, NCR investigations auto-create studies, study results feed back as corrective actions — closed-loop by design. See the <a href="/iso-9001-qms-software/" style="color: var(--accent-primary);">full clause coverage table</a>.</div>
             </div>
 
             <div class="faq-item">

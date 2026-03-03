@@ -11,7 +11,13 @@ from django.views.generic import TemplateView
 
 from api.blog_views import blog_list, blog_detail
 from api.internal_views import dashboard_view
-from api.landing_views import landing_view, iso_qms_view, svend_vs_minitab_view, education_view
+from api.landing_views import (
+    landing_view, register_view, iso_qms_view, iso_audit_playbook_view,
+    svend_vs_minitab_view, svend_vs_jmp_view, education_view,
+    ci_hub_view, mdi_playbook_view, hoshin_playbook_view,
+    kaizen_playbook_view, five_s_playbook_view, lsw_playbook_view,
+    vsm_playbook_view,
+)
 from api.models import BlogPost, WhitePaper
 from api.whitepaper_views import whitepaper_list, whitepaper_detail, whitepaper_pdf
 from agents_api.whiteboard_views import guest_board_view
@@ -36,10 +42,23 @@ class StaticSitemap(Sitemap):
                 "/tools/gage-rr-calculator/",
                 "/tools/pareto-chart-generator/",
                 "/tools/bayesian-cpk-calculator/",
+                "/tools/fmea-rpn-calculator/",
+                "/tools/fpy-rty-calculator/",
                 "/svend-vs-minitab/",
+                "/svend-vs-jmp/",
                 "/classical-vs-bayesian-spc/",
+                "/tools/iso-9001-audit-checklist/",
                 "/iso-9001-qms-software/",
-                "/for-education/"]
+                "/iso-9001-internal-audit-playbook/",
+                "/tools/iso-document-creator/",
+                "/for-education/",
+                "/continuous-improvement-software/",
+                "/managing-for-daily-improvement/",
+                "/hoshin-kanri-strategy-deployment/",
+                "/kaizen-execution-guide/",
+                "/5s-operational-excellence/",
+                "/leadership-standard-work/",
+                "/value-stream-mapping-methodology/"]
 
     def location(self, item):
         return item
@@ -85,7 +104,7 @@ sitemaps = {
 urlpatterns = [
     path("", landing_view, name="home"),
     path("login/", TemplateView.as_view(template_name="login.html"), name="login"),
-    path("register/", TemplateView.as_view(template_name="register.html"), name="register"),
+    path("register/", register_view, name="register"),
     path("verify", TemplateView.as_view(template_name="verify_email.html"), name="verify_email"),
     path("privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy"),
     path("terms/", TemplateView.as_view(template_name="terms.html"), name="terms"),
@@ -101,6 +120,8 @@ urlpatterns = [
     path("app/whiteboard/guest/<str:token>/", guest_board_view, name="whiteboard_guest"),
     path("app/vsm/", TemplateView.as_view(template_name="vsm.html"), name="vsm"),
     path("app/vsm/<uuid:vsm_id>/", TemplateView.as_view(template_name="vsm.html"), name="vsm_edit"),
+    path("app/simulator/", TemplateView.as_view(template_name="simulator.html"), name="simulator"),
+    path("app/simulator/<uuid:sim_id>/", TemplateView.as_view(template_name="simulator.html"), name="simulator_edit"),
     path("app/onboarding/", TemplateView.as_view(template_name="onboarding.html"), name="onboarding"),
     path("app/settings/", TemplateView.as_view(template_name="settings.html"), name="settings"),
     path("app/models/", TemplateView.as_view(template_name="models.html"), name="models"),
@@ -123,6 +144,8 @@ urlpatterns = [
     path("app/fmea/<uuid:fmea_id>/", TemplateView.as_view(template_name="fmea.html"), name="fmea_edit"),
     path("app/hoshin/", TemplateView.as_view(template_name="hoshin.html"), name="hoshin"),
     path("app/iso/", TemplateView.as_view(template_name="iso.html"), name="iso"),
+    path("app/iso-docs/", TemplateView.as_view(template_name="iso_doc.html"), name="iso_doc"),
+    path("app/iso-docs/<uuid:doc_id>/", TemplateView.as_view(template_name="iso_doc.html"), name="iso_doc_edit"),
 
     # Whitepapers (public, no auth — SEO + PDF download)
     path("whitepapers/", whitepaper_list, name="whitepapers"),
@@ -141,12 +164,27 @@ urlpatterns = [
     path("tools/gage-rr-calculator/", TemplateView.as_view(template_name="tools/gage_rr_calculator.html"), name="tool_gage_rr"),
     path("tools/pareto-chart-generator/", TemplateView.as_view(template_name="tools/pareto_chart_generator.html"), name="tool_pareto"),
     path("tools/bayesian-cpk-calculator/", TemplateView.as_view(template_name="tools/bayesian_cpk_calculator.html"), name="tool_bayesian_cpk"),
+    path("tools/fmea-rpn-calculator/", TemplateView.as_view(template_name="tools/fmea_rpn_calculator.html"), name="tool_fmea_rpn"),
+    path("tools/fpy-rty-calculator/", TemplateView.as_view(template_name="tools/fpy_rty_calculator.html"), name="tool_fpy_rty"),
+    path("tools/iso-9001-audit-checklist/", TemplateView.as_view(template_name="tools/iso_9001_audit_checklist.html"), name="tool_audit_checklist"),
+    path("tools/iso-document-creator/", TemplateView.as_view(template_name="tools/iso_document_creator.html"), name="tool_iso_doc"),
 
     # Comparison pages (public, no auth — SEO)
     path("svend-vs-minitab/", svend_vs_minitab_view, name="svend_vs_minitab"),
+    path("svend-vs-jmp/", svend_vs_jmp_view, name="svend_vs_jmp"),
     path("classical-vs-bayesian-spc/", TemplateView.as_view(template_name="classical_vs_bayesian_spc.html"), name="classical_vs_bayesian_spc"),
     path("iso-9001-qms-software/", iso_qms_view, name="iso_9001_qms"),
+    path("iso-9001-internal-audit-playbook/", iso_audit_playbook_view, name="iso_audit_playbook"),
     path("for-education/", education_view, name="education_partnerships"),
+
+    # Continuous Improvement landing pages (public, no auth — SEO)
+    path("continuous-improvement-software/", ci_hub_view, name="ci_hub"),
+    path("managing-for-daily-improvement/", mdi_playbook_view, name="mdi_playbook"),
+    path("hoshin-kanri-strategy-deployment/", hoshin_playbook_view, name="hoshin_playbook"),
+    path("kaizen-execution-guide/", kaizen_playbook_view, name="kaizen_playbook"),
+    path("5s-operational-excellence/", five_s_playbook_view, name="five_s_playbook"),
+    path("leadership-standard-work/", lsw_playbook_view, name="lsw_playbook"),
+    path("value-stream-mapping-methodology/", vsm_playbook_view, name="vsm_playbook"),
 
     # Blog (public, no auth)
     path("blog/", blog_list, name="blog_list"),
@@ -175,11 +213,13 @@ urlpatterns = [
     path("api/a3/", include("agents_api.a3_urls")),  # A3 problem-solving reports
     path("api/reports/", include("agents_api.report_urls")),  # CAPA, 8D reports
     path("api/vsm/", include("agents_api.vsm_urls")),  # Value Stream Mapping
+    path("api/plantsim/", include("agents_api.plantsim_urls")),  # Plant Simulator (DES)
     path("api/learn/", include("agents_api.learn_urls")),  # Learning module & certification
     path("api/rca/", include("agents_api.rca_urls")),  # Root cause analysis critique
     path("api/fmea/", include("agents_api.fmea_urls")),  # FMEA with Bayesian evidence linking
     path("api/hoshin/", include("agents_api.hoshin_urls")),  # Hoshin Kanri CI (Enterprise)
     path("api/iso/", include("agents_api.iso_urls")),  # ISO 9001 QMS (Team/Enterprise)
+    path("api/iso-docs/", include("agents_api.iso_doc_urls")),  # ISO Document Creator
     path("api/actions/", include("agents_api.action_urls")),  # Shared action item update/delete
     path("api/core/", include("core.urls")),  # Projects, hypotheses, evidence, knowledge graph
     path("api/workbench/", include("workbench.urls")),

@@ -72,6 +72,19 @@
 {% endblock %}
 
 {% block extra_css %}
+/* Guide section */
+.tool-guide { margin-top: 2.5rem; }
+.tool-guide h2 {
+    font-size: 1.3rem; color: var(--text-primary); margin-bottom: 1rem; font-weight: 600;
+}
+.tool-guide h3 {
+    font-size: 1rem; color: var(--accent-primary); margin: 1.5rem 0 0.5rem; font-weight: 600;
+}
+.tool-guide p, .tool-guide li {
+    color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;
+}
+.tool-guide ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+
 .compare-row {
     display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;
 }
@@ -178,6 +191,35 @@
     </div>
 </div>
 {% endblock %}
+
+<!-- Guide content for SEO -->
+<div class="tool-guide">
+    <h2>What Is Bayesian Cpk?</h2>
+    <p>Traditional Cpk gives you a single number — say, 1.34 — with no indication of how much to trust it. With 30 measurements, that 1.34 could easily be 1.1 or 1.6 in reality. Bayesian Cpk replaces the point estimate with a full probability distribution, so you know exactly how confident to be in your process capability.</p>
+
+    <h3>Point Estimates vs. Posterior Distributions</h3>
+    <p>A frequentist Cpk is calculated from the sample mean and standard deviation. It's a function of the data, nothing more. A Bayesian Cpk treats the process mean and variance as uncertain quantities, draws from their posterior distributions (using the Normal-Inverse-Gamma conjugate model), and computes Cpk for each draw. The result is a distribution of plausible Cpk values — not one number, but thousands.</p>
+    <p>This is what lets you ask questions like "What is the probability that Cpk exceeds 1.33?" and get a direct numerical answer (e.g., 72%). No 1.5&sigma; shift assumption, no confidence interval gymnastics.</p>
+
+    <h3>Credible Intervals and P(Cpk &gt; Threshold)</h3>
+    <ul>
+        <li><strong>95% credible interval</strong> — The range that contains the true Cpk with 95% posterior probability. Unlike a confidence interval, this is a direct probability statement about the parameter.</li>
+        <li><strong>P(Cpk &gt; 1.00)</strong> — Probability the process is at least minimally capable (3&sigma; level).</li>
+        <li><strong>P(Cpk &gt; 1.33)</strong> — The standard "capable" threshold. Most automotive (IATF 16949) and aerospace (AS9100) standards require Cpk &ge; 1.33. The Bayesian approach tells you how likely you are to actually meet it.</li>
+        <li><strong>P(Cpk &gt; 1.67)</strong> — The "excellent" threshold. Some critical processes (safety-critical, medical devices under ISO 13485) target this level.</li>
+    </ul>
+
+    <h3>When to Use Bayesian Cpk</h3>
+    <ul>
+        <li><strong>Small samples</strong> — With fewer than 50 observations, traditional Cpk is unreliable. Bayesian Cpk honestly represents the uncertainty and avoids false confidence.</li>
+        <li><strong>Capability qualification</strong> — When you need to demonstrate P(Cpk &gt; 1.33) &ge; 95% to a customer or auditor, the posterior probability is a direct answer.</li>
+        <li><strong>New process validation</strong> — Early production runs where data is limited but decisions must be made.</li>
+        <li><strong>Continuous monitoring</strong> — Svend's <a href="/app/spc/" style="color: var(--accent-primary);">full SPC platform</a> uses Bayesian Cpk with sequential updating — each new batch refines the posterior without restarting.</li>
+    </ul>
+
+    <h3>Beyond This Calculator</h3>
+    <p>This free tool uses a non-informative (Jeffreys) prior. The full <a href="/app/spc/" style="color: var(--accent-primary);">Svend SPC platform</a> supports informative priors from historical data, sequential updating across production runs, and integration with <a href="/tools/control-chart-generator/" style="color: var(--accent-primary);">control charts</a> and <a href="/tools/gage-rr-calculator/" style="color: var(--accent-primary);">Gage R&R studies</a>. See also the <a href="/tools/cpk-calculator/" style="color: var(--accent-primary);">traditional Cpk calculator</a> for comparison, or learn more about <a href="/classical-vs-bayesian-spc/" style="color: var(--accent-primary);">classical vs Bayesian SPC</a>.</p>
+</div>
 
 {% block faq %}
 <div class="tool-faq">

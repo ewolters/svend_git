@@ -129,4 +129,7 @@ urlpatterns = [
 
     # Site duration beacon (public — fired by sendBeacon, no auth)
     path("site-duration/", views.site_duration, name="site_duration"),
+
+    # Funnel events (public — pre-auth form interaction tracking)
+    path("funnel-event/", views.funnel_event, name="funnel_event"),
 ]

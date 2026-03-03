@@ -1,0 +1,773 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Managing for Daily Improvement (MDI) — Tier Structure, Newspapers, Visual Management{% endblock %}
+{% block meta_description %}Complete MDI playbook: tier structure, visual management systems, newspapers as bilateral contracts, tier meeting guides, culture and accountability. The backbone of continuous improvement execution. {{ price_team }}/mo.{% endblock %}
+{% block meta_keywords %}managing for daily improvement, MDI, daily management system, tier meetings, visual management, newspapers action register, lean daily management, daily accountability, tier 1 meeting, tier 2 meeting, SQDC board, shop floor management, daily standup manufacturing{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/managing-for-daily-improvement/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://svend.ai/managing-for-daily-improvement/">
+<meta property="og:title" content="Managing for Daily Improvement (MDI) Playbook | Svend">
+<meta property="og:description" content="MDI is the backbone. Tier structure, newspapers as bilateral contracts, visual management, daily accountability. Written for CI practitioners who run plants.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Managing for Daily Improvement (MDI) Playbook",
+    "url": "https://svend.ai/managing-for-daily-improvement/",
+    "description": "Complete MDI playbook: tier structure, visual management, newspapers as bilateral contracts, how to run tier meetings, culture and trust, connecting MDI to hoshin kanri.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "about": [
+        { "@type": "Thing", "name": "Managing for Daily Improvement" },
+        { "@type": "Thing", "name": "Daily Management System" },
+        { "@type": "Thing", "name": "Visual Management" },
+        { "@type": "Thing", "name": "Continuous Improvement" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is Managing for Daily Improvement (MDI)?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "MDI is the daily management system that connects strategic direction (hoshin kanri) to daily work. It consists of three pillars: visual management systems, daily accountability through tier meetings, and leadership standard work. MDI operates through a tier structure where information flows up as escalation and down as resource deployment."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the MDI tier structure?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Three tiers: Tier 1 (team leads and operators, daily, 10-15 min) covers immediate production issues — safety, quality, delivery, cost. Tier 2 (area managers, daily, 15-20 min) handles cross-functional escalation and resource allocation. Tier 3 (plant leadership, weekly, 30-45 min) addresses strategic alignment and system-level barriers. Each tier resolves what it can and escalates what it cannot."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is a newspaper in MDI?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A newspaper (action register) is a bilateral contract, not a task list. Each item has: What (the task), Who (the owner), When (the due date), Status (open/closed), Barrier (what is preventing completion), and Resource (what is needed). If the leader does not provide the agreed resources, the leader failed — not the person assigned to the task."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does MDI connect to hoshin kanri?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Hoshin sets the strategic direction. MDI is daily resource allocation to achieve it. Newspaper items that exceed local authority escalate to hoshin projects. KPI actuals from tier meetings feed the X-matrix. Leadership standard work verifies strategic intent reaches the gemba. They are two halves of the same system."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How long should a Tier 1 meeting last?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "10-15 minutes maximum. Stand up. At the board. Review yesterday's performance (SQDC), identify immediate issues, assign actions with owners and due dates. If a problem requires more than 2 minutes of discussion, take it offline with the relevant people. The Tier 1 meeting is for surfacing issues, not solving them."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between MDI and daily standups?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "MDI is a structured management system, not a meeting format. It includes visual management systems, accountability mechanisms (newspapers), tiered escalation, and leadership standard work. Daily standups borrowed from MDI but typically lack the visual systems, escalation structure, and bilateral accountability that make MDI effective. MDI is the whole system — meetings are one component."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Continuous Improvement Software", "item": "https://svend.ai/continuous-improvement-software/" },
+        { "@type": "ListItem", "position": 3, "name": "Managing for Daily Improvement", "item": "https://svend.ai/managing-for-daily-improvement/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .tool-container { max-width: 1000px; }
+
+    .playbook-hero { text-align: center; margin-bottom: 2.5rem; padding-top: 1rem; }
+    .playbook-badge {
+        display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3);
+        margin-bottom: 0.75rem;
+    }
+    .playbook-hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .playbook-hero h1 strong { color: #a78bfa; }
+    .playbook-hero .hero-sub {
+        color: var(--text-secondary); font-size: 1rem; max-width: 680px; margin: 0 auto; line-height: 1.7;
+    }
+
+    .playbook-toc {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+    }
+    .playbook-toc h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .playbook-toc ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.3rem; }
+    .playbook-toc a { color: var(--accent-primary); text-decoration: none; font-size: 0.88rem; line-height: 1.6; }
+    .playbook-toc a:hover { text-decoration: underline; }
+    .playbook-toc .toc-num { color: var(--text-dim); font-weight: 600; margin-right: 0.3rem; }
+
+    .pb-section {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .pb-section-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .pb-num {
+        background: #a78bfa; color: #000; width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .pb-section h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .pb-section p, .pb-section li { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+    .pb-section ul, .pb-section ol { padding-left: 1.5rem; margin: 0.75rem 0; }
+    .pb-section li { margin-bottom: 0.4rem; }
+    .pb-section h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+
+    .svend-callout {
+        background: rgba(74,159,110,0.06); border: 1px solid rgba(74,159,110,0.2); border-radius: 8px;
+        padding: 0.85rem 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+    }
+    .svend-callout strong { color: var(--accent-primary); }
+    .svend-callout a { color: var(--accent-primary); text-decoration: none; }
+    .svend-callout a:hover { text-decoration: underline; }
+
+    /* MDI Tier Diagram */
+    .mdi-tier-diagram {
+        display: flex; flex-direction: column; align-items: center; gap: 0;
+        margin: 2rem auto; max-width: 650px;
+    }
+    .mdi-tier {
+        padding: 1rem 1.5rem; border-radius: 10px; text-align: center;
+        border: 1px solid var(--border); position: relative;
+    }
+    .mdi-tier.t3 {
+        width: 45%; background: rgba(232,197,71,0.06); border-color: rgba(232,197,71,0.25);
+    }
+    .mdi-tier.t2 {
+        width: 70%; background: rgba(58,127,143,0.06); border-color: rgba(58,127,143,0.25);
+    }
+    .mdi-tier.t1 {
+        width: 100%; background: rgba(74,159,110,0.06); border-color: rgba(74,159,110,0.25);
+    }
+    .mdi-tier-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+        margin-bottom: 0.2rem;
+    }
+    .mdi-tier.t3 .mdi-tier-label { color: #e8c547; }
+    .mdi-tier.t2 .mdi-tier-label { color: #3a7f8f; }
+    .mdi-tier.t1 .mdi-tier-label { color: #4a9f6e; }
+    .mdi-tier-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.2rem; }
+    .mdi-tier-cadence { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; }
+    .mdi-tier-arrow {
+        width: 2px; height: 22px; background: var(--border); position: relative;
+    }
+    .mdi-tier-arrow::after {
+        content: ''; position: absolute; bottom: -4px; left: -4px;
+        width: 0; height: 0; border-left: 5px solid transparent;
+        border-right: 5px solid transparent; border-top: 6px solid var(--border);
+    }
+    .mdi-tier-flow-label {
+        display: flex; justify-content: space-between; width: 100%; max-width: 650px;
+        font-size: 0.72rem; color: var(--text-dim); margin-top: 0.75rem;
+    }
+
+    /* Newspaper mockup */
+    .newspaper-mockup {
+        margin: 1.5rem 0; overflow-x: auto;
+    }
+    .newspaper-mockup table {
+        width: 100%; border-collapse: collapse; font-size: 0.8rem;
+        border: 1px solid var(--border); background: var(--bg-card);
+    }
+    .newspaper-mockup th {
+        padding: 8px 10px; text-align: left; font-weight: 700; font-size: 0.72rem;
+        color: var(--text-dim); border-bottom: 2px solid var(--border);
+        text-transform: uppercase; letter-spacing: 0.5px;
+        background: var(--bg-tertiary);
+    }
+    .newspaper-mockup td {
+        padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: var(--text-secondary); vertical-align: top;
+    }
+    .newspaper-mockup .status-open { color: #f59e0b; font-weight: 600; }
+    .newspaper-mockup .status-closed { color: var(--accent-primary); font-weight: 600; }
+    .newspaper-mockup .status-blocked { color: #e85747; font-weight: 600; }
+    .newspaper-mockup .barrier { font-size: 0.75rem; color: #e85747; font-style: italic; }
+
+    /* SQDC Board */
+    .sqdc-board {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;
+        margin: 1.5rem 0;
+    }
+    .sqdc-col {
+        background: var(--bg-tertiary); border-radius: 8px; padding: 1rem;
+        border-top: 3px solid; text-align: center;
+    }
+    .sqdc-col.safety { border-top-color: #e85747; }
+    .sqdc-col.quality { border-top-color: #3a7f8f; }
+    .sqdc-col.delivery { border-top-color: #4a9f6e; }
+    .sqdc-col.cost { border-top-color: #f59e0b; }
+    .sqdc-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; margin-bottom: 0.5rem;
+    }
+    .sqdc-col.safety .sqdc-label { color: #e85747; }
+    .sqdc-col.quality .sqdc-label { color: #3a7f8f; }
+    .sqdc-col.delivery .sqdc-label { color: #4a9f6e; }
+    .sqdc-col.cost .sqdc-label { color: #f59e0b; }
+    .sqdc-metric { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .sqdc-target { font-size: 0.72rem; color: var(--text-dim); }
+
+    /* Meeting agenda */
+    .meeting-agenda {
+        background: var(--bg-tertiary); border-radius: 8px; padding: 1.25rem;
+        margin: 1rem 0; font-size: 0.85rem;
+    }
+    .meeting-agenda .agenda-row {
+        display: flex; align-items: flex-start; gap: 0.75rem;
+        padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .meeting-agenda .agenda-row:last-child { border-bottom: none; }
+    .meeting-agenda .agenda-time {
+        font-weight: 600; color: var(--text-dim); min-width: 50px;
+        font-size: 0.78rem; font-family: 'JetBrains Mono', monospace;
+    }
+    .meeting-agenda .agenda-item { color: var(--text-secondary); }
+    .meeting-agenda .agenda-item strong { color: var(--text-primary); }
+
+    /* Trust model */
+    .trust-model {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+        margin: 1.5rem 0;
+    }
+    .trust-stage {
+        background: var(--bg-tertiary); border-radius: 8px; padding: 1rem;
+        border-left: 3px solid var(--border); text-align: center;
+    }
+    .trust-stage.s1 { border-left-color: #e85747; }
+    .trust-stage.s2 { border-left-color: #f59e0b; }
+    .trust-stage.s3 { border-left-color: var(--accent-primary); }
+    .trust-stage strong { display: block; font-size: 0.88rem; margin-bottom: 0.3rem; }
+    .trust-stage p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+
+    /* Related playbooks */
+    .related-playbooks {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem; margin: 1.5rem 0;
+    }
+    .related-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.1rem; text-decoration: none; color: inherit; transition: border-color 0.2s;
+    }
+    .related-card:hover { border-color: var(--accent-primary); }
+    .related-phase {
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.3rem;
+    }
+    .related-phase.strategy { color: #f59e0b; }
+    .related-phase.consolidate { color: #e8c547; }
+    .related-phase.shape { color: #4a9f6e; }
+    .related-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .related-desc { color: var(--text-secondary); font-size: 0.78rem; line-height: 1.5; }
+
+    /* CTA */
+    .playbook-cta {
+        text-align: center; margin: 2.5rem 0 1.5rem; padding: 2.5rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .playbook-cta h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .playbook-cta p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .playbook-cta .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .cta-primary {
+        background: var(--accent-primary); color: #fff; padding: 0.7rem 2rem; border-radius: 6px;
+        text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;
+    }
+    .cta-primary:hover { background: #3a8a5a; }
+    .cta-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.7rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 500;
+        font-size: 0.95rem; transition: all 0.2s;
+    }
+    .cta-secondary:hover { border-color: var(--accent-primary-border); }
+
+    .pb-faq { margin-top: 2rem; }
+    .pb-faq h2 { font-size: 1.25rem; margin-bottom: 1rem; text-align: center; }
+
+    @media (max-width: 768px) {
+        .sqdc-board { grid-template-columns: repeat(2, 1fr); }
+        .trust-model { grid-template-columns: 1fr; }
+        .related-playbooks { grid-template-columns: 1fr; }
+        .mdi-tier.t3 { width: 65%; }
+        .mdi-tier.t2 { width: 82%; }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="playbook-hero">
+    <div class="playbook-badge">The Backbone</div>
+    <h1>Managing for <strong>Daily Improvement</strong></h1>
+    <p class="hero-sub">MDI is the backbone of continuous improvement. Not a meeting format. A management operating system: visual management, daily accountability, leadership standard work, and the discipline to make all three work together. This is how strategy reaches the gemba.</p>
+</div>
+
+<div class="playbook-toc">
+    <h3>In This Playbook</h3>
+    <ol>
+        <li><a href="#s1"><span class="toc-num">1.</span> What MDI Actually Is</a></li>
+        <li><a href="#s2"><span class="toc-num">2.</span> The Tier Structure</a></li>
+        <li><a href="#s3"><span class="toc-num">3.</span> Visual Management Systems</a></li>
+        <li><a href="#s4"><span class="toc-num">4.</span> Newspapers as Bilateral Contracts</a></li>
+        <li><a href="#s5"><span class="toc-num">5.</span> How to Run a Tier 1 Meeting</a></li>
+        <li><a href="#s6"><span class="toc-num">6.</span> How to Run a Tier 2 Meeting</a></li>
+        <li><a href="#s7"><span class="toc-num">7.</span> Culture and Trust</a></li>
+        <li><a href="#s8"><span class="toc-num">8.</span> Connecting MDI to Hoshin</a></li>
+    </ol>
+</div>
+
+<!-- Section 1 -->
+<div class="pb-section" id="s1">
+    <div class="pb-section-head">
+        <div class="pb-num">1</div>
+        <h2>What MDI Actually Is</h2>
+    </div>
+    <p>MDI stands for Managing for Daily Improvement. Most people reduce it to &ldquo;daily standup meetings.&rdquo; It is not. MDI is a management system with three interlocking components:</p>
+    <ol>
+        <li><strong>Visual management systems</strong> &mdash; boards, charts, and indicators that make performance visible to everyone, not just managers. If you have to ask someone how the line is running, your visual management is broken.</li>
+        <li><strong>Daily accountability</strong> &mdash; structured tier meetings where yesterday&rsquo;s performance is reviewed, today&rsquo;s issues are surfaced, and action items are assigned with bilateral accountability. Not a status report. A commitment mechanism.</li>
+        <li><strong>Leadership standard work</strong> &mdash; structured daily, weekly, and monthly tasks that ensure leaders are in the gemba, verifying that the system is functioning and strategic direction is reaching the floor.</li>
+    </ol>
+    <p>Remove any one of these three and MDI does not work. Visual management without accountability produces pretty boards nobody acts on. Accountability without visual management produces meetings without data. Leadership standard work without the other two produces management activity without connection to reality.</p>
+
+    <h3>Why MDI is the backbone</h3>
+    <p>Hoshin kanri sets the strategy. Kaizen executes improvement. 5S shapes the environment. But none of these sustain themselves without a daily management system that connects them. MDI is the connective tissue. It is the system that ensures:</p>
+    <ul>
+        <li>Strategic objectives translate to daily actions</li>
+        <li>Problems surface before they compound</li>
+        <li>Resources flow to where they are needed</li>
+        <li>Improvements, once made, do not silently decay</li>
+    </ul>
+    <p>Without MDI, improvement is episodic. You run a kaizen event, get excited about the results, and watch them erode over the following months because nobody is tracking daily performance against the new standard. MDI prevents that erosion.</p>
+</div>
+
+<!-- Section 2 -->
+<div class="pb-section" id="s2">
+    <div class="pb-section-head">
+        <div class="pb-num">2</div>
+        <h2>The Tier Structure</h2>
+    </div>
+    <p>MDI operates through a tiered structure. Each tier has a specific scope, cadence, and purpose. Information flows upward as escalation and downward as resource deployment. Both directions are equally important.</p>
+
+    <div class="mdi-tier-diagram">
+        <div class="mdi-tier t3">
+            <div class="mdi-tier-label">Tier 3 &mdash; Plant Leadership</div>
+            <div class="mdi-tier-title">Strategic Alignment</div>
+            <div class="mdi-tier-cadence">Weekly &middot; 30-45 min<br>System-level barriers, hoshin project reviews, cross-value-stream issues</div>
+        </div>
+        <div class="mdi-tier-arrow"></div>
+        <div class="mdi-tier t2">
+            <div class="mdi-tier-label">Tier 2 &mdash; Area / Department Managers</div>
+            <div class="mdi-tier-title">Cross-Functional Coordination</div>
+            <div class="mdi-tier-cadence">Daily &middot; 15-20 min<br>Escalated issues from Tier 1, resource allocation, maintenance coordination</div>
+        </div>
+        <div class="mdi-tier-arrow"></div>
+        <div class="mdi-tier t1">
+            <div class="mdi-tier-label">Tier 1 &mdash; Team Leads + Operators</div>
+            <div class="mdi-tier-title">Frontline Performance</div>
+            <div class="mdi-tier-cadence">Daily &middot; 10-15 min<br>Safety, Quality, Delivery, Cost &middot; Immediate response to gaps</div>
+        </div>
+        <div class="mdi-tier-flow-label">
+            <span>&uarr; Escalation flows up</span>
+            <span>Resources flow down &darr;</span>
+        </div>
+    </div>
+
+    <h3>What each tier resolves</h3>
+    <ul>
+        <li><strong>Tier 1</strong> resolves problems within the team&rsquo;s authority and capability. Operator reassignment, immediate quality containment, safety near-miss response. If the team lead can fix it today with available resources, it stays at Tier 1.</li>
+        <li><strong>Tier 2</strong> resolves problems that cross team boundaries or require resources the team lead cannot authorize. Maintenance requests, cross-training needs, material supply issues, shift-to-shift handoff problems. Area managers coordinate across teams.</li>
+        <li><strong>Tier 3</strong> resolves system-level issues: capital expenditure requests, supplier changes, cross-value-stream conflicts, hoshin project barriers. Issues that reach Tier 3 typically affect multiple areas and require management decision.</li>
+    </ul>
+
+    <h3>The escalation contract</h3>
+    <p>Each tier has an implicit contract with the tier below: if an issue is escalated to me, I will either resolve it or explain why I cannot. The failure mode is silence &mdash; issues escalated upward that disappear into a management vacuum. If Tier 1 escalates a maintenance issue to Tier 2 and hears nothing for three days, the MDI system is broken regardless of how nice the boards look.</p>
+</div>
+
+<!-- Section 3 -->
+<div class="pb-section" id="s3">
+    <div class="pb-section-head">
+        <div class="pb-num">3</div>
+        <h2>Visual Management Systems</h2>
+    </div>
+    <p>Visual management means the state of the process is visible to anyone who looks. Not visible in a software dashboard that requires login and navigation. Visible on the floor, at the point of work, to the person doing the work. A visual management system that only managers look at is a reporting system, not a management system.</p>
+
+    <h3>The SQDC board</h3>
+    <p>Most Tier 1 boards organize around Safety, Quality, Delivery, Cost. Each category has a daily indicator: green (on target), red (off target). The power of SQDC is not the categories &mdash; it is the forcing function. Every day, the team reviews all four dimensions and addresses red conditions immediately.</p>
+
+    <div class="sqdc-board">
+        <div class="sqdc-col safety">
+            <div class="sqdc-label">Safety</div>
+            <div class="sqdc-metric" style="color: var(--accent-primary);">0</div>
+            <div class="sqdc-target">Incidents today</div>
+        </div>
+        <div class="sqdc-col quality">
+            <div class="sqdc-label">Quality</div>
+            <div class="sqdc-metric" style="color: #e85747;">3</div>
+            <div class="sqdc-target">Defects &middot; target &lt; 1</div>
+        </div>
+        <div class="sqdc-col delivery">
+            <div class="sqdc-label">Delivery</div>
+            <div class="sqdc-metric" style="color: var(--accent-primary);">98%</div>
+            <div class="sqdc-target">On-time &middot; target &gt; 95%</div>
+        </div>
+        <div class="sqdc-col cost">
+            <div class="sqdc-label">Cost</div>
+            <div class="sqdc-metric" style="color: #f59e0b;">1.4%</div>
+            <div class="sqdc-target">Scrap &middot; target &lt; 1.2%</div>
+        </div>
+    </div>
+
+    <h3>What makes visual management work</h3>
+    <ul>
+        <li><strong>Real-time or near-real-time data.</strong> Yesterday&rsquo;s data is acceptable for daily review. Last week&rsquo;s data is stale. The board should reflect what happened in the last 24 hours.</li>
+        <li><strong>Owned by the team, not by management.</strong> The team lead updates the board. The operators read it. If management maintains the board and operators ignore it, the visual management is theater.</li>
+        <li><strong>Action-oriented, not decorative.</strong> A red indicator must trigger an action. If Quality is red three days in a row and nobody has assigned a countermeasure, the board is decoration. The board should have a space for actions: what are we doing about the red condition, who owns it, when will it be resolved.</li>
+        <li><strong>Standard format across areas.</strong> Every Tier 1 board in the plant should follow the same layout. When a manager walks from Line 1 to Line 4, they should not have to relearn how to read the board. Standardization enables pattern recognition across areas.</li>
+    </ul>
+
+    <h3>Hour-by-hour boards</h3>
+    <p>For high-volume production, SQDC is supplemented by hour-by-hour (or pitch-by-pitch) tracking. Each hour: planned output, actual output, delta, reason for gap. This is the most granular layer of visual management. It catches problems in the hour they occur, not at the end of the shift.</p>
+    <p>Hour-by-hour boards require discipline. Someone must update them every hour. If they go blank for three hours, the system is failing. The consistency of the updates tells you more about the culture than any survey.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> SPC control charts and Pareto analyses can feed Tier 1 visual board data. Statistical process control provides the objective, real-time quality signal that SQDC boards need. When a chart signals out-of-control, it generates an action item that surfaces in the relevant team&rsquo;s newspaper.
+    </div>
+</div>
+
+<!-- Section 4 -->
+<div class="pb-section" id="s4">
+    <div class="pb-section-head">
+        <div class="pb-num">4</div>
+        <h2>Newspapers as Bilateral Contracts</h2>
+    </div>
+    <p>In MDI, &ldquo;newspapers&rdquo; are action registers. They are called newspapers because in the original TPS implementations, they were printed on large-format paper and posted visually. But the format is not the point. The mechanism is.</p>
+    <p>A newspaper item is not a task assignment. It is a bilateral contract. There are two parties and both have obligations:</p>
+
+    <div class="newspaper-mockup">
+        <table>
+            <tr>
+                <th>What</th>
+                <th>Who</th>
+                <th>When</th>
+                <th>Status</th>
+                <th>Barrier</th>
+                <th>Resource Needed</th>
+            </tr>
+            <tr>
+                <td>SMED shadow board for Press 4</td>
+                <td>Martinez</td>
+                <td>Mar 15</td>
+                <td class="status-open">Open</td>
+                <td></td>
+                <td>Maintenance fabrication &mdash; 8 hrs</td>
+            </tr>
+            <tr>
+                <td>5S audit &mdash; ink storage area</td>
+                <td>Johnson</td>
+                <td>Mar 10</td>
+                <td class="status-closed">Closed</td>
+                <td></td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td>Cross-train Chen on blanket cylinder</td>
+                <td>Williams</td>
+                <td>Mar 20</td>
+                <td class="status-blocked">Blocked</td>
+                <td class="barrier">Chen on vacation until 3/18. No backfill assigned.</td>
+                <td>Backfill operator for 3 days</td>
+            </tr>
+            <tr>
+                <td>Root cause &mdash; substrate curl on job 4412</td>
+                <td>Davis</td>
+                <td>Mar 12</td>
+                <td class="status-open">Open</td>
+                <td></td>
+                <td>Lab moisture testing &mdash; 2 samples</td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>The bilateral contract</h3>
+    <p>Read the third row. Williams agreed to cross-train Chen by March 20. But Williams needs a backfill operator for three days, and Chen is on vacation. If the area manager does not assign a backfill, Williams cannot deliver. When March 20 arrives and the cross-training is not complete, the question is not &ldquo;why didn&rsquo;t Williams do it?&rdquo; The question is &ldquo;did the area manager provide the backfill?&rdquo;</p>
+    <p>This is the fundamental shift in accountability. The newspaper makes both sides of the contract visible. The person doing the work commits to a deliverable. The leader commits to providing resources. If either side fails, it is visible on the board.</p>
+
+    <h3>What makes a good newspaper item</h3>
+    <ul>
+        <li><strong>Specific deliverable, not vague activity.</strong> &ldquo;Improve changeover on Press 4&rdquo; is not an action item. &ldquo;Fabricate SMED shadow board for Press 4 tools&rdquo; is.</li>
+        <li><strong>Named owner, not a department.</strong> &ldquo;Maintenance&rdquo; does not own action items. Tony Martinez in maintenance does.</li>
+        <li><strong>Date, not &ldquo;ASAP.&rdquo;</strong> Every item has a date. &ldquo;When I get to it&rdquo; is not a commitment. March 15 is.</li>
+        <li><strong>Resource requirement stated explicitly.</strong> What does the owner need that they cannot provide themselves? If nothing, fine. If something, it goes on the newspaper so it is visible and trackable.</li>
+        <li><strong>Barrier field used actively.</strong> When an item is blocked, the barrier field says why. This is not an excuse &mdash; it is information that the next tier needs to resolve the block.</li>
+    </ul>
+
+    <h3>Newspaper items that exceed local authority</h3>
+    <p>Some newspaper items cannot be resolved at the tier where they originate. The SMED shadow board costs $2,000 in fabrication time. The team lead does not have that budget authority. This item escalates to Tier 2 or Tier 3. If it aligns to a <a href="/hoshin-kanri-strategy-deployment/">hoshin objective</a>, it becomes a hoshin project. The newspaper item does not disappear &mdash; it promotes. And the hoshin project tracks it to completion with monthly savings verification.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Action items have status tracking (not started, in progress, completed, blocked, cancelled), dependency chains (task A depends on B), due dates, progress tracking (0-100%), and source linking. Items created in hoshin projects, A3 reports, RCA sessions, or FMEA rows are all tracked through the same system. Blocked items surface their dependencies automatically.
+    </div>
+</div>
+
+<!-- Section 5 -->
+<div class="pb-section" id="s5">
+    <div class="pb-section-head">
+        <div class="pb-num">5</div>
+        <h2>How to Run a Tier 1 Meeting</h2>
+    </div>
+    <p>The Tier 1 meeting is the foundation of MDI. Get this right and the rest works. Get this wrong and every tier above it operates on bad information.</p>
+
+    <h3>Structure</h3>
+    <div class="meeting-agenda">
+        <div class="agenda-row">
+            <span class="agenda-time">0:00</span>
+            <span class="agenda-item"><strong>Safety.</strong> Any incidents, near-misses, hazards in the last 24 hours. Zero tolerance for skipping this. Even on a perfect day, say &ldquo;no safety issues.&rdquo;</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">2:00</span>
+            <span class="agenda-item"><strong>Quality.</strong> Review yesterday&rsquo;s quality data. Defects, scrap, customer complaints, SPC signals. Red conditions get an owner and a date &mdash; right now, at the board.</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">4:00</span>
+            <span class="agenda-item"><strong>Delivery.</strong> On-time performance. Any late orders? Any scheduling conflicts today? Hour-by-hour gaps from yesterday.</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">6:00</span>
+            <span class="agenda-item"><strong>Cost.</strong> Scrap, waste, overtime, downtime. Anything abnormal? Trend direction (better, same, worse).</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">8:00</span>
+            <span class="agenda-item"><strong>Newspaper review.</strong> Walk the newspaper. Due items: done or not done? Blocked items: what is the barrier? New items from today&rsquo;s discussion.</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">12:00</span>
+            <span class="agenda-item"><strong>Escalation.</strong> What cannot be resolved at Tier 1? State it clearly: the issue, what is needed, who needs to act. This goes to Tier 2.</span>
+        </div>
+    </div>
+
+    <h3>Rules</h3>
+    <ul>
+        <li><strong>Stand up.</strong> Sitting invites long conversations. Standing keeps it to 10-15 minutes.</li>
+        <li><strong>At the board.</strong> Not in an office. Not in a conference room. At the visual management board where the data is visible.</li>
+        <li><strong>Same time, every day.</strong> No exceptions. Consistency is the signal that management takes this seriously. Skip one day and you are telling the team it is optional.</li>
+        <li><strong>No problem-solving.</strong> If a topic requires more than two minutes of discussion, take it offline. Write the action item. Assign an owner. Move on. The Tier 1 meeting surfaces issues &mdash; it does not solve them.</li>
+        <li><strong>Leader facilitates, does not lecture.</strong> The team lead asks questions and documents answers. The operators share information. If the leader talks for 10 of the 12 minutes, the meeting is a report-out, not a review.</li>
+    </ul>
+
+    <h3>Common Tier 1 failures</h3>
+    <ul>
+        <li><strong>Too long.</strong> If Tier 1 regularly exceeds 15 minutes, you are solving problems instead of surfacing them. Stop.</li>
+        <li><strong>Data not current.</strong> If the board shows yesterday&rsquo;s data on Thursday morning but the last update was Tuesday, nobody trusts it. Data freshness is non-negotiable.</li>
+        <li><strong>No actions assigned.</strong> A red condition discussed but not assigned to anyone is a complaint, not management. Every red condition needs: what, who, when.</li>
+        <li><strong>Escalation not followed up.</strong> Tier 1 escalates an issue to Tier 2. Two days later, no response. The team stops escalating because &ldquo;nothing happens anyway.&rdquo; This kills MDI.</li>
+    </ul>
+</div>
+
+<!-- Section 6 -->
+<div class="pb-section" id="s6">
+    <div class="pb-section-head">
+        <div class="pb-num">6</div>
+        <h2>How to Run a Tier 2 Meeting</h2>
+    </div>
+    <p>Tier 2 is the coordination layer. Area managers meet daily to resolve cross-functional issues, allocate resources, and ensure escalations from Tier 1 are being addressed. This meeting is harder than Tier 1 because it requires managers to negotiate resources across competing priorities.</p>
+
+    <h3>Structure</h3>
+    <div class="meeting-agenda">
+        <div class="agenda-row">
+            <span class="agenda-time">0:00</span>
+            <span class="agenda-item"><strong>Safety escalations.</strong> Any safety issues from Tier 1 that require cross-functional action. These take priority over everything else.</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">2:00</span>
+            <span class="agenda-item"><strong>Tier 1 escalations.</strong> Walk through each escalated issue. For each: what is the issue, what is needed, who will resolve it, by when.</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">8:00</span>
+            <span class="agenda-item"><strong>Resource allocation.</strong> Maintenance priorities, overtime decisions, cross-training assignments. Where are the conflicts? How are they resolved?</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">12:00</span>
+            <span class="agenda-item"><strong>Newspaper review.</strong> Tier 2 newspaper items: due, blocked, new. Barriers that require Tier 3 escalation.</span>
+        </div>
+        <div class="agenda-row">
+            <span class="agenda-time">17:00</span>
+            <span class="agenda-item"><strong>Tier 3 escalation.</strong> What cannot be resolved at Tier 2? Capital requests, supplier issues, cross-value-stream conflicts. Document and escalate.</span>
+        </div>
+    </div>
+
+    <h3>The resource conversation</h3>
+    <p>Tier 2 is where the resource conversation happens. Maintenance has a backlog of 40 requests. Production has three lines running. Quality has two investigations open. The area manager must decide: which maintenance request takes priority? Does Line 2&rsquo;s PM get done today or does Line 4&rsquo;s breakdown take precedence?</p>
+    <p>These decisions are explicit at Tier 2. In a weak MDI system, they are implicit &mdash; whoever shouts loudest gets maintenance first. In a strong MDI system, the decisions are visible on the board, documented, and aligned to the priorities set by hoshin.</p>
+
+    <h3>Tier 2&rsquo;s obligation to Tier 1</h3>
+    <p>When Tier 1 escalates an issue, Tier 2 owes a response. Not necessarily a resolution &mdash; sometimes the answer is &ldquo;we cannot address this until next week because of X.&rdquo; But the response must come. Silence kills escalation. If Tier 1 escalates three issues and hears nothing on two of them, Tier 1 learns that escalation is pointless. Once that lesson takes hold, MDI collapses. Issues get buried at the frontline because &ldquo;management does not care anyway.&rdquo;</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Action items with dependency chains let you model the cascading nature of MDI &mdash; task A (Tier 1) depends on task B (Tier 2 resource allocation) which depends on task C (Tier 3 budget approval). Blocked status surfaces immediately. The hoshin dashboard&rsquo;s by-site breakdown shows which sites have active, completed, and delayed projects &mdash; a Tier 3 view of execution health across the plant.
+    </div>
+</div>
+
+<!-- Section 7 -->
+<div class="pb-section" id="s7">
+    <div class="pb-section-head">
+        <div class="pb-num">7</div>
+        <h2>Culture and Trust &mdash; How You Employ It</h2>
+    </div>
+    <p>MDI is a system. But how you employ the system determines whether it builds trust or destroys it. The same tier meeting structure can produce accountability and engagement or surveillance and resentment. The difference is not the structure &mdash; it is the intent behind it.</p>
+
+    <h3>The trust progression</h3>
+    <div class="trust-model">
+        <div class="trust-stage s1">
+            <strong>Compliance</strong>
+            <p>People do MDI because they have to. Boards get updated because someone checks. Meetings happen because they are scheduled. Actions are tracked because someone follows up. This is where most organizations start. It is necessary but not sufficient.</p>
+        </div>
+        <div class="trust-stage s2">
+            <strong>Routine</strong>
+            <p>MDI becomes habit. The team lead updates the board without being reminded. Operators mention quality issues at the meeting without being asked. Tier 2 responds to escalations within 24 hours. The system works mechanically. This is good &mdash; but not great.</p>
+        </div>
+        <div class="trust-stage s3">
+            <strong>Ownership</strong>
+            <p>The team owns the board. Operators update hour-by-hour tracking because they want to know how they are performing. Team leads add newspaper items proactively. Tier 2 pushes resources down before being asked. MDI is how we work, not something extra we do.</p>
+        </div>
+    </div>
+
+    <h3>Building trust through the newspaper</h3>
+    <p>Trust is not built by telling people to trust you. It is built by honoring commitments. The newspaper makes commitments visible. When a manager commits to providing a backfill operator by Wednesday and the backfill arrives on Wednesday, trust increments. When the backfill does not arrive and the manager says nothing, trust decrements.</p>
+    <p>This is why the &ldquo;resource needed&rdquo; column matters. It is not bureaucracy &mdash; it is the leader&rsquo;s commitment made visible alongside the operator&rsquo;s commitment. When both sides deliver, the system builds trust. When one side consistently fails, the newspaper shows it objectively.</p>
+
+    <h3>How you employ it matters more than how it looks</h3>
+    <p>A beautifully designed SQDC board with color-coded magnets and laminated headers is worthless if the team lead uses the meeting to lecture operators about performance. A hand-drawn board on butcher paper that operators actually own and update themselves is infinitely more valuable.</p>
+    <p>The test is not &ldquo;does the board look professional?&rdquo; The test is: &ldquo;If I stand here for 30 minutes, will three different people walk up and look at it without being asked?&rdquo; If yes, your visual management is working. If no, it is decoration.</p>
+
+    <h3>Preventing culmination</h3>
+    <p>This is the Clausewitzian concept that Toyota calls &ldquo;respect for people.&rdquo; Culmination is when an attacking force exhausts itself beyond recovery. In operations: if you push MDI so hard that people feel surveilled rather than supported, the system produces compliance but destroys engagement. If you use the newspaper to blame people instead of resolving barriers, you teach people never to put items on the newspaper.</p>
+    <p>Respect for people in MDI means: when someone raises an issue, you resolve it. When someone misses a due date, you ask about barriers before assigning blame. When the system produces a red indicator, the first question is &ldquo;what do you need?&rdquo; not &ldquo;why did you fail?&rdquo;</p>
+</div>
+
+<!-- Section 8 -->
+<div class="pb-section" id="s8">
+    <div class="pb-section-head">
+        <div class="pb-num">8</div>
+        <h2>Connecting MDI to Hoshin</h2>
+    </div>
+    <p>MDI without hoshin is activity without direction. Hoshin without MDI is strategy without execution. They must be connected, and the connection has specific mechanism:</p>
+
+    <h3>Four connection points</h3>
+    <ol>
+        <li><strong>Newspaper items that exceed local authority escalate to hoshin.</strong> A Tier 1 item that requires $15K for tooling is too big for the area manager. It becomes a hoshin project with a kaizen charter, savings calculation, and monthly tracking. The newspaper item does not vanish &mdash; it promotes.</li>
+        <li><strong>KPIs are shared.</strong> The OEE number on the Tier 1 SQDC board is the same number on the hoshin X-matrix east quadrant. One data source, two views. If hoshin shows OEE at 85% and the Tier 1 board shows 72%, someone is lying. Shared data prevents this.</li>
+        <li><strong>Hoshin action items appear in MDI newspapers.</strong> When a hoshin project generates an action item (&ldquo;install shadow board on Press 4&rdquo;), that item appears in the relevant team&rsquo;s newspaper. The team lead tracks it alongside other daily items. It is visible in both the hoshin project view and the team&rsquo;s daily newspaper.</li>
+        <li><strong><a href="/leadership-standard-work/">Leadership standard work</a> bridges the gap.</strong> The plant manager&rsquo;s weekly LSW includes: &ldquo;Review hoshin project status. Walk to Tier 1 boards for active hoshin areas. Verify KPIs match.&rdquo; Without LSW, the connection between hoshin and MDI depends on individual discipline. With LSW, it is a structured verification built into the management routine.</li>
+    </ol>
+
+    <h3>When to promote from MDI to hoshin</h3>
+    <ul>
+        <li>The improvement requires cross-functional resources that the area manager cannot authorize</li>
+        <li>The improvement aligns directly to a strategic or annual objective on the X-matrix</li>
+        <li>The expected savings exceed a threshold (typically $25K+, varies by organization)</li>
+        <li>The improvement requires a kaizen event with dedicated team time and formal charter</li>
+    </ul>
+    <p>Not everything belongs on the X-matrix. Most MDI newspaper items are local improvements handled within the team or area. Only those that require strategic-level resources or align to breakthrough objectives should promote. The X-matrix should have three to five projects per site, not thirty.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Action items created within hoshin projects carry a source_type of &ldquo;hoshin&rdquo; linking them to their origin. The hoshin dashboard shows by-site rollup of targets vs. YTD savings, project status distribution (active, completed, delayed), and X-matrix alignment metrics (linked vs. orphaned projects). The calendar view shows monthly target vs. actual per project grouped by site &mdash; a Tier 3 visual management view.
+    </div>
+</div>
+
+<!-- Related Playbooks -->
+<div style="margin: 2.5rem 0 1rem;">
+    <h2 style="font-size: 1.15rem; text-align: center; margin-bottom: 1rem;">Related Playbooks</h2>
+    <div class="related-playbooks">
+        <a href="/hoshin-kanri-strategy-deployment/" class="related-card">
+            <div class="related-phase strategy">Strategy</div>
+            <div class="related-title">Hoshin Kanri &amp; Strategy Deployment</div>
+            <div class="related-desc">The strategy that MDI deploys daily. X-matrix, catchball, annual planning, dollar rollup.</div>
+        </a>
+        <a href="/leadership-standard-work/" class="related-card">
+            <div class="related-phase consolidate">Consolidate</div>
+            <div class="related-title">Leadership Standard Work</div>
+            <div class="related-desc">The third pillar of MDI. Structured daily tasks that ensure leaders verify the system is functioning.</div>
+        </a>
+        <a href="/5s-operational-excellence/" class="related-card">
+            <div class="related-phase shape">Shape</div>
+            <div class="related-title">5S as Operational Shaping</div>
+            <div class="related-desc">The baseline condition that MDI maintains. Without 5S, visual management degrades.</div>
+        </a>
+    </div>
+</div>
+
+<!-- CTA -->
+<div class="playbook-cta">
+    <h3>Build the Backbone</h3>
+    <p>Action items with dependency chains, barrier tracking, SPC-driven quality signals, and hoshin integration. Team plan: {{ price_team }}/seat/mo. 14-day free trial.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="/continuous-improvement-software/" class="cta-secondary">Back to CI Hub</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}
+
+{% block faq %}
+<div class="pb-faq">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">What is Managing for Daily Improvement (MDI)?</div>
+        <div class="faq-a">MDI is the daily management system that connects hoshin strategy to shop floor execution. Three pillars: visual management systems, daily accountability through tier meetings, and leadership standard work. It operates through a tier structure where information flows up as escalation and down as resource deployment.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is a newspaper in lean manufacturing?</div>
+        <div class="faq-a">A newspaper (action register) is a bilateral contract between a team member and their leader. Each item specifies: What (the deliverable), Who (named owner), When (specific date), Status, Barrier (what is blocking), and Resource Needed (what the leader must provide). If the leader does not provide the resources, the leader failed &mdash; not the operator. It is accountability in both directions.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How long should tier meetings be?</div>
+        <div class="faq-a">Tier 1: 10-15 minutes. Tier 2: 15-20 minutes. Tier 3: 30-45 minutes weekly. If meetings consistently exceed these times, you are solving problems instead of surfacing them. Take detailed problem-solving offline. The meeting is for review, escalation, and action assignment.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is an SQDC board?</div>
+        <div class="faq-a">A visual management board organized around Safety, Quality, Delivery, Cost. Each category has daily indicators (green/red) updated by the team. It makes performance visible at the point of work and drives immediate response to gaps. The board must be at the work area, updated daily, and owned by the team &mdash; not by management.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does MDI connect to hoshin kanri?</div>
+        <div class="faq-a">Hoshin sets the direction. MDI executes daily. Newspaper items that exceed local authority promote to hoshin projects. KPI actuals from tier meetings feed the X-matrix. Leadership standard work verifies alignment. Action items created in hoshin projects appear in team newspapers. They are two halves of one system.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What if my organization does not have hoshin kanri yet?</div>
+        <div class="faq-a">Start with MDI. You do not need hoshin to run effective tier meetings with visual management and newspapers. MDI builds the daily management discipline. Once MDI is stable, add hoshin to give the system strategic direction. Doing it in reverse &mdash; hoshin without MDI &mdash; produces plans that never reach the floor.</div>
+    </div>
+</div>
+{% endblock %}

@@ -1070,6 +1070,24 @@ def get_section(request, module_id: str, section_id: str):
             "interactive": rich_content.get("interactive", {}),
         }
 
+    # Include tool_steps and active session for interactive tutorials
+    if rich_content and rich_content.get("tool_steps"):
+        response_data["tool_steps"] = rich_content["tool_steps"]
+        response_data["sandbox_config"] = rich_content.get("sandbox_config", {})
+        response_data["workflow"] = rich_content.get("workflow", {})
+
+        session = LearnSession.objects.filter(
+            user=request.user, module_id=module_id, section_id=section_id
+        ).first()
+        if session:
+            response_data["active_session"] = {
+                "id": str(session.id),
+                "project_id": str(session.project_id) if session.project_id else None,
+                "steps_completed": session.steps_completed,
+                "state": _sanitize_session_state(session.state),
+                "started_at": session.started_at.isoformat(),
+            }
+
     return JsonResponse(response_data)
 
 
@@ -1140,6 +1158,23 @@ def mark_section_complete(request, module_id: str):
     section = next((s for s in module["sections"] if s["id"] == section_id), None)
     if not section:
         return JsonResponse({"error": "Section not found"}, status=404)
+
+    # Enforce workflow completion for tool-integrated sections
+    rich_content = get_section_content(section_id)
+    if rich_content.get("tool_steps") and rich_content.get("workflow"):
+        workflow = rich_content["workflow"]
+        if workflow.get("completion_requires") == "all_steps":
+            session = LearnSession.objects.filter(
+                user=request.user, module_id=module_id, section_id=section_id
+            ).first()
+            required = {s["id"] for s in rich_content["tool_steps"]}
+            completed = set(session.steps_completed) if session else set()
+            remaining = required - completed
+            if remaining:
+                return JsonResponse({
+                    "error": "Complete all tool steps first",
+                    "remaining": sorted(remaining),
+                }, status=400)
 
     # Update progress
     _mark_section_complete(request.user, module_id, section_id)
@@ -1270,7 +1305,7 @@ def assessment_history(request):
 # Helper Functions — backed by SectionProgress, AssessmentAttempt
 # =============================================================================
 
-from .models import SectionProgress, AssessmentAttempt
+from .models import SectionProgress, AssessmentAttempt, LearnSession
 
 
 def _get_user_progress(user) -> dict:
@@ -1427,3 +1462,944 @@ Return ONLY the JSON array, no other text."""
     except (json.JSONDecodeError, IndexError, KeyError) as e:
         logger.error(f"Failed to parse assessment questions: {e}")
         return None
+
+
+# =============================================================================
+# Interactive Tutorial Sessions
+# =============================================================================
+
+
+def _sanitize_session_state(state: dict) -> dict:
+    """Strip large data blobs from session state for API responses.
+
+    Keeps summaries, hypothesis info, and small results but drops
+    raw data arrays that could be hundreds of rows.
+    """
+    sanitized = {}
+    for key, value in state.items():
+        if not isinstance(value, dict):
+            sanitized[key] = value
+            continue
+        clean = {}
+        for k, v in value.items():
+            # Skip raw data arrays (Forge output, inline datasets)
+            if k == "data" and isinstance(v, (dict, list)):
+                clean[k] = {"_truncated": True, "row_count": len(v) if isinstance(v, list) else len(next(iter(v.values()), []))}
+            else:
+                clean[k] = v
+        sanitized[key] = clean
+    return sanitized
+
+
+def _merge_edits(config: dict, edits: dict, editable_fields: list) -> dict:
+    """Merge student edits into step config, respecting editable_fields."""
+    import copy
+    merged = copy.deepcopy(config)
+    for field in editable_fields:
+        if field not in edits:
+            continue
+        # Support dotted paths like "schema.rows"
+        parts = field.split(".")
+        target = merged
+        for part in parts[:-1]:
+            if part.isdigit():
+                target = target[int(part)]
+            else:
+                target = target.setdefault(part, {})
+        final_key = parts[-1]
+        if final_key.isdigit():
+            target[int(final_key)] = edits[field]
+        else:
+            target[final_key] = edits[field]
+    return merged
+
+
+@login_required
+@require_http_methods(["POST"])
+def start_session(request):
+    """Start or resume a learning session for a tool-integrated section.
+
+    Creates a sandbox core.Project and initializes Synara if configured.
+    If a session already exists for this user/module/section, resumes it.
+
+    Request: {"module_id": "foundations", "section_id": "hypothesis-driven"}
+    Response: {"session_id": "uuid", "project_id": "uuid", "tool_steps": [...], "state": {}, "steps_completed": []}
+    """
+    try:
+        data = json.loads(request.body)
+        module_id = data.get("module_id")
+        section_id = data.get("section_id")
+    except (json.JSONDecodeError, KeyError):
+        return JsonResponse({"error": "module_id and section_id required"}, status=400)
+
+    if not module_id or not section_id:
+        return JsonResponse({"error": "module_id and section_id required"}, status=400)
+
+    # Validate the section exists and has tool_steps
+    rich_content = get_section_content(section_id)
+    if not rich_content or not rich_content.get("tool_steps"):
+        return JsonResponse({"error": "Section does not support interactive sessions"}, status=400)
+
+    sandbox_config = rich_content.get("sandbox_config", {})
+
+    # Resume existing session
+    session = LearnSession.objects.filter(
+        user=request.user, module_id=module_id, section_id=section_id
+    ).first()
+
+    if session:
+        return JsonResponse({
+            "session_id": str(session.id),
+            "project_id": str(session.project_id) if session.project_id else None,
+            "tool_steps": rich_content["tool_steps"],
+            "state": _sanitize_session_state(session.state),
+            "steps_completed": session.steps_completed,
+            "resumed": True,
+        })
+
+    # Create sandbox project if configured
+    project = None
+    if sandbox_config.get("create_project"):
+        from core.models import Project
+        project = Project.objects.create(
+            user=request.user,
+            title=sandbox_config.get("project_title", f"Learn: {section_id}"),
+            description=f"Sandbox project for learning session: {section_id}",
+            tags=["learn-sandbox", module_id, section_id],
+        )
+        logger.info(f"Created sandbox project {project.id} for learn session {section_id}")
+
+        # Initialize Synara if needed
+        if sandbox_config.get("synara_enabled") and project:
+            from .synara_views import get_synara, save_synara
+            synara = get_synara(str(project.id), user=request.user)
+            save_synara(str(project.id), synara, user=request.user)
+
+    # Create session
+    session = LearnSession.objects.create(
+        user=request.user,
+        module_id=module_id,
+        section_id=section_id,
+        project=project,
+        state={},
+        steps_completed=[],
+    )
+
+    return JsonResponse({
+        "session_id": str(session.id),
+        "project_id": str(project.id) if project else None,
+        "tool_steps": rich_content["tool_steps"],
+        "state": {},
+        "steps_completed": [],
+        "resumed": False,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def execute_step(request, session_id, step_id):
+    """Execute a tool step within a learning session.
+
+    Merges student edits into step config, resolves input_from references,
+    dispatches to the appropriate tool handler, stores result in session
+    state, runs validation, and returns the result.
+
+    Request: {"edits": {"description": "Night shift temperature drift"}}
+    Response: {
+        "step_id": "step-3",
+        "status": "completed" | "failed",
+        "result": {... tool result ...},
+        "validation": {"passed": true, "message": "..."},
+        "next_step": "step-4" | null,
+        "steps_completed": ["step-1", "step-2", "step-3"],
+        "state": {... sanitized session state ...}
+    }
+    """
+    try:
+        session = LearnSession.objects.get(id=session_id, user=request.user)
+    except LearnSession.DoesNotExist:
+        return JsonResponse({"error": "Session not found"}, status=404)
+
+    # Get the section content and find the step
+    rich_content = get_section_content(session.section_id)
+    if not rich_content or not rich_content.get("tool_steps"):
+        return JsonResponse({"error": "Section has no tool steps"}, status=400)
+
+    tool_steps = rich_content["tool_steps"]
+    step = next((s for s in tool_steps if s["id"] == step_id), None)
+    if not step:
+        return JsonResponse({"error": f"Step {step_id} not found"}, status=404)
+
+    # Check step ordering (linear workflow)
+    workflow = rich_content.get("workflow", {})
+    if workflow.get("type") == "linear":
+        step_idx = next(i for i, s in enumerate(tool_steps) if s["id"] == step_id)
+        if step_idx > 0:
+            prev_step_id = tool_steps[step_idx - 1]["id"]
+            if prev_step_id not in (session.steps_completed or []):
+                return JsonResponse({"error": f"Complete step '{prev_step_id}' first"}, status=400)
+
+    # Already completed — return cached result
+    if step_id in (session.steps_completed or []):
+        output_key = step.get("output_key")
+        cached = session.state.get(output_key, {}) if output_key else {}
+        next_step = _get_next_step(tool_steps, step_id)
+        return JsonResponse({
+            "step_id": step_id,
+            "status": "completed",
+            "result": cached,
+            "validation": {"passed": True, "message": "Already completed"},
+            "next_step": next_step,
+            "steps_completed": session.steps_completed,
+            "state": _sanitize_session_state(session.state),
+        })
+
+    # Parse student edits
+    try:
+        body = json.loads(request.body)
+        edits = body.get("edits", {})
+    except json.JSONDecodeError:
+        edits = {}
+
+    # Validate required input
+    if step.get("requires_input"):
+        editable = step.get("editable_fields", [])
+        # Check that at least one editable field was provided
+        if not any(edits.get(f) for f in editable):
+            missing = [f for f in editable if not edits.get(f)]
+            return JsonResponse({
+                "error": "This step requires your input",
+                "missing_fields": missing,
+            }, status=400)
+
+    # Merge edits into config
+    config = step.get("config", {})
+    editable_fields = step.get("editable_fields", [])
+    merged_config = _merge_edits(config, edits, editable_fields) if editable_fields else config
+
+    # Apply auto_fill from prior step outputs
+    if step.get("auto_fill"):
+        for target_field, source_expr in step["auto_fill"].items():
+            value = _resolve_expression(source_expr, session.state)
+            if value is not None:
+                merged_config[target_field] = value
+
+    # Dispatch to tool handler
+    tool = step.get("tool")
+    handler = TOOL_DISPATCH.get(tool)
+    if not handler:
+        return JsonResponse({"error": f"Tool '{tool}' not supported"}, status=400)
+
+    try:
+        result = handler(session, step, merged_config, request.user)
+    except Exception as e:
+        logger.exception(f"Tool step execution failed: {tool}/{step_id}")
+        return JsonResponse({
+            "step_id": step_id,
+            "status": "failed",
+            "result": {},
+            "validation": {"passed": False, "message": str(e)},
+            "next_step": None,
+            "steps_completed": session.steps_completed or [],
+            "state": _sanitize_session_state(session.state),
+        }, status=500)
+
+    # Run validation
+    validation = _validate_step(step, result)
+
+    # Store result and mark step completed
+    output_key = step.get("output_key")
+    if output_key and validation["passed"]:
+        state = session.state or {}
+        state[output_key] = result
+        session.state = state
+        completed = list(session.steps_completed or [])
+        if step_id not in completed:
+            completed.append(step_id)
+        session.steps_completed = completed
+        session.save(update_fields=["state", "steps_completed"])
+
+    # Check if all steps are done
+    all_step_ids = {s["id"] for s in tool_steps}
+    if all_step_ids.issubset(set(session.steps_completed or [])):
+        session.completed_at = timezone.now()
+        session.save(update_fields=["completed_at"])
+
+    next_step = _get_next_step(tool_steps, step_id) if validation["passed"] else None
+
+    return JsonResponse({
+        "step_id": step_id,
+        "status": "completed" if validation["passed"] else "failed",
+        "result": result,
+        "validation": validation,
+        "next_step": next_step,
+        "steps_completed": session.steps_completed or [],
+        "state": _sanitize_session_state(session.state),
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def reset_session(request, session_id):
+    """Reset a learning session, clearing all step progress.
+
+    Deletes the sandbox project and creates a fresh one.
+    """
+    try:
+        session = LearnSession.objects.get(id=session_id, user=request.user)
+    except LearnSession.DoesNotExist:
+        return JsonResponse({"error": "Session not found"}, status=404)
+
+    rich_content = get_section_content(session.section_id)
+    sandbox_config = rich_content.get("sandbox_config", {}) if rich_content else {}
+
+    # Delete old sandbox project
+    if session.project:
+        old_project = session.project
+        session.project = None
+        session.save(update_fields=["project"])
+        old_project.delete()
+
+    # Create fresh sandbox project
+    project = None
+    if sandbox_config.get("create_project"):
+        from core.models import Project
+        project = Project.objects.create(
+            user=request.user,
+            title=sandbox_config.get("project_title", f"Learn: {session.section_id}"),
+            description=f"Sandbox project for learning session: {session.section_id}",
+            tags=["learn-sandbox", session.module_id, session.section_id],
+        )
+        if sandbox_config.get("synara_enabled"):
+            from .synara_views import get_synara, save_synara
+            synara = get_synara(str(project.id), user=request.user)
+            save_synara(str(project.id), synara, user=request.user)
+
+    session.project = project
+    session.state = {}
+    session.steps_completed = []
+    session.completed_at = None
+    session.save(update_fields=["project", "state", "steps_completed", "completed_at"])
+
+    return JsonResponse({
+        "session_id": str(session.id),
+        "project_id": str(project.id) if project else None,
+        "state": {},
+        "steps_completed": [],
+    })
+
+
+# =============================================================================
+# Tool Dispatch — internal Python calls, not HTTP
+# =============================================================================
+
+
+def _execute_synara_step(session, step, config, user):
+    """Execute a Synara belief engine step."""
+    from .synara_views import get_synara, save_synara
+
+    if not session.project_id:
+        raise ValueError("Synara requires a sandbox project")
+
+    project_id = str(session.project_id)
+    synara = get_synara(project_id, user=user)
+    action = step.get("action", "")
+
+    if action == "add_hypothesis":
+        h = synara.create_hypothesis(
+            description=config.get("description", ""),
+            domain_conditions=config.get("domain_conditions", {}),
+            behavior_class=config.get("behavior_class", ""),
+            latent_causes=config.get("latent_causes", []),
+            prior=config.get("prior", 0.5),
+            source="learn_session",
+        )
+        save_synara(project_id, synara, user=user)
+        return {
+            "type": "hypothesis",
+            "id": h.id,
+            "description": h.description,
+            "prior": h.prior,
+            "all_hypotheses": [
+                {"id": hh.id, "description": hh.description, "probability": hh.prior}
+                for hh in synara.get_all_hypotheses()
+            ],
+        }
+
+    elif action == "add_evidence":
+        supports = config.get("supports", [])
+        weakens = config.get("weakens", [])
+        # Auto-resolve: if no explicit supports/weakens, use all hypotheses
+        if not supports and not weakens:
+            all_h = synara.get_all_hypotheses()
+            supports = [h.id for h in all_h]
+
+        result = synara.create_evidence(
+            event=config.get("event", config.get("summary", "")),
+            context=config.get("context", {}),
+            supports=supports,
+            weakens=weakens,
+            strength=config.get("strength", config.get("confidence", 0.7)),
+            source="learn_session",
+            data=config.get("data"),
+        )
+        save_synara(project_id, synara, user=user)
+
+        return {
+            "type": "evidence_update",
+            "posteriors": result.posteriors if hasattr(result, "posteriors") else {},
+            "most_supported": result.most_supported if hasattr(result, "most_supported") else None,
+            "most_weakened": result.most_weakened if hasattr(result, "most_weakened") else None,
+            "all_hypotheses": [
+                {"id": h.id, "description": h.description, "probability": h.prior}
+                for h in synara.get_all_hypotheses()
+            ],
+        }
+
+    elif action == "add_link":
+        link = synara.create_link(
+            from_id=config.get("from_id", ""),
+            to_id=config.get("to_id", ""),
+            mechanism=config.get("mechanism", ""),
+            strength=config.get("strength", 0.7),
+        )
+        save_synara(project_id, synara, user=user)
+        return {
+            "type": "causal_link",
+            "from_id": link.from_id if hasattr(link, "from_id") else config.get("from_id"),
+            "to_id": link.to_id if hasattr(link, "to_id") else config.get("to_id"),
+            "mechanism": config.get("mechanism", ""),
+        }
+
+    elif action == "get_state":
+        hypotheses = synara.get_all_hypotheses()
+        return {
+            "type": "synara_state",
+            "hypotheses": [
+                {"id": h.id, "description": h.description, "probability": h.prior}
+                for h in hypotheses
+            ],
+            "most_likely": synara.get_most_likely_cause().id if synara.get_most_likely_cause() else None,
+        }
+
+    else:
+        raise ValueError(f"Unknown Synara action: {action}")
+
+
+def _execute_experimenter_step(session, step, config, user):
+    """Execute an Experimenter DOE/power analysis step."""
+    action = step.get("action", "")
+
+    if action == "power_analysis":
+        from agents.agents.experimenter.stats import PowerAnalyzer, interpret_effect_size
+
+        analyzer = PowerAnalyzer()
+        test_type = config.get("test_type", "ttest_ind")
+        effect_size = config.get("effect_size", 0.5)
+        alpha = config.get("alpha", 0.05)
+        power = config.get("power", 0.80)
+        groups = config.get("groups", 2)
+
+        # Run power analysis based on test type
+        if test_type in ("ttest_ind", "ttest_paired"):
+            pa = analyzer.power_ttest_ind(effect_size, alpha=alpha, power=power)
+        elif test_type == "anova":
+            pa = analyzer.power_anova(effect_size, groups=groups, alpha=alpha, power=power)
+        elif test_type == "correlation":
+            pa = analyzer.power_correlation(effect_size, alpha=alpha, power=power)
+        else:
+            pa = analyzer.power_ttest_ind(effect_size, alpha=alpha, power=power)
+
+        interpretation = interpret_effect_size(effect_size, test_type)
+
+        return {
+            "type": "power_analysis",
+            "sample_size": pa.sample_size if hasattr(pa, "sample_size") else pa.get("sample_size"),
+            "sample_size_per_group": getattr(pa, "sample_size_per_group", None),
+            "effect_size": effect_size,
+            "alpha": alpha,
+            "power": power,
+            "test_type": test_type,
+            "interpretation": interpretation if isinstance(interpretation, str) else str(interpretation),
+        }
+
+    elif action == "design_experiment":
+        from agents.agents.experimenter.doe import DOEGenerator, Factor
+
+        factors = []
+        for f in config.get("factors", []):
+            factors.append(Factor(
+                name=f["name"],
+                levels=f.get("levels", [f.get("low", -1), f.get("high", 1)]),
+                units=f.get("units", ""),
+                categorical=f.get("categorical", False),
+            ))
+
+        generator = DOEGenerator(seed=config.get("seed", 42))
+        design_type = config.get("design_type", "full_factorial")
+
+        if design_type == "full_factorial":
+            design = generator.full_factorial(factors, replicates=config.get("replicates", 1))
+        elif design_type == "fractional_factorial":
+            design = generator.fractional_factorial(factors, resolution=config.get("resolution", 3))
+        elif design_type == "ccd":
+            design = generator.central_composite(factors)
+        elif design_type == "plackett_burman":
+            design = generator.plackett_burman(factors)
+        else:
+            design = generator.full_factorial(factors, replicates=1)
+
+        return {
+            "type": "doe_design",
+            "design_type": design_type,
+            "num_runs": design.num_runs if hasattr(design, "num_runs") else len(design.runs),
+            "factors": [{"name": f.name, "levels": f.levels} for f in factors],
+            "runs": design.runs if hasattr(design, "runs") else [],
+            "markdown": design.to_markdown() if hasattr(design, "to_markdown") else "",
+        }
+
+    else:
+        raise ValueError(f"Unknown experimenter action: {action}")
+
+
+def _execute_forge_step(session, step, config, user):
+    """Execute a Forge synthetic data generation step.
+
+    For learning, we generate small datasets synchronously.
+    """
+    import pandas as pd
+    import numpy as np
+
+    schema = config.get("schema", {})
+    n_rows = min(schema.get("rows", 200), 1000)  # Cap at 1000 for learn mode
+    columns = schema.get("columns", [])
+    injections = schema.get("injections", [])
+
+    if not columns:
+        raise ValueError("Schema must define at least one column")
+
+    # Generate data in-process (avoid Forge task queue for small learn datasets)
+    data = {}
+    for col in columns:
+        name = col["name"]
+        col_type = col.get("type", "numeric")
+
+        if col_type == "numeric":
+            mean = col.get("mean", 0)
+            std = col.get("std", 1)
+            data[name] = np.random.normal(mean, std, n_rows).tolist()
+        elif col_type == "categorical":
+            values = col.get("values", ["A", "B"])
+            weights = col.get("weights")
+            if weights:
+                data[name] = np.random.choice(values, n_rows, p=weights).tolist()
+            else:
+                data[name] = np.random.choice(values, n_rows).tolist()
+        elif col_type == "integer":
+            low = col.get("low", 0)
+            high = col.get("high", 100)
+            data[name] = np.random.randint(low, high + 1, n_rows).tolist()
+        elif col_type == "binary":
+            prob = col.get("prob", 0.5)
+            data[name] = np.random.binomial(1, prob, n_rows).tolist()
+
+    # Apply injections (mean shifts, trends, etc.)
+    for injection in injections:
+        inj_type = injection.get("type")
+        col_name = injection.get("column")
+        if col_name not in data:
+            continue
+
+        if inj_type == "mean_shift":
+            start = injection.get("start_row", 0)
+            delta = injection.get("delta", 1.0)
+            for i in range(start, n_rows):
+                data[col_name][i] += delta
+
+        elif inj_type == "trend":
+            slope = injection.get("slope", 0.01)
+            start = injection.get("start_row", 0)
+            for i in range(start, n_rows):
+                data[col_name][i] += slope * (i - start)
+
+        elif inj_type == "variance_increase":
+            start = injection.get("start_row", 0)
+            factor = injection.get("factor", 2.0)
+            mean_val = np.mean(data[col_name][:start]) if start > 0 else 0
+            for i in range(start, n_rows):
+                data[col_name][i] = mean_val + (data[col_name][i] - mean_val) * factor
+
+    # Round numeric columns
+    for col in columns:
+        if col.get("type") == "numeric" and col.get("decimals") is not None:
+            data[col["name"]] = [round(v, col["decimals"]) for v in data[col["name"]]]
+
+    df = pd.DataFrame(data)
+    preview = df.head(10).to_dict(orient="records")
+
+    return {
+        "type": "generated_data",
+        "data": data,
+        "row_count": n_rows,
+        "columns": [{"name": c["name"], "type": c.get("type", "numeric")} for c in columns],
+        "preview": preview,
+        "summary": {col: {
+            "mean": round(float(np.mean(data[col])), 4) if isinstance(data[col][0], (int, float)) else None,
+            "std": round(float(np.std(data[col])), 4) if isinstance(data[col][0], (int, float)) else None,
+            "unique": len(set(data[col])),
+        } for col in data},
+    }
+
+
+def _execute_rca_step(session, step, config, user):
+    """Execute an RCA step."""
+    from .models import RCASession as RCASessionModel
+
+    action = step.get("action", "")
+
+    if action == "create_session":
+        rca = RCASessionModel.objects.create(
+            owner=user,
+            title=config.get("title", "Learn: Root Cause Analysis"),
+            event=config.get("event", ""),
+            chain=[],
+            status="in_progress",
+        )
+        # Link to sandbox project if available
+        if session.project:
+            rca.project = session.project
+            rca.save(update_fields=["project"])
+
+        return {
+            "type": "rca_session",
+            "id": str(rca.id),
+            "title": rca.title,
+            "event": rca.event,
+            "chain": [],
+        }
+
+    elif action == "add_chain_step":
+        rca_id = config.get("rca_id") or _get_from_state(session.state, "rca_session", "id")
+        if not rca_id:
+            raise ValueError("No RCA session found. Run create_session first.")
+
+        rca = RCASessionModel.objects.get(id=rca_id, owner=user)
+        chain = list(rca.chain or [])
+        chain.append({
+            "claim": config.get("claim", ""),
+            "supporting_evidence": config.get("supporting_evidence", ""),
+            "accepted": True,
+        })
+        rca.chain = chain
+        rca.save(update_fields=["chain"])
+
+        return {
+            "type": "rca_chain_step",
+            "rca_id": str(rca.id),
+            "chain": chain,
+            "depth": len(chain),
+        }
+
+    elif action == "set_root_cause":
+        rca_id = config.get("rca_id") or _get_from_state(session.state, "rca_session", "id")
+        if not rca_id:
+            raise ValueError("No RCA session found.")
+
+        rca = RCASessionModel.objects.get(id=rca_id, owner=user)
+        rca.root_cause = config.get("root_cause", "")
+        rca.status = "completed"
+        rca.save(update_fields=["root_cause", "status"])
+
+        return {
+            "type": "rca_root_cause",
+            "rca_id": str(rca.id),
+            "root_cause": rca.root_cause,
+            "chain": rca.chain,
+        }
+
+    else:
+        raise ValueError(f"Unknown RCA action: {action}")
+
+
+def _execute_fmea_step(session, step, config, user):
+    """Execute an FMEA step."""
+    from .models import FMEA, FMEARow
+
+    action = step.get("action", "")
+
+    if action == "create_fmea":
+        fmea = FMEA.objects.create(
+            owner=user,
+            project=session.project,
+            title=config.get("title", "Learn: FMEA"),
+            description=config.get("description", ""),
+            fmea_type=config.get("fmea_type", "process"),
+        )
+        return {
+            "type": "fmea",
+            "id": str(fmea.id),
+            "title": fmea.title,
+            "fmea_type": fmea.fmea_type,
+            "rows": [],
+        }
+
+    elif action == "add_row":
+        fmea_id = config.get("fmea_id") or _get_from_state(session.state, "fmea", "id")
+        if not fmea_id:
+            raise ValueError("No FMEA found. Run create_fmea first.")
+
+        fmea = FMEA.objects.get(id=fmea_id, owner=user)
+        row_count = FMEARow.objects.filter(fmea=fmea).count()
+
+        severity = max(1, min(10, int(config.get("severity", 5))))
+        occurrence = max(1, min(10, int(config.get("occurrence", 5))))
+        detection = max(1, min(10, int(config.get("detection", 5))))
+
+        row = FMEARow.objects.create(
+            fmea=fmea,
+            sort_order=row_count + 1,
+            process_step=config.get("process_step", ""),
+            failure_mode=config.get("failure_mode", ""),
+            effect=config.get("effect", ""),
+            severity=severity,
+            cause=config.get("cause", ""),
+            occurrence=occurrence,
+            current_controls=config.get("current_controls", ""),
+            detection=detection,
+            recommended_action=config.get("recommended_action", ""),
+        )
+
+        return {
+            "type": "fmea_row",
+            "fmea_id": str(fmea.id),
+            "row_id": str(row.id),
+            "failure_mode": row.failure_mode,
+            "rpn": severity * occurrence * detection,
+            "severity": severity,
+            "occurrence": occurrence,
+            "detection": detection,
+        }
+
+    else:
+        raise ValueError(f"Unknown FMEA action: {action}")
+
+
+def _execute_a3_step(session, step, config, user):
+    """Execute an A3 report step."""
+    from .models import A3Report
+
+    action = step.get("action", "")
+
+    if action == "create_a3":
+        a3 = A3Report.objects.create(
+            owner=user,
+            project=session.project,
+            title=config.get("title", "Learn: A3 Report"),
+            background=config.get("background", ""),
+            current_condition=config.get("current_condition", ""),
+            goal=config.get("goal", ""),
+            root_cause=config.get("root_cause", ""),
+            countermeasures=config.get("countermeasures", ""),
+            implementation_plan=config.get("implementation_plan", ""),
+            follow_up=config.get("follow_up", ""),
+        )
+        return {
+            "type": "a3_report",
+            "id": str(a3.id),
+            "title": a3.title,
+            "sections_filled": sum(1 for f in [
+                a3.background, a3.current_condition, a3.goal,
+                a3.root_cause, a3.countermeasures,
+            ] if f),
+        }
+
+    elif action == "update_a3":
+        a3_id = config.get("a3_id") or _get_from_state(session.state, "a3_report", "id")
+        if not a3_id:
+            raise ValueError("No A3 report found. Run create_a3 first.")
+
+        a3 = A3Report.objects.get(id=a3_id, owner=user)
+        update_fields = []
+        for field in ["background", "current_condition", "goal", "root_cause",
+                       "countermeasures", "implementation_plan", "follow_up"]:
+            if field in config:
+                setattr(a3, field, config[field])
+                update_fields.append(field)
+        if update_fields:
+            a3.save(update_fields=update_fields)
+
+        return {
+            "type": "a3_report",
+            "id": str(a3.id),
+            "title": a3.title,
+            "updated_sections": update_fields,
+            "sections_filled": sum(1 for f in [
+                a3.background, a3.current_condition, a3.goal,
+                a3.root_cause, a3.countermeasures,
+            ] if f),
+        }
+
+    else:
+        raise ValueError(f"Unknown A3 action: {action}")
+
+
+def _execute_vsm_step(session, step, config, user):
+    """Execute a VSM step."""
+    from .models import ValueStreamMap
+
+    action = step.get("action", "")
+
+    if action == "create_vsm":
+        vsm = ValueStreamMap.objects.create(
+            owner=user,
+            project=session.project,
+            title=config.get("title", "Learn: Value Stream Map"),
+        )
+        return {
+            "type": "vsm",
+            "id": str(vsm.id),
+            "title": vsm.title,
+        }
+
+    else:
+        raise ValueError(f"Unknown VSM action: {action}")
+
+
+def _execute_guide_step(session, step, config, user):
+    """Execute a Guide agent chat step."""
+    message = config.get("message", "")
+    context = config.get("context", "project")
+
+    # Build context data from session state
+    data = {}
+    if session.project:
+        data["project"] = {
+            "title": session.project.title,
+            "description": session.project.description or "",
+        }
+
+    # Include session state summary as context
+    if session.state:
+        data["session_state"] = {
+            k: v.get("type", "unknown") if isinstance(v, dict) else str(v)
+            for k, v in session.state.items()
+        }
+
+    response = LLMManager.chat(
+        user=user,
+        messages=[{"role": "user", "content": message}],
+        system="You are the Guide agent for a learning session. The student is working through an interactive tutorial and needs guidance. Be concise, supportive, and educational.",
+        max_tokens=1024,
+        temperature=0.7,
+    )
+
+    if not response:
+        return {
+            "type": "guide_response",
+            "response": "Guide is currently unavailable. Please continue with the next step.",
+        }
+
+    return {
+        "type": "guide_response",
+        "response": response.get("content", ""),
+    }
+
+
+# Tool dispatch table
+TOOL_DISPATCH = {
+    "synara": _execute_synara_step,
+    "experimenter": _execute_experimenter_step,
+    "forge": _execute_forge_step,
+    "rca": _execute_rca_step,
+    "fmea": _execute_fmea_step,
+    "a3": _execute_a3_step,
+    "vsm": _execute_vsm_step,
+    "guide": _execute_guide_step,
+}
+
+
+# =============================================================================
+# Step Helpers
+# =============================================================================
+
+
+def _get_next_step(tool_steps: list, current_step_id: str) -> str | None:
+    """Get the next step ID after the current one, or None if last."""
+    for i, step in enumerate(tool_steps):
+        if step["id"] == current_step_id and i + 1 < len(tool_steps):
+            return tool_steps[i + 1]["id"]
+    return None
+
+
+def _validate_step(step: dict, result: dict) -> dict:
+    """Run validation on a step result."""
+    validation = step.get("validation", {})
+    val_type = validation.get("type", "api_success")
+
+    if val_type == "api_success":
+        # Step passes if we got a result without exception
+        return {"passed": True, "message": "Step completed successfully"}
+
+    elif val_type == "field_present":
+        check = validation.get("check", "")
+        # Simple field presence check like "result.id"
+        parts = check.replace("result.", "").split(".")
+        obj = result
+        for part in parts:
+            if isinstance(obj, dict) and part in obj:
+                obj = obj[part]
+            else:
+                return {"passed": False, "message": f"Expected field '{check}' not found in result"}
+        return {"passed": True, "message": "Validation passed"}
+
+    elif val_type == "result_check":
+        # JS-style expression — for now, just check truthiness of the referenced field
+        check = validation.get("check", "")
+        # Simple parsing: "result.field && result.field.length > 0"
+        # We just check the field exists and is truthy
+        field = check.split("&&")[0].strip().replace("result.", "")
+        parts = field.split(".")
+        obj = result
+        for part in parts:
+            if isinstance(obj, dict) and part in obj:
+                obj = obj[part]
+            else:
+                return {"passed": False, "message": f"Validation check failed: {check}"}
+        if obj:
+            return {"passed": True, "message": "Validation passed"}
+        return {"passed": False, "message": f"Validation check failed: {check}"}
+
+    return {"passed": True, "message": "No validation configured"}
+
+
+def _resolve_expression(expr: str, state: dict):
+    """Resolve a simple dot-path expression against session state.
+
+    Example: "spc_result.guide_observation" → state["spc_result"]["guide_observation"]
+    Supports || for fallback: "spc_result.guide_observation || spc_result.summary"
+    """
+    alternatives = [e.strip() for e in expr.split("||")]
+    for alt in alternatives:
+        parts = alt.split(".")
+        obj = state
+        resolved = True
+        for part in parts:
+            if isinstance(obj, dict) and part in obj:
+                obj = obj[part]
+            else:
+                resolved = False
+                break
+        if resolved and obj:
+            return obj
+    return None
+
+
+def _get_from_state(state: dict, result_type: str, field: str):
+    """Find a value in session state by result type and field.
+
+    Searches through state values for one matching the given type.
+    """
+    for key, value in state.items():
+        if isinstance(value, dict) and value.get("type") == result_type:
+            return value.get(field)
+    return None

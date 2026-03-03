@@ -152,7 +152,101 @@ Then use:
             "answer": "Primary analysis should be intention-to-treat: analyze everyone according to their randomized group, regardless of compliance. This preserves randomization. You can do per-protocol as secondary analysis, acknowledging the selection bias.",
             "hint": "Why would analyzing only compliers be biased?"
         }
-    ]
+    ],
+    "tool_steps": [
+        {
+            "id": "generate-confounded",
+            "title": "Generate Confounded Data",
+            "instruction": "First, let's see what happens when assignment ISN'T random. We'll use Forge to generate a dataset where treatment assignment is correlated with a confounder (severity). Sicker patients get treatment more often — this is confounding by indication.",
+            "tool": "forge",
+            "action": "generate",
+            "config": {
+                "n_rows": 200,
+                "columns": [
+                    {"name": "patient_id", "type": "integer", "min": 1, "max": 200},
+                    {"name": "severity", "type": "numeric", "mean": 50, "std": 15},
+                    {"name": "treatment", "type": "binary", "p": 0.5},
+                    {"name": "outcome", "type": "numeric", "mean": 70, "std": 10},
+                ],
+                "injections": [
+                    {"type": "correlation", "columns": ["severity", "treatment"], "strength": 0.6},
+                    {"type": "correlation", "columns": ["severity", "outcome"], "strength": -0.5},
+                ],
+            },
+            "editable_fields": [],
+            "output_key": "confounded_data",
+            "requires_input": False,
+            "validation": {"type": "api_success"},
+        },
+        {
+            "id": "hypothesize-bias",
+            "title": "Create Hypothesis About Bias",
+            "instruction": "Look at the data: sicker patients received treatment more often. Create a hypothesis in Synara that the observed treatment-outcome relationship is confounded by severity. Set a high prior — this is textbook confounding by indication.",
+            "tool": "synara",
+            "action": "create_hypothesis",
+            "config": {
+                "title": "Treatment-outcome association is confounded by severity",
+                "description": "Sicker patients are more likely to receive treatment AND have worse outcomes, creating a spurious negative association between treatment and outcome.",
+                "prior": 0.85,
+            },
+            "editable_fields": ["prior"],
+            "output_key": "bias_hypothesis",
+            "requires_input": False,
+            "validation": {"type": "api_success"},
+        },
+        {
+            "id": "generate-randomized",
+            "title": "Generate Properly Randomized Data",
+            "instruction": "Now generate a dataset where treatment is randomly assigned — no correlation with severity. The TRUE treatment effect is a +5 improvement in outcome. With random assignment, severity balances across groups automatically.",
+            "tool": "forge",
+            "action": "generate",
+            "config": {
+                "n_rows": 200,
+                "columns": [
+                    {"name": "patient_id", "type": "integer", "min": 1, "max": 200},
+                    {"name": "severity", "type": "numeric", "mean": 50, "std": 15},
+                    {"name": "treatment", "type": "binary", "p": 0.5},
+                    {"name": "outcome", "type": "numeric", "mean": 72, "std": 10},
+                ],
+                "injections": [
+                    {"type": "mean_shift", "column": "outcome", "condition": {"column": "treatment", "equals": 1}, "shift": 5},
+                ],
+            },
+            "editable_fields": [],
+            "output_key": "randomized_data",
+            "requires_input": False,
+            "validation": {"type": "api_success"},
+        },
+        {
+            "id": "link-evidence",
+            "title": "Compare & Link Evidence",
+            "instruction": "Compare the two datasets. In the confounded data, treatment appears harmful (sicker patients got it). In the randomized data, the true +5 benefit is visible. Link this comparison as evidence to your hypothesis — the confounding was real, and randomization solved it.",
+            "tool": "synara",
+            "action": "add_evidence",
+            "config": {
+                "title": "Randomized vs confounded comparison",
+                "description": "Confounded data shows spurious negative treatment effect due to severity-treatment correlation. Randomized data reveals true +5 benefit. Confirms confounding by indication.",
+                "evidence_type": "experiment",
+                "direction": "supports",
+                "likelihood_ratio": 8.0,
+            },
+            "editable_fields": ["likelihood_ratio"],
+            "input_from": "bias_hypothesis",
+            "output_key": "comparison_evidence",
+            "requires_input": False,
+            "validation": {"type": "api_success"},
+        },
+    ],
+    "sandbox_config": {
+        "create_project": True,
+        "project_title": "Randomization & Controls Lab",
+        "synara_enabled": True,
+        "tools_available": ["forge", "synara"],
+    },
+    "workflow": {
+        "type": "linear",
+        "completion_requires": "all_steps",
+    },
 }
 
 
@@ -298,7 +392,81 @@ Rough guide for detecting 5 percentage point difference:
             "answer": "The study was likely underpowered. With n=20, you can only reliably detect large effects (d≈0.8). A smaller effect might exist but be undetectable. The correct conclusion is 'inconclusive' not 'no effect.'",
             "hint": "Calculate what effect size this study was powered to detect."
         }
-    ]
+    ],
+    "tool_steps": [
+        {
+            "id": "configure-power",
+            "title": "Configure Power Analysis",
+            "instruction": "Set up a power analysis for a two-sample t-test. You're planning an experiment to detect a medium effect (d=0.5) with standard settings. Try adjusting the effect size to see how dramatically it changes the required sample size.",
+            "tool": "experimenter",
+            "action": "power_analysis",
+            "config": {
+                "test_type": "two_sample_t",
+                "effect_size": 0.5,
+                "alpha": 0.05,
+                "power": 0.80,
+            },
+            "editable_fields": ["effect_size", "alpha", "power"],
+            "output_key": "power_result",
+            "requires_input": False,
+            "validation": {"type": "api_success"},
+        },
+        {
+            "id": "generate-adequate",
+            "title": "Generate Adequately Powered Dataset",
+            "instruction": "Now use Forge to generate a dataset at the recommended sample size. The true effect is a mean difference of 5 units (d≈0.5 with σ=10). With adequate n, the effect should be clearly detectable.",
+            "tool": "forge",
+            "action": "generate",
+            "config": {
+                "n_rows": 128,
+                "columns": [
+                    {"name": "participant_id", "type": "integer", "min": 1, "max": 128},
+                    {"name": "group", "type": "categorical", "categories": ["control", "treatment"]},
+                    {"name": "outcome", "type": "numeric", "mean": 50, "std": 10},
+                ],
+                "injections": [
+                    {"type": "mean_shift", "column": "outcome", "condition": {"column": "group", "equals": "treatment"}, "shift": 5},
+                ],
+            },
+            "editable_fields": ["n_rows"],
+            "input_from": "power_result",
+            "output_key": "adequate_data",
+            "requires_input": False,
+            "validation": {"type": "api_success"},
+        },
+        {
+            "id": "generate-underpowered",
+            "title": "Generate Underpowered Dataset",
+            "instruction": "Now generate the same experiment but with only n=20 (10 per group). The SAME true effect exists, but watch how hard it is to detect with too few participants. This is why power analysis matters — you can waste an entire study by skipping this step.",
+            "tool": "forge",
+            "action": "generate",
+            "config": {
+                "n_rows": 20,
+                "columns": [
+                    {"name": "participant_id", "type": "integer", "min": 1, "max": 20},
+                    {"name": "group", "type": "categorical", "categories": ["control", "treatment"]},
+                    {"name": "outcome", "type": "numeric", "mean": 50, "std": 10},
+                ],
+                "injections": [
+                    {"type": "mean_shift", "column": "outcome", "condition": {"column": "group", "equals": "treatment"}, "shift": 5},
+                ],
+            },
+            "editable_fields": [],
+            "output_key": "underpowered_data",
+            "requires_input": False,
+            "validation": {"type": "api_success"},
+        },
+    ],
+    "sandbox_config": {
+        "create_project": True,
+        "project_title": "Power Analysis Lab",
+        "synara_enabled": False,
+        "tools_available": ["experimenter", "forge"],
+    },
+    "workflow": {
+        "type": "linear",
+        "completion_requires": "all_steps",
+    },
 }
 
 

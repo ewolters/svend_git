@@ -3,6 +3,8 @@
 import numpy as np
 from scipy import stats as sp_stats
 
+from .common import _narrative, SVEND_COLORS, COLOR_GOOD, COLOR_BAD, COLOR_WARNING, COLOR_INFO, COLOR_NEUTRAL, COLOR_REFERENCE, _rgba
+
 
 def _spc_nelson_rules(data, cl, ucl, lcl):
     """Check all 8 Nelson rules and return OOC indices + rule violations."""
@@ -86,19 +88,129 @@ def _spc_nelson_rules(data, cl, ucl, lcl):
     return list(sorted(ooc_indices)), violations
 
 
-def _spc_add_ooc_markers(plot_data, data, ooc_indices):
-    """Add red markers for OOC points to a Plotly chart trace list."""
+def _spc_build_point_rules(data, cl, ucl, lcl, ooc_indices):
+    """Build per-point Nelson rule annotations for OOC points.
+
+    Returns dict {index: ["Rule 1: Beyond 3σ", ...]} for each OOC index.
+    """
+    n = len(data)
+    sigma = (ucl - cl) / 3 if ucl != cl else 1
+    one_sigma_up = cl + sigma
+    one_sigma_dn = cl - sigma
+    two_sigma_up = cl + 2 * sigma
+    two_sigma_dn = cl - 2 * sigma
+    ooc_set = set(ooc_indices)
+    rules = {i: [] for i in ooc_indices}
+
+    # Rule 1: Beyond 3σ
+    for i in ooc_set:
+        if data[i] > ucl or data[i] < lcl:
+            rules[i].append("Rule 1: Beyond 3\u03c3")
+
+    # Rule 2: 9 consecutive same side
+    for i in range(8, n):
+        window = data[i-8:i+1]
+        if all(v > cl for v in window) or all(v < cl for v in window):
+            for j in range(i-8, i+1):
+                if j in ooc_set:
+                    rules[j].append("Rule 2: 9 same side")
+            break
+
+    # Rule 3: 6 consecutive trending
+    for i in range(5, n):
+        window = data[i-5:i+1]
+        diffs = [window[j+1] - window[j] for j in range(5)]
+        if all(d > 0 for d in diffs) or all(d < 0 for d in diffs):
+            direction = "increasing" if diffs[0] > 0 else "decreasing"
+            for j in range(i-5, i+1):
+                if j in ooc_set:
+                    rules[j].append(f"Rule 3: 6 {direction}")
+            break
+
+    # Rule 4: 14 alternating
+    if n >= 14:
+        for i in range(13, n):
+            window = data[i-13:i+1]
+            diffs = [window[j+1] - window[j] for j in range(13)]
+            if all(diffs[j] * diffs[j+1] < 0 for j in range(12)):
+                for j in range(i-13, i+1):
+                    if j in ooc_set:
+                        rules[j].append("Rule 4: 14 alternating")
+                break
+
+    # Rule 5: 2 of 3 beyond 2σ
+    for i in range(2, n):
+        w = data[i-2:i+1]
+        if sum(1 for v in w if v > two_sigma_up) >= 2 or sum(1 for v in w if v < two_sigma_dn) >= 2:
+            for j in range(i-2, i+1):
+                if j in ooc_set and "Rule 5: 2/3 beyond 2\u03c3" not in rules[j]:
+                    rules[j].append("Rule 5: 2/3 beyond 2\u03c3")
+
+    # Rule 6: 4 of 5 beyond 1σ
+    for i in range(4, n):
+        w = data[i-4:i+1]
+        if sum(1 for v in w if v > one_sigma_up) >= 4 or sum(1 for v in w if v < one_sigma_dn) >= 4:
+            for j in range(i-4, i+1):
+                if j in ooc_set and "Rule 6: 4/5 beyond 1\u03c3" not in rules[j]:
+                    rules[j].append("Rule 6: 4/5 beyond 1\u03c3")
+
+    # Rule 7: 15 within 1σ (stratification)
+    if n >= 15:
+        for i in range(14, n):
+            window = data[i-14:i+1]
+            if all(one_sigma_dn <= v <= one_sigma_up for v in window):
+                for j in range(i-14, i+1):
+                    if j in ooc_set:
+                        rules[j].append("Rule 7: 15 within 1\u03c3")
+                break
+
+    # Rule 8: 8 beyond 1σ both sides (mixture)
+    if n >= 8:
+        for i in range(7, n):
+            window = data[i-7:i+1]
+            if all(v > one_sigma_up or v < one_sigma_dn for v in window):
+                for j in range(i-7, i+1):
+                    if j in ooc_set:
+                        rules[j].append("Rule 8: Mixture pattern")
+                break
+
+    return rules
+
+
+def _spc_add_ooc_markers(plot_data, data, ooc_indices, point_rules=None):
+    """Add red markers for OOC points and customdata to main trace for click-to-inspect."""
+    import numpy as np
+    n = len(data) if hasattr(data, '__len__') else 0
+    ooc_set = set(ooc_indices) if ooc_indices else set()
+
+    # Tag the first (main data) trace with customdata so every point is clickable
+    if plot_data and n > 0:
+        main_trace = plot_data[0]
+        if "customdata" not in main_trace:
+            main_trace["customdata"] = [
+                [i, "; ".join(point_rules.get(i, [])) if point_rules and i in ooc_set else ""]
+                for i in range(n)
+            ]
+            main_trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>"
+
     if not ooc_indices:
         return
-    import numpy as np
     ooc_x = ooc_indices
     ooc_y = [float(data[i]) for i in ooc_indices]
-    plot_data.append({
+    trace = {
         "type": "scatter", "x": ooc_x, "y": ooc_y,
         "mode": "markers", "name": "Out of Control",
         "marker": {"color": "#d94a4a", "size": 9, "symbol": "diamond", "line": {"color": "#fff", "width": 1}},
         "showlegend": True
-    })
+    }
+    # Add customdata for click-to-inspect
+    if point_rules is not None:
+        trace["customdata"] = [[i, "; ".join(point_rules.get(i, []))] for i in ooc_indices]
+        trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<br>%{customdata[1]}<extra>OOC</extra>"
+    else:
+        trace["customdata"] = [[i, ""] for i in ooc_indices]
+        trace["hovertemplate"] = "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra>OOC</extra>"
+    plot_data.append(trace)
 
 
 
@@ -132,6 +244,7 @@ def run_spc_analysis(df, analysis_id, config):
 
         # Nelson rules check
         ooc_indices, rule_violations = _spc_nelson_rules(data, x_bar, ucl, lcl)
+        point_rules = _spc_build_point_rules(data, x_bar, ucl, lcl, ooc_indices)
 
         # I Chart with OOC markers
         i_chart_data = [
@@ -140,11 +253,13 @@ def run_spc_analysis(df, analysis_id, config):
             {"type": "scatter", "y": [ucl]*n, "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [lcl]*n, "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
         ]
-        _spc_add_ooc_markers(i_chart_data, data, ooc_indices)
+        _spc_add_ooc_markers(i_chart_data, data, ooc_indices, point_rules=point_rules)
         result["plots"].append({
             "title": "I Chart (Individuals)",
             "data": i_chart_data,
-            "layout": {"template": "plotly_dark", "height": 250, "showlegend": True}
+            "layout": {"height": 290, "showlegend": True,
+                        "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         # MR Chart with OOC markers
@@ -158,7 +273,9 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "MR Chart (Moving Range)",
             "data": mr_chart_data,
-            "layout": {"template": "plotly_dark", "height": 250}
+            "layout": {"height": 290,
+                        "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         ooc = len(ooc_indices)
@@ -168,6 +285,34 @@ def run_spc_analysis(df, analysis_id, config):
         result["summary"] = f"I-MR Chart Analysis\n\nMean: {x_bar:.4f}\nUCL: {ucl:.4f}\nLCL: {lcl:.4f}\nMR-bar: {mr_bar:.4f}\n\nOut-of-control points: {ooc}{violations_text}"
 
         result["guide_observation"] = f"Control chart shows {ooc} out-of-control points." + (" Process appears stable." if ooc == 0 else " Investigation recommended.")
+
+        # Narrative
+        if ooc == 0:
+            _cc_verdict = "Process is in statistical control"
+            _cc_body = "No special cause variation detected. Process is stable and predictable."
+            _cc_next = "Process is stable &mdash; capability analysis is valid."
+        else:
+            _rule_summary = "; ".join(rule_violations[:3]) if rule_violations else f"{ooc} points outside control limits"
+            _cc_verdict = f"Process is out of control &mdash; {ooc} signal{'s' if ooc > 1 else ''} detected"
+            _cc_body = f"Found: {_rule_summary}."
+            _cc_next = "Investigate special causes at the flagged points. Check timestamps against process logs for assignable causes."
+        result["narrative"] = _narrative(
+            _cc_verdict, _cc_body,
+            next_steps=_cc_next,
+            chart_guidance="Points above UCL or below LCL are out-of-control signals. Runs of 7+ on one side of center suggest a shift. Two of three points beyond 2\u03c3 suggest a trend."
+        )
+
+        if ooc_indices:
+            result["what_if_data"] = {
+                "type": "spc_intervention",
+                "values": data.tolist(),
+                "center": float(x_bar),
+                "ucl": float(ucl),
+                "lcl": float(lcl),
+                "sigma": float(mr_bar / 1.128),
+                "ooc_indices": [int(i) for i in ooc_indices],
+                "first_ooc": int(min(ooc_indices)),
+            }
 
     elif analysis_id == "capability":
         from scipy import stats as sp_stats
@@ -325,7 +470,7 @@ def run_spc_analysis(df, analysis_id, config):
             "title": "Capability Histogram",
             "data": hist_traces,
             "layout": {
-                "template": "plotly_dark", "height": 320,
+                "height": 320,
                 "shapes": shapes_h, "annotations": annotations_h,
                 "showlegend": True,
                 "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
@@ -406,7 +551,7 @@ def run_spc_analysis(df, analysis_id, config):
                 "title": "Process Spread vs Specification",
                 "data": spread_traces,
                 "layout": {
-                    "template": "plotly_dark", "height": 180, "barmode": "overlay",
+                    "height": 180, "barmode": "overlay",
                     "shapes": spread_shapes, "annotations": spread_annot,
                     "showlegend": True,
                     "legend": {"x": 1, "xanchor": "right", "y": 1, "bgcolor": "rgba(0,0,0,0)"},
@@ -444,7 +589,7 @@ def run_spc_analysis(df, analysis_id, config):
                 },
             ],
             "layout": {
-                "template": "plotly_dark", "height": 300,
+                "height": 300,
                 "xaxis": {"title": "Theoretical Quantiles"},
                 "yaxis": {"title": "Observed"},
                 "showlegend": False,
@@ -464,6 +609,31 @@ def run_spc_analysis(df, analysis_id, config):
             "current_usl": float(usl) if usl else None,
             "data_values": data.tolist() if n <= 5000 else data[:5000].tolist(),
         }
+
+        # Narrative
+        if cpk is not None:
+            _tol_pct = ((6 * std) / (usl - lsl) * 100) if lsl is not None and usl is not None and (usl - lsl) > 0 else None
+            if cpk >= 1.33:
+                _cap_verdict = f"Process is capable (Cpk = {cpk:.3f})"
+                _cap_next = "Process is capable. Monitor with control charts to maintain."
+            elif cpk >= 1.0:
+                _centering = "centering (adjust mean)" if cp is not None and cp > cpk + 0.1 else "spread (reduce variation)"
+                _cap_verdict = f"Process is marginally capable (Cpk = {cpk:.3f})"
+                _cap_next = f"Process is marginal. The dominant issue is {_centering}."
+            else:
+                _cap_verdict = f"Process is NOT capable (Cpk = {cpk:.3f})"
+                _cap_next = "Process is not capable. Run a Gage R&R to confirm measurement isn't inflating variation, then investigate root causes with multi-vari or DOE."
+            _cap_body = f"Cpk = {cpk:.3f}"
+            if _tol_pct is not None:
+                _cap_body += f" &mdash; the process uses {_tol_pct:.0f}% of the tolerance"
+            _cap_body += f". Estimated <strong>{ppm_total:,.0f}</strong> defects per million ({yield_pct:.2f}% yield)."
+            if cp is not None and ppk is not None and cpk < ppk - 0.05:
+                _cap_body += " Short-term capability exceeds long-term &mdash; the process has shifts or drifts not captured in subgroups."
+            result["narrative"] = _narrative(
+                _cap_verdict, _cap_body,
+                next_steps=_cap_next,
+                chart_guidance="The histogram shows data vs spec limits (red lines). The normal curve is the fitted distribution. Data outside the spec lines are predicted defects."
+            )
 
     elif analysis_id == "xbar_r":
         # Xbar-R Chart for subgrouped data
@@ -509,35 +679,39 @@ def run_spc_analysis(df, analysis_id, config):
 
         # Nelson rules for X-bar
         xbar_ooc, xbar_violations = _spc_nelson_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl)
+        xbar_point_rules = _spc_build_point_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc)
         # Nelson rules for R
         r_ooc, r_violations = _spc_nelson_rules(ranges, r_bar, r_ucl, r_lcl)
+        r_point_rules = _spc_build_point_rules(ranges, r_bar, r_ucl, r_lcl, r_ooc)
 
         # Xbar Chart with OOC markers
         xbar_chart_data = [
-            {"type": "scatter", "y": x_bars.tolist(), "mode": "lines+markers", "name": "X̄", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
+            {"type": "scatter", "y": x_bars.tolist(), "mode": "lines+markers", "name": "X̄", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}},
             {"type": "scatter", "y": [x_double_bar]*n_subgroups, "mode": "lines", "name": "CL", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": [xbar_ucl]*n_subgroups, "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [xbar_lcl]*n_subgroups, "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
         ]
-        _spc_add_ooc_markers(xbar_chart_data, x_bars, xbar_ooc)
+        _spc_add_ooc_markers(xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules)
         result["plots"].append({
             "title": "Xbar Chart",
             "data": xbar_chart_data,
-            "layout": {"template": "plotly_dark", "height": 250, "showlegend": True, "xaxis": {"title": "Subgroup"}}
+            "layout": {"height": 290, "showlegend": True, "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         # R Chart with OOC markers
         r_chart_data = [
-            {"type": "scatter", "y": ranges.tolist(), "mode": "lines+markers", "name": "R", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
+            {"type": "scatter", "y": ranges.tolist(), "mode": "lines+markers", "name": "R", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}},
             {"type": "scatter", "y": [r_bar]*n_subgroups, "mode": "lines", "name": "CL", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": [r_ucl]*n_subgroups, "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [r_lcl]*n_subgroups, "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
         ]
-        _spc_add_ooc_markers(r_chart_data, ranges, r_ooc)
+        _spc_add_ooc_markers(r_chart_data, ranges, r_ooc, point_rules=r_point_rules)
         result["plots"].append({
             "title": "R Chart",
             "data": r_chart_data,
-            "layout": {"template": "plotly_dark", "height": 250, "xaxis": {"title": "Subgroup"}}
+            "layout": {"height": 290, "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         violations_text = ""
@@ -547,6 +721,29 @@ def run_spc_analysis(df, analysis_id, config):
             for v in r_violations: violations_text += f"\n  R: {v}"
 
         result["summary"] = f"Xbar-R Chart Analysis\n\nSubgroups: {n_subgroups}\nSubgroup size: {n}\n\nX̄ Chart:\n  X̿: {x_double_bar:.4f}\n  UCL: {xbar_ucl:.4f}\n  LCL: {xbar_lcl:.4f}\n  OOC points: {len(xbar_ooc)}\n\nR Chart:\n  R̄: {r_bar:.4f}\n  UCL: {r_ucl:.4f}\n  LCL: {r_lcl:.4f}\n  OOC points: {len(r_ooc)}{violations_text}"
+
+        _xr_ooc = len(xbar_ooc) + len(r_ooc)
+        if _xr_ooc == 0:
+            result["narrative"] = _narrative("Process is in statistical control", f"No out-of-control points in either the X\u0304 or R chart across {n_subgroups} subgroups. Process is stable and predictable.",
+                next_steps="Process is stable \u2014 capability analysis is valid.", chart_guidance="Points above UCL or below LCL are out-of-control signals. Runs of 7+ on one side of center suggest a shift.")
+        else:
+            _xr_rules = (xbar_violations + r_violations)[:3]
+            result["narrative"] = _narrative(f"Process is out of control \u2014 {_xr_ooc} signal{'s' if _xr_ooc > 1 else ''} detected",
+                f"X\u0304 chart: {len(xbar_ooc)} OOC points. R chart: {len(r_ooc)} OOC points." + (f" Violations: {'; '.join(_xr_rules)}." if _xr_rules else ""),
+                next_steps="Investigate special causes at flagged points. Check timestamps against process logs.", chart_guidance="Points above UCL or below LCL are out-of-control signals. Runs of 7+ on one side of center suggest a shift.")
+
+        if xbar_ooc or r_ooc:
+            _sigma_est = r_bar / (2.326 if n == 5 else 1.128 if n == 2 else 2.0)
+            result["what_if_data"] = {
+                "type": "spc_intervention",
+                "values": x_bars.tolist(),
+                "center": float(x_double_bar),
+                "ucl": float(xbar_ucl),
+                "lcl": float(xbar_lcl),
+                "sigma": float(_sigma_est),
+                "ooc_indices": sorted(set(list(xbar_ooc) + list(r_ooc))),
+                "first_ooc": int(min(list(xbar_ooc) + list(r_ooc))),
+            }
 
     elif analysis_id == "xbar_s":
         # Xbar-S Chart (using standard deviation instead of range)
@@ -586,7 +783,9 @@ def run_spc_analysis(df, analysis_id, config):
 
         # Nelson rules for X-bar and S
         xbar_ooc, xbar_violations = _spc_nelson_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl)
+        xbar_point_rules = _spc_build_point_rules(x_bars, x_double_bar, xbar_ucl, xbar_lcl, xbar_ooc)
         s_ooc, s_violations = _spc_nelson_rules(stds, s_bar, s_ucl, s_lcl)
+        s_point_rules = _spc_build_point_rules(stds, s_bar, s_ucl, s_lcl, s_ooc)
 
         # Xbar Chart with OOC markers
         xbar_chart_data = [
@@ -595,11 +794,12 @@ def run_spc_analysis(df, analysis_id, config):
             {"type": "scatter", "y": [xbar_ucl]*n_subgroups, "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [xbar_lcl]*n_subgroups, "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
         ]
-        _spc_add_ooc_markers(xbar_chart_data, x_bars, xbar_ooc)
+        _spc_add_ooc_markers(xbar_chart_data, x_bars, xbar_ooc, point_rules=xbar_point_rules)
         result["plots"].append({
             "title": "Xbar Chart",
             "data": xbar_chart_data,
-            "layout": {"template": "plotly_dark", "height": 250, "showlegend": True, "xaxis": {"title": "Subgroup"}}
+            "layout": {"height": 290, "showlegend": True, "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         # S Chart with OOC markers
@@ -609,11 +809,12 @@ def run_spc_analysis(df, analysis_id, config):
             {"type": "scatter", "y": [s_ucl]*n_subgroups, "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [s_lcl]*n_subgroups, "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
         ]
-        _spc_add_ooc_markers(s_chart_data, stds, s_ooc)
+        _spc_add_ooc_markers(s_chart_data, stds, s_ooc, point_rules=s_point_rules)
         result["plots"].append({
             "title": "S Chart",
             "data": s_chart_data,
-            "layout": {"template": "plotly_dark", "height": 250, "xaxis": {"title": "Subgroup"}}
+            "layout": {"height": 290, "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         violations_text = ""
@@ -623,6 +824,28 @@ def run_spc_analysis(df, analysis_id, config):
             for v in s_violations: violations_text += f"\n  S: {v}"
 
         result["summary"] = f"Xbar-S Chart Analysis\n\nSubgroups: {n_subgroups}\nSubgroup size: {n}\n\nX̄ Chart:\n  X̿: {x_double_bar:.4f}\n  UCL: {xbar_ucl:.4f}\n  LCL: {xbar_lcl:.4f}\n  OOC points: {len(xbar_ooc)}\n\nS Chart:\n  S̄: {s_bar:.4f}\n  UCL: {s_ucl:.4f}\n  LCL: {s_lcl:.4f}\n  OOC points: {len(s_ooc)}{violations_text}"
+
+        _xs_ooc = len(xbar_ooc) + len(s_ooc)
+        if _xs_ooc == 0:
+            result["narrative"] = _narrative("Process is in statistical control", f"No out-of-control points across {n_subgroups} subgroups.",
+                next_steps="Process is stable \u2014 capability analysis is valid.", chart_guidance="Points above UCL or below LCL are out-of-control signals.")
+        else:
+            _xs_rules = (xbar_violations + s_violations)[:3]
+            result["narrative"] = _narrative(f"Process is out of control \u2014 {_xs_ooc} signal{'s' if _xs_ooc > 1 else ''} detected",
+                f"X\u0304 chart: {len(xbar_ooc)} OOC. S chart: {len(s_ooc)} OOC." + (f" {'; '.join(_xs_rules)}." if _xs_rules else ""),
+                next_steps="Investigate special causes at flagged points.", chart_guidance="Points above UCL or below LCL are out-of-control signals.")
+
+        if xbar_ooc or s_ooc:
+            result["what_if_data"] = {
+                "type": "spc_intervention",
+                "values": x_bars.tolist(),
+                "center": float(x_double_bar),
+                "ucl": float(xbar_ucl),
+                "lcl": float(xbar_lcl),
+                "sigma": float(s_bar),
+                "ooc_indices": sorted(set(list(xbar_ooc) + list(s_ooc))),
+                "first_ooc": int(min(list(xbar_ooc) + list(s_ooc))),
+            }
 
     elif analysis_id == "p_chart":
         # P Chart for proportion defective
@@ -644,7 +867,7 @@ def run_spc_analysis(df, analysis_id, config):
         ooc_indices = [i for i in range(k) if p[i] > ucl[i] or p[i] < lcl[i]]
 
         p_chart_data = [
-            {"type": "scatter", "y": p.tolist(), "mode": "lines+markers", "name": "p", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
+            {"type": "scatter", "y": p.tolist(), "mode": "lines+markers", "name": "p", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}},
             {"type": "scatter", "y": [p_bar]*k, "mode": "lines", "name": "p̄", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": ucl.tolist(), "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": lcl.tolist(), "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
@@ -653,10 +876,25 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "P Chart (Proportion Defective)",
             "data": p_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": "Proportion"}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": "Proportion"}, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         result["summary"] = f"P Chart Analysis\n\np̄: {p_bar:.4f} ({p_bar*100:.2f}%)\nSamples: {k}\n\nOut-of-control points: {len(ooc_indices)}"
+        result["guide_observation"] = f"P chart: {len(ooc_indices)} out-of-control points. p\u0304 = {p_bar*100:.2f}%." + (" Process is stable." if len(ooc_indices) == 0 else " Investigation recommended.")
+
+        n_ooc = len(ooc_indices)
+        if n_ooc == 0:
+            verdict = f"P Chart — Process in control (p\u0304 = {p_bar*100:.2f}%)"
+            body = f"All {k} samples fall within control limits. The average defective rate is {p_bar*100:.2f}%."
+            nxt = "Monitor ongoing. If p\u0304 is too high, investigate systemic causes rather than individual points."
+        else:
+            verdict = f"P Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            body = (f"{n_ooc} of {k} samples ({n_ooc/k*100:.1f}%) exceed control limits. "
+                    f"Average defective rate p\u0304 = {p_bar*100:.2f}%. Investigate these subgroups for assignable causes.")
+            nxt = "Identify what changed during OOC subgroups (material, operator, machine). Address root causes before tightening limits."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="Points outside the dashed red limits are out of control. Variable limits reflect differing sample sizes.")
 
     elif analysis_id == "np_chart":
         """
@@ -677,18 +915,20 @@ def run_spc_analysis(df, analysis_id, config):
         lcl = max(0, np_bar - 3 * np.sqrt(np_bar * (1 - p_bar)))
 
         np_ooc, np_violations = _spc_nelson_rules(d, np_bar, ucl, lcl)
+        np_point_rules = _spc_build_point_rules(d, np_bar, ucl, lcl, np_ooc)
 
         np_chart_data = [
-            {"type": "scatter", "y": d.tolist(), "mode": "lines+markers", "name": "np", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
+            {"type": "scatter", "y": d.tolist(), "mode": "lines+markers", "name": "np", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}},
             {"type": "scatter", "y": [np_bar]*k, "mode": "lines", "name": "n̄p", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": [ucl]*k, "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [lcl]*k, "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
         ]
-        _spc_add_ooc_markers(np_chart_data, d, np_ooc)
+        _spc_add_ooc_markers(np_chart_data, d, np_ooc, point_rules=np_point_rules)
         result["plots"].append({
             "title": "NP Chart (Number Defective)",
             "data": np_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": "Number Defective"}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": "Number Defective"}, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         violations_text = ""
@@ -697,6 +937,20 @@ def run_spc_analysis(df, analysis_id, config):
             for v in np_violations: violations_text += f"\n  {v}"
 
         result["summary"] = f"NP Chart Analysis\n\nn̄p: {np_bar:.2f}\nSample size: {n}\np̄: {p_bar:.4f}\nUCL: {ucl:.2f}\nLCL: {lcl:.2f}\n\nOut-of-control points: {len(np_ooc)}{violations_text}"
+
+        n_ooc = len(np_ooc)
+        viol_note = f" Nelson rule violations: {', '.join(np_violations[:3])}." if np_violations else ""
+        if n_ooc == 0:
+            verdict = f"NP Chart — Process in control (n\u0304p = {np_bar:.1f})"
+            body = f"All {k} samples within limits. Average {np_bar:.1f} defectives per sample of {n}.{viol_note}"
+            nxt = "Continue monitoring. To reduce defective count, investigate the process, not individual samples."
+        else:
+            verdict = f"NP Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            body = (f"{n_ooc} of {k} samples exceed limits. Average defectives n\u0304p = {np_bar:.1f} "
+                    f"(p\u0304 = {p_bar*100:.2f}%).{viol_note}")
+            nxt = "Investigate OOC subgroups for assignable causes. Check for material batches, shift changes, or equipment issues."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="Points outside limits signal unusual defective counts. Runs or trends may indicate gradual shifts.")
 
     elif analysis_id == "c_chart":
         """
@@ -714,18 +968,20 @@ def run_spc_analysis(df, analysis_id, config):
         lcl = max(0, c_bar - 3 * np.sqrt(c_bar))
 
         c_ooc, c_violations = _spc_nelson_rules(c, c_bar, ucl, lcl)
+        c_point_rules = _spc_build_point_rules(c, c_bar, ucl, lcl, c_ooc)
 
         c_chart_data = [
-            {"type": "scatter", "y": c.tolist(), "mode": "lines+markers", "name": "c", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
+            {"type": "scatter", "y": c.tolist(), "mode": "lines+markers", "name": "c", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}},
             {"type": "scatter", "y": [c_bar]*k, "mode": "lines", "name": "c̄", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": [ucl]*k, "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [lcl]*k, "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
         ]
-        _spc_add_ooc_markers(c_chart_data, c, c_ooc)
+        _spc_add_ooc_markers(c_chart_data, c, c_ooc, point_rules=c_point_rules)
         result["plots"].append({
             "title": "C Chart (Defects per Unit)",
             "data": c_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": "Defects"}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": "Defects"}, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         violations_text = ""
@@ -734,6 +990,20 @@ def run_spc_analysis(df, analysis_id, config):
             for v in c_violations: violations_text += f"\n  {v}"
 
         result["summary"] = f"C Chart Analysis\n\nc̄: {c_bar:.2f}\nSamples: {k}\nUCL: {ucl:.2f}\nLCL: {lcl:.2f}\n\nOut-of-control points: {len(c_ooc)}{violations_text}"
+
+        n_ooc = len(c_ooc)
+        viol_note = f" Nelson rule violations: {', '.join(c_violations[:3])}." if c_violations else ""
+        if n_ooc == 0:
+            verdict = f"C Chart — Process in control (c\u0304 = {c_bar:.1f})"
+            body = f"All {k} samples within Poisson-based limits. Average defect count c\u0304 = {c_bar:.1f}.{viol_note}"
+            nxt = "Stable process. To reduce defect count, apply Pareto analysis to identify top defect categories."
+        else:
+            verdict = f"C Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            body = (f"{n_ooc} of {k} samples exceed limits. Average defects c\u0304 = {c_bar:.1f}.{viol_note} "
+                    f"The process is unstable — address special causes before process improvement.")
+            nxt = "Investigate OOC points chronologically. Look for environmental, material, or procedural changes."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="Limits are Poisson-based (\u00b13\u221ac\u0304). Points outside = unusual defect counts for constant-opportunity inspection.")
 
     elif analysis_id == "u_chart":
         """
@@ -757,7 +1027,7 @@ def run_spc_analysis(df, analysis_id, config):
         u_ooc_indices = [i for i in range(k) if u[i] > ucl[i] or u[i] < lcl[i]]
 
         u_chart_data = [
-            {"type": "scatter", "y": u.tolist(), "mode": "lines+markers", "name": "u", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
+            {"type": "scatter", "y": u.tolist(), "mode": "lines+markers", "name": "u", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}},
             {"type": "scatter", "y": [u_bar]*k, "mode": "lines", "name": "ū", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": ucl.tolist(), "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": lcl.tolist(), "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
@@ -766,10 +1036,24 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "U Chart (Defects per Unit)",
             "data": u_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": "Defects per Unit"}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": "Defects per Unit"}, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         result["summary"] = f"U Chart Analysis\n\nū: {u_bar:.4f}\nSamples: {k}\n\nOut-of-control points: {len(u_ooc_indices)}"
+
+        n_ooc = len(u_ooc_indices)
+        if n_ooc == 0:
+            verdict = f"U Chart — Process in control (\u016b = {u_bar:.4f})"
+            body = f"All {k} samples within variable control limits. Average defect rate \u016b = {u_bar:.4f} per unit."
+            nxt = "Stable process. Variable limits account for differing inspection sizes — focus on reducing the overall rate."
+        else:
+            verdict = f"U Chart — {n_ooc} out-of-control point{'s' if n_ooc > 1 else ''}"
+            body = (f"{n_ooc} of {k} samples ({n_ooc/k*100:.1f}%) exceed control limits. "
+                    f"Average defect rate \u016b = {u_bar:.4f}. Investigate these subgroups for assignable causes.")
+            nxt = "Identify what changed during OOC subgroups. Variable limits mean OOC points are truly unusual, not just from smaller samples."
+        result["narrative"] = _narrative(verdict, body, next_steps=nxt,
+            chart_guidance="Variable limits reflect differing inspection unit sizes. Points outside limits = genuinely unusual defect rates.")
 
     elif analysis_id == "cusum":
         """
@@ -809,7 +1093,8 @@ def run_spc_analysis(df, analysis_id, config):
         signals_neg = np.where(cusum_neg > h_param)[0]
 
         cusum_chart_data = [
-            {"type": "scatter", "y": cusum_pos.tolist(), "mode": "lines", "name": "CUSUM+", "line": {"color": "#4a9f6e", "width": 2}},
+            {"type": "scatter", "y": cusum_pos.tolist(), "mode": "lines", "name": "CUSUM+", "line": {"color": "#4a9f6e", "width": 2},
+             "customdata": [[i, ""] for i in range(n)], "hovertemplate": "Obs #%{customdata[0]}<br>CUSUM+: %{y:.4f}<extra></extra>"},
             {"type": "scatter", "y": (-cusum_neg).tolist(), "mode": "lines", "name": "CUSUM-", "line": {"color": "#47a5e8", "width": 2}},
             {"type": "scatter", "y": [h_param]*n, "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [-h_param]*n, "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
@@ -820,7 +1105,9 @@ def run_spc_analysis(df, analysis_id, config):
                 "type": "scatter", "x": signals_pos.tolist(), "y": cusum_pos[signals_pos].tolist(),
                 "mode": "markers", "name": "Signal (up)",
                 "marker": {"color": "#d94a4a", "size": 9, "symbol": "diamond", "line": {"color": "#fff", "width": 1}},
-                "showlegend": True
+                "showlegend": True,
+                "customdata": [[int(i), "Upward shift signal"] for i in signals_pos],
+                "hovertemplate": "Obs #%{customdata[0]}<br>CUSUM+: %{y:.4f}<br>%{customdata[1]}<extra>Signal (up)</extra>"
             })
         # OOC markers for negative signals
         if len(signals_neg) > 0:
@@ -828,15 +1115,57 @@ def run_spc_analysis(df, analysis_id, config):
                 "type": "scatter", "x": signals_neg.tolist(), "y": (-cusum_neg[signals_neg]).tolist(),
                 "mode": "markers", "name": "Signal (down)",
                 "marker": {"color": "#e89547", "size": 9, "symbol": "diamond", "line": {"color": "#fff", "width": 1}},
-                "showlegend": True
+                "showlegend": True,
+                "customdata": [[int(i), "Downward shift signal"] for i in signals_neg],
+                "hovertemplate": "Obs #%{customdata[0]}<br>CUSUM-: %{y:.4f}<br>%{customdata[1]}<extra>Signal (down)</extra>"
             })
         result["plots"].append({
             "title": "CUSUM Chart",
             "data": cusum_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": "CUSUM"}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": "CUSUM"},
+                        "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         result["summary"] = f"CUSUM Chart Analysis\n\nTarget: {target:.4f}\nσ estimate: {sigma:.4f}\nk (slack): {k_param}\nh (decision): {h_param}\n\nUpward shift signals: {len(signals_pos)} at points {list(signals_pos[:5])}{'...' if len(signals_pos) > 5 else ''}\nDownward shift signals: {len(signals_neg)} at points {list(signals_neg[:5])}{'...' if len(signals_neg) > 5 else ''}"
+
+        _n_up = len(signals_pos)
+        _n_dn = len(signals_neg)
+        _cusum_total = _n_up + _n_dn
+        result["guide_observation"] = (f"CUSUM chart: {_cusum_total} shift signal{'s' if _cusum_total != 1 else ''}."
+                                       + (" Process appears stable." if _cusum_total == 0 else " Investigation recommended."))
+        if _cusum_total == 0:
+            result["narrative"] = _narrative(
+                "Process is in statistical control", f"No cumulative shift signals detected (k={k_param}, h={h_param}). Process mean is stable around target ({target:.4f}).",
+                next_steps="Process is stable \u2014 CUSUM is sensitive to small sustained shifts; absence of signals is strong evidence of stability.",
+                chart_guidance="CUSUM+ (green) tracks upward drift; CUSUM\u2212 (blue) tracks downward drift. Crossing the red decision interval (h) signals a shift.")
+        else:
+            _shift_desc = []
+            if _n_up > 0: _shift_desc.append(f"{_n_up} upward")
+            if _n_dn > 0: _shift_desc.append(f"{_n_dn} downward")
+            result["narrative"] = _narrative(
+                f"CUSUM signals detected \u2014 {' and '.join(_shift_desc)} shift{'s' if _cusum_total > 1 else ''}",
+                f"The cumulative sum crossed the decision interval (h={h_param}), indicating a sustained shift from target ({target:.4f}).",
+                next_steps="Identify when the shift began (first signal point) and investigate process changes at that time.",
+                chart_guidance="CUSUM+ (green) tracks upward drift; CUSUM\u2212 (blue) tracks downward drift. Diamond markers show where the decision interval was breached.")
+
+        _cusum_ooc = sorted(set(list(signals_pos) + list(signals_neg)))
+        if _cusum_ooc:
+            result["what_if_data"] = {
+                "type": "spc_intervention",
+                "values": data.tolist(),
+                "center": float(target),
+                "ucl": float(target + h_param * sigma),
+                "lcl": float(target - h_param * sigma),
+                "sigma": float(sigma),
+                "ooc_indices": [int(i) for i in _cusum_ooc],
+                "first_ooc": int(min(_cusum_ooc)),
+                "cusum_pos": cusum_pos.tolist(),
+                "cusum_neg": cusum_neg.tolist(),
+                "h_param": float(h_param),
+                "k_param": float(k_param),
+                "target": float(target),
+            }
 
     elif analysis_id == "ewma":
         """
@@ -876,7 +1205,7 @@ def run_spc_analysis(df, analysis_id, config):
         ewma_ooc = [i for i in range(n) if ewma[i] > ucl[i] or ewma[i] < lcl[i]]
 
         ewma_chart_data = [
-            {"type": "scatter", "y": ewma.tolist(), "mode": "lines+markers", "name": "EWMA", "marker": {"size": 5, "color": "#4a9f6e"}, "line": {"color": "#4a9f6e"}},
+            {"type": "scatter", "y": ewma.tolist(), "mode": "lines+markers", "name": "EWMA", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}, "line": {"color": "#4a9f6e"}},
             {"type": "scatter", "y": [target]*n, "mode": "lines", "name": "Target", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": ucl.tolist(), "mode": "lines", "name": "UCL", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": lcl.tolist(), "mode": "lines", "name": "LCL", "line": {"color": "#d63031", "dash": "dash"}},
@@ -885,10 +1214,42 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "EWMA Chart",
             "data": ewma_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": "EWMA"}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": "EWMA"},
+                        "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         result["summary"] = f"EWMA Chart Analysis\n\nTarget: {target:.4f}\nλ (smoothing): {lambda_param}\nL (sigma width): {L}\n\nSteady-state limits:\n  UCL: {ucl_ss:.4f}\n  LCL: {lcl_ss:.4f}\n\nOut-of-control points: {len(ewma_ooc)}"
+
+        _ewma_n_ooc = len(ewma_ooc)
+        result["guide_observation"] = (f"EWMA chart: {_ewma_n_ooc} out-of-control point{'s' if _ewma_n_ooc != 1 else ''}."
+                                       + (" Process appears stable." if _ewma_n_ooc == 0 else " Investigation recommended."))
+        if _ewma_n_ooc == 0:
+            result["narrative"] = _narrative(
+                "Process is in statistical control", f"No EWMA points exceed control limits (\u03bb={lambda_param}, L={L}). The smoothed process mean is stable around target ({target:.4f}).",
+                next_steps="Process is stable \u2014 EWMA is sensitive to small sustained shifts; absence of signals is strong evidence of stability.",
+                chart_guidance="The EWMA line smooths out noise to reveal underlying trends. Limits widen from zero to steady state as the filter initialises.")
+        else:
+            result["narrative"] = _narrative(
+                f"EWMA signals detected \u2014 {_ewma_n_ooc} point{'s' if _ewma_n_ooc > 1 else ''} out of control",
+                f"The smoothed mean has drifted outside the \u00b1{L}\u03c3 control limits, indicating a sustained shift from target ({target:.4f}).",
+                next_steps="Identify when the drift began (first OOC point) and correlate with process changes. EWMA detects gradual shifts that Shewhart charts miss.",
+                chart_guidance="The EWMA line smooths observations \u2014 OOC points (red diamonds) indicate the smoothed mean has shifted. Variable limits reflect the filter warm-up period.")
+
+        if ewma_ooc:
+            result["what_if_data"] = {
+                "type": "spc_intervention",
+                "values": data.tolist(),
+                "center": float(target),
+                "ucl": float(ucl_ss),
+                "lcl": float(lcl_ss),
+                "sigma": float(sigma),
+                "ooc_indices": [int(i) for i in ewma_ooc],
+                "first_ooc": int(min(ewma_ooc)),
+                "ewma": ewma.tolist(),
+                "lambda_param": float(lambda_param),
+                "target": float(target),
+            }
 
     elif analysis_id == "laney_p":
         """
@@ -919,7 +1280,7 @@ def run_spc_analysis(df, analysis_id, config):
         ooc_indices = [i for i in range(k) if p[i] > ucl[i] or p[i] < lcl[i]]
 
         lp_chart_data = [
-            {"type": "scatter", "y": p.tolist(), "mode": "lines+markers", "name": "p", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
+            {"type": "scatter", "y": p.tolist(), "mode": "lines+markers", "name": "p", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}},
             {"type": "scatter", "y": [p_bar]*k, "mode": "lines", "name": "p̄", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": ucl.tolist(), "mode": "lines", "name": "UCL'", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": lcl.tolist(), "mode": "lines", "name": "LCL'", "line": {"color": "#d63031", "dash": "dash"}},
@@ -928,11 +1289,27 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "Laney P' Chart",
             "data": lp_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": "Proportion"}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": "Proportion"}, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         disp = "Overdispersion" if sigma_z > 1 else "Underdispersion" if sigma_z < 1 else "None"
         result["summary"] = f"Laney P' Chart Analysis\n\np̄: {p_bar:.4f} ({p_bar*100:.2f}%)\nσz: {sigma_z:.4f} ({disp})\nSamples: {k}\n\nOut-of-control points: {len(ooc_indices)}\n\nNote: σz > 1 indicates overdispersion — standard P chart would give too many false alarms."
+
+        _lp_n_ooc = len(ooc_indices)
+        result["guide_observation"] = f"Laney P' chart: {_lp_n_ooc} out-of-control points. \u03c3z = {sigma_z:.3f} ({disp})." + (" Process is stable." if _lp_n_ooc == 0 else " Investigation recommended.")
+        if _lp_n_ooc == 0:
+            result["narrative"] = _narrative(
+                f"Laney P' \u2014 Process in control (p\u0304 = {p_bar*100:.2f}%, \u03c3z = {sigma_z:.3f})",
+                f"All {k} samples within overdispersion-adjusted limits. {disp} detected (\u03c3z = {sigma_z:.3f})." + (" Standard P chart limits would be too tight." if sigma_z > 1 else ""),
+                next_steps="Stable process. Laney adjustment accounts for extra-binomial variation that inflates false alarms on standard P charts.",
+                chart_guidance="The adjusted limits (P') are wider than standard P chart limits when \u03c3z > 1, reducing false alarms.")
+        else:
+            result["narrative"] = _narrative(
+                f"Laney P' \u2014 {_lp_n_ooc} out-of-control point{'s' if _lp_n_ooc > 1 else ''}",
+                f"{_lp_n_ooc} of {k} samples exceed the overdispersion-adjusted limits (\u03c3z = {sigma_z:.3f}). These are genuine signals even after accounting for {disp.lower()}.",
+                next_steps="Investigate OOC subgroups. Because Laney P' already accounts for overdispersion, these signals are more trustworthy than standard P chart flags.",
+                chart_guidance="Laney-adjusted limits are wider when overdispersion exists (\u03c3z > 1). Points still outside these wider limits are strong signals.")
 
     elif analysis_id == "laney_u":
         """
@@ -962,7 +1339,7 @@ def run_spc_analysis(df, analysis_id, config):
         ooc_indices = [i for i in range(k) if u[i] > ucl[i] or u[i] < lcl[i]]
 
         lu_chart_data = [
-            {"type": "scatter", "y": u.tolist(), "mode": "lines+markers", "name": "u", "marker": {"color": "rgba(74, 159, 110, 0.4)", "line": {"color": "#4a9f6e", "width": 1.5}}},
+            {"type": "scatter", "y": u.tolist(), "mode": "lines+markers", "name": "u", "marker": {"color": "rgba(74, 159, 110, 0.4)", "size": 5, "line": {"color": "#4a9f6e", "width": 1.5}}},
             {"type": "scatter", "y": [u_bar]*k, "mode": "lines", "name": "ū", "line": {"color": "#00b894"}},
             {"type": "scatter", "y": ucl.tolist(), "mode": "lines", "name": "UCL'", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": lcl.tolist(), "mode": "lines", "name": "LCL'", "line": {"color": "#d63031", "dash": "dash"}},
@@ -971,11 +1348,27 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "Laney U' Chart",
             "data": lu_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": "Defects per Unit"}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": "Defects per Unit"}, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         disp = "Overdispersion" if sigma_z > 1 else "Underdispersion" if sigma_z < 1 else "None"
         result["summary"] = f"Laney U' Chart Analysis\n\nū: {u_bar:.4f}\nσz: {sigma_z:.4f} ({disp})\nSamples: {k}\n\nOut-of-control points: {len(ooc_indices)}\n\nNote: σz > 1 indicates overdispersion — standard U chart would give too many false alarms."
+
+        _lu_n_ooc = len(ooc_indices)
+        result["guide_observation"] = f"Laney U' chart: {_lu_n_ooc} out-of-control points. \u03c3z = {sigma_z:.3f} ({disp})." + (" Process is stable." if _lu_n_ooc == 0 else " Investigation recommended.")
+        if _lu_n_ooc == 0:
+            result["narrative"] = _narrative(
+                f"Laney U' \u2014 Process in control (\u016b = {u_bar:.4f}, \u03c3z = {sigma_z:.3f})",
+                f"All {k} samples within overdispersion-adjusted limits. {disp} detected (\u03c3z = {sigma_z:.3f}).",
+                next_steps="Stable process. Laney adjustment accounts for extra-Poisson variation.",
+                chart_guidance="Adjusted limits are wider than standard U chart when \u03c3z > 1.")
+        else:
+            result["narrative"] = _narrative(
+                f"Laney U' \u2014 {_lu_n_ooc} out-of-control point{'s' if _lu_n_ooc > 1 else ''}",
+                f"{_lu_n_ooc} of {k} samples exceed overdispersion-adjusted limits (\u03c3z = {sigma_z:.3f}). These are genuine signals even after accounting for {disp.lower()}.",
+                next_steps="Investigate OOC subgroups. Laney-adjusted signals are more trustworthy than standard U chart flags.",
+                chart_guidance="Points outside the wider Laney limits are strong signals of genuine process change.")
 
     elif analysis_id == "between_within":
         """
@@ -1068,8 +1461,8 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "X̄ Chart — Subgroup Means",
             "data": xbar_traces,
-            "layout": {"template": "plotly_dark", "height": 280,
-                        "xaxis": {"title": "Subgroup"}, "yaxis": {"title": measurement},
+            "layout": {"height": 320,
+                        "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}}, "yaxis": {"title": measurement},
                         "showlegend": True,
                         "legend": {"orientation": "h", "y": 1.15, "x": 0.5, "xanchor": "center",
                                    "font": {"size": 9, "color": "#b0b0b0"},
@@ -1114,8 +1507,8 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "R Chart — Within-Subgroup Ranges",
             "data": r_traces,
-            "layout": {"template": "plotly_dark", "height": 280,
-                        "xaxis": {"title": "Subgroup"}, "yaxis": {"title": "Range"},
+            "layout": {"height": 320,
+                        "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}}, "yaxis": {"title": "Range"},
                         "showlegend": True,
                         "legend": {"orientation": "h", "y": 1.15, "x": 0.5, "xanchor": "center",
                                    "font": {"size": 9, "color": "#b0b0b0"},
@@ -1135,7 +1528,7 @@ def run_spc_analysis(df, analysis_id, config):
                 "fillcolor": "rgba(74, 144, 217, 0.15)",
             })
 
-        box_layout = {"template": "plotly_dark", "height": 300,
+        box_layout = {"height": 300,
                       "xaxis": {"title": "Subgroup"}, "yaxis": {"title": measurement},
                       "showlegend": False, "shapes": [], "annotations": []}
         # Grand mean reference line
@@ -1192,7 +1585,7 @@ def run_spc_analysis(df, analysis_id, config):
                 "text": [f"{sigma_within:.4f}", f"{sigma_between:.4f}", f"{sigma_bw:.4f}", f"{sigma_total:.4f}"],
                 "textposition": "outside", "textfont": {"color": "#b0b0b0"},
             }],
-            "layout": {"template": "plotly_dark", "height": 280, "yaxis": {"title": "Std Dev (σ)"}},
+            "layout": {"height": 280, "yaxis": {"title": "Std Dev (σ)"}},
             "group": "Variance",
         })
 
@@ -1217,7 +1610,7 @@ def run_spc_analysis(df, analysis_id, config):
                 "textinfo": "label+percent", "textfont": {"size": 12, "color": "#e0e0e0"},
                 "hoverinfo": "label+percent+value",
             }],
-            "layout": {"template": "plotly_dark", "height": 280, "showlegend": False,
+            "layout": {"height": 280, "showlegend": False,
                         "annotations": [{"text": "Variance<br>Split", "x": 0.5, "y": 0.5,
                                           "font": {"size": 13, "color": "rgba(255,255,255,0.6)"},
                                           "showarrow": False}]},
@@ -1244,7 +1637,7 @@ def run_spc_analysis(df, analysis_id, config):
              "line": {"color": "#d94a4a", "width": 2, "dash": "dash"}},
         ]
 
-        dist_layout = {"template": "plotly_dark", "height": 300, "showlegend": True,
+        dist_layout = {"height": 300, "showlegend": True,
                        "shapes": [], "annotations": [],
                        "legend": {"font": {"size": 9, "color": "#b0b0b0"}, "x": 0.98, "xanchor": "right", "y": 0.98,
                                   "bgcolor": "rgba(20,20,30,0.7)", "bordercolor": "rgba(255,255,255,0.1)", "borderwidth": 1}}
@@ -1285,7 +1678,7 @@ def run_spc_analysis(df, analysis_id, config):
                      "marker": {"color": "#d94a4a"}, "text": [f"{pp:.3f}", f"{ppk:.3f}"],
                      "textposition": "outside", "textfont": {"color": "#b0b0b0"}},
                 ],
-                "layout": {"template": "plotly_dark", "height": 300, "barmode": "group",
+                "layout": {"height": 300, "barmode": "group",
                             "yaxis": {"title": "Index Value"},
                             "legend": {"orientation": "h", "y": 1.12, "x": 0.5, "xanchor": "center",
                                        "font": {"size": 10, "color": "#b0b0b0"}, "bgcolor": "rgba(0,0,0,0)"},
@@ -1317,7 +1710,7 @@ def run_spc_analysis(df, analysis_id, config):
                  "mode": "lines", "name": "Normal Fit",
                  "line": {"color": "#d94a4a", "width": 1.5}},
             ],
-            "layout": {"template": "plotly_dark", "height": 280,
+            "layout": {"height": 280,
                         "xaxis": {"title": "Theoretical Quantiles"},
                         "yaxis": {"title": measurement},
                         "showlegend": True,
@@ -1419,7 +1812,7 @@ def run_spc_analysis(df, analysis_id, config):
              "name": f"{best_name} Fit", "line": {"color": "#4a90d9", "width": 2}},
         ]
 
-        layout = {"template": "plotly_dark", "height": 300, "showlegend": True, "shapes": [], "annotations": []}
+        layout = {"height": 300, "showlegend": True, "shapes": [], "annotations": []}
         if lsl is not None:
             layout["shapes"].append({"type": "line", "x0": lsl, "x1": lsl, "y0": 0, "y1": 1, "yref": "paper", "line": {"color": "#e85747", "dash": "dash", "width": 2}})
             layout["annotations"].append({"x": lsl, "y": 1.05, "yref": "paper", "text": "LSL", "showarrow": False, "font": {"color": "#e85747"}})
@@ -1448,7 +1841,7 @@ def run_spc_analysis(df, analysis_id, config):
                  "y": [min(theoretical_q), max(theoretical_q)],
                  "mode": "lines", "name": "Reference", "line": {"color": "#d94a4a", "dash": "dash"}},
             ],
-            "layout": {"template": "plotly_dark", "height": 280, "xaxis": {"title": f"Theoretical ({best_name})"}, "yaxis": {"title": "Observed"}}
+            "layout": {"height": 280, "xaxis": {"title": f"Theoretical ({best_name})"}, "yaxis": {"title": "Observed"}}
         })
 
         result["summary"] = summary
@@ -1500,14 +1893,29 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": f"Moving Average Chart (span={span})",
             "data": ma_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True, "yaxis": {"title": measurement}}
+            "layout": {"height": 290, "showlegend": True, "yaxis": {"title": measurement}, "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         # Steady-state limits
         ucl_ss = x_bar + 3 * sigma / np.sqrt(span)
         lcl_ss = x_bar - 3 * sigma / np.sqrt(span)
 
-        result["summary"] = f"Moving Average Chart\n\nSpan (window size): {span}\nCenter Line: {x_bar:.4f}\n\nSteady-state limits:\n  UCL: {ucl_ss:.4f}\n  LCL: {lcl_ss:.4f}\n\nSamples: {n}\nOut-of-control points: {len(ma_ooc)}\n\nThe MA chart smooths short-term noise. With span={span}, it is effective at detecting sustained shifts of {3/np.sqrt(span):.2f}σ or larger."
+        result["summary"] = f"Moving Average Chart\n\nSpan (window size): {span}\nCenter Line: {x_bar:.4f}\n\nSteady-state limits:\n  UCL: {ucl_ss:.4f}\n  LCL: {lcl_ss:.4f}\n\nSamples: {n}\nOut-of-control points: {len(ma_ooc)}\n\nThe MA chart smooths short-term noise. With span={span}, it is effective at detecting sustained shifts of {3/np.sqrt(span):.2f}\u03c3 or larger."
+
+        _ma_n_ooc = len(ma_ooc)
+        result["guide_observation"] = f"MA chart (span={span}): {_ma_n_ooc} out-of-control points." + (" Process appears stable." if _ma_n_ooc == 0 else " Investigation recommended.")
+        if _ma_n_ooc == 0:
+            result["narrative"] = _narrative(
+                "Process is in statistical control", f"No out-of-control points on the moving average chart (span={span}). Process mean is stable.",
+                next_steps="Process is stable. The MA chart smooths noise to reveal underlying shifts.",
+                chart_guidance="Faded dots are individual values; the solid line is the moving average. Limits tighten as the window fills to span={span}.")
+        else:
+            result["narrative"] = _narrative(
+                f"MA chart \u2014 {_ma_n_ooc} out-of-control point{'s' if _ma_n_ooc > 1 else ''} detected",
+                f"The smoothed moving average (span={span}) exceeds control limits at {_ma_n_ooc} point{'s' if _ma_n_ooc > 1 else ''}, indicating a sustained shift.",
+                next_steps="Identify when the shift began and correlate with process changes.",
+                chart_guidance="Faded dots are individual values; the solid line is the moving average. OOC points on the smoothed line indicate sustained (not transient) shifts.")
 
     elif analysis_id == "zone_chart":
         """
@@ -1601,7 +2009,8 @@ def run_spc_analysis(df, analysis_id, config):
 
         zone_chart_data = [
             {"type": "scatter", "y": data.tolist(), "mode": "lines+markers",
-             "name": measurement, "marker": {"size": 7, "color": colors}, "line": {"color": "rgba(200,200,200,0.3)", "width": 1}},
+             "name": measurement, "marker": {"size": 7, "color": colors}, "line": {"color": "rgba(200,200,200,0.3)", "width": 1},
+             "customdata": [[i, ""] for i in range(n)], "hovertemplate": "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>"},
             {"type": "scatter", "y": [x_bar] * n, "mode": "lines", "name": "CL", "line": {"color": "#00b894", "width": 1.5}},
             {"type": "scatter", "y": [x_bar + zone_3s] * n, "mode": "lines", "name": "UCL (3σ)", "line": {"color": "#d63031", "dash": "dash"}},
             {"type": "scatter", "y": [x_bar - zone_3s] * n, "mode": "lines", "name": "LCL (3σ)", "line": {"color": "#d63031", "dash": "dash"}},
@@ -1611,23 +2020,27 @@ def run_spc_analysis(df, analysis_id, config):
         if signals:
             zone_chart_data.append({
                 "type": "scatter", "x": signals, "y": [data[i] for i in signals],
-                "mode": "markers", "name": "Signal (score≥8)",
-                "marker": {"size": 12, "color": "#e74c3c", "symbol": "diamond", "line": {"color": "white", "width": 1.5}}
+                "mode": "markers", "name": "Signal (score\u22658)",
+                "marker": {"size": 12, "color": "#e74c3c", "symbol": "diamond", "line": {"color": "white", "width": 1.5}},
+                "customdata": [[i, "Zone signal: cumulative score \u22658"] for i in signals],
+                "hovertemplate": "Obs #%{customdata[0]}<br>Value: %{y:.4f}<br>%{customdata[1]}<extra>Signal</extra>"
             })
 
         result["plots"].append({
             "title": "Zone Chart",
             "data": zone_chart_data,
             "layout": {
-                "template": "plotly_dark", "height": 350, "showlegend": True,
+                "height": 390, "showlegend": True,
                 "yaxis": {"title": measurement},
+                "xaxis": {"rangeslider": {"visible": True, "thickness": 0.12}},
                 "shapes": zone_shapes,
                 "annotations": [
                     {"x": n - 1, "y": x_bar + zone_1s, "text": "C", "showarrow": False, "xanchor": "right", "font": {"size": 10, "color": "#4a9f6e"}},
                     {"x": n - 1, "y": x_bar + zone_2s, "text": "B", "showarrow": False, "xanchor": "right", "font": {"size": 10, "color": "#f39c12"}},
                     {"x": n - 1, "y": x_bar + zone_3s, "text": "A", "showarrow": False, "xanchor": "right", "font": {"size": 10, "color": "#e74c3c"}},
                 ]
-            }
+            },
+            "interactive": {"type": "spc_inspect"}
         })
 
         # Cumulative score chart
@@ -1639,8 +2052,8 @@ def run_spc_analysis(df, analysis_id, config):
                 {"type": "scatter", "y": [8] * n, "mode": "lines", "name": "Signal Threshold",
                  "line": {"color": "#e74c3c", "dash": "dash"}},
             ],
-            "layout": {"template": "plotly_dark", "height": 200, "showlegend": True,
-                        "yaxis": {"title": "Score"}, "xaxis": {"title": "Sample"}}
+            "layout": {"height": 240, "showlegend": True,
+                        "yaxis": {"title": "Score"}, "xaxis": {"title": "Sample", "rangeslider": {"visible": True, "thickness": 0.12}}}
         })
 
         result["summary"] = f"Zone Chart Analysis\n\nCenter Line: {x_bar:.4f}\nEstimated σ: {sigma:.4f}\n\nZone Boundaries:\n  C (green): ±1σ = [{x_bar - zone_1s:.4f}, {x_bar + zone_1s:.4f}]\n  B (yellow): ±2σ = [{x_bar - zone_2s:.4f}, {x_bar + zone_2s:.4f}]\n  A (red): ±3σ = [{x_bar - zone_3s:.4f}, {x_bar + zone_3s:.4f}]\n\nScoring: A=8, B=4, C=2. Signal when cumulative ≥ 8.\nSignals detected: {len(signals)}"
@@ -1712,8 +2125,10 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "MEWMA Chart",
             "data": mewma_chart_data,
-            "layout": {"template": "plotly_dark", "height": 300, "showlegend": True,
-                        "yaxis": {"title": "T² Statistic"}, "xaxis": {"title": "Observation"}}
+            "layout": {"height": 290, "showlegend": True,
+                        "yaxis": {"title": "T² Statistic"},
+                        "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}}},
+            "interactive": {"type": "spc_inspect"}
         })
 
         # Variable contribution at OOC points
@@ -1731,7 +2146,7 @@ def run_spc_analysis(df, analysis_id, config):
                 "title": f"Variable Contribution at First OOC (obs {first_ooc})",
                 "data": [{"type": "bar", "x": vars_list, "y": pct_contrib,
                           "marker": {"color": "#4a9f6e"}}],
-                "layout": {"template": "plotly_dark", "height": 250,
+                "layout": {"height": 250,
                             "yaxis": {"title": "% Contribution"}, "xaxis": {"title": "Variable"}}
             })
 
@@ -1821,7 +2236,9 @@ def run_spc_analysis(df, analysis_id, config):
             "data": [
                 {"type": "scatter", "x": x_axis, "y": values.tolist(), "mode": "lines+markers",
                  "line": {"color": "#4a9f6e"}, "marker": {"color": colors, "size": 6},
-                 "name": var},
+                 "name": var,
+                 "customdata": [[i, "OOC" if i in ooc_indices else ""] for i in range(n)],
+                 "hovertemplate": "Obs #%{customdata[0]}<br>Value: %{y:.4f}<extra></extra>"},
                 {"type": "scatter", "x": [1, n], "y": [cl, cl], "mode": "lines",
                  "line": {"color": "#e8c547", "width": 1}, "name": f"CL = {cl:.2f}"},
                 {"type": "scatter", "x": [1, n], "y": [ucl, ucl], "mode": "lines",
@@ -1830,9 +2247,10 @@ def run_spc_analysis(df, analysis_id, config):
                  "line": {"color": "#e85747", "dash": "dash", "width": 1}, "name": f"LCL = {lcl:.2f}"},
             ],
             "layout": {
-                "template": "plotly_dark", "height": 350,
-                "xaxis": {"title": "Observation"}, "yaxis": {"title": y_label},
+                "height": 390,
+                "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}}, "yaxis": {"title": y_label},
             },
+            "interactive": {"type": "spc_inspect"}
         })
 
         summary = f"{chart_label}\n\n"
@@ -1856,6 +2274,20 @@ def run_spc_analysis(df, analysis_id, config):
             "ooc_count": len(ooc_indices),
             "ooc_indices": [i + 1 for i in ooc_indices],
         }
+
+        # Narrative
+        _gt_label = "G Chart (count between events)" if chart_type == "g" else "T Chart (time between events)"
+        _gt_n_ooc = len(ooc_indices)
+        if _gt_n_ooc == 0:
+            _gt_verdict = f"{_gt_label} — process in control"
+            _gt_body = f"All {n} observations fall within control limits (CL = {cl:.2f}). The rate of rare events appears stable."
+        else:
+            _gt_verdict = f"{_gt_label} — {_gt_n_ooc} out-of-control point{'s' if _gt_n_ooc > 1 else ''}"
+            _gt_body = f"{_gt_n_ooc} of {n} observations exceed control limits, suggesting the event rate has shifted."
+        result["narrative"] = _narrative(_gt_verdict, _gt_body,
+            next_steps="Investigate OOC points for assignable causes. A cluster of short intervals suggests a worsening event rate." if _gt_n_ooc > 0 else "Continue monitoring. Consider adding process improvement to reduce the baseline event rate.",
+            chart_guidance="Points above UCL indicate unusually long gaps between events (improvement). Points below LCL indicate unusually short gaps (deterioration)."
+        )
 
     # =====================================================================
     # Generalized Variance Chart
@@ -1971,8 +2403,8 @@ def run_spc_analysis(df, analysis_id, config):
         result["plots"].append({
             "title": "Generalized Variance |S| Chart",
             "data": chart_traces,
-            "layout": {"height": 400, "xaxis": {"title": "Subgroup"}, "yaxis": {"title": "|S| (Determinant)"},
-                       "template": "plotly_white"}
+            "layout": {"height": 440, "xaxis": {"title": "Subgroup", "rangeslider": {"visible": True, "thickness": 0.12}}, "yaxis": {"title": "|S| (Determinant)"},
+                       }
         })
 
         summary_gv = f"<<COLOR:accent>>{'═' * 70}<</COLOR>>\n"
@@ -1998,6 +2430,19 @@ def run_spc_analysis(df, analysis_id, config):
             "det_values": det_values.tolist(), "n_subgroups": len(subgroups),
             "ooc_count": len(ooc_gv), "p": p_gv,
         }
+
+        # Narrative
+        _gv_n_ooc = len(ooc_gv)
+        if _gv_n_ooc == 0:
+            _gv_verdict = f"Generalized Variance — multivariate spread in control"
+            _gv_body = f"All {len(subgroups)} subgroups have covariance determinants within limits. Joint variability of {p_gv} variables is stable."
+        else:
+            _gv_verdict = f"Generalized Variance — {_gv_n_ooc} OOC subgroup{'s' if _gv_n_ooc > 1 else ''}"
+            _gv_body = f"{_gv_n_ooc} of {len(subgroups)} subgroups show unusual joint variability across {p_gv} variables. The covariance structure has shifted."
+        result["narrative"] = _narrative(_gv_verdict, _gv_body,
+            next_steps="Pair with a Hotelling T² chart to distinguish mean shifts from variability shifts." if _gv_n_ooc > 0 else "Continue monitoring. Process variability is stable across all measured dimensions.",
+            chart_guidance="Each point is the determinant |S| of the subgroup covariance matrix. Higher values mean more joint spread."
+        )
 
     # ══════════════════════════════════════════════════════════════════════
     # CONFORMAL PREDICTION SPC (Burger et al., Dec 2025 — arXiv:2512.23602)
@@ -2204,7 +2649,7 @@ def run_spc_analysis(df, analysis_id, config):
                  "line": {"color": "#9aaa9a", "dash": "dot", "width": 1}, "showlegend": False},
             ],
             "layout": {
-                "height": 320,
+                "height": 360,
                 "xaxis": {"title": "Observation"},
                 "yaxis": {"title": measurement},
                 "shapes": [{"type": "line", "x0": n_cal_plot, "x1": n_cal_plot, "y0": float(np.min(all_values)) - 0.1 * float(np.ptp(all_values)),
@@ -2212,7 +2657,6 @@ def run_spc_analysis(df, analysis_id, config):
                             "line": {"color": "#e8c547", "dash": "dashdot", "width": 1.5}}],
                 "annotations": [{"x": n_cal_plot, "y": float(np.max(all_values)), "text": "← Cal | Mon →",
                                  "showarrow": False, "font": {"color": "#e8c547", "size": 10}}],
-                "template": "plotly_white",
             }
         })
 
@@ -2232,7 +2676,7 @@ def run_spc_analysis(df, analysis_id, config):
                  "mode": "markers", "marker": {"size": 10, "color": "#e8c547", "symbol": "triangle-up", "line": {"color": "#e89547", "width": 1.5}},
                  "name": "Uncertainty Spike"}
             ] if len(spike_indices_mon) > 0 else []),
-            "layout": {"height": 320, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}, "template": "plotly_white"}
+            "layout": {"height": 360, "xaxis": {"title": "Observation"}, "yaxis": {"title": measurement}, }
         })
 
         # Plot 3: Nonconformity score chart
@@ -2244,7 +2688,7 @@ def run_spc_analysis(df, analysis_id, config):
                 {"type": "scatter", "x": list(range(n_total)), "y": [q] * n_total, "mode": "lines",
                  "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": f"Threshold q={q:.3f}"},
             ],
-            "layout": {"height": 320, "xaxis": {"title": "Observation"}, "yaxis": {"title": "|X - median|"}, "template": "plotly_white"}
+            "layout": {"height": 320, "xaxis": {"title": "Observation"}, "yaxis": {"title": "|X - median|"}, }
         })
 
         # Plot 4: Interval width over time (spike detection)
@@ -2256,7 +2700,7 @@ def run_spc_analysis(df, analysis_id, config):
                 {"type": "scatter", "x": list(range(n)), "y": [spike_threshold * median_width * 2] * n, "mode": "lines",
                  "line": {"color": "#e85747", "dash": "dash", "width": 1.5}, "name": f"Spike threshold ({spike_threshold}× median)"},
             ],
-            "layout": {"height": 320, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Interval Width"}, "template": "plotly_white"}
+            "layout": {"height": 320, "xaxis": {"title": "Observation"}, "yaxis": {"title": "Interval Width"}, }
         })
 
         result["guide_observation"] = f"Conformal control chart (distribution-free): {n_ooc} OOC, {len(spike_indices_mon)} uncertainty spikes in {n_mon} monitoring observations."
@@ -2271,6 +2715,19 @@ def run_spc_analysis(df, analysis_id, config):
             "alpha": alpha_conf,
             "method": "Burger et al. (2025) arXiv:2512.23602",
         }
+
+        # Narrative
+        _cc_n_spikes = len(spike_indices_mon)
+        if n_ooc == 0 and _cc_n_spikes == 0:
+            _cc_verdict = "Conformal Control Chart — process in control (distribution-free)"
+            _cc_body = f"No out-of-control points or uncertainty spikes in {n_mon} monitoring observations. Guaranteed false alarm rate = {alpha_conf*100:.1f}% without normality assumption."
+        else:
+            _cc_verdict = f"Conformal Control Chart — {n_ooc} OOC" + (f", {_cc_n_spikes} uncertainty spike{'s' if _cc_n_spikes > 1 else ''}" if _cc_n_spikes > 0 else "")
+            _cc_body = f"{n_ooc} out-of-control points detected in {n_mon} monitoring observations (calibrated on {n_cal} points). " + (f"Additionally, {_cc_n_spikes} uncertainty spikes serve as early warnings of instability." if _cc_n_spikes > 0 else "")
+        result["narrative"] = _narrative(_cc_verdict, _cc_body,
+            next_steps="Investigate OOC points for assignable causes. Uncertainty spikes often precede full OOC events." if n_ooc > 0 or _cc_n_spikes > 0 else "Process is stable under distribution-free monitoring.",
+            chart_guidance="Blue band = adaptive prediction interval. Yellow triangles = uncertainty spikes (interval widening). Red points = out-of-control observations exceeding the conformal threshold."
+        )
 
     elif analysis_id == "conformal_monitor":
         """
@@ -2418,7 +2875,7 @@ def run_spc_analysis(df, analysis_id, config):
                  "line": {"color": "#e85747", "dash": "dash", "width": 2}, "name": f"α = {alpha_conf}"},
             ],
             "layout": {
-                "height": 300,
+                "height": 290,
                 "xaxis": {"title": "Observation"},
                 "yaxis": {"title": "Conformal p-value", "range": [0, 1]},
                 "shapes": [
@@ -2429,7 +2886,6 @@ def run_spc_analysis(df, analysis_id, config):
                 ],
                 "annotations": [{"x": n_cal, "y": 0.95, "text": "← Cal | Mon →",
                                  "showarrow": False, "font": {"color": "#e8c547", "size": 10}}],
-                "template": "plotly_white",
             }
         })
 
@@ -2447,7 +2903,6 @@ def run_spc_analysis(df, analysis_id, config):
                 "yaxis": {"title": "Anomaly Score"},
                 "shapes": [{"type": "line", "x0": n_cal, "x1": n_cal, "y0": 0, "y1": float(np.max(all_scores)),
                             "line": {"color": "#e8c547", "dash": "dashdot", "width": 1}}],
-                "template": "plotly_white",
             }
         })
 
@@ -2469,7 +2924,7 @@ def run_spc_analysis(df, analysis_id, config):
                     "colorscale": [[0, "#4a9f6e"], [0.5, "#e8c547"], [1, "#e85747"]],
                     "colorbar": {"title": "|z|"},
                 }],
-                "layout": {"height": max(200, 40 * len(variables)), "xaxis": {"title": "Observation"}, "template": "plotly_white"}
+                "layout": {"height": max(200, 40 * len(variables)), "xaxis": {"title": "Observation"}, }
             })
 
         result["guide_observation"] = f"Conformal multivariate monitor: {n_anomalies} anomalies in {n_mon} monitoring observations across {len(variables)} variables."
@@ -2484,6 +2939,23 @@ def run_spc_analysis(df, analysis_id, config):
             "method": "Burger et al. (2025) arXiv:2512.23602",
         }
 
+        # Narrative
+        if n_anomalies == 0:
+            _cm_verdict = f"Conformal Monitor — no anomalies ({len(variables)} variables)"
+            _cm_body = f"All {n_mon} monitoring observations are within normal bounds across {len(variables)} variables using {model_label}. False alarm rate controlled at {alpha_conf*100:.1f}%."
+        else:
+            _cm_top_var = ""
+            if contributions:
+                from collections import Counter
+                _cm_var_counts = Counter(v for _, v, _ in contributions)
+                _cm_top_var = f" Top contributing variable: <strong>{_cm_var_counts.most_common(1)[0][0]}</strong>."
+            _cm_verdict = f"Conformal Monitor — {n_anomalies} anomal{'y' if n_anomalies == 1 else 'ies'} detected"
+            _cm_body = f"{n_anomalies} of {n_mon} monitoring observations flagged as anomalous across {len(variables)} variables.{_cm_top_var}"
+        result["narrative"] = _narrative(_cm_verdict, _cm_body,
+            next_steps="Check the variable contribution heatmap to identify which dimensions are driving anomalies." if n_anomalies > 0 else "Process is multivariate-stable. Continue monitoring.",
+            chart_guidance="The p-value chart shows conformal p-values per observation — points below the red line are anomalous. The heatmap reveals which variables contribute most to each flagged observation."
+        )
+
     # ── Bridge: Bayesian SPC suite lives in run_visualization ──
     elif analysis_id.startswith("bayes_spc_"):
         from .viz import run_visualization
@@ -2493,6 +2965,251 @@ def run_spc_analysis(df, analysis_id, config):
     elif analysis_id.startswith("bayes_doe_"):
         from ..bayes_doe import run_bayesian_doe
         return run_bayesian_doe(df, analysis_id, config)
+
+    elif analysis_id == "entropy_spc":
+        # Information-Theoretic SPC — Shannon entropy control chart
+        col = config.get("var") or config.get("measurement") or config.get("column")
+        n_bins = int(config.get("bins", config.get("n_bins", 10)))
+        window = int(config.get("window", 30))
+
+        if not col or col not in df.columns:
+            result["summary"] = "Error: Specify a numeric column."
+            return result
+
+        data = df[col].dropna().values.astype(float)
+        n = len(data)
+
+        if n < window * 2:
+            result["summary"] = f"Error: Need at least {window*2} observations for window={window}."
+            return result
+
+        # Compute rolling Shannon entropy on binned data
+        global_min, global_max = float(np.min(data)), float(np.max(data))
+        bin_edges = np.linspace(global_min - 1e-10, global_max + 1e-10, n_bins + 1)
+
+        entropies = []
+        for i in range(window, n + 1):
+            segment = data[i - window:i]
+            counts, _ = np.histogram(segment, bins=bin_edges)
+            probs = counts / counts.sum()
+            probs = probs[probs > 0]
+            h = float(-np.sum(probs * np.log2(probs)))
+            entropies.append(h)
+
+        entropies = np.array(entropies)
+        x_idx = list(range(window, n + 1))
+
+        # Phase I limits (first half as baseline)
+        n_phase1 = len(entropies) // 2
+        h_mean = float(np.mean(entropies[:n_phase1]))
+        h_std = float(np.std(entropies[:n_phase1], ddof=1))
+        ucl = h_mean + 3 * h_std
+        lcl = max(0, h_mean - 3 * h_std)
+
+        # Detect OOC points
+        ooc_idx = [i for i, h in enumerate(entropies) if h > ucl or h < lcl]
+        ooc_pct = len(ooc_idx) / len(entropies) * 100
+
+        # Detect entropy drops (distribution narrowing / mode collapse)
+        drops = [i for i, h in enumerate(entropies) if h < lcl]
+        # Detect entropy spikes (distribution spreading / bimodality forming)
+        spikes = [i for i, h in enumerate(entropies) if h > ucl]
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>ENTROPY SPC (INFORMATION-THEORETIC CONTROL CHART)<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Variable:<</COLOR>> {col}\n"
+        summary += f"<<COLOR:text>>Window:<</COLOR>> {window}    Bins: {n_bins}    N: {n}\n\n"
+        summary += f"<<COLOR:accent>>\u2500\u2500 Entropy Statistics \u2500\u2500<</COLOR>>\n"
+        summary += f"  Baseline mean: {h_mean:.4f} bits\n"
+        summary += f"  UCL: {ucl:.4f}    LCL: {lcl:.4f}\n"
+        summary += f"  OOC points: {len(ooc_idx)} ({ooc_pct:.1f}%)\n"
+        if spikes:
+            summary += f"  Entropy spikes (distribution spreading): {len(spikes)}\n"
+        if drops:
+            summary += f"  Entropy drops (distribution narrowing): {len(drops)}\n"
+
+        result["summary"] = summary
+        result["statistics"] = {
+            "h_mean": h_mean, "h_std": h_std, "ucl": ucl, "lcl": lcl,
+            "n_ooc": len(ooc_idx), "n_spikes": len(spikes), "n_drops": len(drops),
+        }
+
+        _es_status = "in control" if not ooc_idx else f"{len(ooc_idx)} out-of-control signals"
+        _es_detail = ""
+        if spikes and drops:
+            _es_detail = " Both entropy spikes (distributional spreading) and drops (narrowing) detected."
+        elif spikes:
+            _es_detail = " Entropy spikes indicate distributional spreading \u2014 possible bimodality or increased variation."
+        elif drops:
+            _es_detail = " Entropy drops indicate distribution narrowing \u2014 possible mode collapse or reduced variation."
+
+        result["guide_observation"] = f"Entropy SPC: {_es_status}. Mean entropy = {h_mean:.3f} bits."
+        result["narrative"] = _narrative(
+            f"Entropy SPC \u2014 {_es_status}",
+            f"Rolling Shannon entropy (window={window}, {n_bins} bins) has baseline mean {h_mean:.4f} bits. "
+            f"{len(ooc_idx)} points ({ooc_pct:.1f}%) fall outside 3\u03c3 limits [{lcl:.3f}, {ucl:.3f}].{_es_detail}",
+            next_steps="Entropy catches distributional shifts that Shewhart charts miss \u2014 bimodality forming inside normal control limits, "
+                       "shape changes without mean shift. Investigate OOC entropy points for root cause.",
+            chart_guidance="Entropy above UCL = distribution is spreading or splitting. Below LCL = distribution is collapsing. "
+                          "Compare with the Xbar chart \u2014 entropy often signals before the mean moves."
+        )
+
+        # Plot: entropy control chart
+        h_colors = ["#dc5050" if i in ooc_idx else "#4a9f6e" for i in range(len(entropies))]
+        result["plots"].append({
+            "title": f"Entropy Control Chart ({col})",
+            "data": [
+                {"type": "scatter", "x": x_idx, "y": entropies.tolist(),
+                 "mode": "lines+markers", "marker": {"size": 4, "color": h_colors},
+                 "line": {"color": "#4a9f6e", "width": 1}, "name": "Entropy"},
+            ],
+            "layout": {
+                "height": 290,
+                "xaxis": {"title": "Observation", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "yaxis": {"title": "Shannon Entropy (bits)"},
+                "shapes": [
+                    {"type": "line", "x0": x_idx[0], "x1": x_idx[-1], "y0": h_mean, "y1": h_mean,
+                     "line": {"color": "#4a90d9", "width": 1}},
+                    {"type": "line", "x0": x_idx[0], "x1": x_idx[-1], "y0": ucl, "y1": ucl,
+                     "line": {"color": "#dc5050", "dash": "dash", "width": 1}},
+                    {"type": "line", "x0": x_idx[0], "x1": x_idx[-1], "y0": lcl, "y1": lcl,
+                     "line": {"color": "#dc5050", "dash": "dash", "width": 1}},
+                ],
+            },
+        })
+
+    elif analysis_id == "degradation_capability":
+        # Degradation-Aware Capability — Cpk as a function of time/usage
+        meas_col = config.get("var") or config.get("measurement") or config.get("column")
+        time_col = config.get("time_column") or config.get("time")
+        usl = config.get("usl")
+        lsl = config.get("lsl")
+        window = int(config.get("window", 50))
+        target_cpk = float(config.get("target_cpk", 1.33))
+
+        if not meas_col or meas_col not in df.columns:
+            result["summary"] = "Error: Specify a measurement column."
+            return result
+        if usl is None and lsl is None:
+            result["summary"] = "Error: Specify at least one spec limit (USL or LSL)."
+            return result
+
+        usl = float(usl) if usl is not None else None
+        lsl = float(lsl) if lsl is not None else None
+
+        data = df[meas_col].dropna().values.astype(float)
+        if time_col and time_col in df.columns:
+            t_data = df[time_col].loc[df[meas_col].notna()].values.astype(float)
+        else:
+            t_data = np.arange(len(data), dtype=float)
+
+        n = len(data)
+        if n < window:
+            result["summary"] = f"Error: Need at least {window} observations."
+            return result
+
+        # Rolling Cpk
+        cpk_values = []
+        t_centers = []
+        for i in range(0, n - window + 1, max(1, window // 4)):
+            seg = data[i:i + window]
+            mu = np.mean(seg)
+            sigma = np.std(seg, ddof=1)
+            if sigma < 1e-12:
+                sigma = 1e-12
+            if usl is not None and lsl is not None:
+                cpk = min((usl - mu) / (3 * sigma), (mu - lsl) / (3 * sigma))
+            elif usl is not None:
+                cpk = (usl - mu) / (3 * sigma)
+            else:
+                cpk = (mu - lsl) / (3 * sigma)
+            cpk_values.append(float(cpk))
+            t_centers.append(float(np.mean(t_data[i:i + window])))
+
+        cpk_arr = np.array(cpk_values)
+        t_arr = np.array(t_centers)
+
+        # Fit linear trend to Cpk vs time
+        slope, intercept, r_val, p_val, se = sp_stats.linregress(t_arr, cpk_arr)
+        cpk_trend = intercept + slope * t_arr
+
+        # Find crossover point where Cpk drops below target
+        crossover = None
+        if slope < 0 and intercept > target_cpk:
+            crossover = (target_cpk - intercept) / slope
+            if crossover < t_arr[0] or crossover > t_arr[-1] * 3:
+                crossover = None
+
+        cpk_start = float(cpk_trend[0])
+        cpk_end = float(cpk_trend[-1])
+        cpk_overall = float(np.mean(cpk_arr))
+        degrading = slope < 0 and p_val < 0.05
+
+        summary = f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n"
+        summary += f"<<COLOR:title>>DEGRADATION-AWARE CAPABILITY<</COLOR>>\n"
+        summary += f"<<COLOR:accent>>{'=' * 70}<</COLOR>>\n\n"
+        summary += f"<<COLOR:text>>Variable:<</COLOR>> {meas_col}\n"
+        summary += f"<<COLOR:text>>Spec limits:<</COLOR>> "
+        if lsl is not None:
+            summary += f"LSL={lsl}"
+        if usl is not None:
+            summary += f"{', ' if lsl is not None else ''}USL={usl}"
+        summary += f"\n<<COLOR:text>>Window:<</COLOR>> {window}    Points: {len(cpk_values)}\n\n"
+        summary += f"<<COLOR:accent>>\u2500\u2500 Cpk Trend \u2500\u2500<</COLOR>>\n"
+        summary += f"  Starting Cpk: {cpk_start:.3f}\n"
+        summary += f"  Ending Cpk:   {cpk_end:.3f}\n"
+        summary += f"  Overall mean: {cpk_overall:.3f}\n"
+        summary += f"  Slope: {slope:.6f} per unit time (p={p_val:.4f})\n"
+        if degrading:
+            summary += f"  <<COLOR:warning>>Significant degradation detected<</COLOR>>\n"
+        if crossover is not None:
+            summary += f"  Cpk reaches {target_cpk} at t = {crossover:.1f}\n"
+
+        result["summary"] = summary
+        result["statistics"] = {
+            "cpk_start": cpk_start, "cpk_end": cpk_end, "cpk_overall": cpk_overall,
+            "slope": float(slope), "p_value": float(p_val), "r_squared": float(r_val**2),
+            "crossover_time": crossover, "degrading": degrading,
+        }
+
+        _dc_status = "degrading" if degrading else "stable"
+        result["guide_observation"] = f"Degradation Cpk: {_dc_status}. Start={cpk_start:.3f}, end={cpk_end:.3f}, slope={slope:.6f}/unit."
+
+        _dc_cross = ""
+        if crossover is not None:
+            _dc_cross = f" At this rate, Cpk drops below {target_cpk} at t = {crossover:.0f}."
+        result["narrative"] = _narrative(
+            f"Degradation Capability \u2014 Cpk is {'degrading' if degrading else 'stable'}",
+            f"Rolling Cpk starts at {cpk_start:.3f} and {'decays to' if degrading else 'remains near'} {cpk_end:.3f} "
+            f"(slope = {slope:.6f}/unit, p = {p_val:.4f}).{_dc_cross}"
+            + (" Classical Cpk assumes stationarity and would report {:.3f} \u2014 masking the degradation.".format(cpk_overall) if degrading else ""),
+            next_steps="If degrading, schedule tool changes or maintenance before Cpk crosses the target. "
+                       + (f"Recommended action point: t = {crossover:.0f} to maintain Cpk > {target_cpk}." if crossover else ""),
+            chart_guidance="The rolling Cpk curve shows capability over time. The trend line reveals whether the process is degrading. "
+                          "The dashed red line is the target Cpk."
+        )
+
+        # Plot: Cpk degradation curve
+        result["plots"].append({
+            "title": f"Capability Degradation ({meas_col})",
+            "data": [
+                {"type": "scatter", "x": t_arr.tolist(), "y": cpk_arr.tolist(),
+                 "mode": "markers", "marker": {"size": 5, "color": ["#dc5050" if c < target_cpk else "#4a9f6e" for c in cpk_arr]},
+                 "name": "Rolling Cpk"},
+                {"type": "scatter", "x": t_arr.tolist(), "y": cpk_trend.tolist(),
+                 "mode": "lines", "line": {"color": "#4a90d9", "width": 2, "dash": "solid"}, "name": "Trend"},
+            ],
+            "layout": {
+                "height": 290,
+                "xaxis": {"title": "Time / Sequence", "rangeslider": {"visible": True, "thickness": 0.12}},
+                "yaxis": {"title": "Cpk"},
+                "shapes": [
+                    {"type": "line", "x0": float(t_arr[0]), "x1": float(t_arr[-1]), "y0": target_cpk, "y1": target_cpk,
+                     "line": {"color": "#dc5050", "dash": "dash", "width": 1}},
+                ],
+            },
+        })
 
     return result
 

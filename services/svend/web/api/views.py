@@ -852,9 +852,9 @@ def register(request):
     password = request.data.get("password", "")
 
     # Validation
-    if not username or len(username) < 3:
+    if not email:
         return Response(
-            {"error": "Username must be at least 3 characters"},
+            {"error": "Email is required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -873,7 +873,22 @@ def register(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if User.objects.filter(username=username).exists():
+    # Auto-generate username from email prefix if not provided
+    if not username:
+        import re
+        import secrets
+        base = re.sub(r'[^a-zA-Z0-9]', '', email.split('@')[0])[:20]
+        if len(base) < 3:
+            base = "user"
+        username = base
+        while User.objects.filter(username=username).exists():
+            username = f"{base}{secrets.randbelow(10000)}"
+    elif len(username) < 3:
+        return Response(
+            {"error": "Username must be at least 3 characters"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    elif User.objects.filter(username=username).exists():
         return Response(
             {"error": "Username already taken"},
             status=status.HTTP_400_BAD_REQUEST,
@@ -1437,6 +1452,65 @@ def site_duration(request):
         if visit:
             visit.duration_ms = duration
             visit.save(update_fields=["duration_ms"])
+    except Exception:
+        pass
+
+    return Response(status=204)
+
+
+# ---------------------------------------------------------------------------
+# Funnel events (public — pre-auth form interaction tracking)
+# ---------------------------------------------------------------------------
+
+FUNNEL_ACTIONS = {
+    "email_focus", "password_focus", "submit_attempt",
+    "submit_error", "submit_success",
+}
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def funnel_event(request):
+    """Track pre-auth funnel interactions (e.g. registration form).
+
+    Stores as SiteVisit with path convention: ``/register/#_submit_attempt``.
+    No new model — queryable via ``path__contains='#_'``.
+    """
+    import hashlib
+    from api.models import SiteVisit
+
+    page = (request.data.get("page") or "")[:300]
+    action = (request.data.get("action") or "")[:50]
+
+    if not page or action not in FUNNEL_ACTIONS:
+        return Response(status=204)
+
+    ip = (
+        request.META.get("HTTP_CF_CONNECTING_IP", "")
+        or request.META.get("REMOTE_ADDR", "")
+    )
+    if not ip:
+        return Response(status=204)
+
+    ip_hash = hashlib.sha256(ip.encode()).hexdigest()
+    country = request.META.get("HTTP_CF_IPCOUNTRY", "")
+    if country in ("XX", "T1"):
+        country = ""
+
+    detail = (request.data.get("detail") or "")[:200]
+    ref = request.META.get("HTTP_REFERER", "")[:500]
+
+    try:
+        SiteVisit.objects.create(
+            path=f"{page}#_{action}",
+            ip_hash=ip_hash,
+            country=country[:2],
+            is_bot=False,
+            method="POST",
+            referrer=ref,
+            referrer_domain=detail,  # repurpose for error message / metadata
+        )
     except Exception:
         pass
 

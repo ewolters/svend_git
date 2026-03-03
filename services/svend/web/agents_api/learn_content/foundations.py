@@ -97,7 +97,60 @@ The same Bayesian update machinery you just learned powers SVEND's Process Belie
             "answer": "5.5. Adjusted LR = 1 + (10-1) × 0.5 = 5.5",
             "hint": "Use the confidence adjustment formula"
         }
-    ]
+    ],
+    # Interactive tutorial: Synara belief tracking
+    "tool_steps": [
+        {
+            "id": "bt-1",
+            "title": "Create a Hypothesis",
+            "instruction": "Let's see Bayesian updating in action with Svend's belief engine. Create a hypothesis about whether a new drug reduces blood pressure. Set your prior to 30% — you're skeptical but open-minded.",
+            "tool": "synara",
+            "action": "add_hypothesis",
+            "config": {
+                "description": "",
+                "behavior_class": "treatment_effect",
+                "prior": 0.3,
+            },
+            "editable_fields": ["description", "prior"],
+            "requires_input": True,
+            "output_key": "drug_hypothesis",
+            "validation": {"type": "field_present", "check": "result.id"},
+        },
+        {
+            "id": "bt-2",
+            "title": "Add Supporting Evidence",
+            "instruction": "A clinical trial shows the drug lowered blood pressure by 8 mmHg (p=0.02). This is moderately strong evidence. Add it as evidence supporting your hypothesis with strength 0.8.",
+            "tool": "synara",
+            "action": "add_evidence",
+            "config": {
+                "event": "Clinical trial: 8 mmHg reduction, p=0.02",
+                "strength": 0.8,
+            },
+            "editable_fields": ["event", "strength"],
+            "output_key": "trial_evidence",
+            "validation": {"type": "api_success"},
+        },
+        {
+            "id": "bt-3",
+            "title": "Observe the Update",
+            "instruction": "Look at how the posterior probability changed. The belief engine applied Bayes' theorem — the same math you learned with the calculator above. Try adjusting the evidence strength in the previous step and re-running to see how it affects the update.",
+            "tool": "synara",
+            "action": "get_state",
+            "config": {},
+            "output_key": "final_state",
+            "validation": {"type": "api_success"},
+        },
+    ],
+    "sandbox_config": {
+        "create_project": True,
+        "project_title": "Bayesian Thinking Lab",
+        "synara_enabled": True,
+        "tools_available": ["synara"],
+    },
+    "workflow": {
+        "type": "linear",
+        "completion_requires": "all_steps",
+    },
 }
 
 
@@ -205,7 +258,118 @@ This prevents falling in love with your first idea.
             "answer": "Try to disprove it. Look for evidence that would contradict Hypothesis A. If you can't find any, your confidence is justified.",
             "hint": "Avoid confirmation bias"
         }
-    ]
+    ],
+    # Interactive tutorial: Synara hypothesis-driven investigation
+    "tool_steps": [
+        {
+            "id": "hd-1",
+            "title": "Create Competing Hypotheses",
+            "instruction": "Scenario: A manufacturing line's defect rate jumped from 2% to 8% last week. Before looking at data, create your first hypothesis about what caused it. Assign a prior probability reflecting your initial belief.",
+            "tool": "synara",
+            "action": "add_hypothesis",
+            "config": {
+                "description": "",
+                "behavior_class": "defect_increase",
+                "prior": 0.4,
+            },
+            "editable_fields": ["description", "prior"],
+            "requires_input": True,
+            "output_key": "hypothesis_1",
+            "validation": {"type": "field_present", "check": "result.id"},
+        },
+        {
+            "id": "hd-2",
+            "title": "Add a Second Hypothesis",
+            "instruction": "Now add a competing explanation. Good investigations always maintain multiple hypotheses. Think about different categories: material, machine, method, measurement, man, environment.",
+            "tool": "synara",
+            "action": "add_hypothesis",
+            "config": {
+                "description": "",
+                "behavior_class": "defect_increase",
+                "prior": 0.3,
+            },
+            "editable_fields": ["description", "prior"],
+            "requires_input": True,
+            "output_key": "hypothesis_2",
+            "validation": {"type": "field_present", "check": "result.id"},
+        },
+        {
+            "id": "hd-3",
+            "title": "Add a Third Hypothesis",
+            "instruction": "Add one more competing explanation. The best investigators consider the non-obvious: measurement errors, seasonal effects, supplier changes. Make sure your priors across all three hypotheses reflect your relative confidence.",
+            "tool": "synara",
+            "action": "add_hypothesis",
+            "config": {
+                "description": "",
+                "behavior_class": "defect_increase",
+                "prior": 0.3,
+            },
+            "editable_fields": ["description", "prior"],
+            "requires_input": True,
+            "output_key": "hypothesis_3",
+            "validation": {"type": "field_present", "check": "result.id"},
+        },
+        {
+            "id": "hd-4",
+            "title": "Generate Investigation Data",
+            "instruction": "Now let's generate some factory data to investigate. This synthetic dataset has a hidden cause baked in — your job is to find it through evidence, not just looking at the data.",
+            "tool": "forge",
+            "action": "generate",
+            "config": {
+                "schema": {
+                    "columns": [
+                        {"name": "diameter_mm", "type": "numeric", "mean": 25.0, "std": 0.05, "decimals": 3},
+                        {"name": "temperature_c", "type": "numeric", "mean": 22.0, "std": 1.5, "decimals": 1},
+                        {"name": "supplier", "type": "categorical", "values": ["Alpha", "Beta"], "weights": [0.6, 0.4]},
+                        {"name": "shift", "type": "categorical", "values": ["day", "night"]},
+                        {"name": "defect", "type": "binary", "prob": 0.08},
+                    ],
+                    "rows": 200,
+                    "injections": [
+                        {"type": "mean_shift", "column": "temperature_c", "start_row": 140, "delta": 3.0},
+                    ],
+                },
+            },
+            "editable_fields": ["schema.rows"],
+            "output_key": "investigation_data",
+            "validation": {"type": "api_success"},
+        },
+        {
+            "id": "hd-5",
+            "title": "Link Evidence to Hypotheses",
+            "instruction": "Look at the data preview above. The temperature column has a shift starting at row 140. Link this observation as evidence. Which hypothesis does this support? Describe the evidence and set the strength based on how diagnostic it is (0.5 = weak, 1.0 = strong).",
+            "tool": "synara",
+            "action": "add_evidence",
+            "config": {
+                "event": "",
+                "strength": 0.7,
+            },
+            "editable_fields": ["event", "strength"],
+            "requires_input": True,
+            "output_key": "investigation_evidence",
+            "validation": {"type": "api_success"},
+        },
+        {
+            "id": "hd-6",
+            "title": "Review Updated Beliefs",
+            "instruction": "Observe how the belief probabilities shifted after adding evidence. The hypothesis most consistent with the temperature shift should now have higher probability. This is hypothesis-driven investigation: you defined explanations first, then let evidence update your beliefs systematically.",
+            "tool": "synara",
+            "action": "get_state",
+            "config": {},
+            "output_key": "final_beliefs",
+            "validation": {"type": "api_success"},
+        },
+    ],
+    "sandbox_config": {
+        "create_project": True,
+        "project_title": "Hypothesis Investigation Lab",
+        "synara_enabled": True,
+        "tools_available": ["synara", "forge"],
+    },
+    "workflow": {
+        "type": "linear",
+        "completion_requires": "all_steps",
+    },
 }
 
 

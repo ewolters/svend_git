@@ -156,23 +156,22 @@
             SVEND
         </a>
         <div class="card">
-            <h1>Create account</h1>
-            <p class="subtitle" id="regSubtitle">Track NCRs, run experiments, monitor processes — free, no credit card</p>
+            <h1>Create your free account</h1>
+            <p class="subtitle" id="regSubtitle">200+ statistical analyses, SPC, DOE, and quality tools — free forever with up to 12 analyses per day. No credit card required.</p>
+            <div class="plan-context" id="planContext" style="display:none; background: rgba(74,159,110,0.08); border: 1px solid rgba(74,159,110,0.2); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                <span id="planContextText"></span>
+            </div>
 
             <div id="error" class="error"></div>
 
             <form id="registerForm">
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" required autocomplete="email">
-                </div>
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required autocomplete="username">
+                    <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8">
+                    <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8" placeholder="8+ characters">
                 </div>
                 <button type="submit" class="btn" id="submitBtn">Create Account</button>
             </form>
@@ -215,9 +214,9 @@
         const checkoutUrl = '/billing/checkout/?plan=' + plan + (region ? '&region=' + region : '');
         const redirectUrl = isPaidSignup
             ? checkoutUrl
-            : (nextUrl ? decodeURIComponent(nextUrl) : '/app/onboarding/');
+            : (nextUrl ? decodeURIComponent(nextUrl) : '/app/');
 
-        // Update subtitle for paid plan signups
+        // Update subtitle and show plan context for paid signups
         if (isPaidSignup) {
             var sub = document.getElementById('regSubtitle');
             var planName = plan.charAt(0).toUpperCase() + plan.slice(1);
@@ -229,11 +228,53 @@
             }
         }
 
+        // Show localized plan context if available
+        var ctxEl = document.getElementById('planContext');
+        var ctxText = document.getElementById('planContextText');
+        if (ctxEl && ctxText) {
+            var price = '{{ price_pro }}';
+            var currency = '{{ currency }}';
+            if (price && price.charAt(0) !== '{') {
+                if (isPaidSignup && plan === 'pro') {
+                    ctxText.textContent = 'Professional plan: ' + price + '/mo — 200+ analyses, DOE, SPC, Gage R\u0026R';
+                    ctxEl.style.display = 'block';
+                } else if (isPaidSignup && plan === 'team') {
+                    ctxText.textContent = 'Team plan: {{ price_team }}/seat/mo — 14-day free trial, no credit card now';
+                    ctxEl.style.display = 'block';
+                } else if (isPaidSignup && plan === 'enterprise') {
+                    ctxText.textContent = 'Enterprise plan: {{ price_enterprise }}/seat/mo — 14-day free trial';
+                    ctxEl.style.display = 'block';
+                } else if (!isPaidSignup) {
+                    ctxText.textContent = 'Free plan — 5 analyses/day, upgrade anytime starting at ' + price + '/mo';
+                    ctxEl.style.display = 'block';
+                }
+            }
+        }
+
+        // -- Funnel tracking (fire-and-forget) --
+        function funnelEvent(action, detail) {
+            try {
+                var d = JSON.stringify({page: '/register/', action: action, detail: detail || ''});
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/api/funnel-event/', new Blob([d], {type: 'application/json'}));
+                }
+            } catch(e) {}
+        }
+
+        var emailFocused = false, pwFocused = false;
+        document.getElementById('email').addEventListener('focus', function() {
+            if (!emailFocused) { emailFocused = true; funnelEvent('email_focus'); }
+        });
+        document.getElementById('password').addEventListener('focus', function() {
+            if (!pwFocused) { pwFocused = true; funnelEvent('password_focus'); }
+        });
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorDiv.classList.remove('show');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Creating account...';
+            funnelEvent('submit_attempt');
 
             try {
                 const response = await fetch('/api/auth/register/', {
@@ -243,7 +284,6 @@
                     },
                     body: JSON.stringify({
                         email: document.getElementById('email').value,
-                        username: document.getElementById('username').value,
                         password: document.getElementById('password').value,
                     }),
                     credentials: 'include',
@@ -252,12 +292,15 @@
                 const data = await response.json();
 
                 if (response.ok) {
+                    funnelEvent('submit_success');
                     window.location.href = redirectUrl;
                 } else {
+                    funnelEvent('submit_error', data.error || 'unknown');
                     errorDiv.textContent = data.error || 'Registration failed';
                     errorDiv.classList.add('show');
                 }
             } catch (err) {
+                funnelEvent('submit_error', 'connection_error');
                 errorDiv.textContent = 'Connection error. Please try again.';
                 errorDiv.classList.add('show');
             } finally {
@@ -265,6 +308,23 @@
                 submitBtn.textContent = 'Create Account';
             }
         });
+
+        // -- Duration tracking (matches landing.html pattern) --
+        var t0 = Date.now(), sent = false;
+        function sendDuration() {
+            if (sent) return;
+            sent = true;
+            var ms = Date.now() - t0;
+            if (ms < 1000) return;
+            var d = JSON.stringify({path: location.pathname, duration_ms: ms});
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon('/api/site-duration/', new Blob([d], {type: 'application/json'}));
+            }
+        }
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') sendDuration();
+        });
+        window.addEventListener('pagehide', sendDuration);
     </script>
 </body>
 </html>

@@ -37,6 +37,8 @@ urlpatterns = [
 
     # Analysis Workbench
     path("analysis/", views.run_analysis, name="run_analysis"),  # Phase 1 wrapper
+    path("explain-selection/", views.explain_selection, name="dsw_explain_selection"),
+    path("hypothesis-timeline/", views.hypothesis_timeline, name="dsw_hypothesis_timeline"),
     # Phase 5 reverted — data endpoints back on monolith for testing
     path("execute/", views.execute_code, name="execute_code"),
     path("generate-code/", views.generate_code, name="generate_code"),

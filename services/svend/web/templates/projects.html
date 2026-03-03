@@ -2309,7 +2309,7 @@ function renderProjects() {
     const emptyState = document.getElementById('empty-state');
     const loading = document.getElementById('loading-projects');
 
-    loading.style.display = 'none';
+    if (loading) loading.style.display = 'none';
 
     if (projects.length === 0) {
         container.style.display = 'none';

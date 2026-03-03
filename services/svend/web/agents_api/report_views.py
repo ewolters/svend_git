@@ -19,6 +19,22 @@ from core.models import Project, Hypothesis
 logger = logging.getLogger(__name__)
 
 
+def _dsw_has_charts(dsw_result):
+    try:
+        d = json.loads(dsw_result.data)
+        return bool(d.get("plots"))
+    except Exception:
+        return False
+
+
+def _dsw_plots_count(dsw_result):
+    try:
+        d = json.loads(dsw_result.data)
+        return len(d.get("plots", []))
+    except Exception:
+        return 0
+
+
 @gated_paid
 @require_http_methods(["GET"])
 def list_report_types(request):
@@ -103,6 +119,34 @@ def create_report(request):
     # Initialize empty sections from the type definition
     sections = {s["key"]: "" for s in type_def["sections"]}
 
+    # Auto-import RCA content if rca_session_id provided
+    rca_session_id = data.get("rca_session_id")
+    rca_linked = None
+    if rca_session_id:
+        try:
+            rca = RCASession.objects.get(id=rca_session_id, owner=request.user)
+            rca_linked = rca
+            rca_content = f"**Root Cause Analysis:** {rca.title or 'RCA Session'}\n\n"
+            rca_content += f"**Event:** {rca.event}\n\n"
+            if rca.chain:
+                rca_content += "**Causal Chain:**\n"
+                for i, step in enumerate(rca.chain):
+                    rca_content += f"{i+1}. {step.get('claim', '')}\n"
+            if rca.root_cause:
+                rca_content += f"\n**Root Cause:** {rca.root_cause}\n"
+            if rca.countermeasure:
+                rca_content += f"**Countermeasure:** {rca.countermeasure}\n"
+            # Place into the most relevant section
+            if "root_cause_analysis" in sections:
+                sections["root_cause_analysis"] = rca_content
+            elif "root_cause" in sections:
+                sections["root_cause"] = rca_content
+            # For 8D, also pre-fill problem description from event
+            if "problem_description" in sections and not sections["problem_description"]:
+                sections["problem_description"] = rca.event
+        except RCASession.DoesNotExist:
+            pass
+
     report = Report.objects.create(
         owner=request.user,
         project=project,
@@ -110,6 +154,16 @@ def create_report(request):
         title=title,
         sections=sections,
     )
+
+    # Track the RCA import reference
+    if rca_linked:
+        report.imported_from = report.imported_from or {}
+        section_key = "root_cause_analysis" if "root_cause_analysis" in sections else "root_cause"
+        report.imported_from[section_key] = [{
+            "source": "rca", "id": str(rca_linked.id),
+            "summary": rca_linked.title or rca_linked.event[:100],
+        }]
+        report.save(update_fields=["imported_from"])
 
     project.log_event("report_created", f"{report_type.upper()} report: {title}", user=request.user)
     return JsonResponse({
@@ -161,7 +215,8 @@ def get_report(request, report_id):
             ],
             "dsw_results": [
                 {"id": r.id, "title": r.title, "type": r.result_type,
-                 "summary": r.get_summary(), "created": r.created_at.isoformat()}
+                 "summary": r.get_summary(), "created": r.created_at.isoformat(),
+                 "has_charts": _dsw_has_charts(r), "plots_count": _dsw_plots_count(r)}
                 for r in dsw_results
             ],
             "rca_sessions": [
@@ -313,15 +368,38 @@ def import_to_report(request, report_id):
         try:
             dsw_result = DSWResult.objects.get(id=source_id, user=request.user)
             import json as json_module
+            import re
             result_data = json_module.loads(dsw_result.data)
-            content = f"**DSW Analysis:** {dsw_result.title}\n\n"
+
+            include = set(data.get("include", ["narrative", "statistics", "charts"]))
+            content_parts = [f"**DSW Analysis:** {dsw_result.title}"]
+
             if result_data.get("analysis_id"):
-                content += f"**Type:** {result_data['analysis_id'].replace('_', ' ').title()}\n"
-            summary = result_data.get("summary", "") or result_data.get("guide_observation", "")
-            if summary:
-                import re
-                clean_summary = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary)
-                content += f"\n{clean_summary}\n"
+                content_parts.append(f"**Type:** {result_data['analysis_id'].replace('_', ' ').title()}")
+
+            if "narrative" in include:
+                summary = result_data.get("summary", "") or result_data.get("guide_observation", "")
+                if summary:
+                    clean = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", summary)
+                    content_parts.append(f"\n{clean}")
+
+            if "statistics" in include:
+                stats = result_data.get("statistics", {})
+                if isinstance(stats, dict) and stats:
+                    content_parts.append("\n**Key Statistics:**")
+                    for key, val in stats.items():
+                        if isinstance(val, float):
+                            content_parts.append(f"- {key}: {val:.4f}")
+                        else:
+                            content_parts.append(f"- {key}: {val}")
+
+            content = "\n".join(content_parts) + "\n"
+
+            chart_embeds = []
+            if "charts" in include and result_data.get("plots"):
+                from .dsw.chart_render import render_dsw_charts
+                chart_embeds = render_dsw_charts(result_data["plots"])
+
             import_ref["summary"] = dsw_result.title or "DSW Analysis"
         except DSWResult.DoesNotExist:
             return JsonResponse({"error": "DSW result not found"}, status=404)
@@ -362,6 +440,14 @@ def import_to_report(request, report_id):
         imports[section] = []
     imports[section].append(import_ref)
     report.imported_from = imports
+
+    # Embed DSW charts if any were rendered
+    if source_type == "dsw" and chart_embeds:
+        diagrams = report.embedded_diagrams or {}
+        if section not in diagrams:
+            diagrams[section] = []
+        diagrams[section].extend(chart_embeds)
+        report.embedded_diagrams = diagrams
 
     report.save()
 
@@ -584,3 +670,72 @@ def remove_diagram(request, report_id, diagram_id):
     report.save()
 
     return JsonResponse({"success": True})
+
+
+@gated_paid
+@require_http_methods(["GET"])
+def export_report_pdf(request, report_id):
+    """Export report as PDF via WeasyPrint.
+
+    Renders markdown content to HTML, embeds SVG diagrams/charts inline.
+    """
+    import re
+    from io import BytesIO
+
+    report = get_object_or_404(Report, id=report_id, owner=request.user)
+    type_def = REPORT_TYPES.get(report.report_type, {})
+    sections_def = type_def.get("sections", [])
+    sections_data = report.sections or {}
+    diagrams = report.embedded_diagrams or {}
+
+    try:
+        import markdown
+        md = markdown.Markdown(extensions=["tables", "fenced_code"])
+    except ImportError:
+        md = None
+
+    rendered_sections = []
+    for sec_def in sections_def:
+        key = sec_def["key"]
+        raw_content = sections_data.get(key, "")
+        clean_content = re.sub(r"<<COLOR:\w+>>|<</COLOR>>", "", raw_content)
+
+        if md and clean_content:
+            html = md.convert(clean_content)
+            md.reset()
+        elif clean_content:
+            from django.utils.html import escape
+            html = f"<p>{escape(clean_content)}</p>"
+        else:
+            html = '<p class="empty-section">Not completed</p>'
+
+        rendered_sections.append({
+            "key": key,
+            "label": sec_def["label"],
+            "html": html,
+            "diagrams": diagrams.get(key, []),
+        })
+
+    from django.template.loader import render_to_string
+    html_string = render_to_string("report_print.html", {
+        "report": report,
+        "type_name": type_def.get("name", report.report_type.upper()),
+        "status_display": report.get_status_display(),
+        "project_title": report.project.title if report.project else "",
+        "rendered_sections": rendered_sections,
+    })
+
+    try:
+        from weasyprint import HTML
+        pdf_buffer = BytesIO()
+        HTML(string=html_string, base_url="https://svend.ai").write_pdf(pdf_buffer)
+        pdf_buffer.seek(0)
+
+        safe_name = re.sub(r"[^\w\-.]", "_", report.title)[:60] or "report"
+        from django.http import HttpResponse
+        response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{safe_name}.pdf"'
+        return response
+    except Exception as e:
+        logger.exception(f"PDF export failed: {e}")
+        return JsonResponse({"error": "PDF export failed. WeasyPrint may not be available."}, status=500)

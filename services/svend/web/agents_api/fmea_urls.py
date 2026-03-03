@@ -24,6 +24,9 @@ urlpatterns = [
     # Summary
     path("<uuid:fmea_id>/summary/", views.rpn_summary, name="fmea_rpn_summary"),
 
+    # SPC ↔ FMEA closed loop (Phase C)
+    path("<uuid:fmea_id>/rows/<uuid:row_id>/spc-update/", views.spc_update_occurrence, name="fmea_spc_update"),
+
     # Action items
     path("<uuid:fmea_id>/actions/", views.list_fmea_actions, name="fmea_actions"),
     path("<uuid:fmea_id>/rows/<uuid:row_id>/promote-action/", views.promote_fmea_action, name="fmea_promote_action"),

@@ -1,0 +1,576 @@
+{% extends "tool_base.html" %}
+
+{% block title %}Kaizen Execution Guide — PDSA, A3 Thinking, Rapid Gemba Experimentation{% endblock %}
+{% block meta_description %}Kaizen is not an event. Complete kaizen execution guide: PDSA not PDCA, A3 thinking, rapid gemba experimentation, campaign execution flow, connecting kaizen to strategy. {{ price_team }}/mo.{% endblock %}
+{% block meta_keywords %}kaizen, kaizen event, PDSA, PDCA, A3 report, A3 thinking, gemba kaizen, continuous improvement execution, rapid improvement, kaizen blitz, lean kaizen, root cause analysis, kaizen methodology, plan do study act{% endblock %}
+{% block canonical %}<link rel="canonical" href="https://svend.ai/kaizen-execution-guide/">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://svend.ai/kaizen-execution-guide/">
+<meta property="og:title" content="Kaizen Execution Guide — PDSA, A3, Rapid Experimentation | Svend">
+<meta property="og:description" content="Kaizen is not a week-long workshop. It is fluid execution — PDSA cycles, A3 thinking, direct experimentation at the point of work. Written for CI practitioners.">
+<meta property="og:image" content="https://svend.ai/static/og-image.png">
+<meta property="og:site_name" content="Svend">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Kaizen Execution Guide: PDSA, A3 Thinking, Rapid Experimentation",
+    "url": "https://svend.ai/kaizen-execution-guide/",
+    "description": "Complete kaizen execution guide: PDSA not PDCA, A3 structured problem solving, rapid gemba experimentation, campaign execution flow, connecting kaizen to hoshin strategy.",
+    "publisher": { "@type": "Organization", "name": "Svend", "url": "https://svend.ai" },
+    "about": [
+        { "@type": "Thing", "name": "Kaizen" },
+        { "@type": "Thing", "name": "PDSA Cycle" },
+        { "@type": "Thing", "name": "A3 Report" },
+        { "@type": "Thing", "name": "Continuous Improvement" }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@type": "Question",
+            "name": "What is kaizen?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Kaizen means 'change for the better.' In practice, it is rapid, iterative improvement executed at the point of work. Not a week-long workshop. Not a project with a timeline measured in months. Kaizen is: identify the problem, try a countermeasure today, study the result, decide tomorrow. Speed matters more than polish. PDSA cycles measured in hours, not weeks."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is the difference between PDSA and PDCA?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "PDCA uses 'Check' — which implies pass/fail. PDSA uses 'Study' — which implies learning. A failed experiment studied properly produces more value than a successful experiment checked off and forgotten. Deming preferred PDSA because the Study phase is where operational insight lives. The difference is not semantic — it changes behavior."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is A3 thinking?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A3 thinking is structured problem solving on a single page (A3-sized paper). Sections: Background, Current Condition, Root Cause Analysis, Countermeasures, Action Plan, Follow-up. The constraint of one page forces clarity — if you cannot explain the problem and solution on one page, you do not understand it well enough. A3 is a thinking discipline, not a form to fill out."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "How does kaizen connect to strategy?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Kaizen that does not connect to strategy is random improvement. The Campaign Framework connects them: VSM identifies constraints, kaizen bursts on the future-state map become hoshin projects, PDSA cycles execute the improvement, savings track monthly on the X-matrix. Strategic kaizen improves things that matter to the breakthrough objectives. Local kaizen improves things within the team's authority through MDI."
+            }
+        },
+        {
+            "@type": "Question",
+            "name": "What is a kaizen event?",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A focused, short-duration improvement effort — typically 3-5 days — with a dedicated team, a specific target, and a charter defining scope and expected outcomes. Kaizen events are useful for improvements that require concentrated cross-functional effort (SMED, cell redesign, flow improvement). But most kaizen should be smaller — daily PDSA cycles executed within the normal work routine, not events that require special scheduling."
+            }
+        }
+    ]
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://svend.ai/" },
+        { "@type": "ListItem", "position": 2, "name": "Continuous Improvement Software", "item": "https://svend.ai/continuous-improvement-software/" },
+        { "@type": "ListItem", "position": 3, "name": "Kaizen Execution Guide", "item": "https://svend.ai/kaizen-execution-guide/" }
+    ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    .tool-container { max-width: 1000px; }
+
+    .playbook-hero { text-align: center; margin-bottom: 2.5rem; padding-top: 1rem; }
+    .playbook-badge {
+        display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.7rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        background: rgba(58,127,143,0.12); color: #3a7f8f; border: 1px solid rgba(58,127,143,0.3);
+        margin-bottom: 0.75rem;
+    }
+    .playbook-hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .playbook-hero h1 strong { color: #3a7f8f; }
+    .playbook-hero .hero-sub {
+        color: var(--text-secondary); font-size: 1rem; max-width: 680px; margin: 0 auto; line-height: 1.7;
+    }
+
+    .playbook-toc {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.25rem 1.5rem; margin-bottom: 2rem;
+    }
+    .playbook-toc h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    .playbook-toc ol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.3rem; }
+    .playbook-toc a { color: var(--accent-primary); text-decoration: none; font-size: 0.88rem; line-height: 1.6; }
+    .playbook-toc a:hover { text-decoration: underline; }
+    .playbook-toc .toc-num { color: var(--text-dim); font-weight: 600; margin-right: 0.3rem; }
+
+    .pb-section {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .pb-section-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .pb-num {
+        background: #3a7f8f; color: #fff; width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .pb-section h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+    .pb-section p, .pb-section li { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+    .pb-section ul, .pb-section ol { padding-left: 1.5rem; margin: 0.75rem 0; }
+    .pb-section li { margin-bottom: 0.4rem; }
+    .pb-section h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+
+    .svend-callout {
+        background: rgba(74,159,110,0.06); border: 1px solid rgba(74,159,110,0.2); border-radius: 8px;
+        padding: 0.85rem 1rem; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;
+    }
+    .svend-callout strong { color: var(--accent-primary); }
+    .svend-callout a { color: var(--accent-primary); text-decoration: none; }
+    .svend-callout a:hover { text-decoration: underline; }
+
+    /* PDSA Cycle */
+    .pdsa-cycle {
+        display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; margin: 1.5rem auto;
+        max-width: 500px; position: relative;
+    }
+    .pdsa-quad {
+        padding: 1.25rem; border: 1px solid var(--border); min-height: 110px;
+    }
+    .pdsa-quad.plan { background: rgba(96,165,250,0.06); border-color: rgba(96,165,250,0.2); border-radius: 12px 0 0 0; }
+    .pdsa-quad.do { background: rgba(74,159,110,0.06); border-color: rgba(74,159,110,0.2); border-radius: 0 12px 0 0; border-left: none; }
+    .pdsa-quad.study { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.2); border-radius: 0 0 0 12px; border-top: none; }
+    .pdsa-quad.act { background: rgba(167,139,250,0.06); border-color: rgba(167,139,250,0.2); border-radius: 0 0 12px 0; border-top: none; border-left: none; }
+    .pdsa-quad-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.4rem;
+    }
+    .pdsa-quad.plan .pdsa-quad-label { color: #60a5fa; }
+    .pdsa-quad.do .pdsa-quad-label { color: var(--accent-primary); }
+    .pdsa-quad.study .pdsa-quad-label { color: #f59e0b; }
+    .pdsa-quad.act .pdsa-quad-label { color: #a78bfa; }
+    .pdsa-quad strong { display: block; font-size: 0.88rem; margin-bottom: 0.25rem; }
+    .pdsa-quad p { font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4; margin: 0; }
+    .pdsa-center {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: var(--bg-card); border: 2px solid var(--border); border-radius: 50%;
+        width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;
+        font-size: 0.65rem; font-weight: 700; color: var(--text-dim); z-index: 2;
+    }
+
+    /* Campaign execution flow */
+    .campaign-flow {
+        display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+        gap: 0.4rem; margin: 1.5rem 0; padding: 1.25rem;
+        background: var(--bg-tertiary); border-radius: 8px;
+    }
+    .campaign-flow-step {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+        padding: 0.65rem 0.9rem; text-align: center; min-width: 100px;
+    }
+    .campaign-flow-step strong { display: block; font-size: 0.78rem; color: var(--text-primary); }
+    .campaign-flow-step span { font-size: 0.68rem; color: var(--text-dim); }
+    .campaign-flow-arrow { color: #3a7f8f; font-size: 1rem; }
+
+    /* A3 mockup */
+    .a3-mockup {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+        margin: 1.5rem 0; border: 1px solid var(--border); border-radius: 10px;
+        overflow: hidden; background: var(--bg-card);
+    }
+    .a3-cell {
+        padding: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.04);
+        border-right: 1px solid rgba(255,255,255,0.04);
+    }
+    .a3-cell:nth-child(even) { border-right: none; }
+    .a3-cell-label {
+        font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.5px; color: #3a7f8f; margin-bottom: 0.3rem;
+    }
+    .a3-cell p { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+    .a3-full { grid-column: 1 / 3; }
+
+    /* Related playbooks */
+    .related-playbooks {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem; margin: 1.5rem 0;
+    }
+    .related-card {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 1.1rem; text-decoration: none; color: inherit; transition: border-color 0.2s;
+    }
+    .related-card:hover { border-color: var(--accent-primary); }
+    .related-phase {
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 0.3rem;
+    }
+    .related-phase.strategy { color: #f59e0b; }
+    .related-phase.diagnostic { color: #60a5fa; }
+    .related-phase.backbone { color: #a78bfa; }
+    .related-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .related-desc { color: var(--text-secondary); font-size: 0.78rem; line-height: 1.5; }
+
+    .playbook-cta {
+        text-align: center; margin: 2.5rem 0 1.5rem; padding: 2.5rem;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .playbook-cta h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .playbook-cta p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+    .playbook-cta .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .cta-primary {
+        background: var(--accent-primary); color: #fff; padding: 0.7rem 2rem; border-radius: 6px;
+        text-decoration: none; font-weight: 600; font-size: 0.95rem;
+    }
+    .cta-primary:hover { background: #3a8a5a; }
+    .cta-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-primary);
+        padding: 0.7rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.95rem;
+    }
+    .cta-secondary:hover { border-color: var(--accent-primary-border); }
+
+    .pb-faq { margin-top: 2rem; }
+    .pb-faq h2 { font-size: 1.25rem; margin-bottom: 1rem; text-align: center; }
+
+    @media (max-width: 768px) {
+        .campaign-flow { flex-direction: column; }
+        .campaign-flow-arrow { transform: rotate(90deg); }
+        .a3-mockup { grid-template-columns: 1fr; }
+        .a3-cell { border-right: none !important; }
+        .a3-full { grid-column: 1; }
+        .related-playbooks { grid-template-columns: 1fr; }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="playbook-hero">
+    <div class="playbook-badge">Execute Phase</div>
+    <h1><strong>Kaizen</strong> Is Not an Event</h1>
+    <p class="hero-sub">Kaizen is fluid execution: PDSA cycles, A3 thinking, direct experimentation at the point of work. Run a trial today, study the result, decide tomorrow. Speed matters more than polish. This is the Execute phase of the Campaign Framework.</p>
+</div>
+
+<div class="playbook-toc">
+    <h3>In This Playbook</h3>
+    <ol>
+        <li><a href="#s1"><span class="toc-num">1.</span> Kaizen Is Not an Event</a></li>
+        <li><a href="#s2"><span class="toc-num">2.</span> PDSA, Not PDCA</a></li>
+        <li><a href="#s3"><span class="toc-num">3.</span> A3 Thinking</a></li>
+        <li><a href="#s4"><span class="toc-num">4.</span> Rapid Experimentation in the Gemba</a></li>
+        <li><a href="#s5"><span class="toc-num">5.</span> Campaign Execution Flow</a></li>
+        <li><a href="#s6"><span class="toc-num">6.</span> Standard Work for Kaizen</a></li>
+        <li><a href="#s7"><span class="toc-num">7.</span> Connecting Kaizen to Strategy</a></li>
+    </ol>
+</div>
+
+<!-- Section 1 -->
+<div class="pb-section" id="s1">
+    <div class="pb-section-head">
+        <div class="pb-num">1</div>
+        <h2>Kaizen Is Not an Event</h2>
+    </div>
+    <p>Somewhere along the way, &ldquo;kaizen&rdquo; became &ldquo;kaizen event&rdquo; &mdash; a structured 3-5 day workshop with a charter, a facilitator, daily report-outs, and a Friday celebration. Events have their place. But most kaizen should be smaller, faster, and embedded in daily work.</p>
+
+    <h3>Two types of kaizen</h3>
+    <ul>
+        <li><strong>Daily kaizen:</strong> Small improvements executed within the team&rsquo;s authority. An operator notices that the tool sequence during changeover wastes 30 seconds. She rearranges the tools on the shadow board. Tests it next changeover. Works. New standard. Done. This is kaizen. No event, no charter, no facilitator. PDSA cycle measured in hours.</li>
+        <li><strong>Project kaizen (event):</strong> Focused effort requiring dedicated team time and cross-functional resources. SMED study, cell redesign, flow improvement. These are 3-5 day events with a charter, a target, and a team pulled from regular duties. Project kaizen is necessary when the improvement crosses departmental boundaries or requires concentrated effort.</li>
+    </ul>
+    <p>The ratio should be 80/20: 80% daily kaizen, 20% events. Most organizations invert this &mdash; they run occasional kaizen events and do no daily kaizen in between. The result: improvement happens in bursts with long gaps of stagnation.</p>
+
+    <h3>Why daily kaizen matters more</h3>
+    <p>A single daily kaizen saves 30 seconds on a changeover. Trivial. But 250 daily kaizens per year across a plant compound into thousands of hours saved, hundreds of quality improvements, and a workforce that thinks about improvement as part of the job &mdash; not as a special event that disrupts the routine.</p>
+</div>
+
+<!-- Section 2 -->
+<div class="pb-section" id="s2">
+    <div class="pb-section-head">
+        <div class="pb-num">2</div>
+        <h2>PDSA, Not PDCA</h2>
+    </div>
+    <p>PDCA (Plan-Do-Check-Act) is everywhere. PDSA (Plan-Do-Study-Act) is what Deming actually preferred. The difference is not semantic. It changes behavior.</p>
+
+    <div class="pdsa-cycle">
+        <div class="pdsa-quad plan">
+            <div class="pdsa-quad-label">Plan</div>
+            <strong>Predict</strong>
+            <p>State the hypothesis. What do you expect will happen? Define the experiment. How will you measure the result? What constitutes success?</p>
+        </div>
+        <div class="pdsa-quad do">
+            <div class="pdsa-quad-label">Do</div>
+            <strong>Try</strong>
+            <p>Execute the experiment. Small scale. One changeover, one shift, one station. Not the whole plant. Collect the data as you go.</p>
+        </div>
+        <div class="pdsa-quad study">
+            <div class="pdsa-quad-label">Study</div>
+            <strong>Learn</strong>
+            <p>What happened vs. what you predicted? Why the difference? What did you learn that you did not know before? This is where the insight lives.</p>
+        </div>
+        <div class="pdsa-quad act">
+            <div class="pdsa-quad-label">Act</div>
+            <strong>Decide</strong>
+            <p>Adopt, adapt, or abandon. If it worked: standardize. If it partially worked: modify and run another cycle. If it failed: study why and pivot.</p>
+        </div>
+        <div class="pdsa-center">PDSA</div>
+    </div>
+
+    <h3>Check vs. Study</h3>
+    <ul>
+        <li><strong>Check</strong> implies pass/fail. Did it work? Yes or no. If yes, great. If no, try something else. No learning required.</li>
+        <li><strong>Study</strong> implies learning. What happened? Why? What was unexpected? What would you change about the experiment? A failed experiment studied properly produces more value than a successful one checked off and forgotten.</li>
+    </ul>
+    <p>The Study phase is where operational insight lives. When an experiment does not produce the expected result, the Study phase asks: was the hypothesis wrong, was the execution flawed, or did we learn something about the process we did not expect? Each answer leads to a different next step. Check gives you one answer (pass/fail). Study gives you understanding.</p>
+
+    <h3>PDSA speed</h3>
+    <p>A PDSA cycle should be as fast as the experiment allows. For a changeover improvement: Plan in the morning, Do at the next changeover, Study the result by end of shift, Act tomorrow. One day. Not one month. Not one quarter. The speed of PDSA cycles determines the speed of improvement.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> A3 reports embed PDSA cycle tracking with experiment logging. The root cause analysis module includes AI challenge that pushes back on premature conclusions &mdash; preventing the common failure of jumping from problem to solution without genuine root cause investigation.
+    </div>
+</div>
+
+<!-- Section 3 -->
+<div class="pb-section" id="s3">
+    <div class="pb-section-head">
+        <div class="pb-num">3</div>
+        <h2>A3 Thinking</h2>
+    </div>
+    <p>A3 is a thinking discipline disguised as a form. The constraint of fitting everything on a single A3-sized page forces clarity. If you cannot explain the problem, root cause, and countermeasures on one page, you do not understand the problem well enough.</p>
+
+    <div class="a3-mockup">
+        <div class="a3-cell">
+            <div class="a3-cell-label">Background</div>
+            <p>Press 4 OEE dropped to 62% in Q3, down from 78% in Q2. Three major unplanned stops per week. Changeover time averaging 28 minutes vs. 15-minute target.</p>
+        </div>
+        <div class="a3-cell">
+            <div class="a3-cell-label">Current Condition</div>
+            <p>Changeover: avg 28 min (range 18-42). Top loss: tool search (8 min), adjustment (6 min), material staging (5 min). No standard changeover procedure posted.</p>
+        </div>
+        <div class="a3-cell">
+            <div class="a3-cell-label">Root Cause Analysis</div>
+            <p>5 Whys: Why long changeover? &rarr; Tools not staged. Why? &rarr; No designated locations. Why? &rarr; Shadow board removed during equipment move. Why? &rarr; Never reinstalled. Why? &rarr; No standard work for post-move verification.</p>
+        </div>
+        <div class="a3-cell">
+            <div class="a3-cell-label">Countermeasures</div>
+            <p>1. Fabricate new shadow board (Mar 10). 2. Document standard changeover sequence (Mar 12). 3. Train operators (Mar 14). 4. Time 10 changeovers to verify (Mar 21).</p>
+        </div>
+        <div class="a3-cell a3-full">
+            <div class="a3-cell-label">Action Plan &amp; Follow-Up</div>
+            <p>Target: changeover &lt; 15 min by Mar 31. Verify with SPC control chart (individual changeover times). If target not met after 10 changeovers, conduct SMED video analysis for next iteration. Link to hoshin project: &ldquo;OEE &gt; 85% all presses.&rdquo;</p>
+        </div>
+    </div>
+
+    <h3>A3 as conversation</h3>
+    <p>An A3 is not a form you fill out and submit. It is a conversation tool. The author brings the A3 to their manager. The manager reads it, asks questions, challenges the root cause, probes the countermeasures. &ldquo;How do you know the root cause is the shadow board and not operator technique?&rdquo; &ldquo;Have you talked to the operators who do the fastest changeovers?&rdquo; The A3 improves through this dialogue.</p>
+    <p>The manager&rsquo;s job is not to approve the A3. The manager&rsquo;s job is to develop the author&rsquo;s thinking by asking questions that push the analysis deeper. This is mentoring through structured problem solving.</p>
+
+    <h3>A3 is not for every problem</h3>
+    <p>A3 is for problems that are important enough to require structured analysis and visible enough to need documentation. A tool falling off a shadow board does not need an A3. A chronic OEE problem affecting a hoshin project does. Use judgment. The overhead of A3 should be proportional to the significance of the problem.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> A3 reports include structured sections (background, current condition, root cause, countermeasures, action plan), embedded diagrams, and direct linking to hoshin projects. The RCA module provides 5 Whys and fishbone analysis with AI challenge that tests whether the stated root cause actually explains the symptoms observed.
+    </div>
+</div>
+
+<!-- Section 4 -->
+<div class="pb-section" id="s4">
+    <div class="pb-section-head">
+        <div class="pb-num">4</div>
+        <h2>Rapid Experimentation in the Gemba</h2>
+    </div>
+    <p>The gemba is the place where value is created. The shop floor, the production line, the workstation. Kaizen happens in the gemba, not in a conference room. The people doing the work are part of the experiment, not subjects of it.</p>
+
+    <h3>Rules of gemba experimentation</h3>
+    <ul>
+        <li><strong>Try it before you prove it.</strong> Do not spend three weeks building a business case for a $50 experiment. Try the countermeasure. If it works, scale it. If it does not, you learned something for $50 and one hour.</li>
+        <li><strong>Small scale first.</strong> One machine, one shift, one operator. Not the whole line. Small-scale experiments are fast, cheap, and reversible. If the experiment fails, you lose one changeover, not a week of production.</li>
+        <li><strong>Measure before and after.</strong> You cannot study a result you did not measure. Take baseline data before the experiment. Measure the same thing after. The comparison is the data. Opinions about whether it &ldquo;feels better&rdquo; are not data.</li>
+        <li><strong>Include the operators.</strong> They see things you do not. They know which step in the changeover is the bottleneck. They know why the material jams at that point. They know the workarounds that never made it into the standard work. Ask them. Listen. Include their ideas in the experiment design.</li>
+        <li><strong>Time-box the experiment.</strong> A kaizen experiment that runs for six weeks without a conclusion is a project, not an experiment. Set a time limit: try this for two changeovers and measure the result. If two changeovers are not enough data, run four. But decide within the week.</li>
+    </ul>
+
+    <h3>What rapid means</h3>
+    <p>Rapid does not mean sloppy. It means biased toward action over analysis. Plan enough to have a hypothesis and a measurement. Do the experiment today. Study the result today or tomorrow. Act on the learning by the end of the week. If your PDSA cycle takes longer than a week for a shop floor improvement, you are over-planning or under-doing.</p>
+</div>
+
+<!-- Section 5 -->
+<div class="pb-section" id="s5">
+    <div class="pb-section-head">
+        <div class="pb-num">5</div>
+        <h2>Campaign Execution Flow</h2>
+    </div>
+    <p>Kaizen does not exist in isolation. In the <a href="/continuous-improvement-software/">Campaign Framework</a>, kaizen is the Execute phase &mdash; preceded by Shape (<a href="/5s-operational-excellence/">5S</a>) and followed by Consolidate (<a href="/leadership-standard-work/">audits, LSW</a>). The execution flow connects the diagnostic tool (<a href="/value-stream-mapping-methodology/">VSM</a>) to the strategy system (<a href="/hoshin-kanri-strategy-deployment/">hoshin</a>).</p>
+
+    <div class="campaign-flow">
+        <div class="campaign-flow-step">
+            <strong>VSM</strong>
+            <span>Map current state<br>Identify constraints</span>
+        </div>
+        <span class="campaign-flow-arrow">&rarr;</span>
+        <div class="campaign-flow-step">
+            <strong>Kaizen Burst</strong>
+            <span>Target the constraint<br>Define the improvement</span>
+        </div>
+        <span class="campaign-flow-arrow">&rarr;</span>
+        <div class="campaign-flow-step">
+            <strong>A3 Report</strong>
+            <span>Structure the problem<br>Identify root cause</span>
+        </div>
+        <span class="campaign-flow-arrow">&rarr;</span>
+        <div class="campaign-flow-step">
+            <strong>PDSA Cycles</strong>
+            <span>Experiment rapidly<br>Study the results</span>
+        </div>
+        <span class="campaign-flow-arrow">&rarr;</span>
+        <div class="campaign-flow-step">
+            <strong>Hoshin</strong>
+            <span>Track savings<br>Verify strategy</span>
+        </div>
+    </div>
+
+    <h3>How the flow works</h3>
+    <ol>
+        <li><strong>VSM identifies the constraint.</strong> The current-state value stream map shows where flow breaks. Maybe it is a changeover bottleneck, a quality problem, a WIP accumulation. The VSM makes the constraint visible and quantified.</li>
+        <li><strong>Kaizen burst targets the constraint.</strong> On the future-state map, a kaizen burst marks the improvement needed. &ldquo;Reduce changeover from 28 to 12 minutes.&rdquo; The burst has a specific target, not a vague aspiration.</li>
+        <li><strong>A3 structures the problem.</strong> Before jumping to solutions, the A3 forces you to understand the current condition, analyze the root cause, and design countermeasures. This prevents the common failure of solving the wrong problem.</li>
+        <li><strong>PDSA cycles execute the improvement.</strong> Try the countermeasure. Measure. Study. Decide. Iterate until the target is met or you learn enough to pivot. Multiple PDSA cycles may be needed for complex improvements.</li>
+        <li><strong>Hoshin tracks the result.</strong> If the kaizen burst promoted to a hoshin project, the monthly savings track on the X-matrix. The improvement is connected to strategy, not floating independently.</li>
+    </ol>
+</div>
+
+<!-- Section 6 -->
+<div class="pb-section" id="s6">
+    <div class="pb-section-head">
+        <div class="pb-num">6</div>
+        <h2>Standard Work for Kaizen</h2>
+    </div>
+    <p>Paradoxically, kaizen requires standard work. Not to bureaucratize improvement, but to ensure that each PDSA cycle produces usable knowledge.</p>
+
+    <h3>What to standardize</h3>
+    <ul>
+        <li><strong>How you capture baseline data.</strong> What metrics? What sample size? How collected? If every kaizen measures something different, you cannot compare results or build institutional knowledge.</li>
+        <li><strong>How you document the experiment.</strong> Hypothesis, method, result, learning. Not a full report &mdash; a brief record. The A3 format works well for significant experiments. A notebook entry works for daily kaizen.</li>
+        <li><strong>How you update standard work.</strong> When a kaizen succeeds, the standard work procedure must change to reflect the new method. If the standard does not update, the old method creeps back. Someone must own the standard work update as part of every successful kaizen.</li>
+        <li><strong>How you share learning.</strong> The PDSA Study phase produces knowledge. Where does it go? If it stays in one person&rsquo;s head, it is not organizational learning. Brief report-outs at tier meetings, A3 posting boards, shared repositories &mdash; the mechanism matters less than the discipline of sharing.</li>
+    </ul>
+
+    <h3>Kaizen events require a charter</h3>
+    <p>For project kaizen (3-5 day events), a charter defines:</p>
+    <ul>
+        <li><strong>Scope:</strong> What process? What boundaries? What is in scope and what is not?</li>
+        <li><strong>Target:</strong> Specific, measurable. &ldquo;Reduce changeover time from 28 to 12 minutes.&rdquo; Not &ldquo;improve changeover.&rdquo;</li>
+        <li><strong>Team:</strong> Who is participating? What roles? Who is the sponsor?</li>
+        <li><strong>Baseline data:</strong> Current performance. Without a baseline, you cannot measure improvement.</li>
+        <li><strong>Schedule:</strong> Day-by-day plan for the event. What happens each day?</li>
+    </ul>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> Hoshin projects include a kaizen charter field with event logistics (date, location, schedule), primary/secondary metrics, and baseline/target tracking. The charter connects to the broader hoshin project with savings calculation and monthly tracking. Action items generated during the event link back to the charter for traceability.
+    </div>
+</div>
+
+<!-- Section 7 -->
+<div class="pb-section" id="s7">
+    <div class="pb-section-head">
+        <div class="pb-num">7</div>
+        <h2>Connecting Kaizen to Strategy</h2>
+    </div>
+    <p>Kaizen that does not connect to strategy is random improvement. It might make an area better, but &ldquo;better&rdquo; relative to what? If the hoshin objective is OEE &gt; 85% and your kaizen improved inventory accuracy in the warehouse, you improved something that does not move the needle on the breakthrough objective.</p>
+
+    <h3>Strategic vs. local kaizen</h3>
+    <ul>
+        <li><strong>Strategic kaizen</strong> connects to the X-matrix. It is a hoshin project with savings tracking, a charter, and monthly accountability. The improvement addresses a constraint identified by VSM that directly supports a strategic or annual objective. Examples: SMED to improve OEE, scrap reduction to hit yield targets, cell redesign to enable single-piece flow.</li>
+        <li><strong>Local kaizen</strong> operates within the <a href="/managing-for-daily-improvement/">MDI system</a>. It does not require hoshin-level tracking. The team lead assigns it, the team executes it, and it is tracked on the newspaper. Examples: rearranging a workstation, adjusting a fixture, changing a material staging sequence. Important, but local.</li>
+    </ul>
+    <p>Both types are necessary. Strategic kaizen drives breakthroughs. Local kaizen builds the improvement muscle that makes strategic kaizen possible. An organization that only does strategic kaizen events has an improvement program. An organization that does daily local kaizen has an improvement culture.</p>
+
+    <h3>How to decide which type</h3>
+    <ul>
+        <li>Does the improvement support a hoshin objective? &rarr; Strategic</li>
+        <li>Does it require cross-functional resources or budget authority? &rarr; Strategic</li>
+        <li>Can the team execute it within their authority? &rarr; Local</li>
+        <li>Is the expected savings above the hoshin threshold? &rarr; Strategic</li>
+    </ul>
+    <p>Most kaizens should be local. The threshold for hoshin promotion is typically $25K+ in expected annual savings, though this varies by organization. The X-matrix should have three to five projects per site, not thirty.</p>
+
+    <div class="svend-callout">
+        <strong>In Svend:</strong> The full execution chain is connected: <a href="/value-stream-mapping-methodology/">VSM kaizen bursts</a> promote to hoshin projects with calculation methods and savings targets pre-populated. A3 reports link to hoshin projects. Action items carry source tracking (hoshin, A3, RCA, FMEA). Monthly actuals feed the X-matrix dashboard. The whole chain &mdash; from constraint identification through savings verification &mdash; lives in one platform.
+    </div>
+</div>
+
+<!-- Related Playbooks -->
+<div style="margin: 2.5rem 0 1rem;">
+    <h2 style="font-size: 1.15rem; text-align: center; margin-bottom: 1rem;">Related Playbooks</h2>
+    <div class="related-playbooks">
+        <a href="/value-stream-mapping-methodology/" class="related-card">
+            <div class="related-phase diagnostic">Diagnostic</div>
+            <div class="related-title">Value Stream Mapping</div>
+            <div class="related-desc">The diagnostic that identifies where kaizen should happen. Current/future state, constraint identification, kaizen burst targeting.</div>
+        </a>
+        <a href="/hoshin-kanri-strategy-deployment/" class="related-card">
+            <div class="related-phase strategy">Strategy</div>
+            <div class="related-title">Hoshin Kanri &amp; Strategy Deployment</div>
+            <div class="related-desc">Strategic kaizen connects to the X-matrix. Savings tracking, monthly accountability, dollar rollup.</div>
+        </a>
+        <a href="/managing-for-daily-improvement/" class="related-card">
+            <div class="related-phase backbone">Backbone</div>
+            <div class="related-title">Managing for Daily Improvement</div>
+            <div class="related-desc">Local kaizen operates through the MDI newspaper system. Daily improvements tracked alongside strategic projects.</div>
+        </a>
+    </div>
+</div>
+
+<!-- CTA -->
+<div class="playbook-cta">
+    <h3>Execute, Don&rsquo;t Plan</h3>
+    <p>A3 reports with embedded RCA, PDSA tracking, 200+ statistical analyses, VSM with kaizen bursts, and hoshin integration. Team plan: {{ price_team }}/seat/mo.</p>
+    <div class="cta-buttons">
+        <a href="/register/?plan=team&region={{ region }}" class="cta-primary">Start 14-Day Free Trial</a>
+        <a href="/continuous-improvement-software/" class="cta-secondary">Back to CI Hub</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_cta %}{% endblock %}
+
+{% block faq %}
+<div class="pb-faq">
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-q">What is kaizen?</div>
+        <div class="faq-a">Change for the better. In practice: rapid, iterative improvement at the point of work. Not a week-long workshop &mdash; daily PDSA cycles measured in hours, not weeks. 80% of kaizen should be daily improvements within the team&rsquo;s authority, 20% should be structured events for cross-functional improvements.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is the difference between PDSA and PDCA?</div>
+        <div class="faq-a">PDCA uses Check (pass/fail). PDSA uses Study (learning). A failed experiment studied properly produces more value than a successful one checked off and forgotten. Deming preferred PDSA because the Study phase is where insight lives. The difference changes behavior &mdash; Check encourages &ldquo;did it work?&rdquo;; Study encourages &ldquo;what did we learn?&rdquo;</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">What is A3 thinking?</div>
+        <div class="faq-a">Structured problem solving on one page: Background, Current Condition, Root Cause, Countermeasures, Action Plan, Follow-up. The one-page constraint forces clarity. A3 is a thinking discipline and conversation tool, not a form to fill out. The manager&rsquo;s role is to develop the author&rsquo;s thinking by asking questions.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How fast should a PDSA cycle be?</div>
+        <div class="faq-a">As fast as the experiment allows. For shop floor improvements: Plan in the morning, Do at the next opportunity, Study the result by end of shift, Act tomorrow. One day. If your PDSA cycle takes longer than a week for a floor-level improvement, you are over-planning or under-doing.</div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-q">How does kaizen connect to strategy?</div>
+        <div class="faq-a">Through the Campaign execution flow: VSM identifies constraints, kaizen bursts target improvements, A3 structures the problem, PDSA cycles execute, hoshin tracks savings. Strategic kaizen connects to the X-matrix with monthly dollar tracking. Local kaizen operates through MDI newspapers within the team&rsquo;s authority.</div>
+    </div>
+</div>
+{% endblock %}
