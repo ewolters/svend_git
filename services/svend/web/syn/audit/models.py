@@ -143,8 +143,13 @@ class SysLogEntry(SynaraImmutableLog):
             # Compute current hash (includes previous hash)
             self.current_hash = self._compute_current_hash()
 
-            # Save the entry
-            super().save(*args, **kwargs)
+            # Set entry_hash (SynaraImmutableLog field) to match current_hash
+            # to satisfy the base model's non-nullable field
+            self.entry_hash = self.current_hash
+
+            # Call models.Model.save() directly — skip SynaraImmutableLog.save()
+            # which would recompute the hash chain and corrupt previous_hash
+            models.Model.save(self, *args, **kwargs)
 
     def _compute_payload_hash(self) -> str:
         """

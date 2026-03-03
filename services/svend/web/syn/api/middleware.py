@@ -245,7 +245,7 @@ class APIHeadersMiddleware:
             if not accept or accept == "*/*":
                 # Allow */* but prefer explicit JSON
                 pass
-            elif "application/json" not in accept and "application/vnd.synara" not in accept:
+            elif "application/json" not in accept:
                 return JsonResponse(
                     {
                         "error": {
@@ -523,7 +523,7 @@ class ErrorEnvelopeMiddleware:
                 "message": str(message),
                 "retryable": retryable,
                 "request_id": request_id,
-                "doc": f"https://docs.synara.io/errors#{error_code}",
+                "doc": f"https://docs.svend.ai/api/errors#{error_code}",
             }
         }
 
@@ -585,7 +585,7 @@ class ErrorEnvelopeMiddleware:
                 "message": "An unexpected error occurred",
                 "retryable": True,
                 "request_id": request_id,
-                "doc": "https://docs.synara.io/errors#internal_error",
+                "doc": "https://docs.svend.ai/api/errors#internal_error",
             }
         }
 

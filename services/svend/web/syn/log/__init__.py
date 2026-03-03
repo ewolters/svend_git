@@ -65,7 +65,6 @@ Usage:
 __version__ = "1.0.0"
 __standard__ = "LOG-002"
 
-default_app_config = "syn.log.apps.LogConfig"
 
 # Import models and utilities directly from submodules:
 #   from syn.log.models import LogEntry, LogStream, LogAlert, LogMetric

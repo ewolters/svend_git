@@ -49,8 +49,12 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Django security
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # Synara request ID (early — correlation needs this)
+    "syn.api.middleware.SynRequestIdMiddleware",
+    # Svend + Django standard
     "accounts.middleware.NoCacheDynamicMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -60,7 +64,13 @@ MIDDLEWARE = [
     "accounts.middleware.SiteVisitMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # Svend custom middleware
+    # Synara infrastructure (after auth, before business logic)
+    "syn.synara.middleware.csp.ContentSecurityPolicyMiddleware",
+    "syn.synara.middleware.tenant.TenantIsolationMiddleware",
+    "syn.log.middleware.CorrelationMiddleware",
+    "syn.log.middleware.AuditLoggingMiddleware",
+    "syn.api.middleware.ErrorEnvelopeMiddleware",
+    # Svend business middleware
     "accounts.middleware.SubscriptionMiddleware",
     "accounts.middleware.QueryLimitMiddleware",
 ]
@@ -188,14 +198,17 @@ AUDIT_PATHS = ["/api/"]
 AUDIT_METHODS = ["POST", "PUT", "PATCH", "DELETE"]
 
 # Content Security Policy (allow unsafe-inline — Svend uses inline JS/CSS)
+# Values are lists per CSP middleware API (joined with spaces)
 CONTENT_SECURITY_POLICY = {
-    "default-src": "'self'",
-    "script-src": "'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net",
-    "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
-    "font-src": "'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
-    "img-src": "'self' data: https:",
-    "connect-src": "'self' https://api.stripe.com",
-    "frame-src": "https://js.stripe.com https://hooks.stripe.com",
+    "default-src": ["'self'"],
+    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com"],
+    "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
+    "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
+    "img-src": ["'self'", "data:", "blob:", "https:"],
+    "connect-src": ["'self'", "https://api.stripe.com"],
+    "frame-src": ["https://js.stripe.com", "https://hooks.stripe.com"],
+    "object-src": ["'none'"],
+    "base-uri": ["'self'"],
 }
 
 # Tenant isolation (disabled — Svend has individual + optional enterprise tenants)
