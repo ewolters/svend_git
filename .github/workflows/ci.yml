@@ -1,14 +1,10 @@
-# GitHub Actions CI — TST-001 §10.4 Layer 2 (advisory)
+# GitHub Actions CI - TST-001 S10.4 Layer 2 (advisory)
 # Compliance runner on production server remains AUTHORITATIVE.
-# This pipeline is an early-warning system, not a gate.
-#
-# INIT-010 FEAT-079 | CMP-001 §9.1 Layered Verification Architecture
-# CR: 8485bc28
-# Workflow permissions: read-write (required for compliance check persistence)
+# INIT-010 FEAT-079 | CMP-001 S9.1 Layered Verification Architecture
 
 name: CI
 
-"on":
+on:
   push:
     branches: [main, iso-9001-modules]
   pull_request:
@@ -19,32 +15,23 @@ env:
   SVEND_SECRET_KEY: ci-test-key-not-for-production
   SVEND_ENV: dev
   SVEND_DATABASE_URL: postgres://svend:svend@localhost:5432/svend_ci
-  PYTHONDONTWRITEBYTECODE: 1
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
-  # ── Job 1: Lint (fast, no DB) ─────────────────────────────
   lint:
-    name: Ruff lint & format
+    name: Ruff lint and format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+      - run: pip install ruff
+      - run: ruff check services/svend/web/
+      - run: ruff format --check services/svend/web/
 
-      - name: Install ruff
-        run: pip install ruff
-
-      - name: Ruff check
-        run: ruff check services/svend/web/
-
-      - name: Ruff format check
-        run: ruff format --check services/svend/web/
-
-  # ── Job 2: Django system checks ───────────────────────────
   django-check:
-    name: Django check --deploy
+    name: Django check
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -65,23 +52,15 @@ jobs:
         working-directory: services/svend/web
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+      - run: pip install -e ".[dev,prod]" dj-database-url pip-audit
+      - run: python manage.py migrate
+      - run: python manage.py check --deploy
 
-      - name: Install dependencies
-        run: pip install -e ".[dev,prod]" dj-database-url pip-audit
-
-      - name: Run migrations
-        run: python manage.py migrate
-
-      - name: Django system checks
-        run: python manage.py check --deploy
-
-  # ── Job 3: Compliance subset (file-based checks) ─────────
   compliance:
-    name: Compliance checks (advisory)
+    name: Compliance checks
     runs-on: ubuntu-latest
     needs: [lint]
     services:
@@ -103,26 +82,17 @@ jobs:
         working-directory: services/svend/web
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
-      - name: Install dependencies
-        run: pip install -e ".[dev,prod]" dj-database-url pip-audit
-
-      - name: Run migrations
-        run: python manage.py migrate
-
-      - name: "Check: standards_compliance"
+      - run: pip install -e ".[dev,prod]" dj-database-url pip-audit
+      - run: python manage.py migrate
+      - name: standards_compliance
         run: python manage.py run_compliance --check=standards_compliance
-
-      - name: "Check: code_style"
+      - name: code_style
         run: python manage.py run_compliance --check=code_style
-
-      - name: "Check: security_config"
+      - name: security_config
         run: python manage.py run_compliance --check=security_config
-        continue-on-error: true  # DEBUG=True in dev settings — expected
-
-      - name: "Check: dependency_vuln"
+        continue-on-error: true
+      - name: dependency_vuln
         run: python manage.py run_compliance --check=dependency_vuln
