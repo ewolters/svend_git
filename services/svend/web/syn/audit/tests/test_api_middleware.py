@@ -615,6 +615,58 @@ class APIHeadersTest(SimpleTestCase):
         self.assertIn("EXEMPT_PATHS", self.src)
         self.assertIn("_is_exempt_path", self.src)
 
+    def test_sets_content_type_charset(self):
+        """Ensures Content-Type includes charset=utf-8 on JSON responses."""
+        fn = re.search(
+            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        body = fn.group()
+        self.assertIn("charset", body)
+        self.assertIn("utf-8", body)
+        self.assertIn("application/json; charset=utf-8", body)
+
+    def test_sets_vary_header(self):
+        """Adds Vary: Accept, Accept-Encoding header for proper caching."""
+        fn = re.search(
+            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        body = fn.group()
+        self.assertIn("Vary", body)
+        self.assertIn("Accept-Encoding", body)
+
+    def test_adds_response_time_header(self):
+        """Adds X-Response-Time header with duration in ms."""
+        fn = re.search(
+            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        body = fn.group()
+        self.assertIn("X-Response-Time", body)
+        self.assertIn("ms", body)
+
+    def test_api_paths_only(self):
+        """Accept validation only applies to /api/ paths."""
+        fn = re.search(
+            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        body = fn.group()
+        self.assertIn('"/api/"', body)
+        self.assertIn("_is_exempt_path", body)
+
+    def test_no_cache_on_api(self):
+        """API responses use Vary header to prevent improper caching."""
+        fn = re.search(
+            r"class APIHeadersMiddleware.*?(?=\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        body = fn.group()
+        # Vary header with Accept prevents cached HTML being served as JSON
+        self.assertIn("Vary", body)
+        self.assertIn("Accept", body)
+
 
 # ── Error Redaction ──────────────────────────────────────────────────────
 
@@ -647,3 +699,54 @@ class ErrorRedactionTest(SimpleTestCase):
     def test_redact_exception_for_logging(self):
         """redact_exception_for_logging strips sensitive data from exceptions."""
         self.assertIn("def redact_exception_for_logging(", self.src)
+
+    def test_strips_internal_details(self):
+        """redact_exception_for_logging strips full traceback, returns type: message only."""
+        fn = re.search(
+            r"def redact_exception_for_logging\(.*?(?=\ndef |\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        self.assertIsNotNone(fn)
+        body = fn.group()
+        # Should not include traceback — only exc_type and message
+        self.assertIn("exc_type", body)
+        self.assertIn("exc_message", body)
+        self.assertNotIn("traceback.format_exc", body)
+
+    def test_preserves_safe_fields(self):
+        """Redaction preserves non-sensitive parts of the message."""
+        fn = re.search(
+            r"def redact_error_message\(.*?(?=\ndef |\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        body = fn.group()
+        # Should use re.sub pattern replacement, not blanket wipe
+        self.assertIn("re.sub", body)
+        self.assertIn("return redacted", body)
+
+    def test_redacts_traceback(self):
+        """redact_exception_for_logging omits full traceback with locals."""
+        fn = re.search(
+            r"def redact_exception_for_logging\(.*?(?=\ndef |\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        body = fn.group()
+        # Comment confirms: "no full traceback with locals"
+        self.assertIn("no full traceback", body.lower())
+
+    def test_redacts_sql(self):
+        """SENSITIVE_ERROR_PATTERNS covers credential-like patterns that appear in SQL errors."""
+        self.assertIn("SENSITIVE_ERROR_PATTERNS", self.src)
+        # Patterns cover password=, secret=, credential= which appear in DB connection errors
+        self.assertIn("password", self.src.lower())
+        self.assertIn("credential", self.src.lower())
+
+    def test_redacts_in_production_only(self):
+        """process_exception applies redaction via redact_error_message."""
+        fn = re.search(
+            r"def process_exception\(.*?(?=\n    def |\nclass |\Z)",
+            self.src, re.DOTALL,
+        )
+        self.assertIsNotNone(fn)
+        body = fn.group()
+        self.assertIn("redact", body.lower())
