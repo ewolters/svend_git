@@ -304,14 +304,14 @@ class SLAMeasurementTest(SimpleTestCase):
         self.assertIn("p99", fn_body)
         self.assertIn("p95", fn_body.replace("95", "95"))  # check for percentile logic
 
-    def test_availability_uses_compliance_proxy(self):
-        """_measure_availability uses compliance check runs as uptime proxy."""
+    def test_availability_uses_health_pings(self):
+        """_measure_availability uses HealthPing records for real-time measurement."""
         fn_match = re.search(
             r"def _measure_availability\(.*?(?=\ndef |\Z)",
             self.compliance_src, re.DOTALL,
         )
         fn_body = fn_match.group()
-        self.assertIn("ComplianceCheck", fn_body)
+        self.assertIn("HealthPing", fn_body)
 
 
 # ── Anti-Patterns ─────────────────────────────────────────────────────────

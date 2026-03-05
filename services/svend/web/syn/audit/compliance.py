@@ -1735,30 +1735,23 @@ def _parse_target(target_str):
 
 
 def _measure_availability(sla):
-    """Measure availability via compliance check run success rate as proxy (derived)."""
-    from syn.audit.models import ComplianceCheck
+    """Measure availability via health endpoint ping success rate (SLA-001 §5.1)."""
+    from syn.audit.models import HealthPing
 
     now = timezone.now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Use compliance check execution as uptime proxy: if the system ran checks, it was up
-    total_runs = ComplianceCheck.objects.filter(run_at__gte=month_start).count()
-    if total_runs == 0:
-        return {"status": "unmeasurable", "current_value": None, "reason": "No compliance runs this month yet"}
+    pings = HealthPing.objects.filter(timestamp__gte=month_start)
+    total = pings.count()
+    if total == 0:
+        return {
+            "status": "unmeasurable",
+            "current_value": None,
+            "reason": "No health pings recorded this month. Health ping task may not be running.",
+        }
 
-    # Days with at least one check run vs days elapsed
-    from django.db.models.functions import TruncDate
-    from django.db.models import Count
-    days_with_runs = (
-        ComplianceCheck.objects
-        .filter(run_at__gte=month_start)
-        .annotate(day=TruncDate("run_at"))
-        .values("day")
-        .distinct()
-        .count()
-    )
-    days_elapsed = max((now - month_start).days, 1)
-    availability_pct = (days_with_runs / days_elapsed) * 100
+    healthy = pings.filter(is_healthy=True).count()
+    availability_pct = (healthy / total) * 100
 
     target_val, _ = _parse_target(sla.target)
     if target_val is None:
@@ -1766,7 +1759,7 @@ def _measure_availability(sla):
 
     return {
         "status": "met" if availability_pct >= target_val else "breach",
-        "current_value": f"{availability_pct:.1f}%",
+        "current_value": f"{availability_pct:.2f}%",
     }
 
 

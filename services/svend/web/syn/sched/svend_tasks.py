@@ -144,10 +144,12 @@ def register_svend_tasks():
         from syn.audit.models import HealthPing
 
         url = "http://127.0.0.1:8000/api/health/"
+        # X-Forwarded-Proto bypasses SECURE_SSL_REDIRECT for localhost pings
+        headers = {"X-Forwarded-Proto": "https"}
         start = time.time()
         is_healthy = False
         try:
-            resp = requests.get(url, timeout=10)
+            resp = requests.get(url, timeout=10, headers=headers)
             elapsed_ms = (time.time() - start) * 1000
             is_healthy = resp.status_code == 200
             if is_healthy:
@@ -261,6 +263,26 @@ def register_svend_tasks():
     logger.info("[syn.sched] Registered %d Svend task handlers", len(TaskRegistry._handlers))
 
 
+def _fire_availability_andon(recent_pings):
+    """Send notification to staff on consecutive health ping failures (SLA-001 §12)."""
+    from django.contrib.auth import get_user_model
+    from notifications.helpers import notify
+
+    User = get_user_model()
+    staff = User.objects.filter(is_staff=True)
+    errors = [p.error or f"HTTP {p.status_code}" for p in recent_pings]
+
+    for user in staff:
+        notify(
+            recipient=user,
+            notification_type="system",
+            title="AVAILABILITY ALERT: 3 consecutive health ping failures",
+            message=f"Health endpoint /api/health/ failed 3 times in a row. Errors: {'; '.join(errors)}",
+            entity_type="health_ping",
+        )
+    logger.warning("[syn.sched] Availability andon fired: 3 consecutive health ping failures")
+
+
 # Schedule definitions matching current Tempora configuration.
 # Used during cutover (Phase 5.4) to create syn.sched.Schedule records.
 SVEND_SCHEDULES = [
@@ -297,6 +319,13 @@ SVEND_SCHEDULES = [
         "task_name": "api.claude_growth_review",
         "cron": "0 20 * * 0",
         "priority": TaskPriority.LOW,
+        "queue": "core",
+    },
+    {
+        "schedule_id": "health-ping",
+        "task_name": "audit.health_ping",
+        "cron": "* * * * *",  # Every minute
+        "priority": TaskPriority.HIGH,
         "queue": "core",
     },
     {
