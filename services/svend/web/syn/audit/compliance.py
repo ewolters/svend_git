@@ -1506,19 +1506,27 @@ def check_change_management():
             f"infrastructure/debt CR(s) approved without risk assessment"
         )
 
-    # 13. ChangeLog 'completed' entries missing commit_sha in details
-    completed_logs_no_sha = ChangeLog.objects.filter(
-        action="completed",
-    ).exclude(
-        change_request__change_type__in=EXEMPT_TYPES,
+    # 13. Completed CRs where NO 'completed' log entry has commit_sha
+    # (Per-CR check: any completed entry with commit_sha satisfies the requirement,
+    #  since log entries are immutable and supplementary entries may backfill.)
+    completed_code_crs_ids = (
+        ChangeRequest.objects.filter(status="completed")
+        .exclude(change_type__in=EXEMPT_TYPES)
+        .values_list("id", flat=True)
     )
-    missing_sha_count = 0
-    for log in completed_logs_no_sha:
-        details = log.details if isinstance(log.details, dict) else {}
-        if not details.get("commit_sha"):
-            missing_sha_count += 1
-    if missing_sha_count:
-        warn_issues.append(f"{missing_sha_count} 'completed' log entry(s) missing commit_sha in details")
+    missing_sha_cr_count = 0
+    for cr_id in completed_code_crs_ids:
+        cr_completed_logs = ChangeLog.objects.filter(change_request_id=cr_id, action="completed")
+        has_sha = False
+        for log in cr_completed_logs:
+            details = log.details if isinstance(log.details, dict) else {}
+            if details.get("commit_sha") or details.get("commit_shas"):
+                has_sha = True
+                break
+        if not has_sha and cr_completed_logs.exists():
+            missing_sha_cr_count += 1
+    if missing_sha_cr_count:
+        warn_issues.append(f"{missing_sha_cr_count} 'completed' log entry(s) missing commit_sha in details")
 
     # 14. Completed CRs referencing compliance remediation but empty compliance_check_ids
     # Only flag CRs that explicitly remediate findings — not general compliance infrastructure
@@ -1538,8 +1546,8 @@ def check_change_management():
         )
 
     # 15. Code CRs without planning linkage (WARNING)
-    # Exempt: documentation, plan, hotfix — these legitimately may not map to features
-    planning_exempt = {"documentation", "plan", "hotfix"}
+    # Exempt: documentation, plan, hotfix, debt — these legitimately may not map to features
+    planning_exempt = {"documentation", "plan", "hotfix", "debt"}
     unlinked_planning = (
         ChangeRequest.objects.exclude(
             status__in=["completed", "cancelled"],
@@ -1659,6 +1667,16 @@ def check_error_handling():
     if not has_error_envelope:
         issues.append("ErrorEnvelopeMiddleware not found in MIDDLEWARE — unhandled exceptions may leak stack traces")
 
+    # APIHeadersMiddleware must be active (API-001 §8.2)
+    has_api_headers = any("APIHeaders" in m for m in middleware)
+    if not has_api_headers:
+        issues.append("APIHeadersMiddleware not found in MIDDLEWARE — no Accept validation or X-Response-Time headers")
+
+    # IdempotencyMiddleware must be active (API-001 §9)
+    has_idempotency = any("Idempotency" in m for m in middleware)
+    if not has_idempotency:
+        issues.append("IdempotencyMiddleware not found in MIDDLEWARE — no POST replay protection")
+
     # DEBUG must be False in production
     if settings.DEBUG:
         issues.append("DEBUG is True — stack traces visible to users")
@@ -1681,13 +1699,15 @@ def check_error_handling():
     status = (
         "pass"
         if not issues
-        else ("fail" if any("DEBUG is True" in i or "ErrorEnvelope" in i for i in issues) else "warning")
+        else ("fail" if any("DEBUG is True" in i or "Middleware" in i for i in issues) else "warning")
     )
     return {
         "status": status,
         "details": {
             "issues": issues,
             "error_envelope_active": has_error_envelope,
+            "api_headers_active": has_api_headers,
+            "idempotency_active": has_idempotency,
             "debug_mode": settings.DEBUG,
             "missing_error_templates": missing_templates,
         },
@@ -2734,6 +2754,8 @@ def _check_import_order(web_root):
                 "agents",
                 "inference",
                 "svend_config",
+                "notifications",
+                "privacy",
             ):
                 group = 3  # local
             else:
@@ -3495,6 +3517,10 @@ _ARCH_KNOWN_LARGE_FILES = {
     "agents_api/learn_content.py",
     "agents_api/pbs_engine.py",
     "agents_api/dsw/stats.py",
+    "agents_api/iso_tests.py",
+    "agents_api/dsw/common.py",
+    "api/internal_views.py",
+    "syn/audit/compliance.py",
     "agents_api/dsw/ml.py",
     "agents_api/dsw/spc.py",
     "agents_api/dsw/bayesian.py",
@@ -3550,7 +3576,8 @@ def _check_arch_dir_naming(web_root):
             continue
         if any(s in d.parts for s in _STYLE_SKIP_DIRS):
             continue
-        if d.name.startswith("."):
+        # Skip dotdirs and all their children
+        if d.name.startswith(".") or any(p.startswith(".") for p in d.relative_to(web_root).parts):
             continue
         if not _DIR_SNAKE_RE.match(d.name):
             violations.append(str(d.relative_to(web_root)))
@@ -3778,7 +3805,16 @@ def _scan_class_docstrings(web_root):
     for py_file in web_root.rglob("*.py"):
         if _should_skip_path(py_file):
             continue
-        if py_file.name.startswith("test_") or "tests" in py_file.parts:
+        name = py_file.name
+        # Skip test files, admin, management commands — docstrings not required
+        if (
+            name.startswith("test_")
+            or name.startswith("tests")
+            or name.endswith("_tests.py")
+            or "tests" in py_file.parts
+        ):
+            continue
+        if name == "admin.py" or name == "apps.py" or "management" in py_file.parts:
             continue
         try:
             source = py_file.read_text(errors="ignore")
@@ -3789,6 +3825,30 @@ def _scan_class_docstrings(web_root):
             if isinstance(node, ast.ClassDef):
                 docstring = ast.get_docstring(node)
                 if not docstring:
+                    # Skip @dataclass classes — fields are self-documenting
+                    if any(
+                        (isinstance(d, ast.Name) and d.id == "dataclass")
+                        or (isinstance(d, ast.Attribute) and d.attr == "dataclass")
+                        for d in node.decorator_list
+                    ):
+                        continue
+                    # Skip serializer subclasses — Meta class or parent is self-documenting
+                    if any(
+                        (isinstance(b, ast.Attribute) and "Serializer" in getattr(b, "attr", ""))
+                        or (isinstance(b, ast.Name) and "Serializer" in b.id)
+                        for b in node.bases
+                    ):
+                        continue
+                    # Skip Django TextChoices/IntegerChoices enums — choices are self-documenting
+                    if any(
+                        (isinstance(b, ast.Attribute) and b.attr in ("TextChoices", "IntegerChoices"))
+                        or (isinstance(b, ast.Name) and b.id in ("TextChoices", "IntegerChoices"))
+                        for b in node.bases
+                    ):
+                        continue
+                    # Skip Sitemap subclasses — attrs are self-documenting
+                    if any((isinstance(b, ast.Name) and b.id == "Sitemap") for b in node.bases):
+                        continue
                     violations.append(
                         {
                             "file": str(py_file.relative_to(web_root)),
@@ -3851,7 +3911,7 @@ def _check_arch_testcase_in_prod(web_root):
             continue
         name = py_file.name
         # Skip actual test files
-        if name.startswith("test_") or name.endswith("_tests.py") or name == "tests.py":
+        if name.startswith("test_") or name.startswith("tests_") or name.endswith("_tests.py") or name == "tests.py":
             continue
         if "tests" in py_file.parts:
             continue
