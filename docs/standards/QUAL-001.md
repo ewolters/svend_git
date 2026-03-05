@@ -369,6 +369,8 @@ Generated data MUST match the template schema. Column types preserved. Row count
 
 5. **Guide observation contradicting statistics** -- guide_observation saying "no significant difference" when p < 0.01, or "significant" when p > 0.10. The guide_observation MUST be generated from the actual computed statistics.
 
+6. **Existence-only tests for symbol coverage** -- tests that only verify `assertIsNotNone(sym)` or `assertTrue(callable(sym))` without exercising any behavior do not qualify as meaningful coverage. A functional test that calls the symbol and verifies output schema, side effects, or rejection behavior inherently proves existence (TST-001 §10.6).
+
 ---
 
 ## **10. ACCEPTANCE CRITERIA**
