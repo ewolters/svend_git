@@ -691,6 +691,7 @@ class LoginRateThrottle(AnonRateThrottle):
 def login(request):
     """Login and create session. Rate limited to 5 attempts/minute."""
     from django.contrib.auth import authenticate, login as auth_login
+    from accounts.models import LoginAttempt
 
     username = request.data.get("username", "").strip()
     password = request.data.get("password", "")
@@ -700,6 +701,16 @@ def login(request):
             {"error": "Username and password required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    # Account lockout check (SOC 2 CC6.1)
+    if LoginAttempt.is_locked_out(username):
+        logger.warning(f"Locked out login attempt for: {username}")
+        return Response(
+            {"error": "Account temporarily locked due to too many failed attempts. Try again in 15 minutes."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    ip = request.META.get("HTTP_CF_CONNECTING_IP") or request.META.get("REMOTE_ADDR")
 
     user = authenticate(request, username=username, password=password)
 
@@ -714,6 +725,7 @@ def login(request):
             pass
 
     if user is None:
+        LoginAttempt.record(username, ip, was_successful=False)
         logger.warning(f"Failed login attempt for: {username}")
         return Response(
             {"error": "Invalid credentials"},
@@ -721,10 +733,15 @@ def login(request):
         )
 
     if not user.is_active:
+        LoginAttempt.record(username, ip, was_successful=False)
         return Response(
             {"error": "Account is disabled"},
             status=status.HTTP_403_FORBIDDEN,
         )
+
+    # Success — clear lockout window
+    LoginAttempt.clear_on_success(username)
+    LoginAttempt.record(username, ip, was_successful=True)
 
     auth_login(request, user)
     logger.info(f"User logged in: {user.username}")

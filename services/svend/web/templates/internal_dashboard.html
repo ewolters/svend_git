@@ -1606,6 +1606,51 @@
         </div>
     </div>
 
+    <!-- SOC 2 Control Coverage -->
+    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--text-primary);">SOC 2 Control Coverage</h3>
+    <div id="soc2-section" style="margin-bottom:1.5rem;">
+        <!-- SOC 2 KPI Cards -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:2rem;font-weight:700;" id="soc2-score">--</div>
+                <div style="font-size:0.75rem;color:var(--text-dim);">SOC 2 Score</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:2rem;font-weight:700;color:#22c55e;" id="soc2-met">--</div>
+                <div style="font-size:0.75rem;color:var(--text-dim);">Met</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:2rem;font-weight:700;color:#f59e0b;" id="soc2-partial">--</div>
+                <div style="font-size:0.75rem;color:var(--text-dim);">Partial</div>
+            </div>
+            <div class="chart-card" style="text-align:center;padding:1rem;">
+                <div style="font-size:2rem;font-weight:700;color:#ef4444;" id="soc2-gap">--</div>
+                <div style="font-size:0.75rem;color:var(--text-dim);">Gap</div>
+            </div>
+        </div>
+
+        <!-- Charts: Stacked Bar by TSC + Pareto -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div class="chart-card" style="padding:1rem;">
+                <h4 style="margin:0 0 8px 0;font-size:0.85rem;color:var(--text-primary);">By TSC Category</h4>
+                <canvas id="soc2-tsc-chart" height="200"></canvas>
+            </div>
+            <div class="chart-card" style="padding:1rem;">
+                <h4 style="margin:0 0 8px 0;font-size:0.85rem;color:var(--text-primary);">Gap Severity (Pareto)</h4>
+                <canvas id="soc2-pareto-chart" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Field Completeness Heatmap -->
+        <div class="chart-card" style="padding:1rem;margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:0.85rem;color:var(--text-primary);">Change Management Field Completeness</h4>
+            <div id="soc2-field-heatmap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;"></div>
+        </div>
+
+        <!-- Expandable TSC Sections -->
+        <div id="soc2-tsc-sections"></div>
+    </div>
+
     <!-- Audit Findings (aggregate failures from all checks) -->
     <div id="compliance-findings-section" class="chart-card" style="display:none;margin-bottom:1.5rem;padding:1rem;">
         <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:var(--danger,#ef4444);">Audit Findings</h3>
@@ -3498,9 +3543,200 @@ async function loadCompliance() {
         if (!d.reports || d.reports.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="padding:12px;color:var(--text-dim);text-align:center;">No reports yet. Run: manage.py run_compliance --report</td></tr>';
         }
+
+        // ===== SOC 2 Control Coverage =====
+        const soc2 = d.soc2 || {};
+        if (soc2.overall) {
+            const o = soc2.overall;
+            const scoreEl = document.getElementById('soc2-score');
+            scoreEl.textContent = soc2.score + '%';
+            scoreEl.style.color = soc2.score >= 70 ? 'var(--accent-primary)' : soc2.score >= 50 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+            document.getElementById('soc2-met').textContent = o.met;
+            document.getElementById('soc2-partial').textContent = o.partial;
+            document.getElementById('soc2-gap').textContent = o.gap;
+
+            // Update KPI card to show score instead of just control count
+            document.getElementById('compliance-soc2').textContent = soc2.score + '%';
+            document.getElementById('compliance-soc2').style.color = soc2.score >= 70 ? 'var(--accent-primary)' : soc2.score >= 50 ? 'var(--warning,#f59e0b)' : 'var(--danger,#ef4444)';
+
+            renderSoc2TscChart(soc2);
+            renderSoc2Pareto(soc2);
+            renderSoc2FieldHeatmap(d);
+            renderSoc2TscSections(soc2);
+        }
+
     } catch(e) {
         console.error('Compliance load failed:', e);
     }
+}
+
+// SOC 2 chart instances for cleanup
+let soc2TscChart = null;
+let soc2ParetoChart = null;
+
+function renderSoc2TscChart(soc2) {
+    const byTsc = soc2.by_tsc || {};
+    const tscNames = {
+        'CC1': 'Control Env', 'CC2': 'Communication', 'CC3': 'Risk Assessment',
+        'CC4': 'Monitoring', 'CC5': 'Control Activities', 'CC6': 'Logical Access',
+        'CC7': 'Sys Operations', 'CC8': 'Change Mgmt', 'CC9': 'Risk Mitigation',
+        'A1': 'Availability', 'PI1': 'Processing', 'C1': 'Confidentiality', 'P1': 'Privacy'
+    };
+    const labels = Object.keys(byTsc).sort();
+    const metData = labels.map(k => byTsc[k].met);
+    const partialData = labels.map(k => byTsc[k].partial);
+    const gapData = labels.map(k => byTsc[k].gap);
+
+    const ctx = document.getElementById('soc2-tsc-chart');
+    if (!ctx) return;
+    if (soc2TscChart) soc2TscChart.destroy();
+    soc2TscChart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: labels.map(k => tscNames[k] || k),
+            datasets: [
+                {label: 'Met', data: metData, backgroundColor: '#22c55e'},
+                {label: 'Partial', data: partialData, backgroundColor: '#f59e0b'},
+                {label: 'Gap', data: gapData, backgroundColor: '#ef4444'},
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {legend: {position: 'bottom', labels: {boxWidth: 12, font: {size: 11}, color: '#888'}}},
+            scales: {
+                x: {stacked: true, ticks: {color: '#888', font: {size: 10}}, grid: {color: 'rgba(255,255,255,0.05)'}},
+                y: {stacked: true, beginAtZero: true, ticks: {color: '#888', stepSize: 1}, grid: {color: 'rgba(255,255,255,0.05)'}},
+            },
+        }
+    });
+}
+
+function renderSoc2Pareto(soc2) {
+    const controls = (soc2.controls || [])
+        .filter(c => c.status !== 'met')
+        .map(c => ({...c, severity: c.status === 'gap' ? 3 : 2}))
+        .sort((a, b) => b.severity - a.severity);
+
+    if (controls.length === 0) return;
+
+    const labels = controls.map(c => c.id);
+    const values = controls.map(c => c.severity);
+    const total = values.reduce((s, v) => s + v, 0);
+    let cumulative = 0;
+    const cumulativePct = values.map(v => {
+        cumulative += v;
+        return Math.round(cumulative / total * 100);
+    });
+
+    const ctx = document.getElementById('soc2-pareto-chart');
+    if (!ctx) return;
+    if (soc2ParetoChart) soc2ParetoChart.destroy();
+    soc2ParetoChart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Gap Severity',
+                    data: values,
+                    backgroundColor: values.map(v => v >= 3 ? '#ef4444' : '#f59e0b'),
+                    yAxisID: 'y',
+                    order: 2,
+                },
+                {
+                    label: 'Cumulative %',
+                    data: cumulativePct,
+                    type: 'line',
+                    borderColor: '#6366f1',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    pointBackgroundColor: '#6366f1',
+                    yAxisID: 'y1',
+                    order: 1,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {legend: {display: false}},
+            scales: {
+                y: {beginAtZero: true, max: 4, ticks: {color: '#888', stepSize: 1}, grid: {color: 'rgba(255,255,255,0.05)'}},
+                y1: {position: 'right', min: 0, max: 100, ticks: {color: '#6366f1', callback: v => v + '%'}, grid: {drawOnChartArea: false}},
+                x: {ticks: {color: '#888', font: {size: 9}, maxRotation: 90}, grid: {display: false}},
+            }
+        }
+    });
+}
+
+function renderSoc2FieldHeatmap(d) {
+    const cmCheck = (d.checks || []).find(c => c.check_name === 'change_management');
+    if (!cmCheck || !cmCheck.details || !cmCheck.details.field_completeness) return;
+
+    const fc = cmCheck.details.field_completeness;
+    const container = document.getElementById('soc2-field-heatmap');
+    if (!container) return;
+    container.innerHTML = Object.entries(fc).map(([field, ratio]) => {
+        const parts = String(ratio).split('/');
+        const num = parseInt(parts[0]) || 0;
+        const denom = parseInt(parts[1]) || 1;
+        const pct = Math.round(num / denom * 100);
+        const color = pct >= 90 ? '#22c55e' : pct >= 60 ? '#f59e0b' : '#ef4444';
+        return `<div class="chart-card" style="padding:8px;text-align:center;">
+            <div style="font-size:1.2rem;font-weight:700;color:${color};">${pct}%</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">${field.replace(/_/g, ' ')}</div>
+            <div style="font-size:0.65rem;color:var(--text-dim);">${ratio}</div>
+        </div>`;
+    }).join('');
+}
+
+function renderSoc2TscSections(soc2) {
+    const controls = soc2.controls || [];
+    const tscNames = {
+        'CC1': 'Control Environment', 'CC2': 'Communication', 'CC3': 'Risk Assessment',
+        'CC4': 'Monitoring', 'CC5': 'Control Activities', 'CC6': 'Logical Access',
+        'CC7': 'System Operations', 'CC8': 'Change Management', 'CC9': 'Risk Mitigation',
+        'A1': 'Availability', 'PI1': 'Processing Integrity',
+        'C1': 'Confidentiality', 'P1': 'Privacy'
+    };
+    const tscGroups = {};
+    controls.forEach(c => {
+        if (!tscGroups[c.tsc]) tscGroups[c.tsc] = [];
+        tscGroups[c.tsc].push(c);
+    });
+
+    const container = document.getElementById('soc2-tsc-sections');
+    if (!container) return;
+    const colors = {met: '#22c55e', partial: '#f59e0b', gap: '#ef4444'};
+
+    container.innerHTML = Object.keys(tscGroups).sort().map(tsc => {
+        const ctrls = tscGroups[tsc];
+        const met = ctrls.filter(c => c.status === 'met').length;
+        const total = ctrls.length;
+        const pct = Math.round(met / total * 100);
+        const barColor = pct >= 80 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+
+        const rows = ctrls.map(c => {
+            const checksStr = (c.checks || []).length ? c.checks.join(', ') : '';
+            const detail = c.reason || (checksStr ? 'Checks: ' + checksStr : '');
+            return `<div style="display:grid;grid-template-columns:70px 1fr 70px 1fr;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.78rem;">
+                <code style="color:var(--text-secondary);">${c.id}</code>
+                <span style="color:var(--text-primary);">${c.name}</span>
+                <span style="background:${colors[c.status]};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;text-align:center;font-weight:600;">${c.status}</span>
+                <span style="color:var(--text-dim);font-size:0.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${detail}">${detail}</span>
+            </div>`;
+        }).join('');
+
+        return `<details class="chart-card" style="padding:12px;margin-bottom:8px;">
+            <summary style="cursor:pointer;font-weight:600;font-size:0.85rem;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
+                <span>${tsc} — ${tscNames[tsc] || tsc}</span>
+                <div style="flex:1;height:6px;background:var(--bg-tertiary,#1a1a2e);border-radius:3px;margin:0 8px;overflow:hidden;">
+                    <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;"></div>
+                </div>
+                <span style="font-size:0.75rem;color:var(--text-dim);white-space:nowrap;">${met}/${total} met</span>
+            </summary>
+            <div style="margin-top:8px;">${rows}</div>
+        </details>`;
+    }).join('');
 }
 
 function showCheckDetail(checkName) {

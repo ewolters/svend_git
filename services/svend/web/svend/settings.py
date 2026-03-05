@@ -116,6 +116,14 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# Password hashing — Argon2 primary (memory-hard, SOC 2 CC6.1)
+# Requires: pip install django[argon2]
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
+
 # Internationalization
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -150,6 +158,7 @@ SESSION_COOKIE_AGE = 28800  # 8 hours (SOC 2 CC6.1/CC6.6)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = False
+X_FRAME_OPTIONS = "DENY"  # Explicit — XFrameOptionsMiddleware active (SOC 2 CC6.1)
 
 # HTTPS hardening (production only — Caddy handles TLS)
 if not DEBUG:

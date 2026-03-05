@@ -3,6 +3,7 @@
 **Policy ID:** AUP-001
 **Version:** 1.0
 **Effective Date:** 2026-03-03
+**Last Updated:** 2026-03-05
 **Owner:** Eric (Founder)
 **Review Cycle:** Annual
 **Parent Policy:** [Information Security Policy](information-security.md)
@@ -33,10 +34,10 @@ Define acceptable and prohibited uses of Svend platform systems, data, and resou
 
 | Allowed | Conditions |
 |---|---|
-| Application deployment | Via documented change process (see [change-management.md](change-management.md)) |
+| Application deployment | Via ChangeRequest (CHG-001 mandatory); logged in immutable ChangeLog chain |
 | Database access | For troubleshooting, migration, or backup purposes only |
 | Log review | For debugging, security investigation, or performance analysis |
-| Configuration changes | Documented in `log.md`; backed up first |
+| Configuration changes | Via ChangeRequest; documented in `log.md`; backed up first |
 | Backup management | Via established scripts; encryption maintained |
 
 ### 4.2 Customer Data
@@ -111,3 +112,5 @@ All personnel with system access must acknowledge this policy. For the current s
 | Name | Role | Acknowledged | Date |
 |---|---|---|---|
 | Eric | Founder / System Owner | Yes | 2026-03-03 |
+
+<!-- policy-watches: docs/standards/CHG-001.md -->

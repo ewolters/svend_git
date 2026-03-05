@@ -126,15 +126,56 @@ def register_svend_tasks():
         return {"report_id": str(report.id), "pass_rate": report.pass_rate}
 
     def audit_cleanup_violations_handler(task):
-        """Clean up resolved violations older than 90 days (data retention)."""
+        """Clean up resolved violations older than 90 days + expired health pings."""
         from datetime import timedelta
         from django.utils import timezone
-        from syn.audit.models import IntegrityViolation
+        from syn.audit.models import IntegrityViolation, HealthPing
         cutoff = timezone.now() - timedelta(days=90)
-        deleted, _ = IntegrityViolation.objects.filter(
+        deleted_violations, _ = IntegrityViolation.objects.filter(
             is_resolved=True, resolved_at__lt=cutoff
         ).delete()
-        return {"deleted": deleted}
+        deleted_pings, _ = HealthPing.objects.filter(timestamp__lt=cutoff).delete()
+        return {"deleted_violations": deleted_violations, "deleted_pings": deleted_pings}
+
+    def health_ping_handler(task):
+        """Ping /api/health/ and record result. Fires andon on 3+ consecutive failures."""
+        import time
+        import requests
+        from syn.audit.models import HealthPing
+
+        url = "http://127.0.0.1:8000/api/health/"
+        start = time.time()
+        is_healthy = False
+        try:
+            resp = requests.get(url, timeout=10)
+            elapsed_ms = (time.time() - start) * 1000
+            is_healthy = resp.status_code == 200
+            if is_healthy:
+                try:
+                    data = resp.json()
+                    is_healthy = data.get("status") == "ok"
+                except Exception:
+                    is_healthy = False
+            HealthPing.objects.create(
+                is_healthy=is_healthy,
+                status_code=resp.status_code,
+                response_time_ms=round(elapsed_ms, 1),
+            )
+        except requests.RequestException as e:
+            elapsed_ms = (time.time() - start) * 1000
+            HealthPing.objects.create(
+                is_healthy=False,
+                status_code=None,
+                response_time_ms=round(elapsed_ms, 1),
+                error=str(e)[:500],
+            )
+
+        # Andon alert: 3 consecutive failures → notify staff
+        recent = list(HealthPing.objects.order_by("-timestamp")[:3])
+        if len(recent) == 3 and all(not p.is_healthy for p in recent):
+            _fire_availability_andon(recent)
+
+        return {"is_healthy": is_healthy}
 
     TaskRegistry.register(
         task_name="audit.compliance_daily",
@@ -160,6 +201,15 @@ def register_svend_tasks():
         queue=QueueType.BATCH,
         priority=TaskPriority.LOW,
         timeout_seconds=120,
+        max_attempts=1,
+    )
+
+    TaskRegistry.register(
+        task_name="audit.health_ping",
+        handler=health_ping_handler,
+        queue=QueueType.CORE,
+        priority=TaskPriority.HIGH,
+        timeout_seconds=30,
         max_attempts=1,
     )
 

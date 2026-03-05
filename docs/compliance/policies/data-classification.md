@@ -3,6 +3,7 @@
 **Policy ID:** DCP-001
 **Version:** 1.0
 **Effective Date:** 2026-03-03
+**Last Updated:** 2026-03-05
 **Owner:** Eric (Founder)
 **Review Cycle:** Annual
 **Parent Policy:** [Information Security Policy](information-security.md)
@@ -115,12 +116,14 @@ All data created, collected, processed, stored, or transmitted by the Svend plat
 | Database backups | 30 days | Automated rotation in `backup_db.sh` |
 | Application logs | 5 rotations x 10MB | Log rotation (overwrite) |
 | User accounts (deleted) | TBD (gap — needs formal deletion) | Planned: complete data purge script |
-| Email verification tokens | Until verified | Cleared on successful verification |
+| Email verification tokens | 24 hours or until verified (whichever first) | Expired tokens rejected; cleared on verification |
 | Org invitations | 7-day expiry | Marked inactive; purged by `run_purge.sh` |
-| Session data | Per session duration | Django session cleanup |
+| Session data | 8 hours (`SESSION_COOKIE_AGE=28800`) | Django session cleanup |
 
 ## 9. Compliance Notes
 
 - PCI DSS: No cardholder data ever touches Svend — Stripe.js handles all card input client-side
 - GDPR: Data subject access requests serviceable via application (gap: no bulk export yet)
 - SOC 2 Confidentiality: Encrypted storage + ownership isolation + access control = framework in place
+
+<!-- policy-watches: settings.py:SESSION_COOKIE_AGE, accounts/models.py:verify_email -->

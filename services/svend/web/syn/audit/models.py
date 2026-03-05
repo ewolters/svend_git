@@ -702,6 +702,51 @@ class ComplianceCheck(models.Model):
         return f"[{self.run_at}] {self.check_name}: {self.status}"
 
 
+class HealthPing(models.Model):
+    """
+    Health endpoint ping result for real-time availability measurement.
+
+    Replaces derived proxy metric (SLA-001 §5.1).
+    Stored per-minute, retained 90 days, cleaned by audit.cleanup_violations task.
+
+    Compliance: SOC 2 CC9.2 (Availability), SLA-001 §5.1
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+    is_healthy = models.BooleanField(
+        help_text="True if /api/health/ returned 200 with expected JSON"
+    )
+    status_code = models.IntegerField(
+        null=True, blank=True,
+        help_text="HTTP status code (null if connection failed)"
+    )
+    response_time_ms = models.FloatField(
+        null=True, blank=True,
+        help_text="Response time in milliseconds"
+    )
+    error = models.CharField(
+        max_length=500, blank=True, default="",
+        help_text="Error message if ping failed"
+    )
+
+    class Meta:
+        db_table = "audit_health_ping"
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(
+                fields=["timestamp", "is_healthy"],
+                name="health_ping_time_status",
+            ),
+        ]
+        verbose_name = "Health Ping"
+        verbose_name_plural = "Health Pings"
+
+    def __str__(self):
+        status = "UP" if self.is_healthy else "DOWN"
+        return f"[{self.timestamp}] {status} ({self.response_time_ms}ms)"
+
+
 class ComplianceReport(models.Model):
     """
     Monthly aggregate compliance report.

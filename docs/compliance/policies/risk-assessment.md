@@ -3,6 +3,7 @@
 **Policy ID:** RAP-001
 **Version:** 1.0
 **Effective Date:** 2026-03-03
+**Last Updated:** 2026-03-05
 **Owner:** Eric (Founder)
 **Review Cycle:** Annual
 **Parent Policy:** [Information Security Policy](information-security.md)
@@ -61,8 +62,7 @@ Establish the methodology for identifying, assessing, treating, and monitoring r
 
 | ID | Risk | L | I | Score | Level | Treatment | Status | DEBT Ref |
 |---|---|---|---|---|---|---|---|---|
-| R-001 | Brute-force account compromise (no lockout) | 3 | 4 | 12 | High | Implement account lockout | Open | P1 H3 |
-| R-002 | Session hijacking (14-day session, no MFA) | 2 | 4 | 8 | Medium | Reduce session duration; add MFA | Open | P1 M1 |
+| R-002 | Session hijacking (8-hour session, no MFA) | 2 | 3 | 6 | Medium | Session reduced to 8h ✓; MFA still needed (REM-09) | Open (partial) | P1 M1 |
 | R-003 | Credential stuffing (no MFA) | 3 | 4 | 12 | High | Implement MFA | Open | -- |
 | R-004 | Encrypted backup on same machine (single point of failure) | 2 | 5 | 10 | High | Off-site backup to B2/S3 | Open | P3 |
 | R-005 | Supply chain vulnerability (no dependency scanning) | 3 | 3 | 9 | Medium | Enable Dependabot | Open | -- |
@@ -72,7 +72,6 @@ Establish the methodology for identifying, assessing, treating, and monitoring r
 | R-009 | XSS via CSP gaps (unsafe-inline/unsafe-eval) | 2 | 3 | 6 | Medium | CSP hardening (phased) | Open | P2 L14 |
 | R-010 | No audit trail (can't investigate incidents) | 3 | 4 | 12 | High | Application audit logging | Open | -- |
 | R-011 | Service outage undetected (no monitoring) | 3 | 3 | 9 | Medium | Uptime monitoring + alerting | Open | -- |
-| R-012 | Email token used after compromise (no expiry) | 2 | 3 | 6 | Medium | 48-hour token expiry | Open | P1 M7 |
 | R-013 | Data loss from disk failure | 1 | 5 | 5 | Medium | Off-site backups (same as R-004) | Open | P3 |
 | R-014 | Insider threat (single operator) | 1 | 5 | 5 | Medium | Accept -- inherent to small org; git history provides accountability | Accepted | -- |
 | R-015 | Third-party data breach (Stripe, Anthropic) | 1 | 4 | 4 | Low | Monitor vendor security posture; review SOC 2 reports | Monitor | -- |
@@ -86,6 +85,8 @@ Establish the methodology for identifying, assessing, treating, and monitoring r
 | R-C03 | Prompt injection in LLM features | 2026-02-22 | XML-wrapped user inputs; boundary instructions; 2000-char limits |
 | R-C04 | SSRF via PDF generation | 2026-02-22 | --disable-local-file-access; HTML sanitization |
 | R-C05 | X-Forwarded-For spoofing | 2026-02-22 | NUM_PROXIES=1 in DRF settings |
+| R-C06 | Brute-force account compromise (no lockout) | 2026-03-05 | LoginAttempt model: 5 failures → 15-min lockout per username + DRF IP throttle |
+| R-C07 | Email token used after compromise (no expiry) | 2026-03-05 | 24-hour token expiry via `email_verification_token_sent_at` field |
 
 ## 5. Risk Treatment Options
 
@@ -105,6 +106,8 @@ Establish the methodology for identifying, assessing, treating, and monitoring r
 | New feature risk review | Per significant feature launch |
 | Post-incident risk update | After every SEV-1 or SEV-2 incident |
 | Vendor risk review | Annual per vendor |
+
+<!-- policy-watches: accounts/models.py:LoginAttempt, settings.py:SESSION_COOKIE_AGE, accounts/models.py:verify_email -->
 
 ## 7. Integration with DEBT Tracker
 

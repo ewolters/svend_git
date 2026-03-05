@@ -3,6 +3,7 @@
 **Policy ID:** CMP-001
 **Version:** 1.0
 **Effective Date:** 2026-03-03
+**Last Updated:** 2026-03-05
 **Owner:** Eric (Founder)
 **Review Cycle:** Annual
 **Parent Policy:** [Information Security Policy](information-security.md)
@@ -21,31 +22,48 @@ Define how changes to the Svend platform (code, configuration, infrastructure) a
 - Third-party dependency updates
 - Configuration changes (environment variables, settings)
 
-## 3. Current Change Process
+## 3. Change Process (CHG-001 v1.6)
 
-### 3.1 Change Workflow
+### 3.1 Change Lifecycle
+
+All changes follow the CHG-001 mandatory lifecycle, enforced at three layers (model validation, API transition gates, daily compliance checks):
 
 ```
-Proposal → Implementation → Review → Deploy → Verify → Log
+draft → submitted → risk_assessed → approved → in_progress → testing → completed
 ```
 
-| Step | Description | Evidence |
+| State | Gate Requirements | Evidence |
 |---|---|---|
-| **Proposal** | Change documented in `.kjerne/DEBT.md` (if planned) or initiated ad-hoc | DEBT.md entry |
-| **Implementation** | Code written with AI collaborator review; git commit per logical change | Git history |
-| **Review** | Founder reviews all changes; AI collaborator provides code review | Git diff, conversation logs |
-| **Deploy** | Manual: `git pull` → `migrate` → `collectstatic` → `systemctl restart svend` | Server command history |
-| **Verify** | Manual smoke test of affected functionality | `log.md` verification notes |
-| **Log** | Entry in `log.md` with date, summary, files affected, DEBT ref, git hash | `log.md` |
+| **draft** | Title (≥10 chars), description (≥20 chars), change_type, author | ChangeRequest created |
+| **submitted** | + justification, affected_files | ChangeLog entry |
+| **risk_assessed** | + RiskAssessment (multi-agent for feature/migration; single-agent for others) | RiskAssessment + AgentVote records |
+| **approved** | + implementation_plan, testing_plan, rollback_plan | ChangeLog entry |
+| **in_progress** | Standards review completed | ChangeLog entry |
+| **testing** | Implementation complete, tests passing | ChangeLog entry |
+| **completed** | + commit_shas (mandatory for code CRs), log_md_ref | Immutable ChangeLog chain |
 
-### 3.2 Change Classification
+### 3.2 Change Types
 
-| Type | Examples | Process |
+| Type | What | Risk Assessment | Approval |
+|---|---|---|---|
+| `feature` | New functionality | Multi-agent (4 roles, 5 dimensions) | Required |
+| `enhancement` | Improve existing feature | Single agent | Required |
+| `bugfix` | Fix defect | Single agent | Required |
+| `hotfix` | Critical production fix | Expedited → retroactive 24h | Retroactive |
+| `security` | Security patch | Security-focused | Required |
+| `infrastructure` | Server, deploy, CI/CD | Operations-focused | Required |
+| `migration` | Database schema change | Multi-agent (4 roles) | Required |
+| `documentation` | Docs, standards, policies | None | None |
+| `plan` | Architecture decisions | None — but logged | None |
+| `debt` | Technical debt closure | Single agent | Required |
+
+### 3.3 Three-Layer Enforcement
+
+| Layer | Mechanism | What It Catches |
 |---|---|---|
-| **Standard** | Bug fixes, minor UI changes, copy updates | Standard workflow |
-| **Significant** | New features, API changes, model migrations | Standard workflow + extended testing |
-| **Emergency** | Security patches, critical bugs, data integrity | Expedited deploy, post-mortem log entry |
-| **Infrastructure** | Server config, systemd, Caddy, firewall | Extra caution; logged separately |
+| **Model** | `ChangeRequest.clean()` | Rejects empty title (<10 chars), description (<20 chars), or author |
+| **API** | `validate_for_transition(target_state)` | Blocks state transitions when required fields are missing |
+| **Compliance** | `check_change_management()` — 14 checks, daily | Flags ALL gaps as FAIL or WARNING, reports field completeness |
 
 ### 3.3 Database Migrations
 
@@ -112,13 +130,16 @@ sudo systemctl restart svend
 
 ## 6. Emergency Changes
 
-For security incidents or critical production bugs:
+Emergency changes (`hotfix` type with `critical` priority) may bypass normal approval:
 
-1. Implement fix immediately
-2. Deploy via standard process (backup → pull → restart)
-3. Log with "EMERGENCY" tag in `log.md`
-4. Post-mortem within 24 hours
-5. Update DEBT.md if the emergency reveals systemic issues
+1. Author creates ChangeRequest with type `hotfix`, status `in_progress`
+2. Expedited risk assessment (single agent) runs concurrently
+3. Deploy via standard process (backup → pull → restart)
+4. **Retroactive risk assessment within 24 hours** (compliance check flags violation)
+5. **Post-incident review within 48 hours**
+6. ChangeLog entry with `is_emergency` flag set
+
+The `change_management` compliance check specifically monitors emergency changes without retroactive documentation and flags violations automatically.
 
 ## 7. Third-Party Dependencies
 
@@ -133,7 +154,13 @@ For security incidents or critical production bugs:
 
 For SOC 2 audit, the following evidence demonstrates change management:
 
+- **ChangeRequest** — full lifecycle with title, description, justification, affected_files, plans, risk score
+- **ChangeLog** — immutable append-only chain with UUID traceability to commits, log.md, compliance checks
+- **RiskAssessment + AgentVote** — multi-agent risk scoring (security, architecture, operations, quality)
+- **ComplianceCheck** — `change_management` runs daily with 14 automated checks
 - `log.md` — timestamped change entries with verification
 - `.kjerne/DEBT.md` — planned change tracking with priority
-- Git history — full commit log with diffs
+- Git history — full commit log with diffs, linked to CRs via `commit_shas`
 - `backup_db.sh` + systemd timer — pre-deployment backup evidence
+
+<!-- policy-watches: syn/audit/models.py:ChangeRequest, syn/audit/compliance.py:check_change_management, docs/standards/CHG-001.md -->

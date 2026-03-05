@@ -1,7 +1,7 @@
 """
 Automated compliance check implementations.
 
-Provides 25 checks covering SOC 2 trust service categories:
+Provides 29 checks covering SOC 2 trust service categories:
 Security, Availability, Confidentiality, Processing Integrity, Privacy.
 
 Checks run on a rotating daily schedule via syn.sched.
@@ -17,7 +17,7 @@ import re as _re
 import subprocess
 import sys
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from django.conf import settings
@@ -61,6 +61,254 @@ def get_all_soc2_controls():
     for fn, _cat in ALL_CHECKS.values():
         controls.update(getattr(fn, "soc2_controls", []))
     return sorted(controls)
+
+
+# ---------------------------------------------------------------------------
+# SOC 2 Control Matrix — all 44 controls mapped to compliance checks
+# ---------------------------------------------------------------------------
+
+SOC2_CONTROL_MATRIX = {
+    # CC1 — Control Environment
+    "CC1.1": {"category": "security", "tsc": "CC1", "name": "Integrity and ethical values",
+              "checks": [], "manual_status": "partial", "manual_reason": "Policy drafted, no signed acknowledgment"},
+    "CC1.2": {"category": "security", "tsc": "CC1", "name": "Board oversight",
+              "checks": ["change_management"], "manual_status": "met"},
+    "CC1.3": {"category": "security", "tsc": "CC1", "name": "Structure and authority",
+              "checks": ["permission_coverage"], "manual_status": "met"},
+    "CC1.4": {"category": "security", "tsc": "CC1", "name": "Commitment to competence",
+              "checks": [], "manual_status": "met"},
+    "CC1.5": {"category": "security", "tsc": "CC1", "name": "Enforces accountability",
+              "checks": ["change_management"], "manual_status": "met"},
+
+    # CC2 — Communication and Information
+    "CC2.1": {"category": "security", "tsc": "CC2", "name": "Uses relevant quality information",
+              "checks": ["log_completeness", "access_logging"], "manual_status": "partial",
+              "manual_reason": "Logs exist, no centralized monitoring/alerting"},
+    "CC2.2": {"category": "security", "tsc": "CC2", "name": "Communicates internally",
+              "checks": ["change_management"], "manual_status": "met"},
+    "CC2.3": {"category": "security", "tsc": "CC2", "name": "Communicates externally",
+              "checks": [], "manual_status": "partial", "manual_reason": "ToS/privacy need SOC 2 alignment review"},
+
+    # CC3 — Risk Assessment
+    "CC3.1": {"category": "security", "tsc": "CC3", "name": "Specifies suitable objectives",
+              "checks": ["architecture_map", "roadmap"], "manual_status": "met"},
+    "CC3.2": {"category": "security", "tsc": "CC3", "name": "Identifies and analyzes risk",
+              "checks": ["change_management"], "manual_status": "partial",
+              "manual_reason": "No formal risk register with likelihood/impact scoring"},
+    "CC3.3": {"category": "security", "tsc": "CC3", "name": "Considers potential for fraud",
+              "checks": ["rate_limiting"], "manual_status": "partial",
+              "manual_reason": "No formal fraud risk assessment"},
+    "CC3.4": {"category": "security", "tsc": "CC3", "name": "Identifies and assesses changes",
+              "checks": ["change_management"], "manual_status": "met"},
+
+    # CC4 — Monitoring Activities
+    "CC4.1": {"category": "security", "tsc": "CC4", "name": "Monitoring activities",
+              "checks": ["standards_compliance", "sla_compliance", "statistical_calibration", "output_quality"],
+              "manual_status": "partial", "manual_reason": "No active monitoring/alerting system"},
+    "CC4.2": {"category": "security", "tsc": "CC4", "name": "Evaluates deficiencies",
+              "checks": [], "manual_status": "met"},
+
+    # CC5 — Control Activities
+    "CC5.1": {"category": "security", "tsc": "CC5", "name": "Control activities",
+              "checks": ["security_config", "permission_coverage"], "manual_status": "met"},
+    "CC5.2": {"category": "security", "tsc": "CC5", "name": "Technology controls",
+              "checks": ["security_headers"], "manual_status": "met"},
+    "CC5.3": {"category": "security", "tsc": "CC5", "name": "Policies and procedures",
+              "checks": [], "manual_status": "partial", "manual_reason": "No automated deployment pipeline"},
+
+    # CC6 — Logical and Physical Access
+    "CC6.1": {"category": "security", "tsc": "CC6", "name": "Logical access security",
+              "checks": ["security_config", "encryption_status", "password_policy", "session_security",
+                         "secret_management", "security_headers", "caching"],
+              "manual_status": "met"},
+    "CC6.2": {"category": "security", "tsc": "CC6", "name": "User authentication",
+              "checks": ["rate_limiting", "permission_coverage"], "manual_status": "partial",
+              "manual_reason": "No MFA"},
+    "CC6.3": {"category": "security", "tsc": "CC6", "name": "Infrastructure access",
+              "checks": ["permission_coverage"], "manual_status": "met"},
+    "CC6.4": {"category": "security", "tsc": "CC6", "name": "Software access restriction",
+              "checks": ["permission_coverage"], "manual_status": "met"},
+    "CC6.5": {"category": "security", "tsc": "CC6", "name": "Physical access",
+              "checks": [], "manual_status": "met"},
+    "CC6.6": {"category": "security", "tsc": "CC6", "name": "System lifecycle access",
+              "checks": ["session_security"], "manual_status": "partial",
+              "manual_reason": "No formal offboarding/deprovisioning workflow"},
+    "CC6.7": {"category": "security", "tsc": "CC6", "name": "Infrastructure changes",
+              "checks": ["change_management", "ssl_tls"], "manual_status": "met"},
+    "CC6.8": {"category": "security", "tsc": "CC6", "name": "Security vulnerabilities",
+              "checks": ["dependency_vuln"], "manual_status": "partial",
+              "manual_reason": "No automated vulnerability scanning pipeline"},
+
+    # CC7 — System Operations
+    "CC7.1": {"category": "security", "tsc": "CC7", "name": "Vulnerability detection",
+              "checks": ["dependency_vuln"], "manual_status": "partial",
+              "manual_reason": "pip-audit check exists but no continuous scanning pipeline"},
+    "CC7.2": {"category": "security", "tsc": "CC7", "name": "Anomaly monitoring",
+              "checks": ["audit_integrity", "access_logging", "log_completeness", "error_handling",
+                         "architecture_map", "architecture", "caching", "output_quality"],
+              "manual_status": "partial", "manual_reason": "No application-level anomaly detection"},
+    "CC7.3": {"category": "security", "tsc": "CC7", "name": "Security event evaluation",
+              "checks": ["audit_integrity"], "manual_status": "partial",
+              "manual_reason": "No SIEM or automated triage"},
+    "CC7.4": {"category": "security", "tsc": "CC7", "name": "Incident response",
+              "checks": ["incident_readiness"], "manual_status": "partial",
+              "manual_reason": "Policy drafted, not tested via tabletop exercise"},
+    "CC7.5": {"category": "security", "tsc": "CC7", "name": "System fault handling",
+              "checks": ["error_handling"], "manual_status": "met"},
+
+    # CC8 — Change Management
+    "CC8.1": {"category": "security", "tsc": "CC8", "name": "Change management",
+              "checks": ["change_management", "code_style", "architecture", "symbol_coverage"],
+              "manual_status": "partial", "manual_reason": "No CI/CD, no staging environment"},
+
+    # CC9 — Risk Mitigation
+    "CC9.1": {"category": "security", "tsc": "CC9", "name": "Vendor risk assessment",
+              "checks": ["standards_compliance", "roadmap"], "manual_status": "partial",
+              "manual_reason": "No formal vendor assessment process"},
+    "CC9.2": {"category": "security", "tsc": "CC9", "name": "Vendor relationships",
+              "checks": ["backup_freshness", "sla_compliance"], "manual_status": "partial",
+              "manual_reason": "No regular vendor review cadence"},
+
+    # A1 — Availability
+    "A1.1": {"category": "availability", "tsc": "A1", "name": "Capacity management",
+             "checks": ["sla_compliance"], "manual_status": "partial",
+             "manual_reason": "No auto-scaling or capacity monitoring/alerting"},
+    "A1.2": {"category": "availability", "tsc": "A1", "name": "Environmental threats",
+             "checks": ["backup_freshness"], "manual_status": "met"},
+    "A1.3": {"category": "availability", "tsc": "A1", "name": "Recovery operations",
+             "checks": ["backup_freshness"], "manual_status": "partial",
+             "manual_reason": "Backups on same machine, no off-site replication"},
+
+    # PI1 — Processing Integrity
+    "PI1.1": {"category": "processing_integrity", "tsc": "PI1", "name": "Quality information",
+              "checks": ["output_quality"], "manual_status": "met"},
+    "PI1.2": {"category": "processing_integrity", "tsc": "PI1", "name": "Accurate processing",
+              "checks": ["statistical_calibration", "output_quality"], "manual_status": "met"},
+    "PI1.3": {"category": "processing_integrity", "tsc": "PI1", "name": "Complete processing",
+              "checks": ["audit_integrity"], "manual_status": "partial",
+              "manual_reason": "No end-to-end data integrity checksums"},
+    "PI1.4": {"category": "processing_integrity", "tsc": "PI1", "name": "Accurate outputs",
+              "checks": ["output_quality", "statistical_calibration"], "manual_status": "met"},
+    "PI1.5": {"category": "processing_integrity", "tsc": "PI1", "name": "Error handling",
+              "checks": ["error_handling"], "manual_status": "met"},
+
+    # C1 — Confidentiality
+    "C1.1": {"category": "confidentiality", "tsc": "C1", "name": "Identifies confidential info",
+             "checks": ["encryption_status"], "manual_status": "partial",
+             "manual_reason": "Classification policy drafted, not enforced systematically"},
+    "C1.2": {"category": "confidentiality", "tsc": "C1", "name": "Protects confidential info",
+             "checks": ["encryption_status", "ssl_tls", "session_security"], "manual_status": "met"},
+    "C1.3": {"category": "confidentiality", "tsc": "C1", "name": "Disposes confidential info",
+             "checks": ["data_retention"], "manual_status": "partial",
+             "manual_reason": "No formal data disposal/retention SLA"},
+
+    # P1 — Privacy
+    "P1.1": {"category": "privacy", "tsc": "P1", "name": "Privacy notice",
+             "checks": [], "manual_status": "partial", "manual_reason": "Needs SOC 2 alignment review"},
+    "P1.2": {"category": "privacy", "tsc": "P1", "name": "Choice and consent",
+             "checks": [], "manual_status": "partial", "manual_reason": "No granular consent management"},
+    "P1.3": {"category": "privacy", "tsc": "P1", "name": "PII collection purpose",
+             "checks": [], "manual_status": "met"},
+    "P1.4": {"category": "privacy", "tsc": "P1", "name": "PII usage limitation",
+             "checks": [], "manual_status": "met"},
+    "P1.5": {"category": "privacy", "tsc": "P1", "name": "PII retention",
+             "checks": ["data_retention"], "manual_status": "partial",
+             "manual_reason": "No formal retention schedule"},
+    "P1.6": {"category": "privacy", "tsc": "P1", "name": "PII disposal",
+             "checks": ["data_retention"], "manual_status": "partial",
+             "manual_reason": "No verified complete data deletion"},
+    "P1.7": {"category": "privacy", "tsc": "P1", "name": "PII quality",
+             "checks": [], "manual_status": "met"},
+    "P1.8": {"category": "privacy", "tsc": "P1", "name": "PII access and correction",
+             "checks": [], "manual_status": "gap", "manual_reason": "No self-service data export"},
+}
+
+
+def _min_status(a, b):
+    """Return the worse of two statuses (gap < partial < met)."""
+    order = {"gap": 0, "partial": 1, "met": 2}
+    return a if order.get(a, 0) <= order.get(b, 0) else b
+
+
+def soc2_control_coverage():
+    """Evaluate all 44 SOC 2 controls against latest compliance check results.
+
+    Returns dict with:
+    - controls: list of {id, name, category, tsc, status, checks, check_results, reason}
+    - by_tsc: {tsc: {met, partial, gap}} counts per TSC category
+    - overall: {met, partial, gap} total counts
+    - score: percentage of met controls
+    """
+    from syn.audit.models import ComplianceCheck
+
+    # Get latest result per check
+    latest_results = {}
+    for check_name in ALL_CHECKS:
+        latest = ComplianceCheck.objects.filter(
+            check_name=check_name
+        ).order_by("-run_at").first()
+        if latest:
+            latest_results[check_name] = latest.status
+
+    controls = []
+    tsc_summary = {}
+
+    for ctrl_id in sorted(SOC2_CONTROL_MATRIX.keys()):
+        ctrl = SOC2_CONTROL_MATRIX[ctrl_id]
+        tsc = ctrl["tsc"]
+        if tsc not in tsc_summary:
+            tsc_summary[tsc] = {"met": 0, "partial": 0, "gap": 0}
+
+        # Start with manual status
+        effective_status = ctrl["manual_status"]
+        manual_reason = ctrl.get("manual_reason", "")
+
+        # If checks are mapped, let automated results influence status
+        mapped_checks = ctrl.get("checks", [])
+        if mapped_checks:
+            check_statuses = []
+            for cn in mapped_checks:
+                cs = latest_results.get(cn)
+                if cs:
+                    check_statuses.append((cn, cs))
+
+            if check_statuses:
+                if any(s == "fail" for _, s in check_statuses):
+                    effective_status = _min_status(effective_status, "partial")
+                elif any(s == "error" for _, s in check_statuses):
+                    effective_status = _min_status(effective_status, "partial")
+                elif all(s == "pass" for _, s in check_statuses):
+                    # All checks pass — can upgrade partial to met if no structural blocker
+                    if effective_status == "partial" and not manual_reason:
+                        effective_status = "met"
+
+        controls.append({
+            "id": ctrl_id,
+            "name": ctrl["name"],
+            "category": ctrl["category"],
+            "tsc": tsc,
+            "status": effective_status,
+            "checks": mapped_checks,
+            "check_results": {cn: latest_results.get(cn, "pending") for cn in mapped_checks},
+            "reason": manual_reason if effective_status != "met" else "",
+            "policy_evidence": ctrl.get("policy_evidence", ""),
+        })
+
+        tsc_summary[tsc][effective_status] += 1
+
+    total = {"met": 0, "partial": 0, "gap": 0}
+    for tsc_counts in tsc_summary.values():
+        for k in total:
+            total[k] += tsc_counts[k]
+
+    score = round(total["met"] / max(sum(total.values()), 1) * 100, 1)
+
+    return {
+        "controls": controls,
+        "by_tsc": tsc_summary,
+        "overall": total,
+        "score": score,
+    }
 
 
 # Critical checks run every day; others rotate by weekday (0=Mon)
@@ -3894,4 +4142,97 @@ def check_output_quality():
             "bounds_validation": status != "fail",
         },
         "soc2_controls": ["CC4.1", "CC7.2"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Policy staleness detection
+# ---------------------------------------------------------------------------
+
+def _extract_policy_date(content):
+    """Extract the most recent date from policy header (Last Updated or Effective Date)."""
+    # Prefer Last Updated over Effective Date
+    for pattern in [r"\*\*Last Updated:\*\*\s*(\d{4}-\d{2}-\d{2})",
+                    r"\*\*Effective Date:\*\*\s*(\d{4}-\d{2}-\d{2})"]:
+        m = _re.search(pattern, content)
+        if m:
+            try:
+                return date.fromisoformat(m.group(1))
+            except ValueError:
+                continue
+    return None
+
+
+def _extract_policy_watches(content):
+    """Extract watched files from <!-- policy-watches: ... --> tags."""
+    watches = []
+    for m in _re.finditer(r"<!--\s*policy-watches:\s*(.+?)\s*-->", content):
+        for entry in m.group(1).split(","):
+            entry = entry.strip()
+            if ":" in entry:
+                fpath, symbol = entry.split(":", 1)
+                watches.append({"file": fpath.strip(), "symbol": symbol.strip()})
+            elif entry:
+                watches.append({"file": entry, "symbol": ""})
+    return watches
+
+
+@register("policy_review", "processing_integrity", soc2_controls=["CC1.5", "CC5.3"])
+def check_policy_review():
+    """Detect policies that may be stale relative to code changes they depend on."""
+    policy_dir = _GIT_ROOT / "docs" / "compliance" / "policies"
+    web_dir = _GIT_ROOT / "services" / "svend" / "web"
+    findings = []
+    policies_checked = 0
+    policies_with_watches = 0
+
+    if not policy_dir.exists():
+        return {
+            "status": "warning",
+            "details": {"message": "Policy directory not found", "policies_checked": 0},
+        }
+
+    for md in sorted(policy_dir.glob("*.md")):
+        content = md.read_text()
+        policies_checked += 1
+
+        last_updated = _extract_policy_date(content)
+        watches = _extract_policy_watches(content)
+
+        if not watches:
+            continue
+        policies_with_watches += 1
+
+        stale_watches = []
+        for watch in watches:
+            # Resolve watched file relative to web/ (code files) or repo root (docs)
+            watched_path = web_dir / watch["file"]
+            if not watched_path.exists():
+                watched_path = _GIT_ROOT / watch["file"]
+            if watched_path.exists():
+                mtime = datetime.fromtimestamp(watched_path.stat().st_mtime).date()
+                if last_updated and mtime > last_updated:
+                    stale_watches.append({
+                        "file": watch["file"],
+                        "symbol": watch.get("symbol", ""),
+                        "modified": mtime.isoformat(),
+                    })
+
+        if stale_watches:
+            findings.append({
+                "policy": md.name,
+                "last_updated": last_updated.isoformat() if last_updated else "unknown",
+                "stale_watches": stale_watches,
+                "message": f"{md.name}: {len(stale_watches)} watched file(s) changed since last update",
+            })
+
+    status = "warning" if findings else "pass"
+    return {
+        "status": status,
+        "details": {
+            "policies_checked": policies_checked,
+            "policies_with_watches": policies_with_watches,
+            "stale_policies": len(findings),
+            "findings": findings,
+        },
     }

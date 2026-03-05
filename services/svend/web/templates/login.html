@@ -219,7 +219,8 @@
                 if (response.ok) {
                     window.location.href = nextUrl;
                 } else {
-                    errorDiv.textContent = data.error || 'Invalid credentials';
+                    const errMsg = (data.error && typeof data.error === 'object') ? data.error.message : data.error;
+                    errorDiv.textContent = errMsg || 'Invalid credentials';
                     errorDiv.classList.add('show');
                 }
             } catch (err) {

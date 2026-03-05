@@ -1,6 +1,6 @@
 # Remediation Tracker
 
-**Last Updated:** 2026-03-03 (Synara migration re-audit)
+**Last Updated:** 2026-03-05 (SOC 2 quick wins + CHG-001 lockdown)
 **Purpose:** Track every gap and partial control from gap-analysis.md through to resolution
 
 Status: **Open** | **In Progress** | **Done** | **Accepted** (risk accepted, won't fix)
@@ -11,12 +11,12 @@ Status: **Open** | **In Progress** | **Done** | **Accepted** (risk accepted, won
 
 | ID | Gap | Action | Owner | DEBT Ref | Target Date | Status |
 |---|---|---|---|---|---|---|
-| REM-01 | PAR-02: PBKDF2 password hashing | Install argon2-cffi; update PASSWORD_HASHERS to Argon2id first | Eric | P1 M2 | TBD | Open |
-| REM-02 | PAR-04: Email tokens never expire | Add created_at check in verify_email; reject tokens > 48 hours | Eric | P1 M7 | TBD | Open |
+| REM-01 | PAR-02: PBKDF2 password hashing | ~~Install argon2-cffi~~ | Eric | P1 M2 | 2026-03-05 | **Done** |
+| REM-02 | PAR-04: Email tokens never expire | ~~Add 24h expiry check~~ | Eric | P1 M7 | 2026-03-05 | **Done** |
 | REM-03 | PAR-06: Silent decryption failure | Change encryption.py fallback to raise exception instead of returning ciphertext | Eric | P1 H6 | TBD | Open |
 | REM-04 | PAR-07: Webhook replay | Store processed Stripe event IDs; skip duplicates in webhook handler | Eric | P1 H7 | TBD | Open |
-| REM-05 | PAR-01: Session timeout | Set SESSION_COOKIE_AGE=28800 (8hr); add middleware for 1hr idle timeout | Eric | P1 M1 | TBD | Open |
-| REM-06 | PAR-03: Account lockout | Add failed login counter; lock account for 15 min after 5 failures | Eric | P1 H3 | TBD | Open |
+| REM-05 | PAR-01: Session timeout | ~~SESSION_COOKIE_AGE=28800 already set~~ | Eric | P1 M1 | 2026-03-05 | **Done** |
+| REM-06 | PAR-03: Account lockout | ~~LoginAttempt model + login view integration~~ | Eric | P1 H3 | 2026-03-05 | **Done** |
 | REM-07 | PAR-05: Guest token hashing | Hash guest tokens with SHA-256 (like verification tokens) | Eric | P1 M18 | TBD | Open |
 | REM-08 | GAP-03: Dependency scanning | Enable GitHub Dependabot alerts on kjerne repo | Eric | -- | TBD | Open |
 
@@ -59,6 +59,12 @@ Status: **Open** | **In Progress** | **Done** | **Accepted** (risk accepted, won
 
 | ID | Gap | Action Taken | Completed | Evidence |
 |---|---|---|---|---|
+| REM-01 | PAR-02: Argon2 password hashing | Installed argon2-cffi; `PASSWORD_HASHERS` set to Argon2id primary with PBKDF2 fallback in `settings.py` | 2026-03-05 | `svend/settings.py` PASSWORD_HASHERS |
+| REM-02 | PAR-04: Email token expiry | Added `email_verification_token_sent_at` field; 24h expiry check in `verify_email()` | 2026-03-05 | `accounts/models.py` verify_email() |
+| REM-05 | PAR-01: Session timeout | SESSION_COOKIE_AGE=28800 (8hr) already in place; confirmed working | 2026-03-05 | `svend/settings.py` line 149 |
+| REM-06 | PAR-03: Account lockout | `LoginAttempt` model with `is_locked_out()`, `record()`, `clear_on_success()`; integrated into login view | 2026-03-05 | `accounts/models.py`, `api/views.py` login() |
+| CHG-01 | CC1.5/CC3.4/CC6.7/CC8.1: Change management gaps | CHG-001 v1.6 lockdown: ChangeRequest model validation, API transition gates, 14-check compliance check, risk assessment enforcement for all code types, 76 CRs backfilled | 2026-03-05 | `syn/audit/models.py`, `syn/audit/compliance.py`, `api/internal_views.py` |
+| SOC-01 | SOC 2 compliance automation | `SOC2_CONTROL_MATRIX` (52 controls), `soc2_control_coverage()` function, dashboard with Pareto charts and TSC breakdowns | 2026-03-05 | `syn/audit/compliance.py`, `templates/internal_dashboard.html` |
 | SYN-01 | CC6.4/CC6.8: IDOR vulnerabilities | Synara migration: per-resource ownership validation on all belief graph, hypothesis, and evidence endpoints | 2026-03-03 | `synara_views.py` — all queries filter by `user=request.user` or tenant membership |
 | SYN-02 | PI1.3: Persistence safety | Synara migration: transaction-scoped saves with proper FK cascade; no orphaned data on partial failures | 2026-03-03 | `synara_views.py`, `synara/synara.py` — atomic operations on graph mutations |
 | SYN-03 | A1.1: Unbounded cache growth | Synara migration: graph cache bounded to max 1000 entries with 30-min TTL | 2026-03-03 | `synara/` — LRU cache with explicit bounds |

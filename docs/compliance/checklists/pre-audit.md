@@ -1,6 +1,6 @@
 # Pre-Audit Readiness Checklist
 
-**Last Updated:** 2026-03-03
+**Last Updated:** 2026-03-05
 **Purpose:** Verify all SOC 2 audit requirements are met before engaging an auditor
 
 Status key: PASS / FAIL / N/A
@@ -30,8 +30,8 @@ Status key: PASS / FAIL / N/A
 |---|---|---|---|---|
 | 2.1 | Password policy enforced (length, complexity) | PASS | `settings.py` AUTH_PASSWORD_VALIDATORS | 4 validators active |
 | 2.2 | MFA enabled for privileged accounts | **FAIL** | -- | Not implemented (GAP-01) |
-| 2.3 | Session timeout configured | **FAIL** | `settings.py` | Django default 14 days (PAR-01) |
-| 2.4 | Account lockout after failed attempts | **FAIL** | -- | Not implemented (PAR-03) |
+| 2.3 | Session timeout configured | PASS | `settings.py` SESSION_COOKIE_AGE=28800 | 8 hours (SOC 2 CC6.1/CC6.6) |
+| 2.4 | Account lockout after failed attempts | PASS | `accounts/models.py` LoginAttempt | 5 failures → 15 min lockout |
 | 2.5 | RBAC enforced across all endpoints | PASS | `permissions.py` decorators | Tier + role-based |
 | 2.6 | Least privilege for infrastructure access | PASS | SSH key-only; localhost DB | Single admin |
 | 2.7 | User onboarding requires email verification | PASS | `accounts/models.py` | SHA-256 hashed tokens |
@@ -50,7 +50,7 @@ Status key: PASS / FAIL / N/A
 | 3.5 | Key rotation procedure documented | PASS | `policies/encryption.md` sec 4.2 | Not yet tested |
 | 3.6 | Key rotation tested | **FAIL** | -- | Never performed |
 | 3.7 | No secrets in source code | PASS | `.gitignore`, env vars | Verified in codebase audit |
-| 3.8 | Password hashing uses strong algorithm | PASS | PBKDF2-SHA256 | Argon2 upgrade planned |
+| 3.8 | Password hashing uses strong algorithm | PASS | Argon2id primary | `settings.py` PASSWORD_HASHERS; PBKDF2 fallback |
 
 ## 4. Logging and Monitoring
 
@@ -71,7 +71,7 @@ Status key: PASS / FAIL / N/A
 |---|---|---|---|---|
 | 5.1 | Version control in use | PASS | Git | Full history available |
 | 5.2 | Change log maintained | PASS | `log.md` | Timestamped entries |
-| 5.3 | Changes reviewed before deployment | PASS | Founder + AI review | |
+| 5.3 | Changes reviewed before deployment | PASS | Founder + AI review; multi-agent risk assessment | CHG-001 v1.6 |
 | 5.4 | Rollback procedure documented | PASS | `policies/change-management.md` | |
 | 5.5 | Pre-deployment backup performed | PASS | `backup_db.sh` | Daily automated |
 | 5.6 | Automated testing in CI/CD | **FAIL** | -- | No CI/CD pipeline (PAR-10) |
@@ -126,7 +126,7 @@ Status key: PASS / FAIL / N/A
 | Category | Pass | Fail | Total | Pass Rate |
 |---|---|---|---|---|
 | Governance | 12 | 0 | 12 | 100% |
-| Access Control | 5 | 5 | 10 | 50% |
+| Access Control | 7 | 3 | 10 | 70% |
 | Encryption | 7 | 1 | 8 | 88% |
 | Logging/Monitoring | 5 | 3 | 8 | 63% |
 | Change Management | 5 | 3 | 8 | 63% |
@@ -134,6 +134,6 @@ Status key: PASS / FAIL / N/A
 | Business Continuity | 3 | 3 | 6 | 50% |
 | Vendor Management | 4 | 1 | 5 | 80% |
 | Privacy | 2 | 3 | 5 | 40% |
-| **Total** | **47** | **20** | **67** | **70%** |
+| **Total** | **49** | **18** | **67** | **73%** |
 
-**Audit readiness: Not yet ready.** 20 items must be remediated before engaging an auditor. See [remediation.md](remediation.md) for the fix tracker.
+**Audit readiness: Improving.** 18 items remain. Session timeout, account lockout, and Argon2 hashing fixed. CHG-001 v1.6 strengthened change management. See [remediation.md](remediation.md) for fix tracker.

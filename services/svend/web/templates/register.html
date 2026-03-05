@@ -295,8 +295,9 @@
                     funnelEvent('submit_success');
                     window.location.href = redirectUrl;
                 } else {
-                    funnelEvent('submit_error', data.error || 'unknown');
-                    errorDiv.textContent = data.error || 'Registration failed';
+                    const errMsg = (data.error && typeof data.error === 'object') ? data.error.message : data.error;
+                    funnelEvent('submit_error', errMsg || 'unknown');
+                    errorDiv.textContent = errMsg || 'Registration failed';
                     errorDiv.classList.add('show');
                 }
             } catch (err) {

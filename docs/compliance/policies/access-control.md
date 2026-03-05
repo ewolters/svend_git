@@ -3,6 +3,7 @@
 **Policy ID:** ACP-001
 **Version:** 1.0
 **Effective Date:** 2026-03-03
+**Last Updated:** 2026-03-05
 **Owner:** Eric (Founder)
 **Review Cycle:** Annual
 **Parent Policy:** [Information Security Policy](information-security.md)
@@ -29,7 +30,7 @@ Define controls for authenticating users, authorizing access to resources, and m
 | Minimum length | Django MinimumLengthValidator (8 chars) | `settings.py` AUTH_PASSWORD_VALIDATORS |
 | Complexity | NumericPasswordValidator + CommonPasswordValidator | `settings.py` |
 | Similarity check | UserAttributeSimilarityValidator | `settings.py` |
-| Hashing algorithm | PBKDF2-SHA256 (migration to Argon2id planned) | Django PASSWORD_HASHERS |
+| Hashing algorithm | Argon2id (primary); PBKDF2-SHA256 (fallback for legacy hashes) | `settings.py` PASSWORD_HASHERS |
 
 ### 3.2 Multi-Factor Authentication
 
@@ -41,20 +42,21 @@ Define controls for authenticating users, authorizing access to resources, and m
 
 ### 3.3 Session Management
 
-| Control | Current State | Target |
+| Control | Implementation | Reference |
 |---|---|---|
-| Session duration | 14 days (Django default) | 8 hours absolute, 1 hour idle |
-| Cookie security | HTTPOnly, Secure, SameSite=Lax | No change needed |
-| Session invalidation on password change | Not implemented | Invalidate all sessions on password reset |
+| Session duration | 8 hours absolute (`SESSION_COOKIE_AGE=28800`) | `settings.py` |
+| Cookie security | HTTPOnly, Secure, SameSite=Lax | `settings.py` |
+| Session invalidation on password change | Not yet implemented (REM-14) | Target: invalidate all sessions on password reset |
 | Concurrent session limit | No limit | Monitor but don't limit (user experience) |
 
 ### 3.4 Account Lockout
 
-| Control | Current State | Target |
+| Control | Implementation | Reference |
 |---|---|---|
-| Failed login lockout | None | Lock for 15 minutes after 5 failed attempts |
-| Notification | None | Email notification on lockout |
-| Username enumeration | Distinct error messages | Generic "invalid credentials" response |
+| Failed login lockout | 5 failed attempts → 15-minute lockout | `accounts/models.py` LoginAttempt |
+| IP-based throttle | DRF throttle per IP (complements username lockout) | `settings.py` REST_FRAMEWORK |
+| Notification | Not yet implemented | Target: email notification on lockout |
+| Username enumeration | Generic "invalid credentials" response | `api/views.py` login() |
 
 ### 3.5 Email Verification
 
@@ -62,7 +64,7 @@ Define controls for authenticating users, authorizing access to resources, and m
 |---|---|
 | Required for account activation | Yes — token sent via email |
 | Token storage | SHA-256 hashed |
-| Token expiry | None (gap — target: 48 hours) |
+| Token expiry | 24 hours (implemented via `email_verification_token_sent_at`) |
 
 ## 4. Authorization Model
 
@@ -158,3 +160,5 @@ Rate limit responses return HTTP 429 with remaining quota information.
 - Password policy reviewed annually
 - Failed login patterns reviewed monthly (once monitoring is active)
 - Org role assignments reviewed quarterly by org owners
+
+<!-- policy-watches: settings.py:PASSWORD_HASHERS, settings.py:SESSION_COOKIE_AGE, accounts/models.py:LoginAttempt, accounts/models.py:verify_email -->

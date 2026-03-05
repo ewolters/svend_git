@@ -3856,6 +3856,14 @@ def api_compliance(request):
             sla_data["run_at"] = sla_check.run_at.isoformat()
             sla_data["slas"] = d.get("sla_results", [])
 
+        # SOC 2 control coverage
+        soc2_data = {}
+        try:
+            from syn.audit.compliance import soc2_control_coverage
+            soc2_data = soc2_control_coverage()
+        except Exception as e:
+            logger.warning("SOC 2 coverage computation failed: %s", e)
+
         # Overall pass rate: infrastructure checks + standard assertions
         # Only "pass" counts — warnings count against
         all_total = checks_total + standards_total
@@ -3880,6 +3888,7 @@ def api_compliance(request):
             "code_coverage": code_coverage,
             "calibration": calibration_data,
             "sla": sla_data,
+            "soc2": soc2_data,
         })
     except Exception as e:
         logger.warning("Compliance data query failed: %s", e)

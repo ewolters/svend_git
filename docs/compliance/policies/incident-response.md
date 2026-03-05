@@ -3,6 +3,7 @@
 **Policy ID:** IRP-001
 **Version:** 1.0
 **Effective Date:** 2026-03-03
+**Last Updated:** 2026-03-05
 **Owner:** Eric (Founder)
 **Review Cycle:** Annual + after every incident
 **Parent Policy:** [Information Security Policy](information-security.md)
@@ -42,12 +43,19 @@ Define how Svend detects, responds to, contains, eradicates, and recovers from s
 | Caddy logs | Request patterns, TLS errors | `/var/log/caddy/svend.log` |
 | Stripe webhooks | Payment fraud, subscription anomalies | `billing.py` |
 
-### 4.2 Detection Gaps (Planned)
+### 4.2 Partial Detection (Implemented 2026-03-05)
+
+| Source | What It Detects | Location |
+|---|---|---|
+| LoginAttempt model | Failed login surges per username; account lockout triggers (5 failures → 15-min lockout) | `accounts/models.py` |
+| DRF throttling | Per-IP request rate anomalies | `settings.py` REST_FRAMEWORK |
+
+### 4.3 Detection Gaps (Planned)
 
 - Application-level anomaly detection (unusual data access patterns)
 - Real-time alerting on error rate spikes
 - Uptime monitoring with external health checks
-- Failed login surge alerting
+- Failed login surge **alerting** (data is captured via LoginAttempt, but no active alerting yet)
 
 ## 5. Response Procedure
 
@@ -181,3 +189,5 @@ about this incident.
 | Cloudflare Support | Cloudflare | Dashboard / support ticket |
 | Stripe Support | Stripe | Dashboard / support@stripe.com |
 | Anthropic Support | Anthropic | Dashboard / support channel |
+
+<!-- policy-watches: accounts/models.py:LoginAttempt -->

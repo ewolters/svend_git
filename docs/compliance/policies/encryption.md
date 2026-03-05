@@ -3,6 +3,7 @@
 **Policy ID:** ENC-001
 **Version:** 1.0
 **Effective Date:** 2026-03-03
+**Last Updated:** 2026-03-05
 **Owner:** Eric (Founder)
 **Review Cycle:** Annual
 **Parent Policy:** [Information Security Policy](information-security.md)
@@ -44,7 +45,7 @@ Define cryptographic standards for protecting data in transit, at rest, and in b
 |---|---|---|---|
 | Field-level encryption | Fernet (AES-128-CBC + HMAC-SHA256) | 128-bit AES | `core/encryption.py` |
 | File encryption | Fernet | 128-bit AES | `core/encrypted_storage.py` |
-| Password hashing | PBKDF2-SHA256 (target: Argon2id) | N/A | Django PASSWORD_HASHERS |
+| Password hashing | Argon2id (primary); PBKDF2-SHA256 (fallback) | N/A | `settings.py` PASSWORD_HASHERS |
 | Token hashing | SHA-256 | 256-bit | Email verification tokens |
 | IP anonymization | SHA-256 | 256-bit | SiteVisit analytics |
 
@@ -126,8 +127,13 @@ Define cryptographic standards for protecting data in transit, at rest, and in b
 | Silent decryption failure returns ciphertext | Ciphertext exposed as plaintext on key mismatch | Change fallback to raise exception | Open (P1 H6) |
 | No key rotation procedure tested | Key compromise requires manual re-encryption | Implement and test rotation script | Open |
 | Fernet uses AES-128, not AES-256 | Adequate but not maximum strength | Accept — Fernet's HMAC-SHA256 adds integrity; AES-128 is sufficient for SOC 2 | Accepted |
-| PBKDF2 for passwords (not Argon2) | Weaker against GPU attacks | Migrate to Argon2id | Open (P1 M2) |
 | TEMPORA_CLUSTER_SECRET derived from SECRET_KEY | Chain of compromise | Separate secret | Open (P2 L7) |
+
+### Resolved Issues
+
+| Issue | Resolution | Date |
+|---|---|---|
+| PBKDF2 for passwords (not Argon2) | Migrated to Argon2id primary hasher; PBKDF2 fallback for legacy hashes (auto-upgrade on next login) | 2026-03-05 |
 
 ## 7. Compliance Mapping
 
@@ -136,4 +142,6 @@ Define cryptographic standards for protecting data in transit, at rest, and in b
 | Encryption in transit | CC6.1, C1.2 | Met (TLS 1.2+, HSTS, Cloudflare Tunnel) |
 | Encryption at rest | C1.2 | Met (Fernet for PII, AES-256 for backups) |
 | Key management | CC6.3 | Partial (keys secured, rotation not tested) |
-| Password hashing | CC6.2 | Partial (PBKDF2 adequate, Argon2 preferred) |
+| Password hashing | CC6.2 | Met (Argon2id primary, PBKDF2 fallback) |
+
+<!-- policy-watches: settings.py:PASSWORD_HASHERS -->

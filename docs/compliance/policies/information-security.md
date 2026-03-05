@@ -4,6 +4,7 @@
 **Version:** 1.0
 **Effective Date:** 2026-03-03
 **Owner:** Eric (Founder)
+**Last Updated:** 2026-03-05
 **Review Cycle:** Annual (next: 2027-03-03)
 
 ---
@@ -34,7 +35,7 @@ Svend is committed to:
 1. **Defense in depth** — Multiple layers: Cloudflare WAF, Caddy reverse proxy, Django application controls, database encryption
 2. **Least privilege** — Access granted only as needed; tier-based feature gating; org-level role restrictions
 3. **Encryption by default** — TLS 1.2+ in transit; Fernet at rest for PII; AES-256 for backups
-4. **Fail secure** — Authentication failures deny access; encryption failures raise exceptions (not fallback to plaintext)
+4. **Fail secure** — Authentication failures deny access; encryption failures should raise exceptions (note: silent decryption fallback is an open gap — REM-03)
 5. **Accountability** — All changes logged; security events tracked; audit trail maintained
 
 ## 5. Sub-Policies
@@ -66,6 +67,7 @@ This policy is implemented through the following specific policies:
 - SOC 2 Type II (target)
 - GDPR awareness (EU customers)
 - PCI DSS compliance delegated to Stripe (no card data touches Svend servers)
+- **Automated compliance monitoring:** 52-control SOC 2 matrix mapped to 25+ automated checks; `soc2_control_coverage()` provides live scoring; daily compliance checks via `run_daily_checks()` on rotating schedule; results on internal dashboard with Pareto charts and TSC breakdowns
 
 ## 8. Enforcement
 
@@ -89,3 +91,6 @@ Exceptions must be:
 - Immediate review after any security incident
 - Update required when infrastructure significantly changes
 - All reviews documented with date and findings
+- **Continuous monitoring:** `policy_review` compliance check detects when code changes affect policy-watched files, flagging policies that may need updating
+
+<!-- policy-watches: syn/audit/compliance.py:SOC2_CONTROL_MATRIX, syn/audit/compliance.py:soc2_control_coverage -->

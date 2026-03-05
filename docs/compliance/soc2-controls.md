@@ -1,6 +1,6 @@
 # SOC 2 Control Matrix — Svend Platform
 
-**Last Updated:** 2026-03-03 (Synara migration re-audit)
+**Last Updated:** 2026-03-05 (CHG-001 v1.6 lockdown + SOC 2 automation)
 
 Status key: **Met** = control operating | **Partial** = control exists with gaps | **Gap** = control not yet implemented
 
@@ -14,7 +14,7 @@ Status key: **Met** = control operating | **Partial** = control exists with gaps
 | CC1.2 | Board exercises oversight | Founder reviews all changes; AI collaborator provides second review on all code | Eric | `log.md`, git history | **Met** — small org, founder has direct oversight |
 | CC1.3 | Management establishes structure, authority, and responsibility | RBAC system with tier-based permissions; org roles (owner/admin/member/viewer) | Eric | `accounts/permissions.py`, `core/models/tenant.py` | **Met** |
 | CC1.4 | Demonstrates commitment to competence | Domain expertise documented; continuous improvement methodology encoded in platform | Eric | CLAUDE.md | **Met** |
-| CC1.5 | Enforces accountability | Change log maintained; debt tracker with priority system; all deploys logged | Eric | `log.md`, `.kjerne/DEBT.md` | **Partial** — manual process, no automated enforcement |
+| CC1.5 | Enforces accountability | 3-layer enforcement: model `clean()` rejects bad CRs, `validate_for_transition()` blocks state changes, daily `change_management` check (14 checks) flags all gaps | Eric | `syn/audit/models.py`, `syn/audit/compliance.py`, `api/internal_views.py` | **Met** — CHG-001 v1.6 automated enforcement |
 
 ## CC2 — Communication and Information
 
@@ -31,7 +31,7 @@ Status key: **Met** = control operating | **Partial** = control exists with gaps
 | CC3.1 | Specifies suitable objectives | Platform roadmap and architecture documented; TSC scope defined | Eric | `ARCHITECTURE.md`, this folder | **Met** |
 | CC3.2 | Identifies and analyzes risk | Security debt tracked with priority levels (P0-P3); gap analysis performed | Eric | `.kjerne/DEBT.md`, `gap-analysis.md` | **Partial** — needs formal risk register with likelihood/impact scoring |
 | CC3.3 | Considers potential for fraud | Input validation on all API endpoints; CSRF protection; rate limiting per tier; Synara DSL parser rejects injection-like inputs; LLM prompt injection hardened with structured message separation | Eric | Django views, `permissions.py`, `synara/dsl.py`, `synara/llm_interface.py` | **Partial** — no formal fraud risk assessment |
-| CC3.4 | Identifies and assesses changes | All infrastructure changes logged; manual review before deploy | Eric | `log.md` | **Partial** — no automated change detection |
+| CC3.4 | Identifies and assesses changes | ChangeRequest model with lifecycle tracking; daily `change_management` compliance check detects gaps automatically; `validate_for_transition()` blocks bad state transitions; multi-agent risk assessment for features/migrations | Eric | `syn/audit/models.py`, `syn/audit/compliance.py` | **Met** — CHG-001 v1.6 automated change detection |
 
 ## CC4 — Monitoring Activities
 
@@ -58,7 +58,7 @@ Status key: **Met** = control operating | **Partial** = control exists with gaps
 | CC6.4 | Restricts logical access to software | Tier-based feature gating; org-level role checks; per-resource ownership validation; IDOR audit completed across Synara endpoints (2026-03) | Eric | `permissions.py`, `synara_views.py` | **Met** |
 | CC6.5 | Restricts physical access | Server located in controlled environment | Eric | Physical access controls | **Met** |
 | CC6.6 | Manages system access during lifecycle | User accounts deactivated on subscription end; org invites expire in 7 days | Eric | `accounts/models.py`, `tenant.py` | **Partial** — no formal offboarding/deprovisioning workflow |
-| CC6.7 | Manages changes to infrastructure | All infra changes logged in `log.md` with git commits; DEBT tracker for planned changes | Eric | `log.md`, `.kjerne/DEBT.md` | **Partial** — manual process |
+| CC6.7 | Manages changes to infrastructure | ChangeRequest model with full lifecycle (draft → completed); immutable ChangeLog chain; risk assessment gating; commit SHA linkage; daily compliance monitoring | Eric | `syn/audit/models.py`, `syn/audit/compliance.py`, `log.md` | **Met** — CHG-001 v1.6 automated change management |
 | CC6.8 | Manages security vulnerabilities | Security issues tracked as P0/P1 in DEBT.md; prompt injection hardened (Synara LLM interface, DSL parser); IDOR audit completed (Synara migration 2026-03); cache bounds enforced | Eric | `.kjerne/DEBT.md`, `log.md`, `synara/` | **Partial** — no automated vulnerability scanning |
 
 ## CC7 — System Operations
