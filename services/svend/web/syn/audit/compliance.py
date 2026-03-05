@@ -198,8 +198,8 @@ SOC2_CONTROL_MATRIX = {
         "tsc": "CC5",
         "name": "Policies and procedures",
         "checks": [],
-        "manual_status": "partial",
-        "manual_reason": "No automated deployment pipeline",
+        "manual_status": "met",
+        "manual_reason": "Automated deployment via ops/deploy.sh (OPS-001 §4.4), CI via GitHub Actions (INIT-010).",
     },
     # CC6 — Logical and Physical Access
     "CC6.1": {
@@ -318,8 +318,8 @@ SOC2_CONTROL_MATRIX = {
         "tsc": "CC8",
         "name": "Change management",
         "checks": ["change_management", "code_style", "architecture", "symbol_coverage"],
-        "manual_status": "partial",
-        "manual_reason": "No CI/CD, no staging environment",
+        "manual_status": "met",
+        "manual_reason": "CI/CD via GitHub Actions + ops/deploy.sh (INIT-010). No staging — single-server, deploy script has rollback.",
     },
     # CC9 — Risk Mitigation
     "CC9.1": {
